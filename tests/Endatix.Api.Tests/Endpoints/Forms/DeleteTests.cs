@@ -66,7 +66,8 @@ public class DeleteTests
         // Arrange
         var formId = 1L;
         var request = new DeleteFormRequest { FormId = formId };
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = formId;
         var result = Result.Success(form);
 
         _mediator.Send(Arg.Any<DeleteFormCommand>(), Arg.Any<CancellationToken>())
@@ -86,7 +87,7 @@ public class DeleteTests
     {
         // Arrange
         var request = new DeleteFormRequest { FormId = 123 };
-        var result = Result.Success(new Form(SampleData.TENANT_ID, "Test Form"));
+        var result = Result.Success(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
         _mediator.Send(Arg.Any<DeleteFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

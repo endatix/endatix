@@ -448,7 +448,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
         await appDb.SaveChangesAsync(cancellationToken);
 
         // Two-step form+definition save avoids Form ↔ ActiveDefinition circular insert.
-        Form form = new(TenantId, "Export filter form");
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Export filter form"));
         appDb.Forms.Add(form);
         await appDb.SaveChangesAsync(cancellationToken);
 

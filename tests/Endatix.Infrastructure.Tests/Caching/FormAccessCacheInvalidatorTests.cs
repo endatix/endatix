@@ -77,7 +77,7 @@ public sealed class FormAccessCacheInvalidatorTests
         // Arrange
         var invalidator = Substitute.For<IFormAccessCacheInvalidator>();
         var handler = new InvalidateFormAccessCacheOnFormUpdatedHandler(invalidator);
-        var form = new Form(1, "Test form", isPublic: false);
+        var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Test form", IsPublic: false));
         var notification = new FormUpdatedEvent(form);
 
         // Act
@@ -93,7 +93,7 @@ public sealed class FormAccessCacheInvalidatorTests
         // Arrange
         var invalidator = Substitute.For<IFormAccessCacheInvalidator>();
         var handler = new InvalidateFormAccessCacheOnFormDeletedHandler(invalidator);
-        var form = new Form(1, "Test form", isPublic: false);
+        var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Test form", IsPublic: false));
         var notification = new FormDeletedEvent(form);
 
         // Act

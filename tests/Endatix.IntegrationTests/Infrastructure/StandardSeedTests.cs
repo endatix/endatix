@@ -63,7 +63,7 @@ public sealed class StandardSeedTests
                     .Select(x => x.Id)
                     .FirstAsync(token);
 
-                Form extraForm = new(firstTenantId, "custom-post-seed-form", isEnabled: true, isPublic: false);
+                Form extraForm = Form.Create(new FormCreateArgs(TenantId: firstTenantId, Name: "custom-post-seed-form", IsEnabled: true, IsPublic: false));
                 db.Forms.Add(extraForm);
                 await db.SaveChangesAsync(token);
             },

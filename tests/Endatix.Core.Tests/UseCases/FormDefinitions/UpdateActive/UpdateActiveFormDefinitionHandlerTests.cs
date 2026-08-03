@@ -41,7 +41,7 @@ public class UpdateActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 1

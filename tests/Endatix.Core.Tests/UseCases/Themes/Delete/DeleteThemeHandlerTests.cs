@@ -46,12 +46,13 @@ public class DeleteThemeHandlerTests
     {
         // Arrange
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme") { Id = 1 };
-        var forms = new List<Form>
-        {
-            new Form(SampleData.TENANT_ID, "Test Form 1") { Id = 1 },
-            new Form(SampleData.TENANT_ID, "Test Form 2") { Id = 2 },
-            new Form(SampleData.TENANT_ID, "Test Form 3") { Id = 3 }
-        };
+        var form1 = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form 1"));
+        form1.Id = 1;
+        var form2 = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form 2"));
+        form2.Id = 2;
+        var form3 = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form 3"));
+        form3.Id = 3;
+        var forms = new List<Form> { form1, form2, form3 };
 
         forms.ForEach(f => f.SetTheme(theme));
 

@@ -182,7 +182,7 @@ public class GoogleReCaptchaServiceTests
         var successResponse = GoogleReCaptchaResponses.Success();
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(successResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(1);
+        var form = StubForm.Create(1);
 
         // Act
         var result = service.RequiresReCaptcha(form);
@@ -200,7 +200,7 @@ public class GoogleReCaptchaServiceTests
         var successResponse = GoogleReCaptchaResponses.Success();
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(successResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(1);
+        var form = StubForm.Create(1);
 
         // Act
         var result = service.RequiresReCaptcha(form);
@@ -218,7 +218,7 @@ public class GoogleReCaptchaServiceTests
         var successResponse = GoogleReCaptchaResponses.Success();
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(successResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(1);
+        var form = StubForm.Create(1);
 
         // Act
         var result = service.RequiresReCaptcha(form);
@@ -236,7 +236,7 @@ public class GoogleReCaptchaServiceTests
         var successResponse = GoogleReCaptchaResponses.Success();
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(successResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(1);
+        var form = StubForm.Create(1);
 
         // Act
         var result = service.RequiresReCaptcha(form);
@@ -253,7 +253,7 @@ public class GoogleReCaptchaServiceTests
         var successResponse = GoogleReCaptchaResponses.Success();
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(successResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(999); // not in enabled list
+        var form = StubForm.Create(999); // not in enabled list
         var context = new SubmissionVerificationContext(form, false, null, null);
 
         // Act
@@ -271,7 +271,7 @@ public class GoogleReCaptchaServiceTests
         var successResponse = GoogleReCaptchaResponses.Success();
         var reCaptchaHttpClient = Substitute.For<IReCaptchaHttpClient>();
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(1);
+        var form = StubForm.Create(1);
         var submissionIsComplete = false;
         var context = new SubmissionVerificationContext(form, submissionIsComplete, null, null);
 
@@ -296,7 +296,7 @@ public class GoogleReCaptchaServiceTests
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(invalidResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
 
-        var formWithRecaptcha = new StubForm(_defaultOptions.EnabledForTenantIds!.FirstOrDefault());
+        var formWithRecaptcha = StubForm.Create(_defaultOptions.EnabledForTenantIds!.FirstOrDefault());
         _userContext.IsAuthenticated.Returns(true);
         var validationContext = new SubmissionVerificationContext(formWithRecaptcha, false, null, null);
 
@@ -315,7 +315,7 @@ public class GoogleReCaptchaServiceTests
         var invalidResponse = GoogleReCaptchaResponses.InvalidResponse();
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(invalidResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(_defaultOptions.EnabledForTenantIds!.FirstOrDefault());
+        var form = StubForm.Create(_defaultOptions.EnabledForTenantIds!.FirstOrDefault());
         var isComplete = true;
         string? token = null;
         var validationContext = new SubmissionVerificationContext(form, isComplete, null, token);
@@ -342,7 +342,7 @@ public class GoogleReCaptchaServiceTests
             .Returns(Task.FromResult(Result.Success(invalidResponse)));
 
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(_defaultOptions.EnabledForTenantIds!.FirstOrDefault());
+        var form = StubForm.Create(_defaultOptions.EnabledForTenantIds!.FirstOrDefault());
         var token = "invalid_token";
         var isComplete = true;
         var validationContext = new SubmissionVerificationContext(form, isComplete, null, token);
@@ -367,7 +367,7 @@ public class GoogleReCaptchaServiceTests
         var successResponse = GoogleReCaptchaResponses.Success();
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(successResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
-        var form = new StubForm(_defaultOptions.EnabledForTenantIds!.FirstOrDefault());
+        var form = StubForm.Create(_defaultOptions.EnabledForTenantIds!.FirstOrDefault());
         var token = "valid_token";
         var validationContext = new SubmissionVerificationContext(form, false, null, token);
 
@@ -401,7 +401,8 @@ internal static class GoogleReCaptchaResponses
     public static GoogleReCaptchaResponse ScoreTooLow(double score = 0.3) => new(true, DateTime.UtcNow, "localhost", score, "form_submit", null);
 }
 
-internal class StubForm : Form
+internal static class StubForm
 {
-    public StubForm(long tenantId) : base(tenantId, "TestForm") { }
+    public static Form Create(long tenantId) =>
+        Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "TestForm"));
 }

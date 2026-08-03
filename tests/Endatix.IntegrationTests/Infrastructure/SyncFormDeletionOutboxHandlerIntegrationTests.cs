@@ -143,7 +143,8 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
 
     private static IOutboxMessage CreateMessage()
     {
-        Form form = new(TenantId, "to-delete") { Id = FormId };
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "to-delete"));
+        form.Id = FormId;
         object payloadObject = new FormDeletedEvent(form).GetPayload();
         string payload = JsonSerializer.Serialize(
             payloadObject,

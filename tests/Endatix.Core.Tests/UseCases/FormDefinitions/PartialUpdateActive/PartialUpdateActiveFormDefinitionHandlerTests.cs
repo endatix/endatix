@@ -46,7 +46,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_UpdatesFormDefinition()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
@@ -72,7 +73,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_PartialUpdate_UpdatesOnlySpecifiedFields()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
@@ -99,7 +101,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_WithSubmissionsAndChangedJsonData_CreatesNewPublishedDefinitionAndSetsItActive()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var originalDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10
@@ -133,7 +136,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_WithSubmissionsAndChangedJsonData_CreatesDraftWithoutChangingActiveDefinition()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var originalDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10
@@ -166,7 +170,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_WithoutSubmissionsAndChangedJsonData_UpdatesActiveDefinitionInPlace()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10
@@ -198,7 +203,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     public async Task Handle_WithSubmissionsAndUnchangedJsonData_UpdatesActiveDefinitionInPlace()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10
@@ -232,7 +238,8 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     [Fact]
     public async Task Handle_PublishingDraftWithUnchangedJsonData_RaisesFormDefinitionUpdatedEvent()
     {
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, isDraft: true, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10

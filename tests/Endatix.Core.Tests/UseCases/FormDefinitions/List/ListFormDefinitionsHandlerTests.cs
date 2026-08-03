@@ -21,9 +21,10 @@ public class ListFormDefinitionsHandlerTests
     public async Task Handle_ValidRequest_ReturnsFormDefinitions()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var formDefinition1 = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
-        var formDefinition2 =  new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
+        var formDefinition2 = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_2);
         form.AddFormDefinition(formDefinition1);
         form.AddFormDefinition(formDefinition2);
         var formDefinitions = new List<FormDefinition>

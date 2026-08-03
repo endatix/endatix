@@ -41,7 +41,8 @@ public sealed class CompileFormSchemaHandlerTests
     [Fact]
     public async Task Handle_WhenActiveDefinitionExists_CompilesSchema()
     {
-        Form form = new(TenantId, "Test form") { Id = FormId };
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Test form"));
+        form.Id = FormId;
         FormDefinition definition = new(TenantId, isDraft: false, """{"pages":[]}""")
         {
             Id = FormDefinitionId,
@@ -70,7 +71,8 @@ public sealed class CompileFormSchemaHandlerTests
     [Fact]
     public async Task Handle_WhenReplaceTrue_PassesReplaceToProcessor()
     {
-        Form form = new(TenantId, "Test form") { Id = FormId };
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Test form"));
+        form.Id = FormId;
         FormDefinition definition = new(TenantId, isDraft: false, """{"pages":[]}""")
         {
             Id = FormDefinitionId,

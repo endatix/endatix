@@ -44,9 +44,10 @@ public class DeleteFormHandlerTests
     public async Task Handle_ValidRequest_DeletesForm()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var request = new DeleteFormCommand(1);
-        
+
         _repository.SingleOrDefaultAsync(
             Arg.Any<FormWithDefinitionsAndSubmissionsSpec>(),
             Arg.Any<CancellationToken>())
@@ -60,7 +61,7 @@ public class DeleteFormHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value.Should().Be(form);
-        
+
         await _repository.Received(1).UpdateAsync(
             Arg.Is<Form>(f => f.Id == form.Id),
             Arg.Any<CancellationToken>()
@@ -71,9 +72,10 @@ public class DeleteFormHandlerTests
     public async Task Handle_ValidRequest_CallsDeleteOnForm()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var request = new DeleteFormCommand(1);
-        
+
         _repository.SingleOrDefaultAsync(
             Arg.Any<FormWithDefinitionsAndSubmissionsSpec>(),
             Arg.Any<CancellationToken>())
@@ -90,9 +92,10 @@ public class DeleteFormHandlerTests
     public async Task Handle_ValidRequest_PublishesFormDeletedEvent()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, "Test Form") { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
         var request = new DeleteFormCommand(1);
-        
+
         _repository.SingleOrDefaultAsync(
             Arg.Any<FormWithDefinitionsAndSubmissionsSpec>(),
             Arg.Any<CancellationToken>())
@@ -107,4 +110,4 @@ public class DeleteFormHandlerTests
             Arg.Any<CancellationToken>()
         );
     }
-} 
+}

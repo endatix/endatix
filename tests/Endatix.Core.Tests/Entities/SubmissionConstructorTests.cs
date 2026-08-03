@@ -43,10 +43,8 @@ public class SubmissionConstructorTests
     {
         // Arrange
         const long invalidFormDefinitionId = -1;
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
-        {
-            Id = 123
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 123;
         const string jsonData = SampleData.SUBMISSION_JSON_DATA_1;
 
         // Act
@@ -68,10 +66,8 @@ public class SubmissionConstructorTests
     public void Constructor_ValidInput_SetsPropertiesCorrectly()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
-        {
-            Id = 123
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 123;
         var jsonData = SampleData.SUBMISSION_JSON_DATA_1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
@@ -97,10 +93,8 @@ public class SubmissionConstructorTests
     public void Constructor_CompleteSubmission_SetsCompletedAt()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
-        {
-            Id = 123
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 123;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 456

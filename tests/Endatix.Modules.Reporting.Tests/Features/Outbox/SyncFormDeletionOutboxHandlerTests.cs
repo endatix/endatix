@@ -116,7 +116,8 @@ public sealed class SyncFormDeletionOutboxHandlerTests
 
     private static ReportingOutboxTestHelpers.FakeOutboxMessage CreateMessage()
     {
-        Form form = new(TenantId, "to-delete") { Id = FormId };
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "to-delete"));
+        form.Id = FormId;
         string payload = ReportingOutboxTestHelpers.SerializePayload(
             new FormDeletedEvent(form).GetPayload());
 

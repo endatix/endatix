@@ -29,9 +29,9 @@ public class CreateTests
             IsEnabled = true,
             FormDefinitionJsonData = """{ "type": "object" }"""
         };
-        
+
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -47,15 +47,17 @@ public class CreateTests
     public async Task ExecuteAsync_ValidRequest_ReturnsCreatedWithForm()
     {
         // Arrange
-        var request = new CreateFormRequest 
-        { 
+        var request = new CreateFormRequest
+        {
             Name = "Test Form",
             Description = "Test Description",
             IsEnabled = true,
             FormDefinitionJsonData = """{ "type": "object" }"""
         };
-        
-        var form = new Form(SampleData.TENANT_ID, request.Name) { Id = 1 };
+
+        FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: request.Name);
+        var form = Form.Create(args);
+        form.Id = 1;
         var result = Result<Form>.Created(form);
 
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
@@ -83,8 +85,8 @@ public class CreateTests
             IsEnabled = true,
             FormDefinitionJsonData = """{ "type": "object" }"""
         };
-        var result = Result<Form>.Created(new Form(SampleData.TENANT_ID, "Test Form"));
-        
+        var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
+
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -129,7 +131,7 @@ public class CreateTests
             IsEnabled = true,
             FormDefinitionSchema = jsonSchema
         };
-        var result = Result<Form>.Created(new Form(SampleData.TENANT_ID, "Test Form"));
+        var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -173,7 +175,7 @@ public class CreateTests
             FormDefinitionJsonData = """{ "type": "object" }""",
             WebHookSettings = webhookSettings
         };
-        var result = Result<Form>.Created(new Form(SampleData.TENANT_ID, "Test Form"));
+        var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -218,7 +220,7 @@ public class CreateTests
             FormDefinitionJsonData = """{ "type": "old" }""",  // Old string format
             FormDefinitionSchema = newJsonSchema  // New object format (should win)
         };
-        var result = Result<Form>.Created(new Form(SampleData.TENANT_ID, "Test Form"));
+        var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -258,7 +260,7 @@ public class CreateTests
             WebHookSettingsJson = """{ "events": {} }""",  // Old string format
             WebHookSettings = newWebhookSettings  // New object format (should win)
         };
-        var result = Result<Form>.Created(new Form(SampleData.TENANT_ID, "Test Form"));
+        var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -288,7 +290,7 @@ public class CreateTests
             FormDefinitionJsonData = """{ "type": "object" }""",
             WebHookSettingsJson = """{ "events": {} }"""
         };
-        var result = Result<Form>.Created(new Form(SampleData.TENANT_ID, "Test Form"));
+        var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

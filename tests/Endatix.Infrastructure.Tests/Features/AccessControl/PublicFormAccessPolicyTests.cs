@@ -122,9 +122,11 @@ public partial class PublicFormAccessPolicyTests
             .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
+        var privateForm = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Private form", IsEnabled: true, IsPublic: false));
+        privateForm.Id = 1;
         _formRepository
             .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>())
-            .Returns(new Form(1, "Private form", isEnabled: true, isPublic: false) { Id = 1 });
+            .Returns(privateForm);
 
         _cache
             .GetOrCreateAsync<Cached<PublicFormAccessData>>(
@@ -1180,10 +1182,9 @@ public partial class PublicFormAccessPolicyTests
         FormAccessTokenClaims claims = new(formId, tenantId, DateTime.UtcNow.AddMinutes(30));
         PublicFormAccessContext context = new(formId, rawJwt, SubmissionTokenType.FormToken);
 
-        Form form = new(tenantId, "Form token test")
-        {
-            Id = formId
-        };
+        FormCreateArgs formArgs = new(TenantId: tenantId, Name: "Form token test");
+        Form form = Form.Create(formArgs);
+        form.Id = formId;
         FormDefinition definition = new(tenantId, isDraft: false, jsonData: "{}");
         form.AddFormDefinition(definition, isActive: true);
 

@@ -60,7 +60,7 @@ public class GetFilesHandlerTests
         var query = new GetFilesQuery(formId, submissionId, prefix);
 
         var submission = new Submission(1, "{}", formId, 1) { Id = submissionId };
-        var form = new Form(1, "TestForm");
+        var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "TestForm"));
 
         _submissionRepo
             .SingleOrDefaultAsync(Arg.Is<SubmissionWithDefinitionSpec>(spec => true), Arg.Any<CancellationToken>())
@@ -97,7 +97,7 @@ public class GetFilesHandlerTests
         var query = new GetFilesQuery(formId, submissionId, null);
 
         var submission = new Submission(1, "{}", formId, 1) { Id = submissionId };
-        var form = new Form(1, "TestForm");
+        var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "TestForm"));
 
         _submissionRepo
             .SingleOrDefaultAsync(Arg.Is<SubmissionWithDefinitionSpec>(spec => true), Arg.Any<CancellationToken>())

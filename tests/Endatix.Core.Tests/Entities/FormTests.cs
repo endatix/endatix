@@ -8,7 +8,7 @@ public class FormTests
     [Fact]
     public void MoveToFolder_WhenAllowed_UpdatesFolderId()
     {
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
 
         var moved = form.MoveToFolder(42);
 
@@ -19,7 +19,7 @@ public class FormTests
     [Fact]
     public void ClearFolder_WhenAssigned_RemovesFolderId()
     {
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, folderId: 24);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, FolderId: 24));
 
         var cleared = form.ClearFolder();
 
@@ -31,7 +31,7 @@ public class FormTests
     public void AddFormDefinition_WhenFirstDefinition_SetsItAsActive()
     {
         // Arrange & Act
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
 
@@ -45,7 +45,8 @@ public class FormTests
     public void SetActiveFormDefinition_WhenChangingActive_UpdatesActiveDefinitionCorrectly()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var formDefinition1 = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 1
@@ -70,7 +71,8 @@ public class FormTests
     [Fact]
     public void SetActiveFormDefinition_WhenAlreadyActiveReference_DoesNotRaiseReportingEvent()
     {
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10
@@ -88,7 +90,8 @@ public class FormTests
     [Fact]
     public void SetActiveFormDefinition_WhenActivatingDraftDefinition_DoesNotRaiseReportingEvent()
     {
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var published = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 1
@@ -110,7 +113,8 @@ public class FormTests
     [Fact]
     public void UpdateActiveDefinitionSchema_WhenJsonChanges_RaisesReportingEvent()
     {
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10
@@ -128,7 +132,8 @@ public class FormTests
     [Fact]
     public void UpdateActiveDefinitionSchema_WhenPublishingDraftWithoutJsonChange_RaisesReportingEvent()
     {
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, isDraft: true, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10
@@ -146,7 +151,8 @@ public class FormTests
     [Fact]
     public void UpdateActiveDefinitionSchema_WhenDraftSaveWithoutPublish_DoesNotRaiseReportingEvent()
     {
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, isDraft: true, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 10
@@ -165,8 +171,8 @@ public class FormTests
     public void SetActiveFormDefinition_WithNonExistingDefinition_ThrowsException()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
-        var externalForm = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_2);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        var externalForm = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_2));
         var externalDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         externalForm.AddFormDefinition(externalDefinition);
 
@@ -181,7 +187,7 @@ public class FormTests
     public void UpdateWebHookSettings_WithValidConfiguration_UpdatesSettings()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
         var webHookConfig = new WebHookConfiguration
         {
             Events = new Dictionary<string, WebHookEventConfig>
@@ -212,7 +218,7 @@ public class FormTests
     public void UpdateWebHookSettings_WithNull_ClearsSettings()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
         var webHookConfig = new WebHookConfiguration
         {
             Events = new Dictionary<string, WebHookEventConfig>
@@ -235,7 +241,7 @@ public class FormTests
     public void WebHookSettings_WhenNoSettingsSet_ReturnsEmptyConfiguration()
     {
         // Arrange & Act
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
 
         // Assert
         form.WebHookSettings.Should().NotBeNull();
@@ -262,7 +268,7 @@ public class FormTests
         """;
 
         // Act
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, webHookSettingsJson: webHookJson);
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, WebHookSettingsJson: webHookJson));
 
         // Assert
         form.WebHookSettings.Should().NotBeNull();

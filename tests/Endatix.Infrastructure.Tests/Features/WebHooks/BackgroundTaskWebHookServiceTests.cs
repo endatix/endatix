@@ -346,10 +346,8 @@ public class BackgroundTaskWebHookServiceTests
             }
         };
 
-        var form = new Form(TEST_TENANT_ID, "Test Form")
-        {
-            Id = TEST_FORM_ID
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: TEST_TENANT_ID, Name: "Test Form"));
+        form.Id = TEST_FORM_ID;
         form.UpdateWebHookSettings(webHookConfig);
         return form;
     }

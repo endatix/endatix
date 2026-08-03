@@ -46,15 +46,13 @@ public class CreateFormDefinitionHandlerTests
     {
         // Arrange
         var request = new CreateFormDefinitionCommand(SampleData.TENANT_ID, isDraft: false, SampleData.FORM_DEFINITION_JSON_DATA_1);
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
-        {
-            Id = request.FormId
-        };
-          var formDefinition = FormDefinitionFactory.CreateForTesting(
-            isDraft: false,
-            jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
-            formDefinitionId: 123
-        );
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = request.FormId;
+        var formDefinition = FormDefinitionFactory.CreateForTesting(
+          isDraft: false,
+          jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+          formDefinitionId: 123
+      );
         form.AddFormDefinition(formDefinition);
 
         _formsRepository.GetByIdAsync(
@@ -85,10 +83,8 @@ public class CreateFormDefinitionHandlerTests
     {
         // Arrange
         var request = new CreateFormDefinitionCommand(SampleData.TENANT_ID, isDraft: true, SampleData.FORM_DEFINITION_JSON_DATA_1);
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1)
-        {
-            Id = request.FormId
-        };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = request.FormId;
         var formDefinition = FormDefinitionFactory.CreateForTesting(
             isDraft: false,
             jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,

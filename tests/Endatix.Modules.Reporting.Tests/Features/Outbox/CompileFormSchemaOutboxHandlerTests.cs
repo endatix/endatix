@@ -27,7 +27,8 @@ public sealed class CompileFormSchemaOutboxHandlerTests
     [Fact]
     public async Task HandleAsync_WithValidPayload_CallsProcessorWithIds()
     {
-        Form form = new(TenantId, "Survey", isEnabled: true) { Id = FormId };
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Survey", IsEnabled: true));
+        form.Id = FormId;
         FormDefinition definition = new(TenantId, jsonData: "{}") { Id = FormDefinitionId };
         form.AddFormDefinition(definition);
         string payload = ReportingOutboxTestHelpers.SerializePayload(new FormDefinitionUpdatedEvent(form, definition).GetPayload());
@@ -93,7 +94,8 @@ public sealed class CompileFormSchemaOutboxHandlerTests
     [Fact]
     public async Task HandleAsync_WhenProcessorThrows_PropagatesException()
     {
-        Form form = new(TenantId, "Survey", isEnabled: true) { Id = FormId };
+        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Survey", IsEnabled: true));
+        form.Id = FormId;
         FormDefinition definition = new(TenantId, jsonData: "{}") { Id = FormDefinitionId };
         form.AddFormDefinition(definition);
         string payload = ReportingOutboxTestHelpers.SerializePayload(new FormDefinitionUpdatedEvent(form, definition).GetPayload());

@@ -90,11 +90,11 @@ public class DeleteFolderHandlerTests
     {
         _tenantContext.TenantId.Returns(1L);
         var folder = new Folder(1L, "Test", "test", "TEST") { Id = 10L };
-        var forms = new List<Form>
-        {
-            new Form(1L, "Form 1", folderId: 10L) { Id = 1 },
-            new Form(1L, "Form 2", folderId: 10L) { Id = 2 }
-        };
+        var form1 = Form.Create(new FormCreateArgs(TenantId: 1L, Name: "Form 1", FolderId: 10L));
+        form1.Id = 1;
+        var form2 = Form.Create(new FormCreateArgs(TenantId: 1L, Name: "Form 2", FolderId: 10L));
+        form2.Id = 2;
+        var forms = new List<Form> { form1, form2 };
 
         _folderRepository.FirstOrDefaultAsync(
                 Arg.Any<FolderSpecifications.FolderByIdSpec>(),

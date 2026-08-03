@@ -47,7 +47,10 @@ public class UpdateFormHandlerTests
     public async Task Handle_ValidRequest_UpdatesForm()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
+        form.Description = SampleData.FORM_DESCRIPTION_1;
+        form.IsEnabled = true;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
@@ -69,7 +72,10 @@ public class UpdateFormHandlerTests
     public async Task Handle_ValidRequest_PublishesFormUpdatedEvent()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
+        form.Description = SampleData.FORM_DESCRIPTION_1;
+        form.IsEnabled = true;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
@@ -86,7 +92,10 @@ public class UpdateFormHandlerTests
     {
         // Arrange — the enabled-state change is now captured to the outbox via the aggregate (SetEnabled),
         // not published in-process. The handler keeps the FormUpdated publish for cache invalidation.
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1, Description = SampleData.FORM_DESCRIPTION_1, IsEnabled = true };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
+        form.Description = SampleData.FORM_DESCRIPTION_1;
+        form.IsEnabled = true;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, false);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
@@ -105,7 +114,8 @@ public class UpdateFormHandlerTests
     public async Task Handle_WithWebHookSettingsJson_UpdatesWebHookConfiguration()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         var webHookJson = """
         {
             "Events": {
@@ -147,7 +157,8 @@ public class UpdateFormHandlerTests
                 ["SubmissionCompleted"] = new WebHookEventConfig { IsEnabled = true }
             }
         };
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         form.UpdateWebHookSettings(webHookConfig);
 
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, "");
@@ -175,7 +186,8 @@ public class UpdateFormHandlerTests
                 ["SubmissionCompleted"] = new WebHookEventConfig { IsEnabled = true }
             }
         };
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
         form.UpdateWebHookSettings(webHookConfig);
 
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null);
@@ -196,7 +208,8 @@ public class UpdateFormHandlerTests
     public async Task Handle_DisablingLimitOnePerUserAfterEnabled_ReturnsConflict()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, false);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
@@ -213,7 +226,8 @@ public class UpdateFormHandlerTests
     public async Task Handle_EnablingLimitOnePerUserWithDuplicateEligibleSubmissions_ReturnsConflict()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
+        form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
@@ -234,7 +248,8 @@ public class UpdateFormHandlerTests
     public async Task Handle_EnablingLimitOnePerUserWithOnlyTestDuplicates_Succeeds()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
+        form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
@@ -255,7 +270,8 @@ public class UpdateFormHandlerTests
     public async Task Handle_EnablingLimitOnePerUserWithWhitespaceSubmittedByValues_Succeeds()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
+        form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
@@ -276,7 +292,8 @@ public class UpdateFormHandlerTests
     public async Task Handle_EnablingLimitOnePerUserOnPublicForm_ReturnsConflict()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: true, limitOnePerUser: false) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: true, LimitOnePerUser: false));
+        form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
@@ -293,7 +310,8 @@ public class UpdateFormHandlerTests
     public async Task Handle_OmittedLimitOnePerUser_PreservesExistingEnabledValue()
     {
         // Arrange
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isPublic: false, limitOnePerUser: true) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: true));
+        form.Id = 1;
         var request = new UpdateFormCommand(
             formId: 1,
             name: SampleData.FORM_NAME_1,
@@ -335,7 +353,8 @@ public class UpdateFormHandlerTests
             .Returns((TenantSettingsEntity?)null);
 
         var handler = new UpdateFormHandler(_repository, _submissionRepository, _mediator, helper);
-        var form = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, folderId: 7) { Id = 1 };
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, FolderId: 7));
+        form.Id = 1;
         var request = new UpdateFormCommand(
             1,
             SampleData.FORM_NAME_1,

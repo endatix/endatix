@@ -160,7 +160,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var tenantSettings = new TenantSettingsEntity(tenantId);
         var exportConfig = new CustomExportConfiguration
         {
@@ -211,7 +212,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var tenantSettings = new TenantSettingsEntity(tenantId);
         tenantSettings.CustomExports.Add(new CustomExportConfiguration
         {
@@ -262,7 +264,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
             .Returns(form);
@@ -286,7 +289,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var tenantSettings = new TenantSettingsEntity(tenantId);
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
@@ -311,7 +315,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var tenantSettings = new TenantSettingsEntity(tenantId);
         var exportConfig = new CustomExportConfiguration
         {
@@ -344,7 +349,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var tenantSettings = new TenantSettingsEntity(tenantId);
         var exportConfig = new CustomExportConfiguration
         {
@@ -378,7 +384,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var tenantSettings = new TenantSettingsEntity(tenantId);
         var exportConfig = new CustomExportConfiguration
         {
@@ -409,7 +416,8 @@ public class ExportTests
         var formId = 1L;
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportFormat = "json" };
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("json", typeof(SubmissionExportRow));
         var fileExport = new FileExport("application/json", "submissions-1.json");
 
@@ -451,7 +459,8 @@ public class ExportTests
             ColumnScope = ["q1"],
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -489,7 +498,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportFormatId = exportFormatId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
             .Returns(form);
@@ -510,7 +520,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -548,7 +559,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -587,7 +599,8 @@ public class ExportTests
             ColumnScope = ["q1"],
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -623,7 +636,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportFormat = "unsupported" };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
             .Returns(form);
@@ -643,7 +657,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportFormatId = 100L };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>())
@@ -668,7 +683,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportFormatId = 100L };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -698,7 +714,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var tenantSettings = new TenantSettingsEntity(tenantId);
         var exportConfig = new CustomExportConfiguration
         {
@@ -742,7 +759,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportId = exportId };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var tenantSettings = new TenantSettingsEntity(tenantId);
         var exportConfig = new CustomExportConfiguration
         {
@@ -807,7 +825,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportFormatId = 100L };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -836,7 +855,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportFormatId = 100L };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -891,7 +911,8 @@ public class ExportTests
             ColumnScope = ["q1"],
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -936,7 +957,8 @@ public class ExportTests
             Locale = "es",
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
         _tenantContext.TenantId.Returns(tenantId);
@@ -966,7 +988,8 @@ public class ExportTests
             CompletionStatus = completionStatus,
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -1003,7 +1026,8 @@ public class ExportTests
             CompletionStatus = ExportCompletionStatus.All,
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -1039,7 +1063,8 @@ public class ExportTests
             ExportFormatId = exportFormatId,
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 
@@ -1076,7 +1101,8 @@ public class ExportTests
             CompletionStatus = ExportCompletionStatus.Completed,
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
         _tenantContext.TenantId.Returns(tenantId);
@@ -1103,7 +1129,8 @@ public class ExportTests
             Locale = "es",
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
         _tenantContext.TenantId.Returns(tenantId);
@@ -1130,7 +1157,8 @@ public class ExportTests
             CreatedAfter = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
         _tenantContext.TenantId.Returns(tenantId);
@@ -1156,7 +1184,8 @@ public class ExportTests
             Locale = "es",
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("codebook-shoji", typeof(DynamicExportRow));
         var fileExport = new FileExport("application/json", "codebook-1.json");
 
@@ -1192,7 +1221,8 @@ public class ExportTests
             IncludeTestSubmissions = true,
         };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
 
         _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
         _tenantContext.TenantId.Returns(tenantId);
@@ -1211,7 +1241,8 @@ public class ExportTests
         var tenantId = SampleData.TENANT_ID;
         var request = new ExportRequest { FormId = formId, ExportFormatId = 100L };
 
-        var form = new Form(tenantId, "Test Form") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
         var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
         var fileExport = new FileExport("text/csv", "submissions-1.csv");
 

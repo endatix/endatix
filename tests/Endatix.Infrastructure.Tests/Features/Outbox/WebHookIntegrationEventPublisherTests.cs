@@ -62,7 +62,8 @@ public class WebHookIntegrationEventPublisherTests
         // mapping derived from WebHookOperation.EventName (lookup side): a mismatch would silently skip
         // delivery. Drives the publisher with the EventType + payload the ACTUAL event classes produce.
         const long formId = 555L;
-        var form = new Form(tenantId: 42, name: "f") { Id = formId };
+        var form = Form.Create(new FormCreateArgs(TenantId: 42, Name: "f"));
+        form.Id = formId;
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: 42,
             FormId: formId,

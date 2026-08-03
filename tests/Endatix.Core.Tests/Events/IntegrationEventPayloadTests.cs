@@ -19,7 +19,8 @@ public class IntegrationEventPayloadTests
     [Fact]
     public void FormCreatedEvent_has_dotted_type_and_form_payload_with_revision_and_folderId()
     {
-        var form = new Form(tenantId: 1, name: "Test", description: "d", isEnabled: true) { Id = 555 };
+        var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Test", Description: "d", IsEnabled: true));
+        form.Id = 555;
         var evt = new FormCreatedEvent(form);
 
         evt.EventType.Should().Be("form.created");
@@ -36,7 +37,8 @@ public class IntegrationEventPayloadTests
     {
         // The live form is still disabled; the event captured isEnabled: true. The payload must reflect the
         // captured (event-creation-time) value, not the live form.
-        var form = new Form(tenantId: 1, name: "Test") { Id = 7 };
+        var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Test"));
+        form.Id = 7;
         var evt = new FormEnabledStateChangedEvent(form, isEnabled: true);
 
         evt.EventType.Should().Be("form.enabled_state_changed");
@@ -50,7 +52,8 @@ public class IntegrationEventPayloadTests
     [Fact]
     public void FormDeletedEvent_has_dotted_type_and_includes_folderId()
     {
-        var form = new Form(tenantId: 1, name: "Test") { Id = 9 };
+        var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Test"));
+        form.Id = 9;
         var evt = new FormDeletedEvent(form);
 
         evt.EventType.Should().Be("form.deleted");
@@ -64,7 +67,8 @@ public class IntegrationEventPayloadTests
         // An update that toggles enabled raises two events: enabled_state_changed (revision 2) then
         // updated (revision 3). Each payload must keep the revision captured when it was raised, not the
         // final live value — otherwise an order-sensitive consumer can't distinguish/order them.
-        var form = new Form(tenantId: 1, name: "Test") { Id = 1 }; // revision 1
+        var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Test"));
+        form.Id = 1; // revision 1
         form.SetEnabled(true); // revision 2, raises enabled_state_changed
         form.UpdateDetails("New", null, isPublic: true, limitOnePerUser: false, metadata: null); // revision 3, raises updated
 

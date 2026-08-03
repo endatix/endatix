@@ -47,10 +47,8 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequest_ReturnsActiveFormDefinition()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: true)
-        {
-            Id = 1
-        };
+        var formWithActiveDefinition = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsEnabled: true, IsPublic: true));
+        formWithActiveDefinition.Id = 1;
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
@@ -82,10 +80,8 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequestWithCustomQuestions_ReturnsActiveFormDefinitionWithCustomQuestions()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: true)
-        {
-            Id = 1
-        };
+        var formWithActiveDefinition = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsEnabled: true, IsPublic: true));
+        formWithActiveDefinition.Id = 1;
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
@@ -124,10 +120,8 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_ValidRequestWithTheme_ReturnsActiveFormDefinitionWithTheme()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: true)
-        {
-            Id = 1
-        };
+        var formWithActiveDefinition = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsEnabled: true, IsPublic: true));
+        formWithActiveDefinition.Id = 1;
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "{ \"colors\": { \"primary\": \"#000000\" } }");
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
@@ -162,10 +156,8 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_PrivateFormWithAnonymousUser_ReturnsUnauthorizedResult()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: false)
-        {
-            Id = 1
-        };
+        var formWithActiveDefinition = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsEnabled: true, IsPublic: false));
+        formWithActiveDefinition.Id = 1;
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
@@ -191,10 +183,8 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_PrivateFormWithUserWithoutPermission_ReturnsForbiddenResult()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: false)
-        {
-            Id = 1
-        };
+        var formWithActiveDefinition = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsEnabled: true, IsPublic: false));
+        formWithActiveDefinition.Id = 1;
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
@@ -220,10 +210,8 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_PrivateFormWithUserWithPermission_ReturnsActiveFormDefinition()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: false)
-        {
-            Id = 1
-        };
+        var formWithActiveDefinition = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsEnabled: true, IsPublic: false));
+        formWithActiveDefinition.Id = 1;
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
@@ -256,10 +244,8 @@ public class GetActiveFormDefinitionHandlerTests
     public async Task Handle_PublicForm_ReturnsActiveFormDefinitionWithoutPermissionCheck()
     {
         // Arrange
-        var formWithActiveDefinition = new Form(SampleData.TENANT_ID, SampleData.FORM_NAME_1, isEnabled: true, isPublic: true)
-        {
-            Id = 1
-        };
+        var formWithActiveDefinition = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsEnabled: true, IsPublic: true));
+        formWithActiveDefinition.Id = 1;
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 
@@ -293,15 +279,13 @@ public class GetActiveFormDefinitionHandlerTests
     {
         // Arrange
         const string userId = "user-123";
-        var formWithActiveDefinition = new Form(
-            SampleData.TENANT_ID,
-            SampleData.FORM_NAME_1,
-            isEnabled: true,
-            isPublic: false,
-            limitOnePerUser: true)
-        {
-            Id = 1
-        };
+        var formWithActiveDefinition = Form.Create(new FormCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            Name: SampleData.FORM_NAME_1,
+            IsEnabled: true,
+            IsPublic: false,
+            LimitOnePerUser: true));
+        formWithActiveDefinition.Id = 1;
         var activeDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         formWithActiveDefinition.AddFormDefinition(activeDefinition);
 

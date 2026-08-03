@@ -10,8 +10,13 @@ namespace Endatix.Core.Tests.Entities;
 /// </summary>
 public class FormIntegrationEventTests
 {
-    private static Form CreateForm(bool isEnabled = false) =>
-        new(tenantId: 1, name: "Test Form", isEnabled: isEnabled) { Id = 100 };
+    private static Form CreateForm(bool isEnabled = false)
+    {
+        FormCreateArgs args = new(TenantId: 1, Name: "Test Form", IsEnabled: isEnabled);
+        var form = Form.Create(args);
+        form.Id = 100;
+        return form;
+    }
 
     [Fact]
     public void RaiseCreated_registers_FormCreatedEvent_and_keeps_revision_at_1()

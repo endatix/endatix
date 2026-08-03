@@ -28,10 +28,8 @@ public class CreateFormHandlerTests
         // Arrange
         var request = new CreateFormCommand("Form Name", "Description", true, SampleData.FORM_DEFINITION_JSON_DATA_1);
 
-        var createdForm = new Form(SampleData.TENANT_ID, "Form Name", request.Description, request.IsEnabled)
-        {
-            Id = 123
-        };
+        var createdForm = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Form Name", Description: request.Description, IsEnabled: request.IsEnabled));
+        createdForm.Id = 123;
         var createdFormDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 456
