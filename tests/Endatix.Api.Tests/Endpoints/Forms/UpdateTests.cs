@@ -137,8 +137,8 @@ public class UpdateTests
             Description = "Updated Description",
             IsEnabled = true
         };
-        FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: "Updated Form"))
-                var result = Result.Success(Form.Create(args);
+        FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: "Updated Form");
+        var result = Result.Success(Form.Create(args));
 
         _mediator.Send(Arg.Any<UpdateFormCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
