@@ -36,6 +36,16 @@ public class PartialUpdateFormRequest
     public bool? LimitOnePerUser { get; set; }
 
     /// <summary>
+    /// Optional per-form submission resume-token TTL in hours.
+    /// </summary>
+    public int? SubmissionTokenExpiryHours { get; set; }
+
+    /// <summary>
+    /// When true, clears the form override so token TTL inherits the tenant default.
+    /// </summary>
+    public bool ClearSubmissionTokenExpiryHours { get; set; }
+
+    /// <summary>
     /// Additional form-level metadata as raw JSON string.
     /// </summary>
     public string? Metadata { get; set; }

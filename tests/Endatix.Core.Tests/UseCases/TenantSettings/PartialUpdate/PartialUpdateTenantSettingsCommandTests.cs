@@ -10,6 +10,8 @@ public class PartialUpdateTenantSettingsCommandTests
         var command = new PartialUpdateTenantSettingsCommand();
 
         command.RequireFolderAssignment.Should().BeNull();
+        command.SubmissionTokenExpiryHours.Should().BeNull();
+        command.ClearSubmissionTokenExpiryHours.Should().BeFalse();
     }
 
     [Theory]
@@ -20,5 +22,18 @@ public class PartialUpdateTenantSettingsCommandTests
         var command = new PartialUpdateTenantSettingsCommand { RequireFolderAssignment = value };
 
         command.RequireFolderAssignment.Should().Be(value);
+    }
+
+    [Fact]
+    public void Constructor_SetSubmissionTokenExpiryHours_ValueIsPreserved()
+    {
+        var command = new PartialUpdateTenantSettingsCommand
+        {
+            SubmissionTokenExpiryHours = 168,
+            ClearSubmissionTokenExpiryHours = false,
+        };
+
+        command.SubmissionTokenExpiryHours.Should().Be(168);
+        command.ClearSubmissionTokenExpiryHours.Should().BeFalse();
     }
 }

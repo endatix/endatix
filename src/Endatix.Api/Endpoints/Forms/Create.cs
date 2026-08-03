@@ -50,6 +50,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
             formDefinitionJsonData,
             webHookSettingsJson,
             request.LimitOnePerUser ?? false,
+            request.SubmissionTokenExpiryHours,
             request.Metadata,
             folderId);
 

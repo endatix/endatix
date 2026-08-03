@@ -10,7 +10,6 @@ namespace Endatix.Api.Endpoints.TenantSettings;
 
 /// <summary>
 /// Endpoint for partially updating tenant settings.
-/// Note: only supports RequireFolderAssignment setting for now.
 /// </summary>
 public sealed class PartialUpdate(IMediator mediator)
     : Endpoint<PartialUpdateTenantSettingsRequest, Results<Ok<TenantSettingsModel>, ProblemHttpResult>>
@@ -38,6 +37,8 @@ public sealed class PartialUpdate(IMediator mediator)
         var updateSettingsCommand = new PartialUpdateTenantSettingsCommand
         {
             RequireFolderAssignment = request.RequireFolderAssignment,
+            SubmissionTokenExpiryHours = request.SubmissionTokenExpiryHours,
+            ClearSubmissionTokenExpiryHours = request.ClearSubmissionTokenExpiryHours,
         };
         var updateSettingsResult = await mediator.Send(updateSettingsCommand, ct);
 
@@ -56,6 +57,17 @@ public sealed class PartialUpdateTenantSettingsRequest
     /// When set, updates whether forms and templates must be assigned to a folder.
     /// </summary>
     public bool? RequireFolderAssignment { get; set; }
+
+    /// <summary>
+    /// When set, updates the default submission session token TTL in hours.
+    /// Ignored when <see cref="ClearSubmissionTokenExpiryHours"/> is true.
+    /// </summary>
+    public int? SubmissionTokenExpiryHours { get; set; }
+
+    /// <summary>
+    /// When true, clears the tenant session TTL so tokens never expire.
+    /// </summary>
+    public bool ClearSubmissionTokenExpiryHours { get; set; }
 }
 
 /// <summary>
@@ -68,8 +80,21 @@ public sealed class PartialUpdateTenantSettingsValidator : Validator<PartialUpda
     /// </summary>
     public PartialUpdateTenantSettingsValidator()
     {
-        RuleFor(x => x.RequireFolderAssignment)
-            .NotNull()
-            .WithMessage("RequireFolderAssignment must be provided.");
+        RuleFor(x => x)
+            .Must(x =>
+                x.RequireFolderAssignment.HasValue
+                || x.ClearSubmissionTokenExpiryHours
+                || x.SubmissionTokenExpiryHours.HasValue)
+            .WithMessage(
+                "At least one of RequireFolderAssignment, SubmissionTokenExpiryHours, or ClearSubmissionTokenExpiryHours must be provided.");
+
+        RuleFor(x => x.SubmissionTokenExpiryHours)
+            .GreaterThan(0)
+            .When(x => x.SubmissionTokenExpiryHours.HasValue && !x.ClearSubmissionTokenExpiryHours)
+            .WithMessage("SubmissionTokenExpiryHours must be greater than 0.");
+
+        RuleFor(x => x.ClearSubmissionTokenExpiryHours)
+            .Must((request, clear) => !clear || !request.SubmissionTokenExpiryHours.HasValue)
+            .WithMessage("ClearSubmissionTokenExpiryHours cannot be combined with SubmissionTokenExpiryHours.");
     }
 }

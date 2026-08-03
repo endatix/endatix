@@ -84,9 +84,25 @@ public class UpdateFormHandler(
 
         form.UpdateWebHookSettings(webHookConfig);
 
+        var submissionTokenExpiryHours = form.SubmissionTokenExpiryHours;
+        if (request.ClearSubmissionTokenExpiryHours)
+        {
+            submissionTokenExpiryHours = null;
+        }
+        else if (request.SubmissionTokenExpiryHours.HasValue)
+        {
+            submissionTokenExpiryHours = request.SubmissionTokenExpiryHours;
+        }
+
         // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
         // before save so the capture is atomic. (UpdateFormCommand doesn't change IsPublic, so it's preserved.)
-        form.UpdateDetails(request.Name, request.Description, form.IsPublic, requestedLimitOnePerUser, request.Metadata);
+        form.UpdateDetails(
+            request.Name,
+            request.Description,
+            form.IsPublic,
+            requestedLimitOnePerUser,
+            request.Metadata,
+            submissionTokenExpiryHours);
         await repository.UpdateAsync(form, cancellationToken);
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows

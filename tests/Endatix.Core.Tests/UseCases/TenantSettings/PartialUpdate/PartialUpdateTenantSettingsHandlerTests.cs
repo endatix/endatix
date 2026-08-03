@@ -143,4 +143,56 @@ public class PartialUpdateTenantSettingsHandlerTests
 
         await _mediator.Received(1).Send(new GetTenantSettingsQuery(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_SubmissionTokenExpiryHours_UpdatesAndReturnsSettings()
+    {
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        var settings = new TenantSettingsEntity(SampleData.TENANT_ID, submissionTokenExpiryHours: 24);
+        _repository.FirstOrDefaultAsync(
+                Arg.Any<TenantSettingsByTenantIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(settings);
+
+        var getResult = Result.Success(new TenantSettingsDto
+        {
+            TenantId = SampleData.TENANT_ID,
+            SubmissionTokenExpiryHours = 168,
+        });
+        _mediator.Send(Arg.Any<GetTenantSettingsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(getResult);
+
+        var command = new PartialUpdateTenantSettingsCommand { SubmissionTokenExpiryHours = 168 };
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        settings.SubmissionTokenExpiryHours.Should().Be(168);
+        await _repository.Received(1).UpdateAsync(settings, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ClearSubmissionTokenExpiryHours_SetsNull()
+    {
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+        var settings = new TenantSettingsEntity(SampleData.TENANT_ID, submissionTokenExpiryHours: 24);
+        _repository.FirstOrDefaultAsync(
+                Arg.Any<TenantSettingsByTenantIdSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(settings);
+
+        var getResult = Result.Success(new TenantSettingsDto
+        {
+            TenantId = SampleData.TENANT_ID,
+            SubmissionTokenExpiryHours = null,
+        });
+        _mediator.Send(Arg.Any<GetTenantSettingsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(getResult);
+
+        var command = new PartialUpdateTenantSettingsCommand { ClearSubmissionTokenExpiryHours = true };
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        settings.SubmissionTokenExpiryHours.Should().BeNull();
+        await _repository.Received(1).UpdateAsync(settings, Arg.Any<CancellationToken>());
+    }
 }

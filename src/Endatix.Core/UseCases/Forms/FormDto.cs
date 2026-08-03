@@ -36,6 +36,11 @@ public record FormDto
     public bool LimitOnePerUser { get; init; }
 
     /// <summary>
+    /// Optional per-form submission resume-token TTL in hours. Null inherits tenant default.
+    /// </summary>
+    public int? SubmissionTokenExpiryHours { get; init; }
+
+    /// <summary>
     /// Additional form-level metadata as raw JSON string.
     /// </summary>
     public string? Metadata { get; init; }

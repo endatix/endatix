@@ -107,6 +107,16 @@ public class PartialUpdateFormHandler(
             }
         }
 
+        var submissionTokenExpiryHours = form.SubmissionTokenExpiryHours;
+        if (request.ClearSubmissionTokenExpiryHours)
+        {
+            submissionTokenExpiryHours = null;
+        }
+        else if (request.SubmissionTokenExpiryHours.HasValue)
+        {
+            submissionTokenExpiryHours = request.SubmissionTokenExpiryHours;
+        }
+
         // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
         // before save so the capture is atomic. Omitted fields keep their current value.
         form.UpdateDetails(
@@ -114,7 +124,8 @@ public class PartialUpdateFormHandler(
             request.Description ?? form.Description,
             request.IsPublic ?? form.IsPublic,
             requestedLimitOnePerUser,
-            request.Metadata ?? form.Metadata);
+            request.Metadata ?? form.Metadata,
+            submissionTokenExpiryHours);
         await repository.UpdateAsync(form, cancellationToken);
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows

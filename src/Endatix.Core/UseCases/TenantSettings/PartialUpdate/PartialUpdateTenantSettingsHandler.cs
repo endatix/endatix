@@ -30,9 +30,28 @@ public sealed class PartialUpdateTenantSettingsHandler(
             return Result.NotFound("Tenant settings not found.");
         }
 
+        var hasUpdates = false;
+
         if (request.RequireFolderAssignment.HasValue)
         {
             entity.UpdateRequireFolderAssignment(request.RequireFolderAssignment.Value);
+            hasUpdates = true;
+        }
+
+        // TODO(docs/todo-use-union-for-partial-updates.md): replace clear+value ceremony with UpdateOrReset<T>.
+        if (request.ClearSubmissionTokenExpiryHours)
+        {
+            entity.UpdateSubmissionTokenExpiry(null);
+            hasUpdates = true;
+        }
+        else if (request.SubmissionTokenExpiryHours.HasValue)
+        {
+            entity.UpdateSubmissionTokenExpiry(request.SubmissionTokenExpiryHours);
+            hasUpdates = true;
+        }
+
+        if (hasUpdates)
+        {
             await repository.UpdateAsync(entity, cancellationToken);
         }
 
