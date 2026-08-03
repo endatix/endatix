@@ -22,11 +22,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     private Form(FormCreateArgs args) : base(RequireArgs(args).TenantId)
     {
         Guard.Against.NullOrEmpty(args.Name, null, "Form name cannot be null.");
-        if (args.SubmissionTokenExpiryHours.HasValue)
-        {
-            Guard.Against.NegativeOrZero(
-                args.SubmissionTokenExpiryHours.Value);
-        }
+        SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(args.SubmissionTokenExpiryHours);
 
         Name = args.Name;
         Description = args.Description;
@@ -246,10 +242,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         int? submissionTokenExpiryHours = null)
     {
         Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
-        if (submissionTokenExpiryHours.HasValue)
-        {
-            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value);
-        }
+        SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(submissionTokenExpiryHours);
 
         Name = name;
         Description = description;
