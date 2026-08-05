@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.Search;
 
@@ -13,6 +14,25 @@ public class SearchDataListItemsHandlerTests
     {
         _repository = Substitute.For<IDataListRepository>();
         _sut = new SearchDataListItemsHandler(_repository);
+    }
+
+    private static DataListSearchItemResult Item(
+        long id,
+        string value,
+        string defaultLabel,
+        params (string Locale, string Text)[] extraLabels)
+    {
+        Dictionary<string, string> labels = new(StringComparer.Ordinal)
+        {
+            [DataListItem.DefaultLabelKey] = defaultLabel
+        };
+
+        foreach ((string locale, string text) in extraLabels)
+        {
+            labels[locale] = text;
+        }
+
+        return new DataListSearchItemResult(id, labels, value);
     }
 
     [Fact]
@@ -46,8 +66,8 @@ public class SearchDataListItemsHandlerTests
                 1,
                 2,
                 [
-                    new DataListSearchItemResult(1, "New York", "NYC"),
-                    new DataListSearchItemResult(2, "Los Angeles", "LA")
+                    Item(1, "NYC", "New York"),
+                    Item(2, "LA", "Los Angeles")
                 ]));
 
         var result = await _sut.Handle(
@@ -58,6 +78,32 @@ public class SearchDataListItemsHandlerTests
         result.Value.Should().NotBeNull();
         result.Value!.Items.Should().HaveCount(2);
         result.Value.TotalRecords.Should().Be(2);
+        result.Value.Items.First().Label.Should().Be("New York");
+    }
+
+    [Fact]
+    public async Task Handle_PreservesFullLabels_AndResolvesDefaultLabel()
+    {
+        _repository.SearchItemsAsync(
+                1,
+                null,
+                0,
+                10,
+                Arg.Any<CancellationToken>())
+            .Returns(new DataListSearchPageResult(
+                1,
+                1,
+                [Item(1, "apple", "Apple", ("es", "Manzana"))]));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, null, 0, 10),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        var item = result.Value!.Items.Single();
+        item.Label.Should().Be("Apple");
+        item.Labels.Should().ContainKey("es").WhoseValue.Should().Be("Manzana");
+        item.Labels[DataListItem.DefaultLabelKey].Should().Be("Apple");
     }
 
     [Fact]
@@ -72,7 +118,7 @@ public class SearchDataListItemsHandlerTests
             .Returns(new DataListSearchPageResult(
                 1,
                 1,
-                [new DataListSearchItemResult(1, "New York", "NYC")]));
+                [Item(1, "NYC", "New York")]));
 
         var result = await _sut.Handle(
             new SearchDataListItemsQuery(1, "New", 0, 10),

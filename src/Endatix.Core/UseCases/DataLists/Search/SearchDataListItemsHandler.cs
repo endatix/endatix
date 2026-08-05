@@ -13,7 +13,7 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
     /// <inheritdoc />
     public async Task<Result<Paged<DataListItemDto>>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
     {
-        var searchPage = await repository.SearchItemsAsync(
+        DataListSearchPageResult? searchPage = await repository.SearchItemsAsync(
             request.DataListId,
             request.Query,
             request.Skip,
@@ -27,11 +27,9 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
 
         var (_, total, items) = searchPage;
 
-        var pageItems = items
-            .Select(x => new DataListItemDto(x.Id, x.Label, x.Value))
-            .ToArray();
+        DataListItemDto[] pageItems = [.. items.Select(DataListDtoMapper.FromSearchItem)];
 
-        var paged = Paged<DataListItemDto>.FromSkipAndTake(
+        Paged<DataListItemDto> paged = Paged<DataListItemDto>.FromSkipAndTake(
             skip: request.Skip,
             take: request.Take,
             totalRecords: total,
