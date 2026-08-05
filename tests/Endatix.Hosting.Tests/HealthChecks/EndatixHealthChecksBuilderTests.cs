@@ -7,7 +7,14 @@ using Microsoft.Extensions.Hosting;
 namespace Endatix.Hosting.Tests.HealthChecks;
 
 /// <summary>
-/// Dummy type used to simulate Aspire presence (IsAspireServiceDefaultsPresent checks for "OpenTelemetry" in service type FullName).
+/// Dummy type used to simulate Aspire presence (IsAspireServiceDefaultsPresent checks for
+/// "ServiceDiscovery" in service type FullName).
+/// </summary>
+internal sealed class ServiceDiscoveryMarker;
+
+/// <summary>
+/// Dummy type standing in for Endatix's own OpenTelemetry registration. It must NOT be mistaken for
+/// Aspire — that misdetection would silently drop the "self" health check.
 /// </summary>
 internal sealed class OpenTelemetryMarker;
 
@@ -98,7 +105,7 @@ public sealed class EndatixHealthChecksBuilderTests
             .ConfigureServices((context, services) =>
             {
                 // Simulate Aspire presence so UseDefaults() skips the "self" check
-                services.AddSingleton<OpenTelemetryMarker>();
+                services.AddSingleton<ServiceDiscoveryMarker>();
                 var builder = services.AddEndatix(context.Configuration);
                 builder.HealthChecks.UseDefaults();
                 builder.Infrastructure.Security.UseDefaults();
@@ -112,6 +119,33 @@ public sealed class EndatixHealthChecksBuilderTests
 
         // Assert
         report.Entries.Should().NotContainKey("self");
+    }
+
+    [Fact]
+    public async Task ConfigureEndatix_WithOpenTelemetryRegistered_StillRegistersSelfCheck()
+    {
+        // Arrange — AC7. The Aspire probe used to match any service whose type name contained
+        // "OpenTelemetry", so Endatix registering its own SDK would silently disable this check.
+        var config = CreateMinimalConfig();
+        using var host = Host.CreateDefaultBuilder()
+            .ConfigureAppConfiguration((_, c) => c.AddConfiguration(config))
+            .ConfigureServices((context, services) =>
+            {
+                services.AddSingleton<OpenTelemetryMarker>();
+                var builder = services.AddEndatix(context.Configuration);
+                builder.HealthChecks.UseDefaults();
+                builder.Infrastructure.Security.UseDefaults();
+                builder.FinalizeConfiguration();
+            })
+            .Build();
+
+        // Act
+        var healthCheckService = host.Services.GetRequiredService<HealthCheckService>();
+        var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        report.Entries.Should().ContainKey("self");
+        report.Entries["self"].Status.Should().Be(HealthStatus.Healthy);
     }
 
     [Fact]
