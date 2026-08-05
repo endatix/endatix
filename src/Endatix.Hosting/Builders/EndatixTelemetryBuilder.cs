@@ -22,7 +22,7 @@ namespace Endatix.Hosting.Builders;
 /// node-exporter already report process CPU and memory.
 /// </remarks>
 [Flags]
-public enum Instrumentation
+public enum Instrumentations
 {
     /// <summary>No instrumentation.</summary>
     None = 0,
@@ -61,7 +61,7 @@ public enum Instrumentation
 /// <example>
 /// endatix.Telemetry
 ///     .UseDefaults()
-///     .DisableInstrumentation(Instrumentation.Runtime)
+///     .DisableInstrumentation(Instrumentations.Runtime)
 ///     .Build();
 /// </example>
 public class EndatixTelemetryBuilder
@@ -85,7 +85,7 @@ public class EndatixTelemetryBuilder
     private readonly List<string> _excludedPaths = [.. _defaultExcludedPaths];
 
     private TelemetryOptions _options = new();
-    private Instrumentation _instrumentation = Instrumentation.All;
+    private Instrumentations _instrumentation = Instrumentations.All;
     private bool _enabled;
     private bool _applied;
 
@@ -148,7 +148,7 @@ public class EndatixTelemetryBuilder
     /// </summary>
     /// <param name="instrumentation">The sources to disable; combinable with <c>|</c>.</param>
     /// <returns>The builder for chaining.</returns>
-    public EndatixTelemetryBuilder DisableInstrumentation(Instrumentation instrumentation)
+    public EndatixTelemetryBuilder DisableInstrumentation(Instrumentations instrumentation)
     {
         _instrumentation &= ~instrumentation;
         return this;
@@ -199,17 +199,17 @@ public class EndatixTelemetryBuilder
 
         otel.WithMetrics(metrics =>
         {
-            if (_instrumentation.HasFlag(Instrumentation.AspNetCore))
+            if (_instrumentation.HasFlag(Instrumentations.AspNetCore))
             {
                 metrics.AddAspNetCoreInstrumentation();
             }
 
-            if (_instrumentation.HasFlag(Instrumentation.HttpClient))
+            if (_instrumentation.HasFlag(Instrumentations.HttpClient))
             {
                 metrics.AddHttpClientInstrumentation();
             }
 
-            if (_instrumentation.HasFlag(Instrumentation.Runtime))
+            if (_instrumentation.HasFlag(Instrumentations.Runtime))
             {
                 metrics.AddRuntimeInstrumentation();
             }
@@ -219,14 +219,14 @@ public class EndatixTelemetryBuilder
 
         otel.WithTracing(tracing =>
         {
-            if (_instrumentation.HasFlag(Instrumentation.AspNetCore))
+            if (_instrumentation.HasFlag(Instrumentations.AspNetCore))
             {
                 // AC5: health and liveness probes are noise — one span per probe per scrape interval.
                 tracing.AddAspNetCoreInstrumentation(o =>
                     o.Filter = context => !IsExcludedPath(context.Request.Path));
             }
 
-            if (_instrumentation.HasFlag(Instrumentation.HttpClient))
+            if (_instrumentation.HasFlag(Instrumentations.HttpClient))
             {
                 tracing.AddHttpClientInstrumentation();
             }

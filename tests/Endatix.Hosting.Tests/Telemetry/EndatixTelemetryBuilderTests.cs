@@ -311,7 +311,7 @@ public sealed class EndatixTelemetryBuilderTests
         // Act
         var act = () => builder
             .UseDefaults()
-            .DisableInstrumentation(Instrumentation.Runtime | Instrumentation.HttpClient)
+            .DisableInstrumentation(Instrumentations.Runtime | Instrumentations.HttpClient)
             .Build();
 
         // Assert

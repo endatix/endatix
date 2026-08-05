@@ -87,7 +87,7 @@ public class EndatixBuilder : IBuilderRoot
     /// Builder for OpenTelemetry metrics and traces.
     /// </summary>
     /// <example>
-    /// endatix.Telemetry.UseDefaults().DisableInstrumentation(Instrumentation.Runtime).Build();
+    /// endatix.Telemetry.UseDefaults().DisableInstrumentation(Instrumentations.Runtime).Build();
     /// </example>
     public EndatixTelemetryBuilder Telemetry { get; }
 
