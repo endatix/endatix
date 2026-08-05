@@ -160,8 +160,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// </summary>
     public DataListItem AddItem(IReadOnlyDictionary<string, string> labels, string value)
     {
-        ValidateLabelKeys(labels);
-        DataListItem item = new(labels, value);
+        DataListItem item = CreateItem(labels, value);
         item.AttachToDataList(this);
         _items.Add(item);
         return item;
@@ -180,14 +179,23 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
 
     /// <summary>
     /// Replaces the items of the data list.
+    /// Validates and materializes all incoming items before mutating the existing collection.
     /// </summary>
     public void ReplaceItems(IEnumerable<(IReadOnlyDictionary<string, string> Labels, string Value)> items)
     {
         Guard.Against.Null(items);
-        _items.Clear();
+
+        List<DataListItem> prepared = [];
         foreach (var (labels, value) in items)
         {
-            AddItem(labels, value);
+            prepared.Add(CreateItem(labels, value));
+        }
+
+        _items.Clear();
+        foreach (var item in prepared)
+        {
+            item.AttachToDataList(this);
+            _items.Add(item);
         }
     }
 
@@ -204,13 +212,19 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             return false;
         }
 
-        if (string.Equals(key.Trim(), SurveyJsTranslationKeys.DefaultKey, StringComparison.Ordinal))
+        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(key))
         {
             return true;
         }
 
         var normalized = TranslationCultureNormalizer.Normalize(key);
         return _availableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private DataListItem CreateItem(IReadOnlyDictionary<string, string> labels, string value)
+    {
+        ValidateLabelKeys(labels);
+        return new DataListItem(labels, value);
     }
 
     private void ValidateLabelKeys(IReadOnlyDictionary<string, string> labels)
