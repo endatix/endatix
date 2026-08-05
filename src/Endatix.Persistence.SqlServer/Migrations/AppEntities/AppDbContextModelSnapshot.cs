@@ -69,7 +69,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.PrimitiveCollection<string>("AvailableLocales")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -137,7 +137,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("LabelsJson")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("json")
                         .HasColumnName("Labels");
 
                     b.Property<DateTime?>("ModifiedAt")

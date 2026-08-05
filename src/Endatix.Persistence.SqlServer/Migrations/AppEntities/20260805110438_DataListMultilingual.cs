@@ -13,7 +13,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
             migrationBuilder.AddColumn<string>(
                 name: "AvailableLocales",
                 table: "DataLists",
-                type: "nvarchar(max)",
+                type: "json",
                 nullable: false,
                 defaultValue: "[]");
 
@@ -28,8 +28,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
             migrationBuilder.AddColumn<string>(
                 name: "Labels",
                 table: "DataListItems",
-                type: "nvarchar(max)",
-                nullable: true);
+                type: "json",
+                nullable: true,
+                defaultValue: "");
 
             // Zero-loss backfill: wrap existing Label into SurveyJS default key.
             // JSON_OBJECT properly escapes special characters (SQL Server 2022+ / compat level 170).
@@ -43,11 +44,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
             migrationBuilder.AlterColumn<string>(
                 name: "Labels",
                 table: "DataListItems",
-                type: "nvarchar(max)",
+                type: "json",
                 nullable: false,
                 defaultValue: "{}",
                 oldClrType: typeof(string),
-                oldType: "nvarchar(max)",
+                oldType: "json",
                 oldNullable: true);
 
             migrationBuilder.DropColumn(
@@ -59,11 +60,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "Label",
-                table: "DataListItems",
-                type: "nvarchar(100)",
-                maxLength: 100,
-                nullable: true);
+               name: "Label",
+               table: "DataListItems",
+               type: "nvarchar(100)",
+               maxLength: 100,
+               nullable: true);
 
             migrationBuilder.Sql(
                 """

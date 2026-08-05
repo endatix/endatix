@@ -19,6 +19,9 @@ namespace Endatix.Persistence.SqlServer.Config
                 .HasDatabaseName(DataList.UniqueConstraints.NamePerTenant)
                 .IsUnique()
                 .HasFilter($"[{nameof(DataList.IsDeleted)}] = 0");
+
+            builder.PrimitiveCollection(x => x.AvailableLocales)
+                .HasColumnType("json");
         }
     }
 }

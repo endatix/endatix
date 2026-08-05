@@ -13,12 +13,21 @@ public class DataListItemConfiguration : IEntityTypeConfiguration<DataListItem>
 
         builder.Property(x => x.Id).IsRequired();
         builder.Property(x => x.DataListId).IsRequired();
-        builder.Property(x => x.Label)
-            .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
+
+        // Store-friendly JSON column (provider overrides set jsonb / nvarchar).
+        // Named "Labels" so migrations and JSON-path SQL stay stable.
+        builder.Property(x => x.LabelsJson)
+            .HasColumnName("Labels")
+            .HasColumnType("json")
             .IsRequired();
+
         builder.Property(x => x.Value)
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
+
+        builder.Ignore(x => x.Labels);
+        builder.Ignore(x => x.DefaultLabel);
+
         builder.HasIndex(x => x.DataListId);
     }
 }

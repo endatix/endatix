@@ -1,4 +1,7 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 using Ardalis.GuardClauses;
+using Endatix.Core.Common.Translations;
 
 namespace Endatix.Core.Entities;
 
@@ -7,21 +10,45 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public class DataListItem : BaseEntity
 {
+    /// <summary>
+    /// SurveyJS fallback translation key stored in <see cref="Labels"/>.
+    /// Prefer <see cref="SurveyJsTranslationKeys.DefaultKey"/>.
+    /// </summary>
+    public const string DefaultLabelKey = SurveyJsTranslationKeys.DefaultKey;
+
+    /// <summary>
+    /// Maximum length of a single culture label value.
+    /// </summary>
+    public const int MAX_LABEL_LENGTH = 100;
+
+    private static readonly JsonSerializerOptions _jsonOptions = new();
+
+    private string _labelsJson = "{}";
+    private Dictionary<string, string>? _labelsCache;
+
     /// For EF Core.
     private DataListItem() { }
 
     /// <summary>
     /// Creates a new data list item.
     /// </summary>
-    /// <param name="label">The label.</param>
-    /// <param name="value">The value.</param>
-    public DataListItem(string label, string value)
+    /// <param name="labels">Localized labels. Must include a non-empty <c>default</c> key.</param>
+    /// <param name="value">The invariant value.</param>
+    public DataListItem(IReadOnlyDictionary<string, string> labels, string value)
     {
-        Guard.Against.NullOrWhiteSpace(label);
+        Guard.Against.Null(labels);
         Guard.Against.NullOrWhiteSpace(value);
 
-        Label = label;
-        Value = value;
+        SetLabels(labels);
+        Value = value.Trim();
+    }
+
+    /// <summary>
+    /// Creates a monolingual item with only the <c>default</c> label.
+    /// </summary>
+    public DataListItem(string defaultLabel, string value)
+        : this(new Dictionary<string, string>(StringComparer.Ordinal) { [DefaultLabelKey] = defaultLabel }, value)
+    {
     }
 
     /// <summary>
@@ -35,19 +62,43 @@ public class DataListItem : BaseEntity
     public DataList DataList { get; private set; } = null!;
 
     /// <summary>
-    /// The label of the data list item.
+    /// Persisted JSON document for localized labels (column name <c>Labels</c>).
+    /// Queryable as JSON for provider-specific path filters.
     /// </summary>
-    public string Label { get; private set; } = null!;
+    public string LabelsJson
+    {
+        get => _labelsJson;
+        private set
+        {
+            _labelsJson = string.IsNullOrWhiteSpace(value) ? "{}" : value;
+            _labelsCache = null;
+        }
+    }
 
     /// <summary>
-    /// The value of the data list item.
+    /// Localized labels keyed by culture code, always including <see cref="DefaultLabelKey"/>.
+    /// </summary>
+    [NotMapped]
+    public IReadOnlyDictionary<string, string> Labels =>
+        _labelsCache ??= DeserializeLabels(LabelsJson);
+
+    /// <summary>
+    /// The invariant value of the data list item.
     /// </summary>
     public string Value { get; private set; } = null!;
 
     /// <summary>
+    /// Resolves the default display label (SurveyJS <c>default</c> key), falling back to <see cref="Value"/>.
+    /// </summary>
+    [NotMapped]
+    public string DefaultLabel =>
+        Labels.TryGetValue(DefaultLabelKey, out var label) && !string.IsNullOrWhiteSpace(label)
+            ? label
+            : Value;
+
+    /// <summary>
     /// Attaches the data list item to a data list.
     /// </summary>
-    /// <param name="dataList">The data list.</param>
     internal void AttachToDataList(DataList dataList)
     {
         Guard.Against.Null(dataList);
@@ -69,14 +120,82 @@ public class DataListItem : BaseEntity
     /// <summary>
     /// Updates the data list item.
     /// </summary>
-    /// <param name="label">The label.</param>
-    /// <param name="value">The value.</param>
-    public void Update(string label, string value)
+    public void Update(IReadOnlyDictionary<string, string> labels, string value)
     {
-        Guard.Against.NullOrWhiteSpace(label);
+        Guard.Against.Null(labels);
         Guard.Against.NullOrWhiteSpace(value);
 
-        Label = label;
-        Value = value;
+        SetLabels(labels);
+        Value = value.Trim();
+    }
+
+    /// <summary>
+    /// Removes a culture key from labels when present. Does not remove <see cref="DefaultLabelKey"/>.
+    /// </summary>
+    internal void RemoveTranslation(string cultureCode)
+    {
+        var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
+        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(normalized))
+        {
+            throw new InvalidOperationException("The default translation key cannot be removed.");
+        }
+
+        Dictionary<string, string> copy = new(Labels, StringComparer.Ordinal);
+        if (!copy.Remove(normalized))
+        {
+            return;
+        }
+
+        SetLabels(copy);
+    }
+
+    internal static Dictionary<string, string> NormalizeLabels(IReadOnlyDictionary<string, string> labels)
+    {
+        if (!labels.TryGetValue(DefaultLabelKey, out var defaultLabel) || string.IsNullOrWhiteSpace(defaultLabel))
+        {
+            throw new ArgumentException("Labels must include a non-empty 'default' entry.", nameof(labels));
+        }
+
+        Dictionary<string, string> normalized = new(StringComparer.Ordinal);
+        foreach (var (key, value) in labels)
+        {
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            var trimmedKey = key.Trim();
+            var cultureKey = TranslationCultureNormalizer.IsSyntheticDefaultKey(trimmedKey)
+                ? SurveyJsTranslationKeys.DefaultKey
+                : TranslationCultureNormalizer.Normalize(trimmedKey);
+            normalized[cultureKey] = value.Trim();
+        }
+
+        if (!normalized.ContainsKey(DefaultLabelKey))
+        {
+            normalized[DefaultLabelKey] = defaultLabel.Trim();
+        }
+
+        return normalized;
+    }
+
+    private void SetLabels(IReadOnlyDictionary<string, string> labels)
+    {
+        var normalized = NormalizeLabels(labels);
+        LabelsJson = JsonSerializer.Serialize(normalized, _jsonOptions);
+        _labelsCache = normalized;
+    }
+
+    private static Dictionary<string, string> DeserializeLabels(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+
+        var parsed = JsonSerializer.Deserialize<Dictionary<string, string>>(json, _jsonOptions);
+        return parsed is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(parsed, StringComparer.Ordinal);
     }
 }

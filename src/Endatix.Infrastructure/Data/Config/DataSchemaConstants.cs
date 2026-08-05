@@ -8,4 +8,6 @@ public static class DataSchemaConstants
     public const int MAX_DESCRIPTION_LENGTH = 500;
     public const int MAX_SLUG_LENGTH = 128;
     public const int MAX_ERROR_LENGTH = 2000;
+
+    public const int MAX_CULTURE_CODE_LENGTH = 16;
 }
