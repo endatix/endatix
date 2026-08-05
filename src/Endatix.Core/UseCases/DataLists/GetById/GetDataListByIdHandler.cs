@@ -1,4 +1,3 @@
-using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -12,17 +11,14 @@ public sealed class GetDataListByIdHandler(IRepository<DataList> repository)
 {
     public async Task<Result<DataListDto>> Handle(GetDataListByIdQuery request, CancellationToken cancellationToken)
     {
-        var getDataListsSpec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
-        var toDtoSpec = new DataListsSpecifications.ToDataListDtoSpec();
-        var spec = getDataListsSpec.WithProjectionOf(toDtoSpec);
-
-        var dataList = await repository.FirstOrDefaultAsync(spec, cancellationToken);
+        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
+        DataList? dataList = await repository.FirstOrDefaultAsync(spec, cancellationToken);
 
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
         }
 
-        return Result.Success(dataList);
+        return Result.Success(DataListDtoMapper.FromEntity(dataList));
     }
 }
