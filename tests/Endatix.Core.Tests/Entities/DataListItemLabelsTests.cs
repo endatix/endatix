@@ -1,3 +1,4 @@
+using System.Reflection;
 using Endatix.Core.Entities;
 
 namespace Endatix.Core.Tests.Entities;
@@ -48,5 +49,19 @@ public class DataListItemLabelsTests
             "apple");
 
         act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Labels_RebuildsCache_WhenBackingFieldJsonChanges()
+    {
+        DataListItem item = new("Apple", "apple");
+        item.Labels["default"].Should().Be("Apple");
+
+        typeof(DataListItem)
+            .GetField("_labelsJson", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(item, """{"default":"Banana"}""");
+
+        item.Labels["default"].Should().Be("Banana");
+        item.DefaultLabel.Should().Be("Banana");
     }
 }

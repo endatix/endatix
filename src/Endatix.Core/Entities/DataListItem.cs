@@ -25,6 +25,7 @@ public class DataListItem : BaseEntity
 
     private string _labelsJson = "{}";
     private Dictionary<string, string>? _labelsCache;
+    private string? _labelsCacheJson;
 
     /// For EF Core.
     private DataListItem() { }
@@ -68,19 +69,28 @@ public class DataListItem : BaseEntity
     public string LabelsJson
     {
         get => _labelsJson;
-        private set
-        {
-            _labelsJson = string.IsNullOrWhiteSpace(value) ? "{}" : value;
-            _labelsCache = null;
-        }
+        private set => _labelsJson = string.IsNullOrWhiteSpace(value) ? "{}" : value;
     }
 
     /// <summary>
     /// Localized labels keyed by culture code, always including <see cref="DefaultLabelKey"/>.
+    /// Rebuilds when <see cref="LabelsJson"/> changes via setter or backing-field materialization.
     /// </summary>
     [NotMapped]
-    public IReadOnlyDictionary<string, string> Labels =>
-        _labelsCache ??= DeserializeLabels(LabelsJson);
+    public IReadOnlyDictionary<string, string> Labels
+    {
+        get
+        {
+            if (_labelsCache is null
+                || !string.Equals(_labelsCacheJson, _labelsJson, StringComparison.Ordinal))
+            {
+                _labelsCache = DeserializeLabels(_labelsJson);
+                _labelsCacheJson = _labelsJson;
+            }
+
+            return _labelsCache;
+        }
+    }
 
     /// <summary>
     /// The invariant value of the data list item.
@@ -182,8 +192,10 @@ public class DataListItem : BaseEntity
     private void SetLabels(IReadOnlyDictionary<string, string> labels)
     {
         var normalized = NormalizeLabels(labels);
-        LabelsJson = JsonSerializer.Serialize(normalized, _jsonOptions);
+        var json = JsonSerializer.Serialize(normalized, _jsonOptions);
+        LabelsJson = json;
         _labelsCache = normalized;
+        _labelsCacheJson = _labelsJson;
     }
 
     private static Dictionary<string, string> DeserializeLabels(string json)

@@ -93,6 +93,17 @@ public class DataListLocaleCatalogTests
         translations.IsSyntheticDefault("es").Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData("default")]
+    [InlineData("DEFAULT")]
+    [InlineData(" Default ")]
+    public void AllowsTranslationKey_AcceptsSyntheticDefaultKeyVariants(string key)
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities");
+
+        dataList.AllowsTranslationKey(key).Should().BeTrue();
+    }
+
     [Fact]
     public void AllowsTranslationKey_AllowsDefaultAndCatalogCultures()
     {
