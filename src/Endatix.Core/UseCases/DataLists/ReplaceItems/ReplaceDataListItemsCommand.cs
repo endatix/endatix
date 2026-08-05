@@ -54,7 +54,7 @@ public sealed record ReplaceDataListItemInput(
 
         if (!string.IsNullOrWhiteSpace(Label))
         {
-            return new(StringComparer.Ordinal)
+            return new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 [DataListItem.DefaultLabelKey] = Label
             };
