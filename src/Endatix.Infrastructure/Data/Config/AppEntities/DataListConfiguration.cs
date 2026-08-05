@@ -34,6 +34,8 @@ public sealed class DataListConfiguration : IEntityTypeConfiguration<DataList>
             .IsRequired();
 
         builder.PrimitiveCollection(x => x.AvailableLocales)
+            .HasField("_availableLocales")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
             .ElementType()
             .HasMaxLength(DataSchemaConstants.MAX_CULTURE_CODE_LENGTH);
 

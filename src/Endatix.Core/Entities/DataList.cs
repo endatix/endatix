@@ -15,6 +15,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     }
 
     private readonly List<DataListItem> _items = [];
+    private readonly List<string> _availableLocales = [];
 
     private DataList() { }
 
@@ -65,15 +66,15 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// <summary>
     /// Added cultures for this list (culture catalog). Does not include the synthetic <c>default</c> key.
     /// Source of truth for validation and list filtering — not derived from item labels.
-    /// Mutable list for EF Core JSON/primitive-collection persistence; mutate only via domain methods.
+    /// Mutate only via domain methods; EF Core maps the <c>_availableLocales</c> backing field.
     /// </summary>
-    public List<string> AvailableLocales { get; private set; } = [];
+    public IReadOnlyList<string> AvailableLocales => _availableLocales.AsReadOnly();
 
     /// <inheritdoc />
     public string DefaultCulture => DefaultLocale;
 
     /// <inheritdoc />
-    public IReadOnlyList<string> AvailableCultures => AvailableLocales;
+    public IReadOnlyList<string> AvailableCultures => _availableLocales.AsReadOnly();
 
     /// <inheritdoc />
     public int MaxAvailableCultures => IHasTranslations.DEFAULT_MAX_AVAILABLE_CULTURES;
@@ -118,17 +119,17 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             throw new ArgumentException("The synthetic 'default' key cannot be added as a culture.", nameof(cultureCode));
         }
 
-        if (AvailableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        if (_availableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase))
         {
             return;
         }
 
-        if (AvailableLocales.Count >= MaxAvailableCultures)
+        if (_availableLocales.Count >= MaxAvailableCultures)
         {
             throw new InvalidOperationException($"A data list cannot have more than {MaxAvailableCultures} cultures.");
         }
 
-        AvailableLocales.Add(normalized);
+        _availableLocales.Add(normalized);
     }
 
     /// <inheritdoc />
@@ -140,7 +141,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             throw new ArgumentException("The synthetic 'default' key cannot be removed.", nameof(cultureCode));
         }
 
-        var removed = AvailableLocales.RemoveAll(x =>
+        var removed = _availableLocales.RemoveAll(x =>
             string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase));
 
         if (removed == 0)
@@ -209,7 +210,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         }
 
         var normalized = TranslationCultureNormalizer.Normalize(key);
-        return AvailableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase);
+        return _availableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase);
     }
 
     private void ValidateLabelKeys(IReadOnlyDictionary<string, string> labels)

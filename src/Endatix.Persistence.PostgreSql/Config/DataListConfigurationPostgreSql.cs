@@ -21,6 +21,8 @@ namespace Endatix.Persistence.PostgreSql.Config
                 .HasFilter($"\"{nameof(DataList.IsDeleted)}\" = false");
 
             builder.PrimitiveCollection(x => x.AvailableLocales)
+                .HasField("_availableLocales")
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
                 .HasColumnType("jsonb");
         }
     }

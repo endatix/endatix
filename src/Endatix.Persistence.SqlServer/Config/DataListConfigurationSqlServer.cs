@@ -21,6 +21,8 @@ namespace Endatix.Persistence.SqlServer.Config
                 .HasFilter($"[{nameof(DataList.IsDeleted)}] = 0");
 
             builder.PrimitiveCollection(x => x.AvailableLocales)
+                .HasField("_availableLocales")
+                .UsePropertyAccessMode(PropertyAccessMode.Field)
                 .HasColumnType("json");
         }
     }
