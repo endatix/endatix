@@ -57,6 +57,8 @@ curl -o docker-compose.yaml https://raw.githubusercontent.com/endatix/endatix/ma
 Make sure these ports are free on your machine:
 - **8080** - Endatix API  
 - **3000** - Endatix Hub
+- **18888** - Telemetry dashboard (localhost only)
+- **18889** - Telemetry ingest, OTLP/gRPC (localhost only)
 
 ### Step 3: Run the Setup Script
 
@@ -94,10 +96,33 @@ Once setup is complete, open your browser and visit:
 
 - **📊 Endatix Hub** (main interface): http://localhost:3000
 - **🔧 Endatix API** (for developers): http://localhost:8080
+- **🔭 Telemetry dashboard** (traces, metrics, logs): http://localhost:18888
 
 Sign in using the admin credentials you set during setup.
 
 > 🔓 **Security Note**: This setup uses HTTP connections for simplicity. Production environments require HTTPS, secure passwords, and additional security measures.
+
+### Telemetry dashboard
+
+Both the API and the Hub export OpenTelemetry data to a bundled [.NET Aspire Dashboard](https://learn.microsoft.com/en-us/dotnet/aspire/fundamentals/dashboard/standalone),
+so you can see traces, metrics and structured logs from a single UI without running
+Loki, Tempo or Grafana. Submit a form and the request shows up as a trace spanning Hub
+and API, with the log lines for that request attached to it.
+
+It is bound to **localhost only** and runs **without authentication** — that combination
+is deliberate and is why it must stay on `127.0.0.1`. Do not re-publish those ports on
+`0.0.0.0`, and do not reuse this service definition in a deployed environment: anyone who
+can reach it sees every request and form payload the platform handles.
+
+To point a locally-run API or Hub at it instead of the containerised one, export to
+`http://localhost:18889` over gRPC:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:18889 \
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc \
+OTEL_SERVICE_NAME=endatix-api \
+dotnet run
+```
 
 ---
 
