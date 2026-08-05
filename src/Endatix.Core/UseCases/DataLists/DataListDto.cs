@@ -11,12 +11,19 @@ public sealed record DataListDto(
     DateTime? ModifiedAt,
     bool IsActive,
     int ItemsCount,
+    string DefaultLocale,
+    IReadOnlyList<string> AvailableLocales,
     IReadOnlyCollection<DataListItemDto> Items);
 
 /// <summary>
 /// Data transfer object for a data list item.
 /// </summary>
+/// <param name="Id">Item id.</param>
+/// <param name="Labels">Localized labels including the <c>default</c> key.</param>
+/// <param name="Value">Invariant value.</param>
+/// <param name="Label">Resolved default label for public/compat consumers (Labels["default"] or Value).</param>
 public sealed record DataListItemDto(
     long Id,
-    string Label,
-    string Value);
+    IReadOnlyDictionary<string, string> Labels,
+    string Value,
+    string Label);

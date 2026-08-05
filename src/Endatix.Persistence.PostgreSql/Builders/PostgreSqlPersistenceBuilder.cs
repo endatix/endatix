@@ -8,6 +8,7 @@ using Endatix.Persistence.PostgreSql.Options;
 using Endatix.Persistence.PostgreSql.Querying;
 using Endatix.Persistence.PostgreSql.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -68,6 +69,7 @@ public class PostgreSqlPersistenceBuilder
             {
                 npgsqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().GetName().Name);
             });
+            options.ReplaceService<IModelCustomizer, NpgsqlEndatixModelCustomizer>();
         });
 
         LogSetupInfo($"PostgreSQL persistence for {typeof(TContext).Name} configured successfully");
@@ -112,6 +114,8 @@ public class PostgreSqlPersistenceBuilder
             {
                 dbContextOptions.EnableDetailedErrors();
             }
+
+            dbContextOptions.ReplaceService<IModelCustomizer, NpgsqlEndatixModelCustomizer>();
         });
 
         LogSetupInfo($"PostgreSQL persistence for {typeof(TContext).Name} configured successfully");
@@ -125,6 +129,7 @@ public class PostgreSqlPersistenceBuilder
     public PostgreSqlPersistenceBuilder AddDbSpecificRepositories()
     {
         Services.AddScoped<IRelationalSubstringLikeFilter, NpgsqlSubstringLikeFilter>();
+        Services.AddScoped<IRelationalJsonObjectKeyFilter, NpgsqlJsonObjectKeyFilter>();
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();

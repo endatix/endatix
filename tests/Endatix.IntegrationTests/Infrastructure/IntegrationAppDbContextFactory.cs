@@ -1,5 +1,7 @@
 using Endatix.Infrastructure.Data;
+using Endatix.Persistence.PostgreSql.Querying;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Endatix.IntegrationTests;
@@ -21,6 +23,7 @@ internal static class IntegrationAppDbContextFactory
             npgsql.MigrationsAssembly(PostgresMigrationsAssembly);
             npgsql.MigrationsHistoryTable(HistoryRepository.DefaultTableName);
         });
+        optionsBuilder.ReplaceService<IModelCustomizer, NpgsqlEndatixModelCustomizer>();
         ModuleDbContextExtensions.ConfigureProviderScopedMigrations(optionsBuilder, AppMigrationsNamespace);
         return optionsBuilder;
     }

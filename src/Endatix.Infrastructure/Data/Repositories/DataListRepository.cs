@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ namespace Endatix.Infrastructure.Data.Repositories;
 /// </summary>
 public sealed class DataListRepository(
     AppDbContext dbContext,
-    IRelationalSubstringLikeFilter substringLikeFilter) : IDataListRepository
+    IRelationalJsonObjectKeyFilter jsonObjectKeyFilter) : IDataListRepository
 {
     /// <inheritdoc />
     public async Task<DataListSearchPageResult?> SearchItemsAsync(
@@ -20,7 +21,7 @@ public sealed class DataListRepository(
         int take,
         CancellationToken cancellationToken = default)
     {
-        var dataListExists = await dbContext.DataLists
+        bool dataListExists = await dbContext.DataLists
             .AsNoTracking()
             .AnyAsync(d => d.Id == dataListId && d.IsActive, cancellationToken);
 
@@ -29,25 +30,34 @@ public sealed class DataListRepository(
             return null;
         }
 
-        var filteredItems = BuildFilteredItemsQuery(dataListId, searchQuery);
+        IQueryable<DataListItem> filteredItems = BuildFilteredItemsQuery(dataListId, searchQuery);
 
-        var total = await filteredItems
+        int total = await filteredItems
             .CountAsync(cancellationToken);
 
-        var pageItems = await filteredItems
-            .OrderBy(i => i.Label)
-            .ThenBy(i => i.Value)
+        DataListItem[] pageItems = await jsonObjectKeyFilter
+            .OrderByKeyThenBy(
+                filteredItems,
+                nameof(DataListItem.LabelsJson),
+                SurveyJsTranslationKeys.DefaultKey,
+                nameof(DataListItem.Value))
             .Skip(skip)
             .Take(take)
-            .Select(i => new DataListSearchItemResult(i.Id, i.Label, i.Value))
             .ToArrayAsync(cancellationToken);
 
-        return new DataListSearchPageResult(dataListId, total, pageItems);
+        DataListSearchItemResult[] results = pageItems
+            .Select(i => new DataListSearchItemResult(
+                i.Id,
+                new Dictionary<string, string>(i.Labels, StringComparer.Ordinal),
+                i.Value))
+            .ToArray();
+
+        return new DataListSearchPageResult(dataListId, total, results);
     }
 
     private IQueryable<DataListItem> BuildFilteredItemsQuery(long dataListId, string? searchQuery)
     {
-        var query = dbContext.DataListItems
+        IQueryable<DataListItem> query = dbContext.DataListItems
             .AsNoTracking()
             .Where(i => i.DataListId == dataListId);
 
@@ -56,9 +66,14 @@ public sealed class DataListRepository(
             return query;
         }
 
-        return substringLikeFilter.WherePropertyMatchesLikeSubstring(
+        string trimmed = searchQuery.Trim();
+
+        // Match Value or Labels['default'] only — other locales are ignored until PR-2 includeLocales.
+        return jsonObjectKeyFilter.WhereKeyOrPropertyMatches(
             query,
-            nameof(DataListItem.Label),
-            searchQuery.Trim());
+            nameof(DataListItem.Value),
+            nameof(DataListItem.LabelsJson),
+            SurveyJsTranslationKeys.DefaultKey,
+            trimmed);
     }
 }

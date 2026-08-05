@@ -19,6 +19,9 @@ namespace Endatix.Persistence.PostgreSql.Config
                 .HasDatabaseName(DataList.UniqueConstraints.NamePerTenant)
                 .IsUnique()
                 .HasFilter($"\"{nameof(DataList.IsDeleted)}\" = false");
+
+            builder.PrimitiveCollection(x => x.AvailableLocales)
+                .HasColumnType("jsonb");
         }
     }
 }

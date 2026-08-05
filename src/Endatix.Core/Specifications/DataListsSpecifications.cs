@@ -17,11 +17,14 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListSpec : Specification<DataList>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ListSpec"/> class.
-        /// </summary>
-        public ListSpec()
+        public ListSpec(string? hasLocale = null)
         {
+            if (!string.IsNullOrWhiteSpace(hasLocale))
+            {
+                var locale = hasLocale.Trim().ToLowerInvariant();
+                Query.Where(x => x.AvailableLocales.Contains(locale));
+            }
+
             Query
                  .OrderByDescending(x => x.CreatedAt)
                  .AsNoTracking();
@@ -33,12 +36,14 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListWithPagingToDtoSpec : Specification<DataList, DataListDto>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ListWithPagingToDtoSpec"/> class.
-        /// </summary>
-        /// <param name="pagingParams">The paging parameters.</param>
-        public ListWithPagingToDtoSpec(PagingParameters pagingParams)
+        public ListWithPagingToDtoSpec(PagingParameters pagingParams, string? hasLocale = null)
         {
+            if (!string.IsNullOrWhiteSpace(hasLocale))
+            {
+                var locale = hasLocale.Trim().ToLowerInvariant();
+                Query.Where(x => x.AvailableLocales.Contains(locale));
+            }
+
             Query
                 .OrderByDescending(x => x.CreatedAt)
                 .Paginate(pagingParams)
@@ -52,6 +57,8 @@ public static class DataListsSpecifications
                 dataList.ModifiedAt,
                 dataList.IsActive,
                 dataList.Items.Count,
+                dataList.DefaultLocale,
+                dataList.AvailableLocales,
                 Array.Empty<DataListItemDto>()));
         }
     }
@@ -62,10 +69,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ByNameSpec : SingleResultSpecification<DataList>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ByNameSpec"/> class.
-        /// </summary>
-        /// <param name="name">The name of the data list.</param>
         public ByNameSpec(string name)
         {
             Query.Where(x => x.Name == name);
@@ -78,10 +81,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ByNormalizedNameSpec : SingleResultSpecification<DataList>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ByNormalizedNameSpec"/> class.
-        /// </summary>
-        /// <param name="normalizedName">The normalized name of the data list.</param>
         public ByNormalizedNameSpec(string normalizedName)
         {
             Query.Where(x => x.NormalizedName == normalizedName);
@@ -94,10 +93,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ExistsSpec : SingleResultSpecification<DataList>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ExistsSpec"/> class.
-        /// </summary>
-        /// <param name="dataListId">The ID of the data list.</param>
         public ExistsSpec(long dataListId)
         {
             Query.Where(x => x.Id == dataListId);
@@ -110,9 +105,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ByIdsForTenantSpec : Specification<DataList>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ByIdsForTenantSpec"/> class.
-        /// </summary>
         public ByIdsForTenantSpec(IReadOnlyCollection<long> dataListIds, long tenantId)
         {
             Query.Where(x => dataListIds.Contains(x.Id) && x.TenantId == tenantId);
@@ -125,10 +117,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ByIdWithItemsSpec : SingleResultSpecification<DataList>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ByIdWithItemsSpec"/> class.
-        /// </summary>
-        /// <param name="dataListId">The ID of the data list.</param>
         public ByIdWithItemsSpec(long dataListId)
         {
             Query
@@ -143,11 +131,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ByIdWithItemsByValuesSpec : SingleResultSpecification<DataList>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ByIdWithItemsByValuesSpec"/> class.
-        /// </summary>
-        /// <param name="dataListId">The ID of the data list.</param>
-        /// <param name="values">The values to filter the data list items by.</param>
         public ByIdWithItemsByValuesSpec(long dataListId, IReadOnlyCollection<string> values)
         {
             Query.Where(x => x.Id == dataListId && x.IsActive);
@@ -167,9 +150,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ToDataListDtoSpec : SingleResultSpecification<DataList, DataListDto>
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ToDataListDtoSpec"/> class.
-        /// </summary>
         public ToDataListDtoSpec()
         {
             Query.Select(dataList =>
@@ -181,7 +161,15 @@ public static class DataListsSpecifications
                                 dataList.ModifiedAt,
                                 dataList.IsActive,
                                 dataList.Items.Count,
-                                dataList.Items.Select(x => new DataListItemDto(x.Id, x.Label, x.Value)).ToArray())
+                                dataList.DefaultLocale,
+                                dataList.AvailableLocales,
+                                dataList.Items.Select(x => new DataListItemDto(
+                                    x.Id,
+                                    x.Labels,
+                                    x.Value,
+                                    x.Labels.ContainsKey(DataListItem.DefaultLabelKey)
+                                        ? x.Labels[DataListItem.DefaultLabelKey]
+                                        : x.Value)).ToArray())
                 );
         }
     }
