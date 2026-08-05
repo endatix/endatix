@@ -67,8 +67,17 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<long>("Id")
                         .HasColumnType("bigint");
 
+                    b.PrimitiveCollection<string>("AvailableLocales")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DefaultLocale")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
@@ -126,10 +135,10 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Label")
+                    b.Property<string>("LabelsJson")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("jsonb")
+                        .HasColumnName("Labels");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
