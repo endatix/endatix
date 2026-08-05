@@ -193,6 +193,19 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/translation-and-localization/excel-import",
           ],
         },
+        {
+          type: "category",
+          label: "Form Settings",
+          collapsed: false,
+          link: {
+            type: "generated-index",
+            slug: "end-users/forms/form-settings",
+            title: "Form Settings",
+            description:
+              "Workspace and per-form settings that control how forms behave for respondents.",
+          },
+          items: ["end-users/forms/submission-expiration"],
+        },
       ],
     },
     {
