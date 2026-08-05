@@ -13,6 +13,7 @@ public sealed class EnvironmentVariableScopeTests
     public void Dispose_RestoresTheOriginalValue()
     {
         // Arrange
+        var ambient = Environment.GetEnvironmentVariable(Variable);
         Environment.SetEnvironmentVariable(Variable, "original");
 
         try
@@ -28,7 +29,7 @@ public sealed class EnvironmentVariableScopeTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable(Variable, null);
+            Environment.SetEnvironmentVariable(Variable, ambient);
         }
     }
 
@@ -37,6 +38,7 @@ public sealed class EnvironmentVariableScopeTests
     {
         // Arrange — the shape ClearOtelEnvironment uses: clear everything, then override one.
         // Recording the value on each pass would capture the null written moments earlier.
+        var ambient = Environment.GetEnvironmentVariable(Variable);
         Environment.SetEnvironmentVariable(Variable, "original");
 
         try
@@ -52,7 +54,7 @@ public sealed class EnvironmentVariableScopeTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable(Variable, null);
+            Environment.SetEnvironmentVariable(Variable, ambient);
         }
     }
 
@@ -60,15 +62,23 @@ public sealed class EnvironmentVariableScopeTests
     public void Dispose_WhenTheVariableWasUnset_LeavesItUnset()
     {
         // Arrange
+        var ambient = Environment.GetEnvironmentVariable(Variable);
         Environment.SetEnvironmentVariable(Variable, null);
 
-        // Act
-        using (new EnvironmentVariableScope((Variable, "temporary")))
+        try
         {
-            Environment.GetEnvironmentVariable(Variable).Should().Be("temporary");
-        }
+            // Act
+            using (new EnvironmentVariableScope((Variable, "temporary")))
+            {
+                Environment.GetEnvironmentVariable(Variable).Should().Be("temporary");
+            }
 
-        // Assert
-        Environment.GetEnvironmentVariable(Variable).Should().BeNull();
+            // Assert
+            Environment.GetEnvironmentVariable(Variable).Should().BeNull();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(Variable, ambient);
+        }
     }
 }
