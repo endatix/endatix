@@ -1,5 +1,6 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Entities;
 using Endatix.Core.UseCases.DataLists.ReplaceItems;
 using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
@@ -24,7 +25,7 @@ public sealed class ReplaceItems(
         Summary(s =>
         {
             s.Summary = "Replace items in a data list";
-            s.Description = "Replaces the items in a data list.";
+            s.Description = "Replaces the items in a data list. Prefer Labels maps; Label is accepted as shorthand for { default: Label }.";
             s.Responses[200] = "Items replaced successfully.";
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[404] = "Data list not found.";
@@ -46,9 +47,9 @@ public sealed class ReplaceItems(
     }
 
     private static ReplaceDataListItemInput ToReplaceDataListItemInput(ReplaceDataListItemRequest request) => new(
-        request.Label ?? string.Empty,
-        request.Value ?? string.Empty);
-
+        Value: request.Value ?? string.Empty,
+        Labels: request.Labels,
+        Label: request.Label);
 }
 
 
@@ -72,15 +73,28 @@ public sealed class ReplaceDataListItemsValidator : Validator<ReplaceDataListIte
 
         RuleForEach(x => x.Items).ChildRules(item =>
         {
-            item.RuleFor(x => x.Label)
-                .NotEmpty()
-                .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
-
             item.RuleFor(x => x.Value)
                 .NotEmpty()
                 .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
+
+            item.RuleFor(x => x)
+                .Must(HasLabelsOrLabel)
+                .WithMessage("Either Labels or Label is required.");
+
+            item.RuleFor(x => x.Label)
+                .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH)
+                .When(x => !string.IsNullOrWhiteSpace(x.Label));
+
+            item.RuleFor(x => x.Labels)
+                .Must(labels => labels is null || labels.Values.All(v =>
+                    string.IsNullOrWhiteSpace(v) || v.Trim().Length <= DataListItem.MAX_LABEL_LENGTH))
+                .WithMessage($"Each label value cannot exceed {DataListItem.MAX_LABEL_LENGTH} characters.");
         });
     }
+
+    private static bool HasLabelsOrLabel(ReplaceDataListItemRequest item) =>
+        (item.Labels is not null && item.Labels.Count > 0)
+        || !string.IsNullOrWhiteSpace(item.Label);
 }
 
 
@@ -106,7 +120,12 @@ public sealed class ReplaceDataListItemsRequest
 public sealed class ReplaceDataListItemRequest
 {
     /// <summary>
-    /// The label of the item to replace.
+    /// Localized labels including <c>default</c>. Preferred over <see cref="Label"/>.
+    /// </summary>
+    public Dictionary<string, string>? Labels { get; init; }
+
+    /// <summary>
+    /// Legacy monolingual label (maps to Labels.default).
     /// </summary>
     public string? Label { get; init; }
 

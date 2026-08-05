@@ -51,6 +51,8 @@ public sealed class Create(
         CreatedAt = dataList.CreatedAt,
         ModifiedAt = dataList.ModifiedAt,
         ItemsCount = 0,
+        DefaultLocale = dataList.DefaultLocale,
+        AvailableLocales = dataList.AvailableLocales,
         Items = []
     };
 }
