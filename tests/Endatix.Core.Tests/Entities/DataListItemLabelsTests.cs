@@ -57,9 +57,7 @@ public class DataListItemLabelsTests
         DataListItem item = new("Apple", "apple");
         item.Labels["default"].Should().Be("Apple");
 
-        typeof(DataListItem)
-            .GetField("_labelsJson", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .SetValue(item, """{"default":"Banana"}""");
+        SetLabelsJsonBackingField(item, """{"default":"Banana"}""");
 
         item.Labels["default"].Should().Be("Banana");
         item.DefaultLabel.Should().Be("Banana");
@@ -74,7 +72,7 @@ public class DataListItemLabelsTests
             new Dictionary<string, string> { ["default"] = tooLong });
 
         act.Should().Throw<ArgumentException>()
-            .WithParameterName("labels")
+            .WithParameterName("default")
             .WithMessage($"*exceed {DataListItem.MAX_LABEL_LENGTH}*");
     }
 
@@ -91,7 +89,7 @@ public class DataListItemLabelsTests
             },
             "apple");
 
-        act.Should().Throw<ArgumentException>().WithParameterName("labels");
+        act.Should().Throw<ArgumentException>().WithParameterName("es");
     }
 
     [Fact]
@@ -104,19 +102,45 @@ public class DataListItemLabelsTests
             new Dictionary<string, string> { ["default"] = tooLong },
             "apple");
 
-        act.Should().Throw<ArgumentException>().WithParameterName("labels");
+        act.Should().Throw<ArgumentException>().WithParameterName("default");
         item.DefaultLabel.Should().Be("Apple");
     }
 
     [Fact]
-    public void AddItem_LabelExceedingMaxLength_Throws()
+    public void Labels_MalformedJson_ReturnsEmptyDictionary()
     {
-        DataList dataList = new(SampleData.TENANT_ID, "Cities");
-        string tooLong = new('x', DataListItem.MAX_LABEL_LENGTH + 1);
+        DataListItem item = new("Apple", "apple");
+        item.Labels["default"].Should().Be("Apple");
 
-        Action act = () => dataList.AddItem(tooLong, "apple");
+        SetLabelsJsonBackingField(item, "{not-json");
 
-        act.Should().Throw<ArgumentException>();
-        dataList.Items.Should().BeEmpty();
+        item.Labels.Should().BeEmpty();
+        item.DefaultLabel.Should().Be("apple");
     }
+
+    [Fact]
+    public void Labels_NonStringJsonValues_ReturnsEmptyDictionary()
+    {
+        DataListItem item = new("Apple", "apple");
+
+        SetLabelsJsonBackingField(item, """{"default":123}""");
+
+        item.Labels.Should().BeEmpty();
+        item.DefaultLabel.Should().Be("apple");
+    }
+
+    [Fact]
+    public void Labels_WhitespaceJson_ReturnsEmptyDictionary()
+    {
+        DataListItem item = new("Apple", "apple");
+
+        SetLabelsJsonBackingField(item, "   ");
+
+        item.Labels.Should().BeEmpty();
+    }
+
+    private static void SetLabelsJsonBackingField(DataListItem item, string json) =>
+        typeof(DataListItem)
+            .GetField("_labelsJson", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(item, json);
 }

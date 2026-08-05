@@ -227,7 +227,10 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         return new DataListItem(labels, value);
     }
 
-    private void ValidateLabelKeys(IReadOnlyDictionary<string, string> labels)
+    /// <summary>
+    /// Ensures every non-empty label key is allowed by the culture catalog (or is the synthetic default key).
+    /// </summary>
+    internal void ValidateLabelKeys(IReadOnlyDictionary<string, string> labels)
     {
         Guard.Against.Null(labels);
         foreach (var key in labels.Keys)
@@ -241,7 +244,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             {
                 throw new ArgumentException(
                     $"Culture '{key}' is not in the data list culture catalog. Add the culture before assigning labels.",
-                    nameof(labels));
+                    key);
             }
         }
     }

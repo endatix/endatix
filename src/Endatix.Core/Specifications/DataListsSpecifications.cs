@@ -167,9 +167,7 @@ public static class DataListsSpecifications
                                     x.Id,
                                     x.Labels,
                                     x.Value,
-                                    x.Labels.ContainsKey(DataListItem.DefaultLabelKey)
-                                        ? x.Labels[DataListItem.DefaultLabelKey]
-                                        : x.Value)).ToArray())
+                                    x.DefaultLabel)).ToArray())
                 );
         }
     }

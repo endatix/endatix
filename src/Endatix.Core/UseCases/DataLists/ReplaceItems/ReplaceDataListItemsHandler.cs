@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -84,15 +85,6 @@ public sealed class ReplaceDataListItemsHandler(
                 ErrorMessage = "Labels (or legacy Label) is required."
             });
         }
-        else if (!labels.TryGetValue(DataListItem.DefaultLabelKey, out var defaultLabel)
-                 || string.IsNullOrWhiteSpace(defaultLabel))
-        {
-            errors.Add(new()
-            {
-                Identifier = $"Items[{index}].Labels.default",
-                ErrorMessage = "Labels must include a non-empty 'default' entry."
-            });
-        }
         else
         {
             CollectLabelMapErrors(dataList, index, labels, errors);
@@ -114,13 +106,14 @@ public sealed class ReplaceDataListItemsHandler(
         IReadOnlyDictionary<string, string> labels,
         List<ValidationError> errors)
     {
-        foreach ((string cultureKey, string labelValue) in labels)
+        foreach (string cultureKey in labels.Keys)
         {
             if (string.IsNullOrWhiteSpace(cultureKey))
             {
                 continue;
             }
 
+            // Same catalog gate as DataList.ValidateLabelKeys / AllowsTranslationKey.
             if (!dataList.AllowsTranslationKey(cultureKey))
             {
                 errors.Add(new()
@@ -129,18 +122,49 @@ public sealed class ReplaceDataListItemsHandler(
                     ErrorMessage = $"Culture '{cultureKey}' is not in the data list culture catalog."
                 });
             }
+        }
 
-            if (!string.IsNullOrWhiteSpace(labelValue)
-                && labelValue.Trim().Length > DataListItem.MAX_LABEL_LENGTH)
-            {
-                errors.Add(new()
-                {
-                    Identifier = $"Items[{index}].Labels.{cultureKey}",
-                    ErrorMessage = $"Each label value cannot exceed {DataListItem.MAX_LABEL_LENGTH} characters."
-                });
-            }
+        try
+        {
+            _ = DataListItem.NormalizeLabels(labels);
+        }
+        catch (ArgumentException ex)
+        {
+            errors.Add(ToLabelValidationError(index, ex));
         }
     }
+
+    private static ValidationError ToLabelValidationError(int index, ArgumentException ex)
+    {
+        string labelsPrefix = $"Items[{index}].Labels";
+        string identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex);
+
+        return new()
+        {
+            Identifier = identifier,
+            ErrorMessage = ex.Message
+        };
+    }
+
+    private static string ResolveLabelErrorIdentifier(string labelsPrefix, ArgumentException ex)
+    {
+        if (IsConcreteLabelKey(ex.ParamName))
+        {
+            return $"{labelsPrefix}.{ex.ParamName}";
+        }
+
+        if (ex.Message.Contains(SurveyJsTranslationKeys.DefaultKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{labelsPrefix}.{SurveyJsTranslationKeys.DefaultKey}";
+        }
+
+        return labelsPrefix;
+    }
+
+    private static bool IsConcreteLabelKey(string? paramName) =>
+        !string.IsNullOrEmpty(paramName)
+        && !string.Equals(paramName, "labels", StringComparison.Ordinal)
+        && !string.Equals(paramName, "cultureCode", StringComparison.Ordinal);
 
     private static Result<DataListDto>? TryReplaceItems(
         DataList dataList,

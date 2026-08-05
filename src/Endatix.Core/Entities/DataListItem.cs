@@ -178,24 +178,24 @@ public class DataListItem : BaseEntity
             var cultureKey = TranslationCultureNormalizer.IsSyntheticDefaultKey(trimmedKey)
                 ? SurveyJsTranslationKeys.DefaultKey
                 : TranslationCultureNormalizer.Normalize(trimmedKey);
-            normalized[cultureKey] = EnforceLabelLength(value.Trim(), nameof(labels));
+            normalized[cultureKey] = EnforceLabelLength(value.Trim(), cultureKey);
         }
 
         if (!normalized.ContainsKey(DefaultLabelKey))
         {
-            normalized[DefaultLabelKey] = EnforceLabelLength(defaultLabel.Trim(), nameof(labels));
+            normalized[DefaultLabelKey] = EnforceLabelLength(defaultLabel.Trim(), DefaultLabelKey);
         }
 
         return normalized;
     }
 
-    private static string EnforceLabelLength(string trimmedLabel, string paramName)
+    private static string EnforceLabelLength(string trimmedLabel, string labelKey)
     {
         if (trimmedLabel.Length > MAX_LABEL_LENGTH)
         {
             throw new ArgumentException(
                 $"Each label value cannot exceed {MAX_LABEL_LENGTH} characters.",
-                paramName);
+                labelKey);
         }
 
         return trimmedLabel;
@@ -217,9 +217,16 @@ public class DataListItem : BaseEntity
             return new Dictionary<string, string>(StringComparer.Ordinal);
         }
 
-        var parsed = JsonSerializer.Deserialize<Dictionary<string, string>>(json, _jsonOptions);
-        return parsed is null
-            ? new Dictionary<string, string>(StringComparer.Ordinal)
-            : new Dictionary<string, string>(parsed, StringComparer.Ordinal);
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, string>>(json, _jsonOptions);
+            return parsed is null
+                ? new Dictionary<string, string>(StringComparer.Ordinal)
+                : new Dictionary<string, string>(parsed, StringComparer.Ordinal);
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
     }
 }

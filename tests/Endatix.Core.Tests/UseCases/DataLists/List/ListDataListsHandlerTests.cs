@@ -1,3 +1,4 @@
+using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -88,10 +89,10 @@ public class ListDataListsHandlerTests
 
         // Assert
         await _repository.Received(1).CountAsync(
-            Arg.Any<DataListsSpecifications.ListSpec>(),
+            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersByLocale(spec, "es")),
             Arg.Any<CancellationToken>());
         await _repository.Received(1).ListAsync(
-            Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(),
+            Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(spec => SpecFiltersByLocale(spec, "es")),
             Arg.Any<CancellationToken>());
     }
 
@@ -116,5 +117,20 @@ public class ListDataListsHandlerTests
         result.Value.PageSize.Should().Be(10);
         result.Value.TotalRecords.Should().Be(25);
         result.Value.Items.Should().ContainSingle(x => x.Id == 99);
+    }
+
+    private static bool SpecFiltersByLocale(ISpecification<DataList> spec, string locale)
+    {
+        DataList withLocale = new(SampleData.TENANT_ID, "WithLocale");
+        withLocale.AddCulture(locale);
+
+        DataList withoutLocale = new(SampleData.TENANT_ID, "WithoutLocale");
+        withoutLocale.AddCulture("fr");
+
+        bool Matches(DataList dataList) =>
+            spec.WhereExpressions.Any()
+            && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
+
+        return Matches(withLocale) && !Matches(withoutLocale);
     }
 }
