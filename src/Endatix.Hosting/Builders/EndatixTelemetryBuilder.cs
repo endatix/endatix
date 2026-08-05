@@ -259,11 +259,7 @@ public class EndatixTelemetryBuilder
         });
 
         _applied = true;
-        // Scheme, host and port only: an OTLP endpoint may legitimately carry credentials in its
-        // user-info component, and logs are shipped off-box.
-        _logger.LogTelemetryConfigured(
-            otlpEndpoint.GetLeftPart(UriPartial.Authority),
-            _instrumentation.ToString());
+        _logger.LogTelemetryConfigured(Redact(otlpEndpoint), _instrumentation.ToString());
 
         return _parent;
     }
@@ -315,6 +311,18 @@ public class EndatixTelemetryBuilder
 
     private static bool AnyEnvironmentVariableSet(string[] names) =>
         names.Any(name => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name)));
+
+    /// <summary>
+    /// Renders an endpoint as scheme, host and port only — safe to log.
+    /// </summary>
+    /// <remarks>
+    /// An OTLP endpoint may legitimately carry a bearer token or credentials in its user-info
+    /// component or query string, and logs ship off-box. Note that
+    /// <c>GetLeftPart(UriPartial.Authority)</c> is <em>not</em> sufficient: unlike the
+    /// <see cref="Uri.Authority"/> property, it retains user info, so
+    /// <c>https://user:secret@host:4318/v1/traces?token=abc</c> would still leak the credentials.
+    /// </remarks>
+    internal static string Redact(Uri endpoint) => $"{endpoint.Scheme}://{endpoint.Authority}";
 
     private static void ConfigureOtlp(
         OtlpExporterOptions exporter,

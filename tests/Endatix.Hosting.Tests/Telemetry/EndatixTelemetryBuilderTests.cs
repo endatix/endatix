@@ -444,6 +444,34 @@ public sealed class EndatixTelemetryBuilderTests
             "the failure must resurface rather than be swallowed by the idempotency guard");
     }
 
+    [Theory]
+    [InlineData("http://collector:4317", "http://collector:4317")]
+    [InlineData("https://user:s3cr3t@collector:4318/v1/traces?token=abc123#frag", "https://collector:4318")]
+    [InlineData("https://bearer-token@collector.example.com/v1/metrics?api-key=deadbeef",
+        "https://collector.example.com")]
+    public void Redact_StripsCredentialsPathAndQuery(string endpoint, string expected)
+    {
+        // Arrange / Act
+        var redacted = EndatixTelemetryBuilder.Redact(new Uri(endpoint));
+
+        // Assert
+        redacted.Should().Be(expected);
+    }
+
+    [Fact]
+    public void Redact_NeverLeaksUserInfo()
+    {
+        // Arrange — GetLeftPart(UriPartial.Authority) keeps user info, unlike the Authority
+        // property. This test exists so nobody "simplifies" the implementation back to it.
+        var endpoint = new Uri("https://user:s3cr3t@collector:4318/v1/traces?token=abc123");
+
+        // Act
+        var redacted = EndatixTelemetryBuilder.Redact(endpoint);
+
+        // Assert
+        redacted.Should().NotContain("s3cr3t").And.NotContain("user").And.NotContain("abc123");
+    }
+
     [Fact]
     public void TelemetryOptions_SectionName_MatchesTheDocumentedKey()
     {
