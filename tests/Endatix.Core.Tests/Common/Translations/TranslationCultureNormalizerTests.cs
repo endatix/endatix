@@ -34,6 +34,20 @@ public class TranslationCultureNormalizerTests
     }
 
     [Theory]
+    [InlineData("not a culture!")]
+    [InlineData("en_US")]
+    [InlineData("123")]
+    [InlineData("e")]
+    [InlineData("-en")]
+    public void Normalize_InvalidCultureCode_Throws(string input)
+    {
+        Action act = () => TranslationCultureNormalizer.Normalize(input);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("cultureCode");
+    }
+
+    [Theory]
     [InlineData("default", true)]
     [InlineData("DEFAULT", true)]
     [InlineData("es", false)]
