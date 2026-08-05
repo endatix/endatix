@@ -13,7 +13,7 @@ public static class SqlServerJsonDbFunctions
     public static readonly MethodInfo JsonValueMethod =
         typeof(SqlServerJsonDbFunctions).GetMethod(
             nameof(JsonValue),
-            [typeof(string), typeof(string)])!;
+            [typeof(string), typeof(string)]);
 
     /// <summary>
     /// Extracts a JSON scalar by path (<c>JSON_VALUE</c>). Pass a full path such as <c>$.default</c>.

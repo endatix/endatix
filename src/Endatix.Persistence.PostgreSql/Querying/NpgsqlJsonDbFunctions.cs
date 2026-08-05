@@ -13,7 +13,7 @@ public static class NpgsqlJsonDbFunctions
     public static readonly MethodInfo ExtractObjectKeyTextMethod =
         typeof(NpgsqlJsonDbFunctions).GetMethod(
             nameof(ExtractObjectKeyText),
-            [typeof(string), typeof(string)])!;
+            [typeof(string), typeof(string)]);
 
     /// <summary>
     /// Extracts a top-level JSON object string value by key (<c>jsonb_extract_path_text</c>).
