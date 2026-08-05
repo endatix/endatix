@@ -64,4 +64,59 @@ public class DataListItemLabelsTests
         item.Labels["default"].Should().Be("Banana");
         item.DefaultLabel.Should().Be("Banana");
     }
+
+    [Fact]
+    public void NormalizeLabels_DefaultExceedingMaxLength_Throws()
+    {
+        string tooLong = new('x', DataListItem.MAX_LABEL_LENGTH + 1);
+
+        Action act = () => DataListItem.NormalizeLabels(
+            new Dictionary<string, string> { ["default"] = tooLong });
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("labels")
+            .WithMessage($"*exceed {DataListItem.MAX_LABEL_LENGTH}*");
+    }
+
+    [Fact]
+    public void Ctor_LocaleLabelExceedingMaxLength_Throws()
+    {
+        string tooLong = new('x', DataListItem.MAX_LABEL_LENGTH + 1);
+
+        Action act = () => _ = new DataListItem(
+            new Dictionary<string, string>
+            {
+                ["default"] = "Apple",
+                ["es"] = tooLong
+            },
+            "apple");
+
+        act.Should().Throw<ArgumentException>().WithParameterName("labels");
+    }
+
+    [Fact]
+    public void Update_LabelExceedingMaxLength_Throws()
+    {
+        DataListItem item = new("Apple", "apple");
+        string tooLong = new('x', DataListItem.MAX_LABEL_LENGTH + 1);
+
+        Action act = () => item.Update(
+            new Dictionary<string, string> { ["default"] = tooLong },
+            "apple");
+
+        act.Should().Throw<ArgumentException>().WithParameterName("labels");
+        item.DefaultLabel.Should().Be("Apple");
+    }
+
+    [Fact]
+    public void AddItem_LabelExceedingMaxLength_Throws()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities");
+        string tooLong = new('x', DataListItem.MAX_LABEL_LENGTH + 1);
+
+        Action act = () => dataList.AddItem(tooLong, "apple");
+
+        act.Should().Throw<ArgumentException>();
+        dataList.Items.Should().BeEmpty();
+    }
 }

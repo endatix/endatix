@@ -178,15 +178,27 @@ public class DataListItem : BaseEntity
             var cultureKey = TranslationCultureNormalizer.IsSyntheticDefaultKey(trimmedKey)
                 ? SurveyJsTranslationKeys.DefaultKey
                 : TranslationCultureNormalizer.Normalize(trimmedKey);
-            normalized[cultureKey] = value.Trim();
+            normalized[cultureKey] = EnforceLabelLength(value.Trim(), nameof(labels));
         }
 
         if (!normalized.ContainsKey(DefaultLabelKey))
         {
-            normalized[DefaultLabelKey] = defaultLabel.Trim();
+            normalized[DefaultLabelKey] = EnforceLabelLength(defaultLabel.Trim(), nameof(labels));
         }
 
         return normalized;
+    }
+
+    private static string EnforceLabelLength(string trimmedLabel, string paramName)
+    {
+        if (trimmedLabel.Length > MAX_LABEL_LENGTH)
+        {
+            throw new ArgumentException(
+                $"Each label value cannot exceed {MAX_LABEL_LENGTH} characters.",
+                paramName);
+        }
+
+        return trimmedLabel;
     }
 
     private void SetLabels(IReadOnlyDictionary<string, string> labels)
