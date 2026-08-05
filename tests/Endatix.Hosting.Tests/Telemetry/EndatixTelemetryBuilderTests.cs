@@ -36,10 +36,13 @@ public sealed class EndatixTelemetryBuilderTests
         {
             (EndatixTelemetryBuilder.EnvVars.ServiceName, null),
             (EndatixTelemetryBuilder.EnvVars.ServiceVersion, null),
-            (EndatixTelemetryBuilder.EnvVars.OtlpEndpoint, null),
-            (EndatixTelemetryBuilder.EnvVars.OtlpProtocol, null),
             (EndatixTelemetryBuilder.EnvVars.TracesSampler, null)
         };
+
+        // Includes the signal-specific endpoint and protocol variables, any one of which would
+        // otherwise activate telemetry from the ambient environment and skew every assertion here.
+        variables.AddRange(EndatixTelemetryBuilder.EnvVars.AllOtlpEndpoints.Select(n => (n, (string?)null)));
+        variables.AddRange(EndatixTelemetryBuilder.EnvVars.AllOtlpProtocols.Select(n => (n, (string?)null)));
 
         variables.AddRange(overrides.Select(o => (o.Name, o.Value)));
         return new EnvironmentVariableScope([.. variables]);
@@ -364,6 +367,81 @@ public sealed class EndatixTelemetryBuilderTests
 
         // Assert
         builder.Services.Should().NotContain(s => s.ServiceType.FullName!.Contains("OpenTelemetry"));
+    }
+
+    [Theory]
+    [InlineData("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")]
+    [InlineData("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")]
+    public void UseDefaults_WithSignalSpecificEndpointOnly_EnablesTelemetry(string variable)
+    {
+        // Arrange — the spec allows configuring only a signal-specific endpoint, with no global one
+        using var _ = ClearOtelEnvironment((variable, CollectorEndpoint));
+        var builder = CreateBuilder();
+
+        // Act
+        builder.UseDefaults().Build();
+
+        // Assert
+        builder.Services.Should().Contain(
+            s => s.ServiceType.FullName!.Contains("OpenTelemetry"),
+            "a signal-specific endpoint configures telemetry just as the global one does");
+    }
+
+    [Fact]
+    public void ResolveOtlpEndpoint_SignalSpecificAndGlobalSet_SignalSpecificWins()
+    {
+        // Arrange
+        using var _ = ClearOtelEnvironment(
+            (EndatixTelemetryBuilder.EnvVars.OtlpEndpoint, "http://global:4317"),
+            (EndatixTelemetryBuilder.EnvVars.OtlpTracesEndpoint, "http://traces:4318"));
+        var builder = CreateBuilder();
+
+        // Act
+        builder.UseDefaults();
+
+        // Assert
+        builder.ResolveOtlpEndpoint()!.Host.Should().Be("traces");
+    }
+
+    [Fact]
+    public void BuildResource_ConfiguredAttributeForServiceName_DoesNotOverrideTheEnvironment()
+    {
+        // Arrange — AC2 again, by the back door: ResourceAttributes must not defeat OTEL_SERVICE_NAME
+        using var _ = ClearOtelEnvironment(
+            (EndatixTelemetryBuilder.EnvVars.ServiceName, "endatix-api-from-env"));
+        var builder = CreateBuilder(new Dictionary<string, string?>
+        {
+            ["Endatix:Telemetry:ResourceAttributes:service.name"] = "hijacked",
+            ["Endatix:Telemetry:ResourceAttributes:deployment.environment"] = "production"
+        });
+
+        // Act
+        builder.UseDefaults();
+        var resource = builder.BuildResource();
+
+        // Assert
+        resource["service.name"].Should().Be("endatix-api-from-env");
+        resource["deployment.environment"].Should().Be("production");
+    }
+
+    [Fact]
+    public void Build_WhenValidationFails_DoesNotMarkItselfApplied()
+    {
+        // Arrange — a failed Build must not latch, or FinalizeConfiguration() calling Build() after
+        // a caught exception would return quietly having registered nothing
+        using var _ = ClearOtelEnvironment(
+            (EndatixTelemetryBuilder.EnvVars.OtlpEndpoint, "not-a-uri"));
+        var builder = CreateBuilder();
+        builder.UseDefaults();
+
+        // Act
+        var first = () => builder.Build();
+        first.Should().Throw<InvalidOperationException>();
+        var second = () => builder.Build();
+
+        // Assert
+        second.Should().Throw<InvalidOperationException>(
+            "the failure must resurface rather than be swallowed by the idempotency guard");
     }
 
     [Fact]

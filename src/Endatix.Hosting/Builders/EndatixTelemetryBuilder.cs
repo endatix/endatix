@@ -74,8 +74,20 @@ public class EndatixTelemetryBuilder
         public const string ServiceName = "OTEL_SERVICE_NAME";
         public const string ServiceVersion = "OTEL_SERVICE_VERSION";
         public const string OtlpEndpoint = "OTEL_EXPORTER_OTLP_ENDPOINT";
+        public const string OtlpTracesEndpoint = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
+        public const string OtlpMetricsEndpoint = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
         public const string OtlpProtocol = "OTEL_EXPORTER_OTLP_PROTOCOL";
+        public const string OtlpTracesProtocol = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL";
+        public const string OtlpMetricsProtocol = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL";
         public const string TracesSampler = "OTEL_TRACES_SAMPLER";
+
+        /// <summary>Endpoint variables in specification precedence order: signal-specific first.</summary>
+        public static readonly string[] AllOtlpEndpoints =
+            [OtlpTracesEndpoint, OtlpMetricsEndpoint, OtlpEndpoint];
+
+        /// <summary>Protocol variables in specification precedence order: signal-specific first.</summary>
+        public static readonly string[] AllOtlpProtocols =
+            [OtlpTracesProtocol, OtlpMetricsProtocol, OtlpProtocol];
     }
 
     private static readonly string[] _defaultExcludedPaths = ["/health", "/alive", "/ready"];
@@ -178,12 +190,11 @@ public class EndatixTelemetryBuilder
             return _parent;
         }
 
-        _applied = true;
-
         var otlpEndpoint = ResolveOtlpEndpoint();
         if (otlpEndpoint is null)
         {
             // AC6: nothing configured means nothing registered — no exporter allocated, no SDK cost.
+            _applied = true;
             _logger.LogTelemetrySkippedNoExporter();
             return _parent;
         }
@@ -192,6 +203,17 @@ public class EndatixTelemetryBuilder
         // options configuration action the SDK defers until the provider is built, so validating in
         // it would surface a bad protocol long after startup — or not at all. AC8 wants fail-fast.
         var otlpProtocol = ResolveOtlpProtocol();
+
+        // When the value came from the environment, leave the endpoint and protocol unset on the
+        // exporter and let the SDK read the variables itself. It already implements the whole
+        // specification: signal-specific OTEL_EXPORTER_OTLP_{TRACES,METRICS}_* overriding the
+        // global one, and the per-signal path suffixes that http/protobuf requires. Assigning our
+        // resolved value here would clobber all of that with the global endpoint. Validation above
+        // still runs against the environment, so a bad value fails fast either way.
+        var endpointFromEnvironment = AnyEnvironmentVariableSet(EnvVars.AllOtlpEndpoints);
+        var protocolFromEnvironment = AnyEnvironmentVariableSet(EnvVars.AllOtlpProtocols);
+        var exporterEndpoint = endpointFromEnvironment ? null : otlpEndpoint;
+        var exporterProtocol = protocolFromEnvironment ? null : otlpProtocol;
 
         var resource = BuildResource();
 
@@ -214,7 +236,7 @@ public class EndatixTelemetryBuilder
                 metrics.AddRuntimeInstrumentation();
             }
 
-            metrics.AddOtlpExporter((exporter, _) => ConfigureOtlp(exporter, otlpEndpoint, otlpProtocol));
+            metrics.AddOtlpExporter((exporter, _) => ConfigureOtlp(exporter, exporterEndpoint, exporterProtocol));
         });
 
         otel.WithTracing(tracing =>
@@ -233,10 +255,15 @@ public class EndatixTelemetryBuilder
 
             ApplySampler(tracing);
 
-            tracing.AddOtlpExporter(exporter => ConfigureOtlp(exporter, otlpEndpoint, otlpProtocol));
+            tracing.AddOtlpExporter(exporter => ConfigureOtlp(exporter, exporterEndpoint, exporterProtocol));
         });
 
-        _logger.LogTelemetryConfigured(otlpEndpoint.ToString(), _instrumentation.ToString());
+        _applied = true;
+        // Scheme, host and port only: an OTLP endpoint may legitimately carry credentials in its
+        // user-info component, and logs are shipped off-box.
+        _logger.LogTelemetryConfigured(
+            otlpEndpoint.GetLeftPart(UriPartial.Authority),
+            _instrumentation.ToString());
 
         return _parent;
     }
@@ -255,20 +282,25 @@ public class EndatixTelemetryBuilder
     /// </summary>
     internal Uri? ResolveOtlpEndpoint()
     {
-        var raw = Environment.GetEnvironmentVariable(EnvVars.OtlpEndpoint);
-        var source = EnvVars.OtlpEndpoint;
-
-        if (string.IsNullOrWhiteSpace(raw))
+        // Signal-specific variables take precedence over the global one, per the specification.
+        // Any of them being set means telemetry is configured, so all three are checked here even
+        // though the SDK is left to apply them (see the note in Build).
+        foreach (var name in EnvVars.AllOtlpEndpoints)
         {
-            raw = _options.Otlp.Endpoint;
-            source = $"{TelemetryOptions.SectionName}:Otlp:Endpoint";
+            var value = Environment.GetEnvironmentVariable(name);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return ParseEndpoint(value, name);
+            }
         }
 
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return null;
-        }
+        return string.IsNullOrWhiteSpace(_options.Otlp.Endpoint)
+            ? null
+            : ParseEndpoint(_options.Otlp.Endpoint, $"{TelemetryOptions.SectionName}:Otlp:Endpoint");
+    }
 
+    private static Uri ParseEndpoint(string raw, string source)
+    {
         if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
@@ -280,6 +312,9 @@ public class EndatixTelemetryBuilder
 
         return uri;
     }
+
+    private static bool AnyEnvironmentVariableSet(string[] names) =>
+        names.Any(name => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name)));
 
     private static void ConfigureOtlp(
         OtlpExporterOptions exporter,
@@ -330,16 +365,20 @@ public class EndatixTelemetryBuilder
     /// </summary>
     internal Dictionary<string, object> BuildResource()
     {
-        var serviceName =
+        // Configured attributes go in FIRST so the resolved service identity below always wins.
+        // Applied last, a ResourceAttributes entry for service.name would silently defeat
+        // OTEL_SERVICE_NAME and break the environment-first contract this class exists to uphold.
+        var attributes = new Dictionary<string, object>();
+        foreach (var (key, value) in _options.ResourceAttributes)
+        {
+            attributes[key] = value;
+        }
+
+        attributes[ResourceSemanticConventions.ServiceName] =
             Environment.GetEnvironmentVariable(EnvVars.ServiceName)
             ?? _options.ServiceName
             ?? Assembly.GetEntryAssembly()?.GetName().Name
             ?? "endatix-api";
-
-        var attributes = new Dictionary<string, object>
-        {
-            [ResourceSemanticConventions.ServiceName] = serviceName
-        };
 
         var serviceVersion =
             Environment.GetEnvironmentVariable(EnvVars.ServiceVersion)
@@ -348,13 +387,6 @@ public class EndatixTelemetryBuilder
         if (!string.IsNullOrWhiteSpace(serviceVersion))
         {
             attributes[ResourceSemanticConventions.ServiceVersion] = serviceVersion;
-        }
-
-        // Configured attributes are the weakest source: OTEL_RESOURCE_ATTRIBUTES is applied by the
-        // SDK's own environment detector and overrides anything set here.
-        foreach (var (key, value) in _options.ResourceAttributes)
-        {
-            attributes[key] = value;
         }
 
         return attributes;

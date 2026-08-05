@@ -16,7 +16,15 @@ internal sealed class EnvironmentVariableScope : IDisposable
     {
         foreach (var (name, value) in variables)
         {
-            _previous[name] = Environment.GetEnvironmentVariable(name);
+            // Record only the FIRST observation. Callers legitimately pass a name twice — clearing
+            // every OTEL_* variable and then overriding one of them — and re-recording would
+            // capture the value this scope had just written, so Dispose would restore that instead
+            // of the caller's real environment.
+            if (!_previous.ContainsKey(name))
+            {
+                _previous[name] = Environment.GetEnvironmentVariable(name);
+            }
+
             Environment.SetEnvironmentVariable(name, value);
         }
     }
