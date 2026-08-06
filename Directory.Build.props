@@ -30,7 +30,6 @@
         <Copyright>Copyright © Endatix, Ltd. $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
         <Product>Endatix Platform</Product>
         <PackageProjectUrl>https://endatix.com</PackageProjectUrl>
-        <PackageIconUrl>https://endatix.com/assets/images/endatix-white.svg</PackageIconUrl>
         <PackageIcon>icon.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <RepositoryUrl>https://github.com/endatix/endatix</RepositoryUrl>
