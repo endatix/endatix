@@ -5,7 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 namespace Endatix.Core.UseCases.DataLists.Locales;
 
 /// <summary>
-/// Removes a culture from a data list catalog and strips that key from item labels.
+/// Removes a locale from a data list catalog and strips that key from item labels.
 /// </summary>
 public sealed record RemoveDataListLocaleCommand : ICommand<Result<DataListDto>>
 {
