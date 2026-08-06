@@ -119,7 +119,7 @@ public sealed class ReplaceDataListItemsHandler(
                 errors.Add(new()
                 {
                     Identifier = $"Items[{index}].Labels.{cultureKey}",
-                    ErrorMessage = $"Culture '{cultureKey}' is not in the data list culture catalog."
+                    ErrorMessage = $"Locale '{cultureKey}' is not in the data list AvailableLocales catalog."
                 });
             }
         }

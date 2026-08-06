@@ -20,8 +20,8 @@ Clean Architecture + vertical slices in `oss/`. Architecture/testing rules of re
 
 | Layer | Project | Folder | Reference |
 | --- | --- | --- | --- |
-| FastEndpoints | `Endatix.Api.Tests` | `Endpoints/{Feature}/` | `Forms/DeleteTests.cs`, `DataLists/AddLocaleTests.cs` |
-| Handlers / commands | `Endatix.Core.Tests` | `UseCases/{Feature}/{Action}/` | `Forms/Delete/DeleteFormHandlerTests.cs`, `DataLists/Locales/AddDataListLocale*Tests.cs` |
+| FastEndpoints | `Endatix.Api.Tests` | `Endpoints/{Feature}/` | `Forms/DeleteTests.cs`, `DataLists/*LocaleTests.cs` |
+| Handlers / commands | `Endatix.Core.Tests` | `UseCases/{Feature}/{Action}/` | `Forms/Delete/DeleteFormHandlerTests.cs`, `DataLists/Locales/*Locale*Tests.cs` |
 | Domain | `Endatix.Core.Tests` | `Entities/` | `DataListLocaleCatalogTests.cs` |
 | Infrastructure | `Endatix.Infrastructure.Tests` | Mirror source | `Data/Querying/...` |
 
