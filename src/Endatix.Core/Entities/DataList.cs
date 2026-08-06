@@ -97,6 +97,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     }
 
     /// <inheritdoc />
+    /// <exception cref="ArgumentException">Thrown when the culture code is the synthetic 'default' key.</exception>
     public void SetDefaultCulture(string cultureCode)
     {
         var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
