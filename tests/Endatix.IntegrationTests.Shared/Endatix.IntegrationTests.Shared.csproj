@@ -1,11 +1,43 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <PackageId>Endatix.IntegrationTesting</PackageId>
+    <Title>Endatix - Integration Testing</Title>
+    <Description>
+      Test fixtures and harnesses for writing integration tests against Endatix: Testcontainers-backed
+      PostgreSQL, SQL Server and Keycloak infrastructure, database seeding and Respawn checkpointing,
+      and a WebApplicationFactory host fixture with authentication personas.
+
+      $(EndatixPlatformDescription)
+    </Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- A consumable library that happens to live under tests/. Overrides the
+         IsPackable=false / IsTestProject=true defaults from tests/Directory.Build.props:
+         it ships as a package and contains no tests of its own. -->
+    <IsPackable>true</IsPackable>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Endatix.IntegrationTests.Shared</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Inherited from tests/Directory.Build.props and needed to build here, but they are
+         test-host and assertion concerns that must not become dependencies of consumers.
+         PrivateAssets keeps them out of the nuspec. xunit.v3 is deliberately NOT listed —
+         the fixtures implement IAsyncLifetime, so it is a genuine public dependency. -->
+    <PackageReference Update="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
+    <PackageReference Update="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Update="coverlet.collector" PrivateAssets="all" />
+    <PackageReference Update="FluentAssertions" PrivateAssets="all" />
+    <PackageReference Update="NSubstitute" PrivateAssets="all" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
