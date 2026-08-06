@@ -9,6 +9,7 @@ using Endatix.Persistence.SqlServer.Querying;
 using Endatix.Persistence.SqlServer.Repositories;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -67,6 +68,7 @@ public class SqlServerPersistenceBuilder
                 sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().GetName().Name);
                 sqlOptions.UseCompatibilityLevel(170); // SQL Server 2025
             });
+            options.ReplaceService<IModelCustomizer, SqlServerEndatixModelCustomizer>();
         });
 
         LogSetupInfo($"Persistence for {typeof(TContext).Name} configured successfully");
@@ -110,6 +112,8 @@ public class SqlServerPersistenceBuilder
             {
                 dbContextOptions.EnableDetailedErrors();
             }
+
+            dbContextOptions.ReplaceService<IModelCustomizer, SqlServerEndatixModelCustomizer>();
         });
 
         LogSetupInfo($"Persistence for {typeof(TContext).Name} configured successfully");
@@ -123,6 +127,7 @@ public class SqlServerPersistenceBuilder
     public SqlServerPersistenceBuilder AddDbSpecificRepositories()
     {
         Services.AddScoped<IRelationalSubstringLikeFilter, SqlServerSubstringLikeFilter>();
+        Services.AddScoped<IRelationalJsonObjectKeyFilter, SqlServerJsonObjectKeyFilter>();
         // submitterProfile filters are PostgreSQL-only in the MVP; this guard fails fast instead of silently ignoring them.
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();

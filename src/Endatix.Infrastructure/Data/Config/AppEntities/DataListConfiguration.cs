@@ -29,6 +29,16 @@ public sealed class DataListConfiguration : IEntityTypeConfiguration<DataList>
             .HasMaxLength(DataSchemaConstants.MAX_DESCRIPTION_LENGTH)
             .IsRequired(false);
 
+        builder.Property(x => x.DefaultLocale)
+            .HasMaxLength(DataSchemaConstants.MAX_CULTURE_CODE_LENGTH)
+            .IsRequired();
+
+        builder.PrimitiveCollection(x => x.AvailableLocales)
+            .HasField("_availableLocales")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .ElementType()
+            .HasMaxLength(DataSchemaConstants.MAX_CULTURE_CODE_LENGTH);
+
         builder.HasMany(x => x.Items)
             .WithOne(x => x.DataList)
             .HasForeignKey(x => x.DataListId)

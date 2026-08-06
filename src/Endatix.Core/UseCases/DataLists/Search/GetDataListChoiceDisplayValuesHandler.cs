@@ -3,9 +3,9 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.DataLists;
 
 namespace Endatix.Core.UseCases.DataLists.Search;
-
 
 /// <summary>
 /// Handler to get data list choice display values.
@@ -31,9 +31,9 @@ public sealed class GetDataListChoiceDisplayValuesHandler(IRepository<DataList> 
         }
 
         IReadOnlyCollection<DataListChoiceDisplayValueDto> items = dataList.Items
-            .OrderBy(item => item.Label)
+            .OrderBy(item => item.DefaultLabel)
             .ThenBy(item => item.Value)
-            .Select(item => new DataListChoiceDisplayValueDto(item.Value, item.Label))
+            .Select(item => new DataListChoiceDisplayValueDto(item.Value, item.DefaultLabel))
             .ToArray();
 
         return Result.Success(items);

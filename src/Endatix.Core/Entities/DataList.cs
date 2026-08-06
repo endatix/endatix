@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -6,7 +7,7 @@ namespace Endatix.Core.Entities;
 /// <summary>
 /// Represents a data list entity.
 /// </summary>
-public class DataList : TenantEntity, IAggregateRoot
+public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
 {
     public static class UniqueConstraints
     {
@@ -14,10 +15,16 @@ public class DataList : TenantEntity, IAggregateRoot
     }
 
     private readonly List<DataListItem> _items = [];
+    private readonly List<string> _availableLocales = [];
 
     private DataList() { }
 
-    public DataList(long tenantId, string name, string? description = null, string? normalizedName = null)
+    public DataList(
+        long tenantId,
+        string name,
+        string? description = null,
+        string? normalizedName = null,
+        string? defaultLocale = null)
         : base(tenantId)
     {
         Guard.Against.NullOrWhiteSpace(name);
@@ -26,6 +33,8 @@ public class DataList : TenantEntity, IAggregateRoot
         Name = name;
         NormalizedName = normalizedName;
         Description = description;
+        DefaultLocale = TranslationCultureNormalizer.Normalize(
+            defaultLocale ?? SurveyJsTranslationKeys.FallbackDefaultCulture);
     }
 
     /// <summary>
@@ -49,6 +58,28 @@ public class DataList : TenantEntity, IAggregateRoot
     public bool IsActive { get; private set; } = true;
 
     /// <summary>
+    /// Real culture represented by the SurveyJS <c>default</c> label key (e.g. <c>en</c>).
+    /// Persistence/API wire name kept as DefaultLocale for stability.
+    /// </summary>
+    public string DefaultLocale { get; private set; } = SurveyJsTranslationKeys.FallbackDefaultCulture;
+
+    /// <summary>
+    /// Added cultures for this list (culture catalog). Does not include the synthetic <c>default</c> key.
+    /// Source of truth for validation and list filtering — not derived from item labels.
+    /// Mutate only via domain methods; EF Core maps the <c>_availableLocales</c> backing field.
+    /// </summary>
+    public IReadOnlyList<string> AvailableLocales => _availableLocales.AsReadOnly();
+
+    /// <inheritdoc />
+    public string DefaultCulture => DefaultLocale;
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> AvailableCultures => _availableLocales.AsReadOnly();
+
+    /// <inheritdoc />
+    public int MaxAvailableCultures => IHasTranslations.DEFAULT_MAX_AVAILABLE_CULTURES;
+
+    /// <summary>
     /// The items of the data list.
     /// </summary>
     public IReadOnlyCollection<DataListItem> Items => _items.AsReadOnly();
@@ -56,9 +87,6 @@ public class DataList : TenantEntity, IAggregateRoot
     /// <summary>
     /// Updates the details of the data list.
     /// </summary>
-    /// <param name="name">The name of the data list.</param>
-    /// <param name="description">The description of the data list.</param>
-    /// <param name="normalizedName">The normalized name of the data list.</param>
     public void UpdateDetails(string name, string? description, string normalizedName)
     {
         Guard.Against.NullOrWhiteSpace(name);
@@ -68,37 +96,156 @@ public class DataList : TenantEntity, IAggregateRoot
         Description = description;
     }
 
+    /// <inheritdoc />
+    public void SetDefaultCulture(string cultureCode)
+    {
+        var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
+        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(normalized))
+        {
+            throw new ArgumentException(
+                "DefaultCulture must be a real culture code (e.g. 'en'), not the synthetic 'default' key.",
+                nameof(cultureCode));
+        }
+
+        DefaultLocale = normalized;
+    }
+
+    /// <inheritdoc />
+    public void AddCulture(string cultureCode)
+    {
+        var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
+        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(normalized))
+        {
+            throw new ArgumentException("The synthetic 'default' key cannot be added as a culture.", nameof(cultureCode));
+        }
+
+        if (_availableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (_availableLocales.Count >= MaxAvailableCultures)
+        {
+            throw new InvalidOperationException($"A data list cannot have more than {MaxAvailableCultures} cultures.");
+        }
+
+        _availableLocales.Add(normalized);
+    }
+
+    /// <inheritdoc />
+    public void RemoveCulture(string cultureCode)
+    {
+        var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
+        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(normalized))
+        {
+            throw new ArgumentException("The synthetic 'default' key cannot be removed.", nameof(cultureCode));
+        }
+
+        var removed = _availableLocales.RemoveAll(x =>
+            string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (removed == 0)
+        {
+            return;
+        }
+
+        foreach (var item in _items)
+        {
+            item.RemoveTranslation(normalized);
+        }
+    }
+
     /// <summary>
     /// Adds a new item to the data list.
     /// </summary>
-    /// <param name="label">The label of the item.</param>
-    /// <param name="value">The value of the item.</param>
-    /// <returns>The added item.</returns>
-    public DataListItem AddItem(string label, string value)
+    public DataListItem AddItem(IReadOnlyDictionary<string, string> labels, string value)
     {
-        DataListItem item = new(label, value);
+        DataListItem item = CreateItem(labels, value);
         item.AttachToDataList(this);
         _items.Add(item);
         return item;
     }
 
     /// <summary>
-    /// Replaces the items of the data list.
+    /// Adds a monolingual item (default label only).
     /// </summary>
-    /// <param name="items">The items to replace the current items with.</param>
-    public void ReplaceItems(IEnumerable<(string Label, string Value)> items)
+    public DataListItem AddItem(string defaultLabel, string value) =>
+        AddItem(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [SurveyJsTranslationKeys.DefaultKey] = defaultLabel
+            },
+            value);
+
+    /// <summary>
+    /// Replaces the items of the data list.
+    /// Validates and materializes all incoming items before mutating the existing collection.
+    /// </summary>
+    public void ReplaceItems(IEnumerable<(IReadOnlyDictionary<string, string> Labels, string Value)> items)
     {
         Guard.Against.Null(items);
-        _items.Clear();
-        foreach (var (Label, Value) in items)
+
+        List<DataListItem> prepared = [];
+        foreach (var (labels, value) in items)
         {
-            AddItem(Label, Value);
+            prepared.Add(CreateItem(labels, value));
+        }
+
+        _items.Clear();
+        foreach (var item in prepared)
+        {
+            item.AttachToDataList(this);
+            _items.Add(item);
         }
     }
 
     /// <summary>
     /// Sets the active state of the data list.
     /// </summary>
-    /// <param name="isActive">Whether the data list is active.</param>
     public void SetActive(bool isActive) => IsActive = isActive;
+
+    /// <inheritdoc />
+    public bool AllowsTranslationKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return false;
+        }
+
+        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(key))
+        {
+            return true;
+        }
+
+        var normalized = TranslationCultureNormalizer.Normalize(key);
+        return _availableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private DataListItem CreateItem(IReadOnlyDictionary<string, string> labels, string value)
+    {
+        ValidateLabelKeys(labels);
+        return new DataListItem(labels, value);
+    }
+
+    /// <summary>
+    /// Ensures every non-empty label key is allowed by the culture catalog (or is the synthetic default key).
+    /// </summary>
+    internal void ValidateLabelKeys(IReadOnlyDictionary<string, string> labels)
+    {
+        Guard.Against.Null(labels);
+        foreach (var key in labels.Keys)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            if (!AllowsTranslationKey(key))
+            {
+                throw new ArgumentException(
+                    $"Culture '{key}' is not in the data list culture catalog. Add the culture before assigning labels.",
+                    key);
+            }
+        }
+    }
 }

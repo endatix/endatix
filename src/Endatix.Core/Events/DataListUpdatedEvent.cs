@@ -12,7 +12,8 @@ public enum DataListUpdateReasons
     None = 0,
     MetadataUpdated = 1 << 0,
     ItemsUpdated = 1 << 1,
-    ItemsReplaced = 1 << 2
+    ItemsReplaced = 1 << 2,
+    LocalesUpdated = 1 << 3
 }
 
 /// <summary>

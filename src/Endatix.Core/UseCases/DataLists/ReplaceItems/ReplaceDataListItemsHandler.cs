@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -20,48 +21,167 @@ public sealed class ReplaceDataListItemsHandler(
     /// <inheritdoc />
     public async Task<Result<DataListDto>> Handle(ReplaceDataListItemsCommand request, CancellationToken cancellationToken)
     {
-        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
-        var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
+        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
+        DataList? dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
         }
 
-        List<ValidationError> errors = [];
-        for (var i = 0; i < request.Items.Count; i++)
-        {
-            var item = request.Items.ElementAt(i);
-            if (string.IsNullOrWhiteSpace(item.Label))
-            {
-                errors.Add(new ValidationError { Identifier = $"Items[{i}].Label", ErrorMessage = "Label is required." });
-            }
-            if (string.IsNullOrWhiteSpace(item.Value))
-            {
-                errors.Add(new ValidationError { Identifier = $"Items[{i}].Value", ErrorMessage = "Value is required." });
-            }
-        }
-
-        if (errors.Count > 0)
+        if (!TryResolveItems(dataList, request.Items, out List<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems, out List<ValidationError> errors))
         {
             return Result.Invalid(errors);
         }
 
-        dataList.ReplaceItems(request.Items.Select(x => (x.Label.Trim(), x.Value.Trim())));
+        Result<DataListDto>? replaceFailure = TryReplaceItems(dataList, resolvedItems);
+        if (replaceFailure is not null)
+        {
+            return replaceFailure;
+        }
 
         await repository.UpdateAsync(dataList, cancellationToken);
-
         await mediator.Publish(
             new DataListUpdatedEvent(dataList, DataListUpdateReasons.ItemsReplaced),
             cancellationToken);
 
-        return Result.Success(new DataListDto(
-            dataList.Id,
-            dataList.Name,
-            dataList.Description,
-            dataList.CreatedAt,
-            dataList.ModifiedAt,
-            dataList.IsActive,
-            dataList.Items.Count,
-            [.. dataList.Items.Select(x => new DataListItemDto(x.Id, x.Label, x.Value))]));
+        return Result.Success(DataListDtoMapper.FromEntity(dataList));
+    }
+
+    private static bool TryResolveItems(
+        DataList dataList,
+        IReadOnlyCollection<ReplaceDataListItemInput> items,
+        out List<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems,
+        out List<ValidationError> errors)
+    {
+        errors = [];
+        resolvedItems = [];
+
+        foreach ((int i, ReplaceDataListItemInput item) in items.Index())
+        {
+            IReadOnlyDictionary<string, string>? labels = item.ResolveLabels();
+            CollectItemErrors(dataList, i, item, labels, errors);
+
+            if (labels is not null && !string.IsNullOrWhiteSpace(item.Value))
+            {
+                resolvedItems.Add((labels, item.Value.Trim()));
+            }
+        }
+
+        return errors.Count == 0;
+    }
+
+    private static void CollectItemErrors(
+        DataList dataList,
+        int index,
+        ReplaceDataListItemInput item,
+        IReadOnlyDictionary<string, string>? labels,
+        List<ValidationError> errors)
+    {
+        if (labels is null)
+        {
+            errors.Add(new()
+            {
+                Identifier = $"Items[{index}].Labels",
+                ErrorMessage = "Labels (or legacy Label) is required."
+            });
+        }
+        else
+        {
+            CollectLabelMapErrors(dataList, index, labels, errors);
+        }
+
+        if (string.IsNullOrWhiteSpace(item.Value))
+        {
+            errors.Add(new()
+            {
+                Identifier = $"Items[{index}].Value",
+                ErrorMessage = "Value is required."
+            });
+        }
+    }
+
+    private static void CollectLabelMapErrors(
+        DataList dataList,
+        int index,
+        IReadOnlyDictionary<string, string> labels,
+        List<ValidationError> errors)
+    {
+        foreach (string cultureKey in labels.Keys)
+        {
+            if (string.IsNullOrWhiteSpace(cultureKey))
+            {
+                continue;
+            }
+
+            // Same catalog gate as DataList.ValidateLabelKeys / AllowsTranslationKey.
+            if (!dataList.AllowsTranslationKey(cultureKey))
+            {
+                errors.Add(new()
+                {
+                    Identifier = $"Items[{index}].Labels.{cultureKey}",
+                    ErrorMessage = $"Culture '{cultureKey}' is not in the data list culture catalog."
+                });
+            }
+        }
+
+        try
+        {
+            _ = DataListItem.NormalizeLabels(labels);
+        }
+        catch (ArgumentException ex)
+        {
+            errors.Add(ToLabelValidationError(index, ex));
+        }
+    }
+
+    private static ValidationError ToLabelValidationError(int index, ArgumentException ex)
+    {
+        string labelsPrefix = $"Items[{index}].Labels";
+        string identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex);
+
+        return new()
+        {
+            Identifier = identifier,
+            ErrorMessage = ex.Message
+        };
+    }
+
+    private static string ResolveLabelErrorIdentifier(string labelsPrefix, ArgumentException ex)
+    {
+        if (IsConcreteLabelKey(ex.ParamName))
+        {
+            return $"{labelsPrefix}.{ex.ParamName}";
+        }
+
+        if (ex.Message.Contains(SurveyJsTranslationKeys.DefaultKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{labelsPrefix}.{SurveyJsTranslationKeys.DefaultKey}";
+        }
+
+        return labelsPrefix;
+    }
+
+    private static bool IsConcreteLabelKey(string? paramName) =>
+        !string.IsNullOrEmpty(paramName)
+        && !string.Equals(paramName, "labels", StringComparison.Ordinal)
+        && !string.Equals(paramName, "cultureCode", StringComparison.Ordinal);
+
+    private static Result<DataListDto>? TryReplaceItems(
+        DataList dataList,
+        IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems)
+    {
+        try
+        {
+            dataList.ReplaceItems(resolvedItems);
+            return null;
+        }
+        catch (ArgumentException ex)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = "Items",
+                ErrorMessage = ex.Message
+            });
+        }
     }
 }

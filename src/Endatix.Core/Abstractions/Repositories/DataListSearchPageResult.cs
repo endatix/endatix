@@ -10,8 +10,9 @@ public sealed record DataListSearchPageResult(
 
 /// <summary>
 /// Represents a projected data-list item row for search results.
+/// Carries the full Labels map so PR-2 can project nested text without re-querying.
 /// </summary>
 public sealed record DataListSearchItemResult(
     long Id,
-    string Label,
+    IReadOnlyDictionary<string, string> Labels,
     string Value);

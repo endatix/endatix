@@ -35,14 +35,23 @@ public class DataListModel
     public DateTime? ModifiedAt { get; init; }
 
     /// <summary>
-    /// The count of items in the data list.
+    /// The count of items of the data list.
     /// </summary>
     public int ItemsCount { get; init; } = 0;
+
+    /// <summary>
+    /// Real locale represented by the SurveyJS <c>default</c> label key.
+    /// </summary>
+    public string DefaultLocale { get; init; } = "en";
+
+    /// <summary>
+    /// Added cultures for this list (culture catalog).
+    /// </summary>
+    public IReadOnlyList<string> AvailableLocales { get; init; } = [];
 }
 
 /// <summary>
 /// Data list details model used for the GetById endpoint.
-/// Inherits the base properties and includes the full Items collection.
 /// </summary>
 public sealed class DataListDetailsModel : DataListModel
 {
@@ -59,12 +68,20 @@ public sealed class DataListItemModel
 {
     /// <summary>
     /// The id of the data list item.
-    /// </summary>  
+    /// </summary>
     public long Id { get; init; }
+
     /// <summary>
-    /// The label of the data list item.
+    /// Localized labels including the <c>default</c> key.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Labels { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Resolved default label (compat / convenience).
     /// </summary>
     public string Label { get; init; } = string.Empty;
+
     /// <summary>
     /// The value of the data list item.
     /// </summary>

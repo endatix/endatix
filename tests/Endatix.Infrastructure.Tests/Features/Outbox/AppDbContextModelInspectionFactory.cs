@@ -1,7 +1,10 @@
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Persistence.PostgreSql.Querying;
+using Endatix.Persistence.SqlServer.Querying;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
@@ -31,6 +34,7 @@ internal static class AppDbContextModelInspectionFactory
                 npgsql.MigrationsAssembly(PostgresMigrationsAssembly);
                 npgsql.MigrationsHistoryTable(HistoryRepository.DefaultTableName);
             });
+        optionsBuilder.ReplaceService<IModelCustomizer, NpgsqlEndatixModelCustomizer>();
         ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
             optionsBuilder,
             PostgresAppMigrationsNamespace);
@@ -58,6 +62,7 @@ internal static class AppDbContextModelInspectionFactory
                 sqlServer.MigrationsAssembly(SqlServerMigrationsAssembly);
                 sqlServer.MigrationsHistoryTable(HistoryRepository.DefaultTableName);
             });
+        optionsBuilder.ReplaceService<IModelCustomizer, SqlServerEndatixModelCustomizer>();
         ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
             optionsBuilder,
             SqlServerAppMigrationsNamespace);

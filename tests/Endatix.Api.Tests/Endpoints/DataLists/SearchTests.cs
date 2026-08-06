@@ -56,7 +56,14 @@ public class SearchTests
             pageSize: 20,
             totalRecords: 1,
             totalPages: 1,
-            items: [new DataListItemDto(3, "Abc", "1")]));
+            items:
+            [
+                new DataListItemDto(
+                    3,
+                    new Dictionary<string, string>(StringComparer.Ordinal) { ["default"] = "Abc" },
+                    "1",
+                    "Abc")
+            ]));
         _mediator.Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -96,7 +103,14 @@ public class SearchTests
                 pageSize: 10,
                 totalRecords: 1,
                 totalPages: 1,
-                items: [new DataListItemDto(3, "Abc", "1")])));
+                items:
+                [
+                    new DataListItemDto(
+                        3,
+                        new Dictionary<string, string>(StringComparer.Ordinal) { ["default"] = "Abc" },
+                        "1",
+                        "Abc")
+                ])));
 
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
         var ok = response.Result.Should().BeOfType<Ok<Paged<DataListPublicChoiceModel>>>().Subject;

@@ -67,8 +67,17 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<long>("Id")
                         .HasColumnType("bigint");
 
+                    b.PrimitiveCollection<string>("AvailableLocales")
+                        .IsRequired()
+                        .HasColumnType("json");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("DefaultLocale")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
@@ -126,10 +135,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Label")
+                    b.Property<string>("LabelsJson")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("json")
+                        .HasColumnName("Labels");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");

@@ -11,8 +11,6 @@ public static class DataListMapper
     /// <summary>
     /// Maps a data list DTO to a data list model.
     /// </summary>
-    /// <param name="dto">The data list DTO.</param>
-    /// <returns>The data list model.</returns>
     public static DataListModel Map(DataListDto dto) => new()
     {
         Id = dto.Id,
@@ -21,17 +19,18 @@ public static class DataListMapper
         IsActive = dto.IsActive,
         CreatedAt = dto.CreatedAt,
         ModifiedAt = dto.ModifiedAt,
-        ItemsCount = dto.ItemsCount
+        ItemsCount = dto.ItemsCount,
+        DefaultLocale = dto.DefaultLocale,
+        AvailableLocales = dto.AvailableLocales
     };
 
     /// <summary>
     /// Maps a data list item to a data list item model.
     /// </summary>
-    /// <param name="dto">The data list item dto.</param>
-    /// <returns>The data list item model.</returns>
     public static DataListItemModel Map(DataListItemDto dto) => new()
     {
         Id = dto.Id,
+        Labels = dto.Labels,
         Label = dto.Label,
         Value = dto.Value
     };
@@ -39,8 +38,6 @@ public static class DataListMapper
     /// <summary>
     /// Maps a data list DTO to a data list details model.
     /// </summary>
-    /// <param name="dto">The data list DTO.</param>
-    /// <returns>The data list details model.</returns>
     public static DataListDetailsModel MapDetails(DataListDto dto) => new()
     {
         Id = dto.Id,
@@ -50,14 +47,14 @@ public static class DataListMapper
         CreatedAt = dto.CreatedAt,
         ModifiedAt = dto.ModifiedAt,
         ItemsCount = dto.ItemsCount,
+        DefaultLocale = dto.DefaultLocale,
+        AvailableLocales = dto.AvailableLocales,
         Items = [.. dto.Items.Select(Map)]
     };
 
     /// <summary>
-    /// Maps a data list choice to a public choice model.
+    /// Maps a data list choice to a public choice model (resolved default label).
     /// </summary>
-    /// <param name="dto">The data list choice dto.</param>
-    /// <returns>The public choice model.</returns>
     public static DataListPublicChoiceModel MapPublic(DataListItemDto dto) => new()
     {
         Label = dto.Label,
@@ -67,8 +64,6 @@ public static class DataListMapper
     /// <summary>
     /// Maps a data list choice display value to a public choice model.
     /// </summary>
-    /// <param name="dto">The data list choice display value dto.</param>
-    /// <returns>The public choice model.</returns>
     public static DataListPublicChoiceModel MapPublic(DataListChoiceDisplayValueDto dto) => new()
     {
         Label = dto.Label,

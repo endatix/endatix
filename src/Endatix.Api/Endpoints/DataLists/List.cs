@@ -38,7 +38,7 @@ public sealed class List(
     /// <returns>The result.</returns>
     public override async Task<Results<Ok<Paged<DataListModel>>, ProblemHttpResult>> ExecuteAsync(DataListsListRequest request, CancellationToken ct)
     {
-        var result = await mediator.Send(new ListDataListsQuery(request.Page, request.PageSize), ct);
+        var result = await mediator.Send(new ListDataListsQuery(request.Page, request.PageSize, request.HasLocale), ct);
 
         if (!result.IsSuccess)
         {
@@ -75,5 +75,10 @@ public sealed class DataListsListRequest : IPagedRequest
 
     /// <inheritdoc />
     public int? PageSize { get; set; }
+
+    /// <summary>
+    /// Optional culture code; returns only lists whose AvailableLocales contain this code.
+    /// </summary>
+    public string? HasLocale { get; set; }
 }
 
