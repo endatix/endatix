@@ -1,43 +1,53 @@
-# Endatix OSS - Agent Instructions
+# Endatix API (OSS) — Agent Instructions
 
-## 1. Architecture stance
+Clean Architecture + vertical slices in `oss/`. Architecture/testing rules of record: [`.cursor/rules/endatix-api-rules.mdc`](../.cursor/rules/endatix-api-rules.mdc). Integration suite ops: [`tests/README.md`](tests/README.md).
 
-Use practical Vertical Slices inside Clean Architecture.
+## Unit vs integration
 
-* Keep the project boundaries: `Endatix.Api`, `Endatix.Core`, `Endatix.Infrastructure`.
-* Inside each project, organize by **feature first**, not by technical bucket first.
-* Prefer cohesive slice paths, for example:
-  * `Endatix.Api/Endpoints/Access/...`
-  * `Endatix.Core/Authorization/Access/...`
-  * `Endatix.Infrastructure/Features/AccessControl/...`
+**Do not duplicate the full decision tree here.** Use:
 
+| Need | Doc |
+| --- | --- |
+| When unit vs integration, naming (`UnitOfWork_Scenario_ExpectedBehavior`), AAA | [endatix-api-rules.mdc → Testing](../.cursor/rules/endatix-api-rules.mdc) |
+| Testcontainers, Respawn, traits (`Category` / `Priority` / `DbSpecific`), how to run | [`tests/README.md`](tests/README.md) |
 
-* **Commands/Writes:** enforce invariants through Core use cases/domain.
-* **Queries/Reads:** for single-slice read models, API endpoints may depend directly on Infrastructure query services.
-* Use MediatR where it adds real value (cross-slice orchestration, reusable flows), not as mandatory ceremony.
+**Short rule of thumb**
 
-## 3. Anti-fake-abstraction rules
+* **Unit** — domain, handlers, validators, mappers, endpoint `ExecuteAsync` mapping; mocks/substitutes only.
+* **Integration** — HTTP + auth + EF + real DB (`WebApplicationFactory` / Testcontainers). Prefer `CriticalPaths/` · `FeatureFlows/` · `Infrastructure/`.
 
-Avoid creating abstractions that exist only to satisfy layering.
+## Unit test placement (OSS)
 
-* Do not introduce Core interfaces for a read-only path with a single implementation and single consumer.
-* Keep query contracts in Infrastructure feature folders when the concern is implementation-centric read composition.
-* Move contracts to Core only when they represent stable domain policy or need multiple implementations/reuse.
+| Layer | Project | Folder | Reference |
+| --- | --- | --- | --- |
+| FastEndpoints | `Endatix.Api.Tests` | `Endpoints/{Feature}/` | `Forms/DeleteTests.cs`, `DataLists/*LocaleTests.cs` |
+| Handlers / commands | `Endatix.Core.Tests` | `UseCases/{Feature}/{Action}/` | `Forms/Delete/DeleteFormHandlerTests.cs`, `DataLists/Locales/*Locale*Tests.cs` |
+| Domain | `Endatix.Core.Tests` | `Entities/` | `DataListLocaleCatalogTests.cs` |
+| Infrastructure | `Endatix.Infrastructure.Tests` | Mirror source | `Data/Querying/...` |
 
-## 4. Access feature conventions
+* **Class:** `{Sut}Tests`. **Methods:** `Method_State_ExpectedBehavior`.
+* Always `// Arrange` · `// Act` · `// Assert`.
 
-* Treat Access as its own feature umbrella for now.
-* Keep shared access types under `Core/Authorization/Access`:
-  * contexts
-  * access data DTOs
-  * permission/resource constants
-* Keep read execution under `Infrastructure/Features/AccessControl`:
-  * queries
-  * policies
-  * mapping/caching orchestration
+### FastEndpoints (`Endatix.Api.Tests`)
 
-## 5. Naming and testing
+Pattern: substitute `IMediator` → `Factory.Create<TEndpoint>(_mediator)` → assert `response.Result`.
 
-* Endpoint, validator, and test names must describe the exact access mode (`Public`, `Management`, etc.).
-* Follow AAA in tests with explicit `Arrange`, `Act`, `Assert` sections.
-* Prefer integration tests for endpoint behavior and focused unit tests for access policy/query logic.
+Minimum cases: invalid → 400 · not found → 404 (if applicable) · success payload · request→command via `Received`/`Arg.Is`. Skip FluentValidation re-tests unless validation is the SUT.
+
+### Handlers (`Endatix.Core.Tests`)
+
+Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · happy path + persist · domain `Invalid` (no persist) · event reason/payload. Prefer real aggregates. Thin command-ctor tests when `Guard.Against.*` matters.
+
+## Run (examples)
+
+```bash
+# From oss/
+dotnet test tests/Endatix.Api.Tests/Endatix.Api.Tests.csproj --filter "FullyQualifiedName~AddLocaleTests"
+dotnet test tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj --filter "FullyQualifiedName~AddDataListLocale"
+# Integration: see tests/README.md
+```
+
+## Related
+
+* SaaS / Hub agent rules: [`../.cursor/AGENTS.md`](../.cursor/AGENTS.md)
+* Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)

@@ -4,6 +4,7 @@ using Endatix.Core.UseCases.DataLists.Delete;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.DataLists;
@@ -15,7 +16,9 @@ public sealed class Delete(
     IMediator mediator)
     : Endpoint<DeleteDataListRequest, Results<Ok<string>, ProblemHttpResult>>
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Delete("data-lists/{dataListId}");
@@ -24,10 +27,16 @@ public sealed class Delete(
         {
             s.Summary = "Delete a data list";
             s.Description = "Deletes a data list by its ID.";
+            s.ExampleRequest = new DeleteDataListRequest { DataListId = 1 };
+            s.ResponseExamples[200] = "1";
             s.Responses[200] = "Data list deleted successfully.";
-            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
         });
+        Description(builder => builder
+            .Produces<string>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />
@@ -67,4 +76,3 @@ public sealed class DeleteDataListRequest
     /// </summary>
     public long DataListId { get; init; }
 }
-

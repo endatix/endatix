@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.DataLists;
@@ -17,18 +18,40 @@ public sealed class Create(
     IMediator mediator)
     : Endpoint<CreateDataListRequest, Results<Created<DataListDetailsModel>, ProblemHttpResult>>
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Post("data-lists");
         Permissions(Actions.Forms.Create);
         Summary(s =>
         {
-            s.Summary = "Create data list";
-            s.Description = "Creates a data list for current tenant.";
-            s.Responses[201] = "Data list created.";
-            s.Responses[400] = "Validation failed.";
+            s.Summary = "Create a data list";
+            s.Description = "Creates a data list for the current tenant.";
+            s.ExampleRequest = new CreateDataListRequest
+            {
+                Name = "Cities",
+                Description = "Major cities used in forms"
+            };
+            s.ResponseExamples[201] = new DataListDetailsModel
+            {
+                Id = 1,
+                Name = "Cities",
+                Description = "Major cities used in forms",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                ItemsCount = 0,
+                DefaultLocale = "en",
+                AvailableLocales = [],
+                Items = []
+            };
+            s.Responses[201] = "Data list created successfully.";
+            s.Responses[400] = "Invalid input data.";
         });
+        Description(builder => builder
+            .Produces<DataListDetailsModel>(StatusCodes.Status201Created, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc />

@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.DataLists;
@@ -17,7 +18,9 @@ public sealed class ReplaceItems(
     IMediator mediator)
     : Endpoint<ReplaceDataListItemsRequest, Results<Ok<DataListDetailsModel>, ProblemHttpResult>>
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Put("data-lists/{dataListId}/items");
@@ -25,11 +28,70 @@ public sealed class ReplaceItems(
         Summary(s =>
         {
             s.Summary = "Replace items in a data list";
-            s.Description = "Replaces the items in a data list. Prefer Labels maps; Label is accepted as shorthand for { default: Label }.";
+            s.Description = "Replaces all items in a data list. Prefer Labels maps; Label is accepted as shorthand for { default: Label }.";
+            s.ExampleRequest = new ReplaceDataListItemsRequest
+            {
+                DataListId = 1,
+                Items =
+                [
+                    new ReplaceDataListItemRequest
+                    {
+                        Labels = new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["default"] = "New York",
+                            ["es"] = "Nueva York"
+                        },
+                        Value = "NYC"
+                    },
+                    new ReplaceDataListItemRequest
+                    {
+                        Label = "Los Angeles",
+                        Value = "LA"
+                    }
+                ]
+            };
+            s.ResponseExamples[200] = new DataListDetailsModel
+            {
+                Id = 1,
+                Name = "Cities",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                ItemsCount = 2,
+                DefaultLocale = "en",
+                AvailableLocales = ["es"],
+                Items =
+                [
+                    new DataListItemModel
+                    {
+                        Id = 10,
+                        Labels = new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["default"] = "New York",
+                            ["es"] = "Nueva York"
+                        },
+                        Label = "New York",
+                        Value = "NYC"
+                    },
+                    new DataListItemModel
+                    {
+                        Id = 11,
+                        Labels = new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["default"] = "Los Angeles"
+                        },
+                        Label = "Los Angeles",
+                        Value = "LA"
+                    }
+                ]
+            };
             s.Responses[200] = "Items replaced successfully.";
-            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
         });
+        Description(builder => builder
+            .Produces<DataListDetailsModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />
