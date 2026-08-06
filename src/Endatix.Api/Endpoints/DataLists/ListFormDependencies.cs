@@ -5,6 +5,7 @@ using Endatix.Core.UseCases.DataLists.ListFormDependencies;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.DataLists;
@@ -16,7 +17,9 @@ public sealed class ListFormDependencies(
     IMediator mediator)
     : Endpoint<ListFormDependenciesRequest, Results<Ok<IEnumerable<FormModel>>, ProblemHttpResult>>
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Get("data-lists/{dataListId}/forms");
@@ -24,11 +27,27 @@ public sealed class ListFormDependencies(
         Summary(s =>
         {
             s.Summary = "List form dependencies for a data list";
-            s.Description = "Lists the form dependencies for a data list.";
+            s.Description = "Lists forms that depend on the specified data list.";
+            s.ExampleRequest = new ListFormDependenciesRequest { DataListId = 1 };
+            s.ResponseExamples[200] = new[]
+            {
+                new FormModel
+                {
+                    Id = "42",
+                    Name = "Customer satisfaction",
+                    IsEnabled = true,
+                    IsPublic = false,
+                    SubmissionsCount = 4
+                }
+            };
             s.Responses[200] = "Form dependencies listed successfully.";
-            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
         });
+        Description(builder => builder
+            .Produces<IEnumerable<FormModel>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />
@@ -38,7 +57,7 @@ public sealed class ListFormDependencies(
     {
         ListFormDependenciesQuery query = new(request.DataListId);
         var result = await mediator.Send(query, ct);
-        
+
         return TypedResultsBuilder
             .MapResult(result, forms => forms.ToFormModelList())
             .SetTypedResults<Ok<IEnumerable<FormModel>>, ProblemHttpResult>();

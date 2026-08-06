@@ -45,7 +45,7 @@ public class DataListModel
     public string DefaultLocale { get; init; } = "en";
 
     /// <summary>
-    /// Added cultures for this list (culture catalog).
+    /// Added locales for this list (catalog; excludes the synthetic <c>default</c> key).
     /// </summary>
     public IReadOnlyList<string> AvailableLocales { get; init; } = [];
 }

@@ -4,6 +4,7 @@ using Endatix.Core.UseCases.DataLists.GetById;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.DataLists;
@@ -16,7 +17,9 @@ public sealed class GetById(
     )
     : Endpoint<GetDataListRequest, Results<Ok<DataListDetailsModel>, ProblemHttpResult>>
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Get("data-lists/{dataListId}");
@@ -24,11 +27,41 @@ public sealed class GetById(
         Summary(s =>
         {
             s.Summary = "Get a data list by ID";
-            s.Description = "Gets a data list by its ID.";
+            s.Description = "Gets a data list by its ID, including catalog locales and items.";
+            s.ExampleRequest = new GetDataListRequest { DataListId = 1 };
+            s.ResponseExamples[200] = new DataListDetailsModel
+            {
+                Id = 1,
+                Name = "Cities",
+                Description = "Major cities used in forms",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                ItemsCount = 1,
+                DefaultLocale = "en",
+                AvailableLocales = ["es"],
+                Items =
+                [
+                    new DataListItemModel
+                    {
+                        Id = 10,
+                        Labels = new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["default"] = "New York",
+                            ["es"] = "Nueva York"
+                        },
+                        Label = "New York",
+                        Value = "NYC"
+                    }
+                ]
+            };
             s.Responses[200] = "Data list retrieved successfully.";
-            s.Responses[400] = "Invalid request or access data.";
+            s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
         });
+        Description(builder => builder
+            .Produces<DataListDetailsModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />

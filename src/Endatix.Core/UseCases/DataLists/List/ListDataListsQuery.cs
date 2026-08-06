@@ -8,6 +8,6 @@ namespace Endatix.Core.UseCases.DataLists.List;
 /// </summary>
 /// <param name="Page">The page number for pagination.</param>
 /// <param name="PageSize">The number of items per page for pagination.</param>
-/// <param name="HasLocale">Optional culture code; filters parent rows whose AvailableLocales contain this code.</param>
+/// <param name="HasLocale">Optional locale code; filters parent rows whose AvailableLocales contain this code.</param>
 public sealed record ListDataListsQuery(int? Page, int? PageSize, string? HasLocale = null)
     : IQuery<Result<Paged<DataListDto>>>;

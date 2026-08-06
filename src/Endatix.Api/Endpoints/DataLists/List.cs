@@ -17,7 +17,9 @@ public sealed class List(
     IMediator mediator)
     : Endpoint<DataListsListRequest, Results<Ok<Paged<DataListModel>>, ProblemHttpResult>>
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Get("data-lists");
@@ -25,17 +27,41 @@ public sealed class List(
         Summary(s =>
         {
             s.Summary = "List data lists";
-            s.Description = "Lists the data lists for the current tenant.";
-            s.Responses[200] = "Data lists listed successfully.";
-            s.Responses[400] = "Invalid request or access data.";
+            s.Description = "Lists data lists for the current tenant with paging and an optional locale filter.";
+            s.ExampleRequest = new DataListsListRequest
+            {
+                Page = 1,
+                PageSize = 20,
+                HasLocale = "es"
+            };
+            s.ResponseExamples[200] = new Paged<DataListModel>(
+                page: 1,
+                pageSize: 20,
+                totalRecords: 1,
+                totalPages: 1,
+                items:
+                [
+                    new DataListModel
+                    {
+                        Id = 1,
+                        Name = "Cities",
+                        Description = "Major cities used in forms",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        ItemsCount = 2,
+                        DefaultLocale = "en",
+                        AvailableLocales = ["es"]
+                    }
+                ]);
+            s.Responses[200] = "Data lists retrieved successfully.";
+            s.Responses[400] = "Invalid input data.";
         });
+        Description(builder => builder
+            .Produces<Paged<DataListModel>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
-    /// <summary>
-    /// Executes the endpoint.
-    /// </summary>
-    /// <param name="request">The request.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>The result.</returns>
+
+    /// <inheritdoc />
     public override async Task<Results<Ok<Paged<DataListModel>>, ProblemHttpResult>> ExecuteAsync(DataListsListRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(new ListDataListsQuery(request.Page, request.PageSize, request.HasLocale), ct);
@@ -77,8 +103,7 @@ public sealed class DataListsListRequest : IPagedRequest
     public int? PageSize { get; set; }
 
     /// <summary>
-    /// Optional culture code; returns only lists whose AvailableLocales contain this code.
+    /// Optional locale code; returns only lists whose AvailableLocales contain this code.
     /// </summary>
     public string? HasLocale { get; set; }
 }
-
