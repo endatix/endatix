@@ -277,6 +277,41 @@ public sealed class DataListSearchMatchModeTests
         page!.Items.Select(i => i.Value).Should().BeEquivalentTo(["bracketed"]);
     }
 
+    [Fact]
+    public async Task Contains_EscapesLikeUnderscoreMetacharacter()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await ResetAndMigrateAsync(ct);
+
+        long tenantId = NextId();
+        long dataListId;
+        await using (AppDbContext seed = CreateAppDbContext(tenantId))
+        {
+            await EnsureTenantAsync(seed, tenantId, ct);
+            DataList list = new(tenantId, $"Underscores-{tenantId}") { Id = NextId() };
+            list.AddItem("code_1", "literal");
+            list.AddItem("codeX1", "wildcard");
+            seed.DataLists.Add(list);
+            await seed.SaveChangesAsync(ct);
+            dataListId = list.Id;
+        }
+
+        await using AppDbContext db = CreateAppDbContext(tenantId);
+        IDataListRepository repository = CreateRepository(db);
+
+        DataListSearchPageResult? page = await repository.SearchItemsAsync(
+            dataListId,
+            "code_1",
+            skip: 0,
+            take: 50,
+            DataListSearchMatchMode.Contains,
+            locale: null,
+            ct);
+
+        page.Should().NotBeNull();
+        page!.Items.Select(i => i.Value).Should().BeEquivalentTo(["literal"]);
+    }
+
     private async Task ResetAndMigrateAsync(CancellationToken ct)
     {
         // Migrate first so Respawn can build a table graph on a fresh container.
