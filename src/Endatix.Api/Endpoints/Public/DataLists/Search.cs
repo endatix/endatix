@@ -141,7 +141,7 @@ public sealed class SearchDataListItemsValidator : Validator<SearchDataListItems
         RuleFor(x => x.Take).GreaterThan(0).LessThanOrEqualTo(SearchDataListItemsQuery.MaxTake);
         RuleFor(x => x.MatchMode).IsInEnum();
         RuleFor(x => x.Locale)
-            .MaximumLength(SearchDataListItemsQuery.MaxLocaleLength)
+            .MaximumLength(IHasTranslations.MAX_CULTURE_CODE_LENGTH)
             .Must(locale => TranslationCultureNormalizer.IsValidCultureCode(locale))
             .WithMessage("Locale must be a valid culture code (e.g. 'es' or 'en-US') or 'default'.")
             .When(x => !string.IsNullOrWhiteSpace(x.Locale));

@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.Search;
+using Endatix.Core.Common.Translations;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.Search;
 
@@ -259,7 +260,7 @@ public class SearchDataListItemsHandlerTests
     [Fact]
     public void QueryCtor_WithLocaleTooLong_ThrowsArgumentException()
     {
-        string locale = new('a', SearchDataListItemsQuery.MaxLocaleLength + 1);
+        string locale = new('a', IHasTranslations.MAX_CULTURE_CODE_LENGTH + 1);
 
         Action act = () => _ = new SearchDataListItemsQuery(1, null, 0, 10, locale: locale);
 
