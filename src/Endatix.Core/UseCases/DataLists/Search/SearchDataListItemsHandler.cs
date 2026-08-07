@@ -13,12 +13,27 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
     /// <inheritdoc />
     public async Task<Result<Paged<DataListItemDto>>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
     {
-        DataListSearchPageResult? searchPage = await repository.SearchItemsAsync(
-            request.DataListId,
-            request.Query,
-            request.Skip,
-            request.Take,
-            cancellationToken).ConfigureAwait(false);
+        DataListSearchPageResult? searchPage;
+        try
+        {
+            searchPage = await repository.SearchItemsAsync(
+                request.DataListId,
+                request.Query,
+                request.Skip,
+                request.Take,
+                request.MatchMode,
+                request.Locale,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (ArgumentException ex)
+        {
+            ValidationError error = new()
+            {
+                Identifier = nameof(request.Locale),
+                ErrorMessage = ex.Message
+            };
+            return Result.Invalid(error);
+        }
 
         if (searchPage is null)
         {
