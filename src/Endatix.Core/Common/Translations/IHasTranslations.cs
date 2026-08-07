@@ -12,6 +12,11 @@ public interface IHasTranslations
     const int DEFAULT_MAX_AVAILABLE_CULTURES = 20;
 
     /// <summary>
+    /// Maximum length for a culture code.
+    /// </summary>
+    const int MAX_CULTURE_CODE_LENGTH = 16;
+
+    /// <summary>
     /// Real culture represented by the SurveyJS <c>default</c> translation key.
     /// </summary>
     string DefaultCulture { get; }

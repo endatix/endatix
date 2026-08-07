@@ -57,4 +57,18 @@ public class TranslationCultureNormalizerTests
     {
         TranslationCultureNormalizer.IsSyntheticDefaultKey(input!).Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData("es", true)]
+    [InlineData("en-US", true)]
+    [InlineData("default", true)]
+    [InlineData("DEFAULT", true)]
+    [InlineData("not a culture!", false)]
+    [InlineData("en_US", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsValidCultureCode_ValidatesShape(string? input, bool expected)
+    {
+        TranslationCultureNormalizer.IsValidCultureCode(input).Should().Be(expected);
+    }
 }

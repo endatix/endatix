@@ -34,24 +34,21 @@ public class RelationalJsonObjectKeyFilterExpressionsTests
     }
 
     [Fact]
-    public void NpgsqlFilter_WhereKeyOrPropertyMatches_IncludesExtractValueAndILike()
+    public void NpgsqlFilter_WhereKeyMatches_SupportsNonDefaultLocaleKey()
     {
         IQueryable<FakeItem> source = new List<FakeItem>().AsQueryable();
         NpgsqlJsonObjectKeyFilter filter = new();
 
-        IQueryable<FakeItem> filtered = filter.WhereKeyOrPropertyMatches(
+        IQueryable<FakeItem> filtered = filter.WhereKeyMatches(
             source,
-            nameof(FakeItem.Value),
             nameof(FakeItem.LabelsJson),
-            SurveyJsTranslationKeys.DefaultKey,
-            "apple");
+            "es",
+            "manzana");
 
         string expression = filtered.Expression.ToString();
-        expression.Should().Contain(nameof(NpgsqlJsonDbFunctions.ExtractObjectKeyText));
-        expression.Should().Contain(SurveyJsTranslationKeys.DefaultKey);
-        expression.Should().Contain(nameof(FakeItem.Value));
-        expression.Should().Contain(nameof(FakeItem.LabelsJson));
+        expression.Should().Contain("es");
         expression.Should().Contain("ILike");
+        expression.Should().NotContain("e.Value");
     }
 
     [Fact]
@@ -107,27 +104,6 @@ public class RelationalJsonObjectKeyFilterExpressionsTests
         string expression = filtered.Expression.ToString();
         expression.Should().Contain(SqlServerJsonObjectKeyFilter.BuildJsonValuePath("en-US"));
         SqlServerJsonObjectKeyFilter.BuildJsonValuePath("en-US").Should().Be("$.\"en-US\"");
-    }
-
-    [Fact]
-    public void SqlServerFilter_WhereKeyOrPropertyMatches_IncludesJsonValueAndLike()
-    {
-        IQueryable<FakeItem> source = new List<FakeItem>().AsQueryable();
-        SqlServerJsonObjectKeyFilter filter = new();
-
-        IQueryable<FakeItem> filtered = filter.WhereKeyOrPropertyMatches(
-            source,
-            nameof(FakeItem.Value),
-            nameof(FakeItem.LabelsJson),
-            SurveyJsTranslationKeys.DefaultKey,
-            "apple");
-
-        string expression = filtered.Expression.ToString();
-        expression.Should().Contain(nameof(SqlServerJsonDbFunctions.JsonValue));
-        expression.Should().Contain(SqlServerJsonObjectKeyFilter.BuildJsonValuePath(SurveyJsTranslationKeys.DefaultKey));
-        expression.Should().Contain(nameof(FakeItem.Value));
-        expression.Should().Contain(nameof(FakeItem.LabelsJson));
-        expression.Should().Contain("Like");
     }
 
     [Fact]

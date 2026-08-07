@@ -14,45 +14,20 @@ public sealed class NpgsqlJsonObjectKeyFilter : IRelationalJsonObjectKeyFilter
         IQueryable<TEntity> source,
         string jsonPropertyName,
         string jsonObjectKey,
-        string trimmedSearchText)
+        string trimmedSearchText,
+        RelationalTextMatchMode matchMode = RelationalTextMatchMode.Contains)
         where TEntity : class
     {
-        string pattern = RelationalLikePattern.BuildContainsPattern(trimmedSearchText, sqlServerLike: false);
-        ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "e");
-        MethodCallExpression extractCall = CreateExtractCall(parameter, jsonPropertyName, jsonObjectKey);
-        MethodCallExpression jsonMatch = CreateILikeCall(
+        var pattern = RelationalLikePattern.BuildPattern(trimmedSearchText, matchMode, sqlServerLike: false);
+        var parameter = Expression.Parameter(typeof(TEntity), "e");
+        var extractCall = CreateExtractCall(parameter, jsonPropertyName, jsonObjectKey);
+        var jsonMatch = CreateILikeCall(
             Expression.Constant(EF.Functions),
             extractCall,
             Expression.Constant(pattern),
             Expression.Constant("\\"));
 
-        Expression<Func<TEntity, bool>> lambda = Expression.Lambda<Func<TEntity, bool>>(jsonMatch, parameter);
-        return source.Where(lambda);
-    }
-
-    /// <inheritdoc />
-    public IQueryable<TEntity> WhereKeyOrPropertyMatches<TEntity>(
-        IQueryable<TEntity> source,
-        string stringPropertyName,
-        string jsonPropertyName,
-        string jsonObjectKey,
-        string trimmedSearchText)
-        where TEntity : class
-    {
-        string pattern = RelationalLikePattern.BuildContainsPattern(trimmedSearchText, sqlServerLike: false);
-        ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "e");
-        MemberExpression stringProperty = Expression.Property(parameter, stringPropertyName);
-        MethodCallExpression extractCall = CreateExtractCall(parameter, jsonPropertyName, jsonObjectKey);
-
-        ConstantExpression patternConstant = Expression.Constant(pattern);
-        ConstantExpression escapeConstant = Expression.Constant("\\");
-        ConstantExpression functionsConstant = Expression.Constant(EF.Functions);
-
-        MethodCallExpression stringMatch = CreateILikeCall(functionsConstant, stringProperty, patternConstant, escapeConstant);
-        MethodCallExpression jsonMatch = CreateILikeCall(functionsConstant, extractCall, patternConstant, escapeConstant);
-
-        BinaryExpression body = Expression.OrElse(stringMatch, jsonMatch);
-        Expression<Func<TEntity, bool>> lambda = Expression.Lambda<Func<TEntity, bool>>(body, parameter);
+        var lambda = Expression.Lambda<Func<TEntity, bool>>(jsonMatch, parameter);
         return source.Where(lambda);
     }
 
@@ -63,9 +38,9 @@ public sealed class NpgsqlJsonObjectKeyFilter : IRelationalJsonObjectKeyFilter
         string jsonObjectKey)
         where TEntity : class
     {
-        ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "e");
-        MethodCallExpression extractCall = CreateExtractCall(parameter, jsonPropertyName, jsonObjectKey);
-        Expression<Func<TEntity, string?>> keySelector =
+        var parameter = Expression.Parameter(typeof(TEntity), "e");
+        var extractCall = CreateExtractCall(parameter, jsonPropertyName, jsonObjectKey);
+        var keySelector =
             Expression.Lambda<Func<TEntity, string?>>(extractCall, parameter);
         return source.OrderBy(keySelector);
     }
@@ -78,11 +53,11 @@ public sealed class NpgsqlJsonObjectKeyFilter : IRelationalJsonObjectKeyFilter
         string thenByPropertyName)
         where TEntity : class
     {
-        IOrderedQueryable<TEntity> ordered = OrderByKey(source, jsonPropertyName, jsonObjectKey);
+        var ordered = OrderByKey(source, jsonPropertyName, jsonObjectKey);
 
-        ParameterExpression thenParameter = Expression.Parameter(typeof(TEntity), "e");
-        MemberExpression thenProperty = Expression.Property(thenParameter, thenByPropertyName);
-        Expression<Func<TEntity, string>> thenSelector =
+        var thenParameter = Expression.Parameter(typeof(TEntity), "e");
+        var thenProperty = Expression.Property(thenParameter, thenByPropertyName);
+        var thenSelector =
             Expression.Lambda<Func<TEntity, string>>(thenProperty, thenParameter);
 
         return ordered.ThenBy(thenSelector);
@@ -93,7 +68,7 @@ public sealed class NpgsqlJsonObjectKeyFilter : IRelationalJsonObjectKeyFilter
         string jsonPropertyName,
         string jsonObjectKey)
     {
-        MemberExpression jsonProperty = Expression.Property(parameter, jsonPropertyName);
+        var jsonProperty = Expression.Property(parameter, jsonPropertyName);
         return Expression.Call(
             NpgsqlJsonDbFunctions.ExtractObjectKeyTextMethod,
             jsonProperty,

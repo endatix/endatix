@@ -20,4 +20,28 @@ public class RelationalLikePatternTests
 
         pattern.Should().Be("%a[b]%");
     }
+
+    [Fact]
+    public void BuildPattern_StartsWith_AppendsPercentOnlyAtEnd()
+    {
+        string pattern = RelationalLikePattern.BuildPattern("App", RelationalTextMatchMode.StartsWith, sqlServerLike: false);
+
+        pattern.Should().Be("App%");
+    }
+
+    [Fact]
+    public void BuildPattern_Exact_HasNoWildcards()
+    {
+        string pattern = RelationalLikePattern.BuildPattern("Apple", RelationalTextMatchMode.Exact, sqlServerLike: false);
+
+        pattern.Should().Be("Apple");
+    }
+
+    [Fact]
+    public void BuildPattern_Exact_StillEscapesMetacharacters()
+    {
+        string pattern = RelationalLikePattern.BuildPattern("100%", RelationalTextMatchMode.Exact, sqlServerLike: true);
+
+        pattern.Should().Be(@"100\%");
+    }
 }

@@ -47,6 +47,8 @@ public class SearchTests
             FormId = 7,
             DataListId = 42,
             Query = "ab",
+            MatchMode = DataListSearchMatchMode.StartsWith,
+            Locale = "es",
             Skip = 5,
             Take = 20
         };
@@ -80,6 +82,8 @@ public class SearchTests
             Arg.Is<SearchDataListItemsQuery>(x =>
                 x.DataListId == request.DataListId &&
                 x.Query == request.Query &&
+                x.MatchMode == DataListSearchMatchMode.StartsWith &&
+                x.Locale == "es" &&
                 x.Skip == request.Skip &&
                 x.Take == request.Take),
             Arg.Any<CancellationToken>());

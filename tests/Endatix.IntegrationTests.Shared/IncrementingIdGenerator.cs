@@ -9,5 +9,7 @@ public sealed class IncrementingIdGenerator : IIdGenerator<long>
 {
     private long _current;
 
+    public IncrementingIdGenerator(long start = 0) => _current = start;
+
     public long CreateId() => Interlocked.Increment(ref _current);
 }

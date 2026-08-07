@@ -14,45 +14,20 @@ public sealed class SqlServerJsonObjectKeyFilter : IRelationalJsonObjectKeyFilte
         IQueryable<TEntity> source,
         string jsonPropertyName,
         string jsonObjectKey,
-        string trimmedSearchText)
+        string trimmedSearchText,
+        RelationalTextMatchMode matchMode = RelationalTextMatchMode.Contains)
         where TEntity : class
     {
-        string pattern = RelationalLikePattern.BuildContainsPattern(trimmedSearchText, sqlServerLike: true);
-        ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "e");
-        MethodCallExpression extractCall = CreateJsonValueCall(parameter, jsonPropertyName, jsonObjectKey);
-        MethodCallExpression jsonMatch = CreateLikeCall(
+        var pattern = RelationalLikePattern.BuildPattern(trimmedSearchText, matchMode, sqlServerLike: true);
+        var parameter = Expression.Parameter(typeof(TEntity), "e");
+        var extractCall = CreateJsonValueCall(parameter, jsonPropertyName, jsonObjectKey);
+        var jsonMatch = CreateLikeCall(
             Expression.Constant(EF.Functions),
             extractCall,
             Expression.Constant(pattern),
             Expression.Constant("\\"));
 
-        Expression<Func<TEntity, bool>> lambda = Expression.Lambda<Func<TEntity, bool>>(jsonMatch, parameter);
-        return source.Where(lambda);
-    }
-
-    /// <inheritdoc />
-    public IQueryable<TEntity> WhereKeyOrPropertyMatches<TEntity>(
-        IQueryable<TEntity> source,
-        string stringPropertyName,
-        string jsonPropertyName,
-        string jsonObjectKey,
-        string trimmedSearchText)
-        where TEntity : class
-    {
-        string pattern = RelationalLikePattern.BuildContainsPattern(trimmedSearchText, sqlServerLike: true);
-        ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "e");
-        MemberExpression stringProperty = Expression.Property(parameter, stringPropertyName);
-        MethodCallExpression extractCall = CreateJsonValueCall(parameter, jsonPropertyName, jsonObjectKey);
-
-        ConstantExpression patternConstant = Expression.Constant(pattern);
-        ConstantExpression escapeConstant = Expression.Constant("\\");
-        ConstantExpression functionsConstant = Expression.Constant(EF.Functions);
-
-        MethodCallExpression stringMatch = CreateLikeCall(functionsConstant, stringProperty, patternConstant, escapeConstant);
-        MethodCallExpression jsonMatch = CreateLikeCall(functionsConstant, extractCall, patternConstant, escapeConstant);
-
-        BinaryExpression body = Expression.OrElse(stringMatch, jsonMatch);
-        Expression<Func<TEntity, bool>> lambda = Expression.Lambda<Func<TEntity, bool>>(body, parameter);
+        var lambda = Expression.Lambda<Func<TEntity, bool>>(jsonMatch, parameter);
         return source.Where(lambda);
     }
 

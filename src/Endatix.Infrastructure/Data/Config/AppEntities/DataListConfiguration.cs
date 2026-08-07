@@ -1,5 +1,6 @@
 using Endatix.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Common.Translations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Endatix.Infrastructure.Data.Config.AppEntities;
@@ -30,14 +31,14 @@ public sealed class DataListConfiguration : IEntityTypeConfiguration<DataList>
             .IsRequired(false);
 
         builder.Property(x => x.DefaultLocale)
-            .HasMaxLength(DataSchemaConstants.MAX_CULTURE_CODE_LENGTH)
+            .HasMaxLength(IHasTranslations.MAX_CULTURE_CODE_LENGTH)
             .IsRequired();
 
         builder.PrimitiveCollection(x => x.AvailableLocales)
             .HasField("_availableLocales")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
             .ElementType()
-            .HasMaxLength(DataSchemaConstants.MAX_CULTURE_CODE_LENGTH);
+            .HasMaxLength(IHasTranslations.MAX_CULTURE_CODE_LENGTH);
 
         builder.HasMany(x => x.Items)
             .WithOne(x => x.DataList)

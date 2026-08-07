@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.Search;
+using Endatix.Core.Common.Translations;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.Search;
 
@@ -35,14 +36,27 @@ public class SearchDataListItemsHandlerTests
         return new DataListSearchItemResult(id, labels, value);
     }
 
+    private void SetupSearch(DataListSearchPageResult page) =>
+        _repository.SearchItemsAsync(
+                Arg.Any<long>(),
+                Arg.Any<string?>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<DataListSearchMatchMode>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(page);
+
     [Fact]
     public async Task Handle_DataListNotFound_ReturnsNotFound()
     {
         _repository.SearchItemsAsync(
-                1,
-                null,
-                0,
-                10,
+                Arg.Any<long>(),
+                Arg.Any<string?>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<DataListSearchMatchMode>(),
+                Arg.Any<string?>(),
                 Arg.Any<CancellationToken>())
             .Returns((DataListSearchPageResult?)null);
 
@@ -56,19 +70,13 @@ public class SearchDataListItemsHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_ReturnsPagedItems()
     {
-        _repository.SearchItemsAsync(
-                1,
-                null,
-                0,
-                10,
-                Arg.Any<CancellationToken>())
-            .Returns(new DataListSearchPageResult(
-                1,
-                2,
-                [
-                    Item(1, "NYC", "New York"),
-                    Item(2, "LA", "Los Angeles")
-                ]));
+        SetupSearch(new DataListSearchPageResult(
+            1,
+            2,
+            [
+                Item(1, "NYC", "New York"),
+                Item(2, "LA", "Los Angeles")
+            ]));
 
         var result = await _sut.Handle(
             new SearchDataListItemsQuery(1, null, 0, 10),
@@ -84,16 +92,10 @@ public class SearchDataListItemsHandlerTests
     [Fact]
     public async Task Handle_PreservesFullLabels_AndResolvesDefaultLabel()
     {
-        _repository.SearchItemsAsync(
-                1,
-                null,
-                0,
-                10,
-                Arg.Any<CancellationToken>())
-            .Returns(new DataListSearchPageResult(
-                1,
-                1,
-                [Item(1, "apple", "Apple", ("es", "Manzana"))]));
+        SetupSearch(new DataListSearchPageResult(
+            1,
+            1,
+            [Item(1, "apple", "Apple", ("es", "Manzana"))]));
 
         var result = await _sut.Handle(
             new SearchDataListItemsQuery(1, null, 0, 10),
@@ -109,16 +111,10 @@ public class SearchDataListItemsHandlerTests
     [Fact]
     public async Task Handle_WithQuery_FiltersItems()
     {
-        _repository.SearchItemsAsync(
-                1,
-                "New",
-                0,
-                10,
-                Arg.Any<CancellationToken>())
-            .Returns(new DataListSearchPageResult(
-                1,
-                1,
-                [Item(1, "NYC", "New York")]));
+        SetupSearch(new DataListSearchPageResult(
+            1,
+            1,
+            [Item(1, "NYC", "New York")]));
 
         var result = await _sut.Handle(
             new SearchDataListItemsQuery(1, "New", 0, 10),
@@ -133,19 +129,38 @@ public class SearchDataListItemsHandlerTests
             "New",
             0,
             10,
+            DataListSearchMatchMode.Contains,
+            null,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithLocale_PassesLocaleToRepository()
+    {
+        SetupSearch(new DataListSearchPageResult(
+            1,
+            1,
+            [Item(1, "apple", "Apple", ("es", "Manzana"))]));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, "Manz", 0, 10, DataListSearchMatchMode.StartsWith, "es"),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        await _repository.Received(1).SearchItemsAsync(
+            1,
+            "Manz",
+            0,
+            10,
+            DataListSearchMatchMode.StartsWith,
+            "es",
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_Paging_CorrectlyCalculatesTotal()
     {
-        _repository.SearchItemsAsync(
-                1,
-                null,
-                50,
-                10,
-                Arg.Any<CancellationToken>())
-            .Returns(new DataListSearchPageResult(1, 100, []));
+        SetupSearch(new DataListSearchPageResult(1, 100, []));
 
         var result = await _sut.Handle(
             new SearchDataListItemsQuery(1, null, 50, 10),
@@ -165,13 +180,7 @@ public class SearchDataListItemsHandlerTests
     [InlineData(1, 25, 1)]
     public async Task Handle_NonAlignedOffset_ReturnsCorrectPage(int skip, int take, int expectedPage)
     {
-        _repository.SearchItemsAsync(
-                1,
-                null,
-                skip,
-                take,
-                Arg.Any<CancellationToken>())
-            .Returns(new DataListSearchPageResult(1, 100, []));
+        SetupSearch(new DataListSearchPageResult(1, 100, []));
 
         var result = await _sut.Handle(
             new SearchDataListItemsQuery(1, null, skip, take),
@@ -187,13 +196,7 @@ public class SearchDataListItemsHandlerTests
     [InlineData(200, 10)]
     public async Task Handle_OutOfRangeSkip_ReturnsLastPage(int skip, int take)
     {
-        _repository.SearchItemsAsync(
-                1,
-                null,
-                skip,
-                take,
-                Arg.Any<CancellationToken>())
-            .Returns(new DataListSearchPageResult(1, 100, []));
+        SetupSearch(new DataListSearchPageResult(1, 100, []));
 
         var result = await _sut.Handle(
             new SearchDataListItemsQuery(1, null, skip, take),
@@ -207,13 +210,7 @@ public class SearchDataListItemsHandlerTests
     [Fact]
     public async Task Handle_ZeroTotalRecords_ReturnsEmptyPaged()
     {
-        _repository.SearchItemsAsync(
-                1,
-                null,
-                0,
-                10,
-                Arg.Any<CancellationToken>())
-            .Returns(new DataListSearchPageResult(1, 0, []));
+        SetupSearch(new DataListSearchPageResult(1, 0, []));
 
         var result = await _sut.Handle(
             new SearchDataListItemsQuery(1, null, 0, 10),
@@ -236,5 +233,38 @@ public class SearchDataListItemsHandlerTests
 
         act.Should().Throw<ArgumentException>()
             .Which.ParamName.Should().Be(expectedParam);
+    }
+
+    [Fact]
+    public async Task Handle_WithInvalidLocale_ReturnsInvalid()
+    {
+        _repository.SearchItemsAsync(
+                Arg.Any<long>(),
+                Arg.Any<string?>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<DataListSearchMatchMode>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>())
+            .Returns<Task<DataListSearchPageResult?>>(_ =>
+                throw new ArgumentException("'not a culture!' is not a valid culture code.", "cultureCode"));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(1, "App", 0, 10, locale: "not a culture!"),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle(e => e.Identifier == "Locale");
+    }
+
+    [Fact]
+    public void QueryCtor_WithLocaleTooLong_ThrowsArgumentException()
+    {
+        string locale = new('a', IHasTranslations.MAX_CULTURE_CODE_LENGTH + 1);
+
+        Action act = () => _ = new SearchDataListItemsQuery(1, null, 0, 10, locale: locale);
+
+        act.Should().Throw<ArgumentException>()
+            .Which.ParamName.Should().Be("locale");
     }
 }
