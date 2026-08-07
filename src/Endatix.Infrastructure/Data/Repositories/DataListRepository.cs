@@ -1,6 +1,6 @@
 using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
+using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,27 +19,30 @@ public sealed class DataListRepository(
         string? searchQuery,
         int skip,
         int take,
+        DataListSearchMatchMode matchMode = DataListSearchMatchMode.Contains,
+        string? locale = null,
         CancellationToken cancellationToken = default)
     {
-        bool dataListExists = await dbContext.DataLists
+        var dataList = await dbContext.DataLists
             .AsNoTracking()
-            .AnyAsync(d => d.Id == dataListId && d.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(d => d.Id == dataListId && d.IsActive, cancellationToken);
 
-        if (!dataListExists)
+        if (dataList is null)
         {
             return null;
         }
 
-        IQueryable<DataListItem> filteredItems = BuildFilteredItemsQuery(dataListId, searchQuery);
+        var labelKey = dataList.ResolveLabelSearchKey(locale);
+        var filteredItems = BuildFilteredItemsQuery(dataListId, searchQuery, matchMode, labelKey);
 
-        int total = await filteredItems
+        var total = await filteredItems
             .CountAsync(cancellationToken);
 
-        DataListItem[] pageItems = await jsonObjectKeyFilter
+        var pageItems = await jsonObjectKeyFilter
             .OrderByKeyThenBy(
                 filteredItems,
                 nameof(DataListItem.LabelsJson),
-                SurveyJsTranslationKeys.DefaultKey,
+                labelKey,
                 nameof(DataListItem.Value))
             .Skip(skip)
             .Take(take)
@@ -55,9 +58,13 @@ public sealed class DataListRepository(
         return new DataListSearchPageResult(dataListId, total, results);
     }
 
-    private IQueryable<DataListItem> BuildFilteredItemsQuery(long dataListId, string? searchQuery)
+    private IQueryable<DataListItem> BuildFilteredItemsQuery(
+        long dataListId,
+        string? searchQuery,
+        DataListSearchMatchMode matchMode,
+        string labelKey)
     {
-        IQueryable<DataListItem> query = dbContext.DataListItems
+        var query = dbContext.DataListItems
             .AsNoTracking()
             .Where(i => i.DataListId == dataListId);
 
@@ -66,14 +73,23 @@ public sealed class DataListRepository(
             return query;
         }
 
-        string trimmed = searchQuery.Trim();
+        var trimmed = searchQuery.Trim();
+        var textMatchMode = ToRelationalMode(matchMode);
 
-        // Match Value or Labels['default'] only — other locales are ignored until PR-2 includeLocales.
-        return jsonObjectKeyFilter.WhereKeyOrPropertyMatches(
+        // Labels-only: match the resolved locale key (default or catalog culture).
+        return jsonObjectKeyFilter.WhereKeyMatches(
             query,
-            nameof(DataListItem.Value),
             nameof(DataListItem.LabelsJson),
-            SurveyJsTranslationKeys.DefaultKey,
-            trimmed);
+            labelKey,
+            trimmed,
+            textMatchMode);
     }
+
+    private static RelationalTextMatchMode ToRelationalMode(DataListSearchMatchMode matchMode) =>
+        matchMode switch
+        {
+            DataListSearchMatchMode.Exact => RelationalTextMatchMode.Exact,
+            DataListSearchMatchMode.StartsWith => RelationalTextMatchMode.StartsWith,
+            _ => RelationalTextMatchMode.Contains
+        };
 }
