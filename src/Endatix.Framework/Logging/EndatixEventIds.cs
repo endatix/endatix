@@ -152,6 +152,8 @@ public static class EndatixEventIds
         public const int DataOptionFromConfiguration = 1216;
         public const int PersistenceSetupMessage = 1217;
         public const int ModuleEndpointsNotDiscovered = 1218;
+        public const int TelemetryConfigured = 1219;
+        public const int TelemetrySkippedNoExporter = 1220;
 
         public const int RangeStart = Ranges.HostingStart;
         public const int RangeEnd = Ranges.HostingEnd;
@@ -176,7 +178,9 @@ public static class EndatixEventIds
             DataOptionFromDefault,
             DataOptionFromConfiguration,
             PersistenceSetupMessage,
-            ModuleEndpointsNotDiscovered
+            ModuleEndpointsNotDiscovered,
+            TelemetryConfigured,
+            TelemetrySkippedNoExporter
         ];
     }
 

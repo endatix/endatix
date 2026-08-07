@@ -84,6 +84,14 @@ public class EndatixBuilder : IBuilderRoot
     public EndatixHealthChecksBuilder HealthChecks { get; }
 
     /// <summary>
+    /// Builder for OpenTelemetry metrics and traces.
+    /// </summary>
+    /// <example>
+    /// endatix.Telemetry.UseDefaults().DisableInstrumentation(Instrumentations.Runtime).Build();
+    /// </example>
+    public EndatixTelemetryBuilder Telemetry { get; }
+
+    /// <summary>
     /// Initializes a new instance of the EndatixBuilder class.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -111,6 +119,7 @@ public class EndatixBuilder : IBuilderRoot
         Api = new EndatixApiBuilder(this);
         Persistence = new EndatixPersistenceBuilder(this);
         HealthChecks = new EndatixHealthChecksBuilder(this);
+        Telemetry = new EndatixTelemetryBuilder(this);
 
         _logger.LogBuilderInitialized();
     }
@@ -139,6 +148,10 @@ public class EndatixBuilder : IBuilderRoot
         // Configure health checks with default settings
         HealthChecks.UseDefaults();
         _logger.LogHealthChecksConfigurationCompleted();
+
+        // Telemetry only records intent here; nothing is registered until FinalizeConfiguration()
+        // calls Telemetry.Build(), so it stays a no-op unless an OTLP endpoint is configured.
+        Telemetry.UseDefaults();
 
         // UseModule honours the module's feature flag, and wires its endpoints and FastEndpoints
         // configuration (Reporting serializers and endpoint metadata) via IHasFastEndpoints only
@@ -360,6 +373,10 @@ public class EndatixBuilder : IBuilderRoot
         _logger.LogFinalizingConfiguration();
 
         Infrastructure.Build();
+
+        // Deferred so that Telemetry.DisableInstrumentation(...) and WithOtlpExporter(...) apply
+        // whatever order the consumer called them in.
+        Telemetry.Build();
 
         foreach (var module in _modules)
         {

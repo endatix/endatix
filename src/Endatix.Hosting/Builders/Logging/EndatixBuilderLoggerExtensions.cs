@@ -130,4 +130,19 @@ internal static partial class EndatixBuilderLoggerExtensions
         Level = LogLevel.Debug,
         Message = "[Persistence Setup] {Message}")]
     public static partial void LogPersistenceSetup(this ILogger logger, string message);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.Hosting.TelemetryConfigured,
+        Level = LogLevel.Information,
+        Message = "OpenTelemetry configured: exporting to {OtlpEndpoint} with {Instrumentation} instrumentation")]
+    public static partial void LogTelemetryConfigured(
+        this ILogger logger,
+        string otlpEndpoint,
+        string instrumentation);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.Hosting.TelemetrySkippedNoExporter,
+        Level = LogLevel.Debug,
+        Message = "OpenTelemetry not configured: no OTLP endpoint set, so no exporter was registered")]
+    public static partial void LogTelemetrySkippedNoExporter(this ILogger logger);
 }

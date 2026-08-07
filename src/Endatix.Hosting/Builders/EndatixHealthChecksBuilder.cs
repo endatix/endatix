@@ -102,9 +102,11 @@ public class EndatixHealthChecksBuilder
     /// <returns>True if Aspire ServiceDefaults appear to be present, false otherwise.</returns>
     private bool IsAspireServiceDefaultsPresent()
     {
-        // Look for OpenTelemetry services that are typically added by Aspire ServiceDefaults
+        // Probe for ServiceDiscovery only. Matching "OpenTelemetry" as well used to be the tell,
+        // but Endatix now registers the OTel SDK itself (EndatixTelemetryBuilder) — so that check
+        // would treat our own telemetry as Aspire and silently drop the "self" health check.
+        // Aspire's ServiceDefaults always adds service discovery; the OTel SDK never does.
         return _parent.Services.Any(s =>
-            s.ServiceType.FullName?.Contains("OpenTelemetry") == true ||
             s.ServiceType.FullName?.Contains("ServiceDiscovery") == true);
     }
 

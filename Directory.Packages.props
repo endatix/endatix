@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AspNetVersion>10.0.0</AspNetVersion>
     <EFCoreVersion>10.0.0</EFCoreVersion>
+    <OpenTelemetryVersion>1.17.0</OpenTelemetryVersion>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
@@ -62,6 +63,16 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="AspNetCore.HealthChecks.Uris" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.System" Version="9.0.0" />
+    <!-- OpenTelemetry: SDK, hosting integration and the OTLP exporter. Endatix ships OTLP only;
+         vendor exporters (Azure Monitor, etc.) are the host's choice, added via Logging.Configure.
+         OpenTelemetry.Instrumentation.Process is deliberately absent: it has no stable release
+         (1.17.0-rc.1 at time of writing) and Endatix.Hosting is a published package, so an rc would
+         land in every consumer's graph. Runtime instrumentation covers GC/thread-pool/allocation. -->
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="$(OpenTelemetryVersion)" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="$(OpenTelemetryVersion)" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="$(OpenTelemetryVersion)" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="$(OpenTelemetryVersion)" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="$(OpenTelemetryVersion)" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.12.0" />
     <PackageVersion Include="Testcontainers.MsSql" Version="4.12.0" />
     <PackageVersion Include="Testcontainers.Keycloak" Version="4.12.0" />
