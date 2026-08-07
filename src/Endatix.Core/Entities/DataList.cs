@@ -207,6 +207,35 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// </summary>
     public void SetActive(bool isActive) => IsActive = isActive;
 
+    /// <summary>
+    /// Resolves a request locale to the JSON label key used for search.
+    /// Maps omitted / <c>default</c> / <see cref="DefaultLocale"/> to the synthetic <c>default</c> key;
+    /// catalog locales (e.g. <c>es</c>) map to themselves. Unknown catalog locales fall back to <c>default</c>.
+    /// </summary>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="locale"/> is not a valid culture code.</exception>
+    public string ResolveLabelSearchKey(string? locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale)
+            || TranslationCultureNormalizer.IsSyntheticDefaultKey(locale))
+        {
+            return SurveyJsTranslationKeys.DefaultKey;
+        }
+
+        var normalized = TranslationCultureNormalizer.Normalize(locale);
+
+        if (string.Equals(normalized, DefaultLocale, StringComparison.OrdinalIgnoreCase))
+        {
+            return SurveyJsTranslationKeys.DefaultKey;
+        }
+
+        if (AllowsTranslationKey(normalized))
+        {
+            return normalized;
+        }
+
+        return SurveyJsTranslationKeys.DefaultKey;
+    }
+
     /// <inheritdoc />
     public bool AllowsTranslationKey(string key)
     {

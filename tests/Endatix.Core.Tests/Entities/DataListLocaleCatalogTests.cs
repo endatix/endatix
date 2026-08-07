@@ -114,4 +114,33 @@ public class DataListLocaleCatalogTests
         dataList.AllowsTranslationKey("ES").Should().BeTrue();
         dataList.AllowsTranslationKey("fr").Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData(null, "default")]
+    [InlineData("", "default")]
+    [InlineData("default", "default")]
+    [InlineData("en", "default")]
+    [InlineData("ES", "es")]
+    [InlineData("fr", "default")]
+    public void ResolveLabelSearchKey_MapsLocaleToJsonKey(string? locale, string expectedKey)
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: "en");
+        dataList.AddCulture("es");
+
+        dataList.ResolveLabelSearchKey(locale).Should().Be(expectedKey);
+    }
+
+    [Theory]
+    [InlineData("not a culture!")]
+    [InlineData("en_US")]
+    [InlineData("123")]
+    public void ResolveLabelSearchKey_InvalidCultureCode_ThrowsArgumentException(string locale)
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: "en");
+
+        Action act = () => dataList.ResolveLabelSearchKey(locale);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("cultureCode");
+    }
 }

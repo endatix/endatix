@@ -37,6 +37,25 @@ public static partial class TranslationCultureNormalizer
     }
 
     /// <summary>
+    /// Safely returns whether <paramref name="cultureCode"/> is a valid culture-code shaped tag or the synthetic default key
+    /// (without throwing). Whitespace / null is invalid.
+    /// </summary>
+    public static bool IsValidCultureCode(string? cultureCode)
+    {
+        if (string.IsNullOrWhiteSpace(cultureCode))
+        {
+            return false;
+        }
+
+        if (IsSyntheticDefaultKey(cultureCode))
+        {
+            return true;
+        }
+
+        return CultureCodePattern.IsMatch(cultureCode.Trim().ToLowerInvariant());
+    }
+
+    /// <summary>
     /// Returns whether <paramref name="cultureCode"/> is the synthetic SurveyJS default key (after trim).
     /// </summary>
     public static bool IsSyntheticDefaultKey(string? cultureCode)
