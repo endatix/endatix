@@ -48,7 +48,7 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
         else
         {
             var trimmedLocale = locale.Trim();
-            Guard.Against.StringTooLong(trimmedLocale, IHasTranslations.MAX_CULTURE_CODE_LENGTH, nameof(locale));
+            Guard.Against.StringTooLong(trimmedLocale, IHasTranslations.MAX_CULTURE_CODE_LENGTH);
             Locale = trimmedLocale;
         }
     }
