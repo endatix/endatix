@@ -154,6 +154,8 @@ public static class EndatixEventIds
         public const int ModuleEndpointsNotDiscovered = 1218;
         public const int TelemetryConfigured = 1219;
         public const int TelemetrySkippedNoExporter = 1220;
+        public const int LoggingConfigured = 1221;
+        public const int LegacySerilogSectionDetected = 1222;
 
         public const int RangeStart = Ranges.HostingStart;
         public const int RangeEnd = Ranges.HostingEnd;
@@ -180,7 +182,9 @@ public static class EndatixEventIds
             PersistenceSetupMessage,
             ModuleEndpointsNotDiscovered,
             TelemetryConfigured,
-            TelemetrySkippedNoExporter
+            TelemetrySkippedNoExporter,
+            LoggingConfigured,
+            LegacySerilogSectionDetected
         ];
     }
 
