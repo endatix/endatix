@@ -1,10 +1,22 @@
 name: "endatix-app"
 services:
+  # Telemetry UI for the OTLP data endatix-api and endatix-hub export below: traces,
+  # metrics and structured logs in one container, with no Loki/Tempo/Grafana to stand up.
   docker-env-dashboard:
-    image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
-    expose:
-      - "18888"
-      - "18889"
+    image: "mcr.microsoft.com/dotnet/aspire-dashboard:13.4.2"
+    container_name: "endatix-dashboard"
+    environment:
+      # Dev-only. Without it the dashboard mints a login token and prints it to its own
+      # logs, so opening the UI means digging through `docker logs` first. Safe here ONLY
+      # because both ports below are bound to loopback -- never pair this with a 0.0.0.0
+      # publish, and never set it in a deployed manifest.
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports:
+      # Bound to 127.0.0.1 deliberately: the dashboard is unauthenticated (above) and
+      # renders every request, log line and form payload the platform handles. A bare
+      # "18888:18888" would publish that to the whole LAN.
+      - "127.0.0.1:18888:18888" # Dashboard UI
+      - "127.0.0.1:18889:18889" # OTLP/gRPC -- published so an API or Hub run outside Docker can export here too
     networks:
       - "endatix-net"
     restart: "always"

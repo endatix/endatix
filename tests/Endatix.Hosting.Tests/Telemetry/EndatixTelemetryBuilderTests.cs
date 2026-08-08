@@ -3,6 +3,8 @@ using Endatix.Hosting.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 
 namespace Endatix.Hosting.Tests.Telemetry;
 
@@ -470,6 +472,72 @@ public sealed class EndatixTelemetryBuilderTests
 
         // Assert
         redacted.Should().NotContain("s3cr3t").And.NotContain("user").And.NotContain("abc123");
+    }
+
+    // The AddOtlpExporter(...) callback is a deferred options action: it does not run until the
+    // provider is actually built. Every other test in this class stops at registration, so a fault
+    // inside that callback -- such as assigning a null Endpoint, which OtlpExporterOptions rejects
+    // with ArgumentNullException -- goes unseen and only surfaces at host startup. These tests build
+    // the provider so the callback executes.
+
+    [Theory]
+    [InlineData("OTEL_EXPORTER_OTLP_ENDPOINT")]
+    [InlineData("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")]
+    [InlineData("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")]
+    public void Build_EndpointFromEnvironment_ProvidersResolveWithoutThrowing(string variable)
+    {
+        // Arrange
+        using var _ = ClearOtelEnvironment((variable, CollectorEndpoint));
+        var builder = CreateBuilder();
+        builder.UseDefaults().Build();
+
+        // Act
+        using var provider = builder.Services.BuildServiceProvider();
+        var meters = () => provider.GetRequiredService<MeterProvider>();
+        var tracers = () => provider.GetRequiredService<TracerProvider>();
+
+        // Assert
+        meters.Should().NotThrow("the SDK reads the endpoint from the environment itself");
+        tracers.Should().NotThrow("the SDK reads the endpoint from the environment itself");
+    }
+
+    [Fact]
+    public void Build_EndpointFromConfiguration_ProvidersResolveWithoutThrowing()
+    {
+        // Arrange — the other branch: the endpoint IS assigned, because the SDK cannot see it
+        using var _ = ClearOtelEnvironment();
+        var builder = CreateBuilder(new Dictionary<string, string?>
+        {
+            ["Endatix:Telemetry:Otlp:Endpoint"] = CollectorEndpoint,
+            ["Endatix:Telemetry:Otlp:Protocol"] = "http/protobuf"
+        });
+        builder.UseDefaults().Build();
+
+        // Act
+        using var provider = builder.Services.BuildServiceProvider();
+        var meters = () => provider.GetRequiredService<MeterProvider>();
+        var tracers = () => provider.GetRequiredService<TracerProvider>();
+
+        // Assert
+        meters.Should().NotThrow();
+        tracers.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Build_WithInstrumentationDisabled_ProvidersStillResolve()
+    {
+        // Arrange
+        using var _ = ClearOtelEnvironment(
+            (EndatixTelemetryBuilder.EnvVars.OtlpEndpoint, CollectorEndpoint));
+        var builder = CreateBuilder();
+        builder.UseDefaults().DisableInstrumentation(Instrumentations.All).Build();
+
+        // Act
+        using var provider = builder.Services.BuildServiceProvider();
+        var meters = () => provider.GetRequiredService<MeterProvider>();
+
+        // Assert
+        meters.Should().NotThrow();
     }
 
     [Fact]

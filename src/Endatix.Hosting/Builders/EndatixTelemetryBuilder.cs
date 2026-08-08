@@ -324,12 +324,25 @@ public class EndatixTelemetryBuilder
     /// </remarks>
     internal static string Redact(Uri endpoint) => $"{endpoint.Scheme}://{endpoint.Authority}";
 
+    /// <summary>
+    /// Applies only what the SDK cannot work out for itself.
+    /// </summary>
+    /// <param name="exporter">The exporter options being configured.</param>
+    /// <param name="endpoint">
+    /// The endpoint to assign, or <see langword="null"/> when it came from an <c>OTEL_*</c>
+    /// variable and the SDK will read it directly. Must not be assigned when null:
+    /// <see cref="OtlpExporterOptions.Endpoint"/> throws <see cref="ArgumentNullException"/>.
+    /// </param>
+    /// <param name="protocol">The protocol to assign, or <see langword="null"/> to leave the default.</param>
     private static void ConfigureOtlp(
         OtlpExporterOptions exporter,
-        Uri endpoint,
+        Uri? endpoint,
         OtlpExportProtocol? protocol)
     {
-        exporter.Endpoint = endpoint;
+        if (endpoint is not null)
+        {
+            exporter.Endpoint = endpoint;
+        }
 
         if (protocol is not null)
         {
