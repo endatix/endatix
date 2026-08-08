@@ -3,7 +3,7 @@ services:
   # Telemetry UI for the OTLP data endatix-api and endatix-hub export below: traces,
   # metrics and structured logs in one container, with no Loki/Tempo/Grafana to stand up.
   docker-env-dashboard:
-    image: "mcr.microsoft.com/dotnet/aspire-dashboard:9.5.2"
+    image: "mcr.microsoft.com/dotnet/aspire-dashboard:13.4.2"
     container_name: "endatix-dashboard"
     environment:
       # Dev-only. Without it the dashboard mints a login token and prints it to its own
