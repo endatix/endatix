@@ -19,7 +19,9 @@ public class EndatixLoggingBuilder
 {
     internal const string LegacySerilogSection = "Serilog";
     internal const string LoggingSection = "Logging";
-    private const string MigrationDocsUrl = "https://docs.endatix.com/docs/configuration/observability";
+    // The configuration index, not a logging-specific page: no such page exists yet, and a warning
+    // that points at a 404 is worse than one that points at the right section.
+    private const string MigrationDocsUrl = "https://docs.endatix.com/docs/configuration";
 
     private readonly EndatixBuilder? _parentBuilder;
     private readonly IAppEnvironment? _appEnvironment;

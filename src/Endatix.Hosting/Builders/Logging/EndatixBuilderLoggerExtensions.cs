@@ -157,7 +157,8 @@ internal static partial class EndatixBuilderLoggerExtensions
         Level = LogLevel.Warning,
         Message = "A '{LegacySection}' configuration section is present but is no longer read. Endatix "
                 + "now configures logging through '{CurrentSection}'; the levels and sinks in "
-                + "'{LegacySection}' have no effect. Migration guide: {DocsUrl}")]
+                + "'{LegacySection}' have no effect. Move the minimum levels to "
+                + "'{CurrentSection}:LogLevel'. Configuration reference: {DocsUrl}")]
     public static partial void LogLegacySerilogSectionDetected(
         this ILogger logger,
         string legacySection,
