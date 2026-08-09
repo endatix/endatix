@@ -83,6 +83,49 @@ public sealed class TelemetryLogExportTests
     }
 
     [Fact]
+    public void Build_WithOnlyTheLogsEndpointSet_StillActivatesTelemetry()
+    {
+        // Arrange
+        // Any OTLP endpoint variable activates telemetry. Before the logs variable was included in
+        // the activation list, a host that set only OTEL_EXPORTER_OTLP_LOGS_ENDPOINT resolved no
+        // endpoint, so Build() returned early and none of the three signals registered.
+        using var _ = ClearOtelEnvironment(
+            (EndatixTelemetryBuilder.EnvVars.OtlpLogsEndpoint, CollectorEndpoint));
+
+        var builder = CreateHostBuilder();
+
+        // Act
+        builder.Telemetry.UseDefaults().Build();
+
+        // Assert
+        using var provider = builder.Services.BuildServiceProvider();
+
+        provider.GetServices<ILoggerProvider>()
+            .Should().Contain(p => p is OpenTelemetryLoggerProvider);
+    }
+
+    [Fact]
+    public void Build_WithOnlyTheLogsProtocolSet_DoesNotActivateTelemetry()
+    {
+        // Arrange
+        // A protocol on its own says how to export, not where. Without an endpoint there is still
+        // nothing to export to, so the off-by-default rule holds.
+        using var _ = ClearOtelEnvironment(
+            (EndatixTelemetryBuilder.EnvVars.OtlpLogsProtocol, "grpc"));
+
+        var builder = CreateHostBuilder();
+
+        // Act
+        builder.Telemetry.UseDefaults().Build();
+
+        // Assert
+        using var provider = builder.Services.BuildServiceProvider();
+
+        provider.GetServices<ILoggerProvider>()
+            .Should().NotContain(p => p is OpenTelemetryLoggerProvider);
+    }
+
+    [Fact]
     public void LoggingRegistersBeforeTelemetry_SoOtelProviderSurvives()
     {
         // Arrange

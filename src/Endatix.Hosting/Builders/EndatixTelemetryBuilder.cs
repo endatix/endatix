@@ -77,18 +77,27 @@ public class EndatixTelemetryBuilder
         public const string OtlpEndpoint = "OTEL_EXPORTER_OTLP_ENDPOINT";
         public const string OtlpTracesEndpoint = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
         public const string OtlpMetricsEndpoint = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
+        public const string OtlpLogsEndpoint = "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT";
         public const string OtlpProtocol = "OTEL_EXPORTER_OTLP_PROTOCOL";
         public const string OtlpTracesProtocol = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL";
         public const string OtlpMetricsProtocol = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL";
+        public const string OtlpLogsProtocol = "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL";
         public const string TracesSampler = "OTEL_TRACES_SAMPLER";
 
-        /// <summary>Endpoint variables in specification precedence order: signal-specific first.</summary>
+        /// <summary>
+        /// Endpoint variables in specification precedence order: signal-specific first.
+        /// </summary>
+        /// <remarks>
+        /// The logs variable belongs here because any one of these activates telemetry. Omitting it
+        /// meant a host configured with only <c>OTEL_EXPORTER_OTLP_LOGS_ENDPOINT</c> resolved no
+        /// endpoint at all, so Build() returned early and none of the three signals registered.
+        /// </remarks>
         public static readonly string[] AllOtlpEndpoints =
-            [OtlpTracesEndpoint, OtlpMetricsEndpoint, OtlpEndpoint];
+            [OtlpTracesEndpoint, OtlpMetricsEndpoint, OtlpLogsEndpoint, OtlpEndpoint];
 
         /// <summary>Protocol variables in specification precedence order: signal-specific first.</summary>
         public static readonly string[] AllOtlpProtocols =
-            [OtlpTracesProtocol, OtlpMetricsProtocol, OtlpProtocol];
+            [OtlpTracesProtocol, OtlpMetricsProtocol, OtlpLogsProtocol, OtlpProtocol];
     }
 
     private static readonly string[] _defaultExcludedPaths = ["/health", "/alive", "/ready"];
@@ -207,7 +216,7 @@ public class EndatixTelemetryBuilder
 
         // When the value came from the environment, leave the endpoint and protocol unset on the
         // exporter and let the SDK read the variables itself. It already implements the whole
-        // specification: signal-specific OTEL_EXPORTER_OTLP_{TRACES,METRICS}_* overriding the
+        // specification: signal-specific OTEL_EXPORTER_OTLP_{TRACES,METRICS,LOGS}_* overriding the
         // global one, and the per-signal path suffixes that http/protobuf requires. Assigning our
         // resolved value here would clobber all of that with the global endpoint. Validation above
         // still runs against the environment, so a bad value fails fast either way.

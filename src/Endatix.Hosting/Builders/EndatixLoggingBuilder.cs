@@ -212,6 +212,11 @@ public class EndatixLoggingBuilder
     /// <returns>The logging builder for chaining.</returns>
     public EndatixLoggingBuilder UseApplicationInsights()
     {
+        // Baseline first, for the same reason as Configure(): AddApplicationInsightsTelemetry
+        // registers an ILoggerProvider, and RegisterConfiguredLogger()'s ClearProviders() would
+        // remove it if it ran afterwards.
+        RegisterConfiguredLogger();
+
         Services.AddApplicationInsightsTelemetry(options =>
         {
             options.EnableAdaptiveSampling = true;
@@ -228,6 +233,8 @@ public class EndatixLoggingBuilder
     /// <returns>The logging builder for chaining.</returns>
     public EndatixLoggingBuilder UseApplicationInsights(Action<ApplicationInsightsServiceOptions> configure)
     {
+        RegisterConfiguredLogger();
+
         Services.AddApplicationInsightsTelemetry(configure);
 
         return this;

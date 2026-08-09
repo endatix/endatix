@@ -172,6 +172,45 @@ public sealed class EndatixLoggingBuilderTests
         provider.GetServices<ILoggerProvider>().Should().Contain(p => p is ConsoleLoggerProvider);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UseApplicationInsights_ThenUseDefaults_KeepsTheApplicationInsightsProvider(bool withCustomOptions)
+    {
+        // Arrange
+        // AddApplicationInsightsTelemetry registers an ILoggerProvider. Registering it before the
+        // Endatix baseline would put it in front of ClearProviders(), which silently drops it --
+        // the host keeps starting, and only the missing telemetry gives it away.
+        var builder = CreateBuilder(new Dictionary<string, string?>
+        {
+            ["ApplicationInsights:ConnectionString"] = "InstrumentationKey=00000000-0000-0000-0000-000000000000"
+        });
+
+        // Act
+        if (withCustomOptions)
+        {
+            builder.UseApplicationInsights(options => options.EnableAdaptiveSampling = false);
+        }
+        else
+        {
+            builder.UseApplicationInsights();
+        }
+
+        builder.UseDefaults();
+
+        // Assert
+        // Asserted on the descriptors rather than resolved instances: Application Insights needs
+        // IHostingEnvironment to activate, which a bare ServiceCollection has no reason to carry.
+        // Survival of the registration is the claim under test either way.
+        var loggerProviders = builder.Services
+            .Where(d => d.ServiceType == typeof(ILoggerProvider))
+            .ToList();
+
+        loggerProviders.Should().Contain(d =>
+            d.ImplementationType != null && d.ImplementationType.Name.Contains("ApplicationInsights"));
+        loggerProviders.Should().Contain(d => d.ImplementationType == typeof(ConsoleLoggerProvider));
+    }
+
     [Fact]
     public void UseDefaults_CalledTwice_RegistersConsoleOnlyOnce()
     {
