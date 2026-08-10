@@ -150,13 +150,13 @@ public static class DataListTranslationsCsv
 
     private static IReadOnlyList<string[]> ReadRecords(string csv)
     {
-        List<string[]> records = [];
         if (string.IsNullOrEmpty(csv))
         {
-            return records;
+            return [];
         }
 
         var content = csv.AsSpan().TrimStart('\uFEFF');
+        List<string[]> records = [];
         List<string> fields = [];
         StringBuilder field = new();
         var inQuotes = false;
@@ -164,53 +164,13 @@ public static class DataListTranslationsCsv
 
         for (var i = 0; i < content.Length; i++)
         {
-            var current = content[i];
-
             if (inQuotes)
             {
-                if (current != '"')
-                {
-                    field.Append(current);
-                    continue;
-                }
-
-                if (i + 1 < content.Length && content[i + 1] == '"')
-                {
-                    field.Append('"');
-                    i++;
-                    continue;
-                }
-
-                inQuotes = false;
+                i = ConsumeQuotedCharacter(content, i, field, ref inQuotes);
                 continue;
             }
 
-            switch (current)
-            {
-                case '"':
-                    if (field.Length > 0)
-                    {
-                        throw new FormatException("A quoted CSV field cannot start after unquoted content.");
-                    }
-
-                    inQuotes = true;
-                    fieldWasQuoted = true;
-                    continue;
-                case ',':
-                    fields.Add(field.ToString());
-                    field.Clear();
-                    fieldWasQuoted = false;
-                    continue;
-                case '\r':
-                    continue;
-                case '\n':
-                    CompleteRecord(records, fields, field, fieldWasQuoted);
-                    fieldWasQuoted = false;
-                    continue;
-                default:
-                    field.Append(current);
-                    continue;
-            }
+            ProcessUnquotedCharacter(content[i], records, fields, field, ref inQuotes, ref fieldWasQuoted);
         }
 
         if (inQuotes)
@@ -220,6 +180,80 @@ public static class DataListTranslationsCsv
 
         CompleteRecord(records, fields, field, fieldWasQuoted);
         return records;
+    }
+
+    /// <summary>
+    /// Consumes one character inside a quoted field. Returns the index the caller should treat as current
+    /// (so the outer <c>for</c> increment advances correctly past escaped quotes).
+    /// </summary>
+    private static int ConsumeQuotedCharacter(
+        ReadOnlySpan<char> content,
+        int index,
+        StringBuilder field,
+        ref bool inQuotes)
+    {
+        char current = content[index];
+        if (current != '"')
+        {
+            field.Append(current);
+            return index;
+        }
+
+        // Escaped quote: ""
+        if (index + 1 < content.Length && content[index + 1] == '"')
+        {
+            field.Append('"');
+            return index + 1;
+        }
+
+        inQuotes = false;
+        return index;
+    }
+
+    private static void ProcessUnquotedCharacter(
+        char current,
+        List<string[]> records,
+        List<string> fields,
+        StringBuilder field,
+        ref bool inQuotes,
+        ref bool fieldWasQuoted)
+    {
+        switch (current)
+        {
+            case '"':
+                BeginQuotedField(field, ref inQuotes, ref fieldWasQuoted);
+                return;
+            case ',':
+                EndField(fields, field, ref fieldWasQuoted);
+                return;
+            case '\r':
+                return;
+            case '\n':
+                CompleteRecord(records, fields, field, fieldWasQuoted);
+                fieldWasQuoted = false;
+                return;
+            default:
+                field.Append(current);
+                return;
+        }
+    }
+
+    private static void BeginQuotedField(StringBuilder field, ref bool inQuotes, ref bool fieldWasQuoted)
+    {
+        if (field.Length > 0)
+        {
+            throw new FormatException("A quoted CSV field cannot start after unquoted content.");
+        }
+
+        inQuotes = true;
+        fieldWasQuoted = true;
+    }
+
+    private static void EndField(List<string> fields, StringBuilder field, ref bool fieldWasQuoted)
+    {
+        fields.Add(field.ToString());
+        field.Clear();
+        fieldWasQuoted = false;
     }
 
     private static void CompleteRecord(

@@ -43,16 +43,11 @@ public sealed class GetDataListChoiceDisplayValuesHandler(IRepository<DataList> 
 
     private static IReadOnlyList<string> BuildLabelKeys(DataList dataList, IReadOnlyList<CultureCode> includeLocales)
     {
-        List<string> keys = [SurveyJsTranslationKeys.DefaultKey];
-        foreach (var key in dataList.ResolveTranslationKeys(includeLocales))
-        {
-            if (!keys.Contains(key, StringComparer.Ordinal))
-            {
-                keys.Add(key);
-            }
-        }
+        var resolvedKeys = dataList.ResolveTranslationKeys(includeLocales);
+        var additionalKeys = resolvedKeys
+            .Where(key => !string.Equals(key, SurveyJsTranslationKeys.DefaultKey, StringComparison.Ordinal));
 
-        return keys;
+        return [SurveyJsTranslationKeys.DefaultKey, .. additionalKeys];
     }
 
     private static IReadOnlyDictionary<string, string> ProjectLabels(DataListItem item, IReadOnlyList<string> labelKeys)
