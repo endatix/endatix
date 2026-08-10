@@ -97,7 +97,7 @@ public sealed class GetChoiceDisplayValuesRequest
     public IReadOnlyCollection<string> Values { get; init; } = [];
 
     /// <summary>
-    /// Locales to return as nested <c>text</c>, repeated (<c>includeLocales=es&amp;includeLocales=fr</c>)
+    /// Locales to return as nested <c>labels</c>, repeated (<c>includeLocales=es&amp;includeLocales=fr</c>)
     /// or comma-separated (<c>includeLocales=es,fr</c>). Locales outside the catalog are ignored.
     /// </summary>
     public IReadOnlyCollection<string> IncludeLocales { get; init; } = [];
