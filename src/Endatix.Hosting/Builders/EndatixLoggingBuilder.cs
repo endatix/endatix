@@ -1,5 +1,6 @@
 using Endatix.Framework.Hosting;
 using Endatix.Hosting.Builders.Logging;
+using Endatix.Hosting.Logging;
 using Microsoft.ApplicationInsights.AspNetCore.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -138,6 +139,10 @@ public class EndatixLoggingBuilder
             // Always registered, unconditionally: this is what `kubectl logs` and `docker logs`
             // read. A host with no OTLP endpoint must still produce output.
             logging.AddConsole();
+
+            // Added after the console and never in place of it, so enabling files cannot take a
+            // deployed host's stdout away. No-op unless Endatix:Logging:File:Enabled is set.
+            logging.AddEndatixFileLogging(Configuration);
         });
 
         _configuredLoggerRegistered = true;

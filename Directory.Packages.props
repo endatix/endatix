@@ -70,6 +70,11 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="$(OpenTelemetryVersion)" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="$(OpenTelemetryVersion)" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="$(OpenTelemetryVersion)" />
+    <!-- Rotation implementation behind the optional file-logging provider only. Serilog is not the
+         logging pipeline: it is registered as one ILoggerProvider and is inert unless
+         Endatix:Logging:File:Enabled is set. Referenced by Endatix.Hosting alone. -->
+    <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <!-- Test-only: lets the logging tests assert on exported LogRecords without a collector. -->
     <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="$(OpenTelemetryVersion)" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.12.0" />
