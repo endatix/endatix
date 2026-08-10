@@ -207,50 +207,37 @@ Configure middleware settings in your `appsettings.json`:
 
 ## Logging Configuration
 
-Configure logging for your Endatix application:
+Logging is covered in full by **[Observability](./observability.mdx)**, which documents log levels,
+OTLP export, optional file logging and the local telemetry dashboard.
 
-### Serilog Integration
-
-Endatix uses Serilog for structured logging:
-
-```csharp
-builder.Host.ConfigureEndatix(endatix => {
-    endatix.Infrastructure.ConfigureLogging(logging => {
-        logging.UseConsole = true;
-        logging.UseFile = true;
-        logging.MinimumLevel = LogLevel.Information;
-    });
-});
-```
-
-### Logging Settings in appsettings.json
-
-Configure logging in your `appsettings.json`:
+In brief:
 
 ```json
 {
-  "Serilog": {
-    "MinimumLevel": {
-      "Default": "Information",
-      "Override": {
-        "Microsoft": "Warning",
-        "System": "Warning"
-      }
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information",
+      "Endatix": "Warning"
     },
-    "WriteTo": [
-      { "Name": "Console" },
-      {
-        "Name": "File",
-        "Args": {
-          "path": "logs/log-.txt",
-          "rollingInterval": "Day"
-        }
-      }
-    ],
-    "Enrich": ["FromLogContext", "WithMachineName", "WithThreadId"]
+    "Console": { "FormatterName": "json" }
   }
 }
 ```
+
+To add a logging provider of your own:
+
+```csharp
+builder.Host.ConfigureEndatixWithDefaults(endatix => {
+    endatix.Logging.Configure(logging => logging.AddAzureWebAppDiagnostics());
+});
+```
+
+:::info Serilog is no longer the logging pipeline
+Earlier versions read a `Serilog` configuration section. Endatix now uses the standard `Logging`
+section, and a leftover `Serilog` section is ignored — the host still starts and logs a warning
+naming it. See the [migration table](./observability.mdx#migrating-from-the-serilog-section).
+:::
 
 ## Best Practices
 
