@@ -20,31 +20,62 @@ public static class CultureCodeValidation
         this IRuleBuilder<T, string?> ruleBuilder) =>
         ruleBuilder
             .NotEmpty()
-            .Must(locale => CultureCode.TryParse(locale, out CultureCode culture) && !culture.IsSyntheticDefault)
+            .Must(locale => CultureCode.TryParse(locale, out var culture) && !culture.IsSyntheticDefault)
             .WithMessage("{PropertyName} must be a valid culture code (e.g. 'es'), not 'default'.");
 
     /// <summary>
     /// Accepts repeated or comma-separated culture codes, bounded by <see cref="MaxLocales"/>.
     /// Allows the synthetic <c>default</c> key.
     /// </summary>
-    public static IRuleBuilderOptions<T, IReadOnlyCollection<string>> IsIncludeLocales<T>(
+    public static IRuleBuilderOptionsConditions<T, IReadOnlyCollection<string>> IsIncludeLocales<T>(
         this IRuleBuilder<T, IReadOnlyCollection<string>> ruleBuilder) =>
-        ruleBuilder
-            .Must(locales => TranslationLocaleList.Tokenize(locales).Take(MaxLocales + 1).Count() <= MaxLocales)
-            .WithMessage($"No more than {MaxLocales} locales can be requested.")
-            .Must(locales => TranslationLocaleList.Tokenize(locales).All(token => CultureCode.TryParse(token, out _)))
-            .WithMessage("Each locale must be a valid culture code (e.g. 'es' or 'en-US') or 'default'.");
+        ruleBuilder.MustBeBoundedCultureTokens(
+            allowSyntheticDefault: true,
+            tooManyMessage: $"No more than {MaxLocales} locales can be requested.",
+            invalidTokenMessage: "Each locale must be a valid culture code (e.g. 'es' or 'en-US') or 'default'.");
 
     /// <summary>
     /// Same bounds as <see cref="IsIncludeLocales{T}"/> but rejects the synthetic <c>default</c> key
     /// (ensure locales are real cultures added to AvailableLocales).
     /// </summary>
-    public static IRuleBuilderOptions<T, IReadOnlyCollection<string>> IsEnsureLocales<T>(
+    public static IRuleBuilderOptionsConditions<T, IReadOnlyCollection<string>> IsEnsureLocales<T>(
         this IRuleBuilder<T, IReadOnlyCollection<string>> ruleBuilder) =>
-        ruleBuilder
-            .Must(locales => TranslationLocaleList.Tokenize(locales).Take(MaxLocales + 1).Count() <= MaxLocales)
-            .WithMessage($"No more than {MaxLocales} locales can be ensured.")
-            .Must(locales => TranslationLocaleList.Tokenize(locales).All(token =>
-                CultureCode.TryParse(token, out CultureCode culture) && !culture.IsSyntheticDefault))
-            .WithMessage("Each ensureLocales value must be a valid culture code (e.g. 'es'), not 'default'.");
+        ruleBuilder.MustBeBoundedCultureTokens(
+            allowSyntheticDefault: false,
+            tooManyMessage: $"No more than {MaxLocales} locales can be ensured.",
+            invalidTokenMessage: "Each ensureLocales value must be a valid culture code (e.g. 'es'), not 'default'.");
+
+    /// <summary>
+    /// Tokenizes once, fails immediately when the token count exceeds <see cref="MaxLocales"/>,
+    /// then validates only the bounded token list (avoids O(n) parse work on oversized bodies).
+    /// </summary>
+    private static IRuleBuilderOptionsConditions<T, IReadOnlyCollection<string>> MustBeBoundedCultureTokens<T>(
+        this IRuleBuilder<T, IReadOnlyCollection<string>> ruleBuilder,
+        bool allowSyntheticDefault,
+        string tooManyMessage,
+        string invalidTokenMessage) =>
+        ruleBuilder.Custom((locales, context) =>
+        {
+            List<string> tokens = [];
+            foreach (var token in TranslationLocaleList.Tokenize(locales))
+            {
+                if (tokens.Count == MaxLocales)
+                {
+                    context.AddFailure(tooManyMessage);
+                    return;
+                }
+
+                tokens.Add(token);
+            }
+
+            foreach (var token in tokens)
+            {
+                if (!CultureCode.TryParse(token, out var culture)
+                    || (!allowSyntheticDefault && culture.IsSyntheticDefault))
+                {
+                    context.AddFailure(invalidTokenMessage);
+                    return;
+                }
+            }
+        });
 }

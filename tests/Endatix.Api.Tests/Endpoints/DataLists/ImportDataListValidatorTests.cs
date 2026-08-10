@@ -1,3 +1,4 @@
+using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Endpoints.DataLists;
 using Endatix.Core.Entities;
 using FluentValidation.TestHelper;
@@ -211,6 +212,27 @@ public class ImportDataListValidatorTests
         });
 
         result.ShouldHaveValidationErrorFor(x => x.EnsureLocales);
+    }
+
+    [Fact]
+    public void Validate_EnsureLocalesExceedsMax_ReturnsErrorWithoutRequiringParseOfRest()
+    {
+        string[] ensureLocales =
+        [
+            .. Enumerable.Range(0, CultureCodeValidation.MaxLocales + 1)
+                .Select(i => $"l{i}")
+        ];
+
+        var result = _validator.TestValidate(new ImportDataListRequest
+        {
+            DataListId = 1,
+            Format = Import.FormatJson,
+            Items = [],
+            EnsureLocales = ensureLocales
+        });
+
+        result.ShouldHaveValidationErrorFor(x => x.EnsureLocales)
+            .WithErrorMessage($"No more than {CultureCodeValidation.MaxLocales} locales can be ensured.");
     }
 
     [Fact]
