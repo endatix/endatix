@@ -93,12 +93,12 @@ public class DataListLocaleCatalogTests
     [InlineData("default")]
     [InlineData("DEFAULT")]
     [InlineData(" Default ")]
-    public void Ctor_SyntheticDefaultLocale_UsesFallbackCulture(string defaultLocale)
+    public void Ctor_SyntheticDefaultLocale_Throws(string defaultLocale)
     {
-        DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: defaultLocale);
+        Action act = () => _ = new DataList(SampleData.TENANT_ID, "Cities", defaultLocale: defaultLocale);
 
-        dataList.DefaultLocale.Should().Be(SurveyJsTranslationKeys.FallbackDefaultCulture);
-        dataList.DefaultLocale.Should().NotBe(SurveyJsTranslationKeys.DefaultKey);
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("defaultLocale");
     }
 
     [Fact]

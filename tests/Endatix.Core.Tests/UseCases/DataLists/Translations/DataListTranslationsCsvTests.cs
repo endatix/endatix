@@ -178,6 +178,42 @@ public class DataListTranslationsCsvTests
     }
 
     [Fact]
+    public void Parse_QuotedFields_PreserveLeadingAndTrailingWhitespace()
+    {
+        const string csv =
+            "value,default\r\n" +
+            "\" spaced \",\"  Apple  \"\r\n" +
+            " banana , Banana \r\n";
+
+        DataListTranslationsCsvDocument document = DataListTranslationsCsv.Parse(csv);
+
+        document.Rows.Should().HaveCount(2);
+        document.Rows[0].Value.Should().Be(" spaced ");
+        document.Rows[0].Labels["default"].Should().Be("  Apple  ");
+        document.Rows[1].Value.Should().Be("banana");
+        document.Rows[1].Labels["default"].Should().Be("Banana");
+    }
+
+    [Fact]
+    public void Serialize_ThenParse_PreservesLeadingAndTrailingWhitespace()
+    {
+        IReadOnlyList<string> columns = ["default"];
+        DataListTranslationRow[] rows =
+        [
+            new(" spaced ", new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["default"] = "  Apple  "
+            })
+        ];
+
+        string csv = DataListTranslationsCsv.Serialize(columns, rows);
+        DataListTranslationsCsvDocument document = DataListTranslationsCsv.Parse(csv);
+
+        document.Rows.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(rows[0]);
+    }
+
+    [Fact]
     public void BuildColumns_PutsDefaultFirstThenAvailableCultures()
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities", normalizedName: "cities");

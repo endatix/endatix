@@ -60,6 +60,7 @@ public static class DataListTranslationsCsv
 
     /// <summary>
     /// Parses a translations CSV document. Empty cells are dropped so importers can clear a locale.
+    /// Quoted fields keep their content exactly; unquoted fields are trimmed.
     /// </summary>
     /// <exception cref="FormatException">Thrown when the CSV is structurally invalid.</exception>
     public static DataListTranslationsCsvDocument Parse(string csv)
@@ -71,12 +72,13 @@ public static class DataListTranslationsCsv
         }
 
         var header = records[0];
-        if (header.Length == 0 || !string.Equals(header[0].Trim(), ValueColumn, StringComparison.OrdinalIgnoreCase))
+        if (header.Length == 0
+            || !string.Equals(DecodeField(header[0]), ValueColumn, StringComparison.OrdinalIgnoreCase))
         {
             throw new FormatException($"The first CSV column must be '{ValueColumn}'.");
         }
 
-        string[] columns = [.. header.Skip(1).Select(column => column.Trim())];
+        string[] columns = [.. header.Skip(1).Select(column => column.Value.Trim())];
         if (columns.Any(string.IsNullOrEmpty))
         {
             throw new FormatException("CSV header columns cannot be empty.");
@@ -95,18 +97,24 @@ public static class DataListTranslationsCsv
             Dictionary<string, string> labels = new(StringComparer.Ordinal);
             for (var column = 0; column < columns.Length; column++)
             {
-                var cell = record[column + 1].Trim();
+                var cell = DecodeField(record[column + 1]);
                 if (cell.Length > 0)
                 {
                     labels[columns[column]] = cell;
                 }
             }
 
-            rows.Add(new DataListTranslationRow(record[0].Trim(), labels));
+            rows.Add(new DataListTranslationRow(DecodeField(record[0]), labels));
         }
 
         return new DataListTranslationsCsvDocument(columns, rows);
     }
+
+    /// <summary>
+    /// Quoted fields are returned as written; unquoted fields are trimmed.
+    /// </summary>
+    private static string DecodeField(CsvField field) =>
+        field.WasQuoted ? field.Value : field.Value.Trim();
 
     /// <summary>
     /// Builds the export column order: <c>default</c> first, then the culture catalog.
@@ -148,7 +156,9 @@ public static class DataListTranslationsCsv
             : field;
     }
 
-    private static IReadOnlyList<string[]> ReadRecords(string csv)
+    private readonly record struct CsvField(string Value, bool WasQuoted);
+
+    private static IReadOnlyList<CsvField[]> ReadRecords(string csv)
     {
         if (string.IsNullOrEmpty(csv))
         {
@@ -156,8 +166,8 @@ public static class DataListTranslationsCsv
         }
 
         var content = csv.AsSpan().TrimStart('\uFEFF');
-        List<string[]> records = [];
-        List<string> fields = [];
+        List<CsvField[]> records = [];
+        List<CsvField> fields = [];
         StringBuilder field = new();
         var inQuotes = false;
         var fieldWasQuoted = false;
@@ -212,8 +222,8 @@ public static class DataListTranslationsCsv
 
     private static void ProcessUnquotedCharacter(
         char current,
-        List<string[]> records,
-        List<string> fields,
+        List<CsvField[]> records,
+        List<CsvField> fields,
         StringBuilder field,
         ref bool inQuotes,
         ref bool fieldWasQuoted)
@@ -249,16 +259,16 @@ public static class DataListTranslationsCsv
         fieldWasQuoted = true;
     }
 
-    private static void EndField(List<string> fields, StringBuilder field, ref bool fieldWasQuoted)
+    private static void EndField(List<CsvField> fields, StringBuilder field, ref bool fieldWasQuoted)
     {
-        fields.Add(field.ToString());
+        fields.Add(new CsvField(field.ToString(), fieldWasQuoted));
         field.Clear();
         fieldWasQuoted = false;
     }
 
     private static void CompleteRecord(
-        List<string[]> records,
-        List<string> fields,
+        List<CsvField[]> records,
+        List<CsvField> fields,
         StringBuilder field,
         bool fieldWasQuoted)
     {
@@ -268,7 +278,7 @@ public static class DataListTranslationsCsv
             return;
         }
 
-        fields.Add(field.ToString());
+        fields.Add(new CsvField(field.ToString(), fieldWasQuoted));
         field.Clear();
         records.Add([.. fields]);
         fields.Clear();

@@ -40,9 +40,14 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         Description = description;
         var defaultCulture = CultureCode.Parse(
             defaultLocale ?? SurveyJsTranslationKeys.FallbackDefaultCulture);
-        DefaultLocale = defaultCulture.IsSyntheticDefault
-            ? SurveyJsTranslationKeys.FallbackDefaultCulture
-            : defaultCulture.Value;
+        if (defaultCulture.IsSyntheticDefault)
+        {
+            throw new ArgumentException(
+                "DefaultLocale must be a real culture code (e.g. 'en'), not the synthetic 'default' key.",
+                nameof(defaultLocale));
+        }
+
+        DefaultLocale = defaultCulture.Value;
     }
 
     /// <summary>
