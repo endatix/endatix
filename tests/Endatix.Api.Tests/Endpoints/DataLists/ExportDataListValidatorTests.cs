@@ -1,3 +1,4 @@
+using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Endpoints.DataLists;
 using FluentValidation.TestHelper;
 
@@ -58,7 +59,7 @@ public class ExportDataListValidatorTests
         });
 
         result.ShouldHaveValidationErrorFor(x => x.Format)
-            .WithErrorMessage("Format must be 'csv' or 'json'.");
+            .WithErrorMessage(DataListTransferFormatValidation.InvalidFormatMessage);
     }
 
     [Theory]

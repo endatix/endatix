@@ -21,10 +21,10 @@ public sealed class Import(IMediator mediator)
     : Endpoint<ImportDataListRequest, Results<Ok<DataListDetailsModel>, ProblemHttpResult>>
 {
     /// <summary>JSON items payload.</summary>
-    public const string FormatJson = "json";
+    public const string FormatJson = DataListTransferFormatValidation.FormatJson;
 
     /// <summary>CSV string payload (SurveyJS translations shape).</summary>
-    public const string FormatCsv = "csv";
+    public const string FormatCsv = DataListTransferFormatValidation.FormatCsv;
 
     /// <inheritdoc />
     public override void Configure()
@@ -96,9 +96,7 @@ public sealed class Import(IMediator mediator)
     }
 
     internal static string NormalizeFormat(string? format) =>
-        string.IsNullOrWhiteSpace(format)
-            ? FormatJson
-            : format.Trim().ToLowerInvariant();
+        DataListTransferFormatValidation.Normalize(format, FormatJson);
 
     private static ReplaceDataListItemInput ToReplaceDataListItemInput(ImportDataListItemRequest request) => new(
         Value: request.Value ?? string.Empty,
@@ -120,13 +118,7 @@ public sealed class ImportDataListValidator : Validator<ImportDataListRequest>
     {
         RuleFor(x => x.DataListId).GreaterThan(0);
 
-        RuleFor(x => x.Format)
-            .Must(format =>
-            {
-                var normalized = Import.NormalizeFormat(format);
-                return normalized is Import.FormatJson or Import.FormatCsv;
-            })
-            .WithMessage("Format must be 'json' or 'csv'.");
+        RuleFor(x => x.Format).IsDataListFileFormat(Import.FormatJson);
 
         RuleFor(x => x.EnsureLocales)
             .IsEnsureLocales()

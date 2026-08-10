@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.DataLists.GetById;
@@ -17,10 +18,10 @@ namespace Endatix.Api.Endpoints.DataLists;
 public sealed class Export(IMediator mediator) : Endpoint<ExportDataListRequest>
 {
     /// <summary>SurveyJS translations CSV.</summary>
-    public const string FormatCsv = "csv";
+    public const string FormatCsv = DataListTransferFormatValidation.FormatCsv;
 
     /// <summary>JSON array of { value, labels }.</summary>
-    public const string FormatJson = "json";
+    public const string FormatJson = DataListTransferFormatValidation.FormatJson;
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -65,9 +66,7 @@ public sealed class Export(IMediator mediator) : Endpoint<ExportDataListRequest>
     }
 
     internal static string NormalizeFormat(string? format) =>
-        string.IsNullOrWhiteSpace(format)
-            ? FormatCsv
-            : format.Trim().ToLowerInvariant();
+        DataListTransferFormatValidation.Normalize(format, FormatCsv);
 
     private async Task ExportCsvAsync(long dataListId, CancellationToken ct)
     {
@@ -119,13 +118,7 @@ public sealed class ExportDataListValidator : Validator<ExportDataListRequest>
     public ExportDataListValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);
-        RuleFor(x => x.Format)
-            .Must(format =>
-            {
-                var normalized = Export.NormalizeFormat(format);
-                return normalized is Export.FormatCsv or Export.FormatJson;
-            })
-            .WithMessage("Format must be 'csv' or 'json'.");
+        RuleFor(x => x.Format).IsDataListFileFormat(Export.FormatCsv);
     }
 }
 

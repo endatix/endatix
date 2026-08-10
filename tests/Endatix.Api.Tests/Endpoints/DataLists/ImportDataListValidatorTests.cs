@@ -150,7 +150,7 @@ public class ImportDataListValidatorTests
         });
 
         result.ShouldHaveValidationErrorFor(x => x.Format)
-            .WithErrorMessage("Format must be 'json' or 'csv'.");
+            .WithErrorMessage(DataListTransferFormatValidation.InvalidFormatMessage);
     }
 
     [Theory]
