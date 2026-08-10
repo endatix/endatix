@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -176,7 +177,7 @@ public class ReplaceDataListItemsHandlerTests
     public async Task Handle_LabelsWithCatalogLocale_Succeeds()
     {
         var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
 
@@ -193,6 +194,33 @@ public class ReplaceDataListItemsHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.Items.Single().Labels["es"].Should().Be("Nueva York");
+    }
+
+    [Fact]
+    public async Task Handle_EnsureLocales_AddsCultureThenReplaces()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(
+                1,
+                [
+                    new(
+                        Value: "NYC",
+                        Labels: new Dictionary<string, string>
+                        {
+                            ["default"] = "New York",
+                            ["es"] = "Nueva York"
+                        })
+                ],
+                ensureLocales: ["es"]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        dataList.AvailableLocales.Should().Contain("es");
         result.Value!.Items.Single().Labels["es"].Should().Be("Nueva York");
     }
 
@@ -242,7 +270,7 @@ public class ReplaceDataListItemsHandlerTests
     public async Task Handle_MissingDefaultLabelKey_ReturnsInvalid()
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
 

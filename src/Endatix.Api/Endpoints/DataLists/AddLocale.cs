@@ -1,5 +1,6 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.UseCases.DataLists.Locales;
 using FastEndpoints;
 using FluentValidation;
@@ -59,7 +60,7 @@ public sealed class AddLocale(IMediator mediator)
     {
         AddDataListLocaleCommand command = new(request.DataListId, request.Locale!);
         var result = await mediator.Send(command, ct);
-        
+
         return TypedResultsBuilder
             .MapResult(result, DataListMapper.MapDetails)
             .SetTypedResults<Ok<DataListDetailsModel>, ProblemHttpResult>();
@@ -77,7 +78,10 @@ public sealed class AddDataListLocaleValidator : Validator<AddDataListLocaleRequ
     public AddDataListLocaleValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);
-        RuleFor(x => x.Locale).NotEmpty().MaximumLength(16);
+        RuleFor(x => x.Locale)
+            .NotEmpty()
+            .Must(locale => CultureCode.TryParse(locale, out var culture) && !culture.IsSyntheticDefault)
+            .WithMessage("Locale must be a valid culture code (e.g. 'es'), not 'default'.");
     }
 }
 
