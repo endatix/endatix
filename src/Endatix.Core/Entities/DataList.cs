@@ -38,8 +38,11 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         Name = name;
         NormalizedName = normalizedName;
         Description = description;
-        DefaultLocale = CultureCode.Parse(
-            defaultLocale ?? SurveyJsTranslationKeys.FallbackDefaultCulture).Value;
+        var defaultCulture = CultureCode.Parse(
+            defaultLocale ?? SurveyJsTranslationKeys.FallbackDefaultCulture);
+        DefaultLocale = defaultCulture.IsSyntheticDefault
+            ? SurveyJsTranslationKeys.FallbackDefaultCulture
+            : defaultCulture.Value;
     }
 
     /// <summary>

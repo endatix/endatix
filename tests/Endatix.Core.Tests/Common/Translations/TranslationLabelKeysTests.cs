@@ -47,7 +47,7 @@ public class TranslationLabelKeysTests
         var resolved = dataList.TryResolveLabelKey(CultureCode.Parse("fr"), out string labelKey);
 
         resolved.Should().BeFalse();
-        labelKey.Should().BeNull();
+        labelKey.Should().BeEmpty();
     }
 
     private static DataList CreateCatalog(string defaultLocale = "en") =>

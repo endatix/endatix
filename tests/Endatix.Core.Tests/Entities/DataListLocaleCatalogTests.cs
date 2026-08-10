@@ -74,6 +74,34 @@ public class DataListLocaleCatalogTests
     }
 
     [Fact]
+    public void Ctor_OmitsDefaultLocale_UsesFallbackCulture()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities");
+
+        dataList.DefaultLocale.Should().Be(SurveyJsTranslationKeys.FallbackDefaultCulture);
+    }
+
+    [Fact]
+    public void Ctor_RealDefaultLocale_StoresNormalizedCulture()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: " ES ");
+
+        dataList.DefaultLocale.Should().Be("es");
+    }
+
+    [Theory]
+    [InlineData("default")]
+    [InlineData("DEFAULT")]
+    [InlineData(" Default ")]
+    public void Ctor_SyntheticDefaultLocale_UsesFallbackCulture(string defaultLocale)
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: defaultLocale);
+
+        dataList.DefaultLocale.Should().Be(SurveyJsTranslationKeys.FallbackDefaultCulture);
+        dataList.DefaultLocale.Should().NotBe(SurveyJsTranslationKeys.DefaultKey);
+    }
+
+    [Fact]
     public void SetDefaultCulture_RejectsSyntheticDefaultKey()
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities");

@@ -8,7 +8,7 @@ namespace Endatix.Core.Abstractions.Repositories;
 /// <param name="Items">The current page of items.</param>
 /// <param name="TextKeys">
 /// Label keys the caller asked for (<c>default</c> plus resolved locales).
-/// An empty list means "project every stored label".
+/// <see langword="null"/> or an empty list means every stored label should be kept.
 /// </param>
 public sealed record DataListSearchPageResult(
     long DataListId,

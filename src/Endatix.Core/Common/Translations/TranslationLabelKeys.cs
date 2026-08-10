@@ -32,7 +32,7 @@ public static class TranslationLabelKeys
             return true;
         }
 
-        labelKey = null!;
+        labelKey = string.Empty;
         return false;
     }
 }
