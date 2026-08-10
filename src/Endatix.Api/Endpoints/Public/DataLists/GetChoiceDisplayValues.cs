@@ -1,5 +1,6 @@
 using Endatix.Api.Common;
 using Endatix.Api.Common.Security;
+using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Endpoints.DataLists;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Authorization.Access;

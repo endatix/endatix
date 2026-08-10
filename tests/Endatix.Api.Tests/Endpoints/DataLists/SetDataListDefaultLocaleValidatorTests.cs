@@ -62,7 +62,7 @@ public class SetDataListDefaultLocaleValidatorTests
         });
 
         result.ShouldHaveValidationErrorFor(x => x.DefaultLocale)
-            .WithErrorMessage("DefaultLocale must be a valid culture code (e.g. 'en'), not 'default'.");
+            .WithErrorMessage("Default Locale must be a valid culture code (e.g. 'es'), not 'default'.");
     }
 
     [Theory]

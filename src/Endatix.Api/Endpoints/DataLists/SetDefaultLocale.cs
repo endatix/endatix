@@ -1,6 +1,6 @@
+using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Common.Translations;
 using Endatix.Core.UseCases.DataLists.Locales;
 using FastEndpoints;
 using FluentValidation;
@@ -78,10 +78,7 @@ public sealed class SetDataListDefaultLocaleValidator : Validator<SetDataListDef
     public SetDataListDefaultLocaleValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);
-        RuleFor(x => x.DefaultLocale)
-            .NotEmpty()
-            .Must(locale => CultureCode.TryParse(locale, out var culture) && !culture.IsSyntheticDefault)
-            .WithMessage("DefaultLocale must be a valid culture code (e.g. 'en'), not 'default'.");
+        RuleFor(x => x.DefaultLocale).IsCultureCode();
     }
 }
 

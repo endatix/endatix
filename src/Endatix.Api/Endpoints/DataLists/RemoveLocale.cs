@@ -1,6 +1,6 @@
+using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Common.Translations;
 using Endatix.Core.UseCases.DataLists.Locales;
 using FastEndpoints;
 using FluentValidation;
@@ -78,10 +78,7 @@ public sealed class RemoveDataListLocaleValidator : Validator<RemoveDataListLoca
     public RemoveDataListLocaleValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);
-        RuleFor(x => x.Locale)
-            .NotEmpty()
-            .Must(locale => CultureCode.TryParse(locale, out var culture) && !culture.IsSyntheticDefault)
-            .WithMessage("Locale must be a valid culture code (e.g. 'es'), not 'default'.");
+        RuleFor(x => x.Locale).IsCultureCode();
     }
 }
 
