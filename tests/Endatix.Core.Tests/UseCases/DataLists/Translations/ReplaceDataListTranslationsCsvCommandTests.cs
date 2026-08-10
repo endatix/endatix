@@ -1,3 +1,4 @@
+using Endatix.Core.Entities;
 using Endatix.Core.UseCases.DataLists.Translations;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.Translations;
@@ -45,6 +46,6 @@ public class ReplaceDataListTranslationsCsvCommandTests
     [Fact]
     public void MaxRows_MatchesDataListItemCap()
     {
-        ReplaceDataListTranslationsCsvCommand.MaxRows.Should().Be(5_000);
+        ReplaceDataListTranslationsCsvCommand.MaxRows.Should().Be(DataList.MAX_ITEMS);
     }
 }
