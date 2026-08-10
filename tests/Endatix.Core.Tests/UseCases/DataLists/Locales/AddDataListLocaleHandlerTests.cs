@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -135,7 +136,7 @@ public class AddDataListLocaleHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         _repository.SingleOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(),
                 Arg.Any<CancellationToken>())

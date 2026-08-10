@@ -14,6 +14,11 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         public const string NamePerTenant = "IX_DataLists_TenantId_NormalizedName_Unique";
     }
 
+    /// <summary>
+    /// Maximum number of items allowed in a single data list.
+    /// </summary>
+    public const int MAX_ITEMS = 5_000;
+
     private readonly List<DataListItem> _items = [];
     private readonly List<string> _availableLocales = [];
 
@@ -33,8 +38,16 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         Name = name;
         NormalizedName = normalizedName;
         Description = description;
-        DefaultLocale = TranslationCultureNormalizer.Normalize(
+        var defaultCulture = CultureCode.Parse(
             defaultLocale ?? SurveyJsTranslationKeys.FallbackDefaultCulture);
+        if (defaultCulture.IsSyntheticDefault)
+        {
+            throw new ArgumentException(
+                "DefaultLocale must be a real culture code (e.g. 'en'), not the synthetic 'default' key.",
+                nameof(defaultLocale));
+        }
+
+        DefaultLocale = defaultCulture.Value;
     }
 
     /// <summary>
@@ -98,31 +111,29 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">Thrown when the culture code is the synthetic 'default' key.</exception>
-    public void SetDefaultCulture(string cultureCode)
+    public void SetDefaultCulture(CultureCode cultureCode)
     {
-        var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
-        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(normalized))
+        if (cultureCode.IsSyntheticDefault)
         {
             throw new ArgumentException(
                 "DefaultCulture must be a real culture code (e.g. 'en'), not the synthetic 'default' key.",
                 nameof(cultureCode));
         }
 
-        DefaultLocale = normalized;
+        DefaultLocale = cultureCode.Value;
     }
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">Thrown when the culture code is the synthetic 'default' key.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the data list has more than the maximum allowed cultures.</exception>
-    public void AddCulture(string cultureCode)
+    public void AddCulture(CultureCode cultureCode)
     {
-        var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
-        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(normalized))
+        if (cultureCode.IsSyntheticDefault)
         {
             throw new ArgumentException("The synthetic 'default' key cannot be added as a culture.", nameof(cultureCode));
         }
 
-        if (_availableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        if (_availableLocales.Contains(cultureCode.Value, StringComparer.OrdinalIgnoreCase))
         {
             return;
         }
@@ -132,20 +143,19 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             throw new InvalidOperationException($"A data list cannot have more than {MaxAvailableCultures} cultures.");
         }
 
-        _availableLocales.Add(normalized);
+        _availableLocales.Add(cultureCode.Value);
     }
 
     /// <inheritdoc />
-    public void RemoveCulture(string cultureCode)
+    public void RemoveCulture(CultureCode cultureCode)
     {
-        var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
-        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(normalized))
+        if (cultureCode.IsSyntheticDefault)
         {
             throw new ArgumentException("The synthetic 'default' key cannot be removed.", nameof(cultureCode));
         }
 
         var removed = _availableLocales.RemoveAll(x =>
-            string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase));
+            string.Equals(x, cultureCode.Value, StringComparison.OrdinalIgnoreCase));
 
         if (removed == 0)
         {
@@ -154,16 +164,18 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
 
         foreach (var item in _items)
         {
-            item.RemoveTranslation(normalized);
+            item.RemoveTranslation(cultureCode);
         }
     }
 
     /// <summary>
     /// Adds a new item to the data list.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when the list already has <see cref="MAX_ITEMS"/> items.</exception>
     public DataListItem AddItem(IReadOnlyDictionary<string, string> labels, string value)
     {
-        DataListItem item = CreateItem(labels, value);
+        EnsureCanAddItems(1);
+        var item = CreateItem(labels, value);
         item.AttachToDataList(this);
         _items.Add(item);
         return item;
@@ -184,14 +196,35 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// Replaces the items of the data list.
     /// Validates and materializes all incoming items before mutating the existing collection.
     /// </summary>
-    public void ReplaceItems(IEnumerable<(IReadOnlyDictionary<string, string> Labels, string Value)> items)
+    /// <param name="items">Replacement rows.</param>
+    /// <param name="createId">
+    /// Optional id factory for new items. When provided, each new row with unset id <c>0</c>
+    /// is stamped before attach so EF Core does not collide on temporary keys while the
+    /// aggregate is tracked (before SaveChanges).
+    /// </param>
+    /// <exception cref="InvalidOperationException">Thrown when more than <see cref="MAX_ITEMS"/> items are provided.</exception>
+    public void ReplaceItems(
+        IEnumerable<(IReadOnlyDictionary<string, string> Labels, string Value)> items,
+        Func<long>? createId = null)
     {
         Guard.Against.Null(items);
 
-        List<DataListItem> prepared = [];
-        foreach (var (labels, value) in items)
+        var source =
+            items as IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)>
+            ?? [.. items];
+
+        if (source.Count > MAX_ITEMS)
         {
-            prepared.Add(CreateItem(labels, value));
+            throw new InvalidOperationException(
+                $"A data list cannot have more than {MAX_ITEMS} items.");
+        }
+
+        List<DataListItem> prepared = new(source.Count);
+        foreach (var (labels, value) in source)
+        {
+            var item = CreateItem(labels, value);
+            AssignNewItemId(item, createId);
+            prepared.Add(item);
         }
 
         _items.Clear();
@@ -200,6 +233,16 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             item.AttachToDataList(this);
             _items.Add(item);
         }
+    }
+
+    private static void AssignNewItemId(DataListItem item, Func<long>? createId)
+    {
+        if (createId is null || item.Id != 0)
+        {
+            return;
+        }
+
+        item.Id = createId();
     }
 
     /// <summary>
@@ -212,45 +255,70 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// Maps omitted / <c>default</c> / <see cref="DefaultLocale"/> to the synthetic <c>default</c> key;
     /// catalog locales (e.g. <c>es</c>) map to themselves. Unknown catalog locales fall back to <c>default</c>.
     /// </summary>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="locale"/> is not a valid culture code.</exception>
-    public string ResolveLabelSearchKey(string? locale)
+    public string ResolveLabelSearchKey(CultureCode? locale)
     {
-        if (string.IsNullOrWhiteSpace(locale)
-            || TranslationCultureNormalizer.IsSyntheticDefaultKey(locale))
+        if (locale is null)
         {
             return SurveyJsTranslationKeys.DefaultKey;
         }
 
-        var normalized = TranslationCultureNormalizer.Normalize(locale);
-
-        if (string.Equals(normalized, DefaultLocale, StringComparison.OrdinalIgnoreCase))
+        var culture = locale.Value;
+        if (IsDefaultKey(culture) || !AllowsTranslationKey(culture))
         {
             return SurveyJsTranslationKeys.DefaultKey;
         }
 
-        if (AllowsTranslationKey(normalized))
+        return culture.Value;
+    }
+
+    /// <summary>
+    /// Resolves requested locales to the JSON label keys they may read.
+    /// Keeps catalog cultures, folds <c>default</c> / <see cref="DefaultLocale"/> into the synthetic
+    /// <c>default</c> key, and drops locales outside the catalog.
+    /// </summary>
+    public IReadOnlyList<string> ResolveTranslationKeys(IEnumerable<CultureCode>? locales)
+    {
+        if (locales is null)
         {
-            return normalized;
+            return [];
         }
 
-        return SurveyJsTranslationKeys.DefaultKey;
+        List<string> keys = [];
+        foreach (var culture in locales)
+        {
+            var resolved = IsDefaultKey(culture) ? CultureCode.SyntheticDefault : culture;
+            if (AllowsTranslationKey(resolved) && !keys.Contains(resolved.Value, StringComparer.Ordinal))
+            {
+                keys.Add(resolved.Value);
+            }
+        }
+
+        return keys;
     }
 
     /// <inheritdoc />
-    public bool AllowsTranslationKey(string key)
+    public bool AllowsTranslationKey(CultureCode key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return false;
-        }
-
-        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(key))
+        if (key.IsSyntheticDefault)
         {
             return true;
         }
 
-        var normalized = TranslationCultureNormalizer.Normalize(key);
-        return _availableLocales.Contains(normalized, StringComparer.OrdinalIgnoreCase);
+        return _availableLocales.Contains(key.Value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <inheritdoc />
+    public bool IsDefaultKey(CultureCode cultureCode) =>
+        cultureCode.IsSyntheticDefault
+        || string.Equals(cultureCode.Value, DefaultCulture, StringComparison.OrdinalIgnoreCase);
+
+    private void EnsureCanAddItems(int countToAdd)
+    {
+        if (_items.Count + countToAdd > MAX_ITEMS)
+        {
+            throw new InvalidOperationException(
+                $"A data list cannot have more than {MAX_ITEMS} items.");
+        }
     }
 
     private DataListItem CreateItem(IReadOnlyDictionary<string, string> labels, string value)
@@ -272,7 +340,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
                 continue;
             }
 
-            if (!AllowsTranslationKey(key))
+            if (!CultureCode.TryParse(key, out CultureCode culture) || !AllowsTranslationKey(culture))
             {
                 throw new ArgumentException(
                     $"Culture '{key}' is not in the data list culture catalog. Add the culture before assigning labels.",

@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -28,7 +29,7 @@ public sealed class SetDataListDefaultLocaleHandler(
 
         try
         {
-            dataList.SetDefaultCulture(request.DefaultLocale);
+            dataList.SetDefaultCulture(CultureCode.Parse(request.DefaultLocale));
         }
         catch (ArgumentException ex)
         {

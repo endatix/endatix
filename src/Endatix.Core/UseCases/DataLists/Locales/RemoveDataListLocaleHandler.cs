@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -28,7 +29,7 @@ public sealed class RemoveDataListLocaleHandler(
 
         try
         {
-            dataList.RemoveCulture(request.Locale);
+            dataList.RemoveCulture(CultureCode.Parse(request.Locale));
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {

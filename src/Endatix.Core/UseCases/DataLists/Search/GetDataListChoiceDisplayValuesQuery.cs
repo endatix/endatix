@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
@@ -19,12 +20,21 @@ public sealed record GetDataListChoiceDisplayValuesQuery : IQuery<Result<IReadOn
     /// </summary>
     public IReadOnlyCollection<string> Values { get; init; }
 
-    public GetDataListChoiceDisplayValuesQuery(long dataListId, IReadOnlyCollection<string> values)
+    /// <summary>
+    /// Locales to project into the labels map. Malformed codes are dropped; <c>default</c> is always included.
+    /// </summary>
+    public IReadOnlyList<CultureCode> IncludeLocales { get; init; }
+
+    public GetDataListChoiceDisplayValuesQuery(
+        long dataListId,
+        IReadOnlyCollection<string> values,
+        IEnumerable<string>? includeLocales = null)
     {
         Guard.Against.NegativeOrZero(dataListId);
         Guard.Against.Null(values);
 
         DataListId = dataListId;
         Values = values;
+        IncludeLocales = TranslationLocaleList.ParseMany(includeLocales);
     }
 }

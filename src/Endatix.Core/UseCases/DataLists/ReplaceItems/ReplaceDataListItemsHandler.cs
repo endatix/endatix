@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -14,32 +15,47 @@ namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 /// </summary>
 public sealed class ReplaceDataListItemsHandler(
     IRepository<DataList> repository,
-    IMediator mediator
-    )
+    IMediator mediator,
+    IIdGenerator<long> idGenerator)
     : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
     public async Task<Result<DataListDto>> Handle(ReplaceDataListItemsCommand request, CancellationToken cancellationToken)
     {
         DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
-        DataList? dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
+        var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
         }
 
-        if (!TryResolveItems(dataList, request.Items, out List<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems, out List<ValidationError> errors))
+        var ensureErrors =
+            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales);
+        if (ensureErrors is not null)
+        {
+            return Result.Invalid(ensureErrors);
+        }
+
+        if (!TryResolveItems(dataList, request.Items, out var resolvedItems, out var errors))
         {
             return Result.Invalid(errors);
         }
 
-        Result<DataListDto>? replaceFailure = TryReplaceItems(dataList, resolvedItems);
+        var replaceFailure = TryReplaceItems(dataList, resolvedItems, idGenerator);
         if (replaceFailure is not null)
         {
             return replaceFailure;
         }
 
-        await repository.UpdateAsync(dataList, cancellationToken);
+        try
+        {
+            await repository.UpdateAsync(dataList, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result.Error($"Failed to persist data list items: {ex.Message}");
+        }
+
         await mediator.Publish(
             new DataListUpdatedEvent(dataList, DataListUpdateReasons.ItemsReplaced),
             cancellationToken);
@@ -106,7 +122,7 @@ public sealed class ReplaceDataListItemsHandler(
         IReadOnlyDictionary<string, string> labels,
         List<ValidationError> errors)
     {
-        foreach (string cultureKey in labels.Keys)
+        foreach (var cultureKey in labels.Keys)
         {
             if (string.IsNullOrWhiteSpace(cultureKey))
             {
@@ -114,7 +130,8 @@ public sealed class ReplaceDataListItemsHandler(
             }
 
             // Same catalog gate as DataList.ValidateLabelKeys / AllowsTranslationKey.
-            if (!dataList.AllowsTranslationKey(cultureKey))
+            if (!CultureCode.TryParse(cultureKey, out var culture)
+                || !dataList.AllowsTranslationKey(culture))
             {
                 errors.Add(new()
                 {
@@ -136,8 +153,8 @@ public sealed class ReplaceDataListItemsHandler(
 
     private static ValidationError ToLabelValidationError(int index, ArgumentException ex)
     {
-        string labelsPrefix = $"Items[{index}].Labels";
-        string identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex);
+        var labelsPrefix = $"Items[{index}].Labels";
+        var identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex);
 
         return new()
         {
@@ -168,14 +185,23 @@ public sealed class ReplaceDataListItemsHandler(
 
     private static Result<DataListDto>? TryReplaceItems(
         DataList dataList,
-        IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems)
+        IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems,
+        IIdGenerator<long> idGenerator)
     {
         try
         {
-            dataList.ReplaceItems(resolvedItems);
+            dataList.ReplaceItems(resolvedItems, idGenerator.CreateId);
             return null;
         }
         catch (ArgumentException ex)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = "Items",
+                ErrorMessage = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
         {
             return Result.Invalid(new ValidationError
             {

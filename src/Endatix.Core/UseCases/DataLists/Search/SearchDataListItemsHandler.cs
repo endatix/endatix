@@ -13,17 +13,21 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
     /// <inheritdoc />
     public async Task<Result<Paged<DataListItemDto>>> Handle(SearchDataListItemsQuery request, CancellationToken cancellationToken)
     {
+        DataListSearchCriteria criteria = new()
+        {
+            DataListId = request.DataListId,
+            Query = request.Query,
+            Skip = request.Skip,
+            Take = request.Take,
+            MatchMode = request.MatchMode,
+            Locale = request.Locale,
+            IncludeLocales = request.IncludeLocales
+        };
+
         DataListSearchPageResult? searchPage;
         try
         {
-            searchPage = await repository.SearchItemsAsync(
-                request.DataListId,
-                request.Query,
-                request.Skip,
-                request.Take,
-                request.MatchMode,
-                request.Locale,
-                cancellationToken).ConfigureAwait(false);
+            searchPage = await repository.SearchItemsAsync(criteria, cancellationToken).ConfigureAwait(false);
         }
         catch (ArgumentException ex)
         {
@@ -40,14 +44,13 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             return Result.NotFound("Data list not found.");
         }
 
-        var (_, total, items) = searchPage;
+        DataListItemDto[] pageItems =
+            [.. searchPage.Items.Select(item => DataListDtoMapper.FromSearchItem(item, searchPage.TextKeys))];
 
-        DataListItemDto[] pageItems = [.. items.Select(DataListDtoMapper.FromSearchItem)];
-
-        Paged<DataListItemDto> paged = Paged<DataListItemDto>.FromSkipAndTake(
+        var paged = Paged<DataListItemDto>.FromSkipAndTake(
             skip: request.Skip,
             take: request.Take,
-            totalRecords: total,
+            totalRecords: searchPage.Total,
             items: pageItems);
 
         return Result.Success(paged);

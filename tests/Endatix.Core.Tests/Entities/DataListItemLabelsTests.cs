@@ -1,4 +1,5 @@
 using System.Reflection;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 
 namespace Endatix.Core.Tests.Entities;
@@ -34,7 +35,7 @@ public class DataListItemLabelsTests
             },
             "apple");
 
-        item.RemoveTranslation("es");
+        item.RemoveTranslation(CultureCode.Parse("es"));
 
         item.Labels.Should().NotContainKey("es");
         item.Labels["default"].Should().Be("Apple");

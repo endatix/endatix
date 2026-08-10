@@ -21,15 +21,24 @@ public sealed record ReplaceDataListItemsCommand : ICommand<Result<DataListDto>>
     public IReadOnlyCollection<ReplaceDataListItemInput> Items { get; init; }
 
     /// <summary>
+    /// Cultures to add to AvailableLocales before validating item label keys (idempotent).
+    /// </summary>
+    public IReadOnlyList<string> EnsureLocales { get; init; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ReplaceDataListItemsCommand"/> class.
     /// </summary>
-    public ReplaceDataListItemsCommand(long dataListId, IReadOnlyCollection<ReplaceDataListItemInput> items)
+    public ReplaceDataListItemsCommand(
+        long dataListId,
+        IReadOnlyCollection<ReplaceDataListItemInput> items,
+        IEnumerable<string>? ensureLocales = null)
     {
         Guard.Against.NegativeOrZero(dataListId);
         Guard.Against.Null(items);
 
         DataListId = dataListId;
         Items = items;
+        EnsureLocales = ensureLocales is null ? [] : [.. ensureLocales];
     }
 }
 

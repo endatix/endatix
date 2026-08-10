@@ -21,7 +21,7 @@ public class DataListLocaleCatalogTests
         DataList dataList = new(SampleData.TENANT_ID, "Cities");
         IHasTranslations translations = dataList;
 
-        translations.AddCulture("ES");
+        translations.AddCulture(CultureCode.Parse("ES"));
 
         dataList.AvailableLocales.Should().Equal("es");
         translations.AvailableCultures.Should().Equal("es");
@@ -32,7 +32,7 @@ public class DataListLocaleCatalogTests
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities");
 
-        Action act = () => dataList.AddCulture("default");
+        Action act = () => dataList.AddCulture(CultureCode.SyntheticDefault);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -41,7 +41,7 @@ public class DataListLocaleCatalogTests
     public void RemoveCulture_StripsLabelsFromItems()
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities");
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         dataList.AddItem(
             new Dictionary<string, string>
             {
@@ -50,7 +50,7 @@ public class DataListLocaleCatalogTests
             },
             "apple");
 
-        dataList.RemoveCulture("es");
+        dataList.RemoveCulture(CultureCode.Parse("es"));
 
         dataList.AvailableLocales.Should().BeEmpty();
         dataList.Items.Single().Labels.Should().NotContainKey("es");
@@ -74,23 +74,54 @@ public class DataListLocaleCatalogTests
     }
 
     [Fact]
+    public void Ctor_OmitsDefaultLocale_UsesFallbackCulture()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities");
+
+        dataList.DefaultLocale.Should().Be(SurveyJsTranslationKeys.FallbackDefaultCulture);
+    }
+
+    [Fact]
+    public void Ctor_RealDefaultLocale_StoresNormalizedCulture()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: " ES ");
+
+        dataList.DefaultLocale.Should().Be("es");
+    }
+
+    [Theory]
+    [InlineData("default")]
+    [InlineData("DEFAULT")]
+    [InlineData(" Default ")]
+    public void Ctor_SyntheticDefaultLocale_Throws(string defaultLocale)
+    {
+        Action act = () => _ = new DataList(SampleData.TENANT_ID, "Cities", defaultLocale: defaultLocale);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("defaultLocale");
+    }
+
+    [Fact]
     public void SetDefaultCulture_RejectsSyntheticDefaultKey()
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities");
 
-        Action act = () => dataList.SetDefaultCulture("default");
+        Action act = () => dataList.SetDefaultCulture(CultureCode.SyntheticDefault);
 
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void IsSyntheticDefault_UsesSharedNormalizer()
+    public void IsDefaultKey_MatchesSyntheticDefaultAndDefaultCulture()
     {
-        DataList dataList = new(SampleData.TENANT_ID, "Cities");
+        DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: "en");
         IHasTranslations translations = dataList;
 
-        translations.IsSyntheticDefault("DEFAULT").Should().BeTrue();
-        translations.IsSyntheticDefault("es").Should().BeFalse();
+        translations.IsDefaultKey(CultureCode.SyntheticDefault).Should().BeTrue();
+        translations.IsDefaultKey(CultureCode.Parse("DEFAULT")).Should().BeTrue();
+        translations.IsDefaultKey(CultureCode.Parse("en")).Should().BeTrue();
+        translations.IsDefaultKey(CultureCode.Parse("EN")).Should().BeTrue();
+        translations.IsDefaultKey(CultureCode.Parse("es")).Should().BeFalse();
     }
 
     [Theory]
@@ -101,18 +132,18 @@ public class DataListLocaleCatalogTests
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities");
 
-        dataList.AllowsTranslationKey(key).Should().BeTrue();
+        dataList.AllowsTranslationKey(CultureCode.Parse(key)).Should().BeTrue();
     }
 
     [Fact]
     public void AllowsTranslationKey_AllowsDefaultAndCatalogCultures()
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities");
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
 
-        dataList.AllowsTranslationKey("default").Should().BeTrue();
-        dataList.AllowsTranslationKey("ES").Should().BeTrue();
-        dataList.AllowsTranslationKey("fr").Should().BeFalse();
+        dataList.AllowsTranslationKey(CultureCode.SyntheticDefault).Should().BeTrue();
+        dataList.AllowsTranslationKey(CultureCode.Parse("ES")).Should().BeTrue();
+        dataList.AllowsTranslationKey(CultureCode.Parse("fr")).Should().BeFalse();
     }
 
     [Theory]
@@ -125,22 +156,9 @@ public class DataListLocaleCatalogTests
     public void ResolveLabelSearchKey_MapsLocaleToJsonKey(string? locale, string expectedKey)
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: "en");
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
 
-        dataList.ResolveLabelSearchKey(locale).Should().Be(expectedKey);
-    }
-
-    [Theory]
-    [InlineData("not a culture!")]
-    [InlineData("en_US")]
-    [InlineData("123")]
-    public void ResolveLabelSearchKey_InvalidCultureCode_ThrowsArgumentException(string locale)
-    {
-        DataList dataList = new(SampleData.TENANT_ID, "Cities", defaultLocale: "en");
-
-        Action act = () => dataList.ResolveLabelSearchKey(locale);
-
-        act.Should().Throw<ArgumentException>()
-            .WithParameterName("cultureCode");
+        CultureCode? culture = string.IsNullOrWhiteSpace(locale) ? null : CultureCode.Parse(locale);
+        dataList.ResolveLabelSearchKey(culture).Should().Be(expectedKey);
     }
 }

@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -45,7 +46,7 @@ public class RemoveDataListLocaleHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         dataList.AddItem(
             new Dictionary<string, string>
             {
@@ -79,7 +80,7 @@ public class RemoveDataListLocaleHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         _repository.SingleOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(),
                 Arg.Any<CancellationToken>())
@@ -103,7 +104,7 @@ public class RemoveDataListLocaleHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         _repository.SingleOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(),
                 Arg.Any<CancellationToken>())
@@ -147,7 +148,7 @@ public class RemoveDataListLocaleHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("fr");
+        dataList.AddCulture(CultureCode.Parse("fr"));
         _repository.SingleOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(),
                 Arg.Any<CancellationToken>())

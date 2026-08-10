@@ -1,3 +1,4 @@
+using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.DataLists.Locales;
@@ -77,7 +78,7 @@ public sealed class SetDataListDefaultLocaleValidator : Validator<SetDataListDef
     public SetDataListDefaultLocaleValidator()
     {
         RuleFor(x => x.DataListId).GreaterThan(0);
-        RuleFor(x => x.DefaultLocale).NotEmpty().MaximumLength(16);
+        RuleFor(x => x.DefaultLocale).IsCultureCode();
     }
 }
 

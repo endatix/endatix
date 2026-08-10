@@ -1,3 +1,5 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -12,13 +14,17 @@ public class ReplaceDataListItemsHandlerTests
 {
     private readonly IRepository<DataList> _repository;
     private readonly IMediator _mediator;
+    private readonly IIdGenerator<long> _idGenerator;
     private readonly ReplaceDataListItemsHandler _sut;
+    private long _nextId = 100;
 
     public ReplaceDataListItemsHandlerTests()
     {
         _repository = Substitute.For<IRepository<DataList>>();
         _mediator = Substitute.For<IMediator>();
-        _sut = new ReplaceDataListItemsHandler(_repository, _mediator);
+        _idGenerator = Substitute.For<IIdGenerator<long>>();
+        _idGenerator.CreateId().Returns(_ => Interlocked.Increment(ref _nextId));
+        _sut = new ReplaceDataListItemsHandler(_repository, _mediator, _idGenerator);
     }
 
     private static ReplaceDataListItemInput Item(string label, string value) =>
@@ -176,7 +182,7 @@ public class ReplaceDataListItemsHandlerTests
     public async Task Handle_LabelsWithCatalogLocale_Succeeds()
     {
         var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
 
@@ -194,6 +200,76 @@ public class ReplaceDataListItemsHandlerTests
 
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value!.Items.Single().Labels["es"].Should().Be("Nueva York");
+    }
+
+    [Fact]
+    public async Task Handle_EnsureLocales_AddsCultureThenReplaces()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(
+                1,
+                [
+                    new(
+                        Value: "NYC",
+                        Labels: new Dictionary<string, string>
+                        {
+                            ["default"] = "New York",
+                            ["es"] = "Nueva York"
+                        })
+                ],
+                ensureLocales: ["es"]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        dataList.AvailableLocales.Should().Contain("es");
+        result.Value!.Items.Single().Labels["es"].Should().Be("Nueva York");
+    }
+
+    [Fact]
+    public async Task Handle_EnsureLocales_InvalidCode_ReturnsInvalid()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(
+                1,
+                [Item("New York", "NYC")],
+                ensureLocales: ["not a culture!"]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(e => e.Identifier.StartsWith("EnsureLocales."));
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_MoreThanMaxItems_ReturnsInvalid()
+    {
+        var dataList = new DataList(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        ReplaceDataListItemInput[] items =
+        [
+            .. Enumerable.Range(0, DataList.MAX_ITEMS + 1)
+                .Select(i => Item($"Label {i}", $"value-{i}"))
+        ];
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(1, items),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().Contain(e =>
+            e.Identifier == "Items"
+            && e.ErrorMessage.Contains(DataList.MAX_ITEMS.ToString()));
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -242,7 +318,7 @@ public class ReplaceDataListItemsHandlerTests
     public async Task Handle_MissingDefaultLabelKey_ReturnsInvalid()
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities") { Id = 1 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
             .Returns(dataList);
 

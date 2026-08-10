@@ -67,11 +67,44 @@ public class GetChoiceDisplayValuesTests
         GetChoiceDisplayValuesRequest request = new() { FormId = 2, DataListId = 11, Values = ["1"] };
         _mediator.Send(Arg.Any<GetDataListChoiceDisplayValuesQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyCollection<DataListChoiceDisplayValueDto>>(
-                [new DataListChoiceDisplayValueDto("1", "United States")]));
+                [new DataListChoiceDisplayValueDto(
+                    "1",
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["default"] = "United States",
+                        ["es"] = "Estados Unidos"
+                    })]));
 
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
         var ok = response.Result.Should().BeOfType<Ok<IReadOnlyCollection<DataListPublicChoiceModel>>>().Subject;
-        ok.Value.Should().ContainSingle(x => x.Value == "1" && x.Label == "United States");
+        var item = ok.Value.Should().ContainSingle().Subject;
+        item.Value.Should().Be("1");
+        item.Labels.Should().BeEquivalentTo(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["default"] = "United States",
+            ["es"] = "Estados Unidos"
+        });
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithIncludeLocales_PassesNormalizedLocalesToQuery()
+    {
+        GetChoiceDisplayValuesRequest request = new()
+        {
+            FormId = 3,
+            DataListId = 11,
+            Values = ["a"],
+            IncludeLocales = ["ES,fr", " de "]
+        };
+        _mediator.Send(Arg.Any<GetDataListChoiceDisplayValuesQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyCollection<DataListChoiceDisplayValueDto>>([]));
+
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        await _mediator.Received(1).Send(
+            Arg.Is<GetDataListChoiceDisplayValuesQuery>(x =>
+                x.IncludeLocales.Select(c => c.Value).SequenceEqual(new[] { "es", "fr", "de" })),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
