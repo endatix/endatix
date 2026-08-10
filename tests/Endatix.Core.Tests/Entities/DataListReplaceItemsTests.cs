@@ -82,4 +82,47 @@ public class DataListReplaceItemsTests
 
         dataList.Items.Should().BeEmpty();
     }
+
+    [Fact]
+    public void ReplaceItems_ExceedsMaxItems_PreservesExistingItems()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities");
+        dataList.AddItem("Apple", "apple");
+
+        List<(IReadOnlyDictionary<string, string> Labels, string Value)> tooMany =
+            Enumerable.Range(0, DataList.MAX_ITEMS + 1)
+                .Select(i => (
+                    (IReadOnlyDictionary<string, string>)new Dictionary<string, string>
+                    {
+                        ["default"] = $"Item {i}"
+                    },
+                    $"value-{i}"))
+                .ToList();
+
+        Action act = () => dataList.ReplaceItems(tooMany);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage($"*{DataList.MAX_ITEMS}*");
+        dataList.Items.Should().ContainSingle(i => i.Value == "apple");
+    }
+
+    [Fact]
+    public void AddItem_WhenAtMaxItems_Throws()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities");
+        dataList.ReplaceItems(
+            Enumerable.Range(0, DataList.MAX_ITEMS)
+                .Select(i => (
+                    (IReadOnlyDictionary<string, string>)new Dictionary<string, string>
+                    {
+                        ["default"] = $"Item {i}"
+                    },
+                    $"value-{i}")));
+
+        Action act = () => dataList.AddItem("Overflow", "overflow");
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage($"*{DataList.MAX_ITEMS}*");
+        dataList.Items.Should().HaveCount(DataList.MAX_ITEMS);
+    }
 }

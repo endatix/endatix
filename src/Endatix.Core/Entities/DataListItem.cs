@@ -142,16 +142,15 @@ public class DataListItem : BaseEntity
     /// <summary>
     /// Removes a culture key from labels when present. Does not remove <see cref="DefaultLabelKey"/>.
     /// </summary>
-    internal void RemoveTranslation(string cultureCode)
+    internal void RemoveTranslation(CultureCode cultureCode)
     {
-        var normalized = TranslationCultureNormalizer.Normalize(cultureCode);
-        if (TranslationCultureNormalizer.IsSyntheticDefaultKey(normalized))
+        if (cultureCode.IsSyntheticDefault)
         {
             throw new InvalidOperationException("The default translation key cannot be removed.");
         }
 
         Dictionary<string, string> copy = new(Labels, StringComparer.Ordinal);
-        if (!copy.Remove(normalized))
+        if (!copy.Remove(cultureCode.Value))
         {
             return;
         }
@@ -174,11 +173,12 @@ public class DataListItem : BaseEntity
                 continue;
             }
 
-            var trimmedKey = key.Trim();
-            var cultureKey = TranslationCultureNormalizer.IsSyntheticDefaultKey(trimmedKey)
-                ? SurveyJsTranslationKeys.DefaultKey
-                : TranslationCultureNormalizer.Normalize(trimmedKey);
-            normalized[cultureKey] = EnforceLabelLength(value.Trim(), cultureKey);
+            if (!CultureCode.TryParse(key, out var code))
+            {
+                throw new ArgumentException($"'{key}' is not a valid culture code.", key);
+            }
+
+            normalized[code.Value] = EnforceLabelLength(value.Trim(), code.Value);
         }
 
         if (!normalized.ContainsKey(DefaultLabelKey))

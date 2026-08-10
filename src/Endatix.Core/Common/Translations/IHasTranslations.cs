@@ -35,26 +35,26 @@ public interface IHasTranslations
     /// <summary>
     /// Sets which real culture the SurveyJS <c>default</c> key represents.
     /// </summary>
-    void SetDefaultCulture(string cultureCode);
+    void SetDefaultCulture(CultureCode cultureCode);
 
     /// <summary>
     /// Adds a culture to the catalog.
     /// </summary>
-    void AddCulture(string cultureCode);
+    void AddCulture(CultureCode cultureCode);
 
     /// <summary>
     /// Removes a culture from the catalog and strips related translations from owned content.
     /// </summary>
-    void RemoveCulture(string cultureCode);
+    void RemoveCulture(CultureCode cultureCode);
 
     /// <summary>
     /// Returns whether a translation map key is allowed (catalog ∪ synthetic default key).
     /// </summary>
-    bool AllowsTranslationKey(string key);
+    bool AllowsTranslationKey(CultureCode key);
 
     /// <summary>
-    /// Returns whether <paramref name="cultureCode"/> is the synthetic SurveyJS default key.
+    /// Returns whether <paramref name="cultureCode"/> maps to the synthetic <c>default</c> translation key —
+    /// either the literal <c>default</c> key or this aggregate's <see cref="DefaultCulture"/>.
     /// </summary>
-    bool IsSyntheticDefault(string cultureCode) =>
-        TranslationCultureNormalizer.IsSyntheticDefaultKey(cultureCode);
+    bool IsDefaultKey(CultureCode cultureCode);
 }

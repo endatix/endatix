@@ -53,12 +53,12 @@ public static class DataListMapper
     };
 
     /// <summary>
-    /// Maps a data list choice to a public choice model (resolved default label).
+    /// Maps a searched data list choice to a public choice model. Labels are already projected to the requested locales.
     /// </summary>
     public static DataListPublicChoiceModel MapPublic(DataListItemDto dto) => new()
     {
-        Label = dto.Label,
-        Value = dto.Value
+        Value = dto.Value,
+        Labels = dto.Labels
     };
 
     /// <summary>
@@ -66,7 +66,7 @@ public static class DataListMapper
     /// </summary>
     public static DataListPublicChoiceModel MapPublic(DataListChoiceDisplayValueDto dto) => new()
     {
-        Label = dto.Label,
-        Value = dto.Value
+        Value = dto.Value,
+        Labels = dto.Labels
     };
 }

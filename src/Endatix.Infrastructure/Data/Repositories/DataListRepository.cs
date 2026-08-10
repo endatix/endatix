@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Infrastructure.Data.Querying;
@@ -15,74 +16,81 @@ public sealed class DataListRepository(
 {
     /// <inheritdoc />
     public async Task<DataListSearchPageResult?> SearchItemsAsync(
-        long dataListId,
-        string? searchQuery,
-        int skip,
-        int take,
-        DataListSearchMatchMode matchMode = DataListSearchMatchMode.Contains,
-        string? locale = null,
+        DataListSearchCriteria criteria,
         CancellationToken cancellationToken = default)
     {
         var dataList = await dbContext.DataLists
             .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == dataListId && d.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(d => d.Id == criteria.DataListId && d.IsActive, cancellationToken);
 
         if (dataList is null)
         {
             return null;
         }
 
-        var labelKey = dataList.ResolveLabelSearchKey(locale);
-        var filteredItems = BuildFilteredItemsQuery(dataListId, searchQuery, matchMode, labelKey);
+        var displayKey = dataList.ResolveLabelSearchKey(criteria.Locale);
+        var searchKeys = BuildDistinctKeys(
+            [displayKey, .. dataList.ResolveTranslationKeys(criteria.IncludeLocales)]);
+        var textKeys = BuildDistinctKeys([SurveyJsTranslationKeys.DefaultKey, .. searchKeys]);
 
-        var total = await filteredItems
-            .CountAsync(cancellationToken);
+        var filteredItems = BuildFilteredItemsQuery(criteria, searchKeys);
+
+        var total = await filteredItems.CountAsync(cancellationToken);
 
         var pageItems = await jsonObjectKeyFilter
             .OrderByKeyThenBy(
                 filteredItems,
                 nameof(DataListItem.LabelsJson),
-                labelKey,
+                displayKey,
                 nameof(DataListItem.Value))
-            .Skip(skip)
-            .Take(take)
+            .Skip(criteria.Skip)
+            .Take(criteria.Take)
             .ToArrayAsync(cancellationToken);
 
-        DataListSearchItemResult[] results = pageItems
+        DataListSearchItemResult[] results = [.. pageItems
             .Select(i => new DataListSearchItemResult(
                 i.Id,
                 new Dictionary<string, string>(i.Labels, StringComparer.Ordinal),
-                i.Value))
-            .ToArray();
+                i.Value))];
 
-        return new DataListSearchPageResult(dataListId, total, results);
+        return new DataListSearchPageResult(criteria.DataListId, total, results, textKeys);
     }
 
     private IQueryable<DataListItem> BuildFilteredItemsQuery(
-        long dataListId,
-        string? searchQuery,
-        DataListSearchMatchMode matchMode,
-        string labelKey)
+        DataListSearchCriteria criteria,
+        IReadOnlyList<string> searchKeys)
     {
         var query = dbContext.DataListItems
             .AsNoTracking()
-            .Where(i => i.DataListId == dataListId);
+            .Where(i => i.DataListId == criteria.DataListId);
 
-        if (string.IsNullOrWhiteSpace(searchQuery))
+        if (string.IsNullOrWhiteSpace(criteria.Query))
         {
             return query;
         }
 
-        var trimmed = searchQuery.Trim();
-        var textMatchMode = ToRelationalMode(matchMode);
-
-        // Labels-only: match the resolved locale key (default or catalog culture).
-        return jsonObjectKeyFilter.WhereKeyMatches(
+        // Match the invariant Value or any requested label key (default plus explicitly requested locales).
+        return jsonObjectKeyFilter.WhereTextOrKeysMatch(
             query,
+            nameof(DataListItem.Value),
             nameof(DataListItem.LabelsJson),
-            labelKey,
-            trimmed,
-            textMatchMode);
+            searchKeys,
+            criteria.Query.Trim(),
+            ToRelationalMode(criteria.MatchMode));
+    }
+
+    private static IReadOnlyList<string> BuildDistinctKeys(IEnumerable<string> keys)
+    {
+        List<string> distinct = [];
+        foreach (var key in keys)
+        {
+            if (!distinct.Contains(key, StringComparer.Ordinal))
+            {
+                distinct.Add(key);
+            }
+        }
+
+        return distinct;
     }
 
     private static RelationalTextMatchMode ToRelationalMode(DataListSearchMatchMode matchMode) =>
