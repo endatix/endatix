@@ -196,8 +196,16 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// Replaces the items of the data list.
     /// Validates and materializes all incoming items before mutating the existing collection.
     /// </summary>
+    /// <param name="items">Replacement rows.</param>
+    /// <param name="createId">
+    /// Optional id factory for new items. When provided, each new item receives
+    /// <see cref="BaseEntity.AssignId"/> so replacement rows do not collide on temporary key
+    /// <c>0</c> while the aggregate is tracked by EF Core (before SaveChanges stamping).
+    /// </param>
     /// <exception cref="InvalidOperationException">Thrown when more than <see cref="MAX_ITEMS"/> items are provided.</exception>
-    public void ReplaceItems(IEnumerable<(IReadOnlyDictionary<string, string> Labels, string Value)> items)
+    public void ReplaceItems(
+        IEnumerable<(IReadOnlyDictionary<string, string> Labels, string Value)> items,
+        Func<long>? createId = null)
     {
         Guard.Against.Null(items);
 
@@ -214,7 +222,13 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         List<DataListItem> prepared = new(source.Count);
         foreach (var (labels, value) in source)
         {
-            prepared.Add(CreateItem(labels, value));
+            var item = CreateItem(labels, value);
+            if (createId is not null)
+            {
+                item.AssignId(createId);
+            }
+
+            prepared.Add(item);
         }
 
         _items.Clear();

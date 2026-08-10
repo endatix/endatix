@@ -5,6 +5,22 @@ namespace Endatix.Core.Tests.Entities;
 public class DataListReplaceItemsTests
 {
     [Fact]
+    public void ReplaceItems_WithCreateId_AssignsUniqueIdsBeforeAttach()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities");
+        long nextId = 1_000;
+
+        dataList.ReplaceItems(
+        [
+            (new Dictionary<string, string> { ["default"] = "Banana" }, "banana"),
+            (new Dictionary<string, string> { ["default"] = "Cherry" }, "cherry")
+        ],
+        () => nextId++);
+
+        dataList.Items.Select(i => i.Id).Should().Equal(1_000L, 1_001L);
+    }
+
+    [Fact]
     public void ReplaceItems_ValidItems_ReplacesCollection()
     {
         DataList dataList = new(SampleData.TENANT_ID, "Cities");

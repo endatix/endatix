@@ -67,6 +67,7 @@ public class RelationalJsonObjectKeyFilterExpressionsTests
         expression.Should().Contain(nameof(NpgsqlJsonDbFunctions.ExtractObjectKeyText));
         expression.Should().Contain(SurveyJsTranslationKeys.DefaultKey);
         expression.Should().Contain(nameof(FakeItem.Value));
+        expression.Should().Contain("??");
     }
 
     [Fact]
@@ -161,5 +162,6 @@ public class RelationalJsonObjectKeyFilterExpressionsTests
         expression.Should().Contain(nameof(SqlServerJsonDbFunctions.JsonValue));
         expression.Should().Contain(SqlServerJsonObjectKeyFilter.BuildJsonValuePath(SurveyJsTranslationKeys.DefaultKey));
         expression.Should().Contain(nameof(FakeItem.Value));
+        expression.Should().Contain("??");
     }
 }

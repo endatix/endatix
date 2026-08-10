@@ -86,14 +86,19 @@ public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectK
         string thenByPropertyName)
         where TEntity : class
     {
-        var ordered = OrderByKey(source, jsonPropertyName, jsonObjectKey);
+        // Coalesce missing JSON keys to thenBy so NULL sort order is stable across providers.
+        var parameter = Expression.Parameter(typeof(TEntity), "e");
+        var fallback = Expression.Property(parameter, thenByPropertyName);
+        var primarySelector = Expression.Lambda<Func<TEntity, string>>(
+            Expression.Coalesce(ExtractKey(parameter, jsonPropertyName, jsonObjectKey), fallback),
+            parameter);
 
         var thenParameter = Expression.Parameter(typeof(TEntity), "e");
         var thenSelector = Expression.Lambda<Func<TEntity, string>>(
             Expression.Property(thenParameter, thenByPropertyName),
             thenParameter);
 
-        return ordered.ThenBy(thenSelector);
+        return source.OrderBy(primarySelector).ThenBy(thenSelector);
     }
 
     private string BuildPattern(string trimmedSearchText, RelationalTextMatchMode matchMode) =>

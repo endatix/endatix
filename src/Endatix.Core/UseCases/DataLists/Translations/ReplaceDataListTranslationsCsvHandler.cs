@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -14,7 +15,8 @@ namespace Endatix.Core.UseCases.DataLists.Translations;
 /// </summary>
 public sealed class ReplaceDataListTranslationsCsvHandler(
     IRepository<DataList> repository,
-    IMediator mediator)
+    IMediator mediator,
+    IIdGenerator<long> idGenerator)
     : ICommandHandler<ReplaceDataListTranslationsCsvCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
@@ -63,14 +65,26 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
 
         try
         {
-            dataList.ReplaceItems(items);
+            dataList.ReplaceItems(items, idGenerator.CreateId);
         }
         catch (ArgumentException ex)
         {
             return Invalid("Csv", ex.Message);
         }
+        catch (InvalidOperationException ex)
+        {
+            return Invalid("Csv", ex.Message);
+        }
 
-        await repository.UpdateAsync(dataList, cancellationToken);
+        try
+        {
+            await repository.UpdateAsync(dataList, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result.Error($"Failed to persist data list items: {ex.Message}");
+        }
+
         await mediator.Publish(
             new DataListUpdatedEvent(dataList, DataListUpdateReasons.ItemsReplaced),
             cancellationToken);

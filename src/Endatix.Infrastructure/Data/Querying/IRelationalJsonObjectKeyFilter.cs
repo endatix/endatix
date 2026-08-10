@@ -59,12 +59,13 @@ public interface IRelationalJsonObjectKeyFilter
         where TEntity : class;
 
     /// <summary>
-    /// Orders by JSON object key text, then by <paramref name="thenByPropertyName"/>.
+    /// Orders by JSON object key text (coalesced to <paramref name="thenByPropertyName"/> when missing),
+    /// then by <paramref name="thenByPropertyName"/>.
     /// </summary>
     /// <param name="source">The query to order.</param>
     /// <param name="jsonPropertyName">The name of the JSON property to order by.</param>
     /// <param name="jsonObjectKey">The key of the JSON object to order by.</param>
-    /// <param name="thenByPropertyName">The name of the property to order by.</param>
+    /// <param name="thenByPropertyName">Fallback for a missing key and the secondary sort property.</param>
     /// <returns>The ordered query.</returns>
     /// <typeparam name="TEntity">The type of the entity to order.</typeparam>
     IOrderedQueryable<TEntity> OrderByKeyThenBy<TEntity>(

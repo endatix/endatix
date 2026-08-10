@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -14,8 +15,8 @@ namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 /// </summary>
 public sealed class ReplaceDataListItemsHandler(
     IRepository<DataList> repository,
-    IMediator mediator
-    )
+    IMediator mediator,
+    IIdGenerator<long> idGenerator)
     : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
@@ -40,13 +41,21 @@ public sealed class ReplaceDataListItemsHandler(
             return Result.Invalid(errors);
         }
 
-        Result<DataListDto>? replaceFailure = TryReplaceItems(dataList, resolvedItems);
+        var replaceFailure = TryReplaceItems(dataList, resolvedItems, idGenerator);
         if (replaceFailure is not null)
         {
             return replaceFailure;
         }
 
-        await repository.UpdateAsync(dataList, cancellationToken);
+        try
+        {
+            await repository.UpdateAsync(dataList, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result.Error($"Failed to persist data list items: {ex.Message}");
+        }
+
         await mediator.Publish(
             new DataListUpdatedEvent(dataList, DataListUpdateReasons.ItemsReplaced),
             cancellationToken);
@@ -113,7 +122,7 @@ public sealed class ReplaceDataListItemsHandler(
         IReadOnlyDictionary<string, string> labels,
         List<ValidationError> errors)
     {
-        foreach (string cultureKey in labels.Keys)
+        foreach (var cultureKey in labels.Keys)
         {
             if (string.IsNullOrWhiteSpace(cultureKey))
             {
@@ -144,8 +153,8 @@ public sealed class ReplaceDataListItemsHandler(
 
     private static ValidationError ToLabelValidationError(int index, ArgumentException ex)
     {
-        string labelsPrefix = $"Items[{index}].Labels";
-        string identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex);
+        var labelsPrefix = $"Items[{index}].Labels";
+        var identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex);
 
         return new()
         {
@@ -176,11 +185,12 @@ public sealed class ReplaceDataListItemsHandler(
 
     private static Result<DataListDto>? TryReplaceItems(
         DataList dataList,
-        IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems)
+        IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems,
+        IIdGenerator<long> idGenerator)
     {
         try
         {
-            dataList.ReplaceItems(resolvedItems);
+            dataList.ReplaceItems(resolvedItems, idGenerator.CreateId);
             return null;
         }
         catch (ArgumentException ex)

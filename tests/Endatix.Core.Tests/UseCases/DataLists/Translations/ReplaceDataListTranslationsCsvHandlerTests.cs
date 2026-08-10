@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -13,13 +14,17 @@ public class ReplaceDataListTranslationsCsvHandlerTests
 {
     private readonly IRepository<DataList> _repository;
     private readonly IMediator _mediator;
+    private readonly IIdGenerator<long> _idGenerator;
     private readonly ReplaceDataListTranslationsCsvHandler _sut;
+    private long _nextId = 100;
 
     public ReplaceDataListTranslationsCsvHandlerTests()
     {
         _repository = Substitute.For<IRepository<DataList>>();
         _mediator = Substitute.For<IMediator>();
-        _sut = new ReplaceDataListTranslationsCsvHandler(_repository, _mediator);
+        _idGenerator = Substitute.For<IIdGenerator<long>>();
+        _idGenerator.CreateId().Returns(_ => Interlocked.Increment(ref _nextId));
+        _sut = new ReplaceDataListTranslationsCsvHandler(_repository, _mediator, _idGenerator);
     }
 
     private DataList GivenDataList(params string[] locales)
@@ -253,5 +258,40 @@ public class ReplaceDataListTranslationsCsvHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().ContainSingle(e => e.Identifier == "Csv");
+    }
+
+    [Fact]
+    public async Task Handle_MoreThanMaxRows_ReturnsInvalid()
+    {
+        GivenDataList();
+        string csv = "value,default\r\n" + string.Join(
+            "\r\n",
+            Enumerable.Range(0, ReplaceDataListTranslationsCsvCommand.MAX_ROWS + 1)
+                .Select(i => $"{i},Label{i}"));
+
+        var result = await _sut.Handle(
+            new ReplaceDataListTranslationsCsvCommand(1, csv),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle(e =>
+            e.Identifier == "Csv"
+            && e.ErrorMessage.Contains(ReplaceDataListTranslationsCsvCommand.MAX_ROWS.ToString("N0")));
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhitespaceOnlyDefaultLabel_ReturnsInvalid()
+    {
+        // Quoted whitespace survives CSV parse and BuildItems, then ReplaceItems → NormalizeLabels throws.
+        GivenDataList();
+
+        var result = await _sut.Handle(
+            new ReplaceDataListTranslationsCsvCommand(1, "value,default\r\napple,\"   \"\r\n"),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle(e => e.Identifier == "Csv");
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
     }
 }

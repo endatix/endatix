@@ -16,6 +16,23 @@ public abstract class BaseEntity : HasDomainEventsBase
     public DateTime? DeletedAt { get; private set; }
     public bool IsDeleted { get; private set; }
 
+    /// <summary>
+    /// Assigns a client-generated id when still unset (<c>0</c>).
+    /// Call before attaching multiple new siblings to a tracked aggregate so EF Core
+    /// does not collide on temporary key <c>0</c> before SaveChanges stamping.
+    /// </summary>
+    /// <param name="createId">Factory that returns a unique long (typically <c>IIdGenerator{long}.CreateId</c>).</param>
+    public void AssignId(Func<long> createId)
+    {
+        ArgumentNullException.ThrowIfNull(createId);
+        if (Id != 0)
+        {
+            return;
+        }
+
+        Id = createId();
+    }
+
     public virtual void Delete()
     {
         if (!IsDeleted)

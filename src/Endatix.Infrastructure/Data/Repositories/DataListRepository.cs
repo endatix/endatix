@@ -30,8 +30,12 @@ public sealed class DataListRepository(
 
         var displayKey = dataList.ResolveLabelSearchKey(criteria.Locale);
         var searchKeys = BuildDistinctKeys(
-            [displayKey, .. dataList.ResolveTranslationKeys(criteria.IncludeLocales)]);
-        var textKeys = BuildDistinctKeys([SurveyJsTranslationKeys.DefaultKey, .. searchKeys]);
+        [
+            SurveyJsTranslationKeys.DefaultKey,
+            displayKey,
+            .. dataList.ResolveTranslationKeys(criteria.IncludeLocales)
+        ]);
+        var textKeys = searchKeys;
 
         var filteredItems = BuildFilteredItemsQuery(criteria, searchKeys);
 
@@ -79,19 +83,8 @@ public sealed class DataListRepository(
             ToRelationalMode(criteria.MatchMode));
     }
 
-    private static IReadOnlyList<string> BuildDistinctKeys(IEnumerable<string> keys)
-    {
-        List<string> distinct = [];
-        foreach (var key in keys)
-        {
-            if (!distinct.Contains(key, StringComparer.Ordinal))
-            {
-                distinct.Add(key);
-            }
-        }
-
-        return distinct;
-    }
+    private static IReadOnlyList<string> BuildDistinctKeys(IEnumerable<string> keys) =>
+        [.. keys.Distinct(StringComparer.Ordinal)];
 
     private static RelationalTextMatchMode ToRelationalMode(DataListSearchMatchMode matchMode) =>
         matchMode switch
