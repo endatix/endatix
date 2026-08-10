@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Framework.Hosting;
 using Endatix.Hosting.Builders.Logging;
 using Microsoft.ApplicationInsights.AspNetCore.Extensions;
@@ -19,6 +20,10 @@ public class EndatixLoggingBuilder
 {
     internal const string LegacySerilogSection = "Serilog";
     internal const string LoggingSection = "Logging";
+    [SuppressMessage("csharpsquid", "S1075:URIs should not be hardcoded",
+        Justification = "A documentation link shown in a warning message. It does not vary by "
+                      + "environment, and making it configurable would let an operator break the "
+                      + "help text without noticing.")]
     private const string MigrationDocsUrl = "https://docs.endatix.com/docs/configuration/observability";
 
     private readonly EndatixBuilder? _parentBuilder;
