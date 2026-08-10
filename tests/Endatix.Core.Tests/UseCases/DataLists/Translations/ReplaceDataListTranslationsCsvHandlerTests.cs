@@ -283,7 +283,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     [Fact]
     public async Task Handle_WhitespaceOnlyDefaultLabel_ReturnsInvalid()
     {
-        // Quoted whitespace survives CSV parse and BuildItems, then ReplaceItems → NormalizeLabels throws.
+        // Quoted whitespace survives CSV parse; BuildItems must reject it as a missing default.
         GivenDataList();
 
         var result = await _sut.Handle(
@@ -291,7 +291,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().ContainSingle(e => e.Identifier == "Csv");
+        result.ValidationErrors.Should().ContainSingle(e => e.Identifier == "Rows[0].default");
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
     }
 }

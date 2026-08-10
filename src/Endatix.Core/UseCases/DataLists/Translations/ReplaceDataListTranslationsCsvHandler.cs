@@ -188,7 +188,14 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
                     continue;
                 }
 
-                if (label.Length > DataListItem.MAX_LABEL_LENGTH)
+                // Quoted whitespace-only cells survive Parse; treat them as empty like unquoted blanks.
+                var trimmed = label.Trim();
+                if (trimmed.Length == 0)
+                {
+                    continue;
+                }
+
+                if (trimmed.Length > DataListItem.MAX_LABEL_LENGTH)
                 {
                     errors.Add(RowError(
                         index,
@@ -197,7 +204,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
                     continue;
                 }
 
-                labels[labelKeys[column]] = label;
+                labels[labelKeys[column]] = trimmed;
             }
 
             if (!labels.ContainsKey(SurveyJsTranslationKeys.DefaultKey))
