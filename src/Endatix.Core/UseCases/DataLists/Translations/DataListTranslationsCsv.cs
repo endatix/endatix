@@ -172,7 +172,8 @@ public static class DataListTranslationsCsv
         var inQuotes = false;
         var fieldWasQuoted = false;
 
-        for (var i = 0; i < content.Length; i++)
+        var i = 0;
+        while (i < content.Length)
         {
             if (inQuotes)
             {
@@ -181,6 +182,7 @@ public static class DataListTranslationsCsv
             }
 
             ProcessUnquotedCharacter(content[i], records, fields, field, ref inQuotes, ref fieldWasQuoted);
+            i++;
         }
 
         if (inQuotes)
@@ -193,8 +195,8 @@ public static class DataListTranslationsCsv
     }
 
     /// <summary>
-    /// Consumes one character inside a quoted field. Returns the index the caller should treat as current
-    /// (so the outer <c>for</c> increment advances correctly past escaped quotes).
+    /// Consumes one logical character inside a quoted field.
+    /// Returns the index of the next character to read (past escaped <c>""</c> when applicable).
     /// </summary>
     private static int ConsumeQuotedCharacter(
         ReadOnlySpan<char> content,
@@ -202,22 +204,22 @@ public static class DataListTranslationsCsv
         StringBuilder field,
         ref bool inQuotes)
     {
-        char current = content[index];
+        var current = content[index];
         if (current != '"')
         {
             field.Append(current);
-            return index;
+            return index + 1;
         }
 
         // Escaped quote: ""
         if (index + 1 < content.Length && content[index + 1] == '"')
         {
             field.Append('"');
-            return index + 1;
+            return index + 2;
         }
 
         inQuotes = false;
-        return index;
+        return index + 1;
     }
 
     private static void ProcessUnquotedCharacter(
