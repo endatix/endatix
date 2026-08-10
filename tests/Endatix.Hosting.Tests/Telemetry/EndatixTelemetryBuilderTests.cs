@@ -60,7 +60,7 @@ public sealed class EndatixTelemetryBuilderTests
         // Act
         builder.UseDefaults().Build();
 
-        // Assert — AC6: nothing configured means no OpenTelemetry service is registered at all
+        // Assert: nothing configured means no OpenTelemetry service is registered at all
         builder.Services.Should().NotContain(
             s => s.ServiceType.FullName!.Contains("OpenTelemetry"),
             "no exporter should be allocated when telemetry is unconfigured");
@@ -124,7 +124,7 @@ public sealed class EndatixTelemetryBuilderTests
     [Fact]
     public void BuildResource_ServiceNameFromEnvAndConfig_EnvWins()
     {
-        // Arrange — AC2
+        // Arrange
         using var _ = ClearOtelEnvironment(
             (EndatixTelemetryBuilder.EnvVars.ServiceName, "endatix-api-from-env"));
         var builder = CreateBuilder(new Dictionary<string, string?>
@@ -184,7 +184,7 @@ public sealed class EndatixTelemetryBuilderTests
     [InlineData("ftp://collector:4317")]
     public void Build_InvalidOtlpEndpoint_ThrowsWithActionableMessage(string endpoint)
     {
-        // Arrange — AC8: a malformed endpoint must fail loudly, not silently stop exporting
+        // Arrange: a malformed endpoint must fail loudly, not silently stop exporting
         using var _ = ClearOtelEnvironment(
             (EndatixTelemetryBuilder.EnvVars.OtlpEndpoint, endpoint));
         var builder = CreateBuilder();
@@ -408,7 +408,7 @@ public sealed class EndatixTelemetryBuilderTests
     [Fact]
     public void BuildResource_ConfiguredAttributeForServiceName_DoesNotOverrideTheEnvironment()
     {
-        // Arrange — AC2 again, by the back door: ResourceAttributes must not defeat OTEL_SERVICE_NAME
+        // Arrange, by the back door: ResourceAttributes must not defeat OTEL_SERVICE_NAME
         using var _ = ClearOtelEnvironment(
             (EndatixTelemetryBuilder.EnvVars.ServiceName, "endatix-api-from-env"));
         var builder = CreateBuilder(new Dictionary<string, string?>

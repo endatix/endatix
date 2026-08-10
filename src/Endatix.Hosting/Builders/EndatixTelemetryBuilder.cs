@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -76,18 +77,27 @@ public class EndatixTelemetryBuilder
         public const string OtlpEndpoint = "OTEL_EXPORTER_OTLP_ENDPOINT";
         public const string OtlpTracesEndpoint = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT";
         public const string OtlpMetricsEndpoint = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
+        public const string OtlpLogsEndpoint = "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT";
         public const string OtlpProtocol = "OTEL_EXPORTER_OTLP_PROTOCOL";
         public const string OtlpTracesProtocol = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL";
         public const string OtlpMetricsProtocol = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL";
+        public const string OtlpLogsProtocol = "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL";
         public const string TracesSampler = "OTEL_TRACES_SAMPLER";
 
-        /// <summary>Endpoint variables in specification precedence order: signal-specific first.</summary>
+        /// <summary>
+        /// Endpoint variables in specification precedence order: signal-specific first.
+        /// </summary>
+        /// <remarks>
+        /// The logs variable belongs here because any one of these activates telemetry. Omitting it
+        /// meant a host configured with only <c>OTEL_EXPORTER_OTLP_LOGS_ENDPOINT</c> resolved no
+        /// endpoint at all, so Build() returned early and none of the three signals registered.
+        /// </remarks>
         public static readonly string[] AllOtlpEndpoints =
-            [OtlpTracesEndpoint, OtlpMetricsEndpoint, OtlpEndpoint];
+            [OtlpTracesEndpoint, OtlpMetricsEndpoint, OtlpLogsEndpoint, OtlpEndpoint];
 
         /// <summary>Protocol variables in specification precedence order: signal-specific first.</summary>
         public static readonly string[] AllOtlpProtocols =
-            [OtlpTracesProtocol, OtlpMetricsProtocol, OtlpProtocol];
+            [OtlpTracesProtocol, OtlpMetricsProtocol, OtlpLogsProtocol, OtlpProtocol];
     }
 
     private static readonly string[] _defaultExcludedPaths = ["/health", "/alive", "/ready"];
@@ -193,7 +203,7 @@ public class EndatixTelemetryBuilder
         var otlpEndpoint = ResolveOtlpEndpoint();
         if (otlpEndpoint is null)
         {
-            // AC6: nothing configured means nothing registered — no exporter allocated, no SDK cost.
+            // Nothing configured means nothing registered -- no exporter allocated, no SDK cost.
             _applied = true;
             _logger.LogTelemetrySkippedNoExporter();
             return _parent;
@@ -201,12 +211,12 @@ public class EndatixTelemetryBuilder
 
         // Resolved here rather than inside the AddOtlpExporter callback: that callback is a named
         // options configuration action the SDK defers until the provider is built, so validating in
-        // it would surface a bad protocol long after startup — or not at all. AC8 wants fail-fast.
+        // it would surface a bad protocol long after startup -- or not at all. Fail fast instead.
         var otlpProtocol = ResolveOtlpProtocol();
 
         // When the value came from the environment, leave the endpoint and protocol unset on the
         // exporter and let the SDK read the variables itself. It already implements the whole
-        // specification: signal-specific OTEL_EXPORTER_OTLP_{TRACES,METRICS}_* overriding the
+        // specification: signal-specific OTEL_EXPORTER_OTLP_{TRACES,METRICS,LOGS}_* overriding the
         // global one, and the per-signal path suffixes that http/protobuf requires. Assigning our
         // resolved value here would clobber all of that with the global endpoint. Validation above
         // still runs against the environment, so a bad value fails fast either way.
@@ -243,7 +253,7 @@ public class EndatixTelemetryBuilder
         {
             if (_instrumentation.HasFlag(Instrumentations.AspNetCore))
             {
-                // AC5: health and liveness probes are noise — one span per probe per scrape interval.
+                // Health and liveness probes are noise -- one span per probe per scrape interval.
                 tracing.AddAspNetCoreInstrumentation(o =>
                     o.Filter = context => !IsExcludedPath(context.Request.Path));
             }
@@ -257,6 +267,26 @@ public class EndatixTelemetryBuilder
 
             tracing.AddOtlpExporter(exporter => ConfigureOtlp(exporter, exporterEndpoint, exporterProtocol));
         });
+
+        // Logs are registered here rather than in EndatixLoggingBuilder so all three signals share
+        // one resolved endpoint, one protocol and one resource. A log record and the span it belongs
+        // to must agree on service.name, or a backend cannot join them into one trace view.
+        //
+        // Ordering matters: EndatixLoggingBuilder.RegisterConfiguredLogger() calls ClearProviders(),
+        // which would drop this provider if it ran afterwards. In the supported flow it cannot --
+        // UseDefaults() configures logging first and Telemetry.Build() runs last, from
+        // FinalizeConfiguration(). LoggingRegistersBeforeTelemetry_SoOtelProviderSurvives guards it.
+        otel.WithLogging(
+            logging => logging.AddOtlpExporter((exporter, _) =>
+                ConfigureOtlp(exporter, exporterEndpoint, exporterProtocol)),
+            options =>
+            {
+                // Without this the exported record carries only the message template and its
+                // arguments, so anything reading `body` — the Aspire dashboard included — shows blank.
+                options.IncludeFormattedMessage = true;
+                options.IncludeScopes = true;
+                options.ParseStateValues = true;
+            });
 
         _applied = true;
         _logger.LogTelemetryConfigured(Redact(otlpEndpoint), _instrumentation.ToString());
@@ -273,7 +303,7 @@ public class EndatixTelemetryBuilder
 
     /// <summary>
     /// Resolves the OTLP endpoint env-first, or returns <see langword="null"/> when telemetry is
-    /// not configured. Throws when a value is present but unusable (AC8) — silently not exporting
+    /// not configured. Throws when a value is present but unusable -- silently not exporting
     /// is the failure mode this whole plan exists to remove.
     /// </summary>
     internal Uri? ResolveOtlpEndpoint()
@@ -381,7 +411,7 @@ public class EndatixTelemetryBuilder
     }
 
     /// <summary>
-    /// Builds the resource attributes env-first (AC2). <c>OTEL_SERVICE_NAME</c> wins over
+    /// Builds the resource attributes env-first. <c>OTEL_SERVICE_NAME</c> wins over
     /// <c>Endatix:Telemetry:ServiceName</c>, which wins over the entry assembly name.
     /// </summary>
     internal Dictionary<string, object> BuildResource()

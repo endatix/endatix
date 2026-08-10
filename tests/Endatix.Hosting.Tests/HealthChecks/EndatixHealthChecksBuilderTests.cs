@@ -124,7 +124,7 @@ public sealed class EndatixHealthChecksBuilderTests
     [Fact]
     public async Task ConfigureEndatix_WithOpenTelemetryRegistered_StillRegistersSelfCheck()
     {
-        // Arrange — AC7. The Aspire probe used to match any service whose type name contained
+        // Arrange. The Aspire probe used to match any service whose type name contained
         // "OpenTelemetry", so Endatix registering its own SDK would silently disable this check.
         var config = CreateMinimalConfig();
         using var host = Host.CreateDefaultBuilder()

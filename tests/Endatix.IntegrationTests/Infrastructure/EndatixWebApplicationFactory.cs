@@ -53,8 +53,11 @@ internal static class EndatixWebApplicationFactoryConfiguration
 
         builder.UseSetting("Endatix:Submissions:AccessTokenSigningKey", auth.SigningKey);
 
-        builder.UseSetting("Serilog:MinimumLevel:Default", "Warning");
-        builder.UseSetting("Serilog:MinimumLevel:Override:Microsoft", "Warning");
-        builder.UseSetting("Serilog:MinimumLevel:Override:System", "Warning");
+        // Keeps the integration-test console quiet. These replace the former Serilog:MinimumLevel
+        // keys one-for-one; leaving those in place would have gone unnoticed, since an unread
+        // configuration section fails silently rather than erroring.
+        builder.UseSetting("Logging:LogLevel:Default", "Warning");
+        builder.UseSetting("Logging:LogLevel:Microsoft", "Warning");
+        builder.UseSetting("Logging:LogLevel:System", "Warning");
     }
 }

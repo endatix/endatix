@@ -145,4 +145,23 @@ internal static partial class EndatixBuilderLoggerExtensions
         Level = LogLevel.Debug,
         Message = "OpenTelemetry not configured: no OTLP endpoint set, so no exporter was registered")]
     public static partial void LogTelemetrySkippedNoExporter(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.Hosting.LoggingConfigured,
+        Level = LogLevel.Debug,
+        Message = "Logging configured: providers cleared, console registered")]
+    public static partial void LogLoggingConfigured(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.Hosting.LegacySerilogSectionDetected,
+        Level = LogLevel.Warning,
+        Message = "A '{LegacySection}' configuration section is present but is no longer read. Endatix "
+                + "now configures logging through '{CurrentSection}'; the levels and sinks in "
+                + "'{LegacySection}' have no effect. Move the minimum levels to "
+                + "'{CurrentSection}:LogLevel'. Configuration reference: {DocsUrl}")]
+    public static partial void LogLegacySerilogSectionDetected(
+        this ILogger logger,
+        string legacySection,
+        string currentSection,
+        string docsUrl);
 }
