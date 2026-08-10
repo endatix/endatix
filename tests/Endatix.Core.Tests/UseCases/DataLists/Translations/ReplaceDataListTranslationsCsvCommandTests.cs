@@ -46,6 +46,6 @@ public class ReplaceDataListTranslationsCsvCommandTests
     [Fact]
     public void MaxRows_MatchesDataListItemCap()
     {
-        ReplaceDataListTranslationsCsvCommand.MaxRows.Should().Be(DataList.MAX_ITEMS);
+        ReplaceDataListTranslationsCsvCommand.MAX_ROWS.Should().Be(DataList.MAX_ITEMS);
     }
 }

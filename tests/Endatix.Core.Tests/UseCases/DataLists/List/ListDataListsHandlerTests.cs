@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -122,10 +123,10 @@ public class ListDataListsHandlerTests
     private static bool SpecFiltersByLocale(ISpecification<DataList> spec, string locale)
     {
         DataList withLocale = new(SampleData.TENANT_ID, "WithLocale");
-        withLocale.AddCulture(locale);
+        withLocale.AddCulture(CultureCode.Parse(locale));
 
         DataList withoutLocale = new(SampleData.TENANT_ID, "WithoutLocale");
-        withoutLocale.AddCulture("fr");
+        withoutLocale.AddCulture(CultureCode.Parse("fr"));
 
         bool Matches(DataList dataList) =>
             spec.WhereExpressions.Any()

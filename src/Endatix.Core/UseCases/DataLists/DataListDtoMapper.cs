@@ -40,13 +40,36 @@ public static class DataListDtoMapper
     /// <summary>
     /// Maps a search projection row to a DTO, resolving the default label the same way as <see cref="DataListItem.DefaultLabel"/>.
     /// </summary>
-    public static DataListItemDto FromSearchItem(DataListSearchItemResult item)
+    /// <param name="item">The projected search row.</param>
+    /// <param name="textKeys">Label keys to keep. Null or empty keeps every stored label.</param>
+    public static DataListItemDto FromSearchItem(DataListSearchItemResult item, IReadOnlyList<string>? textKeys = null)
     {
-        string defaultLabel = item.Labels.TryGetValue(SurveyJsTranslationKeys.DefaultKey, out string? label)
+        var defaultLabel = item.Labels.TryGetValue(SurveyJsTranslationKeys.DefaultKey, out var label)
             && !string.IsNullOrWhiteSpace(label)
                 ? label
                 : item.Value;
 
-        return new(item.Id, item.Labels, item.Value, defaultLabel);
+        return new(item.Id, ProjectLabels(item.Labels, textKeys), item.Value, defaultLabel);
+    }
+
+    private static IReadOnlyDictionary<string, string> ProjectLabels(
+        IReadOnlyDictionary<string, string> labels,
+        IReadOnlyList<string>? textKeys)
+    {
+        if (textKeys is null || textKeys.Count == 0)
+        {
+            return labels;
+        }
+
+        Dictionary<string, string> projected = new(textKeys.Count, StringComparer.Ordinal);
+        foreach (var key in textKeys)
+        {
+            if (labels.TryGetValue(key, out var label))
+            {
+                projected[key] = label;
+            }
+        }
+
+        return projected;
     }
 }

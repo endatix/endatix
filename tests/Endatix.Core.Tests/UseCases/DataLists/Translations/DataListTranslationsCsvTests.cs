@@ -1,4 +1,5 @@
 using Endatix.Core.Common.Translations;
+using Endatix.Core.Entities;
 using Endatix.Core.UseCases.DataLists.Translations;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.Translations;
@@ -177,9 +178,13 @@ public class DataListTranslationsCsvTests
     }
 
     [Fact]
-    public void BuildColumns_PutsDefaultFirstThenAvailableLocales()
+    public void BuildColumns_PutsDefaultFirstThenAvailableCultures()
     {
-        IReadOnlyList<string> columns = DataListTranslationsCsv.BuildColumns(["es", "fr"]);
+        DataList dataList = new(SampleData.TENANT_ID, "Cities", normalizedName: "cities");
+        dataList.AddCulture(CultureCode.Parse("es"));
+        dataList.AddCulture(CultureCode.Parse("fr"));
+
+        IReadOnlyList<string> columns = DataListTranslationsCsv.BuildColumns(dataList);
 
         columns.Should().Equal(SurveyJsTranslationKeys.DefaultKey, "es", "fr");
     }

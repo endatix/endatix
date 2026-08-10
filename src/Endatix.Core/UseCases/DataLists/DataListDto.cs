@@ -21,7 +21,7 @@ public sealed record DataListDto(
 /// <param name="Id">Item id.</param>
 /// <param name="Labels">Localized labels including the <c>default</c> key.</param>
 /// <param name="Value">Invariant value.</param>
-/// <param name="Label">Resolved default label for public/compat consumers (Labels["default"] or Value).</param>
+/// <param name="Label">Resolved default label (<c>Labels["default"]</c> or <see cref="Value"/>).</param>
 public sealed record DataListItemDto(
     long Id,
     IReadOnlyDictionary<string, string> Labels,

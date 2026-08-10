@@ -22,13 +22,20 @@ public sealed class ReplaceDataListItemsHandler(
     public async Task<Result<DataListDto>> Handle(ReplaceDataListItemsCommand request, CancellationToken cancellationToken)
     {
         DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
-        DataList? dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
+        var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
         }
 
-        if (!TryResolveItems(dataList, request.Items, out List<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems, out List<ValidationError> errors))
+        var ensureErrors =
+            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales);
+        if (ensureErrors is not null)
+        {
+            return Result.Invalid(ensureErrors);
+        }
+
+        if (!TryResolveItems(dataList, request.Items, out var resolvedItems, out var errors))
         {
             return Result.Invalid(errors);
         }
@@ -114,7 +121,8 @@ public sealed class ReplaceDataListItemsHandler(
             }
 
             // Same catalog gate as DataList.ValidateLabelKeys / AllowsTranslationKey.
-            if (!dataList.AllowsTranslationKey(cultureKey))
+            if (!CultureCode.TryParse(cultureKey, out var culture)
+                || !dataList.AllowsTranslationKey(culture))
             {
                 errors.Add(new()
                 {
@@ -176,6 +184,14 @@ public sealed class ReplaceDataListItemsHandler(
             return null;
         }
         catch (ArgumentException ex)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = "Items",
+                ErrorMessage = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
         {
             return Result.Invalid(new ValidationError
             {
