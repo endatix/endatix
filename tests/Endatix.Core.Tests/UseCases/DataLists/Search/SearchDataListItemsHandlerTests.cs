@@ -38,12 +38,7 @@ public class SearchDataListItemsHandlerTests
 
     private void SetupSearch(DataListSearchPageResult page) =>
         _repository.SearchItemsAsync(
-                Arg.Any<long>(),
-                Arg.Any<string?>(),
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<DataListSearchMatchMode>(),
-                Arg.Any<string?>(),
+                Arg.Any<DataListSearchCriteria>(),
                 Arg.Any<CancellationToken>())
             .Returns(page);
 
@@ -51,12 +46,7 @@ public class SearchDataListItemsHandlerTests
     public async Task Handle_DataListNotFound_ReturnsNotFound()
     {
         _repository.SearchItemsAsync(
-                Arg.Any<long>(),
-                Arg.Any<string?>(),
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<DataListSearchMatchMode>(),
-                Arg.Any<string?>(),
+                Arg.Any<DataListSearchCriteria>(),
                 Arg.Any<CancellationToken>())
             .Returns((DataListSearchPageResult?)null);
 
@@ -125,12 +115,14 @@ public class SearchDataListItemsHandlerTests
         result.Value!.TotalRecords.Should().Be(1);
 
         await _repository.Received(1).SearchItemsAsync(
-            1,
-            "New",
-            0,
-            10,
-            DataListSearchMatchMode.Contains,
-            null,
+            Arg.Is<DataListSearchCriteria>(c =>
+                c.DataListId == 1
+                && c.Query == "New"
+                && c.Skip == 0
+                && c.Take == 10
+                && c.MatchMode == DataListSearchMatchMode.Contains
+                && c.Locale == null
+                && c.IncludeLocales.Count == 0),
             Arg.Any<CancellationToken>());
     }
 
@@ -148,12 +140,41 @@ public class SearchDataListItemsHandlerTests
 
         result.Status.Should().Be(ResultStatus.Ok);
         await _repository.Received(1).SearchItemsAsync(
+            Arg.Is<DataListSearchCriteria>(c =>
+                c.DataListId == 1
+                && c.Query == "Manz"
+                && c.Skip == 0
+                && c.Take == 10
+                && c.MatchMode == DataListSearchMatchMode.StartsWith
+                && c.Locale == CultureCode.Parse("es")
+                && c.IncludeLocales.Count == 0),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithIncludeLocales_PassesIncludeLocalesToRepository()
+    {
+        SetupSearch(new DataListSearchPageResult(
             1,
-            "Manz",
-            0,
-            10,
-            DataListSearchMatchMode.StartsWith,
-            "es",
+            1,
+            [Item(1, "apple", "Apple", ("es", "Manzana"), ("fr", "Pomme"))]));
+
+        var result = await _sut.Handle(
+            new SearchDataListItemsQuery(
+                1,
+                null,
+                0,
+                10,
+                includeLocales: ["es", "fr"]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        await _repository.Received(1).SearchItemsAsync(
+            Arg.Is<DataListSearchCriteria>(c =>
+                c.DataListId == 1
+                && c.IncludeLocales.Count == 2
+                && c.IncludeLocales[0] == CultureCode.Parse("es")
+                && c.IncludeLocales[1] == CultureCode.Parse("fr")),
             Arg.Any<CancellationToken>());
     }
 
@@ -236,25 +257,12 @@ public class SearchDataListItemsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithInvalidLocale_ReturnsInvalid()
+    public void QueryCtor_WithInvalidLocale_ThrowsArgumentException()
     {
-        _repository.SearchItemsAsync(
-                Arg.Any<long>(),
-                Arg.Any<string?>(),
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<DataListSearchMatchMode>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>())
-            .Returns<Task<DataListSearchPageResult?>>(_ =>
-                throw new ArgumentException("'not a culture!' is not a valid culture code.", "cultureCode"));
+        Action act = () => _ = new SearchDataListItemsQuery(1, "App", 0, 10, locale: "not a culture!");
 
-        var result = await _sut.Handle(
-            new SearchDataListItemsQuery(1, "App", 0, 10, locale: "not a culture!"),
-            TestContext.Current.CancellationToken);
-
-        result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().ContainSingle(e => e.Identifier == "Locale");
+        act.Should().Throw<ArgumentException>()
+            .Which.ParamName.Should().Be("cultureCode");
     }
 
     [Fact]
@@ -265,6 +273,6 @@ public class SearchDataListItemsHandlerTests
         Action act = () => _ = new SearchDataListItemsQuery(1, null, 0, 10, locale: locale);
 
         act.Should().Throw<ArgumentException>()
-            .Which.ParamName.Should().Be("locale");
+            .Which.ParamName.Should().Be("cultureCode");
     }
 }

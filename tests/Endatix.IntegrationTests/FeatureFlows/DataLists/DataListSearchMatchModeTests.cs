@@ -16,7 +16,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Endatix.IntegrationTests.FeatureFlows.DataLists;
 
 /// <summary>
-/// Dual-provider FeatureFlow covering Exact / StartsWith / Contains on Labels (locale key), not Value.
+/// Dual-provider FeatureFlow covering Exact / StartsWith / Contains against the invariant Value
+/// and multilingual label keys selected by locale / includeLocales.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -32,8 +33,24 @@ public sealed class DataListSearchMatchModeTests
         _fixture = fixture;
     }
 
+    private static DataListSearchCriteria Criteria(
+        long dataListId,
+        string? query,
+        DataListSearchMatchMode matchMode,
+        string? locale = null,
+        IReadOnlyList<string>? includeLocales = null) => new()
+        {
+            DataListId = dataListId,
+            Query = query,
+            Skip = 0,
+            Take = 50,
+            MatchMode = matchMode,
+            Locale = string.IsNullOrWhiteSpace(locale) ? null : CultureCode.Parse(locale),
+            IncludeLocales = TranslationLocaleList.ParseMany(includeLocales)
+        };
+
     [Fact]
-    public async Task Exact_MatchesOnlyFullDefaultLabel()
+    public async Task SearchItems_ExactDefaultLabel_ReturnsMatchingItem()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
@@ -43,12 +60,7 @@ public sealed class DataListSearchMatchModeTests
         IDataListRepository repository = CreateRepository(db);
 
         DataListSearchPageResult? page = await repository.SearchItemsAsync(
-            dataListId,
-            "Apple",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.Exact,
-            locale: null,
+            Criteria(dataListId, "Apple", DataListSearchMatchMode.Exact),
             ct);
 
         page.Should().NotBeNull();
@@ -56,7 +68,7 @@ public sealed class DataListSearchMatchModeTests
     }
 
     [Fact]
-    public async Task Exact_DoesNotMatchValueWhenLabelDiffers()
+    public async Task SearchItems_ExactOnValueAndLabel_ReturnsMatchAndRejectsPartial()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
@@ -77,32 +89,30 @@ public sealed class DataListSearchMatchModeTests
         IDataListRepository repository = CreateRepository(db);
 
         DataListSearchPageResult? byValue = await repository.SearchItemsAsync(
-            dataListId,
-            "special-code",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.Exact,
-            locale: null,
+            Criteria(dataListId, "special-code", DataListSearchMatchMode.Exact),
             ct);
 
         byValue.Should().NotBeNull();
-        byValue!.Items.Should().BeEmpty();
+        byValue!.Items.Select(i => i.Value).Should().BeEquivalentTo(["special-code"]);
 
         DataListSearchPageResult? byLabel = await repository.SearchItemsAsync(
-            dataListId,
-            "Banana",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.Exact,
-            locale: null,
+            Criteria(dataListId, "Banana", DataListSearchMatchMode.Exact),
             ct);
 
         byLabel.Should().NotBeNull();
         byLabel!.Items.Select(i => i.Value).Should().BeEquivalentTo(["special-code"]);
+
+        // Exact still requires a full label match — partial prefix must not hit.
+        DataListSearchPageResult? byPartialLabel = await repository.SearchItemsAsync(
+            Criteria(dataListId, "Ban", DataListSearchMatchMode.Exact),
+            ct);
+
+        byPartialLabel.Should().NotBeNull();
+        byPartialLabel!.Items.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task StartsWith_MatchesPrefixOnDefaultLabel()
+    public async Task SearchItems_StartsWithDefaultLabelPrefix_ReturnsMatchingItems()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
@@ -112,12 +122,7 @@ public sealed class DataListSearchMatchModeTests
         IDataListRepository repository = CreateRepository(db);
 
         DataListSearchPageResult? page = await repository.SearchItemsAsync(
-            dataListId,
-            "App",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.StartsWith,
-            locale: null,
+            Criteria(dataListId, "App", DataListSearchMatchMode.StartsWith),
             ct);
 
         page.Should().NotBeNull();
@@ -125,7 +130,7 @@ public sealed class DataListSearchMatchModeTests
     }
 
     [Fact]
-    public async Task Contains_MatchesSubstringOnDefaultLabel()
+    public async Task SearchItems_ContainsDefaultLabelSubstring_ReturnsMatchingItems()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
@@ -135,12 +140,7 @@ public sealed class DataListSearchMatchModeTests
         IDataListRepository repository = CreateRepository(db);
 
         DataListSearchPageResult? page = await repository.SearchItemsAsync(
-            dataListId,
-            "ppl",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.Contains,
-            locale: null,
+            Criteria(dataListId, "ppl", DataListSearchMatchMode.Contains),
             ct);
 
         page.Should().NotBeNull();
@@ -148,59 +148,24 @@ public sealed class DataListSearchMatchModeTests
     }
 
     [Fact]
-    public async Task Contains_LocaleEs_MatchesSpanishLabelOnly()
+    public async Task SearchItems_StartsWithSpanishLocale_ReturnsSpanishMatchesOnly()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        long tenantId = NextId();
-        long dataListId;
-        await using (AppDbContext seed = CreateAppDbContext(tenantId))
-        {
-            await EnsureTenantAsync(seed, tenantId, ct);
-            DataList list = new(tenantId, $"Locales-{tenantId}", defaultLocale: "en") { Id = NextId() };
-            list.AddCulture("es");
-            list.AddItem(
-                new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    [SurveyJsTranslationKeys.DefaultKey] = "Apple",
-                    ["es"] = "Manzana",
-                },
-                "apple");
-            list.AddItem(
-                new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    [SurveyJsTranslationKeys.DefaultKey] = "Banana",
-                    ["es"] = "Plátano",
-                },
-                "banana");
-            seed.DataLists.Add(list);
-            await seed.SaveChangesAsync(ct);
-            dataListId = list.Id;
-        }
-
+        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
         DataListSearchPageResult? esPage = await repository.SearchItemsAsync(
-            dataListId,
-            "Manz",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.StartsWith,
-            locale: "es",
+            Criteria(dataListId, "Manz", DataListSearchMatchMode.StartsWith, locale: "es"),
             ct);
 
         esPage.Should().NotBeNull();
         esPage!.Items.Select(i => i.Value).Should().BeEquivalentTo(["apple"]);
 
         DataListSearchPageResult? defaultPage = await repository.SearchItemsAsync(
-            dataListId,
-            "Manz",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.StartsWith,
-            locale: null,
+            Criteria(dataListId, "Manz", DataListSearchMatchMode.StartsWith),
             ct);
 
         defaultPage.Should().NotBeNull();
@@ -208,7 +173,153 @@ public sealed class DataListSearchMatchModeTests
     }
 
     [Fact]
-    public async Task Contains_EscapesLikeMetacharacters()
+    public async Task SearchItems_ContainsSpanishLocaleSubstring_ReturnsMatchAndRejectsStartsWith()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await ResetAndMigrateAsync(ct);
+
+        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        await using AppDbContext db = CreateAppDbContext(tenantId);
+        IDataListRepository repository = CreateRepository(db);
+
+        // Mid-string in "Manzana" — must not hit under StartsWith, must hit under Contains + locale=es.
+        DataListSearchPageResult? startsWith = await repository.SearchItemsAsync(
+            Criteria(dataListId, "anzana", DataListSearchMatchMode.StartsWith, locale: "es"),
+            ct);
+
+        startsWith.Should().NotBeNull();
+        startsWith!.Items.Should().BeEmpty();
+
+        DataListSearchPageResult? contains = await repository.SearchItemsAsync(
+            Criteria(dataListId, "anzana", DataListSearchMatchMode.Contains, locale: "es"),
+            ct);
+
+        contains.Should().NotBeNull();
+        contains!.Items.Select(i => i.Value).Should().BeEquivalentTo(["apple"]);
+
+        DataListSearchPageResult? withoutLocale = await repository.SearchItemsAsync(
+            Criteria(dataListId, "anzana", DataListSearchMatchMode.Contains),
+            ct);
+
+        withoutLocale.Should().NotBeNull();
+        withoutLocale!.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchItems_ExactSpanishLocale_ReturnsFullMatchOnly()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await ResetAndMigrateAsync(ct);
+
+        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        await using AppDbContext db = CreateAppDbContext(tenantId);
+        IDataListRepository repository = CreateRepository(db);
+
+        DataListSearchPageResult? full = await repository.SearchItemsAsync(
+            Criteria(dataListId, "Manzana", DataListSearchMatchMode.Exact, locale: "es"),
+            ct);
+
+        full.Should().NotBeNull();
+        full!.Items.Select(i => i.Value).Should().BeEquivalentTo(["apple"]);
+
+        DataListSearchPageResult? prefix = await repository.SearchItemsAsync(
+            Criteria(dataListId, "Manz", DataListSearchMatchMode.Exact, locale: "es"),
+            ct);
+
+        prefix.Should().NotBeNull();
+        prefix!.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchItems_StartsWithIncludeLocales_ReturnsLocaleMatches()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await ResetAndMigrateAsync(ct);
+
+        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        await using AppDbContext db = CreateAppDbContext(tenantId);
+        IDataListRepository repository = CreateRepository(db);
+
+        DataListSearchPageResult? page = await repository.SearchItemsAsync(
+            Criteria(dataListId, "Plát", DataListSearchMatchMode.StartsWith, includeLocales: ["es"]),
+            ct);
+
+        page.Should().NotBeNull();
+        page!.Items.Select(i => i.Value).Should().BeEquivalentTo(["banana"]);
+    }
+
+    [Fact]
+    public async Task SearchItems_ContainsIncludeLocales_MatchesDefaultAndLocaleLabels()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await ResetAndMigrateAsync(ct);
+
+        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        await using AppDbContext db = CreateAppDbContext(tenantId);
+        IDataListRepository repository = CreateRepository(db);
+
+        // "ana" is a substring of default "Banana" and of es "Manzana".
+        DataListSearchPageResult? page = await repository.SearchItemsAsync(
+            Criteria(dataListId, "ana", DataListSearchMatchMode.Contains, includeLocales: ["es"]),
+            ct);
+
+        page.Should().NotBeNull();
+        page!.Items.Select(i => i.Value).Should().BeEquivalentTo(["apple", "banana"]);
+
+        // Without includeLocales, only default is searched — "Manzana" must not contribute.
+        DataListSearchPageResult? defaultOnly = await repository.SearchItemsAsync(
+            Criteria(dataListId, "ana", DataListSearchMatchMode.Contains),
+            ct);
+
+        defaultOnly.Should().NotBeNull();
+        defaultOnly!.Items.Select(i => i.Value).Should().BeEquivalentTo(["banana"]);
+    }
+
+    [Fact]
+    public async Task SearchItems_ExactWithIncludeLocales_ProjectsRequestedTextKeys()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await ResetAndMigrateAsync(ct);
+
+        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        await using AppDbContext db = CreateAppDbContext(tenantId);
+        IDataListRepository repository = CreateRepository(db);
+
+        DataListSearchPageResult? withEs = await repository.SearchItemsAsync(
+            Criteria(dataListId, "Apple", DataListSearchMatchMode.Exact, includeLocales: ["es"]),
+            ct);
+
+        withEs.Should().NotBeNull();
+        withEs!.TextKeys.Should().Equal(SurveyJsTranslationKeys.DefaultKey, "es");
+
+        DataListSearchPageResult? withoutLocales = await repository.SearchItemsAsync(
+            Criteria(dataListId, "Apple", DataListSearchMatchMode.Exact),
+            ct);
+
+        withoutLocales.Should().NotBeNull();
+        withoutLocales!.TextKeys.Should().Equal(SurveyJsTranslationKeys.DefaultKey);
+    }
+
+    [Fact]
+    public async Task SearchItems_StartsWithWithoutLocale_DoesNotMatchOtherLocales()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await ResetAndMigrateAsync(ct);
+
+        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        await using AppDbContext db = CreateAppDbContext(tenantId);
+        IDataListRepository repository = CreateRepository(db);
+
+        DataListSearchPageResult? page = await repository.SearchItemsAsync(
+            Criteria(dataListId, "Plát", DataListSearchMatchMode.StartsWith),
+            ct);
+
+        page.Should().NotBeNull();
+        page!.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchItems_ContainsPercentMetacharacter_EscapesLiteral()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
@@ -230,12 +341,7 @@ public sealed class DataListSearchMatchModeTests
         IDataListRepository repository = CreateRepository(db);
 
         DataListSearchPageResult? page = await repository.SearchItemsAsync(
-            dataListId,
-            "100%",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.Contains,
-            locale: null,
+            Criteria(dataListId, "100%", DataListSearchMatchMode.Contains),
             ct);
 
         page.Should().NotBeNull();
@@ -243,7 +349,7 @@ public sealed class DataListSearchMatchModeTests
     }
 
     [Fact]
-    public async Task Contains_EscapesSqlServerCharacterClassBrackets()
+    public async Task SearchItems_ContainsBracketMetacharacters_EscapesLiteral()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
@@ -265,12 +371,7 @@ public sealed class DataListSearchMatchModeTests
         IDataListRepository repository = CreateRepository(db);
 
         DataListSearchPageResult? page = await repository.SearchItemsAsync(
-            dataListId,
-            "code[1]",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.Contains,
-            locale: null,
+            Criteria(dataListId, "code[1]", DataListSearchMatchMode.Contains),
             ct);
 
         page.Should().NotBeNull();
@@ -278,7 +379,7 @@ public sealed class DataListSearchMatchModeTests
     }
 
     [Fact]
-    public async Task Contains_EscapesLikeUnderscoreMetacharacter()
+    public async Task SearchItems_ContainsUnderscoreMetacharacter_EscapesLiteral()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
@@ -300,12 +401,7 @@ public sealed class DataListSearchMatchModeTests
         IDataListRepository repository = CreateRepository(db);
 
         DataListSearchPageResult? page = await repository.SearchItemsAsync(
-            dataListId,
-            "code_1",
-            skip: 0,
-            take: 50,
-            DataListSearchMatchMode.Contains,
-            locale: null,
+            Criteria(dataListId, "code_1", DataListSearchMatchMode.Contains),
             ct);
 
         page.Should().NotBeNull();
@@ -333,6 +429,32 @@ public sealed class DataListSearchMatchModeTests
         list.AddItem("Pineapple", "pineapple");
         list.AddItem("Appetizer", "appetizer");
         list.AddItem("Banana", "banana");
+        seed.DataLists.Add(list);
+        await seed.SaveChangesAsync(ct);
+        return (tenantId, list.Id);
+    }
+
+    private async Task<(long TenantId, long DataListId)> SeedLocalizedFruitListAsync(CancellationToken ct)
+    {
+        long tenantId = NextId();
+        await using AppDbContext seed = CreateAppDbContext(tenantId);
+        await EnsureTenantAsync(seed, tenantId, ct);
+        DataList list = new(tenantId, $"Locales-{tenantId}", defaultLocale: "en") { Id = NextId() };
+        list.AddCulture(CultureCode.Parse("es"));
+        list.AddItem(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [SurveyJsTranslationKeys.DefaultKey] = "Apple",
+                ["es"] = "Manzana",
+            },
+            "apple");
+        list.AddItem(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [SurveyJsTranslationKeys.DefaultKey] = "Banana",
+                ["es"] = "Plátano",
+            },
+            "banana");
         seed.DataLists.Add(list);
         await seed.SaveChangesAsync(ct);
         return (tenantId, list.Id);

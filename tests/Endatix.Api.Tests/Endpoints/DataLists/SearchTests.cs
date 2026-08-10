@@ -1,6 +1,7 @@
 using Endatix.Api.Endpoints.DataLists;
 using Endatix.Api.Endpoints.Public.DataLists;
 using Endatix.Core.Authorization.Access;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists;
@@ -49,6 +50,7 @@ public class SearchTests
             Query = "ab",
             MatchMode = DataListSearchMatchMode.StartsWith,
             Locale = "es",
+            IncludeLocales = ["FR,de"],
             Skip = 5,
             Take = 20
         };
@@ -83,7 +85,10 @@ public class SearchTests
                 x.DataListId == request.DataListId &&
                 x.Query == request.Query &&
                 x.MatchMode == DataListSearchMatchMode.StartsWith &&
-                x.Locale == "es" &&
+                x.Locale == CultureCode.Parse("es") &&
+                x.IncludeLocales.Count == 2 &&
+                x.IncludeLocales[0] == CultureCode.Parse("fr") &&
+                x.IncludeLocales[1] == CultureCode.Parse("de") &&
                 x.Skip == request.Skip &&
                 x.Take == request.Take),
             Arg.Any<CancellationToken>());
@@ -111,7 +116,11 @@ public class SearchTests
                 [
                     new DataListItemDto(
                         3,
-                        new Dictionary<string, string>(StringComparer.Ordinal) { ["default"] = "Abc" },
+                        new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["default"] = "Abc",
+                            ["es"] = "Abecé"
+                        },
                         "1",
                         "Abc")
                 ])));
@@ -124,8 +133,12 @@ public class SearchTests
         ok.Value.TotalRecords.Should().Be(1);
         ok.Value.TotalPages.Should().Be(1);
         var item = ok.Value.Items.Single();
-        item.Label.Should().Be("Abc");
         item.Value.Should().Be("1");
+        item.Labels.Should().BeEquivalentTo(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["default"] = "Abc",
+            ["es"] = "Abecé"
+        });
     }
 
     [Fact]

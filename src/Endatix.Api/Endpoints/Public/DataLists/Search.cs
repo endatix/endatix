@@ -34,7 +34,7 @@ public sealed class Search(
         {
             s.Summary = "Search data list items";
             s.Description =
-                "Searches data list choice labels in a runtime form context. Requires the short-lived form access JWT from POST .../forms/{formId}/access-tokens as Authorization: Bearer {jwt}. Match is labels-only (not Value). Optional locale selects Labels.default or a catalog culture key (e.g. es).";
+                "Searches data list choices in a runtime form context. Requires the short-lived form access JWT from POST .../forms/{formId}/access-tokens as Authorization: Bearer {jwt}. Matches the invariant value, the resolved locale label, and any locale listed in includeLocales. Choices are returned as { value, labels: { default, ... } }.";
             s.Responses[200] = "Data list choices searched successfully.";
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[401] = "Unauthorized. Send Authorization: Bearer <jwt>";
@@ -69,7 +69,8 @@ public sealed class Search(
             request.Skip,
             request.Take,
             request.MatchMode,
-            request.Locale);
+            request.Locale,
+            request.IncludeLocales);
         var result = await mediator.Send(query, ct);
         if (!result.IsSuccess)
         {
@@ -117,6 +118,12 @@ public sealed class SearchDataListItemsRequest
     public string? Locale { get; init; }
 
     /// <summary>
+    /// Locales to search and return as nested <c>text</c>, repeated (<c>includeLocales=es&amp;includeLocales=fr</c>)
+    /// or comma-separated (<c>includeLocales=es,fr</c>). Locales outside the catalog are ignored.
+    /// </summary>
+    public IReadOnlyCollection<string> IncludeLocales { get; init; } = [];
+
+    /// <summary>
     /// The number of items to skip.
     /// </summary>
     public int Skip { get; init; } = 0;
@@ -141,9 +148,11 @@ public sealed class SearchDataListItemsValidator : Validator<SearchDataListItems
         RuleFor(x => x.Take).GreaterThan(0).LessThanOrEqualTo(SearchDataListItemsQuery.MaxTake);
         RuleFor(x => x.MatchMode).IsInEnum();
         RuleFor(x => x.Locale)
-            .MaximumLength(IHasTranslations.MAX_CULTURE_CODE_LENGTH)
-            .Must(locale => TranslationCultureNormalizer.IsValidCultureCode(locale))
+            .Must(locale => CultureCode.TryParse(locale, out _))
             .WithMessage("Locale must be a valid culture code (e.g. 'es' or 'en-US') or 'default'.")
             .When(x => !string.IsNullOrWhiteSpace(x.Locale));
+        RuleFor(x => x.IncludeLocales)
+            .IsIncludeLocales()
+            .When(x => x.IncludeLocales is { Count: > 0 });
     }
 }

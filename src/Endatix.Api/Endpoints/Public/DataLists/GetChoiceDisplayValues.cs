@@ -33,7 +33,7 @@ public sealed class GetChoiceDisplayValues(
         {
             s.Summary = "Resolve data list display values";
             s.Description =
-                "Returns label/value pairs for stored values in a runtime form context. Requires the form access JWT as Authorization: Bearer {jwt}.";
+                "Returns { value, labels: { default, ... } } for stored values in a runtime form context. Requires the form access JWT as Authorization: Bearer {jwt}. Use includeLocales to add catalog locales to labels.";
             s.Responses[200] = "Data list display values resolved successfully.";
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[401] = "Unauthorized. Send Authorization: Bearer <jwt>";
@@ -65,7 +65,7 @@ public sealed class GetChoiceDisplayValues(
             return accessDataResult.ToProblem();
         }
 
-        GetDataListChoiceDisplayValuesQuery query = new(request.DataListId, request.Values);
+        GetDataListChoiceDisplayValuesQuery query = new(request.DataListId, request.Values, request.IncludeLocales);
         var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
@@ -94,6 +94,12 @@ public sealed class GetChoiceDisplayValuesRequest
     /// The values to get display values for.
     /// </summary>
     public IReadOnlyCollection<string> Values { get; init; } = [];
+
+    /// <summary>
+    /// Locales to return as nested <c>text</c>, repeated (<c>includeLocales=es&amp;includeLocales=fr</c>)
+    /// or comma-separated (<c>includeLocales=es,fr</c>). Locales outside the catalog are ignored.
+    /// </summary>
+    public IReadOnlyCollection<string> IncludeLocales { get; init; } = [];
 }
 
 /// <summary>
@@ -109,5 +115,8 @@ public sealed class GetChoiceDisplayValuesValidator : Validator<GetChoiceDisplay
             .NotNull()
             .Must(values => values.Count > 0)
             .WithMessage("'values' query parameter is required.");
+        RuleFor(x => x.IncludeLocales)
+            .IsIncludeLocales()
+            .When(x => x.IncludeLocales is { Count: > 0 });
     }
 }

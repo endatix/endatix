@@ -21,7 +21,12 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
     public int Skip { get; init; }
     public int Take { get; init; }
     public DataListSearchMatchMode MatchMode { get; init; }
-    public string? Locale { get; init; }
+    public CultureCode? Locale { get; init; }
+
+    /// <summary>
+    /// Extra locales to search and project into the labels map. Malformed codes are dropped.
+    /// </summary>
+    public IReadOnlyList<CultureCode> IncludeLocales { get; init; }
 
     public SearchDataListItemsQuery(
         long dataListId,
@@ -29,7 +34,8 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
         int skip,
         int take,
         DataListSearchMatchMode matchMode = DataListSearchMatchMode.Contains,
-        string? locale = null)
+        string? locale = null,
+        IEnumerable<string>? includeLocales = null)
     {
         Guard.Against.NegativeOrZero(dataListId);
         Guard.Against.Negative(skip);
@@ -41,15 +47,7 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
         Skip = skip;
         Take = Math.Min(take, MaxTake);
         MatchMode = matchMode;
-        if (string.IsNullOrWhiteSpace(locale))
-        {
-            Locale = null;
-        }
-        else
-        {
-            var trimmedLocale = locale.Trim();
-            Guard.Against.StringTooLong(trimmedLocale, IHasTranslations.MAX_CULTURE_CODE_LENGTH, nameof(locale));
-            Locale = trimmedLocale;
-        }
+        IncludeLocales = TranslationLocaleList.ParseMany(includeLocales);
+        Locale = string.IsNullOrWhiteSpace(locale) ? null : CultureCode.Parse(locale);
     }
 }

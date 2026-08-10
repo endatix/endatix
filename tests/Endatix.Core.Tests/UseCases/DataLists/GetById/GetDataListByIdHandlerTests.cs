@@ -38,7 +38,7 @@ public class GetDataListByIdHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", "Major cities") { Id = 7 };
-        dataList.AddCulture("es");
+        dataList.AddCulture(CultureCode.Parse("es"));
         DataListItem nyc = dataList.AddItem(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
