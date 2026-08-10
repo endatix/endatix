@@ -70,6 +70,45 @@ public class RelationalJsonObjectKeyFilterExpressionsTests
     }
 
     [Fact]
+    public void NpgsqlFilter_WhereTextOrKeysMatch_MatchesValueAndEveryRequestedKey()
+    {
+        IQueryable<FakeItem> source = new List<FakeItem>().AsQueryable();
+        NpgsqlJsonObjectKeyFilter filter = new();
+
+        IQueryable<FakeItem> filtered = filter.WhereTextOrKeysMatch(
+            source,
+            nameof(FakeItem.Value),
+            nameof(FakeItem.LabelsJson),
+            [SurveyJsTranslationKeys.DefaultKey, "es"],
+            "manzana");
+
+        string expression = filtered.Expression.ToString();
+        expression.Should().Contain("e.Value");
+        expression.Should().Contain(SurveyJsTranslationKeys.DefaultKey);
+        expression.Should().Contain("es");
+        expression.Should().Contain("OrElse");
+    }
+
+    [Fact]
+    public void SqlServerFilter_WhereTextOrKeysMatch_MatchesValueAndEveryRequestedKey()
+    {
+        IQueryable<FakeItem> source = new List<FakeItem>().AsQueryable();
+        SqlServerJsonObjectKeyFilter filter = new();
+
+        IQueryable<FakeItem> filtered = filter.WhereTextOrKeysMatch(
+            source,
+            nameof(FakeItem.Value),
+            nameof(FakeItem.LabelsJson),
+            [SurveyJsTranslationKeys.DefaultKey, "fr"],
+            "pomme");
+
+        string expression = filtered.Expression.ToString();
+        expression.Should().Contain("e.Value");
+        expression.Should().Contain(SqlServerJsonObjectKeyFilter.BuildJsonValuePath("fr"));
+        expression.Should().Contain("OrElse");
+    }
+
+    [Fact]
     public void SqlServerFilter_WhereKeyMatches_IncludesJsonValuePathAndLike()
     {
         IQueryable<FakeItem> source = new List<FakeItem>().AsQueryable();

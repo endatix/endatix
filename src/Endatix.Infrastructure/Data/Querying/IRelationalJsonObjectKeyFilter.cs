@@ -24,6 +24,27 @@ public interface IRelationalJsonObjectKeyFilter
         where TEntity : class;
 
     /// <summary>
+    /// Filters the query to keep rows where a plain text column or any of the JSON object keys match
+    /// <paramref name="trimmedSearchText"/>.
+    /// </summary>
+    /// <param name="source">The query to filter.</param>
+    /// <param name="textPropertyName">The name of the plain text property to match (for example the invariant value).</param>
+    /// <param name="jsonPropertyName">The name of the JSON property to filter by.</param>
+    /// <param name="jsonObjectKeys">The JSON object keys to match, OR-ed together.</param>
+    /// <param name="trimmedSearchText">The trimmed search text to filter by.</param>
+    /// <param name="matchMode">The match mode to use for the search.</param>
+    /// <returns>The filtered query.</returns>
+    /// <typeparam name="TEntity">The type of the entity to filter.</typeparam>
+    IQueryable<TEntity> WhereTextOrKeysMatch<TEntity>(
+        IQueryable<TEntity> source,
+        string textPropertyName,
+        string jsonPropertyName,
+        IReadOnlyCollection<string> jsonObjectKeys,
+        string trimmedSearchText,
+        RelationalTextMatchMode matchMode = RelationalTextMatchMode.Contains)
+        where TEntity : class;
+
+    /// <summary>
     /// Orders by JSON object key text.
     /// </summary>
     /// <param name="source">The query to order.</param>
