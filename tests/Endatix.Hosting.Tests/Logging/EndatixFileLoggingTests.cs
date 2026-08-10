@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Endatix.Hosting.Builders;
 using Endatix.Hosting.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 
@@ -105,9 +107,118 @@ public sealed class EndatixFileLoggingTests : IDisposable
         factory.Dispose();
 
         // Assert
+        // Parsed rather than substring-matched: "12345" appears in a rendered line too, so a
+        // substring check would pass even if the formatter silently fell back to plain text.
         var contents = File.ReadAllText(Directory.GetFiles(Path.Combine(_root, "logs"))[0]);
-        contents.Should().Contain("\"FormId\"");
-        contents.Should().Contain("12345");
+        var firstLine = contents.Split('\n', StringSplitOptions.RemoveEmptyEntries)[0];
+
+        using var record = JsonDocument.Parse(firstLine);
+        record.RootElement
+            .GetProperty("Properties")
+            .GetProperty("FormId")
+            .GetInt64()
+            .Should().Be(12345L);
+    }
+
+    [Fact]
+    public void AddEndatixFileLogging_WithHostContentRoot_ResolvesRelativePathsAgainstIt()
+    {
+        // Arrange
+        // The content root and the working directory are not always the same. A Windows service
+        // runs with a working directory of C:\Windows\System32 -- which is precisely the
+        // self-hosted operator this feature exists for, so falling back to it would be wrong.
+        var contentRoot = Path.Combine(_root, "content");
+        Directory.CreateDirectory(contentRoot);
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Endatix:Logging:File:Enabled"] = "true",
+                ["Endatix:Logging:File:Path"] = "logs/endatix-.log",
+                [HostDefaults.ContentRootKey] = contentRoot
+            })
+            .Build();
+
+        // Act
+        var factory = BuildFactory(configuration);
+        factory.CreateLogger("Endatix.Tests").LogWarning("under the content root");
+        factory.Dispose();
+
+        // Assert
+        var underContentRoot = Path.Combine(contentRoot, "logs");
+        Directory.Exists(underContentRoot).Should().BeTrue();
+        Directory.GetFiles(underContentRoot).Should().NotBeEmpty();
+
+        // And emphatically not under the process working directory.
+        Directory.Exists(Path.Combine(Directory.GetCurrentDirectory(), "logs", "endatix-.log"))
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void FileProvider_LevelsAreConfiguredUnderEndatixFile_NotSerilog()
+    {
+        // Arrange
+        // The provider is aliased so its level key reads Logging:EndatixFile:LogLevel. Registering
+        // SerilogLoggerProvider directly would make it Logging:Serilog:LogLevel and put the rotation
+        // library's name on the configuration surface, which this feature exists to keep private.
+        var path = Path.Combine(_root, "logs", "endatix-.log");
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Endatix:Logging:File:Enabled"] = "true",
+                ["Endatix:Logging:File:Path"] = path,
+                ["Logging:LogLevel:Default"] = "Warning",
+                ["Logging:EndatixFile:LogLevel:Endatix"] = "Information"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging(logging =>
+        {
+            logging.AddConfiguration(configuration.GetSection("Logging"));
+            logging.ClearProviders();
+            logging.AddEndatixFileLogging(configuration);
+        });
+
+        var factory = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+        var logger = factory.CreateLogger("Endatix.Tests");
+
+        // Act
+        logger.LogInformation("INFORMATION-LIFTED-FOR-THE-FILE");
+        logger.LogDebug("DEBUG-BELOW-THE-CONFIGURED-LEVEL");
+        factory.Dispose();
+
+        // Assert
+        var contents = File.ReadAllText(Directory.GetFiles(Path.Combine(_root, "logs"))[0]);
+
+        contents.Should().Contain("INFORMATION-LIFTED-FOR-THE-FILE",
+            "the provider-scoped section should lift Endatix above the global Warning default");
+        contents.Should().NotContain("DEBUG-BELOW-THE-CONFIGURED-LEVEL");
+    }
+
+    [Fact]
+    public void FileProvider_PreservesScopeProperties()
+    {
+        // Arrange
+        // The alias is achieved by delegating to SerilogLoggerProvider, which is sealed. Delegation
+        // drops scopes unless ISupportExternalScope is forwarded, and nothing else in the pipeline
+        // reports that loss -- the properties just stop appearing.
+        var path = Path.Combine(_root, "logs", "endatix-.log");
+        var factory = BuildFactory(EnabledAt(path));
+        var logger = factory.CreateLogger("Endatix.Tests");
+
+        // Act
+        using (logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = "abc-123" }))
+        {
+            logger.LogWarning("inside a scope");
+        }
+
+        factory.Dispose();
+
+        // Assert
+        var contents = File.ReadAllText(Directory.GetFiles(Path.Combine(_root, "logs"))[0]);
+        contents.Should().Contain("CorrelationId");
+        contents.Should().Contain("abc-123");
     }
 
     [Fact]
@@ -167,7 +278,7 @@ public sealed class EndatixFileLoggingTests : IDisposable
         var providers = provider.GetServices<ILoggerProvider>().ToList();
 
         providers.Should().Contain(p => p is ConsoleLoggerProvider);
-        providers.Should().Contain(p => p.GetType().Name.Contains("Serilog"));
+        providers.Should().Contain(p => p is EndatixFileLoggerProvider);
     }
 
     [Fact]

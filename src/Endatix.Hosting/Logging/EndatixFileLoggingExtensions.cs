@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using Serilog.Extensions.Logging;
 using Serilog.Formatting.Json;
 using SerilogRollingInterval = Serilog.RollingInterval;
 
@@ -29,8 +29,8 @@ public static class EndatixFileLoggingExtensions
     /// <param name="logging">The logging builder.</param>
     /// <param name="configuration">Configuration to bind <see cref="FileLoggingOptions"/> from.</param>
     /// <param name="contentRootPath">
-    /// Base directory for relative paths. Defaults to the current directory, which is the content
-    /// root for both <c>dotnet run</c> and a published host.
+    /// Base directory for relative paths. When omitted, the host's content root is read from
+    /// configuration, falling back to the current directory only if the host did not publish one.
     /// </param>
     /// <returns>The logging builder for chaining.</returns>
     /// <exception cref="InvalidOperationException">
@@ -51,7 +51,7 @@ public static class EndatixFileLoggingExtensions
             return logging;
         }
 
-        var resolvedPath = ResolvePath(options.Path, contentRootPath);
+        var resolvedPath = ResolvePath(options.Path, contentRootPath ?? GetContentRoot(configuration));
         EnsureWritable(resolvedPath);
 
         var loggerConfiguration = new LoggerConfiguration()
@@ -81,10 +81,23 @@ public static class EndatixFileLoggingExtensions
 
         // dispose: true -- this logger is owned by the provider, so the sink is flushed and the file
         // handle released when the host shuts down.
-        logging.AddProvider(new SerilogLoggerProvider(loggerConfiguration.CreateLogger(), dispose: true));
+        logging.AddProvider(new EndatixFileLoggerProvider(loggerConfiguration.CreateLogger(), dispose: true));
 
         return logging;
     }
+
+    /// <summary>
+    /// Reads the host's content root from configuration.
+    /// </summary>
+    /// <remarks>
+    /// The generic host writes its content root into configuration under
+    /// <see cref="HostDefaults.ContentRootKey"/>, so this works without widening
+    /// <c>IAppEnvironment</c>. It matters wherever the content root and the working directory differ
+    /// — most sharply for a Windows service, whose working directory is <c>C:\Windows\System32</c>,
+    /// and which is exactly the self-hosted operator this feature exists for.
+    /// </remarks>
+    internal static string? GetContentRoot(IConfiguration configuration) =>
+        configuration[HostDefaults.ContentRootKey];
 
     internal static FileLoggingOptions BindOptions(IConfiguration configuration)
     {
