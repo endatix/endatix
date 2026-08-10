@@ -154,9 +154,6 @@ default** and writes nothing until you turn it on.
 The Helm chart runs with `readOnlyRootFilesystem: true` and only `/tmp` writable. Enabling file
 logging without mounting a writable volume at the configured path will **fail startup** with a
 message naming the directory. Use the chart's `extraVolumes` / `extraVolumeMounts` passthrough.
-
-Failing loudly is intentional. The previous implementation reported write failures only to an
-internal diagnostic channel, so a misconfigured path produced no files and no complaint.
 :::
 
 ## Self-hosted collector

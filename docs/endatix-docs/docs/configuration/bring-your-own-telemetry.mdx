@@ -6,11 +6,8 @@ description: "Export Endatix telemetry to Azure Monitor, an OTLP collector, or a
 
 # Bring Your Own Telemetry
 
-Endatix ships **no vendor exporters**. It exports OTLP and nothing else.
-
-That is a deliberate boundary, not an omission. Endatix is distributed as NuGet packages, and which
-APM a host reports to is the host's decision — baking an Azure SDK into `Endatix.Hosting` would make
-an Azure choice on behalf of every self-hoster, including those who will never deploy to Azure.
+Endatix ships **no vendor exporters**. It exports OTLP and nothing else — Endatix is distributed as
+NuGet packages, and which APM a host reports to is the host's decision.
 
 Adding your own backend takes three lines.
 
@@ -81,9 +78,7 @@ JSON because some envelope fields are not charged. Live Metrics is free.
 
 **Volume is dominated by traces, not logs** — and for a database-heavy API, by *dependency*
 telemetry in particular. Every EF Core query becomes a billable record. That is the line item to
-watch, and it is the one Endatix has never sent before: `Serilog.Sinks.ApplicationInsights` sent log
-records only, so enabling the distro is an **expansion of what is collected**, not a like-for-like
-swap.
+watch, and the reason a cost estimate based on log volume alone will be badly wrong.
 
 Sampling is the control:
 
