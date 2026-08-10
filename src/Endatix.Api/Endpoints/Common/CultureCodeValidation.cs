@@ -26,9 +26,11 @@ public static class CultureCodeValidation
     /// <summary>
     /// Accepts repeated or comma-separated culture codes, bounded by <see cref="MaxLocales"/>.
     /// Allows the synthetic <c>default</c> key.
+    /// Uses rule-level <see cref="CascadeMode.Stop"/> so an oversized list never runs culture parsing
+    /// (see FluentValidation cascade docs).
     /// </summary>
-    public static IRuleBuilderOptionsConditions<T, IReadOnlyCollection<string>> IsIncludeLocales<T>(
-        this IRuleBuilder<T, IReadOnlyCollection<string>> ruleBuilder) =>
+    public static IRuleBuilderOptions<T, IReadOnlyCollection<string>> IsIncludeLocales<T>(
+        this IRuleBuilderInitial<T, IReadOnlyCollection<string>> ruleBuilder) =>
         ruleBuilder.MustBeBoundedCultureTokens(
             allowSyntheticDefault: true,
             tooManyMessage: $"No more than {MaxLocales} locales can be requested.",
@@ -38,44 +40,43 @@ public static class CultureCodeValidation
     /// Same bounds as <see cref="IsIncludeLocales{T}"/> but rejects the synthetic <c>default</c> key
     /// (ensure locales are real cultures added to AvailableLocales).
     /// </summary>
-    public static IRuleBuilderOptionsConditions<T, IReadOnlyCollection<string>> IsEnsureLocales<T>(
-        this IRuleBuilder<T, IReadOnlyCollection<string>> ruleBuilder) =>
+    public static IRuleBuilderOptions<T, IReadOnlyCollection<string>> IsEnsureLocales<T>(
+        this IRuleBuilderInitial<T, IReadOnlyCollection<string>> ruleBuilder) =>
         ruleBuilder.MustBeBoundedCultureTokens(
             allowSyntheticDefault: false,
             tooManyMessage: $"No more than {MaxLocales} locales can be ensured.",
             invalidTokenMessage: "Each ensureLocales value must be a valid culture code (e.g. 'es'), not 'default'.");
 
     /// <summary>
-    /// Tokenizes once, fails immediately when the token count exceeds <see cref="MaxLocales"/>,
-    /// then validates only the bounded token list (avoids O(n) parse work on oversized bodies).
+    /// Count-check first, then parse. <see cref="CascadeMode.Stop"/> skips parsing when the cap fails.
     /// </summary>
-    private static IRuleBuilderOptionsConditions<T, IReadOnlyCollection<string>> MustBeBoundedCultureTokens<T>(
-        this IRuleBuilder<T, IReadOnlyCollection<string>> ruleBuilder,
+    private static IRuleBuilderOptions<T, IReadOnlyCollection<string>> MustBeBoundedCultureTokens<T>(
+        this IRuleBuilderInitial<T, IReadOnlyCollection<string>> ruleBuilder,
         bool allowSyntheticDefault,
         string tooManyMessage,
         string invalidTokenMessage) =>
-        ruleBuilder.Custom((locales, context) =>
+        ruleBuilder
+            .Cascade(CascadeMode.Stop)
+            .Must(locales => CountTokensAtMost(locales, MaxLocales))
+            .WithMessage(tooManyMessage)
+            .Must(locales => AreTokensValid(locales, allowSyntheticDefault))
+            .WithMessage(invalidTokenMessage);
+
+    private static bool CountTokensAtMost(IEnumerable<string>? locales, int maxCount) =>
+        TranslationLocaleList.Tokenize(locales).Take(maxCount + 1).Count() <= maxCount;
+
+    private static bool AreTokensValid(IEnumerable<string>? locales, bool allowSyntheticDefault)
+    {
+        // After a successful count check, tokens are ≤ MaxLocales; Take still bounds enumeration.
+        foreach (var token in TranslationLocaleList.Tokenize(locales).Take(MaxLocales))
         {
-            List<string> tokens = [];
-            foreach (var token in TranslationLocaleList.Tokenize(locales))
+            if (!CultureCode.TryParse(token, out var culture)
+                || (!allowSyntheticDefault && culture.IsSyntheticDefault))
             {
-                if (tokens.Count == MaxLocales)
-                {
-                    context.AddFailure(tooManyMessage);
-                    return;
-                }
-
-                tokens.Add(token);
+                return false;
             }
+        }
 
-            foreach (var token in tokens)
-            {
-                if (!CultureCode.TryParse(token, out var culture)
-                    || (!allowSyntheticDefault && culture.IsSyntheticDefault))
-                {
-                    context.AddFailure(invalidTokenMessage);
-                    return;
-                }
-            }
-        });
+        return true;
+    }
 }
