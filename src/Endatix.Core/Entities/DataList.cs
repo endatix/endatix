@@ -198,9 +198,9 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// </summary>
     /// <param name="items">Replacement rows.</param>
     /// <param name="createId">
-    /// Optional id factory for new items. When provided, each new item receives
-    /// <see cref="BaseEntity.AssignId"/> so replacement rows do not collide on temporary key
-    /// <c>0</c> while the aggregate is tracked by EF Core (before SaveChanges stamping).
+    /// Optional id factory for new items. When provided, each new row with unset id <c>0</c>
+    /// is stamped before attach so EF Core does not collide on temporary keys while the
+    /// aggregate is tracked (before SaveChanges).
     /// </param>
     /// <exception cref="InvalidOperationException">Thrown when more than <see cref="MAX_ITEMS"/> items are provided.</exception>
     public void ReplaceItems(
@@ -223,11 +223,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         foreach (var (labels, value) in source)
         {
             var item = CreateItem(labels, value);
-            if (createId is not null)
-            {
-                item.AssignId(createId);
-            }
-
+            AssignNewItemId(item, createId);
             prepared.Add(item);
         }
 
@@ -237,6 +233,16 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             item.AttachToDataList(this);
             _items.Add(item);
         }
+    }
+
+    private static void AssignNewItemId(DataListItem item, Func<long>? createId)
+    {
+        if (createId is null || item.Id != 0)
+        {
+            return;
+        }
+
+        item.Id = createId();
     }
 
     /// <summary>

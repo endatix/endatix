@@ -73,7 +73,7 @@ public sealed class DataListRepository(
             return query;
         }
 
-        // Match the invariant Value or any requested label key (default plus explicitly requested locales).
+        // Match Value or any search key: Labels.default is always included, plus locale / includeLocales keys.
         return jsonObjectKeyFilter.WhereTextOrKeysMatch(
             query,
             nameof(DataListItem.Value),

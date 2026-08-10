@@ -35,7 +35,10 @@ public sealed class Search(
         {
             s.Summary = "Search data list items";
             s.Description =
-                "Searches data list choices in a runtime form context. Requires the short-lived form access JWT from POST .../forms/{formId}/access-tokens as Authorization: Bearer {jwt}. Matches the invariant value, the resolved locale label, and any locale listed in includeLocales. Choices are returned as { value, labels: { default, ... } }.";
+                "Searches data list choices in a runtime form context. Requires the short-lived form access JWT from POST .../forms/{formId}/access-tokens as Authorization: Bearer {jwt}. " +
+                "Matches the invariant value, Labels.default (always), the resolved locale label key, and any additional locales in includeLocales. " +
+                "locale selects which label key drives sort/display preference; it does not exclude Labels.default from the search. " +
+                "Choices are returned as { value, labels: { default, ... } }.";
             s.Responses[200] = "Data list choices searched successfully.";
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[401] = "Unauthorized. Send Authorization: Bearer <jwt>";
@@ -101,26 +104,29 @@ public sealed class SearchDataListItemsRequest
     public long DataListId { get; init; }
 
     /// <summary>
-    /// The query to search for against item labels.
+    /// The query to search for against the invariant value and searched label keys
+    /// (always including <c>Labels.default</c>).
     /// </summary>
     public string? Query { get; init; }
 
     /// <summary>
-    /// Match mode for <see cref="Query"/> against the resolved label key.
+    /// Match mode for <see cref="Query"/> against Value and the searched label keys
+    /// (<c>Labels.default</c>, the resolved <see cref="Locale"/> key, and <see cref="IncludeLocales"/>).
     /// Defaults to <see cref="DataListSearchMatchMode.Contains"/>.
     /// </summary>
     public DataListSearchMatchMode MatchMode { get; init; } = DataListSearchMatchMode.Contains;
 
     /// <summary>
-    /// Optional locale for which label key to search.
-    /// Omitted, <c>default</c>, or the list default culture searches <c>Labels.default</c>;
-    /// a catalog locale (e.g. <c>es</c>) searches that key.
+    /// Optional locale for which label key to prefer for ordering (and to include in search).
+    /// Omitted, <c>default</c>, or the list default culture uses <c>Labels.default</c>;
+    /// a catalog locale (e.g. <c>es</c>) also searches that key. <c>Labels.default</c> is always searched.
     /// </summary>
     public string? Locale { get; init; }
 
     /// <summary>
-    /// Locales to search and return as nested <c>labels</c>, repeated (<c>includeLocales=es&amp;includeLocales=fr</c>)
+    /// Extra locales to search and return as nested <c>labels</c>, repeated (<c>includeLocales=es&amp;includeLocales=fr</c>)
     /// or comma-separated (<c>includeLocales=es,fr</c>). Locales outside the catalog are ignored.
+    /// Does not need to list <c>default</c> — it is always included in search.
     /// </summary>
     public IReadOnlyCollection<string> IncludeLocales { get; init; } = [];
 
