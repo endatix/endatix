@@ -428,9 +428,46 @@ Rules:
 
 ---
 
+## Observability
+
+Logs, metrics and traces come from **one mechanism**: the OpenTelemetry SDK, exporting OTLP. There is
+no second logging stack and no vendor SDK in the dependency graph.
+
+| Concern | Decision |
+|---|---|
+| Signals | All three from the OTel SDK, sharing one resource so a record and its span agree on `service.name` |
+| Activation | Off until an OTLP endpoint resolves. Nothing configured means no exporter allocated |
+| Precedence | `OTEL_*` environment variables are authoritative; `Endatix:Telemetry` is a fallback, never an override |
+| Registration | `EndatixTelemetryBuilder` owns all three exporters; `EndatixLoggingBuilder` owns the provider list |
+| Failure mode | A malformed endpoint or protocol throws at startup rather than exporting nothing quietly |
+| Vendors | None shipped. Consumers add their own through `Logging.Configure(...)` or `AddOpenTelemetry()` |
+
+**Why the log exporter lives in the telemetry builder, not the logging builder.** All three signals
+have to resolve the same endpoint, protocol and resource. Splitting that across two builders means
+duplicating the resolution and risking a log record whose `service.name` disagrees with its span —
+at which point nothing joins them.
+
+**Ordering between the two builders is load-bearing.** `EndatixLoggingBuilder` calls
+`ClearProviders()`, and `AddLogging` applies its callback immediately rather than at provider-build
+time. The OTel log provider therefore survives only because `Logging.UseDefaults()` runs before
+`Telemetry.Build()`, which `FinalizeConfiguration()` guarantees. A test pins this.
+
+**Serilog's remaining role.** It is not the logging pipeline. It is the rotation implementation
+behind an optional, off-by-default file provider, registered as a single aliased `ILoggerProvider`
+and absent from the configuration surface. .NET ships no file provider, and rotation — concurrent
+writers, retention pruning, disk-full, Windows file locking — is not worth owning.
+
+**No vendor exporters, deliberately.** Endatix ships NuGet packages; which APM a host reports to is
+the host's choice. An Azure SDK in `Endatix.Hosting` would be in the transitive graph of every
+consumer, including those who never deploy to Azure — a permanent dependency to save three
+documented lines.
+
+---
+
 ## Decision log
 
 | Date | Decision |
 |------|----------|
 | 2026-07 | Submission `StartedAt` for reliable completion duration (distinct from `CreatedAt`); export includes `StartedAt` + computed `DurationSeconds`. See [Submission lifecycle timestamps](#submission-lifecycle-timestamps). |
 | 2026-07 | Domain events: evaluate-before-mutate on aggregates; reporting triggers (`FormDefinitionUpdatedEvent`, `SubmissionUpdatedEvent`) live on entities, not handlers. Documented in [Domain and integration events](#domain-and-integration-events). |
+| 2026-08 | Observability: three signals, one mechanism. The OpenTelemetry SDK owns logs, metrics and traces; `OTEL_*` environment variables are authoritative over `appsettings.json`; telemetry is off until an endpoint is configured. Serilog is removed as the logging pipeline and retained only as the rotation implementation behind an optional, off-by-default file provider. **Endatix ships no vendor exporters** — OTLP only. See [Observability](#observability). |

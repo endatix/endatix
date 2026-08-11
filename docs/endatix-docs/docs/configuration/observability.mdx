@@ -1,0 +1,273 @@
+---
+sidebar_position: 7
+title: "Observability"
+description: "Configure logs, metrics and traces for Endatix over OpenTelemetry, plus optional file logging and the local telemetry dashboard"
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Observability
+
+Endatix emits **logs, metrics and traces** through a single mechanism: the OpenTelemetry SDK,
+exporting over OTLP. There is no separate logging stack to configure and no vendor SDK in the box.
+
+**Telemetry is off by default.** With no OTLP endpoint configured, nothing is exported, no exporter
+is allocated, and the application starts exactly as before. Setting one environment variable turns
+all three signals on.
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+```
+
+Logs also always go to **stdout**, whether or not telemetry is configured — that is what
+`docker logs` and `kubectl logs` read, and Endatix never takes it away.
+
+## What you get
+
+| Signal | Source | Notable series / spans |
+|---|---|---|
+| **Metrics** | ASP.NET Core, HttpClient, .NET runtime | `http.server.request.duration`, `dotnet.gc.collections`, thread pool |
+| **Traces** | Inbound HTTP, outbound HttpClient (including webhook delivery) | one span per request; `/health`, `/alive`, `/ready` excluded |
+| **Logs** | Every `ILogger` record | carries the `TraceId` of the request it happened in |
+
+Because all three come from one SDK with one resource, a log record and the span it belongs to agree
+on `service.name` — which is what lets a backend show them together.
+
+:::note Runtime metric names
+On .NET 9 and later the runtime instrumentation emits `dotnet.*` metrics (`dotnet.gc.collections`,
+`dotnet.thread_pool.thread.count`). The older `process.runtime.dotnet.*` names are **not** emitted;
+they were superseded by built-in .NET metrics. If a dashboard shows nothing, check which names it
+queries.
+:::
+
+## Environment variables
+
+Standard `OTEL_*` variables are **authoritative**. Anything under `Endatix:Telemetry` is a fallback,
+never an override — so a deployment can always change telemetry without a rebuild.
+
+| Variable | Purpose |
+|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Collector endpoint. **Setting this enables telemetry.** |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` (default) or `http/protobuf` |
+| `OTEL_EXPORTER_OTLP_{TRACES,METRICS,LOGS}_ENDPOINT` | Per-signal override; any one of them also enables telemetry |
+| `OTEL_EXPORTER_OTLP_{TRACES,METRICS,LOGS}_PROTOCOL` | Per-signal protocol |
+| `OTEL_SERVICE_NAME` | `service.name` on everything exported |
+| `OTEL_SERVICE_VERSION` | `service.version` |
+| `OTEL_TRACES_SAMPLER` / `_ARG` | Sampling strategy, e.g. `parentbased_traceidratio` with `0.1` |
+
+Signal-specific variables take precedence over the global one, per the OpenTelemetry specification.
+Endatix defers to the SDK for that resolution rather than reimplementing it.
+
+:::warning A malformed endpoint fails startup
+An unparseable endpoint or an unknown protocol throws at startup, naming the offending value. This
+is deliberate: the alternative is a host that starts happily and silently exports nothing, which is
+indistinguishable from a working system until you go looking for data that was never sent.
+:::
+
+### Configuration fallback
+
+Every variable above has an `appsettings.json` equivalent, for hosts that prefer configuration files.
+Environment variables win where both are present.
+
+```json
+{
+  "Endatix": {
+    "Telemetry": {
+      "Otlp": { "Endpoint": "http://collector:4317", "Protocol": "grpc" },
+      "ServiceName": "endatix-api",
+      "ResourceAttributes": { "deployment.environment": "staging" }
+    }
+  }
+}
+```
+
+## Log levels
+
+Endatix uses the standard `Logging` section. Levels default to `Warning`, so **exporting without
+raising the Endatix level ships almost nothing** — the pipeline looks broken when it is merely quiet.
+
+The recommended production shape lifts Endatix records for OTLP only, leaving the console terse:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information",
+      "System": "Warning",
+      "Endatix": "Warning"
+    },
+    "OpenTelemetry": { "LogLevel": { "Endatix": "Information" } },
+    "Console": { "FormatterName": "json" }
+  }
+}
+```
+
+`Logging:OpenTelemetry:LogLevel:*` is a **provider-scoped** section: it changes what the OTLP
+exporter receives without touching the console. Each provider can be tuned independently:
+
+| Section | Affects |
+|---|---|
+| `Logging:LogLevel` | every provider |
+| `Logging:Console:LogLevel` | stdout only |
+| `Logging:OpenTelemetry:LogLevel` | OTLP export only |
+| `Logging:EndatixFile:LogLevel` | the log file only (see below) |
+
+## File logging
+
+.NET ships no file logging provider, so Endatix includes an optional one. It is **disabled by
+default** and writes nothing until you turn it on.
+
+```json
+{
+  "Endatix": {
+    "Logging": {
+      "File": {
+        "Enabled": false,
+        "Path": "logs/endatix-.log",
+        "Formatter": "Json",
+        "RollingInterval": "Day",
+        "FileSizeLimitBytes": 10485760,
+        "RollOnFileSizeLimit": true,
+        "RetainedFileCountLimit": 7
+      }
+    }
+  }
+}
+```
+
+| Key | Default | Notes |
+|---|---|---|
+| `Enabled` | `false` | Off by design — see the container note below |
+| `Path` | `logs/endatix-.log` | **Relative paths resolve against the content root**, not the working directory. The rotation suffix is inserted before the extension. |
+| `Formatter` | `Json` | `Json` or `Text`. JSON keeps structured properties queryable. |
+| `RollingInterval` | `Day` | `Infinite`, `Year`, `Month`, `Day`, `Hour`, `Minute` |
+| `FileSizeLimitBytes` | `10485760` | 10 MiB |
+| `RollOnFileSizeLimit` | `true` | With this off the sink **stops writing** at the limit rather than rolling |
+| `RetainedFileCountLimit` | `7` | Older files are deleted as new ones roll |
+
+**Enabling file logging never silences the console.** Both receive every record.
+
+:::danger Enabling this in a container needs a writable volume
+The Helm chart runs with `readOnlyRootFilesystem: true` and only `/tmp` writable. Enabling file
+logging without mounting a writable volume at the configured path will **fail startup** with a
+message naming the directory. Use the chart's `extraVolumes` / `extraVolumeMounts` passthrough.
+:::
+
+## Self-hosted collector
+
+A minimal OpenTelemetry Collector that accepts OTLP and forwards metrics to Prometheus, logs to Loki
+and traces to Tempo:
+
+```yaml title="otel-collector-config.yaml"
+receivers:
+  otlp:
+    protocols:
+      grpc: { endpoint: 0.0.0.0:4317 }
+      http: { endpoint: 0.0.0.0:4318 }
+
+processors:
+  batch: {}
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls: { insecure: true }
+
+service:
+  pipelines:
+    metrics: { receivers: [otlp], processors: [batch], exporters: [prometheus] }
+    logs:    { receivers: [otlp], processors: [batch], exporters: [otlphttp/loki] }
+    traces:  { receivers: [otlp], processors: [batch], exporters: [otlp/tempo] }
+```
+
+Point Endatix at it with `OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317`.
+
+## Local development
+
+`docker compose up` starts an **Aspire Dashboard** alongside the API and Hub, with both already
+exporting to it. No configuration needed.
+
+- **Dashboard UI** — http://localhost:18888
+- **OTLP/gRPC ingest** — `localhost:18889`
+
+Both ports bind to `127.0.0.1` deliberately: the dashboard is unauthenticated and renders every
+request, log line and form payload the platform handles. Never pair it with a `0.0.0.0` publish, and
+never set `DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` in a deployed manifest.
+
+To export to it from an app running **outside** Docker:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:18889 \
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc \
+OTEL_SERVICE_NAME=endatix-api \
+dotnet run
+```
+
+## Migrating from the `Serilog` section
+
+Endatix no longer reads a `Serilog` configuration section. A host that still has one **starts
+normally and logs a warning** naming the section — the section is simply ignored, which means the
+levels in it no longer apply.
+
+### Levels
+
+| Before | After |
+|---|---|
+| `Serilog:MinimumLevel:Default` | `Logging:LogLevel:Default` |
+| `Serilog:MinimumLevel:Override:Microsoft` | `Logging:LogLevel:Microsoft` |
+| `Serilog:MinimumLevel:Override:Endatix` | `Logging:LogLevel:Endatix` |
+
+Serilog level names map to .NET names: `Verbose` → `Trace`, `Debug` → `Debug`, `Information` →
+`Information`, `Warning` → `Warning`, `Error` → `Error`, `Fatal` → `Critical`.
+
+### Sinks
+
+| Before | After |
+|---|---|
+| `Serilog:WriteTo` → `Console` | Always on. Shape with `Logging:Console:FormatterName` (`json` or `simple`) |
+| `Serilog:WriteTo` → `File` | `Endatix:Logging:File:Enabled: true` — one key to flip, no package to install |
+| `Serilog:WriteTo` → `ApplicationInsights` | See [Bring your own telemetry](./bring-your-own-telemetry.mdx) |
+
+`Serilog:WriteTo:File:Args` maps key-for-key onto `Endatix:Logging:File`: `path` → `Path`,
+`rollingInterval` → `RollingInterval`, `fileSizeLimitBytes` → `FileSizeLimitBytes`,
+`rollOnFileSizeLimit` → `RollOnFileSizeLimit`, `retainedFileCountLimit` → `RetainedFileCountLimit`.
+
+:::caution Check your file path while migrating
+If your old configuration used an absolute path such as `/logs/log-.txt`, confirm the process can
+actually write there. Relative paths now resolve against the **content root**, which is usually what
+you wanted; absolute paths are left exactly as given.
+:::
+
+### Code
+
+| Before | After |
+|---|---|
+| `endatix.Logging.ConfigureSerilog(cfg => …)` | `endatix.Logging.Configure(logging => …)` |
+| `endatix.Logging.ConfigureBootstrapLogger(…)` | Removed — startup logging is configured from `Logging` |
+
+The replacement takes an `ILoggingBuilder`, so it works with any provider rather than only Serilog:
+
+```csharp
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    endatix.Logging.Configure(logging => logging.AddAzureWebAppDiagnostics());
+});
+```
+
+:::warning `builder.Logging.AddX()` in `Program.cs` does not survive
+Endatix registers logging inside `IHostBuilder.ConfigureServices`, which runs at `Build()` and calls
+`ClearProviders()` first — so anything added directly to `builder.Logging` beforehand is discarded.
+`endatix.Logging.Configure(...)` exists precisely because it runs **after** that point.
+:::
+
+## Related
+
+- [Bring your own telemetry](./bring-your-own-telemetry.mdx) — exporting to Azure Monitor or another
+  backend from your own host, and what it costs

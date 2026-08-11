@@ -1,0 +1,164 @@
+---
+sidebar_position: 8
+title: "Bring Your Own Telemetry"
+description: "Export Endatix telemetry to Azure Monitor, an OTLP collector, or any other backend from your own host — and what each option costs"
+---
+
+# Bring Your Own Telemetry
+
+Endatix ships **no vendor exporters**. It exports OTLP and nothing else — Endatix is distributed as
+NuGet packages, and which APM a host reports to is the host's decision.
+
+Adding your own backend takes three lines.
+
+## The hook
+
+`endatix.Logging.Configure(...)` takes an `ILoggingBuilder` and runs **after** Endatix has set up its
+own providers. That ordering is the contract.
+
+```csharp title="Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    endatix.Logging.Configure(logging => logging.AddAzureWebAppDiagnostics());
+});
+
+var app = builder.Build();
+app.UseEndatix();
+app.Run();
+```
+
+Repeated calls compose, applying in call order.
+
+:::warning Why not just `builder.Logging.AddX()`?
+Because it will not survive. Endatix registers logging inside `IHostBuilder.ConfigureServices`, which
+runs at `Build()` — and it calls `ClearProviders()` first, since `WebApplication.CreateBuilder` has
+already added Console, Debug, EventSource and EventLog and leaving them produces duplicated output.
+
+Anything you add to `builder.Logging` before `Build()` is therefore discarded. The provider silently
+never runs; nothing errors. `endatix.Logging.Configure(...)` exists to give you a hook on the far
+side of that clear.
+:::
+
+## Azure Monitor / Application Insights
+
+```bash
+dotnet add package Azure.Monitor.OpenTelemetry.AspNetCore
+```
+
+```csharp title="Program.cs"
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    endatix.Services.AddOpenTelemetry().UseAzureMonitor();
+});
+```
+
+`UseAzureMonitor()` takes **no argument**. It reads `APPLICATIONINSIGHTS_CONNECTION_STRING` from
+configuration or the environment:
+
+```bash
+APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=…;IngestionEndpoint=…"
+```
+
+There is no Endatix key for the connection string, and you should not invent one — the Azure SDK's
+own resolution already covers environment variables, `appsettings.json` and Key Vault.
+
+This composes with Endatix's registration rather than replacing it. Both exporters receive the same
+resource and the same instrumentation; if you also set `OTEL_EXPORTER_OTLP_ENDPOINT`, telemetry goes
+to both destinations.
+
+### What Application Insights costs
+
+This is the page where you decide to switch it on, so the billing model matters more than the wiring.
+
+Workspace-based Application Insights bills **per GB ingested** into its Log Analytics workspace.
+Analytics Logs include 31 days of retention in that price; billed size runs roughly 25% below raw
+JSON because some envelope fields are not charged. Live Metrics is free.
+
+**Volume is dominated by traces, not logs** — and for a database-heavy API, by *dependency*
+telemetry in particular. Every EF Core query becomes a billable record. That is the line item to
+watch, and the reason a cost estimate based on log volume alone will be badly wrong.
+
+Sampling is the control:
+
+```csharp
+endatix.Services.AddOpenTelemetry().UseAzureMonitor(o => o.SamplingRatio = 0.1f);
+```
+
+or, equivalently and with higher precedence, the standard environment variables:
+
+```bash
+OTEL_TRACES_SAMPLER=parentbased_traceidratio
+OTEL_TRACES_SAMPLER_ARG=0.1
+```
+
+Environment variables win over code, so a deployment can always dial sampling down without a rebuild.
+
+:::danger Sampling silently drops logs too
+By default, **log records belonging to unsampled traces are dropped**. A naive `SamplingRatio = 0.1`
+therefore discards roughly 90% of your log records as well as 90% of traces — including, quite
+possibly, the error you are trying to diagnose.
+
+If you want full logs with sampled traces, opt logs out of trace-based sampling explicitly. Metrics
+are never sampled and are unaffected.
+:::
+
+Set a **daily cap** on the workspace as a hard ceiling. Sampling controls the average; a cap is what
+stops an incident-driven log storm from producing a surprise invoice.
+
+## An OTLP collector
+
+If your backend speaks OTLP — Grafana Alloy, Datadog's OTLP endpoint, Honeycomb, Grafana Cloud,
+New Relic — no code is needed at all. Endatix already exports OTLP:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.example.com:4317
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+OTEL_SERVICE_NAME=endatix-api
+```
+
+For a backend needing authentication headers:
+
+```bash
+OTEL_EXPORTER_OTLP_HEADERS="api-key=…"
+```
+
+See [Observability](./observability.mdx) for a self-hosted collector configuration.
+
+## A second OTLP destination in code
+
+To export to somewhere in addition to the endpoint Endatix already resolves:
+
+```csharp
+builder.Host.ConfigureEndatixWithDefaults(endatix =>
+{
+    endatix.Services.AddOpenTelemetry()
+        .WithTracing(tracing => tracing.AddOtlpExporter(o =>
+        {
+            o.Endpoint = new Uri("https://second-backend.example.com:4317");
+        }));
+});
+```
+
+`AddOpenTelemetry()` is additive: calling it again returns the same underlying builder, so this adds
+an exporter rather than replacing Endatix's. There is no duplicate registration and no resource
+conflict.
+
+## Choosing
+
+| You want | Do this | Cost shape |
+|---|---|---|
+| Self-hosted, full control | OTLP → your own collector | Infrastructure you already run |
+| Azure App Service logs only | `Logging.Configure(l => l.AddAzureWebAppDiagnostics())` | **No ingestion charge** |
+| Full APM on Azure | `UseAzureMonitor()` | Per GB ingested; dependencies dominate |
+| A SaaS APM vendor | OTLP env vars, no code | Vendor's per-GB or per-span pricing |
+
+If all you need is readable logs on Azure App Service, `AddAzureWebAppDiagnostics()` is the cheap
+answer: Microsoft-shipped, a plain `ILogger` provider, portal-configurable with no redeploy, inert
+outside Azure, and it incurs no Application Insights ingestion cost.
+
+## Related
+
+- [Observability](./observability.mdx) — the OTLP contract, log levels, file logging and the local
+  dashboard
