@@ -26,12 +26,12 @@ public static class EmailTemplateFromAddress
         string databaseFromAddress)
     {
         var configuredFromAddress = GetConfiguredFromAddress(settings, templateName);
-        if (!string.IsNullOrEmpty(configuredFromAddress))
+        if (!string.IsNullOrWhiteSpace(configuredFromAddress))
         {
             return configuredFromAddress;
         }
 
-        if (!string.IsNullOrEmpty(databaseFromAddress))
+        if (!string.IsNullOrWhiteSpace(databaseFromAddress))
         {
             return databaseFromAddress;
         }

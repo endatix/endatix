@@ -92,8 +92,8 @@ public class EmailTemplateService : IEmailTemplateService
         return new EmailWithTemplate
         {
             To = userEmail,
-            From = _emailTemplateSettings.Value.ForgotPasswordEmail.FromAddress
-                ?? EmailTemplateFromAddress.DefaultFromAddress,
+            From = ResolveConfiguredFromAddress(
+                _emailTemplateSettings.Value.ForgotPasswordEmail.FromAddress),
             TemplateId = _emailTemplateSettings.Value.ForgotPasswordEmail.TemplateId,
             Metadata = new Dictionary<string, object>
             {
@@ -111,8 +111,8 @@ public class EmailTemplateService : IEmailTemplateService
         return new EmailWithTemplate
         {
             To = userEmail,
-            From = _emailTemplateSettings.Value.PasswordChangedEmail.FromAddress
-                ?? EmailTemplateFromAddress.DefaultFromAddress,
+            From = ResolveConfiguredFromAddress(
+                _emailTemplateSettings.Value.PasswordChangedEmail.FromAddress),
             TemplateId = _emailTemplateSettings.Value.PasswordChangedEmail.TemplateId,
             Metadata = []
         };
@@ -129,4 +129,9 @@ public class EmailTemplateService : IEmailTemplateService
         var query = QueryHelpers.AddQueryString(string.Empty, queryParams);
         return query.TrimStart('?');
     }
+
+    private static string ResolveConfiguredFromAddress(string? configuredFromAddress) =>
+        string.IsNullOrWhiteSpace(configuredFromAddress)
+            ? EmailTemplateFromAddress.DefaultFromAddress
+            : configuredFromAddress;
 }

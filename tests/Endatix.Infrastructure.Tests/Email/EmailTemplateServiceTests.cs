@@ -158,6 +158,27 @@ public class EmailTemplateServiceTests
     }
 
     [Fact]
+    public void CreateForgotPasswordEmail_WithUnsetFromAddress_UsesDefaultFromAddress()
+    {
+        // Arrange
+        var settings = new EmailTemplateSettings
+        {
+            ForgotPasswordEmail = new EmailTemplateConfig
+            {
+                TemplateId = "forgot-password",
+                FromAddress = "   "
+            }
+        };
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions());
+
+        // Act
+        var result = service.CreateForgotPasswordEmail("user@example.com", "reset-token");
+
+        // Assert
+        result.From.Should().Be(EmailTemplateFromAddress.DefaultFromAddress);
+    }
+
+    [Fact]
     public void CreateVerificationEmail_WithEmptyHubUrl_StillCreatesValidEmail()
     {
         // Arrange

@@ -53,6 +53,29 @@ public class EmailTemplateFromAddressTests
     }
 
     [Fact]
+    public void ResolveEffectiveFromAddress_WhitespaceConfiguredAddressUsesDatabaseValue()
+    {
+        // Arrange
+        var settings = new EmailTemplateSettings
+        {
+            EmailVerification = new EmailTemplateConfig
+            {
+                TemplateId = "email-verification",
+                FromAddress = "   "
+            }
+        };
+
+        // Act
+        var result = EmailTemplateFromAddress.ResolveEffectiveFromAddress(
+            settings,
+            "email-verification",
+            "noreply@endatix.com");
+
+        // Assert
+        result.Should().Be("noreply@endatix.com");
+    }
+
+    [Fact]
     public void ResolveEffectiveFromAddress_UnknownTemplateUsesDatabaseValue()
     {
         // Arrange
