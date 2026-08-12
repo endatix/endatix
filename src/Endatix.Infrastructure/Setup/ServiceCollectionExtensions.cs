@@ -88,6 +88,7 @@ public static class ServiceCollectionExtensions
                 .ValidateOnStart();
 
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+        services.AddScoped<IEmailTemplateFromAddressResolver, EmailTemplateFromAddressResolver>();
 
         return services;
     }
