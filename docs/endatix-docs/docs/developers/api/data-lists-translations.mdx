@@ -1,0 +1,109 @@
+---
+title: 'Data lists — import, export, and includeLocales'
+description: Authenticated import/export with format negotiation, SurveyJS translations CSV shape, and public labels via includeLocales.
+sidebar_label: 'Data lists translations'
+sidebar_position: 5
+---
+
+# Data lists — import, export, and `includeLocales`
+
+Data list choice labels are stored as a JSON map (`Labels`) with a synthetic `default` key plus optional culture codes from the list’s AvailableLocales catalog.
+
+## Import / export (management)
+
+Authenticated authors round-trip items with a single import and export surface. Format is negotiated in the JSON body (`format`), same pattern as submissions export.
+
+- `PUT /api/data-lists/{id}/import` — body `{ "format": "json" | "csv", ... }`
+- `POST /api/data-lists/{id}/export` — body `{ "format": "csv" | "json" }`
+
+### Import
+
+**JSON** (`format: "json"`, default):
+
+```json
+{
+  "format": "json",
+  "items": [
+    { "value": "apple", "labels": { "default": "Apple", "fr": "Pomme" } }
+  ],
+  "ensureLocales": ["fr"]
+}
+```
+
+**CSV** (`format: "csv"`):
+
+```json
+{
+  "format": "csv",
+  "csv": "value,default,fr\r\napple,Apple,Pomme\r\n",
+  "ensureLocales": ["fr"]
+}
+```
+
+Optional `ensureLocales` adds those cultures to AvailableLocales **before** validating label keys / CSV columns (idempotent). Hub shows a discovery dialog so authors select which new locales to ensure. Deselected locale columns are stripped from the CSV/JSON before upload.
+
+### Export
+
+- `format: "csv"` (default) — RFC 4180 translations CSV (`text/csv` attachment)
+- `format: "json"` — array of `{ value, labels }` (`application/json` attachment)
+
+### CSV shape (RFC 4180)
+
+Header (required):
+
+```text
+value,default,{locale…}
+```
+
+Example:
+
+```text
+value,default,fr,de
+apple,Apple,Pomme,Apfel
+pear,Pear,Poire,Birne
+```
+
+Rules:
+
+- Rows are keyed by the invariant `value` column.
+- A `default` column is required. Locale columns must be in the data list AvailableLocales catalog (or resolve to `default`).
+- Empty cells clear that locale key for the row on import.
+- Unknown locale columns and over-long labels are rejected with validation errors.
+- Hub client discovery mirrors API culture rules: lowercase BCP-47-shaped keys (`en-us`, not `en-US`).
+- Culture keys in `Labels` / CSV headers are normalized to lowercase on write.
+
+## Public search and display-values
+
+Public endpoints (form-access JWT):
+
+- `GET .../public/forms/{formId}/data-lists/{dataListId}/search`
+- `GET .../public/forms/{formId}/data-lists/{dataListId}/display-values`
+
+### `includeLocales`
+
+Pass one or more locales as repeated query params (`includeLocales=default&includeLocales=fr`) or a comma-separated value. Locales outside the catalog are ignored. `default` is always included in the projected `labels` map.
+
+Search also uses the optional `locale` query parameter to pick the primary display/sort label key (and that key is searchable). Projection for nested `labels` on search includes `default`, the resolved `locale` key when present, and any `includeLocales`.
+
+### Response shape
+
+Choices use Endatix `value` + `labels` (same map as the domain). Hub maps `labels` → SurveyJS `text` at the form runtime boundary:
+
+```json
+{
+  "value": "apple",
+  "labels": { "default": "Apple", "fr": "Pomme" }
+}
+```
+
+`labels` always includes `default` and any projected culture keys from `locale` / `includeLocales`. Monolingual lists use the same shape with only `default`.
+
+### Search behavior
+
+With a free-text `query`, matching uses MatchMode (`Contains` / `StartsWith` / `Exact`) against:
+
+1. The invariant `value`
+2. The resolved locale label key (`Labels["default"]` when `locale` is omitted / `default`)
+3. Label paths for locales listed in `includeLocales`
+
+Locales that are not requested (and are not the active `locale`) are not searched, so omitted locales do not pollute results.
