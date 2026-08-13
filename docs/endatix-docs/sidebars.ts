@@ -128,6 +128,7 @@ const sidebars: SidebarsConfig = {
         "developers/api/email-providers",
         "developers/api/health-checks",
         "developers/api/feature-flags",
+        "developers/api/data-lists-translations",
         "developers/integration-testing",
         {
           type: "link",
