@@ -96,6 +96,8 @@ const sidebars: SidebarsConfig = {
         "configuration/background-processing",
         "configuration/infrastructure-configuration",
         "configuration/security-configuration",
+        "configuration/observability",
+        "configuration/bring-your-own-telemetry",
         {
           type: "category",
           label: "Settings",
