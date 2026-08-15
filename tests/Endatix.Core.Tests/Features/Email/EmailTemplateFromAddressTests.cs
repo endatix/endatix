@@ -7,9 +7,8 @@ namespace Endatix.Core.Tests.Features.Email;
 public class EmailTemplateFromAddressTests
 {
     [Fact]
-    public void ResolveEffectiveFromAddress_ConfiguredAddressOverridesDatabaseValue()
+    public void Resolve_ConfiguredAddressOverridesDatabaseValue()
     {
-        // Arrange
         var settings = new EmailTemplateSettings
         {
             EmailVerification = new EmailTemplateConfig
@@ -19,20 +18,17 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        // Act
-        var result = EmailTemplateFromAddress.ResolveEffectiveFromAddress(
+        var result = EmailTemplateFromAddress.Resolve(
             settings,
             "email-verification",
             "noreply@endatix.com");
 
-        // Assert
         result.Should().Be("custom@example.com");
     }
 
     [Fact]
-    public void ResolveEffectiveFromAddress_EmptyConfiguredAddressUsesDatabaseValue()
+    public void Resolve_EmptyConfiguredAddressUsesDatabaseValue()
     {
-        // Arrange
         var settings = new EmailTemplateSettings
         {
             ForgotPasswordEmail = new EmailTemplateConfig
@@ -42,20 +38,17 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        // Act
-        var result = EmailTemplateFromAddress.ResolveEffectiveFromAddress(
+        var result = EmailTemplateFromAddress.Resolve(
             settings,
             "forgot-password",
             "noreply@endatix.com");
 
-        // Assert
         result.Should().Be("noreply@endatix.com");
     }
 
     [Fact]
-    public void ResolveEffectiveFromAddress_WhitespaceConfiguredAddressUsesDatabaseValue()
+    public void Resolve_WhitespaceConfiguredAddressUsesDatabaseValue()
     {
-        // Arrange
         var settings = new EmailTemplateSettings
         {
             EmailVerification = new EmailTemplateConfig
@@ -65,45 +58,196 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        // Act
-        var result = EmailTemplateFromAddress.ResolveEffectiveFromAddress(
+        var result = EmailTemplateFromAddress.Resolve(
             settings,
             "email-verification",
             "noreply@endatix.com");
 
-        // Assert
         result.Should().Be("noreply@endatix.com");
     }
 
     [Fact]
-    public void ResolveEffectiveFromAddress_UnknownTemplateUsesDatabaseValue()
+    public void Resolve_UnknownTemplateUsesDatabaseValue()
     {
-        // Arrange
         var settings = new EmailTemplateSettings();
 
-        // Act
-        var result = EmailTemplateFromAddress.ResolveEffectiveFromAddress(
+        var result = EmailTemplateFromAddress.Resolve(
             settings,
             "custom-template",
             "db-sender@example.com");
 
-        // Assert
         result.Should().Be("db-sender@example.com");
     }
 
     [Fact]
-    public void ResolveEffectiveFromAddress_NoConfiguredOrDatabaseValueUsesDefault()
+    public void Resolve_NoConfiguredOrDatabaseValueUsesDefault()
     {
-        // Arrange
         var settings = new EmailTemplateSettings();
 
-        // Act
-        var result = EmailTemplateFromAddress.ResolveEffectiveFromAddress(
+        var result = EmailTemplateFromAddress.Resolve(
             settings,
             "custom-template",
             string.Empty);
 
-        // Assert
         result.Should().Be(EmailTemplateFromAddress.DefaultFromAddress);
+    }
+
+    [Fact]
+    public void Resolve_EmailVerificationAndTenantInvitationAreIndependent()
+    {
+        var settings = new EmailTemplateSettings
+        {
+            EmailVerification = new EmailTemplateConfig
+            {
+                TemplateId = "email-verification",
+                FromAddress = "verify@example.com"
+            },
+            TenantInvitation = new EmailTemplateConfig
+            {
+                TemplateId = EmailTemplateSettings.UserInvitationTemplateId,
+                FromAddress = "invite@example.com"
+            }
+        };
+
+        EmailTemplateFromAddress.Resolve(
+            settings,
+            "email-verification",
+            "noreply@endatix.com").Should().Be("verify@example.com");
+
+        EmailTemplateFromAddress.Resolve(
+            settings,
+            EmailTemplateSettings.UserInvitationTemplateId,
+            "noreply@endatix.com").Should().Be("invite@example.com");
+    }
+
+    [Fact]
+    public void Resolve_TenantInvitationConfigAppliesToSeededTemplateName()
+    {
+        var settings = new EmailTemplateSettings
+        {
+            TenantInvitation = new EmailTemplateConfig
+            {
+                TemplateId = EmailTemplateSettings.UserInvitationTemplateId,
+                FromAddress = "pick@endatix.com"
+            }
+        };
+
+        var result = EmailTemplateFromAddress.Resolve(
+            settings,
+            EmailTemplateSettings.UserInvitationTemplateId,
+            "noreply@endatix.com");
+
+        result.Should().Be("pick@endatix.com");
+    }
+
+    [Fact]
+    public void Resolve_UserInvitationAliasAppliesToAdminInviteTemplate()
+    {
+        var settings = new EmailTemplateSettings();
+        settings.UserInvitation = new EmailTemplateConfig
+        {
+            TemplateId = EmailTemplateSettings.UserInvitationTemplateId,
+            FromAddress = "invites@endatix.com"
+        };
+
+        settings.TenantInvitation.FromAddress.Should().Be("invites@endatix.com");
+
+        var result = EmailTemplateFromAddress.Resolve(
+            settings,
+            EmailTemplateSettings.UserInvitationTemplateId,
+            "noreply@endatix.com");
+
+        result.Should().Be("invites@endatix.com");
+    }
+
+    [Fact]
+    public void Resolve_LegacyTenantInvitationTemplateId_NormalizesToSeededName()
+    {
+        var settings = new EmailTemplateSettings();
+        settings.TenantInvitation = new EmailTemplateConfig
+        {
+            TemplateId = EmailTemplateSettings.LegacyTenantInvitationTemplateId,
+            FromAddress = "pick@endatix.com"
+        };
+        settings.NormalizeInvitationTemplate();
+
+        settings.TenantInvitation.TemplateId.Should().Be(EmailTemplateSettings.UserInvitationTemplateId);
+
+        var result = EmailTemplateFromAddress.Resolve(
+            settings,
+            EmailTemplateSettings.UserInvitationTemplateId,
+            "noreply@endatix.com");
+
+        result.Should().Be("pick@endatix.com");
+    }
+
+    [Fact]
+    public void Resolve_LegacyTenantInvitationTemplateNameUsesAdminInviteFromAddress()
+    {
+        var settings = new EmailTemplateSettings
+        {
+            TenantInvitation = new EmailTemplateConfig
+            {
+                TemplateId = EmailTemplateSettings.UserInvitationTemplateId,
+                FromAddress = "pick@endatix.com"
+            }
+        };
+
+        var result = EmailTemplateFromAddress.Resolve(
+            settings,
+            EmailTemplateSettings.LegacyTenantInvitationTemplateId,
+            "noreply@endatix.com");
+
+        result.Should().Be("pick@endatix.com");
+    }
+
+    [Fact]
+    public void NormalizeInvitationTemplate_EmptyTemplateId_UsesSeededUserInvitationName()
+    {
+        var settings = new EmailTemplateSettings
+        {
+            TenantInvitation = new EmailTemplateConfig
+            {
+                TemplateId = "  ",
+                FromAddress = "pick@endatix.com"
+            }
+        };
+
+        settings.NormalizeInvitationTemplate();
+
+        settings.TenantInvitation.TemplateId.Should().Be(EmailTemplateSettings.UserInvitationTemplateId);
+    }
+
+    [Fact]
+    public void NormalizeInvitationTemplate_CustomTemplateId_IsPreserved()
+    {
+        var settings = new EmailTemplateSettings
+        {
+            TenantInvitation = new EmailTemplateConfig
+            {
+                TemplateId = "d-custom-sendgrid-id",
+                FromAddress = "pick@endatix.com"
+            }
+        };
+
+        settings.NormalizeInvitationTemplate();
+
+        settings.TenantInvitation.TemplateId.Should().Be("d-custom-sendgrid-id");
+    }
+
+    [Fact]
+    public void DefaultSettings_OmitFromAddress_SoDatabaseRowIsUsed()
+    {
+        var settings = new EmailTemplateSettings();
+
+        settings.EmailVerification.FromAddress.Should().BeEmpty();
+        settings.TenantInvitation.FromAddress.Should().BeEmpty();
+        settings.ForgotPasswordEmail.FromAddress.Should().BeEmpty();
+        settings.PasswordChangedEmail.FromAddress.Should().BeEmpty();
+
+        EmailTemplateFromAddress.Resolve(
+            settings,
+            "email-verification",
+            "db@example.com").Should().Be("db@example.com");
     }
 }

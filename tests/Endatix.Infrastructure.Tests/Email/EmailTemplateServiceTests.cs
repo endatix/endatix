@@ -1,4 +1,5 @@
 using Endatix.Core.Configuration;
+using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
 using Endatix.Infrastructure.Email;
 using FluentAssertions;
@@ -70,7 +71,6 @@ public class EmailTemplateServiceTests
         // Assert
         result.Should().NotBeNull();
         result.To.Should().Be(userEmail);
-        result.From.Should().Be("noreply@example.com");
         result.Subject.Should().Be(string.Empty); // Subject comes from template
         result.TemplateId.Should().Be("email-verification");
         result.Metadata.Should().NotBeNull();
@@ -89,7 +89,7 @@ public class EmailTemplateServiceTests
         // Arrange
         var settings = new EmailTemplateSettings
         {
-            UserInvitation = new EmailTemplateConfig
+            TenantInvitation = new EmailTemplateConfig
             {
                 TemplateId = "user-invitation",
                 FromAddress = "noreply@example.com"
@@ -107,7 +107,6 @@ public class EmailTemplateServiceTests
 
         // Assert
         result.To.Should().Be(userEmail);
-        result.From.Should().Be("noreply@example.com");
         result.TemplateId.Should().Be("user-invitation");
         result.Metadata["activationUrl"].Should().Be("https://app.example.com/activate-invite?token=abc123-token");
         result.Metadata["headline"].Should().Be("Accept your Endatix invitation");
@@ -158,24 +157,22 @@ public class EmailTemplateServiceTests
     }
 
     [Fact]
-    public void CreateForgotPasswordEmail_WithUnsetFromAddress_UsesDefaultFromAddress()
+    public void CreateForgotPasswordEmail_DoesNotStampFromAddress()
     {
-        // Arrange
         var settings = new EmailTemplateSettings
         {
             ForgotPasswordEmail = new EmailTemplateConfig
             {
                 TemplateId = "forgot-password",
-                FromAddress = "   "
+                FromAddress = "custom@example.com"
             }
         };
         var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions());
 
-        // Act
         var result = service.CreateForgotPasswordEmail("user@example.com", "reset-token");
 
-        // Assert
-        result.From.Should().Be(EmailTemplateFromAddress.DefaultFromAddress);
+        result.From.Should().BeNull();
+        result.TemplateId.Should().Be("forgot-password");
     }
 
     [Fact]
@@ -232,7 +229,7 @@ public class EmailTemplateServiceTests
 
         // Assert
         result.To.Should().Be("user@test.com");
-        result.From.Should().Be("custom@example.com");
+        result.From.Should().BeNull();
         result.TemplateId.Should().Be("custom-verification-template");
         result.Metadata["hubUrl"].Should().Be("https://custom-app.com");
         result.Metadata["verificationToken"].Should().Be("xyz789-token");

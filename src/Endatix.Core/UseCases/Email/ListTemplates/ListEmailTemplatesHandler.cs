@@ -1,5 +1,6 @@
-using Endatix.Core.Abstractions;
+using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
+using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -11,10 +12,10 @@ namespace Endatix.Core.UseCases.Email.ListTemplates;
 /// Handler for the ListEmailTemplatesQuery.
 /// </summary>
 /// <param name="repository">The repository.</param>
-/// <param name="fromAddressResolver">The effective sender address resolver.</param>
+/// <param name="emailTemplateSettings">Email template settings (config FromAddress overlay).</param>
 public class ListEmailTemplatesHandler(
     IRepository<EmailTemplate> repository,
-    IEmailTemplateFromAddressResolver fromAddressResolver
+    EmailTemplateSettings emailTemplateSettings
 ) : IQueryHandler<ListEmailTemplatesQuery, Result<IEnumerable<EmailTemplateSummaryDto>>>
 {
     /// <summary>
@@ -32,7 +33,7 @@ public class ListEmailTemplatesHandler(
                 t.Id,
                 t.Name,
                 t.Subject,
-                fromAddressResolver.Resolve(t.Name, t.FromAddress)))
+                EmailTemplateFromAddress.Resolve(emailTemplateSettings, t.Name, t.FromAddress)))
             .ToList()
             .AsEnumerable();
 

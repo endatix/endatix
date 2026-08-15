@@ -1,3 +1,5 @@
+using Endatix.Core.Entities;
+
 namespace Endatix.Core.Abstractions;
 
 /// <summary>
@@ -14,7 +16,8 @@ public interface IEmailTemplateService
     EmailWithTemplate CreateVerificationEmail(string userEmail, string token);
 
     /// <summary>
-    /// Creates a tenant invitation email template for the specified user and token.
+    /// Creates an admin invite-to-tenant activation email.
+    /// Self-service registration uses <see cref="CreateVerificationEmail"/>.
     /// </summary>
     /// <param name="userEmail">The email address of the invited user.</param>
     /// <param name="token">The invitation activation token.</param>

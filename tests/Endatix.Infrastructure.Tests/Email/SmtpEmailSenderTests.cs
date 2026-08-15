@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Endatix.Core;
+using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
@@ -20,7 +21,9 @@ public class SmtpEmailSenderTests
                 Host = "localhost",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()));
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())));
 
         sut.ProviderName.Should().Be("SMTP");
         sut.IsConfigured.Should().BeFalse();
@@ -37,7 +40,9 @@ public class SmtpEmailSenderTests
                 Host = "localhost",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(templateRepository));
+            new EmailTemplateRenderer(
+                templateRepository,
+                Options.Create(new EmailTemplateSettings())));
 
         var email = new EmailWithTemplate
         {
