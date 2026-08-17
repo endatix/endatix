@@ -17,15 +17,15 @@ internal sealed class BackgroundJobConfigurationSqlServer : IEntityTypeConfigura
         builder.Property(job => job.ResultJson)
             .HasColumnType("json");
 
-        // The sweeper's eligibility scan (C2) — the hottest query in the system, run on every
-        // instance every tick. Filtered, because only Pending and Retrying rows are ever eligible and
-        // the terminal rows will vastly outnumber them once webhook delivery is a job type.
+        // Serves the sweeper's "which jobs are due?" scan — the hottest query here, run on every
+        // instance on every tick. Filtered, because only Pending and Retrying rows are ever eligible,
+        // and terminal rows come to outnumber them by orders of magnitude.
         builder.HasIndex(job => new { job.NextAttemptAt, job.Id })
             .HasDatabaseName("IX_BackgroundJobs_Eligible")
             .HasFilter(
                 $"[{nameof(BackgroundJob.Status)}] IN ({(int)JobStatus.Pending}, {(int)JobStatus.Retrying})");
 
-        // Stale-worker reaping (C1): only in-flight rows can go stale.
+        // Serves the scan for jobs whose worker died mid-run: only in-flight rows can go stale.
         builder.HasIndex(job => job.HeartbeatAt)
             .HasDatabaseName("IX_BackgroundJobs_Stale")
             .HasFilter($"[{nameof(BackgroundJob.Status)}] = {(int)JobStatus.Processing}");

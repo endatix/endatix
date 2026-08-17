@@ -17,9 +17,8 @@ namespace Endatix.Modules.Jobs.Persistence;
 /// Provider-split by design. EF Core keeps <b>one model snapshot per context type</b>, so generating
 /// PostgreSQL and SQL Server migrations against a single context makes the second generation
 /// overwrite the first's snapshot — after which the next migration for the first provider diffs
-/// against the wrong model and emits nonsense. A context per provider gives a snapshot per provider.
-/// This is the same split endatix#813 applies to Reporting; Jobs is built with it from the start
-/// rather than inheriting the problem.
+/// against the wrong model and emits nonsense. A context per provider gives a snapshot per provider,
+/// which is why adding a provider here means adding a derived context, never reusing an existing one.
 /// </para>
 /// <para>
 /// Separate from <c>AppDbContext</c>, which means an enqueue cannot enlist in an app-schema
