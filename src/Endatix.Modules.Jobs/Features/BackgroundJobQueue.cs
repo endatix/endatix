@@ -18,9 +18,9 @@ namespace Endatix.Modules.Jobs.Features;
 /// hosted service — without any of them needing to know whether a runner exists in this process.
 /// </para>
 /// <para>
-/// In PR-J3 this class also signals the local runner after commit, so the happy path does not wait
-/// for the next sweep. That signal is a latency optimisation and is deliberately allowed to be lost;
-/// correctness will still depend only on the committed row.
+/// A local runner may additionally be signalled after commit so the happy path does not wait for the
+/// next sweep. Any such signal is a latency optimisation only: it may be dropped freely, because the
+/// committed row is what makes the job durable.
 /// </para>
 /// </remarks>
 internal sealed class BackgroundJobQueue(

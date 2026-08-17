@@ -9,16 +9,17 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.Modules.Jobs;
 
 /// <summary>
-/// Background Jobs module — the durable job queue and, from PR-J3, the runner and sweeper that drain
-/// it.
+/// Background Jobs module — the durable job queue, and the runner and sweeper that drain it.
 /// </summary>
 /// <remarks>
-/// Deliberately <b>not</b> gated by an <c>IHasFeatureFlag</c>, unlike the Reporting module. Webhook
-/// delivery becomes a job type in PR-J4, so from that point the queue is load-bearing for a feature
-/// every deployment already has — a flag that could switch it off would switch off webhooks. Whether
-/// <em>this process</em> executes jobs is a separate question, answered in PR-J3 by the
-/// <c>Endatix:BackgroundJobs:RunInProcess</c> configuration switch; enqueueing and the table are
-/// always present.
+/// Deliberately <b>not</b> gated by an <c>IHasFeatureFlag</c>, unlike the Reporting module. The queue
+/// is shared infrastructure that user-visible features depend on, so a flag able to switch it off
+/// would silently switch those features off with it.
+/// <para>
+/// Whether a given process <em>executes</em> jobs is a separate question, and a configuration one:
+/// every host registers the queue and can enqueue, while only hosts configured to run jobs drain it.
+/// That is what allows API and worker roles to be deployed separately from the same image.
+/// </para>
 /// </remarks>
 public sealed class JobsModule : IEndatixModule, IHasDbMigrations
 {

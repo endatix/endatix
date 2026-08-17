@@ -53,8 +53,8 @@ internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<Back
         builder.Property(job => job.NextAttemptAt)
             .IsRequired();
 
-        // Retention (sweeper C3). Terminal-only filtering is provider-specific, so this index stays
-        // plain here and is refined per provider.
+        // Serves retention: finding jobs whose artifacts and rows are collectable. Restricting it to
+        // terminal rows needs provider-specific filter syntax, so it stays plain here.
         builder.HasIndex(job => job.ExpiresAt)
             .HasDatabaseName("IX_BackgroundJobs_Expiry");
 

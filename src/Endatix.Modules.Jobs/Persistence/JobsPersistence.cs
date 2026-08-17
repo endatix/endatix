@@ -24,8 +24,8 @@ public static class JobsPersistence
     /// namespace-filtering migrations assembly. This module uses provider-split DbContext types
     /// instead (see <see cref="JobsDbContextBase"/>), so each provider's migrations are already
     /// scoped by the context they were generated against — EF discovers them by their
-    /// <c>[DbContext]</c> attribute and there is nothing left to filter. The filtering helper exists
-    /// for the pre-split Reporting layout and is expected to disappear with endatix#813.
+    /// <c>[DbContext]</c> attribute, leaving nothing to filter. Namespace filtering is only needed by
+    /// modules that share one context across both providers.
     /// </remarks>
     public static void ConfigureDbContextOptions(ModuleDbContextOptions options)
     {
