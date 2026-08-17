@@ -47,7 +47,41 @@ public sealed record FeatureFlagDefinition(
     /// <summary>
     /// The value used when nothing resolves the flag.
     /// </summary>
-    public object DefaultValue { get; } = Guard.Against.Null(DefaultValue);
+    public object DefaultValue { get; } = GuardDefaultValue(DefaultValue, ValueType);
+
+    /// <summary>
+    /// Which system is the record for this flag's value.
+    /// </summary>
+    /// <remarks>
+    /// Guarded rather than merely documented: <see cref="FeatureFlagClass"/> has no zero member so a
+    /// definition cannot acquire a class by default, and an unchecked cast would defeat that.
+    /// </remarks>
+    public FeatureFlagClass Class { get; } = Guard.Against.EnumOutOfRange(Class);
+
+    /// <summary>
+    /// Where the flag is evaluated.
+    /// </summary>
+    public FeatureFlagScope Scope { get; } = Guard.Against.EnumOutOfRange(Scope);
+
+    /// <summary>
+    /// Rejects a default value that is not an instance of the declared <paramref name="valueType"/>.
+    /// A mismatch would surface far from here — as a cast failure inside whichever provider resolves
+    /// the flag — so it is caught where the definition is written instead.
+    /// </summary>
+    private static object GuardDefaultValue(object defaultValue, Type valueType)
+    {
+        var value = Guard.Against.Null(defaultValue);
+        var type = Guard.Against.Null(valueType);
+
+        if (!type.IsInstanceOfType(value))
+        {
+            throw new ArgumentException(
+                $"Default value of type '{value.GetType()}' does not match the declared value type '{type}'.",
+                nameof(defaultValue));
+        }
+
+        return value;
+    }
 
     /// <summary>
     /// Creates a boolean flag definition.
