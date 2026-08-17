@@ -14,7 +14,6 @@
     <File Path="Directory.Packages.props" />
     <File Path="docker-compose.yml" />
     <File Path="README.md" />
-    <File Path="sonar-project.properties" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Endatix.Api.Host/Endatix.Api.Host.csproj" />
