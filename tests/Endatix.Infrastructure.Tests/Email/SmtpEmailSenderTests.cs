@@ -14,6 +14,13 @@ namespace Endatix.Infrastructure.Tests.Email;
 
 public class SmtpEmailSenderTests
 {
+    public SmtpEmailSenderTests()
+    {
+        // The blank-username warning gate is process-wide (static) by design; reset it before every
+        // test so execution order can't determine whether a given test observes the warning.
+        SmtpEmailSender.ResetBlankUsernameWarningForTests();
+    }
+
     [Fact]
     public void ProviderMetadata_DefaultSettings_ReturnsUnconfiguredSmtp()
     {
@@ -166,6 +173,75 @@ public class SmtpEmailSenderTests
     }
 
     [Fact]
+    public async Task SendEmailWithBody_BlankUsername_LogsWarningOnce()
+    {
+        // Arrange
+        // ILogger.LogWarning is an extension method, not an interface member, so NSubstitute can't
+        // verify it directly — inspect the recorded calls to the real Log<TState> method instead.
+        var logger = Substitute.For<ILogger<SmtpEmailSender>>();
+        var transport = Substitute.For<IMailTransport>();
+        var sut = new TestableSmtpEmailSender(
+            logger,
+            Options.Create(new SmtpSettings
+            {
+                Host = "smtp.example.com",
+                DefaultFromAddress = "noreply@example.com"
+            }),
+            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            transport);
+
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        logger.ReceivedCalls().Should().ContainSingle(call =>
+            call.GetMethodInfo().Name == nameof(ILogger.Log) &&
+            (LogLevel)call.GetArguments()[0]! == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_CheckCertificateRevocationConfigured_AppliesToTransportBeforeConnect()
+    {
+        // Arrange
+        // CheckCertificateRevocation defaults to false on both SmtpSettings and the NSubstitute fake,
+        // so this must configure `true` — otherwise the assertion would pass even if production code
+        // never wired the setting through at all.
+        var transport = Substitute.For<IMailTransport>();
+        var sut = new TestableSmtpEmailSender(
+            Substitute.For<ILogger<SmtpEmailSender>>(),
+            Options.Create(new SmtpSettings
+            {
+                Host = "smtp.example.com",
+                DefaultFromAddress = "noreply@example.com",
+                CheckCertificateRevocation = true
+            }),
+            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            transport);
+
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        transport.CheckCertificateRevocation.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SendEmailWithBody_HtmlAndPlainText_BuildsMultipartAlternativeWithPlainTextFirst()
     {
         // Arrange
@@ -249,8 +325,11 @@ public class SmtpEmailSenderTests
         Func<Task> act = () => sut.SendEmailAsync(email, CancellationToken.None);
 
         // Assert
+        // Pinned to CancellationToken.None (not Arg.Any) — this is the exact regression the
+        // production code's finally-block comment exists to prevent: passing the ambient,
+        // possibly-cancelled token here would mask the original SendAsync exception.
         await act.Should().ThrowAsync<InvalidOperationException>();
-        await transport.Received(1).DisconnectAsync(true, Arg.Any<CancellationToken>());
+        await transport.Received(1).DisconnectAsync(true, CancellationToken.None);
     }
 
     [Fact]

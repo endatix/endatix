@@ -22,7 +22,10 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     private readonly ILogger<SmtpEmailSender> _logger;
     private readonly SmtpSettings _settings;
     private readonly EmailTemplateRenderer _templateRenderer;
-    private bool _blankUsernameWarningLogged;
+
+    // Static (not per-instance): IEmailSender is registered scoped, so an instance field would
+    // re-warn on every request on an anonymous-relay deployment instead of once for the process.
+    private static int _blankUsernameWarningLogged;
 
     /// <summary>
     /// Initializes a new instance of the SmtpEmailSender class.
@@ -69,6 +72,11 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         {
             await ConnectAndAuthenticateAsync(smtpClient, cancellationToken);
             await smtpClient.SendAsync(mimeMessage, cancellationToken);
+
+            // Logged here, not after the finally: a DisconnectAsync failure during cleanup must not
+            // suppress this record of a send that already succeeded.
+            _logger.LogInformation("SMTP email sent successfully to {To} with subject {Subject}",
+                SensitiveValue.Email(email.To), email.Subject);
         }
         finally
         {
@@ -79,9 +87,6 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
                 await smtpClient.DisconnectAsync(true, CancellationToken.None);
             }
         }
-
-        _logger.LogInformation("SMTP email sent successfully to {To} with subject {Subject}",
-            SensitiveValue.Email(email.To), email.Subject);
     }
 
     /// <inheritdoc />
@@ -110,15 +115,20 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         {
             await smtpClient.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
         }
-        else if (!_blankUsernameWarningLogged)
+        else if (Interlocked.Exchange(ref _blankUsernameWarningLogged, 1) == 0)
         {
-            _blankUsernameWarningLogged = true;
             _logger.LogWarning(
                 "SMTP username is not configured; connecting to {Host} without authentication. " +
                 "Default Windows credentials are no longer used for anonymous SMTP.",
                 _settings.Host);
         }
     }
+
+    /// <summary>
+    /// Resets the process-wide blank-username warning gate. Test-only: without this, whichever test
+    /// happens to run first would consume the one-time warning for the rest of the test process.
+    /// </summary>
+    internal static void ResetBlankUsernameWarningForTests() => Interlocked.Exchange(ref _blankUsernameWarningLogged, 0);
 
     /// <summary>
     /// Maps <see cref="SmtpSettings"/> to a MailKit <see cref="SecureSocketOptions"/>. When
