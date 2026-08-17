@@ -1,4 +1,3 @@
-using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.Core.Entities;
@@ -67,7 +66,7 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
         ApplyProviderConfigurations(modelBuilder);
 
         ConfigureEntityIdValueGenerators(modelBuilder);
-        PrefixTableNames(modelBuilder);
+        modelBuilder.ApplyModuleTableNames();
     }
 
     /// <summary>
@@ -79,15 +78,20 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
 
     public override int SaveChanges()
     {
-        ProcessEntities();
+        ApplyEntityDefaults();
         return base.SaveChanges();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        ProcessEntities();
+        ApplyEntityDefaults();
         return await base.SaveChangesAsync(true, cancellationToken);
     }
+
+    // No id generator is passed: ids come from the value generator configured below, which has
+    // already run by the time an entity is tracked.
+    private void ApplyEntityDefaults() =>
+        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
 
     // Ids are assigned by an EF value generator when the entity is tracked, not here at SaveChanges.
     // That distinction matters for fan-out: AddRange of N new jobs would otherwise put N entities
@@ -105,47 +109,6 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
                 .Property<long>(nameof(BaseEntity.Id))
                 .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
                 .ValueGeneratedNever();
-        }
-    }
-
-    private void ProcessEntities()
-    {
-        var entries = ChangeTracker.Entries()
-            .Where(entry => entry.State is EntityState.Added or EntityState.Modified);
-
-        foreach (var entry in entries)
-        {
-            switch (entry.State)
-            {
-                case EntityState.Added:
-                    if (entry.CurrentValues.Properties.Any(property => property.Name == "CreatedAt"))
-                    {
-                        var createdAt = entry.CurrentValues["CreatedAt"];
-                        if (createdAt is DateTime dateTime && dateTime == default)
-                        {
-                            entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
-                        }
-                    }
-
-                    break;
-                case EntityState.Modified:
-                    if (entry.CurrentValues.Properties.Any(property => property.Name == "ModifiedAt"))
-                    {
-                        entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
-                    }
-
-                    break;
-            }
-        }
-    }
-
-    private static void PrefixTableNames(ModelBuilder builder)
-    {
-        Guard.Against.Null(builder);
-
-        foreach (var entity in builder.Model.GetEntityTypes().Where(entity => !entity.IsOwned()))
-        {
-            builder.Entity(entity.Name).ToTable(entity.GetTableName());
         }
     }
 }
