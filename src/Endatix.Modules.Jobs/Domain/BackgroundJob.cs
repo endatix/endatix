@@ -136,11 +136,21 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         Status is JobStatus.Pending or JobStatus.Retrying && NextAttemptAt <= utcNow;
 
     /// <summary>
-    /// Takes ownership of the job for execution and consumes an attempt.
+    /// Takes ownership of the job for execution and consumes an attempt. Refuses a job whose backoff
+    /// has not yet elapsed.
     /// </summary>
     public void Claim(DateTime utcNow)
     {
         EnsureStatus(nameof(Claim), JobStatus.Pending, JobStatus.Retrying);
+
+        // The eligibility predicate has to hold here as well as in the compare-and-swap that claims
+        // the row in the database. If only the SQL enforced it, an in-memory caller could start a
+        // retry early and the two paths would disagree about when a job may run.
+        if (NextAttemptAt > utcNow)
+        {
+            throw new InvalidOperationException(
+                $"Cannot claim a background job before its next attempt is due ({NextAttemptAt:O}).");
+        }
 
         Status = JobStatus.Processing;
         AttemptCount++;
@@ -175,6 +185,9 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         ResultJson = resultJson;
         ProgressPercentage = 100;
         CompletedAt = utcNow;
+        // An earlier attempt may have recorded one; a job that ended in success must not still
+        // display the failure that preceded it.
+        ErrorMessage = null;
     }
 
     /// <summary>

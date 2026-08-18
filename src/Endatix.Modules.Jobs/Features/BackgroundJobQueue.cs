@@ -43,7 +43,7 @@ internal sealed class BackgroundJobQueue(
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<long>> EnqueueManyAsync(
-        IReadOnlyCollection<BackgroundJobRequest> requests,
+        IReadOnlyList<BackgroundJobRequest> requests,
         CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(requests);

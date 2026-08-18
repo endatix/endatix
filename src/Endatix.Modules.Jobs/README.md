@@ -23,10 +23,15 @@ The module is registered automatically by `EndatixBuilder.UseDefaults()` — no 
 
 ## What it is
 
-The `BackgroundJobs` table **is** the queue. Enqueueing is a single insert; a sweeper
-discovers rows that are due and a bounded runner claims and executes them. Retry state —
+The `BackgroundJobs` table **is** the queue. Enqueueing is a single insert. Retry state —
 attempt count, next attempt time, and the terminal statuses — lives on the job row, so no
 second system can disagree with it about what a job is doing.
+
+> [!IMPORTANT]
+> This package currently provides **persistence and enqueueing only**. It contains no runner
+> and no sweeper, so enqueued jobs stay `Pending` until a host that executes jobs exists.
+> The state machine, the handler contract, and the schema below describe the full design and
+> are what execution will be built against.
 
 Work that outlives a request belongs here: exporting a large submission set, delivering a
 webhook to one endpoint, backfilling or purging tenant data.
@@ -56,8 +61,8 @@ of app-schema migrations.
 
 ### Status
 
-`Pending` → `Processing` → `Completed` | `Failed` | `Retrying` | `Canceled`, and
-`Retrying` → `Processing`. A job cancelled before it is claimed never runs.
+`Pending` → `Processing` → `Completed` | `Failed` | `DeadLettered` | `Retrying` | `Canceled`,
+and `Retrying` → `Processing`. A job cancelled before it is claimed never runs.
 
 | Status | Meaning | Terminal |
 |--------|---------|----------|
@@ -95,8 +100,14 @@ drop the rest.
 
 ## Writing a handler
 
-Implement `IBackgroundJobHandler` and register it in DI. The registry routes by `JobType`,
-and handlers may live in any assembly.
+> [!NOTE]
+> Nothing executes handlers yet (see above), so an implementation registered today will not be
+> invoked. The contract is documented here because it is what handlers will be held to, and
+> because the obligations below are far cheaper to honour while a handler is being written than
+> to retrofit.
+
+Implement `IBackgroundJobHandler` and register it in DI. Routing is by `JobType`, and handlers
+may live in any assembly.
 
 Four obligations, each invisible until it hurts in production:
 
