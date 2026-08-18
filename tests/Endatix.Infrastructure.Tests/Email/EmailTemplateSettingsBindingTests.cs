@@ -10,16 +10,16 @@ namespace Endatix.Infrastructure.Tests.Email;
 public class EmailTemplateSettingsBindingTests
 {
     [Fact]
-    public void AddEmailTemplateSettings_TenantInvitationSection_BindsFromAddressAndTemplateId()
+    public void AddEmailTemplateSettings_UserInvitationSection_BindsFromAddressAndTemplateId()
     {
         var settings = BindEmailTemplateSettings(new Dictionary<string, string?>
         {
-            ["Endatix:EmailTemplates:TenantInvitation:TemplateId"] = EmailTemplateSettings.UserInvitationTemplateId,
-            ["Endatix:EmailTemplates:TenantInvitation:FromAddress"] = "pick@endatix.com"
+            ["Endatix:EmailTemplates:UserInvitation:TemplateId"] = EmailTemplateSettings.UserInvitationTemplateId,
+            ["Endatix:EmailTemplates:UserInvitation:FromAddress"] = "pick@endatix.com"
         });
 
-        settings.TenantInvitation.TemplateId.Should().Be(EmailTemplateSettings.UserInvitationTemplateId);
-        settings.TenantInvitation.FromAddress.Should().Be("pick@endatix.com");
+        settings.UserInvitation.TemplateId.Should().Be(EmailTemplateSettings.UserInvitationTemplateId);
+        settings.UserInvitation.FromAddress.Should().Be("pick@endatix.com");
 
         var fromAddress = EmailTemplateFromAddress.Resolve(
             settings,
@@ -34,12 +34,12 @@ public class EmailTemplateSettingsBindingTests
     {
         var settings = BindEmailTemplateSettings(new Dictionary<string, string?>
         {
-            ["Endatix:EmailTemplates:TenantInvitation:TemplateId"] = "d-custom-sendgrid-id",
-            ["Endatix:EmailTemplates:TenantInvitation:FromAddress"] = "pick@endatix.com"
+            ["Endatix:EmailTemplates:UserInvitation:TemplateId"] = "d-custom-sendgrid-id",
+            ["Endatix:EmailTemplates:UserInvitation:FromAddress"] = "pick@endatix.com"
         });
 
-        settings.TenantInvitation.TemplateId.Should().Be("d-custom-sendgrid-id");
-        settings.TenantInvitation.FromAddress.Should().Be("pick@endatix.com");
+        settings.UserInvitation.TemplateId.Should().Be("d-custom-sendgrid-id");
+        settings.UserInvitation.FromAddress.Should().Be("pick@endatix.com");
     }
 
     private static EmailTemplateSettings BindEmailTemplateSettings(Dictionary<string, string?> values)

@@ -11,7 +11,7 @@ namespace Endatix.Core.Configuration;
 /// Sends a verify-email link. Productized later; the send path already exists.
 /// </item>
 /// <item>
-/// <see cref="TenantInvitation"/> — admin invite-to-tenant (shipped).
+/// <see cref="UserInvitation"/> — admin invite (shipped).
 /// Sends an activate-invite link so the invited user can set a password.
 /// </item>
 /// </list>
@@ -24,8 +24,8 @@ namespace Endatix.Core.Configuration;
 public class EmailTemplateSettings
 {
     /// <summary>
-    /// Seeded database template name for the admin invite-to-tenant email.
-    /// Hub lists this name; <see cref="TenantInvitation"/> is the config key.
+    /// Seeded database template name for the admin invite email.
+    /// Hub lists this name; <see cref="UserInvitation"/> is the config key.
     /// </summary>
     public const string UserInvitationTemplateId = "user-invitation";
 
@@ -45,10 +45,10 @@ public class EmailTemplateSettings
     };
 
     /// <summary>
-    /// Admin invite-to-tenant activation email.
-    /// Canonical config key: <c>Endatix:EmailTemplates:TenantInvitation</c>.
+    /// User invitation activation email.
+    /// Canonical config key: <c>Endatix:EmailTemplates:UserInvitation</c>.
     /// </summary>
-    public EmailTemplateConfig TenantInvitation { get; set; } = new()
+    public EmailTemplateConfig UserInvitation { get; set; } = new()
     {
         TemplateId = UserInvitationTemplateId
     };

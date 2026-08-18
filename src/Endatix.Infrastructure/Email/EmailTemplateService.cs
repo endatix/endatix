@@ -60,7 +60,7 @@ public class EmailTemplateService : IEmailTemplateService
         {
             To = userEmail,
             Subject = string.Empty, // Taken from the template
-            TemplateId = _emailTemplateSettings.Value.TenantInvitation.TemplateId,
+            TemplateId = _emailTemplateSettings.Value.UserInvitation.TemplateId,
             Metadata = new Dictionary<string, object>
             {
                 ["hubUrl"] = HubUrl,

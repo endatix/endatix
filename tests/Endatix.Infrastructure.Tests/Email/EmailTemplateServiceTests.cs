@@ -89,7 +89,7 @@ public class EmailTemplateServiceTests
         // Arrange
         var settings = new EmailTemplateSettings
         {
-            TenantInvitation = new EmailTemplateConfig
+            UserInvitation = new EmailTemplateConfig
             {
                 TemplateId = "user-invitation",
                 FromAddress = "noreply@example.com"

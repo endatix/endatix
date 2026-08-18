@@ -48,9 +48,9 @@ public static class EmailTemplateFromAddress
             return settings.EmailVerification.FromAddress;
         }
 
-        if (IsAdminInviteTemplate(templateName, settings.TenantInvitation.TemplateId))
+        if (IsAdminInviteTemplate(templateName, settings.UserInvitation.TemplateId))
         {
-            return settings.TenantInvitation.FromAddress;
+            return settings.UserInvitation.FromAddress;
         }
 
         if (string.Equals(templateName, settings.ForgotPasswordEmail.TemplateId, StringComparison.Ordinal))

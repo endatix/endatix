@@ -93,7 +93,7 @@ public class EmailTemplateFromAddressTests
     }
 
     [Fact]
-    public void Resolve_EmailVerificationAndTenantInvitationAreIndependent()
+    public void Resolve_EmailVerificationAndUserInvitationAreIndependent()
     {
         var settings = new EmailTemplateSettings
         {
@@ -102,7 +102,7 @@ public class EmailTemplateFromAddressTests
                 TemplateId = "email-verification",
                 FromAddress = "verify@example.com"
             },
-            TenantInvitation = new EmailTemplateConfig
+            UserInvitation = new EmailTemplateConfig
             {
                 TemplateId = EmailTemplateSettings.UserInvitationTemplateId,
                 FromAddress = "invite@example.com"
@@ -121,11 +121,11 @@ public class EmailTemplateFromAddressTests
     }
 
     [Fact]
-    public void Resolve_TenantInvitationConfigAppliesToSeededTemplateName()
+    public void Resolve_UserInvitationConfigAppliesToSeededTemplateName()
     {
         var settings = new EmailTemplateSettings
         {
-            TenantInvitation = new EmailTemplateConfig
+            UserInvitation = new EmailTemplateConfig
             {
                 TemplateId = EmailTemplateSettings.UserInvitationTemplateId,
                 FromAddress = "pick@endatix.com"
@@ -145,7 +145,7 @@ public class EmailTemplateFromAddressTests
     {
         var settings = new EmailTemplateSettings
         {
-            TenantInvitation = new EmailTemplateConfig
+            UserInvitation = new EmailTemplateConfig
             {
                 TemplateId = "d-custom-sendgrid-id",
                 FromAddress = "pick@endatix.com"
@@ -166,7 +166,7 @@ public class EmailTemplateFromAddressTests
         var settings = new EmailTemplateSettings();
 
         settings.EmailVerification.FromAddress.Should().BeEmpty();
-        settings.TenantInvitation.FromAddress.Should().BeEmpty();
+        settings.UserInvitation.FromAddress.Should().BeEmpty();
         settings.ForgotPasswordEmail.FromAddress.Should().BeEmpty();
         settings.PasswordChangedEmail.FromAddress.Should().BeEmpty();
 
