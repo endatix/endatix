@@ -6,8 +6,8 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// </summary>
 /// <remarks>
 /// Transitions: <see cref="Pending"/> → <see cref="Processing"/> → <see cref="Completed"/> |
-/// <see cref="Failed"/> | <see cref="Retrying"/> | <see cref="Canceled"/>, and
-/// <see cref="Retrying"/> → <see cref="Processing"/>. <see cref="Canceled"/> is also reachable
+/// <see cref="Failed"/> | <see cref="DeadLettered"/> | <see cref="Retrying"/> |
+/// <see cref="Canceled"/>, and <see cref="Retrying"/> → <see cref="Processing"/>. <see cref="Canceled"/> is also reachable
 /// directly from <see cref="Pending"/> or <see cref="Retrying"/> — a job cancelled before it is
 /// claimed never runs at all.
 /// <para>

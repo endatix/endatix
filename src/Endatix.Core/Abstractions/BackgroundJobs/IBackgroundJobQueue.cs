@@ -12,9 +12,15 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// outbox deliver it — an outbox handler then enqueues, after the business transaction has committed.
 /// </para>
 /// <para>
-/// Callers never await job execution. A committed row is the whole contract: a runner claims it and
-/// executes it, and a sweeper guarantees that happens even if the enqueuing process dies immediately
-/// afterwards.
+/// Callers never await job execution. A committed row is the whole contract on this side: enqueueing
+/// makes the work durable and hands off responsibility for running it.
+/// </para>
+/// <para>
+/// <b>Enqueueing does not by itself cause execution.</b> A job runs only where a host is configured
+/// to execute jobs; against a deployment with none, rows accumulate in <c>Pending</c> and are picked
+/// up whenever an executing host is introduced. That is the intended property — durability does not
+/// depend on anyone listening at the time of the write — but it does mean a committed row is not a
+/// promise that the work has happened.
 /// </para>
 /// </remarks>
 public interface IBackgroundJobQueue
@@ -36,6 +42,6 @@ public interface IBackgroundJobQueue
     /// </remarks>
     /// <returns>The job ids, in the order the requests were supplied.</returns>
     Task<IReadOnlyList<long>> EnqueueManyAsync(
-        IReadOnlyCollection<BackgroundJobRequest> requests,
+        IReadOnlyList<BackgroundJobRequest> requests,
         CancellationToken cancellationToken = default);
 }

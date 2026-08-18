@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.Modules.Jobs;
 
 /// <summary>
-/// Background Jobs module — the durable job queue, and the runner and sweeper that drain it.
+/// Background Jobs module — the durable job queue.
 /// </summary>
 /// <remarks>
 /// Deliberately <b>not</b> gated by an <c>IHasFeatureFlag</c>, unlike the Reporting module. The queue
@@ -19,6 +19,10 @@ namespace Endatix.Modules.Jobs;
 /// Whether a given process <em>executes</em> jobs is a separate question, and a configuration one:
 /// every host registers the queue and can enqueue, while only hosts configured to run jobs drain it.
 /// That is what allows API and worker roles to be deployed separately from the same image.
+/// </para>
+/// <para>
+/// This module registers persistence and enqueueing. It contains no component that executes jobs, so
+/// on its own it leaves enqueued rows in <c>Pending</c>.
 /// </para>
 /// </remarks>
 public sealed class JobsModule : IEndatixModule, IHasDbMigrations

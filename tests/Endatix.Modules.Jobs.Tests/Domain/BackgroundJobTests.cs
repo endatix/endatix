@@ -131,6 +131,55 @@ public class BackgroundJobTests
     }
 
     [Fact]
+    public void Claim_BeforeBackoffElapsed_Throws()
+    {
+        // Arrange — a job waiting out a retry backoff.
+        var job = ClaimedJob();
+        job.Reschedule(Now.AddMinutes(5));
+
+        // Act
+        var act = () => job.Claim(Now);
+
+        // Assert — the entity must refuse for the same reason the claim query would not match it,
+        // so an early retry cannot be started in memory and consume an attempt.
+        act.Should().Throw<InvalidOperationException>();
+        job.Status.Should().Be(JobStatus.Retrying);
+        job.AttemptCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void Claim_OnceBackoffElapsed_Succeeds()
+    {
+        // Arrange
+        var job = ClaimedJob();
+        var dueAt = Now.AddMinutes(5);
+        job.Reschedule(dueAt);
+
+        // Act
+        job.Claim(dueAt);
+
+        // Assert
+        job.Status.Should().Be(JobStatus.Processing);
+        job.AttemptCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void Complete_AfterAFailedAttempt_ClearsTheStaleError()
+    {
+        // Arrange — first attempt failed retryably and recorded why.
+        var job = ClaimedJob();
+        job.Reschedule(Now, "Connection reset");
+        job.Claim(Now);
+
+        // Act
+        job.Complete(Now);
+
+        // Assert — the job succeeded, so it must not still surface the earlier failure.
+        job.Status.Should().Be(JobStatus.Completed);
+        job.ErrorMessage.Should().BeNull();
+    }
+
+    [Fact]
     public void Claim_AlreadyProcessing_Throws()
     {
         // Arrange

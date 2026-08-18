@@ -27,6 +27,10 @@ public sealed record BackgroundJobContext(
 /// Executes one type of background job. Implementations are resolved from DI by
 /// <see cref="JobType"/>, and may live in any assembly — including ones the jobs module does not
 /// reference.
+/// <para>
+/// No component executes handlers yet. This contract is what an executing host will hold them to,
+/// and the obligations below are far cheaper to honour while a handler is written than to retrofit.
+/// </para>
 /// </summary>
 /// <remarks>
 /// <para>
@@ -88,7 +92,7 @@ public interface IBackgroundJobHandler
 {
     /// <summary>
     /// The <see cref="BackgroundJobRequest.JobType"/> this handler is registered for. Must be unique
-    /// across all registered handlers; the registry fails fast at startup on a duplicate.
+    /// across all registered handlers, so that routing a job to a handler is unambiguous.
     /// </summary>
     string JobType { get; }
 
