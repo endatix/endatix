@@ -10,11 +10,11 @@ namespace Endatix.Infrastructure.Tests.Email;
 public class EmailTemplateSettingsBindingTests
 {
     [Fact]
-    public void AddEmailTemplateSettings_TenantInvitationSection_BindsFromAddressAndCanonicalTemplateId()
+    public void AddEmailTemplateSettings_TenantInvitationSection_BindsFromAddressAndTemplateId()
     {
         var settings = BindEmailTemplateSettings(new Dictionary<string, string?>
         {
-            ["Endatix:EmailTemplates:TenantInvitation:TemplateId"] = EmailTemplateSettings.LegacyTenantInvitationTemplateId,
+            ["Endatix:EmailTemplates:TenantInvitation:TemplateId"] = EmailTemplateSettings.UserInvitationTemplateId,
             ["Endatix:EmailTemplates:TenantInvitation:FromAddress"] = "pick@endatix.com"
         });
 
@@ -27,19 +27,6 @@ public class EmailTemplateSettingsBindingTests
             "noreply@endatix.com");
 
         fromAddress.Should().Be("pick@endatix.com");
-    }
-
-    [Fact]
-    public void AddEmailTemplateSettings_UserInvitationAliasSection_BindsToTenantInvitation()
-    {
-        var settings = BindEmailTemplateSettings(new Dictionary<string, string?>
-        {
-            ["Endatix:EmailTemplates:UserInvitation:TemplateId"] = EmailTemplateSettings.UserInvitationTemplateId,
-            ["Endatix:EmailTemplates:UserInvitation:FromAddress"] = "invites@endatix.com"
-        });
-
-        settings.TenantInvitation.TemplateId.Should().Be(EmailTemplateSettings.UserInvitationTemplateId);
-        settings.TenantInvitation.FromAddress.Should().Be("invites@endatix.com");
     }
 
     [Fact]

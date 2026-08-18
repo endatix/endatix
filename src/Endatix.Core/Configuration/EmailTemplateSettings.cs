@@ -15,10 +15,6 @@ namespace Endatix.Core.Configuration;
 /// Sends an activate-invite link so the invited user can set a password.
 /// </item>
 /// </list>
-/// <see cref="UserInvitation"/> currently aliases <see cref="TenantInvitation"/> so
-/// existing <c>Endatix:EmailTemplates:UserInvitation</c> hosts keep working.
-/// When self-service needs its own invitation template, split that property
-/// without changing the admin-invite key.
 /// <para>
 /// <see cref="EmailTemplateConfig.FromAddress"/> is the supported way for hosts to
 /// change the sender without a database edit, until Hub UI/API persist FromAddress
@@ -29,16 +25,9 @@ public class EmailTemplateSettings
 {
     /// <summary>
     /// Seeded database template name for the admin invite-to-tenant email.
-    /// Named historically for the self-service invitation plan; the row is
-    /// used by <see cref="TenantInvitation"/>.
+    /// Hub lists this name; <see cref="TenantInvitation"/> is the config key.
     /// </summary>
     public const string UserInvitationTemplateId = "user-invitation";
-
-    /// <summary>
-    /// Template id previously used in some host configs for the admin invite
-    /// email. Maps to <see cref="UserInvitationTemplateId"/>.
-    /// </summary>
-    public const string LegacyTenantInvitationTemplateId = "tenant-invitation";
 
     /// <summary>
     /// The base URL for Endatix Hub application.
@@ -65,23 +54,6 @@ public class EmailTemplateSettings
     };
 
     /// <summary>
-    /// Compatibility alias for <see cref="TenantInvitation"/>.
-    /// Kept so <c>Endatix:EmailTemplates:UserInvitation</c> continues to bind.
-    /// Reserved to become a distinct self-service invitation template later.
-    /// </summary>
-    public EmailTemplateConfig UserInvitation
-    {
-        get => TenantInvitation;
-        set
-        {
-            if (value is not null)
-            {
-                TenantInvitation = value;
-            }
-        }
-    }
-
-    /// <summary>
     /// Welcome email template settings.
     /// </summary>
     public EmailTemplateConfig WelcomeEmail { get; set; } = new();
@@ -101,22 +73,6 @@ public class EmailTemplateSettings
     {
         TemplateId = "password-changed"
     };
-
-    /// <summary>
-    /// Maps the legacy <c>tenant-invitation</c> template id to the seeded
-    /// <see cref="UserInvitationTemplateId"/> so send and list stay aligned.
-    /// </summary>
-    public void NormalizeInvitationTemplate()
-    {
-        if (string.IsNullOrWhiteSpace(TenantInvitation.TemplateId)
-            || string.Equals(
-                TenantInvitation.TemplateId,
-                LegacyTenantInvitationTemplateId,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            TenantInvitation.TemplateId = UserInvitationTemplateId;
-        }
-    }
 }
 
 /// <summary>

@@ -141,85 +141,7 @@ public class EmailTemplateFromAddressTests
     }
 
     [Fact]
-    public void Resolve_UserInvitationAliasAppliesToAdminInviteTemplate()
-    {
-        var settings = new EmailTemplateSettings();
-        settings.UserInvitation = new EmailTemplateConfig
-        {
-            TemplateId = EmailTemplateSettings.UserInvitationTemplateId,
-            FromAddress = "invites@endatix.com"
-        };
-
-        settings.TenantInvitation.FromAddress.Should().Be("invites@endatix.com");
-
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            EmailTemplateSettings.UserInvitationTemplateId,
-            "noreply@endatix.com");
-
-        result.Should().Be("invites@endatix.com");
-    }
-
-    [Fact]
-    public void Resolve_LegacyTenantInvitationTemplateId_NormalizesToSeededName()
-    {
-        var settings = new EmailTemplateSettings();
-        settings.TenantInvitation = new EmailTemplateConfig
-        {
-            TemplateId = EmailTemplateSettings.LegacyTenantInvitationTemplateId,
-            FromAddress = "pick@endatix.com"
-        };
-        settings.NormalizeInvitationTemplate();
-
-        settings.TenantInvitation.TemplateId.Should().Be(EmailTemplateSettings.UserInvitationTemplateId);
-
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            EmailTemplateSettings.UserInvitationTemplateId,
-            "noreply@endatix.com");
-
-        result.Should().Be("pick@endatix.com");
-    }
-
-    [Fact]
-    public void Resolve_LegacyTenantInvitationTemplateNameUsesAdminInviteFromAddress()
-    {
-        var settings = new EmailTemplateSettings
-        {
-            TenantInvitation = new EmailTemplateConfig
-            {
-                TemplateId = EmailTemplateSettings.UserInvitationTemplateId,
-                FromAddress = "pick@endatix.com"
-            }
-        };
-
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            EmailTemplateSettings.LegacyTenantInvitationTemplateId,
-            "noreply@endatix.com");
-
-        result.Should().Be("pick@endatix.com");
-    }
-
-    [Fact]
-    public void NormalizeInvitationTemplate_EmptyTemplateId_UsesSeededUserInvitationName()
-    {
-        var settings = new EmailTemplateSettings
-        {
-            TenantInvitation = new EmailTemplateConfig
-            {
-                TemplateId = "  ",
-                FromAddress = "pick@endatix.com"
-            }
-        };
-
-        settings.NormalizeInvitationTemplate();
-
-        settings.TenantInvitation.TemplateId.Should().Be(EmailTemplateSettings.UserInvitationTemplateId);
-    }
-
-    [Fact]
-    public void NormalizeInvitationTemplate_CustomTemplateId_IsPreserved()
+    public void Resolve_CustomInvitationTemplateId_StillOverlaysSeededTemplateName()
     {
         var settings = new EmailTemplateSettings
         {
@@ -230,9 +152,12 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        settings.NormalizeInvitationTemplate();
+        var result = EmailTemplateFromAddress.Resolve(
+            settings,
+            EmailTemplateSettings.UserInvitationTemplateId,
+            "noreply@endatix.com");
 
-        settings.TenantInvitation.TemplateId.Should().Be("d-custom-sendgrid-id");
+        result.Should().Be("pick@endatix.com");
     }
 
     [Fact]

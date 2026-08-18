@@ -77,10 +77,6 @@ public static class EmailTemplateFromAddress
             || string.Equals(
                 templateName,
                 EmailTemplateSettings.UserInvitationTemplateId,
-                StringComparison.OrdinalIgnoreCase)
-            || string.Equals(
-                templateName,
-                EmailTemplateSettings.LegacyTenantInvitationTemplateId,
                 StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -84,7 +84,6 @@ public static class ServiceCollectionExtensions
     {
         services.AddOptions<EmailTemplateSettings>()
                 .BindConfiguration("Endatix:EmailTemplates")
-                .PostConfigure(NormalizeInvitationTemplate)
                 .PostConfigure<IOptions<HubSettings>>(HandleLegacyHubUrl)
                 .ValidateOnStart();
 
@@ -190,11 +189,6 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-
-    private static void NormalizeInvitationTemplate(EmailTemplateSettings options)
-    {
-        options.NormalizeInvitationTemplate();
-    }
 
     [Obsolete("Sets the HubUrl from the HubSettings.HubBaseUrl if the HubUrl is not set. Will be removed in the future.")]
     private static void HandleLegacyHubUrl(EmailTemplateSettings options, IOptions<HubSettings> hubSettings)
