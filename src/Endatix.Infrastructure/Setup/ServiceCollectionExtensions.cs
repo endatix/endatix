@@ -87,8 +87,10 @@ public static class ServiceCollectionExtensions
                 .PostConfigure<IOptions<HubSettings>>(HandleLegacyHubUrl)
                 .ValidateOnStart();
 
+        // Exposes the POCO to Core handlers without pulling IOptions into Core.Remove once settings are persisted in the database.
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<EmailTemplateSettings>>().Value);
+
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
-        services.AddScoped<IEmailTemplateFromAddressResolver, EmailTemplateFromAddressResolver>();
 
         return services;
     }

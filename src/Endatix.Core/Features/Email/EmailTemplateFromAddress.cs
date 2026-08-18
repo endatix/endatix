@@ -3,24 +3,26 @@ using Endatix.Core.Configuration;
 namespace Endatix.Core.Features.Email;
 
 /// <summary>
-/// Resolves the effective sender address for database-backed email templates.
+/// Temporary config overlay for template sender addresses until Hub UI/API
+/// persist FromAddress on the database row. Delete this type and its call sites
+/// when that ships. Kept public so Infrastructure can share the same resolve
+/// path without InternalsVisibleTo.
 /// </summary>
+/// <remarks>
+/// Precedence: explicit <c>Endatix:EmailTemplates:*:FromAddress</c> (customer
+/// override without a DB edit) → database FromAddress → <see cref="DefaultFromAddress"/>.
+/// </remarks>
 public static class EmailTemplateFromAddress
 {
     /// <summary>
-    /// The default sender address used when no configuration or database value is available.
+    /// Fallback when neither config nor the database row has a sender.
     /// </summary>
     public const string DefaultFromAddress = "noreply@endatix.com";
 
     /// <summary>
-    /// Resolves the sender address that will be used when sending a template email.
-    /// Configuration overrides take precedence over the database value.
+    /// Resolves the sender that list and send both use.
     /// </summary>
-    /// <param name="settings">The email template configuration.</param>
-    /// <param name="templateName">The database template name.</param>
-    /// <param name="databaseFromAddress">The sender address stored on the template.</param>
-    /// <returns>The effective sender address.</returns>
-    public static string ResolveEffectiveFromAddress(
+    public static string Resolve(
         EmailTemplateSettings settings,
         string templateName,
         string databaseFromAddress)
@@ -39,20 +41,14 @@ public static class EmailTemplateFromAddress
         return DefaultFromAddress;
     }
 
-    /// <summary>
-    /// Returns the configured sender address for a template when one is defined.
-    /// </summary>
-    /// <param name="settings">The email template configuration.</param>
-    /// <param name="templateName">The database template name.</param>
-    /// <returns>The configured sender address, or null when no mapping exists.</returns>
-    public static string? GetConfiguredFromAddress(EmailTemplateSettings settings, string templateName)
+    private static string? GetConfiguredFromAddress(EmailTemplateSettings settings, string templateName)
     {
         if (string.Equals(templateName, settings.EmailVerification.TemplateId, StringComparison.Ordinal))
         {
             return settings.EmailVerification.FromAddress;
         }
 
-        if (string.Equals(templateName, settings.UserInvitation.TemplateId, StringComparison.Ordinal))
+        if (IsAdminInviteTemplate(templateName, settings.UserInvitation.TemplateId))
         {
             return settings.UserInvitation.FromAddress;
         }
@@ -73,5 +69,14 @@ public static class EmailTemplateFromAddress
         }
 
         return null;
+    }
+
+    private static bool IsAdminInviteTemplate(string templateName, string configuredTemplateId)
+    {
+        return string.Equals(templateName, configuredTemplateId, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(
+                templateName,
+                EmailTemplateSettings.UserInvitationTemplateId,
+                StringComparison.OrdinalIgnoreCase);
     }
 }
