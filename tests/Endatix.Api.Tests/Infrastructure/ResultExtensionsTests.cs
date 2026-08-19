@@ -15,6 +15,7 @@ public class ResultExtensionsTests
     private const string DEFAULT_UNAUTHORIZED_TITLE = ResultTitles.UNAUTHORIZED;
     private const string DEFAULT_FORBIDDEN_TITLE = ResultTitles.FORBIDDEN;
     private const string DEFAULT_CONFLICT_TITLE = ResultTitles.CONFLICT;
+    private const string DEFAULT_SERVICE_UNAVAILABLE_TITLE = ResultTitles.SERVICE_UNAVAILABLE;
 
     [Fact]
     public void ToNotFound_WithErrors_ReturnsProblemDetailsWithErrors()
@@ -143,6 +144,8 @@ public class ResultExtensionsTests
     [InlineData(ResultStatus.Unauthorized, StatusCodes.Status401Unauthorized)]
     [InlineData(ResultStatus.Forbidden, StatusCodes.Status403Forbidden)]
     [InlineData(ResultStatus.Error, StatusCodes.Status500InternalServerError)]
+    [InlineData(ResultStatus.Unavailable, StatusCodes.Status503ServiceUnavailable)]
+    [InlineData(ResultStatus.CriticalError, StatusCodes.Status500InternalServerError)]
     public void ToProblem_WithDifferentStatuses_ReturnsCorrectHttpStatusCode(ResultStatus status, int expectedStatusCode)
     {
         // Arrange
@@ -342,6 +345,20 @@ public class ResultExtensionsTests
     }
 
     [Fact]
+    public void ToProblem_Unavailable_UsesServiceUnavailableDefaultTitle()
+    {
+        // Arrange
+        var result = Result.Unavailable("Email provider is not configured.");
+
+        // Act
+        var httpResult = result.ToProblem();
+
+        // Assert
+        httpResult.ProblemDetails.Title.Should().Be(DEFAULT_SERVICE_UNAVAILABLE_TITLE);
+        httpResult.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+    }
+
+    [Fact]
     public void ToProblem_WithEmptyErrors_ReturnsProblemDetailsWithDefaultTitle()
     {
         // Arrange
@@ -509,6 +526,8 @@ public class ResultExtensionsTests
             ResultStatus.Unauthorized => Result.Unauthorized(errors),
             ResultStatus.Forbidden => Result.Forbidden(errors),
             ResultStatus.Error => Result.Error(errors.FirstOrDefault() ?? "Error occurred"),
+            ResultStatus.Unavailable => Result.Unavailable(errors),
+            ResultStatus.CriticalError => Result.CriticalError(errors),
             ResultStatus.Ok => Result.Success("Success"),
             _ => Result.Error("Unknown status")
         };
