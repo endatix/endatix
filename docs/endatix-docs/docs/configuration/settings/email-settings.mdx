@@ -1,15 +1,26 @@
 ---
 sidebar_position: 4
-title: Email Provider Settings
+title: Email Settings
+description: Configure email providers, identity email templates, and sender addresses in the Endatix API.
 ---
 
-# Email Provider Settings
+# Email Settings
 
-Endatix requires an email provider to send transactional emails, form submission notifications, and identity verification links (like password resets). Out of the box, the Endatix API supports **SendGrid**, **Mailgun**, and standard **SMTP**.
+These are **Endatix API** settings (`appsettings.json`). They pick the mail provider and overlay identity-template senders. Hub’s `.env` does **not** hold SMTP keys.
 
-Configuration is managed via your `appsettings.json` file or environment variables under the `Endatix:Integrations:Email` section.
+- **Code:** activate a provider — [Email Providers](/docs/developers/api/email-providers)
+- **Hub UI:** review the live provider and send a test — [Email Settings](/docs/end-users/administration/email-settings) (Platform Admin)
+- **Links inside emails:** [API Hub URL](/docs/configuration/settings/hub-settings) (`Endatix:Hub:HubBaseUrl`)
 
------
+Template HTML, subject, and a default **FromAddress** live in the seeded database. Until Hub can edit those rows, hosts change the sender in config — **no database edit required**.
+
+## Email providers
+
+Provider settings bind under `Endatix:Integrations:Email:{SettingsClassName}`. SMTP is the default provider and does not require explicit activation.
+
+:::warning[Secrets]
+Store API keys and SMTP passwords in environment variables or a secrets manager. Do not commit production credentials.
+:::
 
 ## SendGrid
 
@@ -133,3 +144,78 @@ Earlier Endatix versions sent SMTP mail using .NET's built-in `System.Net.Mail.S
 :::info
 For an overview of email providers and how to activate them in Endatix API see the [Email Providers Guide](../../developers/api/email-providers).
 :::
+
+## How to change the sender today
+
+Set `Endatix:EmailTemplates:*:FromAddress` and restart the API. That is the supported way to change the sender **without a database change**. Hub list and send both use the same effective address.
+
+```json
+{
+  "Endatix": {
+    "Hub": {
+      "HubBaseUrl": "https://hub.example.com"
+    },
+    "EmailTemplates": {
+      "EmailVerification": {
+        "TemplateId": "email-verification",
+        "FromAddress": "noreply@yourdomain.com"
+      },
+      "UserInvitation": {
+        "TemplateId": "user-invitation",
+        "FromAddress": "noreply@yourdomain.com"
+      },
+      "ForgotPasswordEmail": {
+        "TemplateId": "forgot-password",
+        "FromAddress": "noreply@yourdomain.com"
+      },
+      "PasswordChangedEmail": {
+        "TemplateId": "password-changed",
+        "FromAddress": "noreply@yourdomain.com"
+      }
+    }
+  }
+}
+```
+
+`HubBaseUrl` is used to build Hub links inside emails (verify-email, activate-invite, reset-password). That is an API setting — see [API Hub URL](/docs/configuration/settings/hub-settings).
+
+### Template map
+
+| Config key | Template name in Hub | Used for |
+| --- | --- | --- |
+| `EmailVerification` | `email-verification` | Confirm an email address (self-service registration / create-account) |
+| `UserInvitation` | `user-invitation` | Admin invite — recipient sets a password on **Activate invite** |
+| `ForgotPasswordEmail` | `forgot-password` | Password reset |
+| `PasswordChangedEmail` | `password-changed` | Password changed notice |
+
+Each entry has:
+
+| Property | Description |
+| --- | --- |
+| `TemplateId` | Database template name (SMTP/Mailgun) or a provider template id (for example a SendGrid template id) |
+| `FromAddress` | **Optional.** When set, list and send use this address instead of the database row. Leave empty (or omit) to keep the seeded DB sender. |
+
+### Sender address resolution
+
+When Endatix sends or lists a template, the from-address is:
+
+1. `FromAddress` from `Endatix:EmailTemplates` for that template, if it is not empty (customer override, no DB edit)
+2. The address stored on the database template (seed today; Hub UI later)
+3. `noreply@endatix.com` only if both are empty
+
+The Hub **Email Settings** page shows the same resolved address that send uses.
+
+:::info[Future Hub UI]
+A future Hub UI will let admins edit from-address (and HTML) per tenant via the API. When that ships, this config overlay goes away. Until then, keep using `Endatix:EmailTemplates:*:FromAddress`.
+:::
+
+The shipped admin-invite email is **`UserInvitation`**. The seeded template name remains `user-invitation` (that is the name Hub lists). A custom `TemplateId` (for example a SendGrid id) is left unchanged.
+
+`EmailVerification` and `UserInvitation` are independent. Self-service registration and admin invite stay on separate templates so they can diverge later without a breaking rename.
+
+## Related
+
+- [Email Providers](/docs/developers/api/email-providers) — activate Mailgun, SendGrid, or SMTP in `Program.cs`
+- [Email Settings](/docs/end-users/administration/email-settings) — Hub UI: provider status, templates, test send
+- [API Hub URL](/docs/configuration/settings/hub-settings) — `HubBaseUrl` for links in mail
+- [Hub environment variables](/docs/developers/hub/environment) — Hub `.env` (not email credentials)

@@ -4,11 +4,13 @@ title: Storage Settings
 description: Configure Endatix external file storage - Azure Blob Storage and S3-compatible services — with all supported settings and environment variables.
 ---
 
-# Configuring Storage Settings in Endatix
+# Storage Settings
 
-Storage settings configure external storage providers used by Endatix integrations.
+These are **Endatix API** settings (`Endatix:Storage`). They tell the API how to recognize blob URLs in submissions.
 
-Today, these settings drive:
+Hub upload credentials (`STORAGE_PROVIDER`, `STORAGE_AZURE_*`, `STORAGE_S3_*`) are [Hub environment variables](/docs/developers/hub/environment). The how-to is [Asset storage](/docs/configuration/asset-storage).
+
+Today, these API settings drive:
 
 - **Export URL rewriting** for submission file answers (storage URLs → Hub file-details URLs)
 - **Submission file URL fetch policy** when staff download submission files via the OSS API (`POST forms/{formId}/submissions/{submissionId}/files`)

@@ -1,0 +1,61 @@
+---
+title: Hub environment variables
+description: Configure Endatix Hub with env vars — required keys, runtime vs build, and where to go for auth, storage, and deployment.
+sidebar_label: Environment variables
+sidebar_position: 2
+---
+
+# Hub environment variables
+
+Endatix Hub is a Next.js app. You configure it with **environment variables** (`.env`, Helm, Azure Static Web Apps) — not `appsettings.json`.
+
+The API has its own settings under [Configuration](/docs/configuration/). Need the API to *link back* to Hub in emails? That is [API Hub URL](/docs/configuration/settings/hub-settings), not this page.
+
+## How to set values
+
+| How | When it applies |
+| --- | --- |
+| `.env` / `.env.local` | Local `pnpm dev` |
+| Helm / container env / SWA appsettings | A **published** image or Static Web App |
+| `withEndatix(nextConfig, options)` | Rebuild only — cannot retarget an image you already built |
+
+Always wrap Next.js with `export default withEndatix(nextConfig)` so image hosts compile correctly.
+
+Copy [`hub/.env.example`](https://github.com/endatix/endatix-hub/blob/main/.env.example) for the full key list.
+
+## Runtime vs build
+
+Next.js **inlines** `NEXT_PUBLIC_*` (and anything stuffed into `next.config.env`) when you **build**. Hub does **not** bake `ENDATIX_API_URL` or `ENDATIX_ENABLE_EXTENSIONS` into the client bundle.
+
+That means **one Hub image** can talk to different APIs by changing container env. Changing blob hostnames for `next/image` still needs a rebuild (`images.remotePatterns`).
+
+:::tip[Do not use `--build-arg` for the API URL]
+Baking the API origin into the image ties that artifact to one environment. Set `ENDATIX_BASE_URL` (and `ENDATIX_API_URL` if you do not use the default `/api` prefix) at **runtime**.
+:::
+
+## Minimum to run
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_BASE_URL` | API origin, no `/api` suffix — e.g. `https://localhost:5001` |
+| `ENDATIX_API_PREFIX` | Optional. Defaults to `/api` |
+| `ENDATIX_API_URL` | Optional complete API URL. Use when `ENDATIX_BASE_URL` is unset (Helm often sets both) |
+| `SESSION_SECRET` | Hub session cookie — `openssl rand -hex 32` |
+| `AUTH_SECRET` | Auth.js — `npx auth secret` |
+| `AUTH_URL` | Public Hub origin behind a proxy (recommended) |
+| `AUTH_TRUST_HOST` | `true` behind a reverse proxy |
+
+## What else to configure
+
+| Topic | Hub keys (summary) | Details |
+| --- | --- | --- |
+| Sign-in / SSO | `AUTH_KEYCLOAK_*`, `AUTH_GOOGLE_*` | [Authentication](/docs/building-your-solution/authentication/) |
+| File uploads | `STORAGE_PROVIDER`, `STORAGE_AZURE_*`, `STORAGE_S3_*` | [Asset storage](/docs/configuration/asset-storage) |
+| Path prefix | `NEXT_PUBLIC_BASE_PATH` | [Subfolder deployment](/docs/building-your-solution/deployment/subfolder-deployment) |
+| Proxy / TLS | `AUTH_URL`, `AUTH_TRUST_HOST` | [Reverse proxy](/docs/building-your-solution/deployment/reverse-proxy-deployment) |
+| Data-list questions | `ENDATIX_ENABLE_EXTENSIONS` | Off in Hub by default; **Helm defaults on** |
+| reCAPTCHA, Slack, telemetry, PostHog, maintenance, robots | See `.env.example` | Optional |
+
+## Containers
+
+Helm maps `api.baseUrl` → `ENDATIX_BASE_URL`, `api.apiUrl` → `ENDATIX_API_URL`, and `experimental.extensions` → `ENDATIX_ENABLE_EXTENSIONS`. Set those as **pod env**, not Docker build args.

@@ -8,7 +8,11 @@ import DocCardList from "@theme/DocCardList";
 
 # Configuration Fundamentals
 
-This guide provides a comprehensive overview of how to configure Endatix applications. Whether you've installed Endatix via NuGet packages or from the repository, these configuration options apply to all deployment scenarios.
+This guide covers **Endatix API** configuration (`appsettings.json` and `ConfigureEndatix()`). It applies whether you installed from NuGet or from source.
+
+:::info[Looking for Hub `.env`?]
+Endatix Hub is a Next.js app. Its keys live in [Hub environment variables](/docs/developers/hub/environment), not here.
+:::
 
 ## Configuration Philosophy
 
@@ -87,7 +91,7 @@ Using `appsettings.json` files for configuration:
 {
   "Endatix": {
     "ApplicationName": "My Endatix App",
-    "Auth":
+    "Auth": {
       "Providers": {
         "EndatixJwt": {
           "SigningKey": "your-secure-key",
@@ -119,9 +123,5 @@ Most applications will use a combination of both paradigms, with code-based conf
 Side effects such as [webhook delivery](/docs/guides/webhooks) run through Endatix **background processing** and the **transactional outbox**. Configure the in-process relay under `Endatix:Outbox`—see [Background Processing](/docs/configuration/background-processing) for the pattern, defaults, and tuning options.
 
 ## What's Next?
-
-In future documentation updates, we'll provide detailed information on configuring specific aspects of your Endatix application, including security, data persistence, API behavior, and infrastructure components.
-
-<br />
 
 <DocCardList />
