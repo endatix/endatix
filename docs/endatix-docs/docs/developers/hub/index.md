@@ -1,39 +1,20 @@
 ---
 sidebar_position: 1
-title: "Endatix Hub Docs"
-description: Explore Endatix Hub - a modern React/Next.js application serving as the visual management layer for forms, submissions, and API configuration.
+title: Endatix Hub
+description: Endatix Hub is the Next.js form management UI — environment variables, storage, authentication, and deployment.
 ---
 
-# Endatix Hub Docs
+# Endatix Hub
 
-Welcome to the Endatix Hub documentation!
+Hub is the visual layer on the [Endatix API](/docs/developers/api/): form builder, submissions, and workspace admin. Next.js App Router, Auth.js, Tailwind. **Commercial license** for production.
 
-## What it is
+Configure Hub with **environment variables**. The API uses `appsettings.json` — do not look for Hub `.env` keys under [Configuration → Settings](/docs/configuration/settings/).
 
-A modern React/Next.js application that serves as the visual management layer for the Endatix API. It provides the "No-Code" experience for end-users while remaining fully customizable for developers.
+## Start here
 
-## Tech Stack
+- [Hub environment variables](/docs/developers/hub/environment) — required keys, runtime vs build, Helm
+- [Asset storage](/docs/configuration/asset-storage) — Azure or S3/RustFS for uploads
+- [Authentication](/docs/building-your-solution/authentication/) — JWT, Keycloak, Google
+- [Self-hosting](/docs/building-your-solution/deployment/self-hosting) · [Subfolder](/docs/building-your-solution/deployment/subfolder-deployment) · [Reverse proxy](/docs/building-your-solution/deployment/reverse-proxy-deployment)
 
-- **Next.js (App Router)** — Modern React framework with server-side rendering
-- **Tailwind CSS** — Utility-first CSS framework for rapid UI development
-- **Auth.js** — Flexible authentication and authorization
-
-## Licensing
-
-**Paid/Enterprise** — Commercial license required for production use. Contact us for licensing information.
-
-## Key Capabilities
-
-- **Visual Form Builder** — Drag-and-drop interface for creating complex forms without code
-- **Response Analytics Dashboard** — Real-time analytics and reporting for form submissions
-- **User & Permission Management UI** — Complete user management interface with role-based access control
-
-## Next Steps
-
-- [Customizing the UI](/docs/developers/hub/) — Learn how to extend and customize Hub components
-- [Azure Blob Storage](/docs/developers/hub/azure-storage) — Configure Hub asset storage on Azure
-- [RustFS storage](/docs/developers/hub/rustfs-storage) — Configure Hub with S3-compatible RustFS storage
-- [Asset storage overview](/docs/configuration/asset-storage) — Choose public/private storage mode and understand trade-offs
-- [Maintenance mode](/docs/developers/hub/maintenance-mode) — Enable Hub UI maintenance with env-driven proxy behavior
-- [Subfolder Deployment](/docs/building-your-solution/deployment/subfolder-deployment) — Deploy Hub under a path prefix
-- [Reverse Proxy Deployment](/docs/building-your-solution/deployment/reverse-proxy-deployment) — Run Hub and API behind a proxy
+Local clone: copy `hub/.env.example`, set the required secrets, run `pnpm dev`. The environment page has the operator story.

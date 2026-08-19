@@ -142,10 +142,7 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         "developers/hub/index",
-        "developers/hub/embed-events",
-        "developers/hub/azure-storage",
-        "developers/hub/rustfs-storage",
-        "developers/hub/maintenance-mode",
+        "developers/hub/environment",
       ],
     },
   ],
@@ -220,6 +217,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "end-users/administration/platform-admins",
         "end-users/administration/auth-settings",
+        "end-users/administration/email-settings",
       ],
     },
   ],

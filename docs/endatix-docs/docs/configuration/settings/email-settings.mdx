@@ -1,89 +1,28 @@
 ---
 sidebar_position: 4
-title: Email Provider Settings
+title: Email Settings
+description: Configure email providers, identity email templates, and sender addresses in the Endatix API.
 ---
 
-# Email Provider Settings
+# Email Settings
 
-Endatix requires an email provider to send transactional emails, form submission notifications, and identity verification links (like password resets). Out of the box, the Endatix API supports **SendGrid**, **Mailgun**, and standard **SMTP**.
+These are **Endatix API** settings (`appsettings.json`). They pick the mail provider and overlay identity-template senders. Hub’s `.env` does **not** hold SMTP keys.
 
-Configuration is managed via your `appsettings.json` file or environment variables under the `Endatix:Integrations:Email` section.
+- **Code:** activate a provider — [Email Providers](/docs/developers/api/email-providers)
+- **Hub UI:** review the live provider and send a test — [Email Settings](/docs/end-users/administration/email-settings) (Platform Admin)
+- **Links inside emails:** [API Hub URL](/docs/configuration/settings/hub-settings) (`Endatix:Hub:HubBaseUrl`)
 
------
+Template HTML, subject, and a default **FromAddress** live in the seeded database. Until Hub can edit those rows, hosts change the sender in config — **no database edit required**.
 
-## SendGrid
+## Email providers
 
-To use SendGrid as your email provider, you need to configure the `SendGridSettings` section. The Endatix API uses the official SendGrid APIs to deliver emails reliably.
+Provider settings bind under `Endatix:Integrations:Email:{SettingsClassName}`. SMTP is the default provider and does not require explicit activation.
 
-### Configuration Example
+:::warning[Secrets]
+Store API keys and SMTP passwords in environment variables or a secrets manager. Do not commit production credentials.
+:::
 
-```json
-{
-  "Endatix": {
-    "Integrations": {
-      "Email": {
-        "SendGridSettings": {
-          "ApiKey": "SG.your_api_key_here",
-          "DefaultFromAddress": "noreply@yourdomain.com",
-          "DefaultFromName": "Endatix Notifications"
-        }
-      }
-    }
-  }
-}
-```
-
-### Properties
-
-  * **`ApiKey`** *(Required)*: Your SendGrid API key with "Mail Send" permissions.
-  * **`DefaultFromAddress`** *(Required)*: The verified sender email address configured in your SendGrid account.
-  * **`DefaultFromName`**: The display name for the sender.
-
-*For implementation details, refer to [`SendGridSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SendGridSettings.cs).*
-
------
-
-## Mailgun
-
-To use Mailgun, configure the `MailgunSettings` section. This integration uses the Mailgun REST API.
-
-### Configuration Example
-
-```json
-{
-  "Endatix": {
-    "Integrations": {
-      "Email": {
-        "MailgunSettings": {
-          "ApiKey": "key-your_mailgun_api_key",
-          "Domain": "mg.yourdomain.com",
-          "BaseUrl": "https://api.mailgun.net/v3",
-          "DefaultFromAddress": "noreply@mg.yourdomain.com",
-          "DefaultFromName": "Endatix Notifications"
-        }
-      }
-    }
-  }
-}
-```
-
-### Properties
-
-  * **`ApiKey`** *(Required)*: Your private Mailgun API key.
-  * **`Domain`** *(Required)*: The sending domain verified in your Mailgun account.
-  * **`BaseUrl`**: The Mailgun API base URL. Use `https://api.eu.mailgun.net/v3` if your domain is hosted in the EU region.
-  * **`DefaultFromAddress`** *(Required)*: The default sender email address.
-  * **`DefaultFromName`**: The display name for the sender.
-
-*For implementation details, refer to [`MailgunSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/MailgunSettings.cs).*
-
------
-
-## SMTP
-
-If you prefer to use a standard SMTP server (such as Amazon SES, Postmark, or a custom corporate mail server), Endatix provides an `SmtpEmailSender` implementation using the native .NET `SmtpClient`.
-
-### Configuration Example
+### SMTP
 
 ```json
 {
@@ -97,7 +36,7 @@ If you prefer to use a standard SMTP server (such as Amazon SES, Postmark, or a 
           "Username": "your_smtp_username",
           "Password": "your_smtp_password",
           "DefaultFromAddress": "noreply@yourdomain.com",
-          "DefaultFromName": "Endatix Notifications"
+          "DefaultFromName": "Endatix"
         }
       }
     }
@@ -105,18 +44,135 @@ If you prefer to use a standard SMTP server (such as Amazon SES, Postmark, or a 
 }
 ```
 
-### Properties
+| Setting | Description | Default |
+| --- | --- | --- |
+| `Host` | SMTP server host name or IP address | `localhost` |
+| `Port` | SMTP port | `587` |
+| `EnableSsl` | Enable SSL/TLS | `true` |
+| `Username` | SMTP user (optional) | — |
+| `Password` | SMTP password (optional) | — |
+| `DefaultFromAddress` | Fallback sender when a message has no `From` | `noreply@endatix.com` |
+| `DefaultFromName` | Fallback sender display name | `Endatix` |
 
-  * **`Host`** *(Required)*: The SMTP server host name or IP address (e.g., `localhost` or `smtp.mail.company.com`).
-  * **`Port`**: The SMTP server port number. Defaults to `587`.
-  * **`EnableSsl`**: Whether to enable SSL/TLS encryption. Defaults to `true`.
-  * **`Username`**: The username for SMTP authentication. If left empty, default credentials are used.
-  * **`Password`**: The password for SMTP authentication.
-  * **`DefaultFromAddress`** *(Required)*: The default sender email address. Defaults to `noreply@endatix.com`.
-  * **`DefaultFromName`**: The default sender display name. Defaults to `Endatix`.
+### SendGrid
 
-*For implementation details, refer to [`SmtpSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SmtpSettings.cs).*
+```json
+{
+  "Endatix": {
+    "Integrations": {
+      "Email": {
+        "SendGridSettings": {
+          "ApiKey": "SG.your_api_key_here"
+        }
+      }
+    }
+  }
+}
+```
 
-:::info
-For an overview of email providers and how to activate them in Endatix API see the [Email Providers Guide](../../developers/api/email-providers).
+| Setting | Description |
+| --- | --- |
+| `ApiKey` | SendGrid API key with mail-send permission. If empty, Endatix also reads the `SENDGRID_API_KEY` environment variable. |
+
+Sender addresses come from **email templates** (config overlay or database), not from SendGrid settings.
+
+### Mailgun
+
+```json
+{
+  "Endatix": {
+    "Integrations": {
+      "Email": {
+        "MailgunSettings": {
+          "ApiKey": "key-your_mailgun_api_key",
+          "Domain": "mg.yourdomain.com",
+          "BaseUrl": "https://api.mailgun.net/v3/"
+        }
+      }
+    }
+  }
+}
+```
+
+| Setting | Description |
+| --- | --- |
+| `ApiKey` | Private Mailgun API key |
+| `Domain` | Verified sending domain |
+| `BaseUrl` | Mailgun API root. Use `https://api.eu.mailgun.net/v3/` for EU-hosted domains |
+
+Sender addresses come from **email templates** (config overlay or database), not from Mailgun settings.
+
+## How to change the sender today
+
+Set `Endatix:EmailTemplates:*:FromAddress` and restart the API. That is the supported way to change the sender **without a database change**. Hub list and send both use the same effective address.
+
+```json
+{
+  "Endatix": {
+    "Hub": {
+      "HubBaseUrl": "https://hub.example.com"
+    },
+    "EmailTemplates": {
+      "EmailVerification": {
+        "TemplateId": "email-verification",
+        "FromAddress": "noreply@yourdomain.com"
+      },
+      "UserInvitation": {
+        "TemplateId": "user-invitation",
+        "FromAddress": "noreply@yourdomain.com"
+      },
+      "ForgotPasswordEmail": {
+        "TemplateId": "forgot-password",
+        "FromAddress": "noreply@yourdomain.com"
+      },
+      "PasswordChangedEmail": {
+        "TemplateId": "password-changed",
+        "FromAddress": "noreply@yourdomain.com"
+      }
+    }
+  }
+}
+```
+
+`HubBaseUrl` is used to build Hub links inside emails (verify-email, activate-invite, reset-password). That is an API setting — see [API Hub URL](/docs/configuration/settings/hub-settings).
+
+### Template map
+
+| Config key | Template name in Hub | Used for |
+| --- | --- | --- |
+| `EmailVerification` | `email-verification` | Confirm an email address (self-service registration / create-account) |
+| `UserInvitation` | `user-invitation` | Admin invite — recipient sets a password on **Activate invite** |
+| `ForgotPasswordEmail` | `forgot-password` | Password reset |
+| `PasswordChangedEmail` | `password-changed` | Password changed notice |
+
+Each entry has:
+
+| Property | Description |
+| --- | --- |
+| `TemplateId` | Database template name (SMTP/Mailgun) or a provider template id (for example a SendGrid template id) |
+| `FromAddress` | **Optional.** When set, list and send use this address instead of the database row. Leave empty (or omit) to keep the seeded DB sender. |
+
+### Sender address resolution
+
+When Endatix sends or lists a template, the from-address is:
+
+1. `FromAddress` from `Endatix:EmailTemplates` for that template, if it is not empty (customer override, no DB edit)
+2. The address stored on the database template (seed today; Hub UI later)
+3. `noreply@endatix.com` only if both are empty
+
+The Hub **Email Settings** page shows the same resolved address that send uses.
+
+:::info[Future Hub UI]
+A future Hub UI will let admins edit from-address (and HTML) per tenant via the API. When that ships, this config overlay goes away. Until then, keep using `Endatix:EmailTemplates:*:FromAddress`.
 :::
+
+The shipped admin-invite email is **`UserInvitation`**. The seeded template name remains `user-invitation` (that is the name Hub lists). A custom `TemplateId` (for example a SendGrid id) is left unchanged.
+
+`EmailVerification` and `UserInvitation` are independent. Self-service registration and admin invite stay on separate templates so they can diverge later without a breaking rename.
+
+## Related
+
+- [Email Providers](/docs/developers/api/email-providers) — activate Mailgun, SendGrid, or SMTP in `Program.cs`
+- [Email Settings](/docs/end-users/administration/email-settings) — Hub UI: provider status, templates, test send
+- [API Hub URL](/docs/configuration/settings/hub-settings) — `HubBaseUrl` for links in mail
+- [Hub environment variables](/docs/developers/hub/environment) — Hub `.env` (not email credentials)

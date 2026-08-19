@@ -3,6 +3,6 @@
   "position": 4,
   "link": {
     "type": "generated-index",
-    "description": "Configure Endatix settings for authentication, storage, background processing, CORS, email, and health checks to tailor the platform to your infrastructure needs."
+    "description": "Configure the Endatix API — authentication, storage, background processing, CORS, email, and health checks. Hub env vars are under Developers → Endatix Hub."
   }
 }

@@ -1,15 +1,17 @@
 ---
 sidebar_position: 4
-title: Hub Settings
+title: API Hub URL
+description: Point the Endatix API at your Hub origin so emails and exported file links open the right UI.
+sidebar_label: API Hub URL
 ---
 
-# Configuring Hub Settings in Endatix
+# API Hub URL
 
-Hub settings define how Endatix should link back to the Endatix Hub application (the UI). This is important for sending emails or generating links from the Endatix API to the Endatix Hub application
+This is an **API** setting (`Endatix:Hub`). It tells the API where Hub lives so identity emails and some file links can open the UI.
+
+It is **not** Hub’s own config. Hub origin, Auth.js, and the API URL Hub calls are [Hub environment variables](/docs/developers/hub/environment) (`AUTH_URL`, `ENDATIX_BASE_URL`, …).
 
 ## Configuration
-
-Configure Hub settings under the `Endatix:Hub` section:
 
 ```json
 {
@@ -21,16 +23,12 @@ Configure Hub settings under the `Endatix:Hub` section:
 }
 ```
 
-This section is bound to `Endatix.Core.Configuration.HubSettings` (`HubSettings.SectionName = "Endatix:Hub"`).
-
-## Settings Reference
+Bound to `Endatix.Core.Configuration.HubSettings` (`SectionName = "Endatix:Hub"`).
 
 | Setting | Description | Default |
-|---------|-------------|---------|
-| `HubBaseUrl` | Base URL of the Endatix Hub (e.g. `https://your-endatix-hub.domain`). Used to generate links back to the Hub (e.g. emails, exported file links). Trailing slashes are ignored. | `""` |
+| --- | --- | --- |
+| `HubBaseUrl` | Public Hub origin. Trailing slashes are ignored. Used in emails and export file links. | `""` |
 
-## Notes
+If `HubBaseUrl` is empty, the API skips rewriting those links. Default hosting (`ConfigureEndatix()` / `ConfigureEndatixWithDefaults`) binds this automatically.
 
-- If `HubBaseUrl` is empty, features that generate Hub links will **skip link rewriting** and keep original values where applicable.
-- When using the default hosting setup (`builder.Host.ConfigureEndatix()` / `ConfigureEndatixWithDefaults(...)`) the options are bound automatically via ASP.NET Core configuration.
-
+See also [Email Settings](/docs/configuration/settings/email-settings) for template from-addresses and Hub links inside mail.

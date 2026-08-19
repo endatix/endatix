@@ -5,7 +5,9 @@ title: Health Checks
 
 # Health Checks Configuration
 
-Health checks are an important part of any application for monitoring its health and dependencies. Endatix provides built-in health check functionality that is configured automatically by default.
+These are **Endatix API** health-check settings. Hub has its own maintenance and telemetry env — see [Hub environment variables](/docs/developers/hub/environment).
+
+Endatix provides built-in API health checks that are configured automatically by default.
 
 This page focuses on **configuration and settings** (defaults, endpoint path, filtering, custom implementations). For **endpoints, JSON shape, and host/middleware API usage**, see [Health checks](/docs/developers/api/health-checks) in the API docs.
 

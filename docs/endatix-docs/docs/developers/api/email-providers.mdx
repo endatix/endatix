@@ -24,7 +24,7 @@ builder.Host.ConfigureEndatixWithDefaults(endatix =>
 {
     endatix.Infrastructure.Integrations.AddEmail<MailgunEmailSender, MailgunSettings>();
 });
-````
+```
 
 To use a different provider, simply swap the generic type parameters with the corresponding sender and settings classes (e.g., `SmtpEmailSender` and `SmtpSettings` for standard SMTP).
 
@@ -44,9 +44,7 @@ Once the provider is activated in your code, you must supply the necessary crede
         "MailgunSettings": {
           "ApiKey": "key-your_mailgun_api_key",
           "Domain": "mg.yourdomain.com",
-          "BaseUrl": "[https://api.mailgun.net/v3](https://api.mailgun.net/v3)",
-          "DefaultFromAddress": "noreply@mg.yourdomain.com",
-          "DefaultFromName": "Endatix"
+          "BaseUrl": "https://api.mailgun.net/v3/"
         }
       }
     }
@@ -54,5 +52,5 @@ Once the provider is activated in your code, you must supply the necessary crede
 }
 ```
 :::info
-For a complete list of required and optional properties for all supported email integrations (Mailgun, SendGrid, and SMTP), please refer to the [Email Provider Settings](../../configuration/settings/email-settings) reference page.
+For a complete list of required and optional properties for all supported email integrations (Mailgun, SendGrid, and SMTP), and for identity template sender addresses, see [Email Settings](/docs/configuration/settings/email-settings). After the API is running, [verify the provider and templates in Hub](/docs/end-users/administration/email-settings).
 :::
