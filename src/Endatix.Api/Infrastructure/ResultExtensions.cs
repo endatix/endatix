@@ -18,7 +18,7 @@ public static partial class ResultExtensions
         public const string CONFLICT = "There was a conflict";
         public const string BAD_REQUEST = "There was a problem with your request";
         public const string INTERNAL_SERVER_ERROR = "An unexpected error occurred";
-        public const string SERVICE_UNAVAILABLE = "Service unavailable.";
+        public const string SERVICE_UNAVAILABLE = "Service unavailable";
     }
 
     /// <summary>
@@ -270,7 +270,7 @@ public static partial class ResultExtensions
 
             return TypedResults.Problem(new ProblemDetails
             {
-                Title = "Service unavailable.",
+                Title = ResultTitles.SERVICE_UNAVAILABLE,
                 Detail = details.ToString(),
                 Status = StatusCodes.Status503ServiceUnavailable
             });

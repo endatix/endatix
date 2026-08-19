@@ -145,6 +145,7 @@ public class ResultExtensionsTests
     [InlineData(ResultStatus.Forbidden, StatusCodes.Status403Forbidden)]
     [InlineData(ResultStatus.Error, StatusCodes.Status500InternalServerError)]
     [InlineData(ResultStatus.Unavailable, StatusCodes.Status503ServiceUnavailable)]
+    [InlineData(ResultStatus.CriticalError, StatusCodes.Status500InternalServerError)]
     public void ToProblem_WithDifferentStatuses_ReturnsCorrectHttpStatusCode(ResultStatus status, int expectedStatusCode)
     {
         // Arrange
@@ -526,6 +527,7 @@ public class ResultExtensionsTests
             ResultStatus.Forbidden => Result.Forbidden(errors),
             ResultStatus.Error => Result.Error(errors.FirstOrDefault() ?? "Error occurred"),
             ResultStatus.Unavailable => Result.Unavailable(errors),
+            ResultStatus.CriticalError => Result.CriticalError(errors),
             ResultStatus.Ok => Result.Success("Success"),
             _ => Result.Error("Unknown status")
         };

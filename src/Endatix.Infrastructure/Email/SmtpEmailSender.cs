@@ -26,6 +26,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     // Static (not per-instance): IEmailSender is registered scoped, so an instance field would
     // re-warn on every request on an anonymous-relay deployment instead of once for the process.
     private static int _blankUsernameWarningLogged;
+    private static int _implicitTlsPortWithSslDisabledWarningLogged;
 
     /// <summary>
     /// Initializes a new instance of the SmtpEmailSender class.
@@ -68,7 +69,6 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         using var smtpClient = CreateTransport();
         using var mimeMessage = CreateMimeMessage(email);
 
-        Exception? primaryException = null;
         try
         {
             await ConnectAndAuthenticateAsync(smtpClient, cancellationToken);
@@ -78,11 +78,6 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
             // suppress this record of a send that already succeeded.
             _logger.LogInformation("SMTP email sent successfully to {To} with subject {Subject}",
                 SensitiveValue.Email(email.To), email.Subject);
-        }
-        catch (Exception exception)
-        {
-            primaryException = exception;
-            throw;
         }
         finally
         {
@@ -95,11 +90,15 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
                     await smtpClient.DisconnectAsync(true, CancellationToken.None);
                 }
             }
-            catch (Exception cleanupException) when (primaryException is not null)
+            catch (Exception cleanupException)
             {
-                // A send/connect failure is already in flight and more diagnostically useful than a
-                // cleanup failure — log the latter instead of letting it replace the former.
-                _logger.LogWarning(cleanupException, "SMTP disconnect failed after an earlier SMTP failure.");
+                // Never let a cleanup failure replace or suppress what the try block already
+                // produced — a thrown exception, or nothing at all if the send already succeeded
+                // (a retry on a false failure would resend mail that already went out). Catching
+                // unconditionally here, rather than only when a primary exception is in flight, is
+                // what makes the success case safe too: this block completing without throwing is
+                // what lets the try block's own outcome — success or failure — propagate untouched.
+                _logger.LogWarning(cleanupException, "SMTP disconnect failed.");
             }
         }
     }
@@ -124,6 +123,21 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     {
         smtpClient.CheckCertificateRevocation = _settings.CheckCertificateRevocation;
 
+        // Port 465 is conventionally implicit-TLS-only; a plaintext client against it typically hangs
+        // until socket timeout rather than failing fast, since both sides wait for the other to speak
+        // first. This only fires under the Auto heuristic — an explicit SecurityMode is a deliberate
+        // choice and isn't second-guessed here.
+        if (_settings.SecurityMode == SmtpSecurityMode.Auto && !_settings.EnableSsl && _settings.Port == 465
+            && Interlocked.Exchange(ref _implicitTlsPortWithSslDisabledWarningLogged, 1) == 0)
+        {
+            _logger.LogWarning(
+                "SMTP is configured for port {Port}, the standard implicit-TLS/SMTPS port, with " +
+                "EnableSsl set to false — the connection will be attempted in plain text and may hang " +
+                "waiting for a greeting that never arrives. If implicit TLS was intended, set EnableSsl " +
+                "to true or SecurityMode to SslOnConnect explicitly.",
+                _settings.Port);
+        }
+
         await smtpClient.ConnectAsync(_settings.Host, _settings.Port, ResolveSecureSocketOptions(), cancellationToken);
 
         if (!string.IsNullOrEmpty(_settings.Username))
@@ -140,10 +154,14 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     }
 
     /// <summary>
-    /// Resets the process-wide blank-username warning gate. Test-only: without this, whichever test
-    /// happens to run first would consume the one-time warning for the rest of the test process.
+    /// Resets the process-wide one-time warning gates. Test-only: without this, whichever test
+    /// happens to run first would consume a warning for the rest of the test process.
     /// </summary>
-    internal static void ResetBlankUsernameWarningForTests() => Interlocked.Exchange(ref _blankUsernameWarningLogged, 0);
+    internal static void ResetWarningGatesForTests()
+    {
+        Interlocked.Exchange(ref _blankUsernameWarningLogged, 0);
+        Interlocked.Exchange(ref _implicitTlsPortWithSslDisabledWarningLogged, 0);
+    }
 
     /// <summary>
     /// Maps <see cref="SmtpSettings"/> to a MailKit <see cref="SecureSocketOptions"/>. When
@@ -173,7 +191,10 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
 
         var mimeMessage = new MimeMessage();
         mimeMessage.From.Add(new MailboxAddress(_settings.DefaultFromName, fromAddress));
-        mimeMessage.To.Add(MailboxAddress.Parse(email.To));
+        // AddRange(InternetAddressList.Parse(...)), not MailboxAddress.Parse — the latter accepts
+        // exactly one mailbox and throws on a comma-separated list, which the old MailMessage.To.Add
+        // string contract allowed.
+        mimeMessage.To.AddRange(InternetAddressList.Parse(email.To));
         mimeMessage.Subject = email.Subject;
 
         var bodyBuilder = new BodyBuilder

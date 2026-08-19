@@ -16,9 +16,9 @@ public class SmtpEmailSenderTests
 {
     public SmtpEmailSenderTests()
     {
-        // The blank-username warning gate is process-wide (static) by design; reset it before every
-        // test so execution order can't determine whether a given test observes the warning.
-        SmtpEmailSender.ResetBlankUsernameWarningForTests();
+        // The one-time warning gates are process-wide (static) by design; reset them before every
+        // test so execution order can't determine whether a given test observes a warning.
+        SmtpEmailSender.ResetWarningGatesForTests();
     }
 
     [Fact]
@@ -336,6 +336,51 @@ public class SmtpEmailSenderTests
     }
 
     [Fact]
+    public async Task SendEmailWithBody_SendSucceedsButDisconnectThrows_DoesNotPropagateAndLogsDisconnectFailure()
+    {
+        // Arrange
+        var logger = Substitute.For<ILogger<SmtpEmailSender>>();
+        var transport = Substitute.For<IMailTransport>();
+        transport.IsConnected.Returns(true);
+        transport.SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>()).Returns("250 OK");
+        transport.DisconnectAsync(true, CancellationToken.None)
+            .Returns(Task.FromException(new IOException("disconnect failed")));
+
+        var sut = new TestableSmtpEmailSender(
+            logger,
+            Options.Create(new SmtpSettings
+            {
+                Host = "smtp.example.com",
+                Username = "user",
+                Password = "pass",
+                DefaultFromAddress = "noreply@example.com"
+            }),
+            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            transport);
+
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        Func<Task> act = () => sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        // The relay already accepted the message — a disconnect failure during cleanup must not be
+        // reported to the caller as the send itself having failed, or a retry would resend mail that
+        // already went out.
+        await act.Should().NotThrowAsync();
+
+        logger.ReceivedCalls().Should().ContainSingle(call =>
+            call.GetMethodInfo().Name == nameof(ILogger.Log) &&
+            (LogLevel)call.GetArguments()[0]! == LogLevel.Warning);
+    }
+
+    [Fact]
     public async Task SendEmailWithBody_SendAndDisconnectBothThrow_PropagatesSendFailureAndLogsDisconnectFailure()
     {
         // Arrange
@@ -381,6 +426,90 @@ public class SmtpEmailSenderTests
         var thrown = await act.Should().ThrowAsync<InvalidOperationException>();
         thrown.Which.Should().BeSameAs(sendException);
 
+        logger.ReceivedCalls().Should().ContainSingle(call =>
+            call.GetMethodInfo().Name == nameof(ILogger.Log) &&
+            (LogLevel)call.GetArguments()[0]! == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_MultipleRecipients_AddsAllRecipients()
+    {
+        // Arrange
+        // Inspect inside Arg.Do — the message is disposed by SendEmailAsync's `using` before control
+        // returns, so reading it afterward throws ObjectDisposedException.
+        var transport = Substitute.For<IMailTransport>();
+        int? recipientCount = null;
+        string? firstAddress = null;
+        string? secondAddress = null;
+        transport.SendAsync(Arg.Do<MimeMessage>(msg =>
+        {
+            recipientCount = msg.To.Count;
+            firstAddress = (msg.To[0] as MailboxAddress)?.Address;
+            secondAddress = (msg.To[1] as MailboxAddress)?.Address;
+        }), Arg.Any<CancellationToken>()).Returns("250 OK");
+
+        var sut = new TestableSmtpEmailSender(
+            Substitute.For<ILogger<SmtpEmailSender>>(),
+            Options.Create(new SmtpSettings
+            {
+                Host = "smtp.example.com",
+                DefaultFromAddress = "noreply@example.com"
+            }),
+            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            transport);
+
+        var email = new EmailWithBody
+        {
+            To = "recipient1@example.com,recipient2@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        recipientCount.Should().Be(2);
+        firstAddress.Should().Be("recipient1@example.com");
+        secondAddress.Should().Be("recipient2@example.com");
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_Port465WithSslDisabled_LogsWarningOnce()
+    {
+        // Arrange
+        var logger = Substitute.For<ILogger<SmtpEmailSender>>();
+        var transport = Substitute.For<IMailTransport>();
+        var sut = new TestableSmtpEmailSender(
+            logger,
+            Options.Create(new SmtpSettings
+            {
+                Host = "smtp.example.com",
+                Port = 465,
+                EnableSsl = false,
+                Username = "user",
+                Password = "pass",
+                DefaultFromAddress = "noreply@example.com"
+            }),
+            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            transport);
+
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        // Sent twice — with only one send this assertion would pass identically whether the gate
+        // works or was deleted, the same reasoning as the blank-username warning test above.
+        await sut.SendEmailAsync(email, CancellationToken.None);
+        await sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
         logger.ReceivedCalls().Should().ContainSingle(call =>
             call.GetMethodInfo().Name == nameof(ILogger.Log) &&
             (LogLevel)call.GetArguments()[0]! == LogLevel.Warning);

@@ -144,6 +144,22 @@ public class TypedResultsBuilderTests
         ((ProblemHttpResult)httpResult.Result).StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
     }
 
+    [Fact]
+    public void ConfigureResults_CriticalErrorWithOkAndProblemHttpResultSignature_ReturnsInternalServerErrorProblem()
+    {
+        // Arrange
+        Result<Source> result = Result.CriticalError("Something went critically wrong.");
+        var resultsBuilder = TypedResultsBuilder
+            .FromResult(result);
+
+        // Act
+        Results<Ok<Source>, ProblemHttpResult> httpResult = resultsBuilder.SetTypedResults<Ok<Source>, ProblemHttpResult>();
+
+        // Assert
+        httpResult.Result.Should().BeOfType<ProblemHttpResult>();
+        ((ProblemHttpResult)httpResult.Result).StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+    }
+
     public record Source(int Data) { }
 
     public record Destination(string Data) { }
