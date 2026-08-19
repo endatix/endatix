@@ -98,6 +98,30 @@ public class ListDataListsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithQuery_PassesSearchToSpecs()
+    {
+        // Arrange
+        _repository.CountAsync(Arg.Any<DataListsSpecifications.ListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        _repository.ListAsync(Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new List<DataListDto>
+            {
+                new(5, "Cities", "Major cities", DateTime.UtcNow, null, true, 1, "en", [], Array.Empty<DataListItemDto>())
+            });
+
+        // Act
+        await _sut.Handle(new ListDataListsQuery(1, 10, Query: "major"), TestContext.Current.CancellationToken);
+
+        // Assert
+        await _repository.Received(1).CountAsync(
+            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersByQuery(spec, "major")),
+            Arg.Any<CancellationToken>());
+        await _repository.Received(1).ListAsync(
+            Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(spec => SpecFiltersByQuery(spec, "major")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_SecondPage_ComputesSkipFromPaging()
     {
         // Arrange
@@ -133,5 +157,17 @@ public class ListDataListsHandlerTests
             && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
 
         return Matches(withLocale) && !Matches(withoutLocale);
+    }
+
+    private static bool SpecFiltersByQuery(ISpecification<DataList> spec, string query)
+    {
+        DataList matching = new(SampleData.TENANT_ID, "Cities", "Major cities");
+        DataList other = new(SampleData.TENANT_ID, "Countries", "ISO codes");
+
+        bool Matches(DataList dataList) =>
+            spec.WhereExpressions.Any()
+            && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
+
+        return Matches(matching) && !Matches(other);
     }
 }
