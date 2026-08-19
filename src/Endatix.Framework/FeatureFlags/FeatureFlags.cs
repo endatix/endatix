@@ -3,6 +3,15 @@ namespace Endatix.Framework.FeatureFlags;
 /// <summary>
 /// Feature flag keys for the Feature Flags system.
 /// </summary>
+/// <remarks>
+/// These values double as the configuration paths under <c>Endatix:FeatureFlags</c> — both
+/// <see cref="Modules.EndatixModuleRegistration.IsFeatureFlagEnabled"/> and Microsoft.FeatureManagement
+/// resolve a flag by looking its name up in that section. They are therefore the
+/// <see cref="FeatureFlagDefinition.ConfigKey"/> of each entry in <see cref="FeatureFlagCatalogue"/>,
+/// and must not be changed: an install setting <c>Endatix:FeatureFlags:ReportingModule</c> would
+/// silently fall back to the default. The kebab-case evaluator keys live in the catalogue instead, and
+/// these constants adopt them only once nothing resolves configuration by flag name.
+/// </remarks>
 public static class FeatureFlags
 {
 
