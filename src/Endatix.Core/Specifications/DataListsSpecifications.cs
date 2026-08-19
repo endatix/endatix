@@ -17,13 +17,9 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListSpec : Specification<DataList>
     {
-        public ListSpec(string? hasLocale = null)
+        public ListSpec(string? hasLocale = null, string? query = null)
         {
-            if (!string.IsNullOrWhiteSpace(hasLocale))
-            {
-                var locale = hasLocale.Trim().ToLowerInvariant();
-                Query.Where(x => x.AvailableLocales.Contains(locale));
-            }
+            ApplyListFilters(Query, hasLocale, query);
 
             Query
                  .OrderByDescending(x => x.CreatedAt)
@@ -36,13 +32,9 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListWithPagingToDtoSpec : Specification<DataList, DataListDto>
     {
-        public ListWithPagingToDtoSpec(PagingParameters pagingParams, string? hasLocale = null)
+        public ListWithPagingToDtoSpec(PagingParameters pagingParams, string? hasLocale = null, string? query = null)
         {
-            if (!string.IsNullOrWhiteSpace(hasLocale))
-            {
-                var locale = hasLocale.Trim().ToLowerInvariant();
-                Query.Where(x => x.AvailableLocales.Contains(locale));
-            }
+            ApplyListFilters(Query, hasLocale, query);
 
             Query
                 .OrderByDescending(x => x.CreatedAt)
@@ -60,6 +52,26 @@ public static class DataListsSpecifications
                 dataList.DefaultLocale,
                 dataList.AvailableLocales,
                 Array.Empty<DataListItemDto>()));
+        }
+    }
+
+    private static void ApplyListFilters(
+        ISpecificationBuilder<DataList> query,
+        string? hasLocale,
+        string? search)
+    {
+        if (!string.IsNullOrWhiteSpace(hasLocale))
+        {
+            var locale = hasLocale.Trim().ToLowerInvariant();
+            query.Where(x => x.AvailableLocales.Contains(locale));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLowerInvariant();
+            query.Where(x =>
+                x.Name.ToLower().Contains(term) ||
+                (x.Description != null && x.Description.ToLower().Contains(term)));
         }
     }
 
@@ -122,6 +134,31 @@ public static class DataListsSpecifications
             Query
                 .Where(x => x.Id == dataListId)
                 .Include(x => x.Items);
+        }
+    }
+
+    /// <summary>
+    /// Projects a data list by ID without loading item rows. <c>ItemsCount</c> is still computed in SQL.
+    /// </summary>
+    public sealed class ByIdWithoutItemsToDtoSpec : SingleResultSpecification<DataList, DataListDto>
+    {
+        public ByIdWithoutItemsToDtoSpec(long dataListId)
+        {
+            Query
+                .Where(x => x.Id == dataListId)
+                .AsNoTracking();
+
+            Query.Select(dataList => new DataListDto(
+                dataList.Id,
+                dataList.Name,
+                dataList.Description,
+                dataList.CreatedAt,
+                dataList.ModifiedAt,
+                dataList.IsActive,
+                dataList.Items.Count,
+                dataList.DefaultLocale,
+                dataList.AvailableLocales,
+                Array.Empty<DataListItemDto>()));
         }
     }
 
