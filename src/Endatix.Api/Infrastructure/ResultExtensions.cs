@@ -18,6 +18,7 @@ public static partial class ResultExtensions
         public const string CONFLICT = "There was a conflict";
         public const string BAD_REQUEST = "There was a problem with your request";
         public const string INTERNAL_SERVER_ERROR = "An unexpected error occurred";
+        public const string SERVICE_UNAVAILABLE = "Service unavailable.";
     }
 
     /// <summary>
@@ -92,6 +93,7 @@ public static partial class ResultExtensions
             ResultStatus.Unauthorized => (StatusCodes.Status401Unauthorized, ResultTitles.UNAUTHORIZED),
             ResultStatus.Forbidden => (StatusCodes.Status403Forbidden, ResultTitles.FORBIDDEN),
             ResultStatus.Error => (StatusCodes.Status500InternalServerError, ResultTitles.INTERNAL_SERVER_ERROR),
+            ResultStatus.Unavailable => (StatusCodes.Status503ServiceUnavailable, ResultTitles.SERVICE_UNAVAILABLE),
             _ => (StatusCodes.Status500InternalServerError, ResultTitles.INTERNAL_SERVER_ERROR)
         };
 

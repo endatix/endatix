@@ -1,5 +1,6 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Tests.Infrastructure;
@@ -125,6 +126,22 @@ public class TypedResultsBuilderTests
 
         // Assert
         action.Should().Throw<InvalidCastException>();
+    }
+
+    [Fact]
+    public void ConfigureResults_UnavailableWithOkAndProblemHttpResultSignature_ReturnsServiceUnavailableProblem()
+    {
+        // Arrange
+        Result<Source> result = Result.Unavailable("Email provider is not configured.");
+        var resultsBuilder = TypedResultsBuilder
+            .FromResult(result);
+
+        // Act
+        Results<Ok<Source>, ProblemHttpResult> httpResult = resultsBuilder.SetTypedResults<Ok<Source>, ProblemHttpResult>();
+
+        // Assert
+        httpResult.Result.Should().BeOfType<ProblemHttpResult>();
+        ((ProblemHttpResult)httpResult.Result).StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
     }
 
     public record Source(int Data) { }

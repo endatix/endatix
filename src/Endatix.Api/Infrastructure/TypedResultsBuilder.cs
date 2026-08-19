@@ -182,6 +182,7 @@ where TResult2 : HttpResults.IResult
             ResultStatus.Unauthorized => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
             ResultStatus.Forbidden => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
             ResultStatus.Error => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
+            ResultStatus.Unavailable => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
             _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
         };
     }
@@ -227,6 +228,7 @@ where TResult2 : HttpResults.IResult
             ResultStatus.Unauthorized => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
             ResultStatus.Forbidden => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
             ResultStatus.Error => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
+            ResultStatus.Unavailable => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
             _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
         };
     }
