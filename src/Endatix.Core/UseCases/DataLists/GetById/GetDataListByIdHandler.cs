@@ -11,6 +11,18 @@ public sealed class GetDataListByIdHandler(IRepository<DataList> repository)
 {
     public async Task<Result<DataListDto>> Handle(GetDataListByIdQuery request, CancellationToken cancellationToken)
     {
+        if (!request.IncludeItems)
+        {
+            var metadataSpec = new DataListsSpecifications.ByIdWithoutItemsToDtoSpec(request.DataListId);
+            DataListDto? metadata = await repository.FirstOrDefaultAsync(metadataSpec, cancellationToken);
+            if (metadata is null)
+            {
+                return Result.NotFound("Data list not found.");
+            }
+
+            return Result.Success(metadata);
+        }
+
         var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
         DataList? dataList = await repository.FirstOrDefaultAsync(spec, cancellationToken);
 

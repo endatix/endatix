@@ -21,7 +21,8 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             Take = request.Take,
             MatchMode = request.MatchMode,
             Locale = request.Locale,
-            IncludeLocales = request.IncludeLocales
+            IncludeLocales = request.IncludeLocales,
+            RequireActive = request.RequireActive
         };
 
         DataListSearchPageResult? searchPage;

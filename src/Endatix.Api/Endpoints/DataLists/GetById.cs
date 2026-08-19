@@ -27,7 +27,7 @@ public sealed class GetById(
         Summary(s =>
         {
             s.Summary = "Get a data list by ID";
-            s.Description = "Gets a data list by its ID, including catalog locales and items.";
+            s.Description = "Gets a data list by its ID, including catalog locales. Pass includeItems=false to omit item rows (use GET .../items for paged search).";
             s.ExampleRequest = new GetDataListRequest { DataListId = 1 };
             s.ResponseExamples[200] = new DataListDetailsModel
             {
@@ -67,7 +67,7 @@ public sealed class GetById(
     /// <inheritdoc />
     public override async Task<Results<Ok<DataListDetailsModel>, ProblemHttpResult>> ExecuteAsync(GetDataListRequest request, CancellationToken ct)
     {
-        GetDataListByIdQuery query = new(request.DataListId);
+        GetDataListByIdQuery query = new(request.DataListId, request.IncludeItems);
         var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
@@ -100,4 +100,9 @@ public sealed class GetDataListRequest
     /// The ID of the data list to get.
     /// </summary>
     public long DataListId { get; init; }
+
+    /// <summary>
+    /// When <see langword="false"/>, item rows are omitted. Defaults to <see langword="true"/> for backward compatibility.
+    /// </summary>
+    public bool IncludeItems { get; init; } = true;
 }
