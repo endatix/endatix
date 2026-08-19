@@ -199,6 +199,9 @@ public class SmtpEmailSenderTests
         };
 
         // Act
+        // Sent twice: with only one send, this assertion would pass identically whether the gate
+        // works or was deleted entirely — a second send is what actually exercises "once".
+        await sut.SendEmailAsync(email, CancellationToken.None);
         await sut.SendEmailAsync(email, CancellationToken.None);
 
         // Assert
@@ -330,6 +333,57 @@ public class SmtpEmailSenderTests
         // possibly-cancelled token here would mask the original SendAsync exception.
         await act.Should().ThrowAsync<InvalidOperationException>();
         await transport.Received(1).DisconnectAsync(true, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_SendAndDisconnectBothThrow_PropagatesSendFailureAndLogsDisconnectFailure()
+    {
+        // Arrange
+        var logger = Substitute.For<ILogger<SmtpEmailSender>>();
+        var transport = Substitute.For<IMailTransport>();
+        transport.IsConnected.Returns(true);
+        var sendException = new InvalidOperationException("send failed");
+        var disconnectException = new IOException("disconnect failed");
+        transport.SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<string>(sendException));
+        transport.DisconnectAsync(true, CancellationToken.None)
+            .Returns(Task.FromException(disconnectException));
+
+        var sut = new TestableSmtpEmailSender(
+            logger,
+            Options.Create(new SmtpSettings
+            {
+                Host = "smtp.example.com",
+                Username = "user",
+                Password = "pass",
+                DefaultFromAddress = "noreply@example.com"
+            }),
+            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            transport);
+
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        Func<Task> act = () => sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        // Username/Password are set above so the blank-username warning path isn't also exercised —
+        // the only Warning-level log expected here is the disconnect-failure one below.
+        // The send failure is the actionable one and must reach the caller unchanged, even though
+        // cleanup (disconnect) also failed — a naive finally would let the disconnect exception
+        // replace it instead.
+        var thrown = await act.Should().ThrowAsync<InvalidOperationException>();
+        thrown.Which.Should().BeSameAs(sendException);
+
+        logger.ReceivedCalls().Should().ContainSingle(call =>
+            call.GetMethodInfo().Name == nameof(ILogger.Log) &&
+            (LogLevel)call.GetArguments()[0]! == LogLevel.Warning);
     }
 
     [Fact]

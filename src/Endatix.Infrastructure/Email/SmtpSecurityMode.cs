@@ -8,7 +8,8 @@ public enum SmtpSecurityMode
     /// <summary>
     /// Derive the mode from <see cref="SmtpSettings.EnableSsl"/> and <see cref="SmtpSettings.Port"/>:
     /// disabled when EnableSsl is false, implicit TLS on port 465, STARTTLS otherwise.
-    /// Reproduces the behavior of the pre-MailKit SmtpClient-based sender.
+    /// Matches the pre-MailKit SmtpClient-based sender for every configuration it could already
+    /// reach; port 465 is new behavior — System.Net.Mail could not do implicit TLS at all.
     /// </summary>
     Auto = 0,
 

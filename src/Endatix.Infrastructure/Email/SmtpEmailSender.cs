@@ -68,6 +68,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         using var smtpClient = CreateTransport();
         using var mimeMessage = CreateMimeMessage(email);
 
+        Exception? primaryException = null;
         try
         {
             await ConnectAndAuthenticateAsync(smtpClient, cancellationToken);
@@ -78,13 +79,27 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
             _logger.LogInformation("SMTP email sent successfully to {To} with subject {Subject}",
                 SensitiveValue.Email(email.To), email.Subject);
         }
+        catch (Exception exception)
+        {
+            primaryException = exception;
+            throw;
+        }
         finally
         {
-            // CancellationToken.None: an already-cancelled token here would make the cleanup itself
-            // throw, masking whatever exception (if any) is already propagating from the try block.
-            if (smtpClient.IsConnected)
+            try
             {
-                await smtpClient.DisconnectAsync(true, CancellationToken.None);
+                // CancellationToken.None: an already-cancelled token here would make the cleanup
+                // itself throw, masking whatever exception is already propagating from the try block.
+                if (smtpClient.IsConnected)
+                {
+                    await smtpClient.DisconnectAsync(true, CancellationToken.None);
+                }
+            }
+            catch (Exception cleanupException) when (primaryException is not null)
+            {
+                // A send/connect failure is already in flight and more diagnostically useful than a
+                // cleanup failure — log the latter instead of letting it replace the former.
+                _logger.LogWarning(cleanupException, "SMTP disconnect failed after an earlier SMTP failure.");
             }
         }
     }
