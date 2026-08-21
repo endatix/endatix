@@ -152,11 +152,28 @@ public class ListDataListsHandlerTests
         DataList withoutLocale = new(SampleData.TENANT_ID, "WithoutLocale");
         withoutLocale.AddCulture(CultureCode.Parse("fr"));
 
-        bool Matches(DataList dataList) =>
-            spec.WhereExpressions.Any()
-            && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
+        return Matches(spec, withLocale) && !Matches(spec, withoutLocale);
+    }
 
-        return Matches(withLocale) && !Matches(withoutLocale);
+    private static bool SpecFiltersByAnyLocale(ISpecification<DataList> spec, params string[] locales)
+    {
+        DataList matching = new(SampleData.TENANT_ID, "Matching");
+        matching.AddCulture(CultureCode.Parse(locales[^1]));
+
+        DataList other = new(SampleData.TENANT_ID, "Other");
+        other.AddCulture(CultureCode.Parse("fr"));
+
+        return Matches(spec, matching) && !Matches(spec, other);
+    }
+
+    private static bool SpecFiltersByDefaultLocale(ISpecification<DataList> spec, string defaultLocale)
+    {
+        DataList matchingDefault = new(SampleData.TENANT_ID, "DefaultOnly", defaultLocale: defaultLocale);
+
+        DataList otherDefault = new(SampleData.TENANT_ID, "OtherDefault", defaultLocale: "fr");
+        otherDefault.AddCulture(CultureCode.Parse("de"));
+
+        return Matches(spec, matchingDefault) && !Matches(spec, otherDefault);
     }
 
     private static bool SpecFiltersBySearch(ISpecification<DataList> spec, string search)
@@ -176,4 +193,8 @@ public class ListDataListsHandlerTests
 
         return Matches(matchingDescription) && Matches(matchingName) && !Matches(other);
     }
+
+    private static bool Matches(ISpecification<DataList> spec, DataList dataList) =>
+        spec.WhereExpressions.Any()
+        && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
 }
