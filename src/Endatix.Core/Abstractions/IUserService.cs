@@ -73,4 +73,19 @@ public interface IUserService
     /// Clears a user's local lockout in the current tenant.
     /// </summary>
     Task<Result> UnlockUserAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tenant ids the user may switch into: last-used home tenant plus tenants with a scoped role assignment.
+    /// </summary>
+    Task<Result<IReadOnlyList<long>>> ListMembershipTenantIdsAsync(
+        long userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets <c>AppUser.TenantId</c> to a tenant the user already belongs to (last-used / active tenant).
+    /// </summary>
+    Task<Result<User>> SetActiveTenantAsync(
+        long userId,
+        long tenantId,
+        CancellationToken cancellationToken = default);
 }

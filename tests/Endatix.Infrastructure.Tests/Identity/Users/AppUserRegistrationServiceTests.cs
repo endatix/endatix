@@ -393,4 +393,27 @@ public class AppUserRegistrationServiceTests
         _emailTemplateService.DidNotReceive().CreateVerificationEmail(email, token);
         await _emailSender.Received(1).SendEmailAsync(emailWithTemplate, cancellationToken);
     }
+
+    [Fact]
+    public async Task RegisterInvitedUserAsync_ExistingUserInOtherTenant_KeepsLastUsedTenant()
+    {
+        var existingUser = new AppUser
+        {
+            Id = 5,
+            TenantId = 10,
+            EmailConfirmed = true,
+            UserName = "user@example.com",
+            Email = "user@example.com"
+        };
+
+        _userManager.SupportsUserEmail.Returns(true);
+        _userManager.FindByEmailAsync("user@example.com").Returns(existingUser);
+
+        var result = await _sut.RegisterInvitedUserAsync("user@example.com", 20, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.TenantId.Should().Be(10);
+        await _userManager.DidNotReceive().UpdateAsync(Arg.Any<AppUser>());
+        await _userManager.DidNotReceive().CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>());
+    }
 }

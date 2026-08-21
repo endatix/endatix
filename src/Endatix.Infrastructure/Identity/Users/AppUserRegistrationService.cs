@@ -155,22 +155,29 @@ public sealed class AppUserRegistrationService(
         bool sendInvitationEmail,
         CancellationToken cancellationToken)
     {
-        if (existingUser.TenantId > 0 && existingUser.TenantId != tenantId)
+        if (existingUser.TenantId == tenantId)
         {
-            return Result.Invalid(new ValidationError(EmailAlreadyRegisteredMessage));
+            if (existingUser.EmailConfirmed)
+            {
+                return Result.Invalid(new ValidationError(UserAlreadyBelongsToTenantMessage));
+            }
+
+            await SendAccountEmailAsync(existingUser.Id, email, sendInvitationEmail, cancellationToken);
+            return Result.Success(existingUser.ToUserEntity());
         }
 
-        if (existingUser.TenantId != tenantId)
+        if (existingUser.TenantId == 0)
         {
             return await AttachExistingUserToTenantAsync(existingUser, email, tenantId, sendInvitationEmail, cancellationToken);
         }
 
-        if (existingUser.EmailConfirmed)
+        // Already a member of another tenant: keep last-used TenantId. Invite assigns a tenant-scoped role.
+
+        if (!existingUser.EmailConfirmed)
         {
-            return Result.Invalid(new ValidationError(UserAlreadyBelongsToTenantMessage));
+            await SendAccountEmailAsync(existingUser.Id, email, sendInvitationEmail, cancellationToken);
         }
 
-        await SendAccountEmailAsync(existingUser.Id, email, sendInvitationEmail, cancellationToken);
         return Result.Success(existingUser.ToUserEntity());
     }
 
