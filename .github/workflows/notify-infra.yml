@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   notify:
-    name: Pin api ${{ github.event.release.tag_name }} in infra
+    name: Pin endatix-api ${{ github.event.release.tag_name }} in infra
     runs-on: ubuntu-latest
     # Matches the release pipeline's environment so the Infisical machine identity
     # authenticates on the same OIDC subject.
@@ -76,6 +76,6 @@ jobs:
         run: |
           gh workflow run chart-bump.yml \
             --repo ${{ github.repository_owner }}/endatix-infra \
-            --field service=api \
+            --field service=endatix-api \
             --field version="$VERSION"
-          echo "Asked endatix-infra to pin api $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "Asked endatix-infra to pin endatix-api $VERSION" >> "$GITHUB_STEP_SUMMARY"
