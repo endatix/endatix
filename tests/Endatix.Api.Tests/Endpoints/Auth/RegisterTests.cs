@@ -22,17 +22,14 @@ public class RegisterTests
     [Fact]
     public async Task ExecuteAsync_WithValidRequest_ReturnsOkResult()
     {
-        // Arrange
         var request = new RegisterRequest("user@example.com", "Password123!", "Password123!");
         var successResult = Result.Success();
 
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
             .Returns(successResult);
 
-        // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
-        // Assert
         var okResponse = response!.Result as Ok<RegisterResponse>;
 
         okResponse.Should().NotBeNull();
@@ -42,16 +39,14 @@ public class RegisterTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithInvalidRequest_ThrowsError()
+    public async Task ExecuteAsync_WithInvalidRequest_ReturnsProblem()
     {
-        // Arrange
         var request = new RegisterRequest("invalid@example.com", "WeakPass", "WeakPass");
         var errorResult = Result.Invalid();
 
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
-        // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
@@ -61,5 +56,33 @@ public class RegisterTests
         problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
         problemResult!.ProblemDetails.Status.Should().Be(StatusCodes.Status400BadRequest);
         problemResult!.ProblemDetails.Title.Should().Be("Registration failed. Please check your input and try again.");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SelfRegistrationDisabled_ReturnsForbidden()
+    {
+        var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR8vNw");
+        _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Forbidden("Self-registration is not enabled for this tenant."));
+
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        var problem = response!.Result as ProblemHttpResult;
+        problem.Should().NotBeNull();
+        problem!.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_UnknownTenantSlug_ReturnsNotFound()
+    {
+        var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR8vNw");
+        _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.NotFound("Tenant not found."));
+
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        var problem = response!.Result as ProblemHttpResult;
+        problem.Should().NotBeNull();
+        problem!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 }

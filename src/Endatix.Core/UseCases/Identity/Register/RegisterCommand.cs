@@ -5,7 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.Identity.Register;
 
-public record RegisterCommand(string Email, string Password) : ICommand<Result<User>>
+public record RegisterCommand(string Email, string Password, string? TenantSlug = null) : ICommand<Result<User>>
 {
     [Sensitive(SensitivityType.Email)]
     public string Email { get; init; } = Email;

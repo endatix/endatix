@@ -5,7 +5,7 @@ namespace Endatix.Api.Endpoints.Auth;
 /// <summary>
 /// Represents the request for the "/register" endpoint, handled by the <see cref="Register.ExecuteAsync"/> method.
 /// </summary>
-public record RegisterRequest(string Email, string Password, string ConfirmPassword)
+public record RegisterRequest(string Email, string Password, string ConfirmPassword, string? TenantSlug = null)
 {
     /// <summary>
     /// The email address of the user.
@@ -24,4 +24,9 @@ public record RegisterRequest(string Email, string Password, string ConfirmPassw
     /// </summary>
     [Sensitive(SensitivityType.Secret)]
     public string ConfirmPassword { get; init; } = ConfirmPassword;
+
+    /// <summary>
+    /// Optional opaque tenant public id. When set, registers into that tenant if self-registration is enabled.
+    /// </summary>
+    public string? TenantSlug { get; init; } = TenantSlug;
 }

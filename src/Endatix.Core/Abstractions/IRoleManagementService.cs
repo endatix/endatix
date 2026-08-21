@@ -11,13 +11,18 @@ namespace Endatix.Core.Abstractions;
 public interface IRoleManagementService
 {
     /// <summary>
-    /// Assigns a role to a user.
+    /// Assigns a role to a user in the current tenant context.
     /// </summary>
     /// <param name="userId">The ID of the user.</param>
     /// <param name="roleName">The name of the role to assign.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A Result indicating success or failure.</returns>
     Task<Result> AssignRoleToUserAsync(long userId, string roleName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Assigns a role to a user as a tenant-scoped copy when <paramref name="tenantId"/> is greater than zero.
+    /// </summary>
+    Task<Result> AssignRoleToUserAsync(long userId, string roleName, long tenantId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Removes a role from a user.

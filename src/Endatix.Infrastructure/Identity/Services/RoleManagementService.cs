@@ -62,6 +62,12 @@ public sealed class RoleManagementService : IRoleManagementService
     /// <inheritdoc/>
     public async Task<Result> AssignRoleToUserAsync(long userId, string roleName, CancellationToken cancellationToken = default)
     {
+        return await AssignRoleToUserAsync(userId, roleName, _tenantContext.TenantId, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<Result> AssignRoleToUserAsync(long userId, string roleName, long tenantId, CancellationToken cancellationToken = default)
+    {
         var inputGuard = ValidateRoleMutationInput(userId, roleName);
         if (!inputGuard.IsSuccess)
         {
