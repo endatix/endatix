@@ -42,6 +42,19 @@ public static class TenantSpecifications
     }
 
     /// <summary>
+    /// Loads live tenants matching the given ids. Used for the current user's membership list.
+    /// </summary>
+    public sealed class ByIdsSpec : Specification<Tenant>
+    {
+        public ByIdsSpec(IReadOnlyCollection<long> tenantIds)
+        {
+            Query
+                .IgnoreQueryFilters()
+                .Where(tenant => tenantIds.Contains(tenant.Id) && !tenant.IsDeleted);
+        }
+    }
+
+    /// <summary>
     /// Loads settings for platform-scoped edits (tracked).
     /// </summary>
     public sealed class SettingsByTenantIdSpec : Specification<TenantSettings>, ISingleResultSpecification<TenantSettings>
