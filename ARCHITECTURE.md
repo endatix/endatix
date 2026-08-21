@@ -472,35 +472,44 @@ documented lines.
 
 ## Multi-tenancy (platform tenants)
 
-Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off → mutating `/admin/tenants` endpoints return 404.
+Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off → mutating `/admin/tenants` and assume-tenant endpoints return 404 rather than advertising the feature.
 
 **Isolation vs routing**
 
 - **Authorization** is the signed JWT `tid` (session tenant). Optional `act` marks an assume-tenant session. Path segments, headers, and query strings are never trusted for data access.
-- **`Tenant.ShortUrl`** is an **opaque 8-character lowercase alphanumeric id** (alphabet `a-z0-9`, CSPRNG via `IShortUrlGenerator`, letter-heavy). It is unique, immutable, and used only on unauthenticated routes such as `/t/{shortUrl}/signin`. It is **not** derived from the tenant name and is not client-supplied. Inbound lookup is folded with `ShortUrl.Normalize`, then compared exactly.
-- Numeric `Tenant.Id` stays internal (JWT, FKs, admin APIs). Public lookup must not return it.
+- **`Tenant.ShortUrl`** is an **opaque 8-character lowercase alphanumeric id** (alphabet `a-z0-9`, CSPRNG via `IShortUrlGenerator`, letter-heavy). It is unique, immutable, and used only on unauthenticated routes such as `/t/{shortUrl}/signin` and `/t/{shortUrl}/register`. It is **not** derived from the tenant name and is not client-supplied. Inbound lookup is folded with `ShortUrl.Normalize`, then compared exactly.
+- Numeric `Tenant.Id` stays internal (JWT, FKs, admin APIs). `GET /public/tenants/{shortUrl}` must not return it.
+- Forms can reuse `IShortUrlGenerator` later with a per-entity `Form.ShortUrl` column. A polymorphic URLs table is deferred until vanity aliases or redirects are required.
 
 **Create/edit**
 
 - PlatformAdmin `POST /admin/tenants` provisions `Tenant` + `TenantSettings` in one transaction and assigns the public id server-side (unique-index retry).
 - `PATCH /admin/tenants/{id}` may change name, description, and self-registration policy. The short URL cannot change.
-- Creating a tenant does **not** add the PlatformAdmin as a member of that tenant.
+- Creating a tenant does **not** add the PlatformAdmin as a member of that tenant. A user belongs to **one** tenant (`AppUser.TenantId`). Multi-tenant membership is a later Identity table, not cloned roles.
 
-**JWT session** (`AccessTokenIssueOptions` / `AccessTokenSession`). Refresh remints from the **token** (`tid` + optional `act`), not from `AppUser.TenantId`. One mint path; `act` is not impersonation (`sub` stays the admin). Outbox `tenant.context.changed` with kinds `assumed` / `exited` / `switched`.
+**JWT session** (`AccessTokenIssueOptions` / `AccessTokenSession`). Refresh remints from the **token** (`tid` + optional `act`), not from `AppUser.TenantId`. One mint path; `act` is not impersonation (`sub` stays the admin). Outbox `tenant.context.changed` with kinds `assumed` / `exited`. Kind `switched` is reserved for a future membership product.
 
 | Session | `sub` | `tid` | `act` | Status |
 |---------|-------|-------|-------|--------|
-| Login / membership switch | member | that tenant | absent | switch in a later PR; refresh must keep `tid` |
-| Assume tenant | **admin** | target | admin | this wave; not impersonation |
+| Login | member | home tenant | absent | refresh keeps session `tid` |
+| Assume tenant | **admin** | target | admin | not impersonation |
 | On-behalf / login-as-customer | **customer** | customer tenant | support plus a **new claim** (do not reuse `act` alone) | **not implemented** |
 
-Overloading `act` so `sub` is the customer would break assume-authz (`act == sub`) and “exit assume before switch.” Support until then is assume-tenant (see the tenant as admin).
+Overloading `act` so `sub` is the customer would break assume-authz (`act == sub`). Support until then is assume-tenant (see the tenant as admin).
 
 `POST /auth/assume-tenant` mints the assumed session, `POST /auth/exit-assume` returns to the home tenant. Both require `AuthorizationPolicies.PlatformAdminAccess`, sit behind `MultiTenancyGate` (off → 404), and answer with `TenantSessionResponse`. Assumed access tokens expire after `AssumeTenantSession.AccessExpiryMinutes`; refresh keeps that shorter lifetime while `act` is present. Sessions do **not** nest — assuming from an assumed session is a 400; exit first. Neither handler writes membership; the audit trail is `tenant.context.changed` raised on the assumed tenant. Refresh persistence failure is returned as an infrastructure error (same as login), not a silent success.
 
 `Actions.Platform.AssumeTenants` is reserved and **not catalog-seeded** — add an AppIdentity migration before any policy requires it. `Actions.Platform.ImpersonateUsers` is catalog-seeded but unused.
 
-**Later:** public GET by short URL + tenant-scoped register. Forms can reuse `IShortUrlGenerator` with a `Form.ShortUrl` column; a polymorphic URLs table is deferred until vanity aliases or redirects are required.
+**Assume-tenant vs impersonation**
+
+- **Assume** (`POST /auth/assume-tenant`): PlatformAdmin enters a tenant without becoming a member. JWT `tid` is the target; `act` is the actor. Short-lived access token. Must not appear in the tenant user directory. Exit with `POST /auth/exit-assume`.
+- **Impersonation** (`platform.users.impersonate`) stays reserved. Assume is not “login as user X”.
+
+**Self-registration**
+
+- Default **off**. `GET /public/tenants/{shortUrl}` returns `{ shortUrl, name, selfRegistrationEnabled, allowedAuthProviders }` (no numeric id). Unknown, deleted, or name-like values → 404. Rate-limited; successful lookups may be cached briefly; 404s are not.
+- `POST /auth/register` without `tenantSlug` still creates an unattached user (`TenantId = 0`) for global `/create-account`. With `tenantSlug`: unknown → 404; self-reg off → 403; email already registered → validation error; otherwise register into that tenant and assign `DefaultRegistrationRoleName` as the shared system role (not a cloned copy). PlatformAdmin and Public are not allowed as defaults.
 
 ---
 
@@ -512,4 +521,5 @@ Overloading `act` so `sub` is the customer would break assume-authz (`act == sub
 | 2026-07 | Domain events: evaluate-before-mutate on aggregates; reporting triggers (`FormDefinitionUpdatedEvent`, `SubmissionUpdatedEvent`) live on entities, not handlers. Documented in [Domain and integration events](#domain-and-integration-events).                                                                                                                                                                                                                     |
 | 2026-08 | Observability: three signals, one mechanism. The OpenTelemetry SDK owns logs, metrics and traces; `OTEL_*` environment variables are authoritative over `appsettings.json`; telemetry is off until an endpoint is configured. Serilog is removed as the logging pipeline and retained only as the rotation implementation behind an optional, off-by-default file provider. **Endatix ships no vendor exporters** — OTLP only. See [Observability](#observability). |
 | 2026-08 | Tenant public id: keep `Tenant.ShortUrl` as a unique immutable `varchar(8)` column; generate with `IShortUrlGenerator` (CSPRNG, `a-z0-9` alphabet, letter-heavy). Do not derive from name. JWT `tid` remains the isolation boundary. See [Multi-tenancy (platform tenants)](#multi-tenancy-platform-tenants). |
-| 2026-09 | JWT session is `tid` + optional `act`. Refresh copies that session. `tenant.context.changed` covers assume, exit, and membership switch. Impersonation (`sub` = customer) is a later claim, not a second token service. See [JWT session](#multi-tenancy-platform-tenants). |
+| 2026-08 | Tenant access: one home `AppUser.TenantId`. Assume-tenant uses JWT `act` and does not write membership. `platform.users.impersonate` stays reserved. Self-reg is opt-in per tenant via opaque public id. Multi-tenant membership is a later Identity table. |
+| 2026-09 | JWT session is `tid` + optional `act`. Refresh copies that session. `tenant.context.changed` covers assume and exit. Impersonation (`sub` = customer) is a later claim, not a second token service. See [JWT session](#multi-tenancy-platform-tenants). |
