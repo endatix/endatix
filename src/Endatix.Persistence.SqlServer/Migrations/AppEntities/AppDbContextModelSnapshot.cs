@@ -816,7 +816,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -829,7 +830,16 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Tenants_Slug");
 
                     b.ToTable("Tenants", (string)null);
                 });
@@ -839,8 +849,23 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("AllowSelfRegistration")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("AllowedAuthProviderKeysJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("CustomExportsJson")
                         .HasColumnType("json");
+
+                    b.Property<string>("DefaultRegistrationRoleName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("Respondent");
 
                     b.Property<bool>("IsSubmissionTokenValidAfterCompletion")
                         .ValueGeneratedOnAdd()

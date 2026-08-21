@@ -28,8 +28,8 @@ public sealed class ListTests
         DateTime createdAt = new(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc);
         IReadOnlyList<PlatformTenantListItem> tenants =
         [
-            new(1, "Acme", "Primary tenant", createdAt, null, 3, 12),
-            new(2, "Beta", null, createdAt, createdAt, 0, 1),
+            new(1, "Acme", "acme", "Primary tenant", createdAt, null, 3, 12, true),
+            new(2, "Beta", "beta", null, createdAt, createdAt, 0, 1, false),
         ];
         var result = Result.Success(
             new Paged<PlatformTenantListItem>(1, 10, 2, 1, tenants));

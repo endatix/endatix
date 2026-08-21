@@ -98,6 +98,9 @@ public class UrlSlugNormalizerTests
     [Theory]
     [InlineData("templates", true)]
     [InlineData("share", true)]
+    [InlineData("admin", true)]
+    [InlineData("t", true)]
+    [InlineData("signin", true)]
     [InlineData("custom-name", false)]
     public async Task IsReserved_ReservedSlug_ReturnsExpected(string slug, bool expected)
     {

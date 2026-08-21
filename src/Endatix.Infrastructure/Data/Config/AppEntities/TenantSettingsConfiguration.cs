@@ -28,6 +28,18 @@ public class TenantSettingsConfiguration : IEntityTypeConfiguration<TenantSettin
             .IsRequired()
             .HasDefaultValue(false);
 
+        builder.Property(ts => ts.AllowSelfRegistration)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(ts => ts.AllowedAuthProviderKeysJson)
+            .IsRequired(false);
+
+        builder.Property(ts => ts.DefaultRegistrationRoleName)
+            .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
+            .IsRequired()
+            .HasDefaultValue(TenantSettings.DefaultRegistrationRole);
+
         builder.Property(ts => ts.ModifiedAt)
             .IsRequired(false);
 

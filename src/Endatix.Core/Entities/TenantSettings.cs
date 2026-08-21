@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -11,12 +12,16 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public sealed class TenantSettings : IAggregateRoot, ITenantOwned
 {
+    public const string DefaultRegistrationRole = "Respondent";
+
     private string? _slackSettingsJson;
     private SlackSettings? _slackSettings;
     private string? _webHookSettingsJson;
     private WebHookConfiguration? _webHookSettings;
     private string? _customExportsJson;
     private List<CustomExportConfiguration>? _customExports;
+    private string? _allowedAuthProviderKeysJson;
+    private List<string>? _allowedAuthProviderKeys;
 
     private TenantSettings() { } // For EF Core
 
@@ -31,6 +36,8 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         WebHookSettingsJson = webHookSettingsJson;
         CustomExportsJson = customExportsJson;
         RequireFolderAssignment = false;
+        AllowSelfRegistration = false;
+        DefaultRegistrationRoleName = DefaultRegistrationRole;
     }
 
     /// <summary>
@@ -55,6 +62,33 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     /// When true, forms and templates must be assigned to a folder on create/update.
     /// </summary>
     public bool RequireFolderAssignment { get; private set; }
+
+    /// <summary>
+    /// When true, anonymous users may self-register via the tenant slug URL.
+    /// </summary>
+    public bool AllowSelfRegistration { get; private set; }
+
+    /// <summary>
+    /// JSON array of host auth provider keys allowed for self-registration. Empty means none.
+    /// </summary>
+    public string? AllowedAuthProviderKeysJson
+    {
+        get => _allowedAuthProviderKeysJson;
+        private set
+        {
+            _allowedAuthProviderKeysJson = value;
+            _allowedAuthProviderKeys = null;
+        }
+    }
+
+    [NotMapped]
+    public IReadOnlyList<string> AllowedAuthProviderKeys =>
+        _allowedAuthProviderKeys ??= DeserializeAllowedAuthProviderKeys();
+
+    /// <summary>
+    /// Persisted system or custom role assigned on self-registration. Default <see cref="DefaultRegistrationRole"/>.
+    /// </summary>
+    public string DefaultRegistrationRoleName { get; private set; } = DefaultRegistrationRole;
 
     public string? SlackSettingsJson
     {
@@ -171,6 +205,75 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     {
         RequireFolderAssignment = require;
         ModifiedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Updates self-registration policy. Rejects forbidden default roles (PlatformAdmin, Public, non-persisted).
+    /// </summary>
+    public void UpdateSelfRegistrationPolicy(
+        bool allowSelfRegistration,
+        IReadOnlyList<string>? allowedAuthProviderKeys,
+        string defaultRegistrationRoleName)
+    {
+        Guard.Against.NullOrWhiteSpace(defaultRegistrationRoleName, nameof(defaultRegistrationRoleName));
+        EnsureAllowedDefaultRegistrationRole(defaultRegistrationRoleName);
+
+        AllowSelfRegistration = allowSelfRegistration;
+        DefaultRegistrationRoleName = defaultRegistrationRoleName.Trim();
+        var keys = (allowedAuthProviderKeys ?? [])
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .Select(key => key.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _allowedAuthProviderKeys = keys;
+        AllowedAuthProviderKeysJson = keys.Count == 0 ? null : JsonSerializer.Serialize(keys);
+        ModifiedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Returns true when the role name may be used as the default self-registration role.
+    /// </summary>
+    public static bool IsAllowedDefaultRegistrationRole(string roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName))
+        {
+            return false;
+        }
+
+        if (SystemRole.IsPlatformAdminRoleName(roleName) ||
+            string.Equals(roleName, SystemRole.Public.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var systemRole = SystemRole.AllSystemRoles
+            .FirstOrDefault(role => string.Equals(role.Name, roleName, StringComparison.OrdinalIgnoreCase));
+        if (systemRole is not null && !systemRole.IsPersisted)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void EnsureAllowedDefaultRegistrationRole(string roleName)
+    {
+        if (!IsAllowedDefaultRegistrationRole(roleName))
+        {
+            throw new ArgumentException(
+                $"Default registration role '{roleName}' is not allowed. Use a persisted tenant role (default: {DefaultRegistrationRole}).",
+                nameof(roleName));
+        }
+    }
+
+    private List<string> DeserializeAllowedAuthProviderKeys()
+    {
+        if (string.IsNullOrEmpty(AllowedAuthProviderKeysJson))
+        {
+            return [];
+        }
+
+        return JsonSerializer.Deserialize<List<string>>(AllowedAuthProviderKeysJson) ?? [];
     }
 
     private SlackSettings DeserializeSlackSettings()

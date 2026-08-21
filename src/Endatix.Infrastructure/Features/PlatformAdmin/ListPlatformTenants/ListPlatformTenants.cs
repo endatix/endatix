@@ -31,6 +31,7 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             var trimmedSearch = search.Trim();
             tenantsQuery = tenantsQuery.Where(tenant =>
                 tenant.Name.Contains(trimmedSearch) ||
+                tenant.Slug.Contains(trimmedSearch) ||
                 (tenant.Description != null && tenant.Description.Contains(trimmedSearch)));
         }
 
@@ -46,9 +47,11 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             {
                 tenant.Id,
                 tenant.Name,
+                tenant.Slug,
                 tenant.Description,
                 tenant.CreatedAt,
-                tenant.ModifiedAt
+                tenant.ModifiedAt,
+                SelfRegistrationEnabled = tenant.Settings != null && tenant.Settings.AllowSelfRegistration
             })
             .ToListAsync(cancellationToken);
 
@@ -75,11 +78,13 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             .Select(tenant => new PlatformTenantListItem(
                 tenant.Id,
                 tenant.Name,
+                tenant.Slug,
                 tenant.Description,
                 tenant.CreatedAt,
                 tenant.ModifiedAt,
                 formCountsByTenantId.GetValueOrDefault(tenant.Id),
-                submissionCountsByTenantId.GetValueOrDefault(tenant.Id)))
+                submissionCountsByTenantId.GetValueOrDefault(tenant.Id),
+                tenant.SelfRegistrationEnabled))
             .ToList();
 
         return Result.Success(Paged<PlatformTenantListItem>.FromSkipAndTake(
