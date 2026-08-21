@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.DataLists;
 using Endatix.Core.UseCases.DataLists.GetById;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.GetById;
@@ -97,6 +98,34 @@ public class GetDataListByIdHandlerTests
         result.Value!.ItemsCount.Should().Be(0);
         result.Value.Items.Should().BeEmpty();
         result.Value.AvailableLocales.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_IncludeItemsFalse_ReturnsMetadataWithoutLoadingItems()
+    {
+        // Arrange
+        DataListDto dto = new(7, "Cities", "Major cities", DateTime.UtcNow, null, true, 2, "en", ["es"], Array.Empty<DataListItemDto>());
+        _repository.FirstOrDefaultAsync(
+                Arg.Any<DataListsSpecifications.ByIdWithoutItemsToDtoSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(dto);
+
+        // Act
+        var result = await _sut.Handle(new GetDataListByIdQuery(7, includeItems: false), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.Id.Should().Be(7);
+        result.Value.ItemsCount.Should().Be(2);
+        result.Value.Items.Should().BeEmpty();
+        result.Value.AvailableLocales.Should().Equal("es");
+
+        await _repository.Received(1).FirstOrDefaultAsync(
+            Arg.Any<DataListsSpecifications.ByIdWithoutItemsToDtoSpec>(),
+            Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().FirstOrDefaultAsync(
+            Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Theory]

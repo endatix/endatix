@@ -4,7 +4,7 @@ using Endatix.Core.UseCases.DataLists.Search;
 namespace Endatix.Core.Abstractions.Repositories;
 
 /// <summary>
-/// Criteria for a public data list item search.
+/// Criteria for a paged data list item search (public runtime or Hub management).
 /// </summary>
 public sealed record DataListSearchCriteria
 {
@@ -42,4 +42,10 @@ public sealed record DataListSearchCriteria
     /// Additional locales to search and project. Locales outside the culture catalog are ignored.
     /// </summary>
     public IReadOnlyList<CultureCode> IncludeLocales { get; init; } = [];
+
+    /// <summary>
+    /// When <see langword="true"/> (default), inactive lists are treated as missing.
+    /// Management item search sets this to <see langword="false"/>.
+    /// </summary>
+    public bool RequireActive { get; init; } = true;
 }

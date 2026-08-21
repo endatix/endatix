@@ -21,7 +21,9 @@ public sealed class DataListRepository(
     {
         var dataList = await dbContext.DataLists
             .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == criteria.DataListId && d.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(
+                d => d.Id == criteria.DataListId && (!criteria.RequireActive || d.IsActive),
+                cancellationToken);
 
         if (dataList is null)
         {
