@@ -8,7 +8,26 @@ namespace Endatix.Core.UseCases.DataLists.List;
 /// </summary>
 /// <param name="Page">The page number for pagination.</param>
 /// <param name="PageSize">The number of items per page for pagination.</param>
-/// <param name="HasLocale">Optional culture or comma-separated OR list; matches AvailableLocales or DefaultLocale.</param>
+/// <param name="HasLocale">
+/// Optional culture or comma-separated OR list (e.g. <c>es</c> or <c>es,de</c>).
+/// Matches AvailableLocales or DefaultLocale.
+/// </param>
 /// <param name="Search">Optional name/description search (case-insensitive contains).</param>
-public sealed record ListDataListsQuery(int? Page, int? PageSize, string? HasLocale = null, string? Search = null)
+/// <param name="SortBy">Optional sort field. Defaults to <see cref="DataListListSortBy.CreatedAt"/>.</param>
+/// <param name="SortDescending">When true, sort descending (default).</param>
+/// <param name="CreatedFrom">Inclusive UTC start of created-at day filter.</param>
+/// <param name="CreatedTo">Inclusive UTC end of created-at day filter (start of next day exclusive).</param>
+/// <param name="ModifiedFrom">Inclusive UTC start of modified-at day filter.</param>
+/// <param name="ModifiedTo">Inclusive UTC end of modified-at day filter (start of next day exclusive).</param>
+public sealed record ListDataListsQuery(
+    int? Page,
+    int? PageSize,
+    string? HasLocale = null,
+    string? Search = null,
+    DataListListSortBy SortBy = DataListListSortBy.CreatedAt,
+    bool SortDescending = true,
+    DateTime? CreatedFrom = null,
+    DateTime? CreatedTo = null,
+    DateTime? ModifiedFrom = null,
+    DateTime? ModifiedTo = null)
     : IQuery<Result<Paged<DataListDto>>>;

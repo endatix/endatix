@@ -17,4 +17,11 @@ public interface IDataListRepository
     Task<DataListSearchPageResult?> SearchItemsAsync(
         DataListSearchCriteria criteria,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns distinct culture codes from tenant data lists
+    /// (<c>DefaultLocale</c> ∪ <c>AvailableLocales</c>), sorted ascending.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListDistinctLocalesAsync(
+        CancellationToken cancellationToken = default);
 }
