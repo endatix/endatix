@@ -840,8 +840,8 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
                     b.Property<string>("Slug")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)");
 
                     b.HasKey("Id");
 

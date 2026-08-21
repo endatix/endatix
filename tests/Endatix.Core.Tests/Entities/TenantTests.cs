@@ -5,73 +5,60 @@ namespace Endatix.Core.Tests.Entities;
 
 public class TenantTests
 {
-    [Fact]
-    public void Constructor_ValidNameAndSlug_SetsProperties()
-    {
-        // Arrange & Act
-        var tenant = new Tenant("Acme Surveys", "acme-surveys", "Demo tenant");
+    private const string ValidSlug = "xK9mP2qR8vNw";
 
-        // Assert
+    [Fact]
+    public void Constructor_ValidNameAndPublicId_SetsProperties()
+    {
+        var tenant = new Tenant("Acme Surveys", ValidSlug, "Demo tenant");
+
         tenant.Name.Should().Be("Acme Surveys");
-        tenant.Slug.Should().Be("acme-surveys");
+        tenant.Slug.Should().Be(ValidSlug);
         tenant.Description.Should().Be("Demo tenant");
     }
 
     [Fact]
     public void Constructor_EmptyName_ThrowsArgumentException()
     {
-        // Arrange & Act
-        var act = () => new Tenant("", "acme");
+        var act = () => new Tenant("", ValidSlug);
 
-        // Assert
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void Constructor_ReservedSlug_ThrowsArgumentException()
+    public void Constructor_NameDerivedSlug_ThrowsArgumentException()
     {
-        // Arrange & Act
-        var act = () => new Tenant("Admin Org", "admin");
+        var act = () => new Tenant("Acme Regional Surveys", UrlSlugNormalizer.FromDisplayName("Acme Regional Surveys"));
 
-        // Assert
         act.Should().Throw<ArgumentException>();
-        UrlSlugNormalizer.IsReserved("admin").Should().BeTrue();
     }
 
     [Fact]
     public void Constructor_InvalidSlugFormat_ThrowsArgumentException()
     {
-        // Arrange & Act
-        var act = () => new Tenant("Bad", "Bad_Slug");
+        var act = () => new Tenant("Bad", "acme");
 
-        // Assert
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void UpdateName_ValidName_UpdatesName()
+    public void UpdateName_ValidName_DoesNotChangeSlug()
     {
-        // Arrange
-        var tenant = new Tenant("Acme", "acme");
+        var tenant = new Tenant("Acme", ValidSlug);
 
-        // Act
         tenant.UpdateName("Acme Corp");
 
-        // Assert
         tenant.Name.Should().Be("Acme Corp");
-        tenant.Slug.Should().Be("acme");
+        tenant.Slug.Should().Be(ValidSlug);
     }
 
     [Fact]
     public void UpdateDescription_SetsDescription()
     {
-        // Arrange
-        var tenant = new Tenant("Acme", "acme");
+        var tenant = new Tenant("Acme", ValidSlug);
 
-        // Act
         tenant.UpdateDescription("Updated");
 
-        // Assert
         tenant.Description.Should().Be("Updated");
     }
 }

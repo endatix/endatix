@@ -832,8 +832,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("Slug")
                         .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
 
                     b.HasKey("Id");
 

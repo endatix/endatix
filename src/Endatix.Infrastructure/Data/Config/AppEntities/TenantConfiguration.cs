@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 
 namespace Endatix.Infrastructure.Data.Config.AppEntities;
@@ -21,7 +22,7 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .IsRequired();
 
         builder.Property(t => t.Slug)
-            .HasMaxLength(DataSchemaConstants.MAX_SLUG_LENGTH)
+            .HasMaxLength(PublicId.TenantLength)
             .IsRequired();
 
         builder.Property(t => t.Description)

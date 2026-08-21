@@ -44,39 +44,27 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
             migrationBuilder.AddColumn<string>(
                 name: "Slug",
                 table: "Tenants",
-                type: "nvarchar(128)",
-                maxLength: 128,
+                type: "nvarchar(12)",
+                maxLength: 12,
                 nullable: true);
 
-            // Backfill: normalize name to slug; append -{id} on empty/collision.
+            // Opaque 12-char ids (hex subset of the public-id alphabet). Not derived from name.
             migrationBuilder.Sql(
                 """
                 UPDATE [Tenants]
-                SET [Slug] = LOWER(REPLACE(REPLACE(REPLACE(REPLACE(LTRIM(RTRIM(COALESCE([Name], ''))), ' ', '-'), '_', '-'), '.', '-'), '--', '-'))
+                SET [Slug] = LEFT(LOWER(CONVERT(varchar(32), HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), [Id]))), 2)), 12)
                 WHERE [Slug] IS NULL OR [Slug] = '';
-
-                UPDATE [Tenants]
-                SET [Slug] = 'tenant-' + CAST([Id] AS nvarchar(20))
-                WHERE [Slug] IS NULL OR [Slug] = '';
-
-                UPDATE t
-                SET t.[Slug] = t.[Slug] + '-' + CAST(t.[Id] AS nvarchar(20))
-                FROM [Tenants] t
-                WHERE EXISTS (
-                    SELECT 1 FROM [Tenants] other
-                    WHERE other.[Slug] = t.[Slug] AND other.[Id] <> t.[Id]
-                );
                 """);
 
             migrationBuilder.AlterColumn<string>(
                 name: "Slug",
                 table: "Tenants",
-                type: "nvarchar(128)",
-                maxLength: 128,
+                type: "nvarchar(12)",
+                maxLength: 12,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "nvarchar(128)",
-                oldMaxLength: 128,
+                oldType: "nvarchar(12)",
+                oldMaxLength: 12,
                 oldNullable: true);
 
             migrationBuilder.CreateIndex(

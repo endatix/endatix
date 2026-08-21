@@ -45,38 +45,27 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             migrationBuilder.AddColumn<string>(
                 name: "Slug",
                 table: "Tenants",
-                type: "character varying(128)",
-                maxLength: 128,
+                type: "character varying(12)",
+                maxLength: 12,
                 nullable: true);
 
-            // Backfill: normalize name to slug; append -{id} on empty/collision.
+            // Opaque 12-char ids (hex subset of the public-id alphabet). Not derived from name.
             migrationBuilder.Sql(
                 """
                 UPDATE "Tenants"
-                SET "Slug" = TRIM(BOTH '-' FROM LOWER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE("Name", ''), '[^a-zA-Z0-9]+', '-', 'g'), '-+', '-', 'g')))
+                SET "Slug" = substr(md5('tenant-' || "Id"::text), 1, 12)
                 WHERE "Slug" IS NULL OR "Slug" = '';
-
-                UPDATE "Tenants"
-                SET "Slug" = 'tenant-' || "Id"::text
-                WHERE "Slug" IS NULL OR "Slug" = '';
-
-                UPDATE "Tenants" t
-                SET "Slug" = t."Slug" || '-' || t."Id"::text
-                WHERE EXISTS (
-                    SELECT 1 FROM "Tenants" other
-                    WHERE other."Slug" = t."Slug" AND other."Id" <> t."Id"
-                );
                 """);
 
             migrationBuilder.AlterColumn<string>(
                 name: "Slug",
                 table: "Tenants",
-                type: "character varying(128)",
-                maxLength: 128,
+                type: "character varying(12)",
+                maxLength: 12,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "character varying(128)",
-                oldMaxLength: 128,
+                oldType: "character varying(12)",
+                oldMaxLength: 12,
                 oldNullable: true);
 
             migrationBuilder.CreateIndex(

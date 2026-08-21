@@ -60,6 +60,7 @@ public class InfrastructureDataBuilderTests
         builder.UseDefaults();
 
         Assert.True(IsRegistered<IIdGenerator<long>>(_services));
+        Assert.True(IsRegistered<IPublicIdGenerator>(_services));
         Assert.True(IsRegistered<IUnitOfWork>(_services));
         Assert.Contains(_services, sd => sd.ServiceType.IsGenericType && sd.ServiceType.GetGenericTypeDefinition() == typeof(IRepository<>));
         Assert.True(IsRegistered<IFormsRepository>(_services));

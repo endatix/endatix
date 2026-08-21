@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Ardalis.GuardClauses;
 using Endatix.Core.Common;
 using Endatix.Core.Entities.Identity;
-using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities
@@ -16,17 +15,16 @@ namespace Endatix.Core.Entities
         private Tenant() { } // For EF Core
 
         /// <summary>
-        /// Creates a tenant with a unique immutable slug.
+        /// Creates a tenant with a unique immutable public id stored as <see cref="Slug"/>.
         /// </summary>
         /// <param name="name">Display name.</param>
-        /// <param name="slug">Normalized unique slug (set only at create).</param>
+        /// <param name="slug">Server-generated 12-character public id. Not derived from <paramref name="name"/>.</param>
         /// <param name="description">Optional description.</param>
         public Tenant(string name, string slug, string? description = null)
         {
             Guard.Against.NullOrEmpty(name, nameof(name));
             Guard.Against.NullOrEmpty(slug, nameof(slug));
-            Guard.Against.InvalidInput(slug, nameof(slug), UrlSlugNormalizer.IsValidFormat, "Slug format is invalid.");
-            Guard.Against.InvalidInput(slug, nameof(slug), s => !UrlSlugNormalizer.IsReserved(s), "Slug is reserved.");
+            Guard.Against.InvalidInput(slug, nameof(slug), PublicId.IsValidTenantSlug, "Slug must be a 12-character public id.");
 
             Name = name;
             Slug = slug;
@@ -52,7 +50,7 @@ namespace Endatix.Core.Entities
         public TenantSettings? Settings { get; private set; }
 
         /// <summary>
-        /// Updates the tenant display name.
+        /// Updates the tenant display name. Does not change <see cref="Slug"/>.
         /// </summary>
         public void UpdateName(string name)
         {
@@ -67,11 +65,5 @@ namespace Endatix.Core.Entities
         {
             Description = description;
         }
-
-        /// <summary>
-        /// Raises <see cref="TenantCreatedEvent"/> so the outbox captures it in the same transaction that
-        /// persists the tenant. Called by the create use case once the aggregate is complete.
-        /// </summary>
-        public void RaiseCreated() => RegisterDomainEvent(new TenantCreatedEvent(this));
     }
 }
