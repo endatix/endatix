@@ -24,6 +24,41 @@ public static class CultureCodeValidation
             .WithMessage("{PropertyName} must be a valid culture code (e.g. 'es'), not 'default'.");
 
     /// <summary>
+    /// Accepts a single culture or comma-separated list (e.g. <c>es,de</c>).
+    /// Rejects the synthetic <c>default</c> key and caps token count at <see cref="MaxLocales"/>.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string?> IsHasLocaleFilter<T>(
+        this IRuleBuilder<T, string?> ruleBuilder) =>
+        ruleBuilder
+            .Must(BeValidHasLocaleFilter)
+            .WithMessage(
+                "{PropertyName} must be a culture code or comma-separated list (e.g. 'es' or 'es,de'), not 'default'.");
+
+    private static bool BeValidHasLocaleFilter(string? hasLocale)
+    {
+        if (string.IsNullOrWhiteSpace(hasLocale))
+        {
+            return true;
+        }
+
+        List<string> tokens = TranslationLocaleList.Tokenize([hasLocale]).Take(MaxLocales + 1).ToList();
+        if (tokens.Count == 0 || tokens.Count > MaxLocales)
+        {
+            return false;
+        }
+
+        foreach (string token in tokens)
+        {
+            if (!CultureCode.TryParse(token, out CultureCode culture) || culture.IsSyntheticDefault)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Accepts repeated or comma-separated culture codes, bounded by <see cref="MaxLocales"/>.
     /// Allows the synthetic <c>default</c> key.
     /// Uses rule-level <see cref="CascadeMode.Stop"/> so an oversized list never runs culture parsing
