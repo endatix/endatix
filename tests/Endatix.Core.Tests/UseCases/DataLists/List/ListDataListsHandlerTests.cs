@@ -98,6 +98,48 @@ public class ListDataListsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithCommaSeparatedHasLocale_MatchesAnyLocale()
+    {
+        // Arrange
+        _repository.CountAsync(Arg.Any<DataListsSpecifications.ListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        _repository.ListAsync(Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new List<DataListDto>
+            {
+                new(5, "Cities", null, DateTime.UtcNow, null, true, 1, "en", ["de"], Array.Empty<DataListItemDto>())
+            });
+
+        // Act
+        await _sut.Handle(new ListDataListsQuery(1, 10, "es,de"), TestContext.Current.CancellationToken);
+
+        // Assert
+        await _repository.Received(1).CountAsync(
+            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersByAnyLocale(spec, "es", "de")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithHasLocaleMatchingDefaultLocale_FiltersByDefaultCulture()
+    {
+        // Arrange
+        _repository.CountAsync(Arg.Any<DataListsSpecifications.ListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        _repository.ListAsync(Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new List<DataListDto>
+            {
+                new(5, "Cities", null, DateTime.UtcNow, null, true, 1, "en", [], Array.Empty<DataListItemDto>())
+            });
+
+        // Act
+        await _sut.Handle(new ListDataListsQuery(1, 10, "en"), TestContext.Current.CancellationToken);
+
+        // Assert
+        await _repository.Received(1).CountAsync(
+            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersByDefaultLocale(spec, "en")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_WithQuery_PassesSearchToSpecs()
     {
         // Arrange
@@ -152,11 +194,28 @@ public class ListDataListsHandlerTests
         DataList withoutLocale = new(SampleData.TENANT_ID, "WithoutLocale");
         withoutLocale.AddCulture(CultureCode.Parse("fr"));
 
-        bool Matches(DataList dataList) =>
-            spec.WhereExpressions.Any()
-            && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
+        return Matches(spec, withLocale) && !Matches(spec, withoutLocale);
+    }
 
-        return Matches(withLocale) && !Matches(withoutLocale);
+    private static bool SpecFiltersByAnyLocale(ISpecification<DataList> spec, params string[] locales)
+    {
+        DataList matching = new(SampleData.TENANT_ID, "Matching");
+        matching.AddCulture(CultureCode.Parse(locales[^1]));
+
+        DataList other = new(SampleData.TENANT_ID, "Other");
+        other.AddCulture(CultureCode.Parse("fr"));
+
+        return Matches(spec, matching) && !Matches(spec, other);
+    }
+
+    private static bool SpecFiltersByDefaultLocale(ISpecification<DataList> spec, string defaultLocale)
+    {
+        DataList matchingDefault = new(SampleData.TENANT_ID, "DefaultOnly", defaultLocale: defaultLocale);
+
+        DataList otherDefault = new(SampleData.TENANT_ID, "OtherDefault", defaultLocale: "fr");
+        otherDefault.AddCulture(CultureCode.Parse("de"));
+
+        return Matches(spec, matchingDefault) && !Matches(spec, otherDefault);
     }
 
     private static bool SpecFiltersByQuery(ISpecification<DataList> spec, string query)
@@ -164,10 +223,10 @@ public class ListDataListsHandlerTests
         DataList matching = new(SampleData.TENANT_ID, "Cities", "Major cities");
         DataList other = new(SampleData.TENANT_ID, "Countries", "ISO codes");
 
-        bool Matches(DataList dataList) =>
-            spec.WhereExpressions.Any()
-            && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
-
-        return Matches(matching) && !Matches(other);
+        return Matches(spec, matching) && !Matches(spec, other);
     }
+
+    private static bool Matches(ISpecification<DataList> spec, DataList dataList) =>
+        spec.WhereExpressions.Any()
+        && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
 }

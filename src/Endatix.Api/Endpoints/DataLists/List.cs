@@ -30,13 +30,13 @@ public sealed class List(
         Summary(s =>
         {
             s.Summary = "List data lists";
-            s.Description = "Lists data lists for the current tenant with paging, optional name/description search, and an optional locale filter.";
+            s.Description = "Lists data lists for the current tenant with paging, optional name/description search, and an optional locale filter (single culture or comma-separated OR list).";
             s.ExampleRequest = new DataListsListRequest
             {
                 Page = 1,
                 PageSize = 20,
                 Query = "cities",
-                HasLocale = "es"
+                HasLocale = "es,de"
             };
             s.ResponseExamples[200] = new Paged<DataListModel>(
                 page: 1,
@@ -96,7 +96,7 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
             .MaximumLength(PagedRequestLimits.MAX_SEARCH_LENGTH)
             .When(x => !string.IsNullOrWhiteSpace(x.Query));
         RuleFor(x => x.HasLocale)
-            .IsCultureCode()
+            .IsHasLocaleFilter()
             .When(x => !string.IsNullOrWhiteSpace(x.HasLocale));
     }
 }
@@ -113,7 +113,8 @@ public sealed class DataListsListRequest : IPagedRequest
     public int? PageSize { get; set; }
 
     /// <summary>
-    /// Optional locale code; returns only lists whose AvailableLocales contain this code.
+    /// Optional culture code or comma-separated list (e.g. <c>es</c> or <c>es,de</c>).
+    /// Returns lists whose AvailableLocales contain any code or whose DefaultLocale equals any code.
     /// </summary>
     public string? HasLocale { get; set; }
 

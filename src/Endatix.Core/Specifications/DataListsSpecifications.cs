@@ -1,4 +1,5 @@
 using Ardalis.Specification;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications.Common;
 using Endatix.Core.Specifications.Parameters;
@@ -60,10 +61,16 @@ public static class DataListsSpecifications
         string? hasLocale,
         string? search)
     {
-        if (!string.IsNullOrWhiteSpace(hasLocale))
+        // Comma-separated or single culture codes; OR match on AvailableLocales or DefaultLocale.
+        List<string> locales = TranslationLocaleList.ParseMany([hasLocale])
+            .Where(code => !code.IsSyntheticDefault)
+            .Select(code => code.Value)
+            .ToList();
+
+        if (locales.Count > 0)
         {
-            var locale = hasLocale.Trim().ToLowerInvariant();
-            query.Where(x => x.AvailableLocales.Contains(locale));
+            query.Where(x => locales.Any(locale =>
+                x.AvailableLocales.Contains(locale) || x.DefaultLocale == locale));
         }
 
         if (!string.IsNullOrWhiteSpace(search))
