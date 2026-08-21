@@ -217,4 +217,30 @@ public class InviteUserHandlerTests
                 Arg.Any<long>(),
                 Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_WhenExistingUserInvitedToAnotherTenantWithoutRoles_AssignsRespondent()
+    {
+        var command = new InviteUserCommand("member@endatix.com");
+        var user = new User(
+            id: 7,
+            tenantId: 10,
+            userName: "member@endatix.com",
+            email: "member@endatix.com",
+            isVerified: true);
+
+        _tenantContext.TenantId.Returns(20);
+        _userRegistrationService
+            .RegisterInvitedUserAsync(command.Email, 20, Arg.Any<CancellationToken>())
+            .Returns(Result<User>.Success(user));
+        _roleManagementService
+            .AssignRoleToUserAsync(user.Id, SystemRole.Respondent.Name, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        await _roleManagementService.Received(1)
+            .AssignRoleToUserAsync(user.Id, SystemRole.Respondent.Name, Arg.Any<CancellationToken>());
+    }
 }

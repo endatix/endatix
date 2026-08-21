@@ -50,7 +50,13 @@ public sealed class InviteUserHandler(
         }
 
         var assignedRoleNames = new List<string>();
-        foreach (var roleName in request.RoleNames)
+        var rolesToAssign = request.RoleNames.Count > 0
+            ? request.RoleNames
+            : registerResult.Value.TenantId == tenantContext.TenantId
+                ? []
+                : [SystemRole.Respondent.Name];
+
+        foreach (var roleName in rolesToAssign)
         {
             var assignResult = await roleManagementService.AssignRoleToUserAsync(
                 registerResult.Value.Id,

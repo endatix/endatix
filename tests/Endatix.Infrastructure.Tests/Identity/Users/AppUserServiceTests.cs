@@ -180,7 +180,7 @@ public class AppUserServiceTests
     }
 
     [Fact]
-    public void CurrentTenantRoleAssignments_ReturnsCurrentTenantAndNonPlatformSystemAssignmentsForTargetUser()
+    public void TenantScopedRoleAssignments_ReturnsOnlyCurrentTenantAssignments()
     {
         // Arrange
         const long userId = 123;
@@ -207,11 +207,51 @@ public class AppUserServiceTests
 
         // Act
         var removableRoleIds = userRoles
-            .CurrentTenantRoleAssignments(roles, userId, currentTenantId)
+            .TenantScopedRoleAssignments(roles, userId, currentTenantId)
             .Select(userRole => userRole.RoleId)
             .ToList();
 
         // Assert
-        removableRoleIds.Should().Equal([1, 3]);
+        removableRoleIds.Should().Equal([1]);
+    }
+
+    [Fact]
+    public void FilterRolesForCurrentTenant_PrefersTenantScopedOverSharedSystemRoles()
+    {
+        var roles = new (string Name, long TenantId, bool IsSystemDefined)[]
+        {
+            (SystemRole.Admin.Name, 0, true),
+            (SystemRole.Creator.Name, 20, true)
+        };
+
+        AppUserService.FilterRolesForCurrentTenant(roles, tenantId: 20, homeTenantId: 10)
+            .Should().Equal([SystemRole.Creator.Name]);
+    }
+
+    [Fact]
+    public void MembersOf_IncludesHomeTenantAndTenantScopedRoleAssignments()
+    {
+        var users = new List<AppUser>
+        {
+            new() { Id = 1, TenantId = 10, UserName = "home" },
+            new() { Id = 2, TenantId = 10, UserName = "other-home-only" },
+            new() { Id = 3, TenantId = 11, UserName = "invited" }
+        }.AsQueryable();
+
+        var userRoles = new List<IdentityUserRole<long>>
+        {
+            new() { UserId = 3, RoleId = 99 }
+        }.AsQueryable();
+
+        var roles = new List<AppRole>
+        {
+            new() { Id = 99, TenantId = 20, Name = SystemRole.Creator.Name }
+        }.AsQueryable();
+
+        var tenant20 = users.MembersOf(userRoles, roles, 20).Select(user => user.Id).ToList();
+        var tenant10 = users.MembersOf(userRoles, roles, 10).Select(user => user.Id).ToList();
+
+        tenant20.Should().Equal([3]);
+        tenant10.Should().Equal([1, 2]);
     }
 }

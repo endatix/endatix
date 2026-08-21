@@ -7,6 +7,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.ListRoles;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Repositories;
+using Endatix.Infrastructure.Identity.Users;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -87,6 +88,12 @@ public sealed class RoleManagementService : IRoleManagementService
             return externalUserGuard;
         }
 
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId > 0 && !SystemRole.IsPlatformAdminRoleName(trimmedRoleName))
+        {
+            return await AssignTenantScopedRoleAsync(user, trimmedRoleName, tenantId, cancellationToken);
+        }
+
         var isInRole = await _userManager.IsInRoleAsync(user, trimmedRoleName);
         if (isInRole)
         {
@@ -104,6 +111,7 @@ public sealed class RoleManagementService : IRoleManagementService
             return Result.Error(new ErrorList(errorMessages));
         }
 
+        await InvalidateUserAuthorizationAsync(user, cancellationToken);
         return Result.Success();
     }
 
@@ -133,6 +141,12 @@ public sealed class RoleManagementService : IRoleManagementService
         if (!externalUserGuard.IsSuccess)
         {
             return externalUserGuard;
+        }
+
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId > 0 && !SystemRole.IsPlatformAdminRoleName(trimmedRoleName))
+        {
+            return await RemoveTenantScopedRoleAsync(user, trimmedRoleName, tenantId, cancellationToken);
         }
 
         var isInRole = await _userManager.IsInRoleAsync(user, trimmedRoleName);
@@ -266,9 +280,20 @@ public sealed class RoleManagementService : IRoleManagementService
 
         var tenantId = _tenantContext.TenantId;
         var user = await FindUserByIdAsync(userId);
-        if (user is null || user.TenantId != tenantId)
+        if (user is null)
         {
             return UserNotFound(userId);
+        }
+
+        if (user.TenantId != tenantId)
+        {
+            var isMember = await _identityDbContext.Users
+                .MembersOf(_identityDbContext.UserRoles, _identityDbContext.Roles, tenantId)
+                .AnyAsync(member => member.Id == userId, cancellationToken);
+            if (!isMember)
+            {
+                return UserNotFound(userId);
+            }
         }
 
         var externalUserGuard = EnsureExternalUserRolesAreReadOnly(user);
@@ -284,24 +309,17 @@ public sealed class RoleManagementService : IRoleManagementService
         }
 
         var requestedRoleNames = GetDistinctRoleNames(roleNames);
-        var requestedNormalizedRoleNames = requestedRoleNames
-            .Select(NormalizeRoleName)
-            .ToList();
 
-        var requestedEditableRoles = requestedNormalizedRoleNames.Count == 0
-            ? new List<AppRole>()
-            : await _identityDbContext.Roles
-                .Where(role =>
-                    role.IsActive &&
-                    requestedNormalizedRoleNames.Contains(role.NormalizedName!) &&
-                    (role.TenantId == tenantId ||
-                     (role.IsSystemDefined && role.TenantId <= 0 && role.Name != SystemRole.PlatformAdmin.Name)))
-                .ToListAsync(cancellationToken);
-
-        var rolesGuard = EnsureAllRolesExist(requestedRoleNames, requestedEditableRoles);
-        if (!rolesGuard.IsSuccess)
+        var requestedEditableRoles = new List<AppRole>();
+        foreach (var roleName in requestedRoleNames)
         {
-            return rolesGuard;
+            var roleResult = await EnsureTenantScopedRoleAsync(roleName, tenantId, cancellationToken);
+            if (!roleResult.IsSuccess)
+            {
+                return Result.Invalid(roleResult.ValidationErrors);
+            }
+
+            requestedEditableRoles.Add(roleResult.Value!);
         }
 
         var currentEditableRoleAssignments = await _identityDbContext.UserRoles
@@ -312,8 +330,7 @@ public sealed class RoleManagementService : IRoleManagementService
                 (userRole, role) => new { UserRole = userRole, Role = role })
             .Where(item =>
                 item.UserRole.UserId == userId &&
-                (item.Role.TenantId == tenantId ||
-                 (item.Role.IsSystemDefined && item.Role.TenantId <= 0 && item.Role.Name != SystemRole.PlatformAdmin.Name)))
+                item.Role.TenantId == tenantId)
             .ToListAsync(cancellationToken);
 
         var requestedEditableRoleIds = requestedEditableRoles
@@ -342,6 +359,7 @@ public sealed class RoleManagementService : IRoleManagementService
         }
 
         await _identityDbContext.SaveChangesAsync(cancellationToken);
+        await InvalidateUserAuthorizationAsync(user, cancellationToken);
         return Result.Success();
     }
 
@@ -919,12 +937,158 @@ public sealed class RoleManagementService : IRoleManagementService
 
     private async Task InvalidateUserAuthorizationAsync(AppUser user, CancellationToken cancellationToken)
     {
-        if (user.TenantId <= 0)
+        if (user.TenantId > 0)
         {
-            return;
+            await _authorizationCache.InvalidateAsync(user.Id.ToString(), user.TenantId, cancellationToken);
         }
 
-        await _authorizationCache.InvalidateAsync(user.Id.ToString(), user.TenantId, cancellationToken);
+        var contextTenantId = _tenantContext.TenantId;
+        if (contextTenantId > 0 && contextTenantId != user.TenantId)
+        {
+            await _authorizationCache.InvalidateAsync(user.Id.ToString(), contextTenantId, cancellationToken);
+        }
+    }
+
+    private async Task<Result> AssignTenantScopedRoleAsync(
+        AppUser user,
+        string roleName,
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        var roleResult = await EnsureTenantScopedRoleAsync(roleName, tenantId, cancellationToken);
+        if (!roleResult.IsSuccess)
+        {
+            return Result.Invalid(roleResult.ValidationErrors);
+        }
+
+        var role = roleResult.Value!;
+        var alreadyAssigned = await _identityDbContext.UserRoles
+            .AnyAsync(userRole => userRole.UserId == user.Id && userRole.RoleId == role.Id, cancellationToken);
+        if (alreadyAssigned)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = nameof(roleName),
+                ErrorMessage = $"User already has role '{roleName}'."
+            });
+        }
+
+        _identityDbContext.UserRoles.Add(new IdentityUserRole<long>
+        {
+            UserId = user.Id,
+            RoleId = role.Id
+        });
+        await _identityDbContext.SaveChangesAsync(cancellationToken);
+        await InvalidateUserAuthorizationAsync(user, cancellationToken);
+        return Result.Success();
+    }
+
+    private async Task<Result> RemoveTenantScopedRoleAsync(
+        AppUser user,
+        string roleName,
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        var normalizedRoleName = NormalizeRoleName(roleName);
+        var assignment = await _identityDbContext.UserRoles
+            .Where(userRole => userRole.UserId == user.Id)
+            .Join(
+                _identityDbContext.Roles.Where(role =>
+                    role.TenantId == tenantId && role.NormalizedName == normalizedRoleName),
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (userRole, _) => userRole)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (assignment is null)
+        {
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = nameof(roleName),
+                ErrorMessage = $"User does not have role '{roleName}'."
+            });
+        }
+
+        _identityDbContext.UserRoles.Remove(assignment);
+        await _identityDbContext.SaveChangesAsync(cancellationToken);
+        await InvalidateUserAuthorizationAsync(user, cancellationToken);
+        return Result.Success();
+    }
+
+    private async Task<Result<AppRole>> EnsureTenantScopedRoleAsync(
+        string roleName,
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        var normalizedRoleName = NormalizeRoleName(roleName);
+        var existing = await _identityDbContext.Roles
+            .FirstOrDefaultAsync(
+                role => role.NormalizedName == normalizedRoleName && role.TenantId == tenantId,
+                cancellationToken);
+        if (existing is not null)
+        {
+            return Result.Success(existing);
+        }
+
+        var template = await _identityDbContext.Roles
+            .Include(role => role.RolePermissions)
+            .FirstOrDefaultAsync(
+                role =>
+                    role.NormalizedName == normalizedRoleName
+                    && role.IsSystemDefined
+                    && role.TenantId <= 0
+                    && role.Name != SystemRole.PlatformAdmin.Name,
+                cancellationToken);
+        if (template is null)
+        {
+            return Result<AppRole>.Invalid(new ValidationError
+            {
+                Identifier = nameof(roleName),
+                ErrorMessage = $"Role '{roleName}' was not found for this tenant."
+            });
+        }
+
+        var clone = new AppRole
+        {
+            Id = _idGenerator.CreateId(),
+            Name = template.Name,
+            NormalizedName = template.NormalizedName,
+            Description = template.Description,
+            TenantId = tenantId,
+            IsSystemDefined = true,
+            IsActive = template.IsActive
+        };
+
+        _identityDbContext.Roles.Add(clone);
+
+        try
+        {
+            await _identityDbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            var raced = await _identityDbContext.Roles
+                .FirstOrDefaultAsync(
+                    role => role.NormalizedName == normalizedRoleName && role.TenantId == tenantId,
+                    cancellationToken);
+            if (raced is not null)
+            {
+                return Result.Success(raced);
+            }
+
+            throw;
+        }
+
+        foreach (var permission in template.RolePermissions.Where(rolePermission => rolePermission.IsActive))
+        {
+            _identityDbContext.RolePermissions.Add(new RolePermission(clone.Id, permission.PermissionId)
+            {
+                Id = _idGenerator.CreateId()
+            });
+        }
+
+        await _identityDbContext.SaveChangesAsync(cancellationToken);
+        return Result.Success(clone);
     }
 
     private Task<AppUser?> FindUserByIdAsync(long userId)

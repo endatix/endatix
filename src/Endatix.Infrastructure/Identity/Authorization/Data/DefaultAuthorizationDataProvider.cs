@@ -45,7 +45,8 @@ internal sealed class DefaultAuthorizationDataProvider(
                 return Result.Success(anonymousData);
             }
 
-            if (!IsUserInAuthorizationTenantScope(user, tenantId))
+            var hasTenantScopedRoles = await HasTenantScopedRoleAsync(user.Id, tenantId, cancellationToken);
+            if (!IsUserInAuthorizationTenantScope(user, tenantId) && !hasTenantScopedRoles)
             {
                 var assumed = IsAssumeTenantSession(user.Id, actorUserId, user.TenantId, tenantId)
                     && await UserHasPlatformAdminRoleAsync(user.Id, cancellationToken);
@@ -68,7 +69,7 @@ internal sealed class DefaultAuthorizationDataProvider(
                 .Where(r =>
                     r.IsActive &&
                     userRoleIds.Contains(r.Id))
-                .Where(IsRoleInAuthorizationScope(tenantId))
+                .Where(IsRoleInAuthorizationScope(tenantId, hasTenantScopedRoles))
                 .Include(r => r.RolePermissions.Where(rp => rp.IsActive && (rp.ExpiresAt == null || rp.ExpiresAt > utcNow)))
                 .ThenInclude(rp => rp.Permission)
                 .AsSplitQuery()
@@ -100,14 +101,34 @@ internal sealed class DefaultAuthorizationDataProvider(
         }
     }
 
-    internal static Expression<Func<AppRole, bool>> IsRoleInAuthorizationScope(long tenantId)
+    internal static Expression<Func<AppRole, bool>> IsRoleInAuthorizationScope(long tenantId, bool hasTenantScopedRoles)
     {
+        if (hasTenantScopedRoles)
+        {
+            return role => role.TenantId == tenantId;
+        }
+
         return role => role.TenantId == tenantId || (role.IsSystemDefined && role.TenantId <= 0);
     }
+
+    internal static Expression<Func<AppRole, bool>> IsRoleInAuthorizationScope(long tenantId)
+        => IsRoleInAuthorizationScope(tenantId, hasTenantScopedRoles: false);
 
     internal static bool IsUserInAuthorizationTenantScope(AppUser user, long tenantId)
     {
         return user.TenantId == tenantId;
+    }
+
+    private async Task<bool> HasTenantScopedRoleAsync(long userId, long tenantId, CancellationToken cancellationToken)
+    {
+        return await identityDbContext.UserRoles
+            .Where(userRole => userRole.UserId == userId)
+            .Join(
+                identityDbContext.Roles,
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (_, role) => role)
+            .AnyAsync(role => role.TenantId == tenantId, cancellationToken);
     }
 
     internal static bool IsAssumeTenantSession(long userId, long? actorUserId, long homeTenantId, long requestedTenantId)

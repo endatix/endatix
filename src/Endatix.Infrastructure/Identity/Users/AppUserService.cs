@@ -43,7 +43,7 @@ public sealed class AppUserService(
 
         var filteredUsers = identityDbContext.Users
             .AsNoTracking()
-            .Where(user => user.TenantId == tenantId)
+            .MembersOf(identityDbContext.UserRoles, identityDbContext.Roles, tenantId)
             .Where(user =>
                 user.UserName != null &&
                 user.UserName != string.Empty);
@@ -62,6 +62,7 @@ public sealed class AppUserService(
             .Select(user => new
             {
                 user.Id,
+                user.TenantId,
                 UserName = user.UserName!,
                 user.Email,
                 user.EmailConfirmed,
@@ -88,19 +89,22 @@ public sealed class AppUserService(
                     (userRole, appRole) => new
                     {
                         userRole.UserId,
-                        appRole.Name
+                        appRole.Name,
+                        appRole.TenantId,
+                        appRole.IsSystemDefined
                     })
                 .Where(userRole => userRole.Name != null)
                 .ToListAsync(cancellationToken);
 
+            var tenantIdsByUserId = pageUsers.ToDictionary(user => user.Id, user => user.TenantId);
             rolesByUserId = roleRows
                 .GroupBy(userRole => userRole.UserId)
                 .ToDictionary(
                     group => group.Key,
-                    group => group
-                        .Select(userRole => userRole.Name!)
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(roleName => roleName)
+                    group => FilterRolesForCurrentTenant(
+                            group.Select(row => (row.Name!, row.TenantId, row.IsSystemDefined)),
+                            tenantId,
+                            tenantIdsByUserId.GetValueOrDefault(group.Key))
                         .ToList());
         }
 
@@ -229,9 +233,9 @@ public sealed class AppUserService(
         var tenantId = tenantContext.TenantId;
         var user = await identityDbContext.Users
             .AsNoTracking()
+            .MembersOf(identityDbContext.UserRoles, identityDbContext.Roles, tenantId)
             .Where(user =>
                 user.Id == userId &&
-                user.TenantId == tenantId &&
                 user.UserName != null &&
                 user.UserName != string.Empty)
             .FirstOrDefaultAsync(cancellationToken);
@@ -243,7 +247,7 @@ public sealed class AppUserService(
 
         var roles = user.IsExternal
             ? ReadExternalRoles(user.Id, user.ExternalRolesJson)
-            : await GetAssignedRoleNamesAsync(user.Id, cancellationToken);
+            : await GetAssignedRoleNamesAsync(user.Id, user.TenantId, tenantId, cancellationToken);
 
         UserWithRoles userWithRoles = new()
         {
@@ -444,10 +448,64 @@ public sealed class AppUserService(
         return Result.Success();
     }
 
+    /// <inheritdoc />
+    public async Task<Result<IReadOnlyList<long>>> ListMembershipTenantIdsAsync(
+        long userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0)
+        {
+            return Result<IReadOnlyList<long>>.NotFound();
+        }
+
+        var tenantIds = await TenantMembershipQueries
+            .MembershipTenantIds(
+                identityDbContext.Users.AsNoTracking(),
+                identityDbContext.UserRoles.AsNoTracking(),
+                identityDbContext.Roles.AsNoTracking(),
+                userId)
+            .ToListAsync(cancellationToken);
+
+        return Result.Success<IReadOnlyList<long>>(tenantIds);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<User>> SetActiveTenantAsync(
+        long userId,
+        long tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0 || tenantId <= 0)
+        {
+            return Result<User>.NotFound();
+        }
+
+        var user = await identityDbContext.Users
+            .MembersOf(identityDbContext.UserRoles, identityDbContext.Roles, tenantId)
+            .FirstOrDefaultAsync(appUser => appUser.Id == userId, cancellationToken);
+        if (user is null)
+        {
+            return Result<User>.Forbidden("User does not belong to the requested tenant.");
+        }
+
+        if (user.TenantId != tenantId)
+        {
+            user.TenantId = tenantId;
+            var updateResult = await userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                return ToErrorResult(updateResult).ToErrorResult<User>();
+            }
+        }
+
+        return Result.Success(user.ToUserEntity());
+    }
+
     private Task<AppUser?> FindCurrentTenantUserAsync(long userId, long tenantId, CancellationToken cancellationToken)
     {
         return identityDbContext.Users
-            .FirstOrDefaultAsync(appUser => appUser.Id == userId && appUser.TenantId == tenantId, cancellationToken);
+            .MembersOf(identityDbContext.UserRoles, identityDbContext.Roles, tenantId)
+            .FirstOrDefaultAsync(appUser => appUser.Id == userId, cancellationToken);
     }
 
     private async Task<Result> EnsureTenantAccessRemovalAllowedAsync(AppUser user, long tenantId, CancellationToken cancellationToken)
@@ -512,9 +570,12 @@ public sealed class AppUserService(
                 role => role.Id,
                 (userRole, _) => userRole.UserId)
             .Join(
-                identityDbContext.Users.Where(user =>
-                    user.TenantId == tenantId &&
-                    (user.EmailConfirmed || user.AuthProvider != AuthProviders.Endatix)),
+                identityDbContext.Users.MembersOf(
+                    identityDbContext.UserRoles,
+                    identityDbContext.Roles,
+                    tenantId)
+                    .Where(user =>
+                    user.EmailConfirmed || user.AuthProvider != AuthProviders.Endatix),
                 userId => userId,
                 user => user.Id,
                 (_, _) => true)
@@ -532,14 +593,35 @@ public sealed class AppUserService(
 
     private async Task<Result> RemoveTenantAccessAsync(AppUser user, long tenantId, CancellationToken cancellationToken)
     {
-        var userRoles = await identityDbContext.UserRoles
-            .CurrentTenantRoleAssignments(identityDbContext.Roles, user.Id, tenantId)
+        var remainingTenantIds = await TenantMembershipQueries
+            .MembershipTenantIds(
+                identityDbContext.Users,
+                identityDbContext.UserRoles,
+                identityDbContext.Roles,
+                user.Id)
+            .Where(id => id != tenantId)
             .ToListAsync(cancellationToken);
-        identityDbContext.UserRoles.RemoveRange(userRoles);
 
-        user.TenantId = 0;
+        var tenantScopedRoles = await identityDbContext.UserRoles
+            .TenantScopedRoleAssignments(identityDbContext.Roles, user.Id, tenantId)
+            .ToListAsync(cancellationToken);
+        identityDbContext.UserRoles.RemoveRange(tenantScopedRoles);
+
+        if (remainingTenantIds.Count == 0)
+        {
+            var sharedRoles = await identityDbContext.UserRoles
+                .SharedNonPlatformSystemAssignments(identityDbContext.Roles, user.Id)
+                .ToListAsync(cancellationToken);
+            identityDbContext.UserRoles.RemoveRange(sharedRoles);
+            user.TenantId = 0;
+        }
+        else if (user.TenantId == tenantId)
+        {
+            user.TenantId = remainingTenantIds[0];
+        }
+
         await identityDbContext.SaveChangesAsync(cancellationToken);
-
+        await authorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
         return Result.Success();
     }
 
@@ -549,21 +631,65 @@ public sealed class AppUserService(
         return roleName.Trim().ToUpperInvariant();
     }
 
-    private async Task<IReadOnlyList<string>> GetAssignedRoleNamesAsync(long userId, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<string>> GetAssignedRoleNamesAsync(
+        long userId,
+        long homeTenantId,
+        long tenantId,
+        CancellationToken cancellationToken)
     {
-        return await identityDbContext.UserRoles
+        var roleRows = await identityDbContext.UserRoles
             .AsNoTracking()
             .Where(userRole => userRole.UserId == userId)
             .Join(
                 identityDbContext.Roles.AsNoTracking(),
                 userRole => userRole.RoleId,
                 appRole => appRole.Id,
-                (_, appRole) => appRole.Name)
-            .Where(roleName => roleName != null)
-            .Select(roleName => roleName!)
-            .Distinct()
-            .OrderBy(roleName => roleName)
+                (_, appRole) => new
+                {
+                    appRole.Name,
+                    appRole.TenantId,
+                    appRole.IsSystemDefined
+                })
+            .Where(role => role.Name != null)
             .ToListAsync(cancellationToken);
+
+        return FilterRolesForCurrentTenant(
+            roleRows.Select(role => (role.Name!, role.TenantId, role.IsSystemDefined)),
+            tenantId,
+            homeTenantId);
+    }
+
+    internal static IReadOnlyList<string> FilterRolesForCurrentTenant(
+        IEnumerable<(string Name, long TenantId, bool IsSystemDefined)> roles,
+        long tenantId,
+        long homeTenantId)
+    {
+        var tenantScoped = roles
+            .Where(role => role.TenantId == tenantId)
+            .Select(role => role.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name)
+            .ToList();
+
+        if (tenantScoped.Count > 0)
+        {
+            return tenantScoped;
+        }
+
+        if (homeTenantId != tenantId)
+        {
+            return [];
+        }
+
+        return roles
+            .Where(role =>
+                role.IsSystemDefined
+                && role.TenantId <= 0
+                && role.Name != SystemRole.PlatformAdmin.Name)
+            .Select(role => role.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name)
+            .ToList();
     }
 
     private IReadOnlyList<string> ReadExternalRoles(long userId, string? externalRolesJson)
@@ -606,25 +732,5 @@ public sealed class AppUserService(
     private static Result ToErrorResult(IdentityResult result)
     {
         return Result.Error(new ErrorList(result.Errors.Select(error => error.Description)));
-    }
-}
-
-internal static class AppUserServiceQueryExtensions
-{
-    internal static IQueryable<IdentityUserRole<long>> CurrentTenantRoleAssignments(
-        this IQueryable<IdentityUserRole<long>> userRoles,
-        IQueryable<AppRole> roles,
-        long userId,
-        long tenantId)
-    {
-        return userRoles
-            .Join(
-                roles.Where(role =>
-                    role.TenantId == tenantId ||
-                    (role.IsSystemDefined && role.TenantId <= 0 && role.Name != SystemRole.PlatformAdmin.Name)),
-                userRole => userRole.RoleId,
-                role => role.Id,
-                (userRole, _) => userRole)
-            .Where(userRole => userRole.UserId == userId);
     }
 }

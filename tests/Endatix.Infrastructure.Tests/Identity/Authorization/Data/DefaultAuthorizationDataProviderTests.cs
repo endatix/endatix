@@ -36,9 +36,13 @@ public class DefaultAuthorizationDataProviderTests
     }
 
     [Fact]
-    public void IsAssumeTenantSession_HomeTenant_ReturnsFalse()
+    public void IsRoleInAuthorizationScope_WithTenantScopedRoles_ExcludesSharedSystemRoles()
     {
-        DefaultAuthorizationDataProvider.IsAssumeTenantSession(7, 7, homeTenantId: 10, requestedTenantId: 10)
-            .Should().BeFalse();
+        var predicate = DefaultAuthorizationDataProvider
+            .IsRoleInAuthorizationScope(20, hasTenantScopedRoles: true)
+            .Compile();
+
+        predicate(new AppRole { TenantId = 20, IsSystemDefined = true }).Should().BeTrue();
+        predicate(new AppRole { TenantId = 0, IsSystemDefined = true }).Should().BeFalse();
     }
 }
