@@ -1,3 +1,4 @@
+using System.Globalization;
 using Endatix.Api.Common;
 using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
@@ -30,13 +31,17 @@ public sealed class List(
         Summary(s =>
         {
             s.Summary = "List data lists";
-            s.Description = "Lists data lists for the current tenant with paging, optional name/description search, and an optional locale filter (single culture or comma-separated OR list).";
+            s.Description =
+                "Lists data lists for the current tenant with paging, optional name/description search, " +
+                "locale filter, sort, and created/modified date bounds.";
             s.ExampleRequest = new DataListsListRequest
             {
                 Page = 1,
                 PageSize = 20,
                 Query = "cities",
-                HasLocale = "es,de"
+                HasLocale = "es,de",
+                SortBy = "name",
+                SortDir = "asc"
             };
             s.ResponseExamples[200] = new Paged<DataListModel>(
                 page: 1,
@@ -68,7 +73,19 @@ public sealed class List(
     /// <inheritdoc />
     public override async Task<Results<Ok<Paged<DataListModel>>, ProblemHttpResult>> ExecuteAsync(DataListsListRequest request, CancellationToken ct)
     {
-        var result = await mediator.Send(new ListDataListsQuery(request.Page, request.PageSize, request.HasLocale, request.Query), ct);
+        var result = await mediator.Send(
+            new ListDataListsQuery(
+                request.Page,
+                request.PageSize,
+                request.HasLocale,
+                request.Query,
+                ParseSortBy(request.SortBy),
+                ParseSortDescending(request.SortDir),
+                ParseInclusiveDayStartUtc(request.CreatedFrom),
+                ParseExclusiveDayEndUtc(request.CreatedTo),
+                ParseInclusiveDayStartUtc(request.ModifiedFrom),
+                ParseExclusiveDayEndUtc(request.ModifiedTo)),
+            ct);
 
         if (!result.IsSuccess)
         {
@@ -79,6 +96,62 @@ public sealed class List(
 
         return TypedResults.Ok(mapped);
     }
+
+    internal static DataListListSortBy ParseSortBy(string? sortBy) =>
+        sortBy?.Trim().ToLowerInvariant() switch
+        {
+            "name" => DataListListSortBy.Name,
+            "modifiedat" => DataListListSortBy.ModifiedAt,
+            "itemscount" => DataListListSortBy.ItemsCount,
+            "isactive" => DataListListSortBy.IsActive,
+            "createdat" => DataListListSortBy.CreatedAt,
+            _ => DataListListSortBy.CreatedAt
+        };
+
+    internal static bool ParseSortDescending(string? sortDir) =>
+        !string.Equals(sortDir?.Trim(), "asc", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Parses a UTC calendar date (<c>YYYY-MM-DD</c>) as the inclusive start of that day.
+    /// </summary>
+    internal static DateTime? ParseInclusiveDayStartUtc(string? value)
+    {
+        if (!TryParseUtcCalendarDate(value, out DateOnly day))
+        {
+            return null;
+        }
+
+        return DateTime.SpecifyKind(day.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+    }
+
+    /// <summary>
+    /// Parses a UTC calendar date (<c>YYYY-MM-DD</c>) as the exclusive end (start of next day).
+    /// </summary>
+    internal static DateTime? ParseExclusiveDayEndUtc(string? value)
+    {
+        if (!TryParseUtcCalendarDate(value, out DateOnly day))
+        {
+            return null;
+        }
+
+        return DateTime.SpecifyKind(day.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+    }
+
+    private static bool TryParseUtcCalendarDate(string? value, out DateOnly day)
+    {
+        day = default;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return DateOnly.TryParseExact(
+            value.Trim(),
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out day);
+    }
 }
 
 /// <summary>
@@ -86,6 +159,17 @@ public sealed class List(
 /// </summary>
 public sealed class DataListsListValidator : Validator<DataListsListRequest>
 {
+    private static readonly string[] AllowedSortBy =
+    [
+        "name",
+        "createdAt",
+        "modifiedAt",
+        "itemsCount",
+        "isActive"
+    ];
+
+    private static readonly string[] AllowedSortDir = ["asc", "desc"];
+
     /// <summary>
     /// Initializes a new instance of the <see cref="DataListsListValidator"/> class.
     /// </summary>
@@ -98,7 +182,34 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
         RuleFor(x => x.HasLocale)
             .IsHasLocaleFilter()
             .When(x => !string.IsNullOrWhiteSpace(x.HasLocale));
+        RuleFor(x => x.SortBy)
+            .Must(value => AllowedSortBy.Contains(value!, StringComparer.OrdinalIgnoreCase))
+            .When(x => !string.IsNullOrWhiteSpace(x.SortBy))
+            .WithMessage("SortBy must be one of: name, createdAt, modifiedAt, itemsCount, isActive.");
+        RuleFor(x => x.SortDir)
+            .Must(value => AllowedSortDir.Contains(value!, StringComparer.OrdinalIgnoreCase))
+            .When(x => !string.IsNullOrWhiteSpace(x.SortDir))
+            .WithMessage("SortDir must be asc or desc.");
+        RuleFor(x => x.CreatedFrom)
+            .Must(BeCalendarDate)
+            .When(x => !string.IsNullOrWhiteSpace(x.CreatedFrom))
+            .WithMessage("CreatedFrom must be a UTC calendar date (YYYY-MM-DD).");
+        RuleFor(x => x.CreatedTo)
+            .Must(BeCalendarDate)
+            .When(x => !string.IsNullOrWhiteSpace(x.CreatedTo))
+            .WithMessage("CreatedTo must be a UTC calendar date (YYYY-MM-DD).");
+        RuleFor(x => x.ModifiedFrom)
+            .Must(BeCalendarDate)
+            .When(x => !string.IsNullOrWhiteSpace(x.ModifiedFrom))
+            .WithMessage("ModifiedFrom must be a UTC calendar date (YYYY-MM-DD).");
+        RuleFor(x => x.ModifiedTo)
+            .Must(BeCalendarDate)
+            .When(x => !string.IsNullOrWhiteSpace(x.ModifiedTo))
+            .WithMessage("ModifiedTo must be a UTC calendar date (YYYY-MM-DD).");
     }
+
+    private static bool BeCalendarDate(string? value) =>
+        List.ParseInclusiveDayStartUtc(value).HasValue;
 }
 
 /// <summary>
@@ -122,4 +233,34 @@ public sealed class DataListsListRequest : IPagedRequest
     /// Optional name/description search (case-insensitive contains).
     /// </summary>
     public string? Query { get; set; }
+
+    /// <summary>
+    /// Optional sort field: name, createdAt, modifiedAt, itemsCount, isActive.
+    /// </summary>
+    public string? SortBy { get; set; }
+
+    /// <summary>
+    /// Optional sort direction: asc or desc (default desc).
+    /// </summary>
+    public string? SortDir { get; set; }
+
+    /// <summary>
+    /// Inclusive created-at UTC calendar day (<c>YYYY-MM-DD</c>).
+    /// </summary>
+    public string? CreatedFrom { get; set; }
+
+    /// <summary>
+    /// Inclusive created-at UTC calendar day (<c>YYYY-MM-DD</c>).
+    /// </summary>
+    public string? CreatedTo { get; set; }
+
+    /// <summary>
+    /// Inclusive modified-at UTC calendar day (<c>YYYY-MM-DD</c>).
+    /// </summary>
+    public string? ModifiedFrom { get; set; }
+
+    /// <summary>
+    /// Inclusive modified-at UTC calendar day (<c>YYYY-MM-DD</c>).
+    /// </summary>
+    public string? ModifiedTo { get; set; }
 }
