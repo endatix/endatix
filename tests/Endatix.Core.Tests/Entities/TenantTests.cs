@@ -1,5 +1,7 @@
 using Endatix.Core.Common;
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Tests.Entities;
 
@@ -63,5 +65,25 @@ public class TenantTests
         tenant.UpdateDescription("Updated");
 
         tenant.Description.Should().Be("Updated");
+    }
+
+    [Fact]
+    public void RaiseContextChanged_RegistersOutboxEvent()
+    {
+        var tenant = new Tenant("Acme", ValidSlug);
+        var occurredAt = DateTime.UtcNow;
+
+        tenant.RaiseContextChanged(7, fromTenantId: 1, TenantContextChangedEvent.KindAssumed, occurredAt);
+
+        var domainEvent = tenant.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<TenantContextChangedEvent>().Subject;
+        domainEvent.Should().BeAssignableTo<IIntegrationEvent>();
+        domainEvent.EventType.Should().Be("tenant.context.changed");
+        domainEvent.ChangeKind.Should().Be(TenantContextChangedEvent.KindAssumed);
+        domainEvent.ActorUserId.Should().Be(7);
+        domainEvent.FromTenantId.Should().Be(1);
+        domainEvent.OccurredAt.Should().Be(occurredAt);
+
+        var payload = domainEvent.GetPayload();
+        payload.Should().NotBeNull();
     }
 }

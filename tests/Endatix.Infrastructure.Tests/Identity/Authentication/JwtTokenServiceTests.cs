@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests;
@@ -299,5 +300,63 @@ public class JwtTokenServiceTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IssueAccessToken_WithActorAndTargetTenant_IncludesActClaimAndTid()
+    {
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
+        optionsWrapper.Value.Returns(_validJwtOptions);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
+        var user = new User(7, SampleData.TENANT_ID, "admin", "admin@example.com", true);
+        const long assumedTenantId = 99;
+
+        var result = tokenService.IssueAccessToken(
+            user,
+            new AccessTokenIssueOptions(assumedTenantId, ActorUserId: 7, AccessExpiryMinutes: 15));
+
+        var jsonToken = new JwtSecurityTokenHandler().ReadToken(result.Token) as JwtSecurityToken;
+        jsonToken.Should().NotBeNull();
+        jsonToken!.Claims.Should().Contain(c => c.Type == ClaimNames.TenantId && c.Value == assumedTenantId.ToString());
+        jsonToken.Claims.Should().Contain(c => c.Type == ClaimNames.Actor && c.Value == "7");
+        jsonToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Sub && c.Value == "7");
+        jsonToken.Claims.Should().NotContain(c => c.Type == ClaimNames.Role);
+        result.ExpireAt.Should().BeBefore(DateTime.UtcNow.AddMinutes(16));
+    }
+
+    [Fact]
+    public async Task ReadAccessTokenSessionAsync_AssumedToken_ReturnsActorAndTenant()
+    {
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
+        optionsWrapper.Value.Returns(_validJwtOptions);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
+        var user = new User(7, SampleData.TENANT_ID, "admin", "admin@example.com", true);
+        var token = tokenService.IssueAccessToken(user, new AccessTokenIssueOptions(99, ActorUserId: 7));
+        _authSchemeSelector.SelectScheme(token.Token).Returns(AuthSchemes.EndatixJwt);
+
+        var result = await tokenService.ReadAccessTokenSessionAsync(token.Token);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UserId.Should().Be(7);
+        result.Value.TenantId.Should().Be(99);
+        result.Value.ActorUserId.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task ReadAccessTokenSessionAsync_HomeToken_HasNoActor()
+    {
+        var optionsWrapper = Substitute.For<IOptions<EndatixJwtOptions>>();
+        optionsWrapper.Value.Returns(_validJwtOptions);
+        var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
+        var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
+        var token = tokenService.IssueAccessToken(user);
+        _authSchemeSelector.SelectScheme(token.Token).Returns(AuthSchemes.EndatixJwt);
+
+        var result = await tokenService.ReadAccessTokenSessionAsync(token.Token);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UserId.Should().Be(1);
+        result.Value.TenantId.Should().Be(SampleData.TENANT_ID);
+        result.Value.ActorUserId.Should().BeNull();
     }
 }

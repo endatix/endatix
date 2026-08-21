@@ -33,6 +33,7 @@ public static class Actions
     public static class Platform
     {
         public const string ManageTenants = "platform.tenants.manage";
+        public const string AssumeTenants = "platform.tenants.assume";
         public const string ManageSettings = "platform.settings.manage";
         public const string ManageIntegrations = "platform.integrations.manage";
         public const string ImpersonateUsers = "platform.users.impersonate";

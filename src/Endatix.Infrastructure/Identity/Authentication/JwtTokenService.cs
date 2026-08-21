@@ -56,28 +56,44 @@ internal sealed class JwtTokenService : IUserTokenService
 
     /// <inheritdoc />
     public TokenDto IssueAccessToken(User forUser, string? forAudience = null)
+        => IssueAccessToken(forUser, new AccessTokenIssueOptions(forUser.TenantId, Audience: forAudience));
+
+    /// <inheritdoc />
+    public TokenDto IssueAccessToken(User forUser, AccessTokenIssueOptions options)
     {
+        Guard.Against.Null(forUser);
+        Guard.Against.Null(options);
+        Guard.Against.NegativeOrZero(options.TenantId);
+
         var secret = _endatixJwtOptions.SigningKey;
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
-
-        if (string.IsNullOrEmpty(forAudience))
-        {
-            forAudience = _endatixJwtOptions.Audiences.First();
-        }
+        var forAudience = string.IsNullOrEmpty(options.Audience)
+            ? _endatixJwtOptions.Audiences.First()
+            : options.Audience;
 
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-        var subject = new ClaimsIdentity(claims: [
-                new Claim(JwtRegisteredClaimNames.Sub, forUser.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, forUser.Email.ToString()),
-                new Claim(JwtRegisteredClaimNames.EmailVerified, forUser.IsVerified? "true" : "false"),
-                new Claim(ClaimNames.TenantId, forUser.TenantId.ToString())
-            ]);
+        List<Claim> claims =
+        [
+            new Claim(JwtRegisteredClaimNames.Sub, forUser.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, forUser.Email.ToString()),
+            new Claim(JwtRegisteredClaimNames.EmailVerified, forUser.IsVerified ? "true" : "false"),
+            new Claim(ClaimNames.TenantId, options.TenantId.ToString())
+        ];
+
+        if (options.ActorUserId is long actorUserId)
+        {
+            Guard.Against.NegativeOrZero(actorUserId);
+            claims.Add(new Claim(ClaimNames.Actor, actorUserId.ToString()));
+        }
+
+        var expiryMinutes = options.AccessExpiryMinutes ?? _endatixJwtOptions.AccessExpiryInMinutes;
+        Guard.Against.NegativeOrZero(expiryMinutes);
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = subject,
-            Expires = DateTime.UtcNow.AddMinutes(_endatixJwtOptions.AccessExpiryInMinutes),
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(expiryMinutes),
             SigningCredentials = credentials,
             Issuer = _endatixJwtOptions.Issuer,
             Audience = forAudience
@@ -90,6 +106,23 @@ internal sealed class JwtTokenService : IUserTokenService
     }
 
     public async Task<Result<long>> ValidateAccessTokenAsync(string accessToken, bool validateLifetime = true)
+    {
+        var sessionResult = await ReadAccessTokenSessionAsync(accessToken, validateLifetime);
+        if (sessionResult.IsInvalid())
+        {
+            return Result.Invalid(sessionResult.ValidationErrors);
+        }
+
+        if (!sessionResult.IsSuccess)
+        {
+            return Result.Error();
+        }
+
+        return Result.Success(sessionResult.Value.UserId);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<AccessTokenSession>> ReadAccessTokenSessionAsync(string accessToken, bool validateLifetime = true)
     {
         var selectedScheme = _authSchemeSelector.SelectScheme(accessToken);
         if (selectedScheme != AuthSchemes.EndatixJwt)
@@ -130,7 +163,25 @@ internal sealed class JwtTokenService : IUserTokenService
             return Result.Invalid(new ValidationError("Invalid user ID"));
         }
 
-        return Result.Success(userId);
+        var tenantClaim = validatedJwtToken.Claims.FirstOrDefault(claim => claim.Type == ClaimNames.TenantId);
+        if (tenantClaim is null || !long.TryParse(tenantClaim.Value, out var tenantId) || tenantId <= 0)
+        {
+            return Result.Invalid(new ValidationError("Invalid tenant ID"));
+        }
+
+        long? actorUserId = null;
+        var actorClaim = validatedJwtToken.Claims.FirstOrDefault(claim => claim.Type == ClaimNames.Actor);
+        if (actorClaim is not null)
+        {
+            if (!long.TryParse(actorClaim.Value, out var parsedActor) || parsedActor <= 0)
+            {
+                return Result.Invalid(new ValidationError("Invalid actor ID"));
+            }
+
+            actorUserId = parsedActor;
+        }
+
+        return Result.Success(new AccessTokenSession(userId, tenantId, actorUserId));
     }
 
     public TokenDto IssueRefreshToken()

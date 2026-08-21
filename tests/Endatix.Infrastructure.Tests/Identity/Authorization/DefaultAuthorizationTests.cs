@@ -84,62 +84,70 @@ public sealed class DefaultAuthorizationTests
     [Fact]
     public async Task GetAuthorizationDataAsync_DelegatesToProvider_WhenInputsValid()
     {
-        // Arrange
         var context = CreateTestContext();
         context.RegisterEndatixProvider(TestIssuer, activate: true);
         var principal = CreatePrincipal("123", TestIssuer, tenantId: 10);
         var expected = AuthorizationData.ForAuthenticatedUser("123", 10, ["Role"], ["perm"]);
         context.AuthorizationDataProvider
-            .GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>())
+            .GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>(), Arg.Any<long?>())
             .Returns(Result.Success(expected));
 
-        // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
 
-        // Assert
-        await context.AuthorizationDataProvider.Received(1).GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>());
+        await context.AuthorizationDataProvider.Received(1).GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>(), null);
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(expected);
     }
 
     [Fact]
+    public async Task GetAuthorizationDataAsync_PassesActorUserId_WhenActClaimPresent()
+    {
+        var context = CreateTestContext();
+        context.RegisterEndatixProvider(TestIssuer, activate: true);
+        var principal = CreatePrincipal("123", TestIssuer, tenantId: 10, actorUserId: 123);
+        var expected = AuthorizationData.ForAuthenticatedUser("123", 10, ["Role"], ["perm"]);
+        context.AuthorizationDataProvider
+            .GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>(), 123)
+            .Returns(Result.Success(expected));
+
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        await context.AuthorizationDataProvider.Received(1).GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>(), 123);
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetAuthorizationDataAsync_ReturnsError_WhenTenantIdMissing()
     {
-        // Arrange
         var context = CreateTestContext();
         context.RegisterEndatixProvider(TestIssuer, activate: true);
         var principal = CreatePrincipal("123", TestIssuer);
 
-        // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().Contain("Tenant ID is required");
         await context.AuthorizationDataProvider.DidNotReceive()
-            .GetAuthorizationDataAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+            .GetAuthorizationDataAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>(), Arg.Any<long?>());
     }
 
     [Fact]
     public async Task GetAuthorizationDataAsync_ReturnsError_WhenDataProviderFails()
     {
-        // Arrange
         var context = CreateTestContext();
         context.RegisterEndatixProvider(TestIssuer, activate: true);
         var principal = CreatePrincipal("123", TestIssuer, tenantId: 10);
         context.AuthorizationDataProvider
-            .GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>())
+            .GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>(), Arg.Any<long?>())
             .Returns(Result<AuthorizationData>.Error("failed"));
 
-        // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
 
-        // Assert
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().Contain("failed");
     }
 
-    private static ClaimsPrincipal CreatePrincipal(string userId, string issuer, long? tenantId = null)
+    private static ClaimsPrincipal CreatePrincipal(string userId, string issuer, long? tenantId = null, long? actorUserId = null)
     {
         var claims = new List<Claim>
         {
@@ -150,6 +158,11 @@ public sealed class DefaultAuthorizationTests
         if (tenantId is not null)
         {
             claims.Add(new Claim(ClaimNames.TenantId, tenantId.Value.ToString()));
+        }
+
+        if (actorUserId is not null)
+        {
+            claims.Add(new Claim(ClaimNames.Actor, actorUserId.Value.ToString()));
         }
 
         var identity = new ClaimsIdentity(claims, "test");

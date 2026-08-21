@@ -118,6 +118,7 @@ public sealed class FeatureGateTargetingTests
     public bool IsAnonymous => false;
     public bool IsAuthenticated => true;
     public string? GetCurrentUserId() => userId;
+    public long? GetActorUserId() => null;
     public User? GetCurrentUser() => new User(1, userId, "test@example.com", true);
   }
 }

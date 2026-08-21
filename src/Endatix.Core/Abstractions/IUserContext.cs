@@ -26,4 +26,9 @@ public interface IUserContext
     /// Gets the current user's ID, or null if not authenticated.
     /// </summary>
     string? GetCurrentUserId();
+
+    /// <summary>
+    /// Actor user id when the session was issued via assume-tenant; otherwise null.
+    /// </summary>
+    long? GetActorUserId();
 }
