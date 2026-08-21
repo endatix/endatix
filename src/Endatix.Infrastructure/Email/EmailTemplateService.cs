@@ -3,6 +3,7 @@ using Ardalis.GuardClauses;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Configuration;
+using Endatix.Core.Features.Email;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 
@@ -14,8 +15,6 @@ namespace Endatix.Infrastructure.Email;
 /// </summary>
 public class EmailTemplateService : IEmailTemplateService
 {
-    private const string DEFAULT_FROM_ADDRESS = "noreply@endatix.com";
-
     private readonly IOptions<EmailTemplateSettings> _emailTemplateSettings;
     private readonly IOptions<HubSettings> _hubSettings;
 
@@ -93,7 +92,8 @@ public class EmailTemplateService : IEmailTemplateService
         return new EmailWithTemplate
         {
             To = userEmail,
-            From = _emailTemplateSettings.Value.ForgotPasswordEmail.FromAddress ?? DEFAULT_FROM_ADDRESS,
+            From = ResolveConfiguredFromAddress(
+                _emailTemplateSettings.Value.ForgotPasswordEmail.FromAddress),
             TemplateId = _emailTemplateSettings.Value.ForgotPasswordEmail.TemplateId,
             Metadata = new Dictionary<string, object>
             {
@@ -111,7 +111,8 @@ public class EmailTemplateService : IEmailTemplateService
         return new EmailWithTemplate
         {
             To = userEmail,
-            From = _emailTemplateSettings.Value.PasswordChangedEmail.FromAddress ?? DEFAULT_FROM_ADDRESS,
+            From = ResolveConfiguredFromAddress(
+                _emailTemplateSettings.Value.PasswordChangedEmail.FromAddress),
             TemplateId = _emailTemplateSettings.Value.PasswordChangedEmail.TemplateId,
             Metadata = []
         };
@@ -128,4 +129,9 @@ public class EmailTemplateService : IEmailTemplateService
         var query = QueryHelpers.AddQueryString(string.Empty, queryParams);
         return query.TrimStart('?');
     }
+
+    private static string ResolveConfiguredFromAddress(string? configuredFromAddress) =>
+        string.IsNullOrWhiteSpace(configuredFromAddress)
+            ? EmailTemplateFromAddress.DefaultFromAddress
+            : configuredFromAddress;
 }
