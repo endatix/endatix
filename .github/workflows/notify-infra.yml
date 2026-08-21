@@ -6,10 +6,9 @@
 # environments track this component and commits; ArgoCD deploys from there.
 #
 # It reports a fact and makes no decisions. Whether a given version should reach a given
-# cluster — what counts as newer, whether hotfix-line builds are wanted, which environment
-# tracks which channel — is decided in endatix-infra, the repo that owns the desired
-# state. That is why prereleases are NOT filtered here: canaries are exactly what a CI
-# environment wants, and it is not this repo's business which environments exist.
+# cluster is decided in endatix-infra, the repo that owns the desired state. That is why
+# prereleases are NOT filtered here: canaries are exactly what a CI environment wants, and
+# it is not this repo's business which environments exist.
 #
 # Fires for every published release: canaries from main, hotfix builds, and stable
 # releases at the moment their draft is published.
@@ -48,15 +47,13 @@ jobs:
           recursive: true
 
       # A DIFFERENT scope from the release pipeline's token, which is deliberately limited
-      # to this repository. This one reaches into endatix-infra and nothing else, and asks
-      # for the single permission the call below needs. create-github-app-token can only
-      # narrow what the App was granted, never widen it, so if the App does not hold
-      # Actions write on endatix-infra this step fails loudly here rather than producing a
-      # token that 403s later.
+      # to this repository. This one reaches into endatix-infra and nothing else.
       #
-      # The alternative needs only Contents write: POST /repos/endatix/endatix-infra/
-      # dispatches with event_type=chart-release and the same two values as client_payload
-      # — chart-bump.yml accepts that trigger too.
+      # Contents write is what a repository_dispatch needs, and it is what the App already
+      # holds — so this needs no permission change. A workflow_dispatch would have been
+      # tidier (typed inputs, visible in the Actions UI) but requires Actions write, which
+      # the App does not have; create-github-app-token can only narrow what the App was
+      # granted, never widen it.
       - name: 🔑 Endatix Automations APP token (scoped to endatix-infra)
         id: app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
@@ -65,17 +62,17 @@ jobs:
           private-key: ${{ env.ENDATIX_PROJECT_AUTOMATIONS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: endatix-infra
-          permission-actions: write
+          permission-contents: write
 
       - name: 🚀 Trigger chart-bump
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          # The chart-bump script strips a leading v and rejects anything that is not
-          # plain semver, so the tag is passed through as-is.
+          # chart-bump strips a leading v, so the tag goes through as-is. Built with jq
+          # rather than string-interpolated so the tag cannot break out of the JSON body.
           VERSION: ${{ github.event.release.tag_name }}
+          OWNER: ${{ github.repository_owner }}
         run: |
-          gh workflow run chart-bump.yml \
-            --repo ${{ github.repository_owner }}/endatix-infra \
-            --field service=endatix-api \
-            --field version="$VERSION"
+          jq -nc --arg v "$VERSION" \
+            '{event_type: "chart-release", client_payload: {service: "endatix-api", version: $v}}' \
+            | gh api --method POST "/repos/${OWNER}/endatix-infra/dispatches" --input -
           echo "Asked endatix-infra to pin endatix-api $VERSION" >> "$GITHUB_STEP_SUMMARY"
