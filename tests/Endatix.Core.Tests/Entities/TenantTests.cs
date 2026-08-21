@@ -73,7 +73,7 @@ public class TenantTests
         var tenant = new Tenant("Acme", ValidShortUrl);
         var occurredAt = DateTime.UtcNow;
 
-        tenant.RaiseContextChanged(7, fromTenantId: 1, TenantContextChangedEvent.Assumed, occurredAt);
+        tenant.RaiseContextChanged(7, fromTenantId: 1, toTenantId: tenant.Id, TenantContextChangedEvent.Assumed, occurredAt);
 
         var domainEvent = tenant.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<TenantContextChangedEvent>().Subject;
         domainEvent.Should().BeAssignableTo<IIntegrationEvent>();
@@ -82,6 +82,7 @@ public class TenantTests
         domainEvent.ChangeKind.WireValue.Should().Be("assumed");
         domainEvent.ActorUserId.Should().Be(7);
         domainEvent.FromTenantId.Should().Be(1);
+        domainEvent.ToTenantId.Should().Be(tenant.Id);
         domainEvent.OccurredAt.Should().Be(occurredAt);
         domainEvent.DateOccurred.Should().Be(occurredAt);
 

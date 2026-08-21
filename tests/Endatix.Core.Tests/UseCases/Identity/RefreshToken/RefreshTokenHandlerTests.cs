@@ -168,7 +168,9 @@ public class RefreshTokenHandlerTests
         _authService.ValidateRefreshToken(userId, command.RefreshToken, Arg.Any<CancellationToken>())
             .Returns(Result<User>.Success(user));
         _tokenService.IssueAccessToken(user, Arg.Is<AccessTokenIssueOptions>(
-                options => options.TenantId == assumedTenantId && options.ActorUserId == userId))
+                options => options.TenantId == assumedTenantId
+                    && options.ActorUserId == userId
+                    && options.AccessExpiryMinutes == AssumeTenantSession.AccessExpiryMinutes))
             .Returns(newAccessToken);
         _tokenService.IssueRefreshToken().Returns(newRefreshToken);
 

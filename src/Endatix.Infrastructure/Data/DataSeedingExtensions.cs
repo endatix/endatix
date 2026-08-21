@@ -64,6 +64,13 @@ public static class DataSeedingExtensions
                 dataOptions,
                 seedLogger);
 
+            var identityDbContext = scopedProvider.GetRequiredService<AppIdentityDbContext>();
+            var idGenerator = scopedProvider.GetRequiredService<IIdGenerator<long>>();
+            await IdentityCatalogSeed.EnsureAssumeTenantPermissionAsync(
+                identityDbContext,
+                idGenerator,
+                seedLogger);
+
             logger?.LogInformation("Initial user data seeded successfully");
         }
         catch (Exception ex)
