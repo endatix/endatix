@@ -18,13 +18,10 @@ public sealed class CreateTests
     [Fact]
     public async Task ExecuteAsync_MultiTenancyDisabled_ReturnsNotFoundWithoutSendingCommand()
     {
-        // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: false);
 
-        // Act
         var response = await endpoint.ExecuteAsync(ValidRequest(), TestContext.Current.CancellationToken);
 
-        // Assert
         var problemResult = response.Result.As<ProblemHttpResult>();
         problemResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
         await _mediator.DidNotReceive().Send(Arg.Any<CreateTenantCommand>(), Arg.Any<CancellationToken>());
@@ -33,38 +30,31 @@ public sealed class CreateTests
     [Fact]
     public async Task ExecuteAsync_ValidRequest_ReturnsCreatedTenant()
     {
-        // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: true);
         _mediator.Send(Arg.Any<CreateTenantCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TenantDto>.Created(SampleTenant()));
 
-        // Act
         var response = await endpoint.ExecuteAsync(ValidRequest(), TestContext.Current.CancellationToken);
 
-        // Assert
         var createdResult = response.Result.As<Created<TenantModel>>();
         createdResult.Value!.Id.Should().Be(42);
-        createdResult.Value.Slug.Should().Be("acme");
+        createdResult.Value.ShortUrl.Should().Be("xk9mp2qr");
         createdResult.Value.AllowSelfRegistration.Should().BeTrue();
         createdResult.Value.AllowedAuthProviderKeys.Should().BeEquivalentTo(["google"]);
     }
 
     [Fact]
-    public async Task ExecuteAsync_ValidRequest_MapsRequestToCommand()
+    public async Task ExecuteAsync_ValidRequest_DoesNotSendClientShortUrl()
     {
-        // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: true);
         _mediator.Send(Arg.Any<CreateTenantCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TenantDto>.Created(SampleTenant()));
 
-        // Act
         await endpoint.ExecuteAsync(ValidRequest(), CancellationToken.None);
 
-        // Assert
         await _mediator.Received(1).Send(
             Arg.Is<CreateTenantCommand>(command =>
                 command.Name == "Acme"
-                && command.Slug == "acme"
                 && command.Description == "Primary tenant"
                 && command.AllowSelfRegistration
                 && command.DefaultRegistrationRoleName == "Respondent"),
@@ -72,17 +62,14 @@ public sealed class CreateTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_DuplicateSlug_ReturnsBadRequestProblem()
+    public async Task ExecuteAsync_InvalidCommand_ReturnsBadRequestProblem()
     {
-        // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: true);
         _mediator.Send(Arg.Any<CreateTenantCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result<TenantDto>.Invalid(new ValidationError("Slug is taken.")));
+            .Returns(Result<TenantDto>.Invalid(new ValidationError("Name is required.")));
 
-        // Act
         var response = await endpoint.ExecuteAsync(ValidRequest(), TestContext.Current.CancellationToken);
 
-        // Assert
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
@@ -92,7 +79,6 @@ public sealed class CreateTests
     private static CreateTenantRequest ValidRequest() => new()
     {
         Name = "Acme",
-        Slug = "acme",
         Description = "Primary tenant",
         AllowSelfRegistration = true,
         AllowedAuthProviderKeys = ["google"],
@@ -103,7 +89,7 @@ public sealed class CreateTests
     {
         Id = 42,
         Name = "Acme",
-        Slug = "acme",
+        ShortUrl = "xk9mp2qr",
         Description = "Primary tenant",
         AllowSelfRegistration = true,
         AllowedAuthProviderKeys = ["google"],

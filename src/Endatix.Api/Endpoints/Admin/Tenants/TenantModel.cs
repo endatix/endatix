@@ -18,9 +18,9 @@ public sealed record TenantModel
     public required string Name { get; init; }
 
     /// <summary>
-    /// The public tenant slug. Immutable after create.
+    /// The public tenant short URL. Immutable after create.
     /// </summary>
-    public required string Slug { get; init; }
+    public required string ShortUrl { get; init; }
 
     /// <summary>
     /// The tenant description.
@@ -28,7 +28,7 @@ public sealed record TenantModel
     public string? Description { get; init; }
 
     /// <summary>
-    /// When true, anonymous users may self-register via the tenant slug.
+    /// When true, anonymous users may self-register via the tenant short URL.
     /// </summary>
     public bool AllowSelfRegistration { get; init; }
 
@@ -59,7 +59,7 @@ public sealed record TenantModel
     {
         Id = tenant.Id,
         Name = tenant.Name,
-        Slug = tenant.Slug,
+        ShortUrl = tenant.ShortUrl,
         Description = tenant.Description,
         AllowSelfRegistration = tenant.AllowSelfRegistration,
         AllowedAuthProviderKeys = tenant.AllowedAuthProviderKeys,

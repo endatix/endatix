@@ -14,7 +14,7 @@ public sealed record TenantDto
     /// <summary>
     /// Public path segment used for unauthenticated discovery. Immutable after create.
     /// </summary>
-    public required string Slug { get; init; }
+    public required string ShortUrl { get; init; }
 
     public string? Description { get; init; }
 
@@ -36,7 +36,7 @@ public sealed record TenantDto
     {
         Id = tenant.Id,
         Name = tenant.Name,
-        Slug = tenant.Slug,
+        ShortUrl = tenant.ShortUrl,
         Description = tenant.Description,
         AllowSelfRegistration = settings?.AllowSelfRegistration ?? false,
         AllowedAuthProviderKeys = settings?.AllowedAuthProviderKeys ?? [],

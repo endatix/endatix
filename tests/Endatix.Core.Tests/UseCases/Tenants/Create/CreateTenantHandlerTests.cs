@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
+using Endatix.Core.Common;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -12,11 +13,13 @@ namespace Endatix.Core.Tests.UseCases.Tenants.Create;
 public class CreateTenantHandlerTests
 {
     private const long NEW_TENANT_ID = 4242;
+    private const string GeneratedShortUrl = "xk9mp2qr";
 
     private readonly IRepository<CoreEntities.Tenant> _tenantRepository;
     private readonly IRepository<CoreEntities.TenantSettings> _tenantSettingsRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IIdGenerator<long> _idGenerator;
+    private readonly IShortUrlGenerator _shortUrlGenerator;
     private readonly CreateTenantHandler _sut;
 
     public CreateTenantHandlerTests()
@@ -26,30 +29,34 @@ public class CreateTenantHandlerTests
         _unitOfWork = Substitute.For<IUnitOfWork>();
         _idGenerator = Substitute.For<IIdGenerator<long>>();
         _idGenerator.CreateId().Returns(NEW_TENANT_ID);
-        _sut = new CreateTenantHandler(_tenantRepository, _tenantSettingsRepository, _unitOfWork, _idGenerator);
+        _shortUrlGenerator = Substitute.For<IShortUrlGenerator>();
+        _shortUrlGenerator.Create(ShortUrlKind.Standard).Returns(GeneratedShortUrl);
+        _sut = new CreateTenantHandler(
+            _tenantRepository,
+            _tenantSettingsRepository,
+            _unitOfWork,
+            _idGenerator,
+            _shortUrlGenerator);
     }
 
     [Fact]
-    public async Task Handle_ValidCommand_ReturnsCreatedTenantWithSettings()
+    public async Task Handle_ValidCommand_ReturnsCreatedTenantWithGeneratedShortUrl()
     {
-        // Arrange
-        SlugIsFree();
+        ShortUrlIsFree();
         CreateTenantCommand command = new(
             "Acme Surveys",
-            "acme-surveys",
             "Primary tenant",
             AllowSelfRegistration: true,
             AllowedAuthProviderKeys: ["google", "google", " keycloak "],
             DefaultRegistrationRoleName: "Respondent");
 
-        // Act
         var result = await _sut.Handle(command, TestContext.Current.CancellationToken);
 
-        // Assert
         result.Status.Should().Be(ResultStatus.Created);
         result.Value.Id.Should().Be(NEW_TENANT_ID);
         result.Value.Name.Should().Be("Acme Surveys");
-        result.Value.Slug.Should().Be("acme-surveys");
+        result.Value.ShortUrl.Should().Be(GeneratedShortUrl);
+        result.Value.ShortUrl.Should().NotBe(UrlSlugNormalizer.FromDisplayName("Acme Surveys"));
         result.Value.Description.Should().Be("Primary tenant");
         result.Value.AllowSelfRegistration.Should().BeTrue();
         result.Value.AllowedAuthProviderKeys.Should().BeEquivalentTo(["google", "keycloak"]);
@@ -59,15 +66,12 @@ public class CreateTenantHandlerTests
     [Fact]
     public async Task Handle_ValidCommand_PersistsTenantAndSettingsInOneTransaction()
     {
-        // Arrange
-        SlugIsFree();
+        ShortUrlIsFree();
 
-        // Act
-        await _sut.Handle(new CreateTenantCommand("Acme", "acme"), TestContext.Current.CancellationToken);
+        await _sut.Handle(new CreateTenantCommand("Acme"), TestContext.Current.CancellationToken);
 
-        // Assert
         await _tenantRepository.Received(1).AddAsync(
-            Arg.Is<CoreEntities.Tenant>(tenant => tenant.Id == NEW_TENANT_ID && tenant.Slug == "acme"),
+            Arg.Is<CoreEntities.Tenant>(tenant => tenant.Id == NEW_TENANT_ID && tenant.ShortUrl == GeneratedShortUrl),
             Arg.Any<CancellationToken>());
         await _tenantSettingsRepository.Received(1).AddAsync(
             Arg.Is<CoreEntities.TenantSettings>(settings => settings.TenantId == NEW_TENANT_ID),
@@ -80,8 +84,7 @@ public class CreateTenantHandlerTests
     [Fact]
     public async Task Handle_ValidCommand_RaisesTenantCreatedIntegrationEvent()
     {
-        // Arrange
-        SlugIsFree();
+        ShortUrlIsFree();
         CoreEntities.Tenant? addedTenant = null;
         _tenantRepository.AddAsync(Arg.Any<CoreEntities.Tenant>(), Arg.Any<CancellationToken>())
             .Returns(call =>
@@ -90,81 +93,52 @@ public class CreateTenantHandlerTests
                 return addedTenant;
             });
 
-        // Act
-        await _sut.Handle(new CreateTenantCommand("Acme", "acme"), TestContext.Current.CancellationToken);
+        await _sut.Handle(new CreateTenantCommand("Acme"), TestContext.Current.CancellationToken);
 
-        // Assert
         addedTenant!.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<TenantCreatedEvent>()
             .Which.EventType.Should().Be("tenant.created");
     }
 
     [Fact]
-    public async Task Handle_UnnormalizedSlug_NormalizesBeforeUniquenessCheck()
+    public async Task Handle_FirstShortUrlTaken_RetriesUntilFree()
     {
-        // Arrange
-        SlugIsFree();
+        _shortUrlGenerator.Create(ShortUrlKind.Standard).Returns("aaaaaaaa", GeneratedShortUrl);
+        _tenantRepository
+            .AnyAsync(Arg.Any<TenantSpecifications.ExistsByShortUrlSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true, false);
 
-        // Act
-        var result = await _sut.Handle(
-            new CreateTenantCommand("Acme Surveys", " Acme Surveys "),
-            TestContext.Current.CancellationToken);
+        var result = await _sut.Handle(new CreateTenantCommand("Acme"), TestContext.Current.CancellationToken);
 
-        // Assert
-        result.Value.Slug.Should().Be("acme-surveys");
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.ShortUrl.Should().Be(GeneratedShortUrl);
+        await _shortUrlGenerator.Received(2).Create(ShortUrlKind.Standard);
     }
 
     [Fact]
-    public async Task Handle_DuplicateSlug_ReturnsInvalidAndDoesNotPersist()
+    public async Task Handle_AllShortUrlRetriesTaken_ReturnsErrorAndDoesNotPersist()
     {
-        // Arrange
         _tenantRepository
-            .AnyAsync(Arg.Any<TenantSpecifications.ExistsBySlugSpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<TenantSpecifications.ExistsByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        // Act
-        var result = await _sut.Handle(
-            new CreateTenantCommand("Acme", "acme"),
-            TestContext.Current.CancellationToken);
+        var result = await _sut.Handle(new CreateTenantCommand("Acme"), TestContext.Current.CancellationToken);
 
-        // Assert
-        result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().ContainSingle()
-            .Which.Identifier.Should().Be(nameof(CreateTenantCommand.Slug));
+        result.Status.Should().Be(ResultStatus.Error);
         await _tenantRepository.DidNotReceive().AddAsync(Arg.Any<CoreEntities.Tenant>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().BeginTransactionAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_ReservedSlug_ReturnsInvalid()
-    {
-        // Arrange
-        SlugIsFree();
-
-        // Act
-        var result = await _sut.Handle(
-            new CreateTenantCommand("Admin", "admin"),
-            TestContext.Current.CancellationToken);
-
-        // Assert
-        result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Contain("reserved");
-        await _tenantRepository.DidNotReceive().AddAsync(Arg.Any<CoreEntities.Tenant>(), Arg.Any<CancellationToken>());
+        await _shortUrlGenerator.Received(ShortUrl.CollisionRetries).Create(ShortUrlKind.Standard);
     }
 
     [Fact]
     public async Task Handle_EmptyName_ReturnsInvalid()
     {
-        // Arrange
-        SlugIsFree();
+        ShortUrlIsFree();
 
-        // Act
         var result = await _sut.Handle(
-            new CreateTenantCommand("   ", "acme"),
+            new CreateTenantCommand("   "),
             TestContext.Current.CancellationToken);
 
-        // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().ContainSingle()
             .Which.Identifier.Should().Be(nameof(CreateTenantCommand.Name));
@@ -175,15 +149,12 @@ public class CreateTenantHandlerTests
     [InlineData("Public")]
     public async Task Handle_ForbiddenRegistrationRole_ReturnsInvalidAndDoesNotPersist(string roleName)
     {
-        // Arrange
-        SlugIsFree();
+        ShortUrlIsFree();
 
-        // Act
         var result = await _sut.Handle(
-            new CreateTenantCommand("Acme", "acme", DefaultRegistrationRoleName: roleName),
+            new CreateTenantCommand("Acme", DefaultRegistrationRoleName: roleName),
             TestContext.Current.CancellationToken);
 
-        // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().ContainSingle()
             .Which.Identifier.Should().Be(nameof(CreateTenantCommand.DefaultRegistrationRoleName));
@@ -193,25 +164,22 @@ public class CreateTenantHandlerTests
     [Fact]
     public async Task Handle_PersistenceFailure_RollsBackTransaction()
     {
-        // Arrange
-        SlugIsFree();
+        ShortUrlIsFree();
         _tenantSettingsRepository
             .When(repository => repository.AddAsync(Arg.Any<CoreEntities.TenantSettings>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("save failed"));
 
-        // Act
         var act = async () => await _sut.Handle(
-            new CreateTenantCommand("Acme", "acme"),
+            new CreateTenantCommand("Acme"),
             TestContext.Current.CancellationToken);
 
-        // Assert
         await act.Should().ThrowAsync<InvalidOperationException>();
         await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().CommitTransactionAsync(Arg.Any<CancellationToken>());
     }
 
-    private void SlugIsFree() =>
+    private void ShortUrlIsFree() =>
         _tenantRepository
-            .AnyAsync(Arg.Any<TenantSpecifications.ExistsBySlugSpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<TenantSpecifications.ExistsByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(false);
 }

@@ -23,7 +23,7 @@ public sealed class TenantCreatedEvent(Tenant tenant) : DomainEventBase, IIntegr
     {
         tenantId = Tenant.Id,
         name = Tenant.Name,
-        slug = Tenant.Slug,
+        shortUrl = Tenant.ShortUrl,
         description = Tenant.Description,
         createdAt = Tenant.CreatedAt
     };

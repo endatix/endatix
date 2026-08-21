@@ -80,7 +80,7 @@ public class UpdateTenantHandlerTests
     }
 
     [Fact]
-    public async Task Handle_AnyCommand_NeverChangesSlug()
+    public async Task Handle_AnyCommand_NeverChangesShortUrl()
     {
         // Arrange
         var tenant = ExistingTenant();
@@ -92,8 +92,8 @@ public class UpdateTenantHandlerTests
             TestContext.Current.CancellationToken);
 
         // Assert
-        tenant.Slug.Should().Be("acme");
-        result.Value.Slug.Should().Be("acme");
+        tenant.ShortUrl.Should().Be("xk9mp2qr");
+        result.Value.ShortUrl.Should().Be("xk9mp2qr");
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public class UpdateTenantHandlerTests
 
     private CoreEntities.Tenant ExistingTenant()
     {
-        CoreEntities.Tenant tenant = new("Acme", "acme", "Original description") { Id = TENANT_ID };
+        CoreEntities.Tenant tenant = new("Acme", "xk9mp2qr", "Original description") { Id = TENANT_ID };
         _tenantRepository
             .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.ByIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenant);

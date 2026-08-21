@@ -36,7 +36,7 @@ public class GetTenantByIdHandlerTests
     [Fact]
     public async Task Handle_TenantExists_ReturnsDtoWithSettings()
     {
-        CoreEntities.Tenant tenant = new("Acme", "acme", "Primary") { Id = TENANT_ID };
+        CoreEntities.Tenant tenant = new("Acme", "xk9mp2qr", "Primary") { Id = TENANT_ID };
         CoreEntities.TenantSettings settings = new(TENANT_ID);
         settings.UpdateSelfRegistrationPolicy(true, ["google"], "Respondent");
         _tenantRepository
@@ -49,7 +49,7 @@ public class GetTenantByIdHandlerTests
         var result = await _sut.Handle(new GetTenantByIdQuery(TENANT_ID), TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Ok);
-        result.Value.Slug.Should().Be("acme");
+        result.Value.ShortUrl.Should().Be("xk9mp2qr");
         result.Value.AllowSelfRegistration.Should().BeTrue();
         result.Value.AllowedAuthProviderKeys.Should().BeEquivalentTo(["google"]);
     }

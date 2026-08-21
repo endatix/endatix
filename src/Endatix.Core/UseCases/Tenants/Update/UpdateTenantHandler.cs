@@ -8,8 +8,8 @@ using Entities = Endatix.Core.Entities;
 namespace Endatix.Core.UseCases.Tenants.Update;
 
 /// <summary>
-/// Handler for partially updating a tenant. The slug stays immutable: public sign-in and self-registration
-/// URLs are built from it, so renaming a tenant never invalidates links already in the wild.
+/// Handler for partially updating a tenant. The short URL stays immutable: public sign-in and
+/// self-registration URLs are built from it, so renaming a tenant never invalidates links already in the wild.
 /// </summary>
 public sealed class UpdateTenantHandler(
     IRepository<Entities.Tenant> tenantRepository,
@@ -85,11 +85,10 @@ public sealed class UpdateTenantHandler(
         var registrationRole = string.IsNullOrWhiteSpace(request.DefaultRegistrationRoleName)
             ? settings.DefaultRegistrationRoleName
             : request.DefaultRegistrationRoleName.Trim();
-        if (!Entities.TenantSettings.IsAllowedDefaultRegistrationRole(registrationRole))
+        var roleCheck = Entities.TenantSettings.ValidateDefaultRegistrationRole(registrationRole);
+        if (!roleCheck.IsSuccess)
         {
-            return Result.Invalid(TenantWriteRules.ForbiddenRegistrationRole(
-                registrationRole,
-                nameof(UpdateTenantCommand.DefaultRegistrationRoleName)));
+            return Result.Invalid(roleCheck.ValidationErrors);
         }
 
         settings.UpdateSelfRegistrationPolicy(

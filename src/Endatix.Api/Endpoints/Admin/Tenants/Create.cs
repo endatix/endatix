@@ -1,4 +1,3 @@
-using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Tenants.Create;
@@ -25,9 +24,9 @@ public sealed class Create(IMediator mediator, IConfiguration configuration)
         Summary(s =>
         {
             s.Summary = "Create tenant";
-            s.Description = "Creates a tenant with its self-registration policy. The slug is immutable after create.";
+            s.Description = "Creates a tenant with its self-registration policy. The short URL is generated server-side and is immutable.";
             s.Responses[201] = "Tenant created successfully.";
-            s.Responses[400] = "Invalid input data, or the slug is reserved or already taken.";
+            s.Responses[400] = "Invalid input data, or the default registration role is not allowed.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Multi-tenancy is not enabled on this deployment.";
         });
@@ -47,7 +46,6 @@ public sealed class Create(IMediator mediator, IConfiguration configuration)
 
         CreateTenantCommand command = new(
             request.Name!,
-            request.Slug!,
             request.Description,
             request.AllowSelfRegistration,
             request.AllowedAuthProviderKeys,
@@ -61,7 +59,7 @@ public sealed class Create(IMediator mediator, IConfiguration configuration)
 }
 
 /// <summary>
-/// Request for creating a platform tenant.
+/// Request for creating a platform tenant. The short URL is assigned by the server.
 /// </summary>
 public sealed class CreateTenantRequest
 {
@@ -71,17 +69,12 @@ public sealed class CreateTenantRequest
     public string? Name { get; set; }
 
     /// <summary>
-    /// The requested public tenant slug.
-    /// </summary>
-    public string? Slug { get; set; }
-
-    /// <summary>
     /// The tenant description.
     /// </summary>
     public string? Description { get; set; }
 
     /// <summary>
-    /// When true, anonymous users may self-register via the tenant slug.
+    /// When true, anonymous users may self-register via the tenant short URL.
     /// </summary>
     public bool AllowSelfRegistration { get; set; }
 
@@ -107,10 +100,6 @@ public sealed class CreateTenantValidator : Validator<CreateTenantRequest>
             .NotEmpty()
             .MinimumLength(DataSchemaConstants.MIN_NAME_LENGTH)
             .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
-
-        RuleFor(request => request.Slug)
-            .NotEmpty()
-            .ValidUrlSlug();
 
         RuleFor(request => request.Description)
             .MaximumLength(DataSchemaConstants.MAX_DESCRIPTION_LENGTH)

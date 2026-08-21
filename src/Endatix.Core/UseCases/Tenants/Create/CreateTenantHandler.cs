@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
+using Endatix.Core.Common;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -15,7 +16,8 @@ public sealed class CreateTenantHandler(
     IRepository<Entities.Tenant> tenantRepository,
     IRepository<Entities.TenantSettings> tenantSettingsRepository,
     IUnitOfWork unitOfWork,
-    IIdGenerator<long> idGenerator)
+    IIdGenerator<long> idGenerator,
+    IShortUrlGenerator shortUrlGenerator)
     : ICommandHandler<CreateTenantCommand, Result<TenantDto>>
 {
     /// <inheritdoc/>
@@ -27,37 +29,25 @@ public sealed class CreateTenantHandler(
             return Result.Invalid(TenantWriteRules.InvalidName(nameof(CreateTenantCommand.Name)));
         }
 
-        var slugResult = TenantWriteRules.NormalizeSlug(request.Slug, name);
-        if (!slugResult.IsSuccess)
-        {
-            return Result.Invalid(TenantWriteRules.InvalidSlug(
-                slugResult.Errors.FirstOrDefault() ?? "Slug is invalid.",
-                nameof(CreateTenantCommand.Slug)));
-        }
-
-        var slug = slugResult.Value;
         var registrationRole = string.IsNullOrWhiteSpace(request.DefaultRegistrationRoleName)
             ? Entities.TenantSettings.DefaultRegistrationRole
             : request.DefaultRegistrationRoleName.Trim();
-        if (!Entities.TenantSettings.IsAllowedDefaultRegistrationRole(registrationRole))
+        var roleCheck = Entities.TenantSettings.ValidateDefaultRegistrationRole(registrationRole);
+        if (!roleCheck.IsSuccess)
         {
-            return Result.Invalid(TenantWriteRules.ForbiddenRegistrationRole(
-                registrationRole,
-                nameof(CreateTenantCommand.DefaultRegistrationRoleName)));
+            return Result.Invalid(roleCheck.ValidationErrors);
         }
 
-        var slugTaken = await tenantRepository.AnyAsync(
-            new TenantSpecifications.ExistsBySlugSpec(slug),
-            cancellationToken);
-        if (slugTaken)
+        var shortUrl = await AllocateUniqueShortUrlAsync(cancellationToken);
+        if (shortUrl is null)
         {
-            return Result.Invalid(TenantWriteRules.DuplicateSlug(slug, nameof(CreateTenantCommand.Slug)));
+            return Result.Error("Could not allocate a unique tenant short URL. Retry the request.");
         }
 
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            Entities.Tenant tenant = new(name, slug, request.Description?.Trim())
+            Entities.Tenant tenant = new(name, shortUrl, request.Description?.Trim())
             {
                 // The settings row keys off the tenant id, so it is assigned up front rather than
                 // stamped by the context on save.
@@ -85,5 +75,22 @@ public sealed class CreateTenantHandler(
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             throw;
         }
+    }
+
+    private async Task<string?> AllocateUniqueShortUrlAsync(CancellationToken cancellationToken)
+    {
+        for (int attempt = 0; attempt < ShortUrl.CollisionRetries; attempt++)
+        {
+            var candidate = shortUrlGenerator.Create(ShortUrlKind.Standard);
+            var taken = await tenantRepository.AnyAsync(
+                new TenantSpecifications.ExistsByShortUrlSpec(candidate),
+                cancellationToken);
+            if (!taken)
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 }

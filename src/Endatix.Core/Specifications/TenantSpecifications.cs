@@ -14,16 +14,16 @@ namespace Endatix.Core.Specifications;
 public static class TenantSpecifications
 {
     /// <summary>
-    /// Matches any tenant holding the given slug, including soft-deleted ones: the unique index on
-    /// <see cref="Tenant.Slug"/> is unfiltered, so a deleted tenant still owns its slug.
+    /// Matches any tenant holding the given short URL, including soft-deleted ones: the unique index
+    /// on <see cref="Tenant.ShortUrl"/> is unfiltered, so a deleted tenant still owns its identifier.
     /// </summary>
-    public sealed class ExistsBySlugSpec : Specification<Tenant>
+    public sealed class ExistsByShortUrlSpec : Specification<Tenant>
     {
-        public ExistsBySlugSpec(string slug)
+        public ExistsByShortUrlSpec(string shortUrl)
         {
             Query
                 .IgnoreQueryFilters()
-                .Where(tenant => tenant.Slug == slug);
+                .Where(tenant => tenant.ShortUrl == shortUrl);
         }
     }
 

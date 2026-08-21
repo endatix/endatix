@@ -42,7 +42,7 @@ public sealed class UpdateTests
         // Assert
         var okResult = response.Result.As<Ok<TenantModel>>();
         okResult.Value!.Name.Should().Be("Renamed");
-        okResult.Value.Slug.Should().Be("acme");
+        okResult.Value.ShortUrl.Should().Be("xk9mp2qr");
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class UpdateTests
     {
         Id = 42,
         Name = "Renamed",
-        Slug = "acme",
+        ShortUrl = "xk9mp2qr",
         AllowSelfRegistration = true,
         AllowedAuthProviderKeys = ["google"],
         DefaultRegistrationRoleName = "Respondent",

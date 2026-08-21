@@ -36,7 +36,7 @@ public sealed class GetByIdTests
             {
                 Id = 42,
                 Name = "Acme",
-                Slug = "acme",
+                ShortUrl = "xk9mp2qr",
                 AllowSelfRegistration = true,
                 AllowedAuthProviderKeys = ["google"],
                 DefaultRegistrationRoleName = "Respondent",
@@ -48,7 +48,7 @@ public sealed class GetByIdTests
             TestContext.Current.CancellationToken);
 
         var okResult = response.Result.As<Ok<TenantModel>>();
-        okResult.Value!.Slug.Should().Be("acme");
+        okResult.Value!.ShortUrl.Should().Be("xk9mp2qr");
         okResult.Value.AllowSelfRegistration.Should().BeTrue();
     }
 

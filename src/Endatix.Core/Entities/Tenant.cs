@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Ardalis.GuardClauses;
 using Endatix.Core.Common;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities
@@ -69,5 +70,11 @@ namespace Endatix.Core.Entities
         {
             Description = description;
         }
+
+        /// <summary>
+        /// Raises <see cref="TenantCreatedEvent"/> so the outbox captures it in the same transaction that
+        /// persists the tenant. Called by the create use case once the aggregate is complete.
+        /// </summary>
+        public void RaiseCreated() => RegisterDomainEvent(new TenantCreatedEvent(this));
     }
 }
