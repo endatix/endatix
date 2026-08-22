@@ -5,7 +5,7 @@ This document describes how the Endatix API packages are organized today and the
 **Related**
 
 - [Ardalis Minimal Clean Architecture](https://ardalis.github.io/CleanArchitecture/minimal-clean-architecture/) — vertical slices, optional Mediator/CQRS, pragmatic DDD
-- SaaS module examples: [`src/Endatix.Modules.Agents`](../../src/Endatix.Modules.Agents) + [`Endatix.Modules.Agents.Contracts`](../../src/Endatix.Modules.Agents.Contracts); OSS [`Endatix.Modules.Reporting`](src/Endatix.Modules.Reporting/) + [`Endatix.Modules.Reporting.Contracts`](src/Endatix.Modules.Reporting.Contracts/)
+- SaaS module examples: [`src/Endatix.Modules.Agents`](../../src/Endatix.Modules.Agents) + [`Endatix.Modules.Agents.Contracts`](../../src/Endatix.Modules.Agents.Contracts); [`src/Endatix.SaaS.Management`](../../src/Endatix.SaaS.Management) + [`Endatix.SaaS.Management.Contracts`](../../src/Endatix.SaaS.Management.Contracts) (commercial waitlist / tenant signup); OSS [`Endatix.Modules.Reporting`](src/Endatix.Modules.Reporting/) + [`Endatix.Modules.Reporting.Contracts`](src/Endatix.Modules.Reporting.Contracts/)
 - Workspace product notes: repo-root [`ARCHITECTURE.md`](../ARCHITECTURE.md)
 
 ---
@@ -194,6 +194,21 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 ```
 
 Host wiring: `EndatixBuilder.UseDefaults()` calls `UseModule(ReportingModule.Instance)`, which scans `Assembly` for MediatR handlers and FastEndpoints and invokes `ConfigureServices` at finalization. Modules with `IHasFeatureFlag` are skipped when the flag is disabled.
+
+### SaaS.Management module (commercial waitlist)
+
+`Endatix.SaaS.Management` lives in the **SaaS repo** (not OSS `UseDefaults`). It is wired only from `Endatix.SaaS.WebHost` via `UseModule(SaaSManagementModule.Instance)` and `Api.ScanAssemblies(...)`.
+
+| Aspect | Choice |
+| --- | --- |
+| **Bounded context** | Tenant signup waitlist (approve/reject inbox); future commercial onboarding |
+| **Contracts** | `Endatix.SaaS.Management.Contracts` — DTOs, commands, queries, wire codes, public events (`TenantSignupApprovedEvent`) |
+| **Persistence** | PostgreSQL only, isolated `saas` schema, `SaaSManagementDbContext` (not `ITenantDbContext`; no tenant query filters) |
+| **Feature flag** | `Endatix:FeatureFlags:SaaSManagement` (Hub kebab `saas-management`) |
+| **Approval flow** | Approve endpoint marks row + raises `TenantSignupApprovedEvent`; fulfillment handler calls Core `CreateTenantCommand`, invite/Admin assignment (idempotent) |
+| **Messaging** | MediatR in-process only — no broker, no Core reference to SaaS types |
+
+Hub mirrors the flag and exposes `/signup` (public) plus `/admin/signup-requests` (PlatformAdmin + flag guard). Distinct from tenant self-registration at `/t/{slug}/register`.
 
 **Startup migrations (two phases):** When `Endatix:Data:EnableAutoMigrations` is true, `DatabaseMigrationService` first migrates core `AppDbContext` and `AppIdentityDbContext`, then iterates registered [`IDbContextMigrationContributor`](src/Endatix.Framework/Modules/IDbContextMigrationContributor.cs) instances for opt-in module/custom contexts. Modules implement `IHasDbMigrations` as a marker; the host warns if `AddDbContextWithMigrations` was not called.
 
