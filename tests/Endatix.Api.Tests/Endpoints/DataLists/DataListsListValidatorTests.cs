@@ -43,7 +43,8 @@ public class DataListsListValidatorTests
         var result = _validator.TestValidate(new DataListsListRequest { HasLocale = tooMany });
 
         result.ShouldHaveValidationErrorFor(x => x.HasLocale)
-            .WithErrorMessage($"No more than {CultureCodeValidation.MaxLocales} locales can be requested.");
+            .WithErrorMessage(
+                $"No more than {CultureCodeValidation.MaxLocales} locales can be requested. Received: {tooMany}.");
     }
 
     [Fact]

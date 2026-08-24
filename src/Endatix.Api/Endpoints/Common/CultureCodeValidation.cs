@@ -37,7 +37,13 @@ public static class CultureCodeValidation
             .Must(HasAtLeastOneToken)
             .WithMessage(HasLocaleInvalidMessage)
             .Must(hasLocale => CountTokensAtMost(WrapHasLocale(hasLocale), MaxLocales))
-            .WithMessage($"No more than {MaxLocales} locales can be requested.")
+            .WithMessage((_, hasLocale) =>
+            {
+                string received = string.Join(
+                    ",",
+                    TranslationLocaleList.Tokenize(WrapHasLocale(hasLocale)).Take(MaxLocales + 1));
+                return $"No more than {MaxLocales} locales can be requested. Received: {received}.";
+            })
             .Must(hasLocale => AreTokensValid(WrapHasLocale(hasLocale), allowSyntheticDefault: false))
             .WithMessage(HasLocaleInvalidMessage);
 
