@@ -110,14 +110,14 @@ public class ListDataListsHandlerTests
             });
 
         // Act
-        await _sut.Handle(new ListDataListsQuery(1, 10, Search: "major"), TestContext.Current.CancellationToken);
+        await _sut.Handle(new ListDataListsQuery(1, 10, Search: "MaJoR"), TestContext.Current.CancellationToken);
 
         // Assert
         await _repository.Received(1).CountAsync(
-            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersBySearch(spec, "major")),
+            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersBySearch(spec, "MaJoR")),
             Arg.Any<CancellationToken>());
         await _repository.Received(1).ListAsync(
-            Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(spec => SpecFiltersBySearch(spec, "major")),
+            Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(spec => SpecFiltersBySearch(spec, "MaJoR")),
             Arg.Any<CancellationToken>());
     }
 
@@ -161,8 +161,13 @@ public class ListDataListsHandlerTests
 
     private static bool SpecFiltersBySearch(ISpecification<DataList> spec, string search)
     {
-        DataList matchingDescription = new(SampleData.TENANT_ID, "Cities", "Major cities");
-        DataList matchingName = new(SampleData.TENANT_ID, "Major metros", "ISO codes");
+        var normalizedTerm = search.Trim().ToLowerInvariant();
+        var displayTerm = normalizedTerm.Length == 0
+            ? normalizedTerm
+            : char.ToUpperInvariant(normalizedTerm[0]) + normalizedTerm[1..];
+
+        DataList matchingDescription = new(SampleData.TENANT_ID, "Cities", $"{displayTerm} cities");
+        DataList matchingName = new(SampleData.TENANT_ID, $"{displayTerm} metros", "ISO codes");
         DataList other = new(SampleData.TENANT_ID, "Countries", "ISO codes");
 
         bool Matches(DataList dataList) =>
