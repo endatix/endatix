@@ -134,28 +134,32 @@ public static class DataListsSpecifications
         ISpecificationBuilder<DataList> query,
         ListFilter filter)
     {
+        // Every branch chains a `.ThenBy(x => x.Id)` tiebreaker: low-cardinality/
+        // duplicate-prone sort keys (IsActive, ItemsCount, and ties on Name/
+        // ModifiedAt) would otherwise leave pagination unstable across pages for
+        // rows sharing the same primary sort value.
         switch (filter.SortBy)
         {
             case DataListListSortBy.Name:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.Name); }
-                else { query.OrderBy(x => x.Name); }
+                if (filter.SortDescending) { query.OrderByDescending(x => x.Name).ThenBy(x => x.Id); }
+                else { query.OrderBy(x => x.Name).ThenBy(x => x.Id); }
                 break;
             case DataListListSortBy.ModifiedAt:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.ModifiedAt); }
-                else { query.OrderBy(x => x.ModifiedAt); }
+                if (filter.SortDescending) { query.OrderByDescending(x => x.ModifiedAt).ThenBy(x => x.Id); }
+                else { query.OrderBy(x => x.ModifiedAt).ThenBy(x => x.Id); }
                 break;
             case DataListListSortBy.ItemsCount:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.Items.Count); }
-                else { query.OrderBy(x => x.Items.Count); }
+                if (filter.SortDescending) { query.OrderByDescending(x => x.Items.Count).ThenBy(x => x.Id); }
+                else { query.OrderBy(x => x.Items.Count).ThenBy(x => x.Id); }
                 break;
             case DataListListSortBy.IsActive:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.IsActive); }
-                else { query.OrderBy(x => x.IsActive); }
+                if (filter.SortDescending) { query.OrderByDescending(x => x.IsActive).ThenBy(x => x.Id); }
+                else { query.OrderBy(x => x.IsActive).ThenBy(x => x.Id); }
                 break;
             case DataListListSortBy.CreatedAt:
             default:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.CreatedAt); }
-                else { query.OrderBy(x => x.CreatedAt); }
+                if (filter.SortDescending) { query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id); }
+                else { query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id); }
                 break;
         }
     }

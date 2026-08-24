@@ -133,6 +133,14 @@ public sealed class List(
             return null;
         }
 
+        // DateOnly.MaxValue (9999-12-31) has no "next day" to represent the
+        // exclusive upper bound; clamp to DateTime.MaxValue instead of letting
+        // AddDays(1) throw ArgumentOutOfRangeException.
+        if (day == DateOnly.MaxValue)
+        {
+            return DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc);
+        }
+
         return DateTime.SpecifyKind(day.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
     }
 
