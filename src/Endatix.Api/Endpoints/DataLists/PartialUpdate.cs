@@ -26,7 +26,8 @@ public sealed class PartialUpdate(IMediator mediator)
         Summary(s =>
         {
             s.Summary = "Partially update a data list";
-            s.Description = "Updates the name and/or description of a data list. Omitted fields keep their current value.";
+            s.Description = "Updates the name and/or description of a data list. Omitted fields (or an explicit JSON null) keep their current value; " +
+                "send an empty string to clear the description. Name cannot be cleared -- it must be non-empty when provided.";
             s.ExampleRequest = new PartialUpdateDataListRequest
             {
                 DataListId = 1,

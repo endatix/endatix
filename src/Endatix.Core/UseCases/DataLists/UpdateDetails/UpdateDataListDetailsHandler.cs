@@ -44,11 +44,13 @@ public sealed class UpdateDataListDetailsHandler(
             });
         }
 
+        // Matches CreateDataListHandler's `request.Description?.Trim()`: a
+        // whitespace-only description normalizes to "" (not null), so the
+        // same logical "empty description" value is stored identically
+        // regardless of which endpoint wrote it.
         var nextDescription = request.Description is null
             ? dataList.Description
-            : string.IsNullOrWhiteSpace(request.Description)
-                ? null
-                : request.Description.Trim();
+            : request.Description.Trim();
 
         var normalizedName = valueNormalizer.Normalize(nextName);
         if (string.IsNullOrWhiteSpace(normalizedName))
@@ -87,14 +89,31 @@ public sealed class UpdateDataListDetailsHandler(
                 return Result.Invalid(CreateDuplicateNameValidationError(nextName));
             }
 
-            return Result.Invalid(CreateDuplicateNameValidationError(nextName));
+            // A unique-constraint violation was raised that isn't the name
+            // constraint we checked for above (e.g. a future additional
+            // constraint on DataList) -- don't mislabel it as a name
+            // conflict; surface it as a generic conflict instead.
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = string.Empty,
+                ErrorMessage = "This data list could not be updated because of a conflicting change. Please retry.",
+                ErrorCode = "data_list_unique_constraint_violation"
+            });
         }
 
         await mediator.Publish(
             new DataListUpdatedEvent(dataList, DataListUpdateReasons.MetadataUpdated),
             cancellationToken);
 
-        return Result.Success(DataListDtoMapper.FromEntity(dataList, includeItems: false));
+        // `dataList` is the tracked entity used for the mutation above; its
+        // `Items` navigation was never Included, so DataListDtoMapper's
+        // `Items.Count` would read as 0 regardless of the list's actual item
+        // count. Re-fetch via the same no-tracking, SQL-computed-count
+        // projection GetDataListByIdHandler uses for `IncludeItems: false`.
+        var metadataSpec = new DataListsSpecifications.ByIdWithoutItemsToDtoSpec(dataList.Id);
+        DataListDto? metadata = await repository.FirstOrDefaultAsync(metadataSpec, cancellationToken);
+
+        return Result.Success(metadata ?? DataListDtoMapper.FromEntity(dataList, includeItems: false));
     }
 
     private static ValidationError CreateDuplicateNameValidationError(string name) => new()
