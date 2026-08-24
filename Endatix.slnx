@@ -31,6 +31,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Endatix.Api.Tests/Endatix.Api.Tests.csproj" />
     <Project Path="tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj" />
+    <Project Path="tests/Endatix.Framework.Tests/Endatix.Framework.Tests.csproj" />
     <Project Path="tests/Endatix.Hosting.Tests/Endatix.Hosting.Tests.csproj" />
     <Project Path="tests/Endatix.Infrastructure.Tests/Endatix.Infrastructure.Tests.csproj" />
     <Project Path="tests/Endatix.IntegrationTests.Shared/Endatix.IntegrationTests.Shared.csproj" />

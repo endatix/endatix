@@ -96,6 +96,8 @@ const sidebars: SidebarsConfig = {
         "configuration/background-processing",
         "configuration/infrastructure-configuration",
         "configuration/security-configuration",
+        "configuration/observability",
+        "configuration/bring-your-own-telemetry",
         {
           type: "category",
           label: "Settings",
@@ -128,6 +130,7 @@ const sidebars: SidebarsConfig = {
         "developers/api/email-providers",
         "developers/api/health-checks",
         "developers/api/feature-flags",
+        "developers/api/data-lists-translations",
         "developers/integration-testing",
         {
           type: "link",

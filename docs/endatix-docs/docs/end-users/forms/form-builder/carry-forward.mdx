@@ -30,6 +30,13 @@ Source questions must also be choice-based (select) questions. The current quest
 
 * **Multiple sources:** Copy choices from more than one earlier question into a single destination list.
 * **Selection modes:** Copy **All** options, **Selected** options only, or **Unselected** options only from each source.
+
+:::warning[Lazy-loaded sources]
+
+Lazy-loaded sources (for example, **Choices from data list**) always contribute **Selected** options only — including selections that are not on the currently loaded page — even when the mode is **All** or **Unselected**. See [Limitations](#limitations-and-mutual-exclusion).
+
+:::
+
 * **Deduplication:** Identical choice values from different sources appear once in the destination list.
 * **Priority items:** Pin specific choices to the top of the list in a fixed order.
 * **Randomization support:** When **Choice order** is set to **Random**, priority items stay fixed while the remaining choices shuffle.
@@ -68,9 +75,15 @@ Set **Which choice options to copy** to control what is taken from each source:
 
 | Mode | Behavior |
 | --- | --- |
-| **All** | Copies every choice option defined on each source question, regardless of what the respondent selected. |
-| **Selected** | Copies only options the respondent selected on each source. Updates dynamically as answers change. |
-| **Unselected** | Copies only options the respondent did **not** select on each source. Updates dynamically as answers change. |
+| **All** | Copies every choice option defined on each source question, regardless of what the respondent selected. Requires a fully loaded (inline) choice catalog on that source. |
+| **Selected** | Copies only options the respondent selected on each source. Updates dynamically as answers change. Works with both inline and lazy-loaded (data list) sources. |
+| **Unselected** | Copies only options the respondent did **not** select on each source. Updates dynamically as answers change. Requires a fully loaded (inline) choice catalog on that source. |
+
+:::info[Lazy-loaded / data-list sources]
+
+Sources that load choices on demand (typically **Choices from data list**) never materialize the full catalog in the browser. For those sources, Carry Forward always copies **Selected** options only — including selections that are not on the currently loaded page — even when this setting is **All** or **Unselected**. Inline sources in the same destination still honor **All** / **Unselected**.
+
+:::
 
 :::info[Ranking source questions]
 
@@ -108,7 +121,7 @@ Set **Maximum number of choices** to cap how many options appear in the destinat
 When a respondent reaches the destination question, Endatix Hub:
 
 1. Reads answers from each configured source question.
-2. Collects choices according to the selected mode (**All**, **Selected**, or **Unselected**).
+2. Collects choices according to the selected mode (**All**, **Selected**, or **Unselected**). Lazy-loaded sources always contribute **Selected** options only.
 3. Merges and deduplicates choices across sources.
 4. Applies priority ordering and any maximum choice limit.
 5. Applies randomization rules if **Choice order** is set to **Random**.
@@ -153,7 +166,7 @@ Respondents only see flavors for brands they actually selected, with their favor
 
 ## **Limitations and Mutual Exclusion**
 
-Carry Forward cannot be combined with these choice sources on the **same** question:
+Carry Forward cannot be combined with these choice sources on the **same** (destination) question:
 
 | Choice source | Compatible with Carry Forward? |
 | --- | --- |
@@ -161,6 +174,18 @@ Carry Forward cannot be combined with these choice sources on the **same** quest
 | **Choices from data list** | No — disable carry forward or remove the data list binding |
 | **Choices from URL** | No |
 | SurveyJS **Choices from question** (single source) | No — use Carry Forward instead for multi-source scenarios |
+
+### **Lazy-loaded source questions**
+
+A **source** question may use **Choices from data list** (or any lazy-loaded catalog). That is supported, with one mode constraint:
+
+| Destination mode | Inline source | Lazy-loaded / data-list source |
+| --- | --- | --- |
+| **All** | Copies every defined choice | Contributes **Selected** only |
+| **Selected** | Copies selected choices | Copies selected choices (including off-page) |
+| **Unselected** | Copies unselected choices | Contributes **Selected** only |
+
+This keeps large catalogs practical: the browser never needs to load thousands of unselected items to build the destination list.
 
 :::tip[Designer preview]
 
@@ -214,7 +239,7 @@ Advanced users and template authors can configure Carry Forward directly in the 
 <td><code>edxCarryForwardMode</code></td>
 <td><code>string</code></td>
 <td><code>"all"</code></td>
-<td><code>"all"</code>, <code>"selected"</code>, or <code>"unselected"</code>. Controls which options are copied from each source.</td>
+<td><code>"all"</code>, <code>"selected"</code>, or <code>"unselected"</code>. Controls which options are copied from each source. Lazy-loaded sources always contribute as <code>"selected"</code>.</td>
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><code>edxCarryForwardPriorityItems</code></td>
@@ -245,17 +270,17 @@ Advanced users and template authors can configure Carry Forward directly in the 
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><code>"all"</code></td>
 <td>All</td>
-<td>Copy every choice from each source question.</td>
+<td>Copy every choice from each source question. Lazy-loaded sources contribute selected choices only.</td>
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><code>"selected"</code></td>
 <td>Selected</td>
-<td>Copy only choices the respondent selected on each source.</td>
+<td>Copy only choices the respondent selected on each source. Supported for inline and lazy-loaded sources.</td>
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><code>"unselected"</code></td>
 <td>Unselected</td>
-<td>Copy only choices the respondent did not select on each source.</td>
+<td>Copy only choices the respondent did not select on each source. Lazy-loaded sources contribute selected choices only.</td>
 </tr>
 </tbody>
 </table>

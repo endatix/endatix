@@ -30,6 +30,8 @@
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
 		<PackageReference Include="SendGrid" />
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" />
+		<PackageReference Include="MailKit" />
+		<PackageReference Include="MimeKit" />
 		<PackageReference Include="MediatR" />
 		<PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
 		<PackageReference Include="Endatix.Outbox.Engine" />

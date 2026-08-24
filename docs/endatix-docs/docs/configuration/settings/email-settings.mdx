@@ -81,7 +81,11 @@ To use Mailgun, configure the `MailgunSettings` section. This integration uses t
 
 ## SMTP
 
-If you prefer to use a standard SMTP server (such as Amazon SES, Postmark, or a custom corporate mail server), Endatix provides an `SmtpEmailSender` implementation using the native .NET `SmtpClient`.
+If you prefer to use a standard SMTP server (such as Amazon SES, Postmark, or a custom corporate mail server), Endatix provides an `SmtpEmailSender` implementation using [MailKit](https://github.com/jstedfast/MailKit), the open-source .NET SMTP/MIME library. This supports both STARTTLS (the traditional port `587` setup) and implicit TLS/SMTPS (typically port `465`).
+
+:::info
+Not to be confused with [mailkit.com](https://www.mailkit.com/), an unrelated email service provider — this is about the MailKit *library*, used here purely as the transport for your own SMTP server.
+:::
 
 ### Configuration Example
 
@@ -109,13 +113,22 @@ If you prefer to use a standard SMTP server (such as Amazon SES, Postmark, or a 
 
   * **`Host`** *(Required)*: The SMTP server host name or IP address (e.g., `localhost` or `smtp.mail.company.com`).
   * **`Port`**: The SMTP server port number. Defaults to `587`.
-  * **`EnableSsl`**: Whether to enable SSL/TLS encryption. Defaults to `true`.
-  * **`Username`**: The username for SMTP authentication. If left empty, default credentials are used.
+  * **`EnableSsl`**: Whether to enable transport security. Combined with `Port` to pick a `SecurityMode` automatically when `SecurityMode` is left at its default — see below. Defaults to `true`.
+  * **`SecurityMode`**: Explicitly controls how the connection is secured, overriding the `EnableSsl`/`Port` heuristic. One of `Auto` (default), `None`, `StartTls`, `StartTlsWhenAvailable`, or `SslOnConnect`. Use `SslOnConnect` for implicit TLS/SMTPS servers (typically port `465`) if auto-detection based on port doesn't fit your setup.
+  * **`CheckCertificateRevocation`**: Whether to check the server's TLS certificate for revocation (OCSP/CRL) during the handshake. Defaults to `false`, since some networks block the endpoints this check needs, which would otherwise cause connections to fail. Set to `true` for stricter certificate validation if your network allows it.
+  * **`Username`**: The username for SMTP authentication. If left empty, the connection is made without authentication (a warning is logged).
   * **`Password`**: The password for SMTP authentication.
   * **`DefaultFromAddress`** *(Required)*: The default sender email address. Defaults to `noreply@endatix.com`.
   * **`DefaultFromName`**: The default sender display name. Defaults to `Endatix`.
 
 *For implementation details, refer to [`SmtpSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SmtpSettings.cs).*
+
+:::warning Upgrading from the .NET SmtpClient-based sender
+Earlier Endatix versions sent SMTP mail using .NET's built-in `System.Net.Mail.SmtpClient`, which Microsoft's own docs [no longer recommend for new development](https://learn.microsoft.com/en-us/dotnet/api/system.net.mail.smtpclient). The MailKit-based sender is a drop-in replacement — no configuration changes are required for the common case of a `Host`/`Port` combination with username/password authentication over STARTTLS. Two behaviors changed:
+
+* **Blank `Username` on Windows.** Previously, leaving `Username` empty made `SmtpClient` authenticate using the Windows process identity (`UseDefaultCredentials`). MailKit has no equivalent, so a blank `Username` now always means an unauthenticated connection. This only matters if you relied on integrated Windows authentication with no explicit username — outside of that, an empty `Username` behaves the same as before.
+* **Certificate revocation checking.** Not checked previously; still not checked by default now (`CheckCertificateRevocation` defaults to `false`), but it's newly available as an opt-in for stricter validation.
+:::
 
 :::info
 For an overview of email providers and how to activate them in Endatix API see the [Email Providers Guide](../../developers/api/email-providers).

@@ -33,10 +33,12 @@ public class SendTestEmail(IMediator mediator)
             s.ResponseExamples[200] = "Test email sent successfully.";
             s.Responses[200] = "Test email sent successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.Responses[503] = "Email provider is not configured.";
         });
         Description(builder => builder
             .Produces<string>(200, "application/json")
-            .ProducesProblem(400));
+            .ProducesProblem(400)
+            .ProducesProblem(503));
     }
 
     /// <inheritdoc/>

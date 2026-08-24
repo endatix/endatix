@@ -24,6 +24,22 @@ public class SmtpSettings
     public bool EnableSsl { get; set; } = true;
 
     /// <summary>
+    /// Explicitly controls how the connection is secured. Defaults to <see cref="SmtpSecurityMode.Auto"/>,
+    /// which derives the mode from <see cref="EnableSsl"/> and <see cref="Port"/> (implicit TLS on port
+    /// 465, STARTTLS otherwise). Set this to override the derived choice, e.g. to force
+    /// <see cref="SmtpSecurityMode.SslOnConnect"/> on a non-standard port.
+    /// </summary>
+    public SmtpSecurityMode SecurityMode { get; set; } = SmtpSecurityMode.Auto;
+
+    /// <summary>
+    /// Whether to check the SMTP server's certificate for revocation during the TLS handshake.
+    /// Defaults to <c>false</c> to match the behavior of the previous System.Net.Mail-based sender,
+    /// since some networks block the OCSP/CRL endpoints needed for the check, which would otherwise
+    /// fail the connection. Set to <c>true</c> for stricter certificate validation.
+    /// </summary>
+    public bool CheckCertificateRevocation { get; set; } = false;
+
+    /// <summary>
     /// The username for SMTP authentication (optional).
     /// </summary>
     public string? Username { get; set; }
