@@ -9,6 +9,16 @@ sidebar_position: 5
 
 Data list choice labels are stored as a JSON map (`Labels`) with a synthetic `default` key plus optional culture codes from the list’s AvailableLocales catalog.
 
+## Management list and items grids
+
+Parent list search uses the management list query string (`query` + `page` / `pageSize`). Item grids intentionally keep `query` (not `search`) to match the public runtime search contract (`matchMode` / `locale` / `includeLocales`). Hub UI may still expose a `search` box and map it to API `query`.
+
+- `GET /api/data-lists?query=&hasLocale=&page=&pageSize=` — name/description contains search; `hasLocale` keeps lists whose AvailableLocales include that culture.
+- `GET /api/data-lists/{id}?includeItems=false` — catalog metadata and `itemsCount` without loading item rows.
+- `GET /api/data-lists/{id}/items?query=&matchMode=&locale=&includeLocales=&page=&pageSize=` — paged item search for authors (inactive lists included). Default `pageSize` is 25.
+
+There is no per-item POST/PATCH/DELETE. Authors replace the file with import/export below.
+
 ## Import / export (management)
 
 Authenticated authors round-trip items with a single import and export surface. Format is negotiated in the JSON body (`format`), same pattern as submissions export.
