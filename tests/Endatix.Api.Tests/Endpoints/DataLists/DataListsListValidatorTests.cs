@@ -29,7 +29,8 @@ public class DataListsListValidatorTests
     {
         var result = _validator.TestValidate(new DataListsListRequest { HasLocale = "default" });
 
-        result.ShouldHaveValidationErrorFor(x => x.HasLocale);
+        result.ShouldHaveValidationErrorFor(x => x.HasLocale)
+            .WithErrorMessage("Has Locale must be a culture code or comma-separated list (e.g. 'es' or 'es,de'), not 'default'.");
     }
 
     [Fact]
@@ -37,9 +38,18 @@ public class DataListsListValidatorTests
     {
         string tooMany = string.Join(
             ",",
-            Enumerable.Range(0, CultureCodeValidation.MaxLocales + 1).Select(i => $"l{i:00}"));
+            Enumerable.Range(0, CultureCodeValidation.MaxLocales + 1).Select(i => $"aa-{i:00}"));
 
         var result = _validator.TestValidate(new DataListsListRequest { HasLocale = tooMany });
+
+        result.ShouldHaveValidationErrorFor(x => x.HasLocale)
+            .WithErrorMessage($"No more than {CultureCodeValidation.MaxLocales} locales can be requested.");
+    }
+
+    [Fact]
+    public void Validate_HasLocaleEmptyTokens_Fails()
+    {
+        var result = _validator.TestValidate(new DataListsListRequest { HasLocale = "," });
 
         result.ShouldHaveValidationErrorFor(x => x.HasLocale);
     }

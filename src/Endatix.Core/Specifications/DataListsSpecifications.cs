@@ -61,16 +61,16 @@ public static class DataListsSpecifications
         string? hasLocale,
         string? search)
     {
-        // Comma-separated or single culture codes; OR match on AvailableLocales or DefaultLocale.
-        List<string> locales = TranslationLocaleList.ParseMany([hasLocale])
+        // Closed-over array so EF translates Contains; match catalog rows or DefaultLocale (default is not in AvailableLocales).
+        string[] locales = [.. TranslationLocaleList.ParseMany(hasLocale is null ? null : [hasLocale])
             .Where(code => !code.IsSyntheticDefault)
-            .Select(code => code.Value)
-            .ToList();
+            .Select(code => code.Value)];
 
-        if (locales.Count > 0)
+        if (locales.Length > 0)
         {
-            query.Where(x => locales.Any(locale =>
-                x.AvailableLocales.Contains(locale) || x.DefaultLocale == locale));
+            query.Where(x =>
+                locales.Contains(x.DefaultLocale)
+                || x.AvailableLocales.Any(available => locales.Contains(available)));
         }
 
         if (!string.IsNullOrWhiteSpace(search))

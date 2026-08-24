@@ -35,7 +35,7 @@ public sealed class List(
                 Page = 1,
                 PageSize = 20,
                 Search = "cities",
-                HasLocale = "es"
+                HasLocale = "es,de"
             };
             s.ResponseExamples[200] = new Paged<DataListModel>(
                 page: 1,

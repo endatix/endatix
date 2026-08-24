@@ -98,6 +98,48 @@ public class ListDataListsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithCommaSeparatedHasLocale_PassesOrFilterToSpecs()
+    {
+        _repository.CountAsync(Arg.Any<DataListsSpecifications.ListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        _repository.ListAsync(Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new List<DataListDto>
+            {
+                new(5, "Cities", null, DateTime.UtcNow, null, true, 1, "en", ["de"], Array.Empty<DataListItemDto>())
+            });
+
+        await _sut.Handle(new ListDataListsQuery(1, 10, "es,de"), TestContext.Current.CancellationToken);
+
+        await _repository.Received(1).CountAsync(
+            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersByAnyLocale(spec, "es", "de")),
+            Arg.Any<CancellationToken>());
+        await _repository.Received(1).ListAsync(
+            Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(spec => SpecFiltersByAnyLocale(spec, "es", "de")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WithHasLocale_MatchesDefaultLocaleWhenNotInCatalog()
+    {
+        _repository.CountAsync(Arg.Any<DataListsSpecifications.ListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        _repository.ListAsync(Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new List<DataListDto>
+            {
+                new(5, "Cities", null, DateTime.UtcNow, null, true, 0, "es", [], Array.Empty<DataListItemDto>())
+            });
+
+        await _sut.Handle(new ListDataListsQuery(1, 10, "es"), TestContext.Current.CancellationToken);
+
+        await _repository.Received(1).CountAsync(
+            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersByDefaultLocale(spec, "es")),
+            Arg.Any<CancellationToken>());
+        await _repository.Received(1).ListAsync(
+            Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(spec => SpecFiltersByDefaultLocale(spec, "es")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_WithSearch_PassesSearchToSpecs()
     {
         // Arrange
