@@ -100,7 +100,9 @@ public class SmtpEmailSenderTests
                 SecurityMode = mode,
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()));
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())));
 
         // Act
         var result = sut.ResolveSecureSocketOptions();
@@ -127,7 +129,9 @@ public class SmtpEmailSenderTests
                 DefaultFromAddress = "noreply@example.com",
                 DefaultFromName = "Endatix"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -159,7 +163,9 @@ public class SmtpEmailSenderTests
                 Host = "smtp.example.com",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -192,7 +198,9 @@ public class SmtpEmailSenderTests
                 Host = "smtp.example.com",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -231,7 +239,9 @@ public class SmtpEmailSenderTests
                 DefaultFromAddress = "noreply@example.com",
                 CheckCertificateRevocation = true
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -281,7 +291,9 @@ public class SmtpEmailSenderTests
                 DefaultFromAddress = "noreply@example.com",
                 DefaultFromName = "Endatix"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -318,7 +330,9 @@ public class SmtpEmailSenderTests
                 Host = "smtp.example.com",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -360,7 +374,9 @@ public class SmtpEmailSenderTests
                 Password = "pass",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -408,7 +424,9 @@ public class SmtpEmailSenderTests
                 Password = "pass",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -460,7 +478,9 @@ public class SmtpEmailSenderTests
                 Host = "smtp.example.com",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
@@ -497,7 +517,9 @@ public class SmtpEmailSenderTests
                 Password = "pass",
                 DefaultFromAddress = "noreply@example.com"
             }),
-            new EmailTemplateRenderer(Substitute.For<IRepository<EmailTemplate>>()),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
             transport);
 
         var email = new EmailWithBody
