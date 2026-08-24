@@ -98,6 +98,30 @@ public class ListDataListsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WithSearch_PassesSearchToSpecs()
+    {
+        // Arrange
+        _repository.CountAsync(Arg.Any<DataListsSpecifications.ListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+        _repository.ListAsync(Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new List<DataListDto>
+            {
+                new(5, "Cities", "Major cities", DateTime.UtcNow, null, true, 1, "en", [], Array.Empty<DataListItemDto>())
+            });
+
+        // Act
+        await _sut.Handle(new ListDataListsQuery(1, 10, Search: "MaJoR"), TestContext.Current.CancellationToken);
+
+        // Assert
+        await _repository.Received(1).CountAsync(
+            Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersBySearch(spec, "MaJoR")),
+            Arg.Any<CancellationToken>());
+        await _repository.Received(1).ListAsync(
+            Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(spec => SpecFiltersBySearch(spec, "MaJoR")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_SecondPage_ComputesSkipFromPaging()
     {
         // Arrange
@@ -133,5 +157,23 @@ public class ListDataListsHandlerTests
             && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
 
         return Matches(withLocale) && !Matches(withoutLocale);
+    }
+
+    private static bool SpecFiltersBySearch(ISpecification<DataList> spec, string search)
+    {
+        var normalizedTerm = search.Trim().ToLowerInvariant();
+        var displayTerm = normalizedTerm.Length == 0
+            ? normalizedTerm
+            : char.ToUpperInvariant(normalizedTerm[0]) + normalizedTerm[1..];
+
+        DataList matchingDescription = new(SampleData.TENANT_ID, "Cities", $"{displayTerm} cities");
+        DataList matchingName = new(SampleData.TENANT_ID, $"{displayTerm} metros", "ISO codes");
+        DataList other = new(SampleData.TENANT_ID, "Countries", "ISO codes");
+
+        bool Matches(DataList dataList) =>
+            spec.WhereExpressions.Any()
+            && spec.WhereExpressions.All(expression => expression.FilterFunc(dataList));
+
+        return Matches(matchingDescription) && Matches(matchingName) && !Matches(other);
     }
 }

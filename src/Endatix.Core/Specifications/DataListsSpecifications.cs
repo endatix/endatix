@@ -17,13 +17,9 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListSpec : Specification<DataList>
     {
-        public ListSpec(string? hasLocale = null)
+        public ListSpec(string? hasLocale = null, string? search = null)
         {
-            if (!string.IsNullOrWhiteSpace(hasLocale))
-            {
-                var locale = hasLocale.Trim().ToLowerInvariant();
-                Query.Where(x => x.AvailableLocales.Contains(locale));
-            }
+            ApplyListFilters(Query, hasLocale, search);
 
             Query
                  .OrderByDescending(x => x.CreatedAt)
@@ -36,13 +32,9 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListWithPagingToDtoSpec : Specification<DataList, DataListDto>
     {
-        public ListWithPagingToDtoSpec(PagingParameters pagingParams, string? hasLocale = null)
+        public ListWithPagingToDtoSpec(PagingParameters pagingParams, string? hasLocale = null, string? search = null)
         {
-            if (!string.IsNullOrWhiteSpace(hasLocale))
-            {
-                var locale = hasLocale.Trim().ToLowerInvariant();
-                Query.Where(x => x.AvailableLocales.Contains(locale));
-            }
+            ApplyListFilters(Query, hasLocale, search);
 
             Query
                 .OrderByDescending(x => x.CreatedAt)
@@ -60,6 +52,26 @@ public static class DataListsSpecifications
                 dataList.DefaultLocale,
                 dataList.AvailableLocales,
                 Array.Empty<DataListItemDto>()));
+        }
+    }
+
+    private static void ApplyListFilters(
+        ISpecificationBuilder<DataList> query,
+        string? hasLocale,
+        string? search)
+    {
+        if (!string.IsNullOrWhiteSpace(hasLocale))
+        {
+            var locale = hasLocale.Trim().ToLowerInvariant();
+            query.Where(x => x.AvailableLocales.Contains(locale));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLowerInvariant();
+            query.Where(x =>
+                x.Name.ToLower().Contains(term) ||
+                (x.Description != null && x.Description.ToLower().Contains(term)));
         }
     }
 
@@ -124,7 +136,6 @@ public static class DataListsSpecifications
                 .Include(x => x.Items);
         }
     }
-
 
     /// <summary>
     /// Specification to get a data list by ID with data list items included by values.
