@@ -72,9 +72,7 @@ public sealed class Search(
             request.Query,
             request.Skip,
             request.Take,
-            request.MatchMode,
-            request.Locale,
-            request.IncludeLocales);
+            new SearchDataListItemsOptions(request.MatchMode, request.Locale, request.IncludeLocales));
         var result = await mediator.Send(query, ct);
         if (!result.IsSuccess)
         {

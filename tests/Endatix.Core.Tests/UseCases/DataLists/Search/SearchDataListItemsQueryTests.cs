@@ -15,10 +15,11 @@ public class SearchDataListItemsQueryTests
             query: "  york  ",
             skip: 10,
             take: 25,
-            matchMode: DataListSearchMatchMode.StartsWith,
-            locale: "es",
-            includeLocales: ["fr", "not-a-culture"],
-            requireActive: false);
+            new SearchDataListItemsOptions(
+                DataListSearchMatchMode.StartsWith,
+                Locale: "es",
+                IncludeLocales: ["fr", "not-a-culture"],
+                RequireActive: false));
 
         // Assert
         query.DataListId.Should().Be(42);

@@ -64,10 +64,11 @@ public sealed class ListItems(IMediator mediator)
             request.Query,
             paging.Skip,
             paging.PageSize,
-            request.MatchMode,
-            request.Locale,
-            request.IncludeLocales,
-            requireActive: false);
+            new SearchDataListItemsOptions(
+                request.MatchMode,
+                request.Locale,
+                request.IncludeLocales,
+                RequireActive: false));
         var result = await mediator.Send(query, ct);
         if (!result.IsSuccess)
         {

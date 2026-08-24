@@ -135,7 +135,12 @@ public class SearchDataListItemsHandlerTests
             [Item(1, "apple", "Apple", ("es", "Manzana"))]));
 
         var result = await _sut.Handle(
-            new SearchDataListItemsQuery(1, "Manz", 0, 10, DataListSearchMatchMode.StartsWith, "es"),
+            new SearchDataListItemsQuery(
+                1,
+                "Manz",
+                0,
+                10,
+                new SearchDataListItemsOptions(DataListSearchMatchMode.StartsWith, Locale: "es")),
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Ok);
@@ -165,7 +170,7 @@ public class SearchDataListItemsHandlerTests
                 null,
                 0,
                 10,
-                includeLocales: ["es", "fr"]),
+                new SearchDataListItemsOptions(IncludeLocales: ["es", "fr"])),
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Ok);
@@ -259,7 +264,12 @@ public class SearchDataListItemsHandlerTests
     [Fact]
     public void QueryCtor_WithInvalidLocale_ThrowsArgumentException()
     {
-        Action act = () => _ = new SearchDataListItemsQuery(1, "App", 0, 10, locale: "not a culture!");
+        Action act = () => _ = new SearchDataListItemsQuery(
+            1,
+            "App",
+            0,
+            10,
+            new SearchDataListItemsOptions(Locale: "not a culture!"));
 
         act.Should().Throw<ArgumentException>()
             .Which.ParamName.Should().Be("cultureCode");
@@ -270,7 +280,12 @@ public class SearchDataListItemsHandlerTests
     {
         string locale = new('a', IHasTranslations.MAX_CULTURE_CODE_LENGTH + 1);
 
-        Action act = () => _ = new SearchDataListItemsQuery(1, null, 0, 10, locale: locale);
+        Action act = () => _ = new SearchDataListItemsQuery(
+            1,
+            null,
+            0,
+            10,
+            new SearchDataListItemsOptions(Locale: locale));
 
         act.Should().Throw<ArgumentException>()
             .Which.ParamName.Should().Be("cultureCode");
