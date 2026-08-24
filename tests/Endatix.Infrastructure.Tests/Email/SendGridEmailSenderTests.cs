@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Endatix.Core;
+using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
@@ -33,7 +34,9 @@ public class SendGridEmailSenderTests
             _sendGridClient,
             _logger,
             _options,
-            new EmailTemplateRenderer(_templateRepository));
+            new EmailTemplateRenderer(
+                _templateRepository,
+                Options.Create(new EmailTemplateSettings())));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()
@@ -181,7 +184,7 @@ public class SendGridEmailSenderTests
             Arg.Any<CancellationToken>());
         await _sendGridClient.Received(1).SendEmailAsync(
             Arg.Is<SendGridMessage>(msg =>
-                msg.From.Email == "sender@example.com" &&
+                msg.From.Email == "template-from@example.com" &&
                 msg.Personalizations[0].Subject == "Test Subject"),
             Arg.Any<CancellationToken>());
     }
