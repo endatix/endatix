@@ -57,15 +57,13 @@ public sealed class ListItems(IMediator mediator)
         ListDataListItemsRequest request,
         CancellationToken ct)
     {
-        var page = request.Page ?? 1;
-        var pageSize = request.PageSize ?? DefaultPageSize;
-        var skip = (page - 1) * pageSize;
+        var paging = new PageRequest(request.Page, request.PageSize ?? DefaultPageSize);
 
         SearchDataListItemsQuery query = new(
             request.DataListId,
             request.Query,
-            skip,
-            pageSize,
+            paging.Skip,
+            paging.PageSize,
             request.MatchMode,
             request.Locale,
             request.IncludeLocales,

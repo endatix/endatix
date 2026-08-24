@@ -27,6 +27,11 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
     /// Extra locales to search and project into the labels map. Malformed codes are dropped.
     /// </summary>
     public IReadOnlyList<CultureCode> IncludeLocales { get; init; }
+
+    /// <summary>
+    /// When <see langword="true"/> (default), inactive lists are treated as missing.
+    /// Management item search sets this to <see langword="false"/>.
+    /// </summary>
     public bool RequireActive { get; init; }
 
     public SearchDataListItemsQuery(

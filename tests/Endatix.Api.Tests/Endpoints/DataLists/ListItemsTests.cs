@@ -63,6 +63,25 @@ public class ListItemsTests
                 x.Take == 10 &&
                 x.MatchMode == DataListSearchMatchMode.StartsWith &&
                 x.Locale != null &&
+                x.IncludeLocales.Count == 1 &&
+                x.RequireActive == false),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_NullPaging_UsesDefaultPageSizeAndZeroSkip()
+    {
+        ListDataListItemsRequest request = new() { DataListId = 5 };
+        _mediator.Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new Paged<DataListItemDto>(1, ListItems.DefaultPageSize, 0, 0, [])));
+
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        await _mediator.Received(1).Send(
+            Arg.Is<SearchDataListItemsQuery>(x =>
+                x.DataListId == 5 &&
+                x.Skip == 0 &&
+                x.Take == ListItems.DefaultPageSize &&
                 x.RequireActive == false),
             Arg.Any<CancellationToken>());
     }

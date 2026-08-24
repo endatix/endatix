@@ -28,7 +28,7 @@ public sealed class GetById(
         {
             s.Summary = "Get a data list by ID";
             s.Description = "Gets a data list by its ID, including catalog locales. Pass includeItems=false to omit item rows (use GET .../items for paged search).";
-            s.ExampleRequest = new GetDataListRequest { DataListId = 1 };
+            s.ExampleRequest = new GetDataListRequest { DataListId = 1, IncludeItems = false };
             s.ResponseExamples[200] = new DataListDetailsModel
             {
                 Id = 1,
@@ -39,20 +39,7 @@ public sealed class GetById(
                 ItemsCount = 1,
                 DefaultLocale = "en",
                 AvailableLocales = ["es"],
-                Items =
-                [
-                    new DataListItemModel
-                    {
-                        Id = 10,
-                        Labels = new Dictionary<string, string>(StringComparer.Ordinal)
-                        {
-                            ["default"] = "New York",
-                            ["es"] = "Nueva York"
-                        },
-                        Label = "New York",
-                        Value = "NYC"
-                    }
-                ]
+                Items = []
             };
             s.Responses[200] = "Data list retrieved successfully.";
             s.Responses[400] = "Invalid input data.";

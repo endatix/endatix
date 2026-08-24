@@ -11,7 +11,7 @@ Data list choice labels are stored as a JSON map (`Labels`) with a synthetic `de
 
 ## Management list and items grids
 
-Authenticated Hub grids use the same search/paging contract as other list endpoints (`query` + `page` / `pageSize`). Hub maps its URL `search` param to `query`.
+Parent list search uses the management list query string (`query` + `page` / `pageSize`). Item grids intentionally keep `query` (not `search`) to match the public runtime search contract (`matchMode` / `locale` / `includeLocales`). Hub UI may still expose a `search` box and map it to API `query`.
 
 - `GET /api/data-lists?query=&hasLocale=&page=&pageSize=` — name/description contains search; `hasLocale` keeps lists whose AvailableLocales include that culture.
 - `GET /api/data-lists/{id}?includeItems=false` — catalog metadata and `itemsCount` without loading item rows.
