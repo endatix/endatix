@@ -17,8 +17,8 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
     public async Task<Result<Paged<DataListDto>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
     {
         PagingParameters pagingParams = new(request.Page, request.PageSize);
-        var pagedSpec = new DataListsSpecifications.ListWithPagingToDtoSpec(pagingParams, request.HasLocale, request.Query);
-        var listSpec = new DataListsSpecifications.ListSpec(request.HasLocale, request.Query);
+        var pagedSpec = new DataListsSpecifications.ListWithPagingToDtoSpec(pagingParams, request.HasLocale, request.Search);
+        var listSpec = new DataListsSpecifications.ListSpec(request.HasLocale, request.Search);
         var totalRecords = await repository.CountAsync(listSpec, cancellationToken);
 
         var dataListDtos = totalRecords <= 0

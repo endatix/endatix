@@ -2,7 +2,6 @@ using Endatix.Api.Common;
 using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.List;
 using FastEndpoints;
@@ -35,7 +34,7 @@ public sealed class List(
             {
                 Page = 1,
                 PageSize = 20,
-                Query = "cities",
+                Search = "cities",
                 HasLocale = "es"
             };
             s.ResponseExamples[200] = new Paged<DataListModel>(
@@ -68,7 +67,7 @@ public sealed class List(
     /// <inheritdoc />
     public override async Task<Results<Ok<Paged<DataListModel>>, ProblemHttpResult>> ExecuteAsync(DataListsListRequest request, CancellationToken ct)
     {
-        var result = await mediator.Send(new ListDataListsQuery(request.Page, request.PageSize, request.HasLocale, request.Query), ct);
+        var result = await mediator.Send(new ListDataListsQuery(request.Page, request.PageSize, request.HasLocale, request.Search), ct);
 
         if (!result.IsSuccess)
         {
@@ -91,10 +90,7 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
     /// </summary>
     public DataListsListValidator()
     {
-        Include(new PageableRequestValidator());
-        RuleFor(x => x.Query)
-            .MaximumLength(PagedRequestLimits.MAX_SEARCH_LENGTH)
-            .When(x => !string.IsNullOrWhiteSpace(x.Query));
+        Include(new SearchablePagedRequestValidator());
         RuleFor(x => x.HasLocale)
             .IsCultureCode()
             .When(x => !string.IsNullOrWhiteSpace(x.HasLocale));
@@ -104,7 +100,7 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
 /// <summary>
 /// Request to list data lists.
 /// </summary>
-public sealed class DataListsListRequest : IPagedRequest
+public sealed class DataListsListRequest : ISearchablePagedRequest
 {
     /// <inheritdoc />
     public int? Page { get; set; }
@@ -112,13 +108,11 @@ public sealed class DataListsListRequest : IPagedRequest
     /// <inheritdoc />
     public int? PageSize { get; set; }
 
+    /// <inheritdoc />
+    public string? Search { get; set; }
+
     /// <summary>
     /// Optional locale code; returns only lists whose AvailableLocales contain this code.
     /// </summary>
     public string? HasLocale { get; set; }
-
-    /// <summary>
-    /// Optional name/description search (case-insensitive contains).
-    /// </summary>
-    public string? Query { get; set; }
 }

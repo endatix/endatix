@@ -60,16 +60,16 @@ public class ListTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_PassesQueryAndHasLocaleToQuery()
+    public async Task ExecuteAsync_PassesSearchAndHasLocaleToQuery()
     {
-        DataListsListRequest request = new() { Query = "cities", HasLocale = "es" };
+        DataListsListRequest request = new() { Search = "cities", HasLocale = "es" };
         _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new Paged<DataListDto>(1, 10, 0, 0, Array.Empty<DataListDto>())));
 
         await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         await _mediator.Received(1).Send(
-            Arg.Is<ListDataListsQuery>(x => x.Query == "cities" && x.HasLocale == "es"),
+            Arg.Is<ListDataListsQuery>(x => x.Search == "cities" && x.HasLocale == "es"),
             Arg.Any<CancellationToken>());
     }
 }

@@ -17,9 +17,9 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListSpec : Specification<DataList>
     {
-        public ListSpec(string? hasLocale = null, string? query = null)
+        public ListSpec(string? hasLocale = null, string? search = null)
         {
-            ApplyListFilters(Query, hasLocale, query);
+            ApplyListFilters(Query, hasLocale, search);
 
             Query
                  .OrderByDescending(x => x.CreatedAt)
@@ -32,9 +32,9 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListWithPagingToDtoSpec : Specification<DataList, DataListDto>
     {
-        public ListWithPagingToDtoSpec(PagingParameters pagingParams, string? hasLocale = null, string? query = null)
+        public ListWithPagingToDtoSpec(PagingParameters pagingParams, string? hasLocale = null, string? search = null)
         {
-            ApplyListFilters(Query, hasLocale, query);
+            ApplyListFilters(Query, hasLocale, search);
 
             Query
                 .OrderByDescending(x => x.CreatedAt)
@@ -136,32 +136,6 @@ public static class DataListsSpecifications
                 .Include(x => x.Items);
         }
     }
-
-    /// <summary>
-    /// Projects a data list by ID without loading item rows. <c>ItemsCount</c> is still computed in SQL.
-    /// </summary>
-    public sealed class ByIdWithoutItemsToDtoSpec : SingleResultSpecification<DataList, DataListDto>
-    {
-        public ByIdWithoutItemsToDtoSpec(long dataListId)
-        {
-            Query
-                .Where(x => x.Id == dataListId)
-                .AsNoTracking();
-
-            Query.Select(dataList => new DataListDto(
-                dataList.Id,
-                dataList.Name,
-                dataList.Description,
-                dataList.CreatedAt,
-                dataList.ModifiedAt,
-                dataList.IsActive,
-                dataList.Items.Count,
-                dataList.DefaultLocale,
-                dataList.AvailableLocales,
-                Array.Empty<DataListItemDto>()));
-        }
-    }
-
 
     /// <summary>
     /// Specification to get a data list by ID with data list items included by values.
