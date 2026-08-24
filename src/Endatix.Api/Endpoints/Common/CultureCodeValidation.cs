@@ -23,6 +23,37 @@ public static class CultureCodeValidation
             .Must(locale => CultureCode.TryParse(locale, out var culture) && !culture.IsSyntheticDefault)
             .WithMessage("{PropertyName} must be a valid culture code (e.g. 'es'), not 'default'.");
 
+    private const string HasLocaleInvalidMessage =
+        "{PropertyName} must be a culture code or comma-separated list (e.g. 'es' or 'es,de'), not 'default'.";
+
+    /// <summary>
+    /// Accepts a single culture or comma-separated list (e.g. <c>es,de</c>).
+    /// Rejects the synthetic <c>default</c> key and caps token count at <see cref="MaxLocales"/>.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string?> IsHasLocaleFilter<T>(
+        this IRuleBuilderInitial<T, string?> ruleBuilder) =>
+        ruleBuilder
+            .Cascade(CascadeMode.Stop)
+            .Must(HasAtLeastOneToken)
+            .WithMessage(HasLocaleInvalidMessage)
+            .Must(hasLocale => CountTokensAtMost(WrapHasLocale(hasLocale), MaxLocales))
+            .WithMessage((_, hasLocale) =>
+            {
+                string received = string.Join(
+                    ",",
+                    TranslationLocaleList.Tokenize(WrapHasLocale(hasLocale)).Take(MaxLocales + 1));
+                return $"No more than {MaxLocales} locales can be requested. Received: {received}.";
+            })
+            .Must(hasLocale => AreTokensValid(WrapHasLocale(hasLocale), allowSyntheticDefault: false))
+            .WithMessage(HasLocaleInvalidMessage);
+
+    private static IEnumerable<string>? WrapHasLocale(string? hasLocale) =>
+        string.IsNullOrWhiteSpace(hasLocale) ? null : [hasLocale];
+
+    private static bool HasAtLeastOneToken(string? hasLocale) =>
+        string.IsNullOrWhiteSpace(hasLocale)
+        || TranslationLocaleList.Tokenize([hasLocale]).Any();
+
     /// <summary>
     /// Accepts repeated or comma-separated culture codes, bounded by <see cref="MaxLocales"/>.
     /// Allows the synthetic <c>default</c> key.
