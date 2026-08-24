@@ -4,6 +4,7 @@ using System.Web;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Endatix.Core;
+using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
@@ -39,7 +40,9 @@ public class MailgunEmailSenderTests
             _httpClientFactory,
             _logger,
             _options,
-            new EmailTemplateRenderer(_templateRepository));
+            new EmailTemplateRenderer(
+                _templateRepository,
+                Options.Create(new EmailTemplateSettings())));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()
@@ -235,7 +238,7 @@ public class MailgunEmailSenderTests
         _handler.Request.Should().NotBeNull();
         var form = ParseFormContent(_handler.RequestContent!);
         form["to"].Should().Be("recipient@example.com");
-        form["from"].Should().Be("sender@example.com");
+        form["from"].Should().Be("template-from@example.com");
         form["subject"].Should().Be("Test Subject");
         form["text"].Should().Be("Hello John");
         form["html"].Should().Be("<html>Hello John</html>");

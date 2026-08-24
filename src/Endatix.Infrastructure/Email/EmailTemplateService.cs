@@ -11,11 +11,10 @@ namespace Endatix.Infrastructure.Email;
 /// <summary>
 /// Implements email template operations using configuration settings.
 /// Hub URL is read from HubSettings (canonical); falls back to EmailTemplateSettings.HubUrl for backward compatibility.
+/// Compose only — sender address is resolved at render/list time via the config overlay.
 /// </summary>
 public class EmailTemplateService : IEmailTemplateService
 {
-    private const string DEFAULT_FROM_ADDRESS = "noreply@endatix.com";
-
     private readonly IOptions<EmailTemplateSettings> _emailTemplateSettings;
     private readonly IOptions<HubSettings> _hubSettings;
 
@@ -38,7 +37,6 @@ public class EmailTemplateService : IEmailTemplateService
         return new EmailWithTemplate
         {
             To = userEmail,
-            From = _emailTemplateSettings.Value.EmailVerification.FromAddress,
             Subject = string.Empty, // Taken from the template
             TemplateId = _emailTemplateSettings.Value.EmailVerification.TemplateId,
             Metadata = new Dictionary<string, object>
@@ -61,7 +59,6 @@ public class EmailTemplateService : IEmailTemplateService
         return new EmailWithTemplate
         {
             To = userEmail,
-            From = _emailTemplateSettings.Value.UserInvitation.FromAddress,
             Subject = string.Empty, // Taken from the template
             TemplateId = _emailTemplateSettings.Value.UserInvitation.TemplateId,
             Metadata = new Dictionary<string, object>
@@ -93,7 +90,6 @@ public class EmailTemplateService : IEmailTemplateService
         return new EmailWithTemplate
         {
             To = userEmail,
-            From = _emailTemplateSettings.Value.ForgotPasswordEmail.FromAddress ?? DEFAULT_FROM_ADDRESS,
             TemplateId = _emailTemplateSettings.Value.ForgotPasswordEmail.TemplateId,
             Metadata = new Dictionary<string, object>
             {
@@ -111,7 +107,6 @@ public class EmailTemplateService : IEmailTemplateService
         return new EmailWithTemplate
         {
             To = userEmail,
-            From = _emailTemplateSettings.Value.PasswordChangedEmail.FromAddress ?? DEFAULT_FROM_ADDRESS,
             TemplateId = _emailTemplateSettings.Value.PasswordChangedEmail.TemplateId,
             Metadata = []
         };

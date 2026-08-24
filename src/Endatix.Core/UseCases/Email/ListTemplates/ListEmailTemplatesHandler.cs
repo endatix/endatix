@@ -1,4 +1,6 @@
+using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
+using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -10,8 +12,10 @@ namespace Endatix.Core.UseCases.Email.ListTemplates;
 /// Handler for the ListEmailTemplatesQuery.
 /// </summary>
 /// <param name="repository">The repository.</param>
+/// <param name="emailTemplateSettings">Email template settings (config FromAddress overlay).</param>
 public class ListEmailTemplatesHandler(
-    IRepository<EmailTemplate> repository
+    IRepository<EmailTemplate> repository,
+    EmailTemplateSettings emailTemplateSettings
 ) : IQueryHandler<ListEmailTemplatesQuery, Result<IEnumerable<EmailTemplateSummaryDto>>>
 {
     /// <summary>
@@ -25,9 +29,13 @@ public class ListEmailTemplatesHandler(
         var templates = await repository.ListAsync(cancellationToken);
 
         var dtos = templates
-        .Select(t => new EmailTemplateSummaryDto(t.Id, t.Name, t.Subject, t.FromAddress))
-        .ToList()
-        .AsEnumerable();
+            .Select(t => new EmailTemplateSummaryDto(
+                t.Id,
+                t.Name,
+                t.Subject,
+                EmailTemplateFromAddress.Resolve(emailTemplateSettings, t.Name, t.FromAddress)))
+            .ToList()
+            .AsEnumerable();
 
         return Result.Success(dtos);
     }
