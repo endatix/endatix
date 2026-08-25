@@ -82,6 +82,26 @@ public class CreateDataListHandlerTests
     }
 
     [Fact]
+    public async Task Handle_UniqueViolationNotNameConstraint_ReturnsGenericConflict()
+    {
+        _tenantContext.TenantId.Returns(101);
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(), Arg.Any<CancellationToken>())
+            .Returns((DataList?)null);
+        _repository.AddAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>())
+            .Returns<Task<DataList>>(_ => throw new Exception("db failed"));
+        _uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(Arg.Any<Exception>())
+            .Returns(new UniqueConstraintViolationResult(true, "IX_SomeOtherConstraint", "SomeOtherColumn"));
+
+        var result = await _sut.Handle(
+            new CreateDataListCommand("Cities", null),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().NotContain(error =>
+            error.ErrorCode == CreateDataListHandler.DuplicateNameErrorCode);
+    }
+
+    [Fact]
     public async Task Handle_DuplicateNameDifferentCasing_ReturnsInvalid()
     {
         _tenantContext.TenantId.Returns(101);
