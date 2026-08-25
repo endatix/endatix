@@ -115,7 +115,18 @@ public static class DataListsSpecifications
         if (filter.CreatedTo.HasValue)
         {
             var toExclusive = filter.CreatedTo.Value;
-            query.Where(x => x.CreatedAt < toExclusive);
+            // DateTime.MaxValue has no exclusive "successor" moment (see
+            // List.ParseExclusiveDayEndUtc, which clamps the 9999-12-31 day
+            // bound to it) -- treat it as an inclusive upper bound so a
+            // record timestamped at the sentinel itself isn't dropped.
+            if (toExclusive == DateTime.MaxValue)
+            {
+                query.Where(x => x.CreatedAt <= toExclusive);
+            }
+            else
+            {
+                query.Where(x => x.CreatedAt < toExclusive);
+            }
         }
 
         if (filter.ModifiedFrom.HasValue)
@@ -127,7 +138,14 @@ public static class DataListsSpecifications
         if (filter.ModifiedTo.HasValue)
         {
             var toExclusive = filter.ModifiedTo.Value;
-            query.Where(x => x.ModifiedAt != null && x.ModifiedAt < toExclusive);
+            if (toExclusive == DateTime.MaxValue)
+            {
+                query.Where(x => x.ModifiedAt != null && x.ModifiedAt <= toExclusive);
+            }
+            else
+            {
+                query.Where(x => x.ModifiedAt != null && x.ModifiedAt < toExclusive);
+            }
         }
     }
 
