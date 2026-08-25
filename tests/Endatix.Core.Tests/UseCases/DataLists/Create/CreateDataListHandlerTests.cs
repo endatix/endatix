@@ -97,8 +97,8 @@ public class CreateDataListHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().NotContain(error =>
-            error.ErrorCode == CreateDataListHandler.DuplicateNameErrorCode);
+        result.ValidationErrors.Should().Contain(error =>
+            error.ErrorCode == "data_list_unique_constraint_violation");
     }
 
     [Fact]
