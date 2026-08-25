@@ -85,6 +85,26 @@ public sealed class DataListRepository(
             ToRelationalMode(criteria.MatchMode));
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<string>> ListDistinctLocalesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.DataLists
+            .AsNoTracking()
+            .Select(dataList => new
+            {
+                dataList.DefaultLocale,
+                dataList.AvailableLocales
+            })
+            .ToListAsync(cancellationToken);
+
+        return [.. rows
+            .SelectMany(row => row.AvailableLocales.Prepend(row.DefaultLocale))
+            .Where(locale => !string.IsNullOrWhiteSpace(locale))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(locale => locale, StringComparer.Ordinal)];
+    }
+
     private static IReadOnlyList<string> BuildDistinctKeys(IEnumerable<string> keys) =>
         [.. keys.Distinct(StringComparer.Ordinal)];
 

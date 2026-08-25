@@ -72,4 +72,56 @@ public class ListTests
             Arg.Is<ListDataListsQuery>(x => x.Search == "cities" && x.HasLocale == "es"),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task ExecuteAsync_PassesSortAndDateBoundsToQuery()
+    {
+        DataListsListRequest request = new()
+        {
+            SortBy = "name",
+            SortDir = "asc",
+            CreatedFrom = "2024-01-01",
+            CreatedTo = "2024-01-31",
+            ModifiedFrom = "2024-02-01",
+            ModifiedTo = "2024-02-28"
+        };
+        _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new Paged<DataListDto>(1, 10, 0, 0, Array.Empty<DataListDto>())));
+
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        await _mediator.Received(1).Send(
+            Arg.Is<ListDataListsQuery>(x =>
+                x.SortBy == DataListListSortBy.Name &&
+                x.SortDescending == false &&
+                x.CreatedFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.CreatedTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.ModifiedFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.ModifiedTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DateBoundAtCalendarMaximum_DoesNotThrow()
+    {
+        // Regression guard: ParseExclusiveDayEndUtc must clamp instead of
+        // overflowing when CreatedTo/ModifiedTo is the last representable
+        // calendar date (DateOnly.MaxValue has no "next day").
+        DataListsListRequest request = new()
+        {
+            CreatedTo = "9999-12-31",
+            ModifiedTo = "9999-12-31"
+        };
+        _mediator.Send(Arg.Any<ListDataListsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new Paged<DataListDto>(1, 10, 0, 0, Array.Empty<DataListDto>())));
+
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        response.Result.Should().BeOfType<Ok<Paged<DataListModel>>>();
+        await _mediator.Received(1).Send(
+            Arg.Is<ListDataListsQuery>(x =>
+                x.CreatedTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc) &&
+                x.ModifiedTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc)),
+            Arg.Any<CancellationToken>());
+    }
 }

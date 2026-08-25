@@ -1,9 +1,11 @@
+using System.Linq.Expressions;
 using Ardalis.Specification;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications.Common;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.UseCases.DataLists;
+using Endatix.Core.UseCases.DataLists.List;
 
 namespace Endatix.Core.Specifications;
 
@@ -14,17 +16,33 @@ namespace Endatix.Core.Specifications;
 public static class DataListsSpecifications
 {
     /// <summary>
+    /// Shared list filters / ordering for management grids.
+    /// </summary>
+    public sealed record ListFilter(
+        string? HasLocale = null,
+        string? Search = null,
+        DataListListSortBy SortBy = DataListListSortBy.CreatedAt,
+        bool SortDescending = true,
+        DateTime? CreatedFrom = null,
+        DateTime? CreatedTo = null,
+        DateTime? ModifiedFrom = null,
+        DateTime? ModifiedTo = null);
+
+    /// <summary>
     /// Base specification to list data lists without pagination.
     /// </summary>
     public sealed class ListSpec : Specification<DataList>
     {
         public ListSpec(string? hasLocale = null, string? search = null)
+            : this(new ListFilter(hasLocale, search))
         {
-            ApplyListFilters(Query, hasLocale, search);
+        }
 
-            Query
-                 .OrderByDescending(x => x.CreatedAt)
-                 .AsNoTracking();
+        public ListSpec(ListFilter filter)
+        {
+            ApplyListFilters(Query, filter);
+            ApplyListOrdering(Query, filter);
+            Query.AsNoTracking();
         }
     }
 
@@ -33,12 +51,19 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ListWithPagingToDtoSpec : Specification<DataList, DataListDto>
     {
-        public ListWithPagingToDtoSpec(PagingParameters pagingParams, string? hasLocale = null, string? search = null)
+        public ListWithPagingToDtoSpec(
+            PagingParameters pagingParams,
+            string? hasLocale = null,
+            string? search = null)
+            : this(pagingParams, new ListFilter(hasLocale, search))
         {
-            ApplyListFilters(Query, hasLocale, search);
+        }
 
+        public ListWithPagingToDtoSpec(PagingParameters pagingParams, ListFilter filter)
+        {
+            ApplyListFilters(Query, filter);
+            ApplyListOrdering(Query, filter);
             Query
-                .OrderByDescending(x => x.CreatedAt)
                 .Paginate(pagingParams)
                 .AsNoTracking();
 
@@ -58,11 +83,11 @@ public static class DataListsSpecifications
 
     private static void ApplyListFilters(
         ISpecificationBuilder<DataList> query,
-        string? hasLocale,
-        string? search)
+        ListFilter filter)
     {
-        // Closed-over array so EF translates Contains; match catalog rows or DefaultLocale (default is not in AvailableLocales).
-        string[] locales = [.. TranslationLocaleList.ParseMany(hasLocale is null ? null : [hasLocale])
+        // Closed-over array so EF translates Contains; DefaultLocale is not in AvailableLocales.
+        string[] locales = [.. TranslationLocaleList.ParseMany(
+                filter.HasLocale is null ? null : [filter.HasLocale])
             .Where(code => !code.IsSyntheticDefault)
             .Select(code => code.Value)];
 
@@ -73,15 +98,96 @@ public static class DataListsSpecifications
                 || x.AvailableLocales.Any(available => locales.Contains(available)));
         }
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            var term = search.Trim().ToLowerInvariant();
+            var term = filter.Search.Trim().ToLowerInvariant();
             query.Where(x =>
                 x.Name.ToLower().Contains(term) ||
                 (x.Description != null && x.Description.ToLower().Contains(term)));
         }
+
+        if (filter.CreatedFrom.HasValue)
+        {
+            var from = filter.CreatedFrom.Value;
+            query.Where(x => x.CreatedAt >= from);
+        }
+
+        if (filter.CreatedTo.HasValue)
+        {
+            var toExclusive = filter.CreatedTo.Value;
+            // DateTime.MaxValue has no exclusive "successor" moment (see
+            // List.ParseExclusiveDayEndUtc, which clamps the 9999-12-31 day
+            // bound to it) -- treat it as an inclusive upper bound so a
+            // record timestamped at the sentinel itself isn't dropped.
+            if (toExclusive == DateTime.MaxValue)
+            {
+                query.Where(x => x.CreatedAt <= toExclusive);
+            }
+            else
+            {
+                query.Where(x => x.CreatedAt < toExclusive);
+            }
+        }
+
+        if (filter.ModifiedFrom.HasValue)
+        {
+            var from = filter.ModifiedFrom.Value;
+            query.Where(x => x.ModifiedAt != null && x.ModifiedAt >= from);
+        }
+
+        if (filter.ModifiedTo.HasValue)
+        {
+            var toExclusive = filter.ModifiedTo.Value;
+            if (toExclusive == DateTime.MaxValue)
+            {
+                query.Where(x => x.ModifiedAt != null && x.ModifiedAt <= toExclusive);
+            }
+            else
+            {
+                query.Where(x => x.ModifiedAt != null && x.ModifiedAt < toExclusive);
+            }
+        }
     }
 
+    private static void ApplyListOrdering(
+        ISpecificationBuilder<DataList> query,
+        ListFilter filter)
+    {
+        // ThenBy Id keeps paging stable when the primary key has ties
+        // (IsActive, ItemsCount, duplicate Name / timestamps).
+        switch (filter.SortBy)
+        {
+            case DataListListSortBy.Name:
+                OrderByWithIdTiebreaker(query, x => x.Name, filter.SortDescending);
+                break;
+            case DataListListSortBy.ModifiedAt:
+                OrderByWithIdTiebreaker(query, x => x.ModifiedAt, filter.SortDescending);
+                break;
+            case DataListListSortBy.ItemsCount:
+                OrderByWithIdTiebreaker(query, x => x.Items.Count, filter.SortDescending);
+                break;
+            case DataListListSortBy.IsActive:
+                OrderByWithIdTiebreaker(query, x => x.IsActive, filter.SortDescending);
+                break;
+            default:
+                OrderByWithIdTiebreaker(query, x => x.CreatedAt, filter.SortDescending);
+                break;
+        }
+    }
+
+    private static void OrderByWithIdTiebreaker(
+        ISpecificationBuilder<DataList> query,
+        Expression<Func<DataList, object?>> keySelector,
+        bool descending)
+    {
+        if (descending)
+        {
+            query.OrderByDescending(keySelector).ThenBy(x => x.Id);
+            return;
+        }
+
+        query.OrderBy(keySelector).ThenBy(x => x.Id);
+    }
 
     /// <summary>
     /// Specification to get a data list by name.
