@@ -59,8 +59,12 @@ public sealed class CreateDataListHandler(
                 return Result.Invalid(duplicateListNameError);
             }
 
-            var fallbackDuplicateError = CreateDuplicateNameValidationError(trimmedName);
-            return Result.Invalid(fallbackDuplicateError);
+            return Result.Invalid(new ValidationError
+            {
+                Identifier = string.Empty,
+                ErrorMessage = "This data list could not be created because of a conflicting change. Please retry.",
+                ErrorCode = "data_list_unique_constraint_violation"
+            });
         }
     }
 
