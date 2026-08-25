@@ -98,24 +98,11 @@ public sealed class DataListRepository(
             })
             .ToListAsync(cancellationToken);
 
-        HashSet<string> locales = new(StringComparer.Ordinal);
-        foreach (var row in rows)
-        {
-            if (!string.IsNullOrWhiteSpace(row.DefaultLocale))
-            {
-                locales.Add(row.DefaultLocale);
-            }
-
-            foreach (string locale in row.AvailableLocales)
-            {
-                if (!string.IsNullOrWhiteSpace(locale))
-                {
-                    locales.Add(locale);
-                }
-            }
-        }
-
-        return [.. locales.OrderBy(locale => locale, StringComparer.Ordinal)];
+        return [.. rows
+            .SelectMany(row => row.AvailableLocales.Prepend(row.DefaultLocale))
+            .Where(locale => !string.IsNullOrWhiteSpace(locale))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(locale => locale, StringComparer.Ordinal)];
     }
 
     private static IReadOnlyList<string> BuildDistinctKeys(IEnumerable<string> keys) =>

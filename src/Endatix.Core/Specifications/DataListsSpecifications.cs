@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Ardalis.Specification;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
@@ -134,34 +135,40 @@ public static class DataListsSpecifications
         ISpecificationBuilder<DataList> query,
         ListFilter filter)
     {
-        // Every branch chains a `.ThenBy(x => x.Id)` tiebreaker: low-cardinality/
-        // duplicate-prone sort keys (IsActive, ItemsCount, and ties on Name/
-        // ModifiedAt) would otherwise leave pagination unstable across pages for
-        // rows sharing the same primary sort value.
+        // ThenBy Id keeps paging stable when the primary key has ties
+        // (IsActive, ItemsCount, duplicate Name / timestamps).
         switch (filter.SortBy)
         {
             case DataListListSortBy.Name:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.Name).ThenBy(x => x.Id); }
-                else { query.OrderBy(x => x.Name).ThenBy(x => x.Id); }
+                OrderByWithIdTiebreaker(query, x => x.Name, filter.SortDescending);
                 break;
             case DataListListSortBy.ModifiedAt:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.ModifiedAt).ThenBy(x => x.Id); }
-                else { query.OrderBy(x => x.ModifiedAt).ThenBy(x => x.Id); }
+                OrderByWithIdTiebreaker(query, x => x.ModifiedAt, filter.SortDescending);
                 break;
             case DataListListSortBy.ItemsCount:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.Items.Count).ThenBy(x => x.Id); }
-                else { query.OrderBy(x => x.Items.Count).ThenBy(x => x.Id); }
+                OrderByWithIdTiebreaker(query, x => x.Items.Count, filter.SortDescending);
                 break;
             case DataListListSortBy.IsActive:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.IsActive).ThenBy(x => x.Id); }
-                else { query.OrderBy(x => x.IsActive).ThenBy(x => x.Id); }
+                OrderByWithIdTiebreaker(query, x => x.IsActive, filter.SortDescending);
                 break;
-            case DataListListSortBy.CreatedAt:
             default:
-                if (filter.SortDescending) { query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id); }
-                else { query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id); }
+                OrderByWithIdTiebreaker(query, x => x.CreatedAt, filter.SortDescending);
                 break;
         }
+    }
+
+    private static void OrderByWithIdTiebreaker(
+        ISpecificationBuilder<DataList> query,
+        Expression<Func<DataList, object?>> keySelector,
+        bool descending)
+    {
+        if (descending)
+        {
+            query.OrderByDescending(keySelector).ThenBy(x => x.Id);
+            return;
+        }
+
+        query.OrderBy(keySelector).ThenBy(x => x.Id);
     }
 
     /// <summary>
