@@ -187,11 +187,11 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
             .IsHasLocaleFilter()
             .When(x => !string.IsNullOrWhiteSpace(x.HasLocale));
         RuleFor(x => x.SortBy)
-            .Must(value => AllowedSortBy.Contains(value!, StringComparer.OrdinalIgnoreCase))
+            .Must(value => AllowedSortBy.Contains(value, StringComparer.OrdinalIgnoreCase))
             .When(x => !string.IsNullOrWhiteSpace(x.SortBy))
             .WithMessage("SortBy must be one of: name, createdAt, modifiedAt, itemsCount, isActive.");
         RuleFor(x => x.SortDir)
-            .Must(value => AllowedSortDir.Contains(value!, StringComparer.OrdinalIgnoreCase))
+            .Must(value => AllowedSortDir.Contains(value, StringComparer.OrdinalIgnoreCase))
             .When(x => !string.IsNullOrWhiteSpace(x.SortDir))
             .WithMessage("SortDir must be asc or desc.");
         RuleFor(x => x.CreatedFrom)
