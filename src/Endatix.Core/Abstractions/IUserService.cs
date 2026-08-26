@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Identity.ListUsers;
 
 namespace Endatix.Core.Abstractions;
 /// <summary>
@@ -35,6 +37,7 @@ public interface IUserService
 
     /// <summary>
     /// Lists users for the current tenant with their role names. Multi-tenancy is assumed; tenant filter is applied by the implementation.
+    /// When <paramref name="sortBy"/> is omitted, default order is UserName then Email ascending.
     /// </summary>
     Task<Result<Paged<UserWithRoles>>> ListUsersAsync(
         int skip,
@@ -42,6 +45,9 @@ public interface IUserService
         string? search,
         string? role,
         string? status,
+        UserListSortBy? sortBy = null,
+        bool sortDescending = false,
+        UtcDateTimeRange lastLogin = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>

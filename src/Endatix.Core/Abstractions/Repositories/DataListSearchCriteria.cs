@@ -1,4 +1,5 @@
 using Endatix.Core.Common.Translations;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.UseCases.DataLists.Search;
 
 namespace Endatix.Core.Abstractions.Repositories;
@@ -48,4 +49,24 @@ public sealed record DataListSearchCriteria
     /// Management item search sets this to <see langword="false"/>.
     /// </summary>
     public bool RequireActive { get; init; } = true;
+
+    /// <summary>
+    /// When null, default order is label (display key) then value.
+    /// </summary>
+    public DataListItemListSortBy? SortBy { get; init; }
+
+    /// <summary>
+    /// When true, sort descending.
+    /// </summary>
+    public bool SortDescending { get; init; }
+
+    /// <summary>
+    /// UTC created-at instant range.
+    /// </summary>
+    public UtcDateTimeRange Created { get; init; }
+
+    /// <summary>
+    /// UTC modified-at instant range.
+    /// </summary>
+    public UtcDateTimeRange Modified { get; init; }
 }

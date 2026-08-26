@@ -19,6 +19,7 @@ public enum ExportRequestFilters
     ColumnScope = 1 << 5,
     CompletionStatus = 1 << 6,
     StartedAtRange = 1 << 7,
+    ModifiedAtRange = 1 << 8,
 }
 
 /// <summary>
@@ -33,6 +34,7 @@ public static class ExportRequestFilterSets
     public const ExportRequestFilters Submissions =
         ExportRequestFilters.IncludeTestSubmissions |
         ExportRequestFilters.CreatedAtRange |
+        ExportRequestFilters.ModifiedAtRange |
         ExportRequestFilters.StartedAtRange |
         ExportRequestFilters.CompletedAtRange |
         ExportRequestFilters.SubmissionIdRange |
@@ -57,6 +59,7 @@ public static class AllowedExportFilters
 {
     public const string IncludeTestSubmissions = "includeTestSubmissions";
     public const string CreatedAtRange = "createdAtRange";
+    public const string ModifiedAtRange = "modifiedAtRange";
     public const string StartedAtRange = "startedAtRange";
     public const string CompletedAtRange = "completedAtRange";
     public const string SubmissionIdRange = "submissionIdRange";
@@ -68,6 +71,7 @@ public static class AllowedExportFilters
     [
         (ExportRequestFilters.IncludeTestSubmissions, IncludeTestSubmissions),
         (ExportRequestFilters.CreatedAtRange, CreatedAtRange),
+        (ExportRequestFilters.ModifiedAtRange, ModifiedAtRange),
         (ExportRequestFilters.StartedAtRange, StartedAtRange),
         (ExportRequestFilters.CompletedAtRange, CompletedAtRange),
         (ExportRequestFilters.SubmissionIdRange, SubmissionIdRange),

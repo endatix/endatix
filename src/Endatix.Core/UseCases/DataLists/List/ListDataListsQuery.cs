@@ -1,4 +1,5 @@
 using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.DataLists.List;
@@ -15,10 +16,8 @@ namespace Endatix.Core.UseCases.DataLists.List;
 /// <param name="Search">Optional name/description search (case-insensitive contains).</param>
 /// <param name="SortBy">Optional sort field. Defaults to <see cref="DataListListSortBy.CreatedAt"/>.</param>
 /// <param name="SortDescending">When true, sort descending (default).</param>
-/// <param name="CreatedFrom">Inclusive UTC start of created-at day filter.</param>
-/// <param name="CreatedTo">Inclusive UTC end of created-at day filter (start of next day exclusive).</param>
-/// <param name="ModifiedFrom">Inclusive UTC start of modified-at day filter.</param>
-/// <param name="ModifiedTo">Inclusive UTC end of modified-at day filter (start of next day exclusive).</param>
+/// <param name="Created">Inclusive/exclusive UTC bounds for created-at.</param>
+/// <param name="Modified">Inclusive/exclusive UTC bounds for modified-at.</param>
 public sealed record ListDataListsQuery(
     int? Page,
     int? PageSize,
@@ -26,8 +25,6 @@ public sealed record ListDataListsQuery(
     string? Search = null,
     DataListListSortBy SortBy = DataListListSortBy.CreatedAt,
     bool SortDescending = true,
-    DateTime? CreatedFrom = null,
-    DateTime? CreatedTo = null,
-    DateTime? ModifiedFrom = null,
-    DateTime? ModifiedTo = null)
+    UtcDateTimeRange Created = default,
+    UtcDateTimeRange Modified = default)
     : IQuery<Result<Paged<DataListDto>>>;

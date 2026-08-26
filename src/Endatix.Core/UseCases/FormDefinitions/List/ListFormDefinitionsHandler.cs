@@ -15,7 +15,13 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> _repository)
     public async Task<Result<IEnumerable<FormDefinition>>> Handle(ListFormDefinitionsQuery request, CancellationToken cancellationToken)
     {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
-        var spec = new FormDefinitionsByFormIdSpec(request.FormId, pagingParams);
+        var spec = new FormDefinitionsByFormIdSpec(
+            request.FormId,
+            pagingParams,
+            request.SortBy,
+            request.SortDescending,
+            request.Created,
+            request.Modified);
         IEnumerable<FormDefinition> formDefinitions = await _repository.ListAsync(spec, cancellationToken);
         if (formDefinitions.Any())
         {

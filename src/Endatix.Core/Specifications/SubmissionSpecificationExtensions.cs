@@ -3,6 +3,7 @@ using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications.Common;
 using Endatix.Core.Specifications.Parameters;
+using Endatix.Core.UseCases.Submissions.ListByFormId;
 
 namespace Endatix.Core.Specifications;
 
@@ -39,5 +40,16 @@ internal static class SubmissionSpecificationExtensions
             .ForEach(nonStatusFilters.AddFilter);
 
         return query.Filter(nonStatusFilters);
+    }
+
+    internal static ISpecificationBuilder<Submission> ApplyListDateRanges(
+        this ISpecificationBuilder<Submission> query,
+        SubmissionsListFilter listFilter)
+    {
+        query.WhereUtcRange(x => x.CreatedAt, listFilter.Created);
+        query.WhereUtcRange(x => x.ModifiedAt, listFilter.Modified);
+        query.WhereUtcRange(x => x.StartedAt, listFilter.Started);
+        query.WhereUtcRange(x => x.CompletedAt, listFilter.Completed);
+        return query;
     }
 }

@@ -1,3 +1,5 @@
+using Endatix.Core.Infrastructure.Paging;
+
 namespace Endatix.Core.Abstractions.Exporting;
 
 /// <summary>
@@ -27,12 +29,10 @@ public sealed record SubmissionExportExecutionSettings(
     /// (Crunch/Shoji). When false, booleans stay lowercase <c>true</c>/<c>false</c>.
     /// </summary>
     bool EncodeBooleansAsCategoryIds = false,
-    DateTime? CreatedAfter = null,
-    DateTime? CreatedBefore = null,
-    DateTime? StartedAfter = null,
-    DateTime? StartedBefore = null,
-    DateTime? CompletedAfter = null,
-    DateTime? CompletedBefore = null,
+    UtcDateTimeRange Created = default,
+    UtcDateTimeRange Modified = default,
+    UtcDateTimeRange Started = default,
+    UtcDateTimeRange Completed = default,
     long? MinSubmissionId = null,
     long? MaxSubmissionId = null,
     bool? IsComplete = null);

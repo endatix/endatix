@@ -50,12 +50,14 @@ public interface IRelationalJsonObjectKeyFilter
     /// <param name="source">The query to order.</param>
     /// <param name="jsonPropertyName">The name of the JSON property to order by.</param>
     /// <param name="jsonObjectKey">The key of the JSON object to order by.</param>
+    /// <param name="descending">When true, order descending.</param>
     /// <returns>The ordered query.</returns>
     /// <typeparam name="TEntity">The type of the entity to order.</typeparam>
     IOrderedQueryable<TEntity> OrderByKey<TEntity>(
         IQueryable<TEntity> source,
         string jsonPropertyName,
-        string jsonObjectKey)
+        string jsonObjectKey,
+        bool descending = false)
         where TEntity : class;
 
     /// <summary>

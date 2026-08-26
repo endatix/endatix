@@ -1,6 +1,7 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.CustomQuestions.List;
 
 namespace Endatix.Core.Tests.UseCases.CustomQuestions.List;
@@ -27,8 +28,10 @@ public class ListCustomQuestionsHandlerTests
         };
 
         var request = new ListCustomQuestionsQuery();
-        _repository.ListAsync(Arg.Any<CancellationToken>())
-                   .Returns(questions);
+        _repository.CountAsync(Arg.Any<CustomQuestionSpecifications.ListFilter>(), Arg.Any<CancellationToken>())
+            .Returns(2);
+        _repository.ListAsync(Arg.Any<CustomQuestionSpecifications.ListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(questions);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -37,9 +40,15 @@ public class ListCustomQuestionsHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEquivalentTo(questions);
+        result.Value!.Items.Should().BeEquivalentTo(questions);
+        result.Value.TotalRecords.Should().Be(2);
 
-        await _repository.Received(1).ListAsync(Arg.Any<CancellationToken>());
+        await _repository.Received(1).CountAsync(
+            Arg.Any<CustomQuestionSpecifications.ListFilter>(),
+            Arg.Any<CancellationToken>());
+        await _repository.Received(1).ListAsync(
+            Arg.Any<CustomQuestionSpecifications.ListSpec>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -47,8 +56,8 @@ public class ListCustomQuestionsHandlerTests
     {
         // Arrange
         var request = new ListCustomQuestionsQuery();
-        _repository.ListAsync(Arg.Any<CancellationToken>())
-                   .Returns(new List<CustomQuestion>());
+        _repository.CountAsync(Arg.Any<CustomQuestionSpecifications.ListFilter>(), Arg.Any<CancellationToken>())
+            .Returns(0);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -57,8 +66,14 @@ public class ListCustomQuestionsHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEmpty();
+        result.Value!.Items.Should().BeEmpty();
+        result.Value.TotalRecords.Should().Be(0);
 
-        await _repository.Received(1).ListAsync(Arg.Any<CancellationToken>());
+        await _repository.Received(1).CountAsync(
+            Arg.Any<CustomQuestionSpecifications.ListFilter>(),
+            Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().ListAsync(
+            Arg.Any<CustomQuestionSpecifications.ListSpec>(),
+            Arg.Any<CancellationToken>());
     }
-} 
+}

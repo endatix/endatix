@@ -73,7 +73,7 @@ public class InviteUserHandlerTests
                 Arg.Any<int>(),
                 Arg.Any<string?>(),
                 Arg.Any<string?>(),
-                Arg.Any<CancellationToken>());
+                cancellationToken: Arg.Any<CancellationToken>());
         await _userRegistrationService.DidNotReceive()
             .RegisterInvitedUserAsync(
                 Arg.Any<string>(),
@@ -101,7 +101,7 @@ public class InviteUserHandlerTests
                 Arg.Any<int>(),
                 Arg.Any<string?>(),
                 Arg.Any<string?>(),
-                Arg.Any<CancellationToken>());
+                cancellationToken: Arg.Any<CancellationToken>());
         await _userRegistrationService.DidNotReceive()
             .RegisterInvitedUserAsync(
                 Arg.Any<string>(),
@@ -126,7 +126,12 @@ public class InviteUserHandlerTests
             .ValidateAccessAsync(Actions.Tenant.InviteUsers, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         _roleManagementService
-            .ListRolesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .ListRolesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                cancellationToken: Arg.Any<CancellationToken>())
             .Returns(Result<Paged<RoleListItem>>.Success(
                 Paged<RoleListItem>.FromSkipAndTake(0, int.MaxValue, 1, [
                     new RoleListItem
@@ -154,7 +159,7 @@ public class InviteUserHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _roleManagementService.Received(1)
-            .ListRolesAsync(0, int.MaxValue, null, null, Arg.Any<CancellationToken>());
+            .ListRolesAsync(0, int.MaxValue, null, null, cancellationToken: Arg.Any<CancellationToken>());
         await _userRegistrationService.Received(1)
             .RegisterInvitedUserAsync(command.Email, 10, Arg.Any<CancellationToken>());
         await _roleManagementService.Received(1)
@@ -176,7 +181,12 @@ public class InviteUserHandlerTests
 
         _tenantContext.TenantId.Returns(10);
         _roleManagementService
-            .ListRolesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .ListRolesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                cancellationToken: Arg.Any<CancellationToken>())
             .Returns(Result<Paged<RoleListItem>>.Success(
                 Paged<RoleListItem>.FromSkipAndTake(0, int.MaxValue, 2, [
                     new RoleListItem

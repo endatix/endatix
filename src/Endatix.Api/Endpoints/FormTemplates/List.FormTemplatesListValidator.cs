@@ -1,6 +1,6 @@
 using Endatix.Api.Common;
+using Endatix.Core.UseCases.FormTemplates.List;
 using FastEndpoints;
-using FluentValidation;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
@@ -21,5 +21,8 @@ public class FormTemplatesListValidator : Validator<FormTemplatesListRequest>
     {
         Include(new PageableRequestValidator());
         Include(new FilteredRequestValidator(_filterableFields));
+        Include(new SortableRequestValidator<FormTemplateListSortBy>());
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
     }
 }

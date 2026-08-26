@@ -1,4 +1,7 @@
-﻿using Ardalis.Specification;
+﻿using System.Linq.Expressions;
+using Ardalis.Specification;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.Specifications.Common;
@@ -63,5 +66,91 @@ public static class SpecificationExtensions
 
         var lambda = SpecificationHelper.BuildFilterExpression<TEntity>(filter);
         return query.Where(lambda);
+    }
+
+    /// <summary>
+    /// Orders by <paramref name="keySelector"/> then by <c>Id</c> for stable paging.
+    /// </summary>
+    public static IOrderedSpecificationBuilder<TEntity> OrderByWithIdTiebreaker<TEntity>(
+        this ISpecificationBuilder<TEntity> query,
+        Expression<Func<TEntity, object?>> keySelector,
+        bool descending)
+        where TEntity : BaseEntity
+    {
+        if (descending)
+        {
+            return query.OrderByDescending(keySelector).ThenBy(x => x.Id);
+        }
+
+        return query.OrderBy(keySelector).ThenBy(x => x.Id);
+    }
+
+    /// <summary>
+    /// Applies inclusive lower / exclusive upper bounds from <paramref name="range"/> to a non-nullable UTC timestamp.
+    /// When the exclusive upper bound is <see cref="DateTime.MaxValue"/> (calendar clamp), comparison is inclusive.
+    /// </summary>
+    public static ISpecificationBuilder<TEntity> WhereUtcRange<TEntity>(
+        this ISpecificationBuilder<TEntity> query,
+        Expression<Func<TEntity, DateTime>> keySelector,
+        UtcDateTimeRange range)
+    {
+        if (!range.HasBounds)
+        {
+            return query;
+        }
+
+        if (range.InclusiveFrom.HasValue)
+        {
+            query = query.Where(UtcDateTimeRangeExpressions.CompareDateTime(
+                keySelector,
+                ExpressionType.GreaterThanOrEqual,
+                range.InclusiveFrom.Value));
+        }
+
+        if (range.ExclusiveTo.HasValue)
+        {
+            var to = range.ExclusiveTo.Value;
+            query = query.Where(UtcDateTimeRangeExpressions.CompareDateTime(
+                keySelector,
+                UtcDateTimeRangeExpressions.ExclusiveToComparison(to),
+                to));
+        }
+
+        return query;
+    }
+
+    /// <summary>
+    /// Applies inclusive lower / exclusive upper bounds from <paramref name="range"/> to a nullable UTC timestamp.
+    /// Null column values are excluded when either bound is set.
+    /// When the exclusive upper bound is <see cref="DateTime.MaxValue"/> (calendar clamp), comparison is inclusive.
+    /// </summary>
+    public static ISpecificationBuilder<TEntity> WhereUtcRange<TEntity>(
+        this ISpecificationBuilder<TEntity> query,
+        Expression<Func<TEntity, DateTime?>> keySelector,
+        UtcDateTimeRange range)
+    {
+        if (!range.HasBounds)
+        {
+            return query;
+        }
+
+        if (range.InclusiveFrom.HasValue)
+        {
+            query = query.Where(UtcDateTimeRangeExpressions.CompareNullableDateTime(
+                keySelector,
+                ExpressionType.GreaterThanOrEqual,
+                range.InclusiveFrom.Value));
+        }
+
+        if (range.ExclusiveTo.HasValue)
+        {
+            var to = range.ExclusiveTo.Value;
+            query = query.Where(UtcDateTimeRangeExpressions.CompareNullableDateTime(
+                keySelector,
+                UtcDateTimeRangeExpressions.ExclusiveToComparison(to),
+                to));
+        }
+
+        return query;
     }
 }

@@ -1,10 +1,11 @@
+using System.Linq.Expressions;
 using Endatix.Core.Common;
 using FluentValidation;
 
 namespace Endatix.Api.Common;
 
 /// <summary>
-/// Extension methods for validating JSON strings.
+/// Shared FluentValidation helpers for API request DTOs.
 /// </summary>
 public static class FluentValidationExtensions
 {
@@ -34,4 +35,47 @@ public static class FluentValidationExtensions
             .Must(slug => UrlSlugNormalizer.IsValidFormat(slug))
             .WithMessage("{PropertyName} must be a valid URL slug.");
     }
+
+    /// <summary>
+    /// When the value is present, requires a UTC calendar date (<c>YYYY-MM-DD</c>).
+    /// </summary>
+    private static IRuleBuilderOptions<T, string?> MustBeUtcCalendarDateWhenPresent<T>(
+        this IRuleBuilder<T, string?> ruleBuilder)
+    {
+        return ruleBuilder
+            .Must(value => string.IsNullOrWhiteSpace(value) || UtcCalendarDay.TryParse(value, out _))
+            .WithMessage("{PropertyName} must be a UTC calendar date (YYYY-MM-DD).");
+    }
+
+    /// <summary>
+    /// Validates a UTC calendar day From/To range (format + From on or before To).
+    /// The cross-field error is reported against the From property, whose name is read
+    /// from <paramref name="fromSelector"/>.
+    /// </summary>
+    public static void RuleForCalendarDayRange<T>(
+        this AbstractValidator<T> validator,
+        Expression<Func<T, string?>> fromSelector,
+        Expression<Func<T, string?>> toSelector)
+    {
+        var getFrom = fromSelector.Compile();
+        var getTo = toSelector.Compile();
+        var fromPropertyName = PropertyNameOf(fromSelector);
+
+        validator.RuleFor(fromSelector).MustBeUtcCalendarDateWhenPresent();
+        validator.RuleFor(toSelector).MustBeUtcCalendarDateWhenPresent();
+        validator.RuleFor(x => x)
+            .Must(instance => UtcCalendarDay.IsFromOnOrBeforeTo(getFrom(instance), getTo(instance)))
+            .WithMessage($"{fromPropertyName} must be on or before the matching To bound.")
+            .WithName(fromPropertyName);
+    }
+
+    private static string PropertyNameOf<T>(Expression<Func<T, string?>> selector) =>
+        selector.Body switch
+        {
+            MemberExpression member => member.Member.Name,
+            UnaryExpression { Operand: MemberExpression member } => member.Member.Name,
+            _ => throw new ArgumentException(
+                "Calendar day range selectors must be simple property accessors.",
+                nameof(selector)),
+        };
 }

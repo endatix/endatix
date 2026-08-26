@@ -1,24 +1,39 @@
 using Endatix.Api.Common;
+using Endatix.Core.Infrastructure.Paging;
+using Endatix.Core.UseCases.Themes.List;
 
 namespace Endatix.Api.Endpoints.Themes;
 
 /// <summary>
-/// Request model for listing themes with optional pagination and filtering.
+/// Request model for listing themes with optional pagination, sort, and date bounds.
 /// </summary>
-public class ListRequest : IPagedRequest, IFilterable
+public class ListRequest :
+    IPagedRequest,
+    ISortableRequest<ThemeListSortBy>,
+    ICreatedRange,
+    IModifiedRange
 {
-    /// <summary>
-    /// The page number (1-based).
-    /// </summary>
+    /// <inheritdoc />
     public int? Page { get; set; }
 
-    /// <summary>
-    /// The number of items per page.
-    /// </summary>
+    /// <inheritdoc />
     public int? PageSize { get; set; }
 
-    /// <summary>
-    /// Filter expressions.
-    /// </summary>
-    public IEnumerable<string>? Filter { get; set; }
-} 
+    /// <inheritdoc />
+    public ThemeListSortBy? SortBy { get; set; }
+
+    /// <inheritdoc />
+    public SortDirection? SortDir { get; set; }
+
+    /// <inheritdoc />
+    public string? CreatedFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? CreatedTo { get; set; }
+
+    /// <inheritdoc />
+    public string? ModifiedFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? ModifiedTo { get; set; }
+}

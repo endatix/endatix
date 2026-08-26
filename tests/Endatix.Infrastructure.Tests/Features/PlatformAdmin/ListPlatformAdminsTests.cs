@@ -23,7 +23,9 @@ public sealed class ListPlatformAdminsTests
             paging,
             PlatformAdminListScope.Approved,
             tenantId: null,
-            CancellationToken.None);
+            sortBy: null,
+            sortDescending: false,
+            cancellationToken: CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -59,7 +61,9 @@ public sealed class ListPlatformAdminsTests
             paging,
             PlatformAdminListScope.Approved,
             tenantId: null,
-            CancellationToken.None);
+            sortBy: null,
+            sortDescending: false,
+            cancellationToken: CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);
@@ -91,7 +95,9 @@ public sealed class ListPlatformAdminsTests
             paging,
             PlatformAdminListScope.All,
             tenantId: 5,
-            CancellationToken.None);
+            sortBy: null,
+            sortDescending: false,
+            cancellationToken: CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);
@@ -131,7 +137,9 @@ public sealed class ListPlatformAdminsTests
             paging,
             PlatformAdminListScope.Candidates,
             tenantId: null,
-            CancellationToken.None);
+            sortBy: null,
+            sortDescending: false,
+            cancellationToken: CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);

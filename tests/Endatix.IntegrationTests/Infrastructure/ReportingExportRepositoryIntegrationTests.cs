@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
@@ -94,8 +95,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: true,
-                CreatedAfter: Day2,
-                CreatedBefore: Day3),
+                Created: new UtcDateTimeRange(Day2, Day3)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay2Id);
@@ -117,8 +117,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: true,
-                CompletedAfter: Day2,
-                CompletedBefore: Day4),
+                Completed: new UtcDateTimeRange(Day2, Day4)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id);
@@ -162,7 +161,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: false,
-                CreatedAfter: Day2,
+                Created: new UtcDateTimeRange(Day2, null),
                 MaxSubmissionId: seed.ProductionDay3Id),
             cancellationToken);
 
@@ -208,7 +207,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
     }
 
     [Fact]
-    public async Task StreamFlattenedSubmissionsAsync_WhenCreatedBeforeExclusiveBound_ExcludesRowAtBound()
+    public async Task StreamFlattenedSubmissionsAsync_WhenCreatedToExclusiveBound_ExcludesRowAtBound()
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
@@ -217,13 +216,13 @@ public sealed class ReportingExportRepositoryIntegrationTests
         await using ReportingDbContext reportingDb = CreateReportingDbContext();
         ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
 
-        // CreatedBefore is exclusive: Day2 row created at Day2 must be excluded.
+        // CreatedTo is exclusive: Day2 row created at Day2 must be excluded.
         List<long> ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: false,
-                CreatedBefore: Day2),
+                Created: new UtcDateTimeRange(null, Day2)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay1Id);
@@ -245,8 +244,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: true,
-                CompletedAfter: Day1,
-                CompletedBefore: Day4.AddDays(1)),
+                Completed: new UtcDateTimeRange(Day1, Day4.AddDays(1))),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id, seed.TestDay3Id);
@@ -316,7 +314,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: false,
-                CreatedAfter: Day4),
+                Created: new UtcDateTimeRange(Day4, null)),
             cancellationToken);
 
         hasRows.Should().BeFalse();
@@ -401,8 +399,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: true,
-                StartedAfter: Day2,
-                StartedBefore: Day3),
+                Started: new UtcDateTimeRange(Day2, Day3)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay2Id);
@@ -430,7 +427,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: false,
-                StartedAfter: Day1),
+                Started: new UtcDateTimeRange(Day1, null)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id);

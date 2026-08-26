@@ -1,4 +1,5 @@
-﻿using Endatix.Api.Common;
+using Endatix.Api.Common;
+using Endatix.Core.UseCases.Submissions.ListByFormId;
 using Endatix.Infrastructure.Features.Submitters;
 using FastEndpoints;
 using FluentValidation;
@@ -11,8 +12,6 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
     private static readonly Dictionary<string, Type> _filterableFields = new(StringComparer.OrdinalIgnoreCase)
     {
         { "id", typeof(long) },
-        { "createdAt", typeof(DateTime) },
-        { "modifiedAt", typeof(DateTime) },
         { "isComplete", typeof(bool) },
         { "status", typeof(string) },
         { "jsonData", typeof(string) },
@@ -20,8 +19,6 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
         { "formDefinitionId", typeof(long) },
         { "currentPage", typeof(int) },
         { "metadata", typeof(string) },
-        { "completedAt", typeof(DateTime) },
-        { "startedAt", typeof(DateTime) },
         { "submitterId", typeof(long) },
         { "submitterDisplayId", typeof(string) },
         { "isTestSubmission", typeof(bool) }
@@ -30,6 +27,11 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
     public ListByFormIdValidator(IOptions<SubmitterOptions> submitterOptions)
     {
         Include(new PageableRequestValidator());
+        Include(new SortableRequestValidator<SubmissionListSortBy>());
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
+        Include(new StartedRangeValidator());
+        Include(new CompletedRangeValidator());
         Include(new FilteredRequestValidator(BuildFilterableFields(submitterOptions.Value)));
 
         RuleFor(x => x.FormId)

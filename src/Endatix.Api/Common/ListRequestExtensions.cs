@@ -1,5 +1,4 @@
 using Endatix.Core.Infrastructure.Paging;
-using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Api.Common;
 
@@ -28,14 +27,6 @@ public static class ListRequestExtensions
             max: PagedRequestLimits.MAX_PAGE_SIZE);
 
     /// <summary>
-    /// Converts the request to a <see cref="PageRequest"/>.
-    /// </summary>
-    /// <param name="request">The request.</param>
-    /// <returns>The converted <see cref="PageRequest"/>.</returns>
-    public static PageRequest ToPageRequest(this IPagedRequest request) =>
-        new(request.ResolvePage(), request.ResolvePageSize());
-
-    /// <summary>
     /// Converts the request to a <see cref="SearchablePageRequest"/>.
     /// </summary>
     /// <param name="request">The request.</param>
@@ -58,10 +49,56 @@ public static class ListRequestExtensions
         where TSortField : struct, Enum =>
         SortRequest<TSortField>.FromNullableOrDefault(
             request.SortBy,
-            request.Direction,
+            request.SortDir,
             defaultField,
             defaultDirection);
 
-    public static FilterParameters ToFilterParameters(this IFilterable request) =>
-        new(request.Filter ?? []);
+    /// <summary>
+    /// Normalized sort when <c>sortBy</c> or <c>sortDir</c> is supplied, and <see langword="null"/> only when
+    /// both are omitted. Use for lists that keep a bespoke default ordering (a multi-key order that no single
+    /// sort field reproduces), so that <c>sortDir</c> alone still flips the default field instead of being dropped.
+    /// </summary>
+    public static SortRequest<TSortField>? ToNullableSortRequest<TSortField>(
+        this ISortableRequest<TSortField> request,
+        TSortField defaultField,
+        SortDirection defaultDirection = SortDirection.Asc)
+        where TSortField : struct, Enum =>
+        SortRequest<TSortField>.FromNullable(
+            request.SortBy,
+            request.SortDir,
+            defaultField,
+            defaultDirection);
+
+    /// <summary>
+    /// Parses <see cref="ICreatedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
+    /// </summary>
+    public static UtcDateTimeRange ToCreatedRange(this ICreatedRange request) =>
+        ToUtcDateTimeRange(request.CreatedFrom, request.CreatedTo);
+
+    /// <summary>
+    /// Parses <see cref="IModifiedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
+    /// </summary>
+    public static UtcDateTimeRange ToModifiedRange(this IModifiedRange request) =>
+        ToUtcDateTimeRange(request.ModifiedFrom, request.ModifiedTo);
+
+    /// <summary>
+    /// Parses <see cref="IStartedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
+    /// </summary>
+    public static UtcDateTimeRange ToStartedRange(this IStartedRange request) =>
+        ToUtcDateTimeRange(request.StartedFrom, request.StartedTo);
+
+    /// <summary>
+    /// Parses <see cref="ICompletedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
+    /// </summary>
+    public static UtcDateTimeRange ToCompletedRange(this ICompletedRange request) =>
+        ToUtcDateTimeRange(request.CompletedFrom, request.CompletedTo);
+
+    /// <summary>
+    /// Parses <see cref="ILastLoginRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
+    /// </summary>
+    public static UtcDateTimeRange ToLastLoginRange(this ILastLoginRange request) =>
+        ToUtcDateTimeRange(request.LastLoginFrom, request.LastLoginTo);
+
+    private static UtcDateTimeRange ToUtcDateTimeRange(string? from, string? to) =>
+        new(UtcCalendarDay.InclusiveStartUtc(from), UtcCalendarDay.ExclusiveEndUtc(to));
 }

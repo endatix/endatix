@@ -24,8 +24,15 @@ public class ListByFormIdHandler(
 
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
         var filterParams = new FilterParameters(request.FilterExpressions ?? Array.Empty<string>());
-        var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams, filterParams);
-        var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams);
+        var listFilter = new SubmissionsListFilter(
+            request.SortBy,
+            request.SortDescending,
+            request.Created,
+            request.Modified,
+            request.Started,
+            request.Completed);
+        var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams, filterParams, listFilter);
+        var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams, listFilter);
 
         var totalCount = await submissionsRepository.CountAsync(totalCountSpec, cancellationToken);
         var submissions = totalCount <= 0

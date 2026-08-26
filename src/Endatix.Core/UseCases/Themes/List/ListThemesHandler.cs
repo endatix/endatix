@@ -16,16 +16,23 @@ public class ListThemesHandler(IRepository<Theme> themeRepository)
     /// <summary>
     /// Handles the retrieval of all themes.
     /// </summary>
-    /// <param name="request">The query containing optional pagination parameters.</param>
+    /// <param name="request">The query containing optional pagination, sort, and date bounds.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Result containing the list of themes.</returns>
-    public async Task<Result<IEnumerable<Theme>>> Handle(ListThemesQuery request, CancellationToken cancellationToken)
+    public async Task<Result<IEnumerable<Theme>>> Handle(
+        ListThemesQuery request,
+        CancellationToken cancellationToken)
     {
         var pagingParams = new PagingParameters(
-                 request.Page,
-                 request.PageSize);
+            request.Page,
+            request.PageSize);
 
-        var spec = new ThemeSpecifications.Paginated(pagingParams);
+        var spec = new ThemeSpecifications.Paginated(
+            pagingParams,
+            request.SortBy,
+            request.SortDescending,
+            request.Created,
+            request.Modified);
         IEnumerable<Theme> themes = await themeRepository.ListAsync(spec, cancellationToken);
 
         return Result<IEnumerable<Theme>>.Success(themes);

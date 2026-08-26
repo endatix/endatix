@@ -3,24 +3,52 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.UseCases.CustomQuestions.List;
 
 /// <summary>
-/// Handler for retrieving all custom questions for the current tenant.
+/// Handler for retrieving custom questions for the current tenant.
 /// </summary>
 public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuestionsRepository)
-    : IQueryHandler<ListCustomQuestionsQuery, Result<IEnumerable<CustomQuestion>>>
+    : IQueryHandler<ListCustomQuestionsQuery, Result<Paged<CustomQuestion>>>
 {
-    /// <summary>
-    /// Handles the retrieval of all custom questions for the current tenant.
-    /// </summary>
-    /// <param name="request">The query.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Result containing the list of custom questions.</returns>
-    public async Task<Result<IEnumerable<CustomQuestion>>> Handle(ListCustomQuestionsQuery request, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<Result<Paged<CustomQuestion>>> Handle(
+        ListCustomQuestionsQuery request,
+        CancellationToken cancellationToken)
     {
-        var questions = await customQuestionsRepository.ListAsync(cancellationToken);
-        return Result<IEnumerable<CustomQuestion>>.Success(questions);
+        var pagingParams = new PagingParameters(request.Page, request.PageSize);
+
+        var countSpec = new CustomQuestionSpecifications.ListFilter(
+            request.Created,
+            request.Modified);
+        var totalRecords = await customQuestionsRepository.CountAsync(countSpec, cancellationToken);
+
+        var page = Paged<CustomQuestion>.ResolvePage(
+            pagingParams.Page,
+            pagingParams.PageSize,
+            totalRecords);
+        var queryPagingParams = new PagingParameters(page, pagingParams.PageSize);
+
+        IReadOnlyList<CustomQuestion> items = [];
+        if (totalRecords > 0)
+        {
+            var pageSpec = new CustomQuestionSpecifications.ListSpec(
+                queryPagingParams,
+                request.SortBy,
+                request.SortDescending,
+                request.Created,
+                request.Modified);
+            items = await customQuestionsRepository.ListAsync(pageSpec, cancellationToken);
+        }
+
+        var paged = Paged<CustomQuestion>.FromPage(
+            page,
+            pagingParams.PageSize,
+            totalRecords,
+            items);
+
+        return Result.Success(paged);
     }
-} 
+}

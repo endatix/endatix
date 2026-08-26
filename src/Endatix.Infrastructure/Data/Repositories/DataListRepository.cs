@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
@@ -40,15 +41,13 @@ public sealed class DataListRepository(
         var textKeys = searchKeys;
 
         var filteredItems = BuildFilteredItemsQuery(criteria, searchKeys);
+        filteredItems = filteredItems
+            .WhereUtcRange(item => item.CreatedAt, criteria.Created)
+            .WhereUtcRange(item => item.ModifiedAt, criteria.Modified);
 
         var total = await filteredItems.CountAsync(cancellationToken);
 
-        var pageItems = await jsonObjectKeyFilter
-            .OrderByKeyThenBy(
-                filteredItems,
-                nameof(DataListItem.LabelsJson),
-                displayKey,
-                nameof(DataListItem.Value))
+        var pageItems = await ApplyOrdering(filteredItems, criteria, displayKey)
             .Skip(criteria.Skip)
             .Take(criteria.Take)
             .ToArrayAsync(cancellationToken);
@@ -83,6 +82,52 @@ public sealed class DataListRepository(
             searchKeys,
             criteria.Query.Trim(),
             ToRelationalMode(criteria.MatchMode));
+    }
+
+    private IOrderedQueryable<DataListItem> ApplyOrdering(
+        IQueryable<DataListItem> query,
+        DataListSearchCriteria criteria,
+        string displayKey)
+    {
+        // Default: label (display key) then value.
+        if (criteria.SortBy is null)
+        {
+            return jsonObjectKeyFilter.OrderByKeyThenBy(
+                query,
+                nameof(DataListItem.LabelsJson),
+                displayKey,
+                nameof(DataListItem.Value));
+        }
+
+        return criteria.SortBy.Value switch
+        {
+            DataListItemListSortBy.Value when criteria.SortDescending =>
+                query.OrderByDescending(item => item.Value).ThenBy(item => item.Id),
+            DataListItemListSortBy.Value =>
+                query.OrderBy(item => item.Value).ThenBy(item => item.Id),
+            DataListItemListSortBy.CreatedAt when criteria.SortDescending =>
+                query.OrderByDescending(item => item.CreatedAt).ThenBy(item => item.Id),
+            DataListItemListSortBy.CreatedAt =>
+                query.OrderBy(item => item.CreatedAt).ThenBy(item => item.Id),
+            DataListItemListSortBy.ModifiedAt when criteria.SortDescending =>
+                query.OrderByDescending(item => item.ModifiedAt).ThenBy(item => item.Id),
+            DataListItemListSortBy.ModifiedAt =>
+                query.OrderBy(item => item.ModifiedAt).ThenBy(item => item.Id),
+            DataListItemListSortBy.Label =>
+                jsonObjectKeyFilter.OrderByKey(
+                        query,
+                        nameof(DataListItem.LabelsJson),
+                        displayKey,
+                        criteria.SortDescending)
+                    .ThenBy(item => item.Id),
+            _ =>
+                jsonObjectKeyFilter.OrderByKey(
+                        query,
+                        nameof(DataListItem.LabelsJson),
+                        displayKey,
+                        criteria.SortDescending)
+                    .ThenBy(item => item.Id),
+        };
     }
 
     /// <inheritdoc />

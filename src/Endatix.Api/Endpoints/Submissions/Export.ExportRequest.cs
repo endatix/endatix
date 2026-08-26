@@ -1,8 +1,9 @@
+using Endatix.Api.Common;
 using Endatix.Modules.Reporting.Contracts.Export;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
-public class ExportRequest
+public class ExportRequest : ICreatedRange, IModifiedRange, IStartedRange, ICompletedRange
 {
     public long FormId { get; set; }
 
@@ -27,17 +28,29 @@ public class ExportRequest
     /// </summary>
     public ExportCompletionStatus? CompletionStatus { get; set; }
 
-    public DateTime? CreatedAfter { get; set; }
+    /// <inheritdoc />
+    public string? CreatedFrom { get; set; }
 
-    public DateTime? CreatedBefore { get; set; }
+    /// <inheritdoc />
+    public string? CreatedTo { get; set; }
 
-    public DateTime? StartedAfter { get; set; }
+    /// <inheritdoc />
+    public string? ModifiedFrom { get; set; }
 
-    public DateTime? StartedBefore { get; set; }
+    /// <inheritdoc />
+    public string? ModifiedTo { get; set; }
 
-    public DateTime? CompletedAfter { get; set; }
+    /// <inheritdoc />
+    public string? StartedFrom { get; set; }
 
-    public DateTime? CompletedBefore { get; set; }
+    /// <inheritdoc />
+    public string? StartedTo { get; set; }
+
+    /// <inheritdoc />
+    public string? CompletedFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? CompletedTo { get; set; }
 
     public long? MinSubmissionId { get; set; }
 

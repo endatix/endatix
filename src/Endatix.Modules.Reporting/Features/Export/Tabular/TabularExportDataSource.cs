@@ -222,12 +222,10 @@ internal sealed class TabularExportDataSource(
             return new ExportQueryOptions(
                 PageSize: pageSize,
                 IncludeTestSubmissions: settings.IncludeTestSubmissions,
-                CreatedAfter: executionSettings.CreatedAfter,
-                CreatedBefore: executionSettings.CreatedBefore,
-                StartedAfter: executionSettings.StartedAfter,
-                StartedBefore: executionSettings.StartedBefore,
-                CompletedAfter: executionSettings.CompletedAfter,
-                CompletedBefore: executionSettings.CompletedBefore,
+                Created: executionSettings.Created,
+                Modified: executionSettings.Modified,
+                Started: executionSettings.Started,
+                Completed: executionSettings.Completed,
                 MinSubmissionId: executionSettings.MinSubmissionId,
                 MaxSubmissionId: executionSettings.MaxSubmissionId,
                 IsComplete: executionSettings.IsComplete);

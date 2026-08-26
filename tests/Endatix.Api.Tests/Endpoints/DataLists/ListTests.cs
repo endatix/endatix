@@ -1,4 +1,5 @@
 using Endatix.Api.Endpoints.DataLists;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists;
 using Endatix.Core.UseCases.DataLists.List;
@@ -78,8 +79,8 @@ public class ListTests
     {
         DataListsListRequest request = new()
         {
-            SortBy = "name",
-            SortDir = "asc",
+            SortBy = DataListListSortBy.Name,
+            SortDir = SortDirection.Asc,
             CreatedFrom = "2024-01-01",
             CreatedTo = "2024-01-31",
             ModifiedFrom = "2024-02-01",
@@ -94,19 +95,16 @@ public class ListTests
             Arg.Is<ListDataListsQuery>(x =>
                 x.SortBy == DataListListSortBy.Name &&
                 x.SortDescending == false &&
-                x.CreatedFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                x.CreatedTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                x.ModifiedFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                x.ModifiedTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
+                x.Created.InclusiveFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.Created.ExclusiveTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.Modified.InclusiveFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.Modified.ExclusiveTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_DateBoundAtCalendarMaximum_DoesNotThrow()
     {
-        // Regression guard: ParseExclusiveDayEndUtc must clamp instead of
-        // overflowing when CreatedTo/ModifiedTo is the last representable
-        // calendar date (DateOnly.MaxValue has no "next day").
         DataListsListRequest request = new()
         {
             CreatedTo = "9999-12-31",
@@ -120,8 +118,8 @@ public class ListTests
         response.Result.Should().BeOfType<Ok<Paged<DataListModel>>>();
         await _mediator.Received(1).Send(
             Arg.Is<ListDataListsQuery>(x =>
-                x.CreatedTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc) &&
-                x.ModifiedTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc)),
+                x.Created.ExclusiveTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc) &&
+                x.Modified.ExclusiveTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc)),
             Arg.Any<CancellationToken>());
     }
 }

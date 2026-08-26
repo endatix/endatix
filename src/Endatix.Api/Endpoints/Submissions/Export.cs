@@ -1,11 +1,13 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
+using Endatix.Api.Common;
 using Endatix.Core.UseCases.Submissions.Export;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Specifications;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Paging;
 using Microsoft.Extensions.Logging;
 using MediatR;
 using Endatix.Core.Infrastructure.Result;
@@ -262,9 +264,14 @@ public partial class Export : Endpoint<ExportRequest>
                 $"Export format with ID {exportFormat.Id} has an invalid item type."));
         }
 
+        var created = request.ToCreatedRange();
+        var modified = request.ToModifiedRange();
+        var started = request.ToStartedRange();
+        var completed = request.ToCompletedRange();
+
         var disallowedFilters = ExportRequestFilterGuard.GetDisallowedWireNames(
             capability.AllowedFilters,
-            CreateExportFilterContext(request));
+            CreateExportFilterContext(request, created, modified, started, completed));
         if (disallowedFilters.Count > 0)
         {
             return Result.Invalid(new ValidationError(
@@ -277,12 +284,10 @@ public partial class Export : Endpoint<ExportRequest>
             IncludeTestSubmissions: request.IncludeTestSubmissions,
             ColumnScope: NormalizeColumnScope(request.ColumnScope),
             Locale: NormalizeLocale(request.Locale),
-            CreatedAfter: request.CreatedAfter,
-            CreatedBefore: request.CreatedBefore,
-            StartedAfter: request.StartedAfter,
-            StartedBefore: request.StartedBefore,
-            CompletedAfter: request.CompletedAfter,
-            CompletedBefore: request.CompletedBefore,
+            Created: created,
+            Modified: modified,
+            Started: started,
+            Completed: completed,
             MinSubmissionId: request.MinSubmissionId,
             MaxSubmissionId: request.MaxSubmissionId,
             IsComplete: MapCompletionStatusToIsComplete(request.CompletionStatus));
@@ -301,7 +306,12 @@ public partial class Export : Endpoint<ExportRequest>
     {
         var disallowedOnLegacy = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilters.None,
-            CreateExportFilterContext(request));
+            CreateExportFilterContext(
+                request,
+                request.ToCreatedRange(),
+                request.ToModifiedRange(),
+                request.ToStartedRange(),
+                request.ToCompletedRange()));
         if (disallowedOnLegacy.Count > 0)
         {
             return Result.Invalid(new ValidationError(
@@ -352,15 +362,18 @@ public partial class Export : Endpoint<ExportRequest>
             exportConfig.ExportPageSize));
     }
 
-    private static ExportFilterContext CreateExportFilterContext(ExportRequest request) =>
+    private static ExportFilterContext CreateExportFilterContext(
+        ExportRequest request,
+        UtcDateTimeRange created,
+        UtcDateTimeRange modified,
+        UtcDateTimeRange started,
+        UtcDateTimeRange completed) =>
         new(
             IncludeTestSubmissions: request.IncludeTestSubmissions,
-            CreatedAfter: request.CreatedAfter,
-            CreatedBefore: request.CreatedBefore,
-            StartedAfter: request.StartedAfter,
-            StartedBefore: request.StartedBefore,
-            CompletedAfter: request.CompletedAfter,
-            CompletedBefore: request.CompletedBefore,
+            Created: created,
+            Modified: modified,
+            Started: started,
+            Completed: completed,
             MinSubmissionId: request.MinSubmissionId,
             MaxSubmissionId: request.MaxSubmissionId,
             Locale: request.Locale,

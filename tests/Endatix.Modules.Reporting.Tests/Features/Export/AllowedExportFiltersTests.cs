@@ -17,6 +17,7 @@ public sealed class AllowedExportFiltersTests
         names.Should().Equal(
             AllowedExportFilters.IncludeTestSubmissions,
             AllowedExportFilters.CreatedAtRange,
+            AllowedExportFilters.ModifiedAtRange,
             AllowedExportFilters.StartedAtRange,
             AllowedExportFilters.CompletedAtRange,
             AllowedExportFilters.SubmissionIdRange,
@@ -62,6 +63,7 @@ public sealed class AllowedExportFiltersTests
     {
         AllowedExportFilters.IncludeTestSubmissions.Should().Be("includeTestSubmissions");
         AllowedExportFilters.CreatedAtRange.Should().Be("createdAtRange");
+        AllowedExportFilters.ModifiedAtRange.Should().Be("modifiedAtRange");
         AllowedExportFilters.StartedAtRange.Should().Be("startedAtRange");
         AllowedExportFilters.CompletedAtRange.Should().Be("completedAtRange");
         AllowedExportFilters.SubmissionIdRange.Should().Be("submissionIdRange");

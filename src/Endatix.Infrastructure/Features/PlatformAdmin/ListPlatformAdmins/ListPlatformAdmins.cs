@@ -16,7 +16,10 @@ public sealed class ListPlatformAdmins(IPlatformAdminUserListing listing)
         SearchablePageRequest paging,
         PlatformAdminListScope scope,
         long? tenantId,
-        CancellationToken cancellationToken)
+        PlatformAdminListSortBy? sortBy,
+        bool sortDescending,
+        UtcDateTimeRange lastLogin = default,
+        CancellationToken cancellationToken = default)
     {
         var platformAdminRoleId = await listing.GetPlatformAdminRoleIdAsync(cancellationToken);
         if (scope == PlatformAdminListScope.Approved && platformAdminRoleId is null)
@@ -32,7 +35,10 @@ public sealed class ListPlatformAdmins(IPlatformAdminUserListing listing)
             scopeFilter,
             tenantId,
             prioritizeExternalPlatformAdminRole,
-            prioritizeLocalPlatformAdminRole);
+            prioritizeLocalPlatformAdminRole,
+            sortBy,
+            sortDescending,
+            lastLogin);
 
         return await listing.ListAsync(paging, criteria, cancellationToken);
     }

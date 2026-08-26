@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -157,39 +158,11 @@ internal sealed class ReportingExportRepository(
             query = query.Where(submission => !submission.IsTestSubmission);
         }
 
-        if (options.CreatedAfter is DateTime createdAfter)
-        {
-            query = query.Where(submission => submission.CreatedAt >= createdAfter);
-        }
-
-        if (options.CreatedBefore is DateTime createdBefore)
-        {
-            query = query.Where(submission => submission.CreatedAt < createdBefore);
-        }
-
-        if (options.StartedAfter is DateTime startedAfter)
-        {
-            query = query.Where(submission =>
-                submission.StartedAt != null && submission.StartedAt >= startedAfter);
-        }
-
-        if (options.StartedBefore is DateTime startedBefore)
-        {
-            query = query.Where(submission =>
-                submission.StartedAt != null && submission.StartedAt < startedBefore);
-        }
-
-        if (options.CompletedAfter is DateTime completedAfter)
-        {
-            query = query.Where(submission =>
-                submission.CompletedAt != null && submission.CompletedAt >= completedAfter);
-        }
-
-        if (options.CompletedBefore is DateTime completedBefore)
-        {
-            query = query.Where(submission =>
-                submission.CompletedAt != null && submission.CompletedAt < completedBefore);
-        }
+        query = query
+            .WhereUtcRange(submission => submission.CreatedAt, options.Created)
+            .WhereUtcRange(submission => submission.ModifiedAt, options.Modified)
+            .WhereUtcRange(submission => submission.StartedAt, options.Started)
+            .WhereUtcRange(submission => submission.CompletedAt, options.Completed);
 
         if (options.IsComplete is bool isComplete)
         {

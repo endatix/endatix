@@ -45,7 +45,7 @@ public class ListUsersHandlerTests
                 "user1",
                 "Admin",
                 "active",
-                Arg.Any<CancellationToken>())
+                cancellationToken: Arg.Any<CancellationToken>())
             .Returns(Result<Paged<UserWithRoles>>.Success(pagedUsers));
 
         // Act
@@ -63,7 +63,7 @@ public class ListUsersHandlerTests
 
         await _userService
             .Received(1)
-            .ListUsersAsync(10, 10, "user1", "Admin", "active", Arg.Any<CancellationToken>());
+            .ListUsersAsync(10, 10, "user1", "Admin", "active", cancellationToken: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public class ListUsersHandlerTests
                 null,
                 null,
                 null,
-                Arg.Any<CancellationToken>())
+                cancellationToken: Arg.Any<CancellationToken>())
             .Returns(Result<Paged<UserWithRoles>>.Success(pagedUsers));
 
         // Act
@@ -99,7 +99,7 @@ public class ListUsersHandlerTests
         var errorResult = Result<Paged<UserWithRoles>>.Error(
             new ErrorList(["Something failed"], null));
         _userService
-            .ListUsersAsync(Arg.Any<int>(), Arg.Any<int>(), null, null, null, Arg.Any<CancellationToken>())
+            .ListUsersAsync(Arg.Any<int>(), Arg.Any<int>(), null, null, null, cancellationToken: Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
         // Act

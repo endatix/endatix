@@ -15,8 +15,8 @@ public sealed class SortableRequestValidator<TSortField> : AbstractValidator<ISo
             .IsInEnum()
             .When(request => request.SortBy.HasValue);
 
-        RuleFor(request => request.Direction)
+        RuleFor(request => request.SortDir)
             .IsInEnum()
-            .When(request => request.Direction.HasValue);
+            .When(request => request.SortDir.HasValue);
     }
 }

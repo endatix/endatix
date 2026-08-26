@@ -889,23 +889,27 @@ public class ExportTests
         var formId = 1L;
         var exportFormatId = 200L;
         var tenantId = SampleData.TENANT_ID;
-        DateTime createdAfter = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        DateTime createdBefore = new(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc);
-        DateTime startedAfter = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-        DateTime startedBefore = new(2026, 1, 3, 12, 0, 0, DateTimeKind.Utc);
-        DateTime completedAfter = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
-        DateTime completedBefore = new(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc);
+        DateTime createdFrom = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime createdTo = new(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc);
+        DateTime modifiedFrom = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime modifiedTo = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+        DateTime startedFrom = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime startedTo = new(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc);
+        DateTime completedFrom = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+        DateTime completedTo = new(2026, 1, 5, 0, 0, 0, DateTimeKind.Utc);
         var request = new ExportRequest
         {
             FormId = formId,
             ExportFormatId = exportFormatId,
             IncludeTestSubmissions = false,
-            CreatedAfter = createdAfter,
-            CreatedBefore = createdBefore,
-            StartedAfter = startedAfter,
-            StartedBefore = startedBefore,
-            CompletedAfter = completedAfter,
-            CompletedBefore = completedBefore,
+            CreatedFrom = "2026-01-01",
+            CreatedTo = "2026-01-02",
+            ModifiedFrom = "2026-01-01",
+            ModifiedTo = "2026-01-01",
+            StartedFrom = "2026-01-01",
+            StartedTo = "2026-01-03",
+            CompletedFrom = "2026-01-02",
+            CompletedTo = "2026-01-04",
             MinSubmissionId = 10,
             MaxSubmissionId = 99,
             ColumnScope = ["q1"],
@@ -932,12 +936,14 @@ public class ExportTests
         await _mediator.Received(1).Send(
             Arg.Is<SubmissionsExportQuery>(q =>
                 ((SubmissionExportExecutionSettings)q.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings]).Locale == null &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CreatedAfter == createdAfter &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CreatedBefore == createdBefore &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).StartedAfter == startedAfter &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).StartedBefore == startedBefore &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CompletedAfter == completedAfter &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CompletedBefore == completedBefore &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Created.InclusiveFrom == createdFrom &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Created.ExclusiveTo == createdTo &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Modified.InclusiveFrom == modifiedFrom &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Modified.ExclusiveTo == modifiedTo &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Started.InclusiveFrom == startedFrom &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Started.ExclusiveTo == startedTo &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Completed.InclusiveFrom == completedFrom &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Completed.ExclusiveTo == completedTo &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).MinSubmissionId == 10 &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).MaxSubmissionId == 99 &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).IncludeTestSubmissions == false),
@@ -1154,7 +1160,7 @@ public class ExportTests
             FormId = formId,
             ExportFormatId = exportFormatId,
             Locale = "es",
-            CreatedAfter = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            CreatedFrom = "2026-01-01",
         };
 
         var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));

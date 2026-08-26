@@ -29,21 +29,28 @@ public static class ExportRequestFilterGuard
             allowed,
             ExportRequestFilters.CreatedAtRange,
             AllowedExportFilters.CreatedAtRange,
-            HasEitherBound(filters.CreatedAfter, filters.CreatedBefore));
+            filters.Created.HasBounds);
+
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.ModifiedAtRange,
+            AllowedExportFilters.ModifiedAtRange,
+            filters.Modified.HasBounds);
 
         AddWhenDisallowed(
             disallowed,
             allowed,
             ExportRequestFilters.StartedAtRange,
             AllowedExportFilters.StartedAtRange,
-            HasEitherBound(filters.StartedAfter, filters.StartedBefore));
+            filters.Started.HasBounds);
 
         AddWhenDisallowed(
             disallowed,
             allowed,
             ExportRequestFilters.CompletedAtRange,
             AllowedExportFilters.CompletedAtRange,
-            HasEitherBound(filters.CompletedAfter, filters.CompletedBefore));
+            filters.Completed.HasBounds);
 
         AddWhenDisallowed(
             disallowed,

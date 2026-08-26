@@ -1,5 +1,6 @@
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.UseCases.Identity.ListRoles;
 
 namespace Endatix.Core.Abstractions;
 
@@ -78,9 +79,16 @@ public interface IRoleManagementService
     Task<Result> DeleteRoleAsync(string roleName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Lists roles visible in the current tenant context with paging and optional role type filtering.
+    /// Lists roles visible in the current tenant context with paging, optional role type filtering, and sort.
     /// </summary>
-    Task<Result<Paged<RoleListItem>>> ListRolesAsync(int skip, int take, string? roleType, string? search, CancellationToken cancellationToken = default);
+    Task<Result<Paged<RoleListItem>>> ListRolesAsync(
+        int skip,
+        int take,
+        string? roleType,
+        string? search,
+        RoleListSortBy sortBy = RoleListSortBy.Name,
+        bool sortDescending = false,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Lists active permissions available for custom roles.

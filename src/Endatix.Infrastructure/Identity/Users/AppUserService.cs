@@ -3,8 +3,10 @@ using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Core.UseCases.Identity.ListUsers;
 using Microsoft.AspNetCore.Identity;
 using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +38,9 @@ public sealed class AppUserService(
         string? search,
         string? role,
         string? status,
+        UserListSortBy? sortBy = null,
+        bool sortDescending = false,
+        UtcDateTimeRange lastLogin = default,
         CancellationToken cancellationToken = default)
     {
         var pagingGuard = ValidatePaging(skip, take);
@@ -56,13 +61,12 @@ public sealed class AppUserService(
         filteredUsers = ApplyStatusFilter(filteredUsers, status);
         filteredUsers = ApplyRoleFilter(filteredUsers, role);
         filteredUsers = ApplySearchFilter(filteredUsers, search);
+        filteredUsers = filteredUsers.WhereUtcRange(user => user.LastLoginAt, lastLogin);
 
         var totalRecords = await filteredUsers.CountAsync(cancellationToken);
         var effectiveSkip = NormalizeSkip(skip, take, totalRecords);
 
-        var pageUsers = await filteredUsers
-            .OrderBy(user => user.UserName)
-            .ThenBy(user => user.Email)
+        var pageUsers = await ApplyUserListOrdering(filteredUsers, sortBy, sortDescending)
             .Skip(effectiveSkip)
             .Take(take)
             .Select(user => new
@@ -138,6 +142,34 @@ public sealed class AppUserService(
             usersResult);
 
         return Result.Success(paged);
+    }
+
+    private static IOrderedQueryable<AppUser> ApplyUserListOrdering(
+        IQueryable<AppUser> query,
+        UserListSortBy? sortBy,
+        bool sortDescending)
+    {
+        // Preserve v1 default when sort is omitted: UserName then Email ascending.
+        if (sortBy is null)
+        {
+            return query.OrderBy(user => user.UserName).ThenBy(user => user.Email);
+        }
+
+        return sortBy.Value switch
+        {
+            UserListSortBy.Email when sortDescending =>
+                query.OrderByDescending(user => user.Email).ThenBy(user => user.Id),
+            UserListSortBy.Email =>
+                query.OrderBy(user => user.Email).ThenBy(user => user.Id),
+            UserListSortBy.LastLoginAt when sortDescending =>
+                query.OrderByDescending(user => user.LastLoginAt).ThenBy(user => user.Id),
+            UserListSortBy.LastLoginAt =>
+                query.OrderBy(user => user.LastLoginAt).ThenBy(user => user.Id),
+            UserListSortBy.UserName when sortDescending =>
+                query.OrderByDescending(user => user.UserName).ThenBy(user => user.Id),
+            _ =>
+                query.OrderBy(user => user.UserName).ThenBy(user => user.Id),
+        };
     }
 
     private static IQueryable<AppUser> ApplyStatusFilter(IQueryable<AppUser> query, string? status)

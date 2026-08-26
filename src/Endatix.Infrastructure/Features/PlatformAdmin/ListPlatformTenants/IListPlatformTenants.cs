@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
@@ -11,5 +12,9 @@ public interface IListPlatformTenants
         int page,
         int pageSize,
         string? search,
-        CancellationToken cancellationToken);
+        PlatformTenantListSortBy sortBy,
+        bool sortDescending,
+        UtcDateTimeRange created = default,
+        UtcDateTimeRange modified = default,
+        CancellationToken cancellationToken = default);
 }

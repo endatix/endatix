@@ -54,7 +54,13 @@ public class AppUserServiceTests
     public async Task ListUsersAsync_NegativeSkip_ReturnsInvalid()
     {
         // Act
-        var result = await _userService.ListUsersAsync(-1, 10, null, null, null, TestContext.Current.CancellationToken);
+        var result = await _userService.ListUsersAsync(
+            -1,
+            10,
+            null,
+            null,
+            null,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.Invalid);
@@ -66,7 +72,13 @@ public class AppUserServiceTests
     public async Task ListUsersAsync_ZeroTake_ReturnsInvalid()
     {
         // Act
-        var result = await _userService.ListUsersAsync(0, 0, null, null, null, TestContext.Current.CancellationToken);
+        var result = await _userService.ListUsersAsync(
+            0,
+            0,
+            null,
+            null,
+            null,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.Invalid);

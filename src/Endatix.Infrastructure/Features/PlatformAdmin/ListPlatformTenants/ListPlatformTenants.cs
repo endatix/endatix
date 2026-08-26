@@ -11,19 +11,16 @@ namespace Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
 /// </summary>
 public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatformTenants
 {
-    /// <summary>
-    /// Executes the query to list platform tenants.
-    /// </summary>
-    /// <param name="page">The page number.</param>
-    /// <param name="pageSize">The page size.</param>
-    /// <param name="search">The search query.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The result of the query.</returns>
+    /// <inheritdoc />
     public async Task<Result<Paged<PlatformTenantListItem>>> ExecuteAsync(
         int page,
         int pageSize,
         string? search,
-        CancellationToken cancellationToken)
+        PlatformTenantListSortBy sortBy,
+        bool sortDescending,
+        UtcDateTimeRange created = default,
+        UtcDateTimeRange modified = default,
+        CancellationToken cancellationToken = default)
     {
         var normalizedPage = Math.Max(page, 1);
         var normalizedPageSize = Math.Clamp(pageSize, 1, PagedRequestLimits.MAX_PAGE_SIZE);
@@ -42,10 +39,12 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
                 (tenant.Description != null && tenant.Description.Contains(trimmedSearch)));
         }
 
+        tenantsQuery = tenantsQuery
+            .WhereUtcRange(tenant => tenant.CreatedAt, created)
+            .WhereUtcRange(tenant => tenant.ModifiedAt, modified);
+
         var totalRecords = await tenantsQuery.CountAsync(cancellationToken);
-        var pageTenants = await tenantsQuery
-            .OrderBy(tenant => tenant.Name)
-            .ThenBy(tenant => tenant.Id)
+        var pageTenants = await ApplyOrdering(tenantsQuery, sortBy, sortDescending)
             .Skip(skip)
             .Take(normalizedPageSize)
             .Select(tenant => new
@@ -93,5 +92,28 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             normalizedPageSize,
             totalRecords,
             items));
+    }
+
+    private static IOrderedQueryable<Tenant> ApplyOrdering(
+        IQueryable<Tenant> query,
+        PlatformTenantListSortBy sortBy,
+        bool sortDescending)
+    {
+        // Default Name then Id when Name asc (v1); Id tiebreaker always.
+        return sortBy switch
+        {
+            PlatformTenantListSortBy.CreatedAt when sortDescending =>
+                query.OrderByDescending(tenant => tenant.CreatedAt).ThenBy(tenant => tenant.Id),
+            PlatformTenantListSortBy.CreatedAt =>
+                query.OrderBy(tenant => tenant.CreatedAt).ThenBy(tenant => tenant.Id),
+            PlatformTenantListSortBy.ModifiedAt when sortDescending =>
+                query.OrderByDescending(tenant => tenant.ModifiedAt).ThenBy(tenant => tenant.Id),
+            PlatformTenantListSortBy.ModifiedAt =>
+                query.OrderBy(tenant => tenant.ModifiedAt).ThenBy(tenant => tenant.Id),
+            PlatformTenantListSortBy.Name when sortDescending =>
+                query.OrderByDescending(tenant => tenant.Name).ThenBy(tenant => tenant.Id),
+            _ =>
+                query.OrderBy(tenant => tenant.Name).ThenBy(tenant => tenant.Id),
+        };
     }
 }

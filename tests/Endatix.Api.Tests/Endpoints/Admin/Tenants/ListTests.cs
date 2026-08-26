@@ -34,7 +34,11 @@ public sealed class ListTests
         var result = Result.Success(
             new Paged<PlatformTenantListItem>(1, 10, 2, 1, tenants));
         _listPlatformTenants
-            .ExecuteAsync(1, 10, null, Arg.Any<CancellationToken>())
+            .ExecuteAsync(
+                1, 10, null,
+                PlatformTenantListSortBy.Name, false,
+                default, default,
+                Arg.Any<CancellationToken>())
             .Returns(result);
 
         // Act
@@ -60,9 +64,16 @@ public sealed class ListTests
             Page = 2,
             PageSize = 25,
             Search = "acme",
+            SortBy = PlatformTenantListSortBy.CreatedAt,
+            SortDir = SortDirection.Desc,
+            CreatedFrom = "2026-01-01",
         };
         _listPlatformTenants
-            .ExecuteAsync(2, 25, "acme", Arg.Any<CancellationToken>())
+            .ExecuteAsync(
+                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
+                Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
+                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
+                Arg.Any<CancellationToken>())
             .Returns(Result.Success(Paged<PlatformTenantListItem>.Empty(25)));
 
         // Act
@@ -73,6 +84,10 @@ public sealed class ListTests
             2,
             25,
             "acme",
+            PlatformTenantListSortBy.CreatedAt,
+            true,
+            new UtcDateTimeRange(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), null),
+            default,
             Arg.Any<CancellationToken>());
     }
 
@@ -83,9 +98,9 @@ public sealed class ListTests
         var request = new ListPlatformTenantsRequest();
         _listPlatformTenants
             .ExecuteAsync(
-                PagedRequestLimits.DEFAULT_PAGE,
-                PagedRequestLimits.DEFAULT_PAGE_SIZE,
-                null,
+                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
+                Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
+                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(
                 Paged<PlatformTenantListItem>.Empty(PagedRequestLimits.DEFAULT_PAGE_SIZE)));
@@ -98,6 +113,10 @@ public sealed class ListTests
             PagedRequestLimits.DEFAULT_PAGE,
             PagedRequestLimits.DEFAULT_PAGE_SIZE,
             null,
+            PlatformTenantListSortBy.Name,
+            false,
+            default,
+            default,
             Arg.Any<CancellationToken>());
     }
 
@@ -107,7 +126,11 @@ public sealed class ListTests
         // Arrange
         var request = new ListPlatformTenantsRequest { Page = 1, PageSize = 10 };
         _listPlatformTenants
-            .ExecuteAsync(1, 10, null, Arg.Any<CancellationToken>())
+            .ExecuteAsync(
+                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
+                Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
+                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
+                Arg.Any<CancellationToken>())
             .Returns(Result.Success(Paged<PlatformTenantListItem>.Empty(10)));
 
         // Act
@@ -126,7 +149,11 @@ public sealed class ListTests
         // Arrange
         var request = new ListPlatformTenantsRequest { Page = 1, PageSize = 10 };
         _listPlatformTenants
-            .ExecuteAsync(1, 10, null, Arg.Any<CancellationToken>())
+            .ExecuteAsync(
+                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
+                Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
+                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
+                Arg.Any<CancellationToken>())
             .Returns(Result<Paged<PlatformTenantListItem>>.Invalid(new ValidationError("Invalid request")));
 
         // Act

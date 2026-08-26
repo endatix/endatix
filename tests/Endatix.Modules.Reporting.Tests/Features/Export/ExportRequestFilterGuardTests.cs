@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Modules.Reporting.Contracts.Export;
 using FluentAssertions;
 
@@ -9,19 +10,20 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export;
 /// </summary>
 public sealed class ExportRequestFilterGuardTests
 {
+    private static readonly UtcDateTimeRange BoundRange = new(
+        new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        new DateTime(2026, 1, 8, 0, 0, 0, DateTimeKind.Utc));
+
+    private static readonly UtcDateTimeRange FromOnly = new(
+        new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        null);
+
+    private static readonly UtcDateTimeRange ToOnly = new(
+        null,
+        new DateTime(2026, 1, 8, 0, 0, 0, DateTimeKind.Utc));
+
     private static ExportFilterContext EmptyFilters() =>
-        new(
-            IncludeTestSubmissions: null,
-            CreatedAfter: null,
-            CreatedBefore: null,
-            StartedAfter: null,
-            StartedBefore: null,
-            CompletedAfter: null,
-            CompletedBefore: null,
-            MinSubmissionId: null,
-            MaxSubmissionId: null,
-            Locale: null,
-            ColumnScope: null);
+        new(IncludeTestSubmissions: null);
 
     [Fact]
     public void GetDisallowedWireNames_WhenNoFiltersPresent_ReturnsEmpty_ForAnyCapability()
@@ -47,16 +49,9 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.ShojiCodebook,
             new ExportFilterContext(
                 IncludeTestSubmissions: true,
-                CreatedAfter: DateTime.UtcNow.AddDays(-1),
-                CreatedBefore: null,
-                StartedAfter: null,
-                StartedBefore: null,
-                CompletedAfter: null,
-                CompletedBefore: null,
+                Created: FromOnly,
                 MinSubmissionId: 10,
-                MaxSubmissionId: null,
-                Locale: "es",
-                ColumnScope: null));
+                Locale: "es"));
 
         disallowed.Should().BeEquivalentTo(
         [
@@ -77,26 +72,6 @@ public sealed class ExportRequestFilterGuardTests
     }
 
     [Fact]
-    public void GetDisallowedWireNames_WhenNativeCodebookReceivesLocale_ReturnsLocale()
-    {
-        var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
-            ExportRequestFilterSets.NativeCodebook,
-            EmptyFilters() with { Locale = "es" });
-
-        disallowed.Should().Equal(AllowedExportFilters.Locale);
-    }
-
-    [Fact]
-    public void GetDisallowedWireNames_WhenShojiCodebookReceivesLocale_ReturnsEmpty()
-    {
-        var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
-            ExportRequestFilterSets.ShojiCodebook,
-            EmptyFilters() with { Locale = "es" });
-
-        disallowed.Should().BeEmpty();
-    }
-
-    [Fact]
     public void GetDisallowedWireNames_WhenSubmissionsReceivesLocale_ReturnsLocale()
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
@@ -113,15 +88,12 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.Submissions,
             new ExportFilterContext(
                 IncludeTestSubmissions: false,
-                CreatedAfter: DateTime.UtcNow.AddDays(-7),
-                CreatedBefore: DateTime.UtcNow,
-                StartedAfter: DateTime.UtcNow.AddDays(-7),
-                StartedBefore: DateTime.UtcNow,
-                CompletedAfter: DateTime.UtcNow.AddDays(-7),
-                CompletedBefore: DateTime.UtcNow,
+                Created: BoundRange,
+                Modified: BoundRange,
+                Started: BoundRange,
+                Completed: BoundRange,
                 MinSubmissionId: 1,
                 MaxSubmissionId: 100,
-                Locale: null,
                 ColumnScope: ["q1"],
                 CompletionStatus: ExportCompletionStatus.Completed));
 
@@ -153,21 +125,31 @@ public sealed class ExportRequestFilterGuardTests
     }
 
     [Fact]
-    public void GetDisallowedWireNames_WhenOnlyCreatedBeforePresent_CountsAsCreatedAtRange()
+    public void GetDisallowedWireNames_WhenOnlyCreatedToPresent_CountsAsCreatedAtRange()
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.ShojiCodebook,
-            EmptyFilters() with { CreatedBefore = DateTime.UtcNow });
+            EmptyFilters() with { Created = ToOnly });
 
         disallowed.Should().Equal(AllowedExportFilters.CreatedAtRange);
     }
 
     [Fact]
-    public void GetDisallowedWireNames_WhenOnlyCompletedAfterPresent_CountsAsCompletedAtRange()
+    public void GetDisallowedWireNames_WhenOnlyModifiedFromPresent_CountsAsModifiedAtRange()
+    {
+        var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
+            ExportRequestFilterSets.ShojiCodebook,
+            EmptyFilters() with { Modified = FromOnly });
+
+        disallowed.Should().Equal(AllowedExportFilters.ModifiedAtRange);
+    }
+
+    [Fact]
+    public void GetDisallowedWireNames_WhenOnlyCompletedFromPresent_CountsAsCompletedAtRange()
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.NativeCodebook,
-            EmptyFilters() with { CompletedAfter = DateTime.UtcNow.AddDays(-1) });
+            EmptyFilters() with { Completed = FromOnly });
 
         disallowed.Should().Equal(AllowedExportFilters.CompletedAtRange);
     }
@@ -230,14 +212,11 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilters.None,
             new ExportFilterContext(
                 IncludeTestSubmissions: true,
-                CreatedAfter: DateTime.UtcNow,
-                CreatedBefore: null,
-                StartedAfter: DateTime.UtcNow,
-                StartedBefore: null,
-                CompletedAfter: DateTime.UtcNow,
-                CompletedBefore: null,
+                Created: FromOnly,
+                Modified: FromOnly,
+                Started: FromOnly,
+                Completed: FromOnly,
                 MinSubmissionId: 1,
-                MaxSubmissionId: null,
                 Locale: "en",
                 ColumnScope: ["a"],
                 CompletionStatus: ExportCompletionStatus.Completed));
@@ -245,6 +224,7 @@ public sealed class ExportRequestFilterGuardTests
         disallowed.Should().Equal(
             AllowedExportFilters.IncludeTestSubmissions,
             AllowedExportFilters.CreatedAtRange,
+            AllowedExportFilters.ModifiedAtRange,
             AllowedExportFilters.StartedAtRange,
             AllowedExportFilters.CompletedAtRange,
             AllowedExportFilters.SubmissionIdRange,

@@ -32,7 +32,8 @@ public sealed class ListItems(IMediator mediator)
             s.Summary = "List data list items";
             s.Description =
                 "Paged Hub management search of data list items. Matches value and label keys " +
-                "(always including Labels.default, plus locale / includeLocales). Inactive lists are included.";
+                "(always including Labels.default, plus locale / includeLocales). Inactive lists are included. " +
+                "Supports sort and created/modified date bounds.";
             s.ExampleRequest = new ListDataListItemsRequest
             {
                 DataListId = 1,
@@ -40,7 +41,9 @@ public sealed class ListItems(IMediator mediator)
                 Page = 1,
                 PageSize = 25,
                 Locale = "es",
-                IncludeLocales = ["es", "fr"]
+                IncludeLocales = ["es", "fr"],
+                SortBy = DataListItemListSortBy.Label,
+                SortDir = SortDirection.Asc
             };
             s.Responses[200] = "Data list items retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
@@ -58,6 +61,7 @@ public sealed class ListItems(IMediator mediator)
         CancellationToken ct)
     {
         var paging = new PageRequest(request.Page, request.PageSize ?? DefaultPageSize);
+        var sort = request.ToNullableSortRequest(DataListItemListSortBy.Label, SortDirection.Asc);
 
         SearchDataListItemsQuery query = new(
             request.DataListId,
@@ -68,7 +72,11 @@ public sealed class ListItems(IMediator mediator)
                 request.MatchMode,
                 request.Locale,
                 request.IncludeLocales,
-                RequireActive: false));
+                RequireActive: false,
+                SortBy: sort?.Field,
+                SortDescending: sort?.IsDescending ?? false,
+                Created: request.ToCreatedRange(),
+                Modified: request.ToModifiedRange()));
         var result = await mediator.Send(query, ct);
         if (!result.IsSuccess)
         {
@@ -83,7 +91,11 @@ public sealed class ListItems(IMediator mediator)
 /// <summary>
 /// Request to list/search data list items.
 /// </summary>
-public sealed class ListDataListItemsRequest : IPagedRequest
+public sealed class ListDataListItemsRequest :
+    IPagedRequest,
+    ISortableRequest<DataListItemListSortBy>,
+    ICreatedRange,
+    IModifiedRange
 {
     /// <summary>
     /// The ID of the data list.
@@ -115,6 +127,24 @@ public sealed class ListDataListItemsRequest : IPagedRequest
 
     /// <inheritdoc />
     public int? PageSize { get; set; }
+
+    /// <inheritdoc />
+    public DataListItemListSortBy? SortBy { get; set; }
+
+    /// <inheritdoc />
+    public SortDirection? SortDir { get; set; }
+
+    /// <inheritdoc />
+    public string? CreatedFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? CreatedTo { get; set; }
+
+    /// <inheritdoc />
+    public string? ModifiedFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? ModifiedTo { get; set; }
 }
 
 /// <summary>
@@ -125,6 +155,9 @@ public sealed class ListDataListItemsValidator : Validator<ListDataListItemsRequ
     public ListDataListItemsValidator()
     {
         Include(new PageableRequestValidator());
+        Include(new SortableRequestValidator<DataListItemListSortBy>());
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
         RuleFor(x => x.DataListId).GreaterThan(0);
         RuleFor(x => x.Query)
             .MaximumLength(PagedRequestLimits.MAX_SEARCH_LENGTH)
