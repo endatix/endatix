@@ -34,15 +34,12 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
         ListPlatformTenantsRequest request,
         CancellationToken ct)
     {
-        var sort = request.ToSortRequest(PlatformTenantListSortBy.Name, SortDirection.Asc);
         var result = await listPlatformTenants.ExecuteAsync(
-            request.ResolvePage(),
-            request.ResolvePageSize(),
-            request.Search,
-            sort.Field,
-            sort.IsDescending,
-            request.ToCreatedRange(),
-            request.ToModifiedRange(),
+            request.ToSearchablePageRequest(),
+            new PlatformTenantListCriteria(
+                request.ToSortRequest(PlatformTenantListSortBy.Name, SortDirection.Asc),
+                request.ToCreatedRange(),
+                request.ToModifiedRange()),
             ct);
 
         return TypedResultsBuilder.FromResult(result)

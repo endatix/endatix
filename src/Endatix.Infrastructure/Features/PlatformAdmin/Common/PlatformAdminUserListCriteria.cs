@@ -11,6 +11,5 @@ public sealed record PlatformAdminUserListCriteria(
     long? TenantId = null,
     bool PrioritizeExternalPlatformAdminRole = false,
     bool PrioritizeLocalPlatformAdminRole = false,
-    PlatformAdminListSortBy? SortBy = null,
-    bool SortDescending = false,
+    SortRequest<PlatformAdminListSortBy>? Sort = null,
     UtcDateTimeRange LastLogin = default);

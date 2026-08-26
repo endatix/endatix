@@ -7,45 +7,10 @@ namespace Endatix.Core.UseCases.Identity.ListUsers;
 
 /// <summary>
 /// Query for listing users in the current tenant. Tenant filter is implicit.
+/// Paging/search and the domain filters are normalized by the value objects themselves.
 /// </summary>
-public sealed record ListUsersQuery : IQuery<Result<Paged<UserWithRoles>>>
-{
-    public const int DefaultPage = PagedRequestLimits.DEFAULT_PAGE;
-    public const int DefaultPageSize = PagedRequestLimits.DEFAULT_PAGE_SIZE;
-    public const int MaxPageSize = PagedRequestLimits.MAX_PAGE_SIZE;
-
-    public ListUsersQuery(
-        int? page,
-        int? pageSize,
-        string? search,
-        string? role,
-        string? status,
-        UserListSortBy? sortBy = null,
-        bool sortDescending = false,
-        UtcDateTimeRange lastLogin = default)
-    {
-        Page = Math.Max(page ?? DefaultPage, DefaultPage);
-        PageSize = Math.Clamp(pageSize ?? DefaultPageSize, 1, MaxPageSize);
-        Search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
-        Role = string.IsNullOrWhiteSpace(role) ? null : role.Trim();
-        Status = string.IsNullOrWhiteSpace(status) ? null : status.Trim().ToLowerInvariant();
-        SortBy = sortBy;
-        SortDescending = sortDescending;
-        LastLogin = lastLogin;
-    }
-
-    public int Page { get; }
-    public int PageSize { get; }
-    public string? Search { get; }
-    public string? Role { get; }
-    public string? Status { get; }
-
-    /// <summary>
-    /// When null, default order is UserName then Email (asc).
-    /// </summary>
-    public UserListSortBy? SortBy { get; }
-
-    public bool SortDescending { get; }
-    public UtcDateTimeRange LastLogin { get; }
-    public int Skip => (Page - 1) * PageSize;
-}
+/// <param name="Paging">Page, page size and free-text search.</param>
+/// <param name="Criteria">Role/status filters, sort and last-login bounds.</param>
+public sealed record ListUsersQuery(
+    SearchablePageRequest Paging,
+    UserListCriteria Criteria) : IQuery<Result<Paged<UserWithRoles>>>;

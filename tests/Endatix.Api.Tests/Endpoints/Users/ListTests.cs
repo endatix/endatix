@@ -2,6 +2,7 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Endpoints.Users;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.UseCases.Identity.ListUsers;
@@ -110,11 +111,11 @@ public class ListTests
         // Assert
         await _mediator.Received(1).Send(
             Arg.Is<ListUsersQuery>(q =>
-                q.Page == 2 &&
-                q.PageSize == 50 &&
-                q.Search == "alice" &&
-                q.Role == "Admin" &&
-                q.Status == "pending"),
+                q.Paging.Paging.Page == 2 &&
+                q.Paging.Paging.PageSize == 50 &&
+                q.Paging.Search == "alice" &&
+                q.Criteria.Role == "Admin" &&
+                q.Criteria.Status == "pending"),
             Arg.Any<CancellationToken>());
     }
 
@@ -123,7 +124,7 @@ public class ListTests
     {
         // Arrange
         var request = new ListUsersRequest();
-        var result = Result.Success(Paged<UserWithRoles>.Empty(ListUsersQuery.DefaultPageSize));
+        var result = Result.Success(Paged<UserWithRoles>.Empty(PagedRequestLimits.DEFAULT_PAGE_SIZE));
         _mediator.Send(Arg.Any<ListUsersQuery>(), Arg.Any<CancellationToken>()).Returns(result);
 
         // Act

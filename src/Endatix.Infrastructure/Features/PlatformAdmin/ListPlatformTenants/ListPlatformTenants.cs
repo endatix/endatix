@@ -13,18 +13,13 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
 {
     /// <inheritdoc />
     public async Task<Result<Paged<PlatformTenantListItem>>> ExecuteAsync(
-        int page,
-        int pageSize,
-        string? search,
-        PlatformTenantListSortBy sortBy,
-        bool sortDescending,
-        UtcDateTimeRange created = default,
-        UtcDateTimeRange modified = default,
+        SearchablePageRequest paging,
+        PlatformTenantListCriteria criteria,
         CancellationToken cancellationToken = default)
     {
-        var normalizedPage = Math.Max(page, 1);
-        var normalizedPageSize = Math.Clamp(pageSize, 1, PagedRequestLimits.MAX_PAGE_SIZE);
-        var skip = (normalizedPage - 1) * normalizedPageSize;
+        var normalizedPageSize = paging.Paging.PageSize;
+        var skip = paging.Paging.Skip;
+        var search = paging.Search;
 
         var tenantsQuery = appDbContext.Set<Tenant>()
             .IgnoreQueryFilters()
@@ -40,11 +35,11 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
         }
 
         tenantsQuery = tenantsQuery
-            .WhereUtcRange(tenant => tenant.CreatedAt, created)
-            .WhereUtcRange(tenant => tenant.ModifiedAt, modified);
+            .WhereUtcRange(tenant => tenant.CreatedAt, criteria.Created)
+            .WhereUtcRange(tenant => tenant.ModifiedAt, criteria.Modified);
 
         var totalRecords = await tenantsQuery.CountAsync(cancellationToken);
-        var pageTenants = await ApplyOrdering(tenantsQuery, sortBy, sortDescending)
+        var pageTenants = await ApplyOrdering(tenantsQuery, criteria.Sort)
             .Skip(skip)
             .Take(normalizedPageSize)
             .Select(tenant => new
@@ -96,11 +91,16 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
 
     private static IOrderedQueryable<Tenant> ApplyOrdering(
         IQueryable<Tenant> query,
-        PlatformTenantListSortBy sortBy,
-        bool sortDescending)
+        SortRequest<PlatformTenantListSortBy>? sort)
     {
         // Default Name then Id when Name asc (v1); Id tiebreaker always.
-        return sortBy switch
+        if (sort is null)
+        {
+            return query.OrderBy(tenant => tenant.Name).ThenBy(tenant => tenant.Id);
+        }
+
+        var sortDescending = sort.IsDescending;
+        return sort.Field switch
         {
             PlatformTenantListSortBy.CreatedAt when sortDescending =>
                 query.OrderByDescending(tenant => tenant.CreatedAt).ThenBy(tenant => tenant.Id),

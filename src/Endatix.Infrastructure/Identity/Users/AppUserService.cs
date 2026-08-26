@@ -33,22 +33,12 @@ public sealed class AppUserService(
 
     /// <inheritdoc />
     public async Task<Result<Paged<UserWithRoles>>> ListUsersAsync(
-        int skip,
-        int take,
-        string? search,
-        string? role,
-        string? status,
-        UserListSortBy? sortBy = null,
-        bool sortDescending = false,
-        UtcDateTimeRange lastLogin = default,
+        SearchablePageRequest paging,
+        UserListCriteria criteria,
         CancellationToken cancellationToken = default)
     {
-        var pagingGuard = ValidatePaging(skip, take);
-        if (!pagingGuard.IsSuccess)
-        {
-            return pagingGuard.ToErrorResult<Paged<UserWithRoles>>();
-        }
-
+        var skip = paging.Paging.Skip;
+        var take = paging.Paging.PageSize;
         var tenantId = tenantContext.TenantId;
 
         var filteredUsers = identityDbContext.Users
@@ -58,15 +48,15 @@ public sealed class AppUserService(
                 user.UserName != null &&
                 user.UserName != string.Empty);
 
-        filteredUsers = ApplyStatusFilter(filteredUsers, status);
-        filteredUsers = ApplyRoleFilter(filteredUsers, role);
-        filteredUsers = ApplySearchFilter(filteredUsers, search);
-        filteredUsers = filteredUsers.WhereUtcRange(user => user.LastLoginAt, lastLogin);
+        filteredUsers = ApplyStatusFilter(filteredUsers, criteria.Status);
+        filteredUsers = ApplyRoleFilter(filteredUsers, criteria.Role);
+        filteredUsers = ApplySearchFilter(filteredUsers, paging.Search);
+        filteredUsers = filteredUsers.WhereUtcRange(user => user.LastLoginAt, criteria.LastLogin);
 
         var totalRecords = await filteredUsers.CountAsync(cancellationToken);
         var effectiveSkip = NormalizeSkip(skip, take, totalRecords);
 
-        var pageUsers = await ApplyUserListOrdering(filteredUsers, sortBy, sortDescending)
+        var pageUsers = await ApplyUserListOrdering(filteredUsers, criteria.Sort)
             .Skip(effectiveSkip)
             .Take(take)
             .Select(user => new
@@ -146,16 +136,16 @@ public sealed class AppUserService(
 
     private static IOrderedQueryable<AppUser> ApplyUserListOrdering(
         IQueryable<AppUser> query,
-        UserListSortBy? sortBy,
-        bool sortDescending)
+        SortRequest<UserListSortBy>? sort)
     {
         // Preserve v1 default when sort is omitted: UserName then Email ascending.
-        if (sortBy is null)
+        if (sort is null)
         {
             return query.OrderBy(user => user.UserName).ThenBy(user => user.Email);
         }
 
-        return sortBy.Value switch
+        var sortDescending = sort.IsDescending;
+        return sort.Field switch
         {
             UserListSortBy.Email when sortDescending =>
                 query.OrderByDescending(user => user.Email).ThenBy(user => user.Id),
@@ -553,28 +543,6 @@ public sealed class AppUserService(
         return Result.Success();
     }
 
-    private static Result ValidatePaging(int skip, int take)
-    {
-        if (skip < 0)
-        {
-            return Result.Invalid(new ValidationError
-            {
-                Identifier = nameof(skip),
-                ErrorMessage = "Skip must be greater than or equal to zero."
-            });
-        }
-
-        if (take > 0)
-        {
-            return Result.Success();
-        }
-
-        return Result.Invalid(new ValidationError
-        {
-            Identifier = nameof(take),
-            ErrorMessage = "Take must be greater than zero."
-        });
-    }
 
     private static string NormalizeRoleName(string roleName)
     {

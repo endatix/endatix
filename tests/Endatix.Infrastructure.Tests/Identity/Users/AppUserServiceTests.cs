@@ -50,41 +50,7 @@ public class AppUserServiceTests
             _logger);
     }
 
-    [Fact]
-    public async Task ListUsersAsync_NegativeSkip_ReturnsInvalid()
-    {
-        // Act
-        var result = await _userService.ListUsersAsync(
-            -1,
-            10,
-            null,
-            null,
-            null,
-            cancellationToken: TestContext.Current.CancellationToken);
 
-        // Assert
-        result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.Invalid);
-        result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Be("Skip must be greater than or equal to zero.");
-    }
-
-    [Fact]
-    public async Task ListUsersAsync_ZeroTake_ReturnsInvalid()
-    {
-        // Act
-        var result = await _userService.ListUsersAsync(
-            0,
-            0,
-            null,
-            null,
-            null,
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        // Assert
-        result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.Invalid);
-        result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Be("Take must be greater than zero.");
-    }
 
     [Fact]
     public async Task GetUserAsync_NullClaimsPrincipal_ReturnsNotFound()

@@ -35,9 +35,8 @@ public sealed class ListTests
             new Paged<PlatformTenantListItem>(1, 10, 2, 1, tenants));
         _listPlatformTenants
             .ExecuteAsync(
-                1, 10, null,
-                PlatformTenantListSortBy.Name, false,
-                default, default,
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<PlatformTenantListCriteria>(),
                 Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -70,9 +69,8 @@ public sealed class ListTests
         };
         _listPlatformTenants
             .ExecuteAsync(
-                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
-                Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
-                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<PlatformTenantListCriteria>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(Paged<PlatformTenantListItem>.Empty(25)));
 
@@ -81,13 +79,15 @@ public sealed class ListTests
 
         // Assert
         await _listPlatformTenants.Received(1).ExecuteAsync(
-            2,
-            25,
-            "acme",
-            PlatformTenantListSortBy.CreatedAt,
-            true,
-            new UtcDateTimeRange(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), null),
-            default,
+            Arg.Is<SearchablePageRequest>(p =>
+                p.Paging.Page == 2 &&
+                p.Paging.PageSize == 25 &&
+                p.Search == "acme"),
+            Arg.Is<PlatformTenantListCriteria>(c =>
+                c.Sort!.Field == PlatformTenantListSortBy.CreatedAt &&
+                c.Sort.IsDescending &&
+                c.Created == new UtcDateTimeRange(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), null) &&
+                c.Modified == default),
             Arg.Any<CancellationToken>());
     }
 
@@ -98,9 +98,8 @@ public sealed class ListTests
         var request = new ListPlatformTenantsRequest();
         _listPlatformTenants
             .ExecuteAsync(
-                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
-                Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
-                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<PlatformTenantListCriteria>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(
                 Paged<PlatformTenantListItem>.Empty(PagedRequestLimits.DEFAULT_PAGE_SIZE)));
@@ -110,13 +109,15 @@ public sealed class ListTests
 
         // Assert
         await _listPlatformTenants.Received(1).ExecuteAsync(
-            PagedRequestLimits.DEFAULT_PAGE,
-            PagedRequestLimits.DEFAULT_PAGE_SIZE,
-            null,
-            PlatformTenantListSortBy.Name,
-            false,
-            default,
-            default,
+            Arg.Is<SearchablePageRequest>(p =>
+                p.Paging.Page == PagedRequestLimits.DEFAULT_PAGE &&
+                p.Paging.PageSize == PagedRequestLimits.DEFAULT_PAGE_SIZE &&
+                p.Search == null),
+            Arg.Is<PlatformTenantListCriteria>(c =>
+                c.Sort!.Field == PlatformTenantListSortBy.Name &&
+                !c.Sort.IsDescending &&
+                c.Created == default &&
+                c.Modified == default),
             Arg.Any<CancellationToken>());
     }
 
@@ -127,9 +128,8 @@ public sealed class ListTests
         var request = new ListPlatformTenantsRequest { Page = 1, PageSize = 10 };
         _listPlatformTenants
             .ExecuteAsync(
-                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
-                Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
-                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<PlatformTenantListCriteria>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(Paged<PlatformTenantListItem>.Empty(10)));
 
@@ -150,9 +150,8 @@ public sealed class ListTests
         var request = new ListPlatformTenantsRequest { Page = 1, PageSize = 10 };
         _listPlatformTenants
             .ExecuteAsync(
-                Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
-                Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
-                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<PlatformTenantListCriteria>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result<Paged<PlatformTenantListItem>>.Invalid(new ValidationError("Invalid request")));
 

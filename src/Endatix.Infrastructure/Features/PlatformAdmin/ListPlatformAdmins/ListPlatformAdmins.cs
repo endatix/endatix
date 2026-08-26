@@ -16,8 +16,7 @@ public sealed class ListPlatformAdmins(IPlatformAdminUserListing listing)
         SearchablePageRequest paging,
         PlatformAdminListScope scope,
         long? tenantId,
-        PlatformAdminListSortBy? sortBy,
-        bool sortDescending,
+        SortRequest<PlatformAdminListSortBy>? sort = null,
         UtcDateTimeRange lastLogin = default,
         CancellationToken cancellationToken = default)
     {
@@ -36,8 +35,7 @@ public sealed class ListPlatformAdmins(IPlatformAdminUserListing listing)
             tenantId,
             prioritizeExternalPlatformAdminRole,
             prioritizeLocalPlatformAdminRole,
-            sortBy,
-            sortDescending,
+            sort,
             lastLogin);
 
         return await listing.ListAsync(paging, criteria, cancellationToken);

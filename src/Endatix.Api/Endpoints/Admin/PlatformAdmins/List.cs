@@ -50,8 +50,7 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
             request.ToSearchablePageRequest(),
             PlatformAdminListScopeParser.Parse(request.Scope),
             request.TenantId,
-            sort?.Field,
-            sort?.IsDescending ?? false,
+            sort,
             request.ToLastLoginRange(),
             ct);
 

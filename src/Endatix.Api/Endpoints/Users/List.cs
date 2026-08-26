@@ -55,16 +55,13 @@ public sealed class List(IMediator mediator)
         ListUsersRequest request,
         CancellationToken ct)
     {
-        var sort = request.ToNullableSortRequest(UserListSortBy.UserName, SortDirection.Asc);
         var listUsersQuery = new ListUsersQuery(
-            request.Page,
-            request.PageSize,
-            request.Search,
-            request.Role,
-            request.Status,
-            sort?.Field,
-            sort?.IsDescending ?? false,
-            request.ToLastLoginRange());
+            request.ToSearchablePageRequest(),
+            new UserListCriteria(
+                request.Role,
+                request.Status,
+                request.ToNullableSortRequest(UserListSortBy.UserName, SortDirection.Asc),
+                request.ToLastLoginRange()));
         var result = await mediator.Send(listUsersQuery, ct);
 
         return TypedResultsBuilder
