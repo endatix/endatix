@@ -30,7 +30,7 @@ public sealed class SortableRequestValidatorTests
         TestSortableRequest request = new()
         {
             SortBy = (TestSortField)999,
-            Direction = SortDirection.Asc,
+            SortDir = SortDirection.Asc,
         };
 
         var result = _validator.TestValidate(request);
@@ -52,6 +52,6 @@ public sealed class SortableRequestValidatorTests
     private sealed class TestSortableRequest : ISortableRequest<TestSortField>
     {
         public TestSortField? SortBy { get; set; }
-        public SortDirection? Direction { get; set; }
+        public SortDirection? SortDir { get; set; }
     }
 }

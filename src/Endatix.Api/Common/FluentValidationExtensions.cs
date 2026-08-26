@@ -34,4 +34,15 @@ public static class FluentValidationExtensions
             .Must(slug => UrlSlugNormalizer.IsValidFormat(slug))
             .WithMessage("{PropertyName} must be a valid URL slug.");
     }
+
+    /// <summary>
+    /// When the value is present, requires a UTC calendar date (<c>YYYY-MM-DD</c>).
+    /// </summary>
+    public static IRuleBuilderOptions<T, string?> MustBeUtcCalendarDateWhenPresent<T>(
+        this IRuleBuilder<T, string?> ruleBuilder)
+    {
+        return ruleBuilder
+            .Must(value => string.IsNullOrWhiteSpace(value) || UtcCalendarDay.TryParse(value, out _))
+            .WithMessage("{PropertyName} must be a UTC calendar date (YYYY-MM-DD).");
+    }
 }

@@ -14,7 +14,7 @@ public interface ISortableRequest<TSortField> where TSortField : struct, Enum
     TSortField? SortBy { get; set; }
 
     /// <summary>
-    /// The sort direction.
+    /// The sort direction (<c>asc</c> / <c>desc</c>).
     /// </summary>
-    SortDirection? Direction { get; set; }
+    SortDirection? SortDir { get; set; }
 }
