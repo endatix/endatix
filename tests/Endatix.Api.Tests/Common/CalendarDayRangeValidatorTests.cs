@@ -1,9 +1,13 @@
 using Endatix.Api.Common;
-using FluentValidation;
 using FluentValidation.TestHelper;
 
 namespace Endatix.Api.Tests.Common;
 
+/// <summary>
+/// Exercises the shared calendar-day range rules through <see cref="CreatedRangeValidator"/>,
+/// the composable validator endpoints actually <c>Include</c>. The other stems
+/// (Modified/Started/Completed/LastLogin) are the same helper bound to different properties.
+/// </summary>
 public sealed class CalendarDayRangeValidatorTests
 {
     private sealed class CreatedRangeStub : ICreatedRange
@@ -12,15 +16,7 @@ public sealed class CalendarDayRangeValidatorTests
         public string? CreatedTo { get; set; }
     }
 
-    private sealed class CreatedRangeStubValidator : AbstractValidator<CreatedRangeStub>
-    {
-        public CreatedRangeStubValidator()
-        {
-            this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
-        }
-    }
-
-    private readonly CreatedRangeStubValidator _validator = new();
+    private readonly CreatedRangeValidator _validator = new();
 
     [Fact]
     public void Validate_RejectsFromAfterTo()
@@ -33,7 +29,7 @@ public sealed class CalendarDayRangeValidatorTests
 
         var result = _validator.TestValidate(request);
 
-        result.ShouldHaveValidationErrorFor("CreatedFrom");
+        result.ShouldHaveValidationErrorFor(x => x.CreatedFrom);
     }
 
     [Fact]
@@ -48,5 +44,40 @@ public sealed class CalendarDayRangeValidatorTests
         var result = _validator.TestValidate(request);
 
         result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void Validate_AllowsOmittedBounds()
+    {
+        var result = _validator.TestValidate(new CreatedRangeStub());
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Theory]
+    [InlineData("2024-1-5")]
+    [InlineData("01/15/2024")]
+    [InlineData("2024-01-15T00:00:00Z")]
+    [InlineData("not-a-date")]
+    [InlineData("2024-02-30")]
+    public void Validate_RejectsMalformedCalendarDay(string value)
+    {
+        var result = _validator.TestValidate(new CreatedRangeStub { CreatedFrom = value });
+
+        result.ShouldHaveValidationErrorFor(x => x.CreatedFrom);
+    }
+
+    [Fact]
+    public void Validate_ReportsCrossFieldErrorAgainstTheFromProperty()
+    {
+        CreatedRangeStub request = new()
+        {
+            CreatedFrom = "2024-02-01",
+            CreatedTo = "2024-01-01",
+        };
+
+        var result = _validator.TestValidate(request);
+
+        result.Errors.Should().OnlyContain(e => e.PropertyName == nameof(ICreatedRange.CreatedFrom));
     }
 }

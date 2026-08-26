@@ -316,7 +316,7 @@ When touching Platform Admin registration or new admin lists, migrate toward **o
 
 ## Paged list requests
 
-**Api:** compose capability interfaces on the request DTO (`IPagedRequest`, `ISearchableRequest`, `ISortableRequest<T>`, `IFilterable`, plus typed calendar ranges such as `ICreatedRange` / `IModifiedRange`; or `ISearchablePagedRequest` = page + search). Validate with the matching `*RequestValidator`. Map once via `ListRequestExtensions` (`ToPageRequest`, `ToSortRequest`, `ToCreatedRange`, …). HTTP stays flat stem strings (`createdFrom`/`createdTo`).
+**Api:** compose capability interfaces on the request DTO (`IPagedRequest`, `ISearchableRequest`, `ISortableRequest<T>`, `IFilterable`, plus typed calendar ranges such as `ICreatedRange` / `IModifiedRange`; or `ISearchablePagedRequest` = page + search). Validate with the matching `*RequestValidator`. Map once via `ListRequestExtensions` (`ToSearchablePageRequest`, `ToSortRequest`, `ToCreatedRange`, …). HTTP stays flat stem strings (`createdFrom`/`createdTo`).
 
 **Core:** pass normalized records into read models — `PageRequest`, `SearchablePageRequest`, `SortRequest<T>`, and **`UtcDateTimeRange`** for each timestamp column. Limits in `PagedRequestLimits.cs`. Calendar day strings (`YYYY-MM-DD`) are parsed at the API boundary into one `UtcDateTimeRange` (inclusive From / exclusive To UTC). Specs call `WhereUtcRange`; do not explode back to paired `DateTime?` on ports, queries, or export DTOs.
 
@@ -335,7 +335,7 @@ When touching Platform Admin registration or new admin lists, migrate toward **o
 var paging = request.ToSearchablePageRequest();
 var sort = request.ToSortRequest(PlatformTenantListSortBy.Name);
 var created = request.ToCreatedRange();
-var filters = request.ToFilterParameters(); // facets only
+var filters = request.Filter; // facet expressions, validated by FilteredRequestValidator
 ```
 
 

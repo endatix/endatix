@@ -39,7 +39,7 @@ public static class FluentValidationExtensions
     /// <summary>
     /// When the value is present, requires a UTC calendar date (<c>YYYY-MM-DD</c>).
     /// </summary>
-    public static IRuleBuilderOptions<T, string?> MustBeUtcCalendarDateWhenPresent<T>(
+    private static IRuleBuilderOptions<T, string?> MustBeUtcCalendarDateWhenPresent<T>(
         this IRuleBuilder<T, string?> ruleBuilder)
     {
         return ruleBuilder
@@ -49,15 +49,17 @@ public static class FluentValidationExtensions
 
     /// <summary>
     /// Validates a UTC calendar day From/To range (format + From on or before To).
+    /// The cross-field error is reported against the From property, whose name is read
+    /// from <paramref name="fromSelector"/>.
     /// </summary>
     public static void RuleForCalendarDayRange<T>(
         this AbstractValidator<T> validator,
         Expression<Func<T, string?>> fromSelector,
-        Expression<Func<T, string?>> toSelector,
-        string fromPropertyName)
+        Expression<Func<T, string?>> toSelector)
     {
         var getFrom = fromSelector.Compile();
         var getTo = toSelector.Compile();
+        var fromPropertyName = PropertyNameOf(fromSelector);
 
         validator.RuleFor(fromSelector).MustBeUtcCalendarDateWhenPresent();
         validator.RuleFor(toSelector).MustBeUtcCalendarDateWhenPresent();
@@ -66,4 +68,14 @@ public static class FluentValidationExtensions
             .WithMessage($"{fromPropertyName} must be on or before the matching To bound.")
             .WithName(fromPropertyName);
     }
+
+    private static string PropertyNameOf<T>(Expression<Func<T, string?>> selector) =>
+        selector.Body switch
+        {
+            MemberExpression member => member.Member.Name,
+            UnaryExpression { Operand: MemberExpression member } => member.Member.Name,
+            _ => throw new ArgumentException(
+                "Calendar day range selectors must be simple property accessors.",
+                nameof(selector)),
+        };
 }

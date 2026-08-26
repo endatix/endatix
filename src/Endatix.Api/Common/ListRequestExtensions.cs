@@ -1,5 +1,4 @@
 using Endatix.Core.Infrastructure.Paging;
-using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Api.Common;
 
@@ -26,14 +25,6 @@ public static class ListRequestExtensions
             value: request.PageSize ?? PagedRequestLimits.DEFAULT_PAGE_SIZE,
             min: PagedRequestLimits.MIN_PAGE_SIZE,
             max: PagedRequestLimits.MAX_PAGE_SIZE);
-
-    /// <summary>
-    /// Converts the request to a <see cref="PageRequest"/>.
-    /// </summary>
-    /// <param name="request">The request.</param>
-    /// <returns>The converted <see cref="PageRequest"/>.</returns>
-    public static PageRequest ToPageRequest(this IPagedRequest request) =>
-        new(request.ResolvePage(), request.ResolvePageSize());
 
     /// <summary>
     /// Converts the request to a <see cref="SearchablePageRequest"/>.
@@ -77,9 +68,6 @@ public static class ListRequestExtensions
             request.SortDir,
             defaultField,
             defaultDirection);
-
-    public static FilterParameters ToFilterParameters(this IFilterable request) =>
-        new(request.Filter ?? []);
 
     /// <summary>
     /// Parses <see cref="ICreatedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
