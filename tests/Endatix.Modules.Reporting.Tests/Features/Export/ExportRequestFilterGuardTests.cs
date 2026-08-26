@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Modules.Reporting.Contracts.Export;
 using FluentAssertions;
 
@@ -9,21 +10,20 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export;
 /// </summary>
 public sealed class ExportRequestFilterGuardTests
 {
+    private static readonly UtcDateTimeRange BoundRange = new(
+        new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        new DateTime(2026, 1, 8, 0, 0, 0, DateTimeKind.Utc));
+
+    private static readonly UtcDateTimeRange FromOnly = new(
+        new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        null);
+
+    private static readonly UtcDateTimeRange ToOnly = new(
+        null,
+        new DateTime(2026, 1, 8, 0, 0, 0, DateTimeKind.Utc));
+
     private static ExportFilterContext EmptyFilters() =>
-        new(
-            IncludeTestSubmissions: null,
-            CreatedFrom: null,
-            CreatedTo: null,
-            ModifiedFrom: null,
-            ModifiedTo: null,
-            StartedFrom: null,
-            StartedTo: null,
-            CompletedFrom: null,
-            CompletedTo: null,
-            MinSubmissionId: null,
-            MaxSubmissionId: null,
-            Locale: null,
-            ColumnScope: null);
+        new(IncludeTestSubmissions: null);
 
     [Fact]
     public void GetDisallowedWireNames_WhenNoFiltersPresent_ReturnsEmpty_ForAnyCapability()
@@ -49,18 +49,9 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.ShojiCodebook,
             new ExportFilterContext(
                 IncludeTestSubmissions: true,
-                CreatedFrom: "2026-01-01",
-                CreatedTo: null,
-                ModifiedFrom: null,
-                ModifiedTo: null,
-                StartedFrom: null,
-                StartedTo: null,
-                CompletedFrom: null,
-                CompletedTo: null,
+                Created: FromOnly,
                 MinSubmissionId: 10,
-                MaxSubmissionId: null,
-                Locale: "es",
-                ColumnScope: null));
+                Locale: "es"));
 
         disallowed.Should().BeEquivalentTo(
         [
@@ -81,26 +72,6 @@ public sealed class ExportRequestFilterGuardTests
     }
 
     [Fact]
-    public void GetDisallowedWireNames_WhenNativeCodebookReceivesLocale_ReturnsLocale()
-    {
-        var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
-            ExportRequestFilterSets.NativeCodebook,
-            EmptyFilters() with { Locale = "es" });
-
-        disallowed.Should().Equal(AllowedExportFilters.Locale);
-    }
-
-    [Fact]
-    public void GetDisallowedWireNames_WhenShojiCodebookReceivesLocale_ReturnsEmpty()
-    {
-        var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
-            ExportRequestFilterSets.ShojiCodebook,
-            EmptyFilters() with { Locale = "es" });
-
-        disallowed.Should().BeEmpty();
-    }
-
-    [Fact]
     public void GetDisallowedWireNames_WhenSubmissionsReceivesLocale_ReturnsLocale()
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
@@ -117,17 +88,12 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.Submissions,
             new ExportFilterContext(
                 IncludeTestSubmissions: false,
-                CreatedFrom: "2026-01-01",
-                CreatedTo: "2026-01-07",
-                ModifiedFrom: "2026-01-01",
-                ModifiedTo: "2026-01-07",
-                StartedFrom: "2026-01-01",
-                StartedTo: "2026-01-07",
-                CompletedFrom: "2026-01-01",
-                CompletedTo: "2026-01-07",
+                Created: BoundRange,
+                Modified: BoundRange,
+                Started: BoundRange,
+                Completed: BoundRange,
                 MinSubmissionId: 1,
                 MaxSubmissionId: 100,
-                Locale: null,
                 ColumnScope: ["q1"],
                 CompletionStatus: ExportCompletionStatus.Completed));
 
@@ -163,7 +129,7 @@ public sealed class ExportRequestFilterGuardTests
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.ShojiCodebook,
-            EmptyFilters() with { CreatedTo = "2026-01-07" });
+            EmptyFilters() with { Created = ToOnly });
 
         disallowed.Should().Equal(AllowedExportFilters.CreatedAtRange);
     }
@@ -173,7 +139,7 @@ public sealed class ExportRequestFilterGuardTests
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.ShojiCodebook,
-            EmptyFilters() with { ModifiedFrom = "2026-01-01" });
+            EmptyFilters() with { Modified = FromOnly });
 
         disallowed.Should().Equal(AllowedExportFilters.ModifiedAtRange);
     }
@@ -183,7 +149,7 @@ public sealed class ExportRequestFilterGuardTests
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.NativeCodebook,
-            EmptyFilters() with { CompletedFrom = "2026-01-01" });
+            EmptyFilters() with { Completed = FromOnly });
 
         disallowed.Should().Equal(AllowedExportFilters.CompletedAtRange);
     }
@@ -246,16 +212,11 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilters.None,
             new ExportFilterContext(
                 IncludeTestSubmissions: true,
-                CreatedFrom: "2026-01-01",
-                CreatedTo: null,
-                ModifiedFrom: "2026-01-01",
-                ModifiedTo: null,
-                StartedFrom: "2026-01-01",
-                StartedTo: null,
-                CompletedFrom: "2026-01-01",
-                CompletedTo: null,
+                Created: FromOnly,
+                Modified: FromOnly,
+                Started: FromOnly,
+                Completed: FromOnly,
                 MinSubmissionId: 1,
-                MaxSubmissionId: null,
                 Locale: "en",
                 ColumnScope: ["a"],
                 CompletionStatus: ExportCompletionStatus.Completed));

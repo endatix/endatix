@@ -31,10 +31,8 @@ public class ListThemesHandler(IRepository<Theme> themeRepository)
             pagingParams,
             request.SortBy,
             request.SortDescending,
-            request.CreatedFrom,
-            request.CreatedTo,
-            request.ModifiedFrom,
-            request.ModifiedTo);
+            request.Created,
+            request.Modified);
         IEnumerable<Theme> themes = await themeRepository.ListAsync(spec, cancellationToken);
 
         return Result<IEnumerable<Theme>>.Success(themes);

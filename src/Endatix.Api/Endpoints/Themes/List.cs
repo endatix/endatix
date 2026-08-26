@@ -49,10 +49,8 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
             request.PageSize,
             sort.Field,
             sort.Direction == SortDirection.Desc,
-            request.ToCreatedFromUtc(),
-            request.ToCreatedToUtc(),
-            request.ToModifiedFromUtc(),
-            request.ToModifiedToUtc());
+            request.ToCreatedRange(),
+            request.ToModifiedRange());
         var result = await mediator.Send(query, cancellationToken);
 
         return TypedResultsBuilder

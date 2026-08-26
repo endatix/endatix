@@ -43,14 +43,10 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
             request.Filter,
             sort?.Field,
             sort?.Direction == SortDirection.Desc,
-            request.ToCreatedFromUtc(),
-            request.ToCreatedToUtc(),
-            request.ToModifiedFromUtc(),
-            request.ToModifiedToUtc(),
-            request.ToStartedFromUtc(),
-            request.ToStartedToUtc(),
-            request.ToCompletedFromUtc(),
-            request.ToCompletedToUtc());
+            request.ToCreatedRange(),
+            request.ToModifiedRange(),
+            request.ToStartedRange(),
+            request.ToCompletedRange());
 
         var result = await mediator.Send(getSubmissionsQuery, cancellationToken);
 

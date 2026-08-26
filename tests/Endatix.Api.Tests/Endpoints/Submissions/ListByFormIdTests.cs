@@ -129,10 +129,10 @@ public class ListByFormIdTests
                 query.FilterExpressions!.SequenceEqual(request.Filter!) &&
                 query.SortBy == SubmissionListSortBy.CompletedAt &&
                 query.SortDescending == false &&
-                query.CreatedFrom == new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                query.CreatedTo == new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                query.StartedFrom == new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc) &&
-                query.CompletedTo == new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc)
+                query.Created.InclusiveFrom == new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.Created.ExclusiveTo == new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.Started.InclusiveFrom == new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc) &&
+                query.Completed.ExclusiveTo == new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc)
             ),
             Arg.Any<CancellationToken>()
         );

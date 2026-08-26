@@ -1,6 +1,7 @@
 using Ardalis.Specification;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications.Common;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.UseCases.DataLists;
@@ -22,10 +23,8 @@ public static class DataListsSpecifications
         string? Search = null,
         DataListListSortBy SortBy = DataListListSortBy.CreatedAt,
         bool SortDescending = true,
-        DateTime? CreatedFrom = null,
-        DateTime? CreatedTo = null,
-        DateTime? ModifiedFrom = null,
-        DateTime? ModifiedTo = null);
+        UtcDateTimeRange Created = default,
+        UtcDateTimeRange Modified = default);
 
     /// <summary>
     /// Base specification to list data lists without pagination.
@@ -105,8 +104,8 @@ public static class DataListsSpecifications
                 (x.Description != null && x.Description.ToLower().Contains(term)));
         }
 
-        query.WhereCreatedRange(filter.CreatedFrom, filter.CreatedTo);
-        query.WhereModifiedRange(filter.ModifiedFrom, filter.ModifiedTo);
+        query.WhereUtcRange(x => x.CreatedAt, filter.Created);
+        query.WhereUtcRange(x => x.ModifiedAt, filter.Modified);
     }
 
     private static void ApplyListOrdering(

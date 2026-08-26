@@ -27,14 +27,10 @@ public class ListByFormIdHandler(
         var listFilter = new SubmissionsListFilter(
             request.SortBy,
             request.SortDescending,
-            request.CreatedFrom,
-            request.CreatedTo,
-            request.ModifiedFrom,
-            request.ModifiedTo,
-            request.StartedFrom,
-            request.StartedTo,
-            request.CompletedFrom,
-            request.CompletedTo);
+            request.Created,
+            request.Modified,
+            request.Started,
+            request.Completed);
         var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams, filterParams, listFilter);
         var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams, listFilter);
 

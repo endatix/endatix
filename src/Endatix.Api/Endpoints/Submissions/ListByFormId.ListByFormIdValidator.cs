@@ -28,10 +28,10 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
     {
         Include(new PageableRequestValidator());
         Include(new SortableRequestValidator<SubmissionListSortBy>());
-        Include(new CreatedRangeRequestValidator());
-        Include(new ModifiedRangeRequestValidator());
-        Include(new StartedRangeRequestValidator());
-        Include(new CompletedRangeRequestValidator());
+        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
+        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
+        this.RuleForCalendarDayRange(x => x.StartedFrom, x => x.StartedTo, "StartedFrom");
+        this.RuleForCalendarDayRange(x => x.CompletedFrom, x => x.CompletedTo, "CompletedFrom");
         Include(new FilteredRequestValidator(BuildFilterableFields(submitterOptions.Value)));
 
         RuleFor(x => x.FormId)

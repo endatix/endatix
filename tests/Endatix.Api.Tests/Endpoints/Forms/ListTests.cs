@@ -109,10 +109,10 @@ public class ListTests
                 query.FilterExpressions == request.Filter &&
                 query.SortBy == FormListSortBy.Name &&
                 query.SortDescending == false &&
-                query.CreatedFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                query.CreatedTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                query.ModifiedFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                query.ModifiedTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
+                query.Created.InclusiveFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.Created.ExclusiveTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.Modified.InclusiveFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.Modified.ExclusiveTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
             Arg.Any<CancellationToken>());
     }
     [Fact]

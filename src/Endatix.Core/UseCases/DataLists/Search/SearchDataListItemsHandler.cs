@@ -25,10 +25,8 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             RequireActive = request.RequireActive,
             SortBy = request.SortBy,
             SortDescending = request.SortDescending,
-            CreatedFrom = request.CreatedFrom,
-            CreatedTo = request.CreatedTo,
-            ModifiedFrom = request.ModifiedFrom,
-            ModifiedTo = request.ModifiedTo
+            Created = request.Created,
+            Modified = request.Modified
         };
 
         DataListSearchPageResult? searchPage;

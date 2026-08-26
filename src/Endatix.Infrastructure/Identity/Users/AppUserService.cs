@@ -3,6 +3,7 @@ using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Core.UseCases.Identity.ListUsers;
@@ -39,8 +40,7 @@ public sealed class AppUserService(
         string? status,
         UserListSortBy? sortBy = null,
         bool sortDescending = false,
-        DateTime? lastLoginFrom = null,
-        DateTime? lastLoginTo = null,
+        UtcDateTimeRange lastLogin = default,
         CancellationToken cancellationToken = default)
     {
         var pagingGuard = ValidatePaging(skip, take);
@@ -61,7 +61,7 @@ public sealed class AppUserService(
         filteredUsers = ApplyStatusFilter(filteredUsers, status);
         filteredUsers = ApplyRoleFilter(filteredUsers, role);
         filteredUsers = ApplySearchFilter(filteredUsers, search);
-        filteredUsers = ApplyLastLoginRange(filteredUsers, lastLoginFrom, lastLoginTo);
+        filteredUsers = filteredUsers.WhereUtcRange(user => user.LastLoginAt, lastLogin);
 
         var totalRecords = await filteredUsers.CountAsync(cancellationToken);
         var effectiveSkip = NormalizeSkip(skip, take, totalRecords);
@@ -142,35 +142,6 @@ public sealed class AppUserService(
             usersResult);
 
         return Result.Success(paged);
-    }
-
-    private static IQueryable<AppUser> ApplyLastLoginRange(
-        IQueryable<AppUser> query,
-        DateTime? lastLoginFrom,
-        DateTime? lastLoginToExclusive)
-    {
-        if (lastLoginFrom.HasValue)
-        {
-            var from = new DateTimeOffset(DateTime.SpecifyKind(lastLoginFrom.Value, DateTimeKind.Utc));
-            query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt >= from);
-        }
-
-        if (lastLoginToExclusive.HasValue)
-        {
-            var to = lastLoginToExclusive.Value;
-            if (to == DateTime.MaxValue)
-            {
-                var inclusiveTo = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc));
-                query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt <= inclusiveTo);
-            }
-            else
-            {
-                var exclusiveTo = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc));
-                query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt < exclusiveTo);
-            }
-        }
-
-        return query;
     }
 
     private static IOrderedQueryable<AppUser> ApplyUserListOrdering(

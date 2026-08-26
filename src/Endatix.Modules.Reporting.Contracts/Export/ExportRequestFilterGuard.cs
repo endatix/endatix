@@ -29,28 +29,28 @@ public static class ExportRequestFilterGuard
             allowed,
             ExportRequestFilters.CreatedAtRange,
             AllowedExportFilters.CreatedAtRange,
-            HasEitherBound(filters.CreatedFrom, filters.CreatedTo));
+            filters.Created.HasBounds);
 
         AddWhenDisallowed(
             disallowed,
             allowed,
             ExportRequestFilters.ModifiedAtRange,
             AllowedExportFilters.ModifiedAtRange,
-            HasEitherBound(filters.ModifiedFrom, filters.ModifiedTo));
+            filters.Modified.HasBounds);
 
         AddWhenDisallowed(
             disallowed,
             allowed,
             ExportRequestFilters.StartedAtRange,
             AllowedExportFilters.StartedAtRange,
-            HasEitherBound(filters.StartedFrom, filters.StartedTo));
+            filters.Started.HasBounds);
 
         AddWhenDisallowed(
             disallowed,
             allowed,
             ExportRequestFilters.CompletedAtRange,
             AllowedExportFilters.CompletedAtRange,
-            HasEitherBound(filters.CompletedFrom, filters.CompletedTo));
+            filters.Completed.HasBounds);
 
         AddWhenDisallowed(
             disallowed,
@@ -97,9 +97,6 @@ public static class ExportRequestFilterGuard
 
         disallowed.Add(wireName);
     }
-
-    private static bool HasEitherBound(string? lower, string? upper) =>
-        !string.IsNullOrWhiteSpace(lower) || !string.IsNullOrWhiteSpace(upper);
 
     private static bool HasEitherBound<T>(T? lower, T? upper)
         where T : struct =>

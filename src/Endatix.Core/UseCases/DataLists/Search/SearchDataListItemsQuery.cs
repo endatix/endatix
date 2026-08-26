@@ -16,10 +16,8 @@ public sealed record SearchDataListItemsOptions(
     bool RequireActive = true,
     DataListItemListSortBy? SortBy = null,
     bool SortDescending = false,
-    DateTime? CreatedFrom = null,
-    DateTime? CreatedTo = null,
-    DateTime? ModifiedFrom = null,
-    DateTime? ModifiedTo = null);
+    UtcDateTimeRange Created = default,
+    UtcDateTimeRange Modified = default);
 
 /// <summary>
 /// Query for searching data list items by label (locale key).
@@ -51,10 +49,8 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
 
     public DataListItemListSortBy? SortBy { get; init; }
     public bool SortDescending { get; init; }
-    public DateTime? CreatedFrom { get; init; }
-    public DateTime? CreatedTo { get; init; }
-    public DateTime? ModifiedFrom { get; init; }
-    public DateTime? ModifiedTo { get; init; }
+    public UtcDateTimeRange Created { get; init; }
+    public UtcDateTimeRange Modified { get; init; }
 
     public SearchDataListItemsQuery(
         long dataListId,
@@ -80,9 +76,7 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
         RequireActive = options.RequireActive;
         SortBy = options.SortBy;
         SortDescending = options.SortDescending;
-        CreatedFrom = options.CreatedFrom;
-        CreatedTo = options.CreatedTo;
-        ModifiedFrom = options.ModifiedFrom;
-        ModifiedTo = options.ModifiedTo;
+        Created = options.Created;
+        Modified = options.Modified;
     }
 }

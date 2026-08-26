@@ -936,14 +936,14 @@ public class ExportTests
         await _mediator.Received(1).Send(
             Arg.Is<SubmissionsExportQuery>(q =>
                 ((SubmissionExportExecutionSettings)q.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings]).Locale == null &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CreatedFrom == createdFrom &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CreatedTo == createdTo &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).ModifiedFrom == modifiedFrom &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).ModifiedTo == modifiedTo &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).StartedFrom == startedFrom &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).StartedTo == startedTo &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CompletedFrom == completedFrom &&
-                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).CompletedTo == completedTo &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Created.InclusiveFrom == createdFrom &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Created.ExclusiveTo == createdTo &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Modified.InclusiveFrom == modifiedFrom &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Modified.ExclusiveTo == modifiedTo &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Started.InclusiveFrom == startedFrom &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Started.ExclusiveTo == startedTo &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Completed.InclusiveFrom == completedFrom &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).Completed.ExclusiveTo == completedTo &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).MinSubmissionId == 10 &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).MaxSubmissionId == 99 &&
                 ((SubmissionExportExecutionSettings)q.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings]).IncludeTestSubmissions == false),

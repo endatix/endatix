@@ -25,9 +25,7 @@ public sealed class ListPlatformAdminsTests
             tenantId: null,
             sortBy: null,
             sortDescending: false,
-            lastLoginFrom: null,
-            lastLoginTo: null,
-            CancellationToken.None);
+            cancellationToken: CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -65,9 +63,7 @@ public sealed class ListPlatformAdminsTests
             tenantId: null,
             sortBy: null,
             sortDescending: false,
-            lastLoginFrom: null,
-            lastLoginTo: null,
-            CancellationToken.None);
+            cancellationToken: CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);
@@ -101,9 +97,7 @@ public sealed class ListPlatformAdminsTests
             tenantId: 5,
             sortBy: null,
             sortDescending: false,
-            lastLoginFrom: null,
-            lastLoginTo: null,
-            CancellationToken.None);
+            cancellationToken: CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);
@@ -145,9 +139,7 @@ public sealed class ListPlatformAdminsTests
             tenantId: null,
             sortBy: null,
             sortDescending: false,
-            lastLoginFrom: null,
-            lastLoginTo: null,
-            CancellationToken.None);
+            cancellationToken: CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);

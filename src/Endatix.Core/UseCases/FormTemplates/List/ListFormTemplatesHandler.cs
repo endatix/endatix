@@ -21,10 +21,8 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository)
             filterParams,
             request.SortBy,
             request.SortDescending,
-            request.CreatedFrom,
-            request.CreatedTo,
-            request.ModifiedFrom,
-            request.ModifiedTo);
+            request.Created,
+            request.Modified);
         IEnumerable<FormTemplateDto> formTemplates = await repository.ListAsync(spec, cancellationToken);
         return Result.Success(formTemplates);
     }

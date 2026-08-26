@@ -13,10 +13,10 @@ public class ExportValidator : Validator<ExportRequest>
      {
           var supportedFormats = GetSupportedExportFormats(exporterFactory);
 
-          Include(new CreatedRangeRequestValidator());
-          Include(new ModifiedRangeRequestValidator());
-          Include(new StartedRangeRequestValidator());
-          Include(new CompletedRangeRequestValidator());
+          this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
+          this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
+          this.RuleForCalendarDayRange(x => x.StartedFrom, x => x.StartedTo, "StartedFrom");
+          this.RuleForCalendarDayRange(x => x.CompletedFrom, x => x.CompletedTo, "CompletedFrom");
 
           RuleFor(x => x.FormId)
                .GreaterThan(0);

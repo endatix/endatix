@@ -64,8 +64,7 @@ public sealed class List(IMediator mediator)
             request.Status,
             sort?.Field,
             sort?.Direction == SortDirection.Desc,
-            request.ToLastLoginFromUtc(),
-            request.ToLastLoginToUtc());
+            request.ToLastLoginRange());
         var result = await mediator.Send(listUsersQuery, ct);
 
         return TypedResultsBuilder
@@ -210,7 +209,7 @@ public class ListUsersValidator : Validator<ListUsersRequest>
     {
         Include(new SearchablePagedRequestValidator());
         Include(new SortableRequestValidator<UserListSortBy>());
-        Include(new LastLoginRangeRequestValidator());
+        this.RuleForCalendarDayRange(x => x.LastLoginFrom, x => x.LastLoginTo, "LastLoginFrom");
 
         RuleFor(x => x.Role)
             .MaximumLength(256)

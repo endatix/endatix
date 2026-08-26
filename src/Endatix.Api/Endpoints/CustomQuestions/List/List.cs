@@ -52,10 +52,8 @@ public class List(IMediator mediator)
             request.PageSize,
             sort.Field,
             sort.Direction == SortDirection.Desc,
-            request.ToCreatedFromUtc(),
-            request.ToCreatedToUtc(),
-            request.ToModifiedFromUtc(),
-            request.ToModifiedToUtc());
+            request.ToCreatedRange(),
+            request.ToModifiedRange());
         var result = await mediator.Send(query, cancellationToken);
 
         return TypedResultsBuilder
@@ -123,7 +121,7 @@ public sealed class CustomQuestionsListValidator : Validator<CustomQuestionsList
             .When(x => x.PageSize.HasValue);
 
         Include(new SortableRequestValidator<CustomQuestionListSortBy>());
-        Include(new CreatedRangeRequestValidator());
-        Include(new ModifiedRangeRequestValidator());
+        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
+        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
     }
 }

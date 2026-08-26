@@ -18,11 +18,9 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
         string? search,
         PlatformTenantListSortBy sortBy,
         bool sortDescending,
-        DateTime? createdFrom,
-        DateTime? createdTo,
-        DateTime? modifiedFrom,
-        DateTime? modifiedTo,
-        CancellationToken cancellationToken)
+        UtcDateTimeRange created = default,
+        UtcDateTimeRange modified = default,
+        CancellationToken cancellationToken = default)
     {
         var normalizedPage = Math.Max(page, 1);
         var normalizedPageSize = Math.Clamp(pageSize, 1, PagedRequestLimits.MAX_PAGE_SIZE);
@@ -41,8 +39,9 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
                 (tenant.Description != null && tenant.Description.Contains(trimmedSearch)));
         }
 
-        tenantsQuery = ApplyCreatedRange(tenantsQuery, createdFrom, createdTo);
-        tenantsQuery = ApplyModifiedRange(tenantsQuery, modifiedFrom, modifiedTo);
+        tenantsQuery = tenantsQuery
+            .WhereUtcRange(tenant => tenant.CreatedAt, created)
+            .WhereUtcRange(tenant => tenant.ModifiedAt, modified);
 
         var totalRecords = await tenantsQuery.CountAsync(cancellationToken);
         var pageTenants = await ApplyOrdering(tenantsQuery, sortBy, sortDescending)
@@ -93,50 +92,6 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             normalizedPageSize,
             totalRecords,
             items));
-    }
-
-    private static IQueryable<Tenant> ApplyCreatedRange(
-        IQueryable<Tenant> query,
-        DateTime? createdFrom,
-        DateTime? createdToExclusive)
-    {
-        if (createdFrom.HasValue)
-        {
-            var from = createdFrom.Value;
-            query = query.Where(tenant => tenant.CreatedAt >= from);
-        }
-
-        if (createdToExclusive.HasValue)
-        {
-            var to = createdToExclusive.Value;
-            query = to == DateTime.MaxValue
-                ? query.Where(tenant => tenant.CreatedAt <= to)
-                : query.Where(tenant => tenant.CreatedAt < to);
-        }
-
-        return query;
-    }
-
-    private static IQueryable<Tenant> ApplyModifiedRange(
-        IQueryable<Tenant> query,
-        DateTime? modifiedFrom,
-        DateTime? modifiedToExclusive)
-    {
-        if (modifiedFrom.HasValue)
-        {
-            var from = modifiedFrom.Value;
-            query = query.Where(tenant => tenant.ModifiedAt != null && tenant.ModifiedAt >= from);
-        }
-
-        if (modifiedToExclusive.HasValue)
-        {
-            var to = modifiedToExclusive.Value;
-            query = to == DateTime.MaxValue
-                ? query.Where(tenant => tenant.ModifiedAt != null && tenant.ModifiedAt <= to)
-                : query.Where(tenant => tenant.ModifiedAt != null && tenant.ModifiedAt < to);
-        }
-
-        return query;
     }
 
     private static IOrderedQueryable<Tenant> ApplyOrdering(

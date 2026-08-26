@@ -21,10 +21,8 @@ public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuesti
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
 
         var countSpec = new CustomQuestionSpecifications.ListFilter(
-            request.CreatedFrom,
-            request.CreatedTo,
-            request.ModifiedFrom,
-            request.ModifiedTo);
+            request.Created,
+            request.Modified);
         var totalRecords = await customQuestionsRepository.CountAsync(countSpec, cancellationToken);
 
         var page = Paged<CustomQuestion>.ResolvePage(
@@ -40,10 +38,8 @@ public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuesti
                 queryPagingParams,
                 request.SortBy,
                 request.SortDescending,
-                request.CreatedFrom,
-                request.CreatedTo,
-                request.ModifiedFrom,
-                request.ModifiedTo);
+                request.Created,
+                request.Modified);
             items = await customQuestionsRepository.ListAsync(pageSpec, cancellationToken);
         }
 

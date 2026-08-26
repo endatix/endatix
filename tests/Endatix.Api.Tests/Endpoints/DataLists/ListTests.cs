@@ -95,10 +95,10 @@ public class ListTests
             Arg.Is<ListDataListsQuery>(x =>
                 x.SortBy == DataListListSortBy.Name &&
                 x.SortDescending == false &&
-                x.CreatedFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                x.CreatedTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                x.ModifiedFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                x.ModifiedTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
+                x.Created.InclusiveFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.Created.ExclusiveTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.Modified.InclusiveFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                x.Modified.ExclusiveTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
             Arg.Any<CancellationToken>());
     }
 
@@ -118,8 +118,8 @@ public class ListTests
         response.Result.Should().BeOfType<Ok<Paged<DataListModel>>>();
         await _mediator.Received(1).Send(
             Arg.Is<ListDataListsQuery>(x =>
-                x.CreatedTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc) &&
-                x.ModifiedTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc)),
+                x.Created.ExclusiveTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc) &&
+                x.Modified.ExclusiveTo == DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc)),
             Arg.Any<CancellationToken>());
     }
 }

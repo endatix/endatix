@@ -1,5 +1,6 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.UseCases.Submissions;
@@ -33,8 +34,9 @@ public class SubmissionSpecificationExtensionsTests
     {
         // Arrange
         var listFilter = new SubmissionsListFilter(
-            CreatedFrom: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
-            CreatedTo: new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc));
+            Created: new UtcDateTimeRange(
+                new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc)));
         var spec = new SubmissionsByFormIdSpec(
             10,
             new PagingParameters(1, 10),
@@ -57,8 +59,9 @@ public class SubmissionSpecificationExtensionsTests
     {
         // Arrange
         var listFilter = new SubmissionsListFilter(
-            CreatedFrom: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
-            CreatedTo: new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc));
+            Created: new UtcDateTimeRange(
+                new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc)));
         var spec = new SubmissionsByFormIdCountSpec(10, new FilterParameters([]), listFilter);
 
         // Act
@@ -77,8 +80,9 @@ public class SubmissionSpecificationExtensionsTests
     {
         // Arrange
         var listFilter = new SubmissionsListFilter(
-            CompletedFrom: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
-            CompletedTo: new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc));
+            Completed: new UtcDateTimeRange(
+                new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc)));
         var spec = new SubmissionsByFormIdSpec(
             10,
             new PagingParameters(1, 10),
@@ -101,8 +105,9 @@ public class SubmissionSpecificationExtensionsTests
     {
         // Arrange
         var listFilter = new SubmissionsListFilter(
-            CompletedFrom: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
-            CompletedTo: new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc));
+            Completed: new UtcDateTimeRange(
+                new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc)));
         var spec = new SubmissionsByFormIdCountSpec(10, new FilterParameters([]), listFilter);
 
         // Act

@@ -26,10 +26,8 @@ public sealed class ListFormsHandler(IFormsRepository repository)
             var countSpec = new FormsListFilterSpec(
                 filterParams,
                 search,
-                request.CreatedFrom,
-                request.CreatedTo,
-                request.ModifiedFrom,
-                request.ModifiedTo);
+                request.Created,
+                request.Modified);
             var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
 
             var page = Paged<FormDto>.ResolvePage(
@@ -79,10 +77,8 @@ public sealed class ListFormsHandler(IFormsRepository repository)
             search,
             request.SortBy,
             request.SortDescending,
-            request.CreatedFrom,
-            request.CreatedTo,
-            request.ModifiedFrom,
-            request.ModifiedTo);
+            request.Created,
+            request.Modified);
 
         return await repository.ListAsync(searchFormSpec, cancellationToken);
     }

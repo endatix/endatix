@@ -37,7 +37,7 @@ public sealed class ListTests
             .ExecuteAsync(
                 1, 10, null,
                 PlatformTenantListSortBy.Name, false,
-                null, null, null, null,
+                default, default,
                 Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -72,8 +72,7 @@ public sealed class ListTests
             .ExecuteAsync(
                 Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
                 Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
+                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(Paged<PlatformTenantListItem>.Empty(25)));
 
@@ -87,10 +86,8 @@ public sealed class ListTests
             "acme",
             PlatformTenantListSortBy.CreatedAt,
             true,
-            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            null,
-            null,
-            null,
+            new UtcDateTimeRange(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), null),
+            default,
             Arg.Any<CancellationToken>());
     }
 
@@ -103,8 +100,7 @@ public sealed class ListTests
             .ExecuteAsync(
                 Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
                 Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
+                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(
                 Paged<PlatformTenantListItem>.Empty(PagedRequestLimits.DEFAULT_PAGE_SIZE)));
@@ -119,10 +115,8 @@ public sealed class ListTests
             null,
             PlatformTenantListSortBy.Name,
             false,
-            null,
-            null,
-            null,
-            null,
+            default,
+            default,
             Arg.Any<CancellationToken>());
     }
 
@@ -135,8 +129,7 @@ public sealed class ListTests
             .ExecuteAsync(
                 Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
                 Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
+                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success(Paged<PlatformTenantListItem>.Empty(10)));
 
@@ -159,8 +152,7 @@ public sealed class ListTests
             .ExecuteAsync(
                 Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string?>(),
                 Arg.Any<PlatformTenantListSortBy>(), Arg.Any<bool>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
+                Arg.Any<UtcDateTimeRange>(), Arg.Any<UtcDateTimeRange>(),
                 Arg.Any<CancellationToken>())
             .Returns(Result<Paged<PlatformTenantListItem>>.Invalid(new ValidationError("Invalid request")));
 

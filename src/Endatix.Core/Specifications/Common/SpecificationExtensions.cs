@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.Specifications.Common;
@@ -85,127 +86,69 @@ public static class SpecificationExtensions
     }
 
     /// <summary>
-    /// Applies inclusive CreatedAt lower bound and exclusive upper bound when present.
-    /// When the exclusive upper bound is <see cref="DateTime.MaxValue"/> (calendar clamp),
-    /// comparison is inclusive so a timestamp at the sentinel is not dropped.
+    /// Applies inclusive lower / exclusive upper bounds from <paramref name="range"/> to a non-nullable UTC timestamp.
+    /// When the exclusive upper bound is <see cref="DateTime.MaxValue"/> (calendar clamp), comparison is inclusive.
     /// </summary>
-    public static ISpecificationBuilder<TEntity> WhereCreatedRange<TEntity>(
+    public static ISpecificationBuilder<TEntity> WhereUtcRange<TEntity>(
         this ISpecificationBuilder<TEntity> query,
-        DateTime? createdFrom,
-        DateTime? createdToExclusive)
-        where TEntity : BaseEntity
+        Expression<Func<TEntity, DateTime>> keySelector,
+        UtcDateTimeRange range)
     {
-        if (createdFrom.HasValue)
+        if (!range.HasBounds)
         {
-            var from = createdFrom.Value;
-            query = query.Where(x => x.CreatedAt >= from);
+            return query;
         }
 
-        if (createdToExclusive.HasValue)
+        if (range.InclusiveFrom.HasValue)
         {
-            var to = createdToExclusive.Value;
-            if (to == DateTime.MaxValue)
-            {
-                query = query.Where(x => x.CreatedAt <= to);
-            }
-            else
-            {
-                query = query.Where(x => x.CreatedAt < to);
-            }
+            query = query.Where(UtcDateTimeRangeExpressions.CompareDateTime(
+                keySelector,
+                ExpressionType.GreaterThanOrEqual,
+                range.InclusiveFrom.Value));
+        }
+
+        if (range.ExclusiveTo.HasValue)
+        {
+            var to = range.ExclusiveTo.Value;
+            query = query.Where(UtcDateTimeRangeExpressions.CompareDateTime(
+                keySelector,
+                UtcDateTimeRangeExpressions.ExclusiveToComparison(to),
+                to));
         }
 
         return query;
     }
 
     /// <summary>
-    /// Applies inclusive ModifiedAt lower bound and exclusive upper bound when present.
-    /// Null ModifiedAt rows are excluded when either bound is set.
+    /// Applies inclusive lower / exclusive upper bounds from <paramref name="range"/> to a nullable UTC timestamp.
+    /// Null column values are excluded when either bound is set.
+    /// When the exclusive upper bound is <see cref="DateTime.MaxValue"/> (calendar clamp), comparison is inclusive.
     /// </summary>
-    public static ISpecificationBuilder<TEntity> WhereModifiedRange<TEntity>(
+    public static ISpecificationBuilder<TEntity> WhereUtcRange<TEntity>(
         this ISpecificationBuilder<TEntity> query,
-        DateTime? modifiedFrom,
-        DateTime? modifiedToExclusive)
-        where TEntity : BaseEntity
+        Expression<Func<TEntity, DateTime?>> keySelector,
+        UtcDateTimeRange range)
     {
-        if (modifiedFrom.HasValue)
+        if (!range.HasBounds)
         {
-            var from = modifiedFrom.Value;
-            query = query.Where(x => x.ModifiedAt != null && x.ModifiedAt >= from);
+            return query;
         }
 
-        if (modifiedToExclusive.HasValue)
+        if (range.InclusiveFrom.HasValue)
         {
-            var to = modifiedToExclusive.Value;
-            if (to == DateTime.MaxValue)
-            {
-                query = query.Where(x => x.ModifiedAt != null && x.ModifiedAt <= to);
-            }
-            else
-            {
-                query = query.Where(x => x.ModifiedAt != null && x.ModifiedAt < to);
-            }
+            query = query.Where(UtcDateTimeRangeExpressions.CompareNullableDateTime(
+                keySelector,
+                ExpressionType.GreaterThanOrEqual,
+                range.InclusiveFrom.Value));
         }
 
-        return query;
-    }
-
-    /// <summary>
-    /// Applies inclusive StartedAt lower bound and exclusive upper bound when present.
-    /// Null StartedAt rows are excluded when either bound is set.
-    /// </summary>
-    public static ISpecificationBuilder<Submission> WhereStartedRange(
-        this ISpecificationBuilder<Submission> query,
-        DateTime? startedFrom,
-        DateTime? startedToExclusive)
-    {
-        if (startedFrom.HasValue)
+        if (range.ExclusiveTo.HasValue)
         {
-            var from = startedFrom.Value;
-            query = query.Where(x => x.StartedAt != null && x.StartedAt >= from);
-        }
-
-        if (startedToExclusive.HasValue)
-        {
-            var to = startedToExclusive.Value;
-            if (to == DateTime.MaxValue)
-            {
-                query = query.Where(x => x.StartedAt != null && x.StartedAt <= to);
-            }
-            else
-            {
-                query = query.Where(x => x.StartedAt != null && x.StartedAt < to);
-            }
-        }
-
-        return query;
-    }
-
-    /// <summary>
-    /// Applies inclusive CompletedAt lower bound and exclusive upper bound when present.
-    /// Null CompletedAt rows are excluded when either bound is set.
-    /// </summary>
-    public static ISpecificationBuilder<Submission> WhereCompletedRange(
-        this ISpecificationBuilder<Submission> query,
-        DateTime? completedFrom,
-        DateTime? completedToExclusive)
-    {
-        if (completedFrom.HasValue)
-        {
-            var from = completedFrom.Value;
-            query = query.Where(x => x.CompletedAt != null && x.CompletedAt >= from);
-        }
-
-        if (completedToExclusive.HasValue)
-        {
-            var to = completedToExclusive.Value;
-            if (to == DateTime.MaxValue)
-            {
-                query = query.Where(x => x.CompletedAt != null && x.CompletedAt <= to);
-            }
-            else
-            {
-                query = query.Where(x => x.CompletedAt != null && x.CompletedAt < to);
-            }
+            var to = range.ExclusiveTo.Value;
+            query = query.Where(UtcDateTimeRangeExpressions.CompareNullableDateTime(
+                keySelector,
+                UtcDateTimeRangeExpressions.ExclusiveToComparison(to),
+                to));
         }
 
         return query;

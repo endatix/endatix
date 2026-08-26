@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.ListUsers;
 
@@ -46,8 +47,7 @@ public interface IUserService
         string? status,
         UserListSortBy? sortBy = null,
         bool sortDescending = false,
-        DateTime? lastLoginFrom = null,
-        DateTime? lastLoginTo = null,
+        UtcDateTimeRange lastLogin = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>

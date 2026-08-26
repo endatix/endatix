@@ -1,5 +1,6 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications;
 
 namespace Endatix.Core.Tests.Specifications;
@@ -11,10 +12,11 @@ public class DataListsSpecificationsTests
     {
         // Arrange: DateTime.MaxValue reaches this filter as the clamped
         // exclusive-day-end for CreatedTo=9999-12-31 (see
-        // List.ParseExclusiveDayEndUtc, which clamps to it since
+        // UtcCalendarDay.ExclusiveEndUtc, which clamps to it since
         // DateOnly.MaxValue has no "next day"). A record timestamped exactly
         // at the sentinel must not be dropped by a strict "<" comparison.
-        var filter = new DataListsSpecifications.ListFilter(CreatedTo: DateTime.MaxValue);
+        var filter = new DataListsSpecifications.ListFilter(
+            Created: new UtcDateTimeRange(null, DateTime.MaxValue));
         var spec = new DataListsSpecifications.ListSpec(filter);
 
         var atSentinel = CreateDataList(createdAt: DateTime.MaxValue);
@@ -28,7 +30,8 @@ public class DataListsSpecificationsTests
     [Fact]
     public void ListSpec_ModifiedToAtDateTimeMaxValue_IncludesRecordAtSentinel()
     {
-        var filter = new DataListsSpecifications.ListFilter(ModifiedTo: DateTime.MaxValue);
+        var filter = new DataListsSpecifications.ListFilter(
+            Modified: new UtcDateTimeRange(null, DateTime.MaxValue));
         var spec = new DataListsSpecifications.ListSpec(filter);
 
         var atSentinel = CreateDataList(modifiedAt: DateTime.MaxValue);
@@ -43,7 +46,8 @@ public class DataListsSpecificationsTests
         // exclusive -- only the DateTime.MaxValue sentinel gets inclusive
         // treatment.
         var bound = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
-        var filter = new DataListsSpecifications.ListFilter(CreatedTo: bound);
+        var filter = new DataListsSpecifications.ListFilter(
+            Created: new UtcDateTimeRange(null, bound));
         var spec = new DataListsSpecifications.ListSpec(filter);
 
         var atBound = CreateDataList(createdAt: bound);

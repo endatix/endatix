@@ -1,4 +1,5 @@
 ﻿using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.Forms.List;
@@ -15,10 +16,8 @@ namespace Endatix.Core.UseCases.Forms.List;
 /// <param name="FolderId">Optional folder scope.</param>
 /// <param name="SortBy">Optional sort field. Defaults to <see cref="FormListSortBy.CreatedAt"/>.</param>
 /// <param name="SortDescending">When true, sort descending (default).</param>
-/// <param name="CreatedFrom">Inclusive UTC start of created-at day filter.</param>
-/// <param name="CreatedTo">Exclusive UTC end of created-at day filter.</param>
-/// <param name="ModifiedFrom">Inclusive UTC start of modified-at day filter.</param>
-/// <param name="ModifiedTo">Exclusive UTC end of modified-at day filter.</param>
+/// <param name="Created">Inclusive/exclusive UTC bounds for created-at.</param>
+/// <param name="Modified">Inclusive/exclusive UTC bounds for modified-at.</param>
 public record ListFormsQuery(
     int? Page,
     int? PageSize,
@@ -29,7 +28,5 @@ public record ListFormsQuery(
     long? FolderId = null,
     FormListSortBy SortBy = FormListSortBy.CreatedAt,
     bool SortDescending = true,
-    DateTime? CreatedFrom = null,
-    DateTime? CreatedTo = null,
-    DateTime? ModifiedFrom = null,
-    DateTime? ModifiedTo = null) : IQuery<Result<Paged<FormDto>>>;
+    UtcDateTimeRange Created = default,
+    UtcDateTimeRange Modified = default) : IQuery<Result<Paged<FormDto>>>;

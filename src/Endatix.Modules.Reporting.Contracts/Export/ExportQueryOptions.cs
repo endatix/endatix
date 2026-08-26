@@ -1,3 +1,5 @@
+using Endatix.Core.Infrastructure.Paging;
+
 namespace Endatix.Modules.Reporting.Contracts.Export;
 
 /// <summary>
@@ -8,14 +10,10 @@ public sealed record ExportQueryOptions(
     int PageSize = 500,
     long? AfterSubmissionId = null,
     bool IncludeTestSubmissions = false,
-    DateTime? CreatedFrom = null,
-    DateTime? CreatedTo = null,
-    DateTime? ModifiedFrom = null,
-    DateTime? ModifiedTo = null,
-    DateTime? StartedFrom = null,
-    DateTime? StartedTo = null,
-    DateTime? CompletedFrom = null,
-    DateTime? CompletedTo = null,
+    UtcDateTimeRange Created = default,
+    UtcDateTimeRange Modified = default,
+    UtcDateTimeRange Started = default,
+    UtcDateTimeRange Completed = default,
     long? MinSubmissionId = null,
     long? MaxSubmissionId = null,
     bool? IsComplete = null);

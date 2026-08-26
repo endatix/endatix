@@ -20,10 +20,8 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> _repository)
             pagingParams,
             request.SortBy,
             request.SortDescending,
-            request.CreatedFrom,
-            request.CreatedTo,
-            request.ModifiedFrom,
-            request.ModifiedTo);
+            request.Created,
+            request.Modified);
         IEnumerable<FormDefinition> formDefinitions = await _repository.ListAsync(spec, cancellationToken);
         if (formDefinitions.Any())
         {

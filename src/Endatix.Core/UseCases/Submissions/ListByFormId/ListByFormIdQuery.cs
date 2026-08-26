@@ -1,4 +1,5 @@
 ﻿using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.Submissions.ListByFormId;
@@ -13,11 +14,7 @@ public record ListByFormIdQuery(
     IEnumerable<string>? FilterExpressions = null,
     SubmissionListSortBy? SortBy = null,
     bool SortDescending = true,
-    DateTime? CreatedFrom = null,
-    DateTime? CreatedTo = null,
-    DateTime? ModifiedFrom = null,
-    DateTime? ModifiedTo = null,
-    DateTime? StartedFrom = null,
-    DateTime? StartedTo = null,
-    DateTime? CompletedFrom = null,
-    DateTime? CompletedTo = null) : IQuery<Result<Paged<SubmissionDto>>>;
+    UtcDateTimeRange Created = default,
+    UtcDateTimeRange Modified = default,
+    UtcDateTimeRange Started = default,
+    UtcDateTimeRange Completed = default) : IQuery<Result<Paged<SubmissionDto>>>;

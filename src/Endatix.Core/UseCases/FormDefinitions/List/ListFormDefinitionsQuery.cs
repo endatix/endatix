@@ -1,6 +1,7 @@
 ﻿using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.FormDefinitions.List;
@@ -15,10 +16,8 @@ public sealed record ListFormDefinitionsQuery : IQuery<Result<IEnumerable<FormDe
     public int? PageSize { get; init; }
     public FormDefinitionListSortBy SortBy { get; init; }
     public bool SortDescending { get; init; }
-    public DateTime? CreatedFrom { get; init; }
-    public DateTime? CreatedTo { get; init; }
-    public DateTime? ModifiedFrom { get; init; }
-    public DateTime? ModifiedTo { get; init; }
+    public UtcDateTimeRange Created { get; init; }
+    public UtcDateTimeRange Modified { get; init; }
 
     public ListFormDefinitionsQuery(
         long formId,
@@ -26,10 +25,8 @@ public sealed record ListFormDefinitionsQuery : IQuery<Result<IEnumerable<FormDe
         int? pageSize = null,
         FormDefinitionListSortBy sortBy = FormDefinitionListSortBy.CreatedAt,
         bool sortDescending = true,
-        DateTime? createdFrom = null,
-        DateTime? createdTo = null,
-        DateTime? modifiedFrom = null,
-        DateTime? modifiedTo = null)
+        UtcDateTimeRange created = default,
+        UtcDateTimeRange modified = default)
     {
         Guard.Against.NegativeOrZero(formId);
 
@@ -38,9 +35,7 @@ public sealed record ListFormDefinitionsQuery : IQuery<Result<IEnumerable<FormDe
         PageSize = pageSize;
         SortBy = sortBy;
         SortDescending = sortDescending;
-        CreatedFrom = createdFrom;
-        CreatedTo = createdTo;
-        ModifiedFrom = modifiedFrom;
-        ModifiedTo = modifiedTo;
+        Created = created;
+        Modified = modified;
     }
 }

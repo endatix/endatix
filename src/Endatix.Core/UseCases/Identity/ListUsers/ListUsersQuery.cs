@@ -22,8 +22,7 @@ public sealed record ListUsersQuery : IQuery<Result<Paged<UserWithRoles>>>
         string? status,
         UserListSortBy? sortBy = null,
         bool sortDescending = false,
-        DateTime? lastLoginFrom = null,
-        DateTime? lastLoginTo = null)
+        UtcDateTimeRange lastLogin = default)
     {
         Page = Math.Max(page ?? DefaultPage, DefaultPage);
         PageSize = Math.Clamp(pageSize ?? DefaultPageSize, 1, MaxPageSize);
@@ -32,8 +31,7 @@ public sealed record ListUsersQuery : IQuery<Result<Paged<UserWithRoles>>>
         Status = string.IsNullOrWhiteSpace(status) ? null : status.Trim().ToLowerInvariant();
         SortBy = sortBy;
         SortDescending = sortDescending;
-        LastLoginFrom = lastLoginFrom;
-        LastLoginTo = lastLoginTo;
+        LastLogin = lastLogin;
     }
 
     public int Page { get; }
@@ -48,7 +46,6 @@ public sealed record ListUsersQuery : IQuery<Result<Paged<UserWithRoles>>>
     public UserListSortBy? SortBy { get; }
 
     public bool SortDescending { get; }
-    public DateTime? LastLoginFrom { get; }
-    public DateTime? LastLoginTo { get; }
+    public UtcDateTimeRange LastLogin { get; }
     public int Skip => (Page - 1) * PageSize;
 }

@@ -46,10 +46,10 @@ internal static class SubmissionSpecificationExtensions
         this ISpecificationBuilder<Submission> query,
         SubmissionsListFilter listFilter)
     {
-        query.WhereCreatedRange(listFilter.CreatedFrom, listFilter.CreatedTo);
-        query.WhereModifiedRange(listFilter.ModifiedFrom, listFilter.ModifiedTo);
-        query.WhereStartedRange(listFilter.StartedFrom, listFilter.StartedTo);
-        query.WhereCompletedRange(listFilter.CompletedFrom, listFilter.CompletedTo);
+        query.WhereUtcRange(x => x.CreatedAt, listFilter.Created);
+        query.WhereUtcRange(x => x.ModifiedAt, listFilter.Modified);
+        query.WhereUtcRange(x => x.StartedAt, listFilter.Started);
+        query.WhereUtcRange(x => x.CompletedAt, listFilter.Completed);
         return query;
     }
 }

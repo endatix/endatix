@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -157,64 +158,11 @@ internal sealed class ReportingExportRepository(
             query = query.Where(submission => !submission.IsTestSubmission);
         }
 
-        if (options.CreatedFrom is DateTime createdFrom)
-        {
-            query = query.Where(submission => submission.CreatedAt >= createdFrom);
-        }
-
-        if (options.CreatedTo is DateTime createdTo)
-        {
-            // The 9999-12-31 calendar day clamps to DateTime.MaxValue, which has no exclusive
-            // successor - compare inclusively so a row stamped at the sentinel isn't dropped.
-            query = createdTo == DateTime.MaxValue
-                ? query.Where(submission => submission.CreatedAt <= createdTo)
-                : query.Where(submission => submission.CreatedAt < createdTo);
-        }
-
-        if (options.ModifiedFrom is DateTime modifiedFrom)
-        {
-            query = query.Where(submission =>
-                submission.ModifiedAt != null && submission.ModifiedAt >= modifiedFrom);
-        }
-
-        if (options.ModifiedTo is DateTime modifiedTo)
-        {
-            query = modifiedTo == DateTime.MaxValue
-                ? query.Where(submission =>
-                    submission.ModifiedAt != null && submission.ModifiedAt <= modifiedTo)
-                : query.Where(submission =>
-                    submission.ModifiedAt != null && submission.ModifiedAt < modifiedTo);
-        }
-
-        if (options.StartedFrom is DateTime startedFrom)
-        {
-            query = query.Where(submission =>
-                submission.StartedAt != null && submission.StartedAt >= startedFrom);
-        }
-
-        if (options.StartedTo is DateTime startedTo)
-        {
-            query = startedTo == DateTime.MaxValue
-                ? query.Where(submission =>
-                    submission.StartedAt != null && submission.StartedAt <= startedTo)
-                : query.Where(submission =>
-                    submission.StartedAt != null && submission.StartedAt < startedTo);
-        }
-
-        if (options.CompletedFrom is DateTime completedFrom)
-        {
-            query = query.Where(submission =>
-                submission.CompletedAt != null && submission.CompletedAt >= completedFrom);
-        }
-
-        if (options.CompletedTo is DateTime completedTo)
-        {
-            query = completedTo == DateTime.MaxValue
-                ? query.Where(submission =>
-                    submission.CompletedAt != null && submission.CompletedAt <= completedTo)
-                : query.Where(submission =>
-                    submission.CompletedAt != null && submission.CompletedAt < completedTo);
-        }
+        query = query
+            .WhereUtcRange(submission => submission.CreatedAt, options.Created)
+            .WhereUtcRange(submission => submission.ModifiedAt, options.Modified)
+            .WhereUtcRange(submission => submission.StartedAt, options.Started)
+            .WhereUtcRange(submission => submission.CompletedAt, options.Completed);
 
         if (options.IsComplete is bool isComplete)
         {

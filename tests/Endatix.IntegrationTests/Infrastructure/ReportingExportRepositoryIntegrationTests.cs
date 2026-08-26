@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
@@ -94,8 +95,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: true,
-                CreatedFrom: Day2,
-                CreatedTo: Day3),
+                Created: new UtcDateTimeRange(Day2, Day3)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay2Id);
@@ -117,8 +117,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: true,
-                CompletedFrom: Day2,
-                CompletedTo: Day4),
+                Completed: new UtcDateTimeRange(Day2, Day4)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id);
@@ -162,7 +161,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: false,
-                CreatedFrom: Day2,
+                Created: new UtcDateTimeRange(Day2, null),
                 MaxSubmissionId: seed.ProductionDay3Id),
             cancellationToken);
 
@@ -223,7 +222,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: false,
-                CreatedTo: Day2),
+                Created: new UtcDateTimeRange(null, Day2)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay1Id);
@@ -245,8 +244,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: true,
-                CompletedFrom: Day1,
-                CompletedTo: Day4.AddDays(1)),
+                Completed: new UtcDateTimeRange(Day1, Day4.AddDays(1))),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id, seed.TestDay3Id);
@@ -316,7 +314,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: false,
-                CreatedFrom: Day4),
+                Created: new UtcDateTimeRange(Day4, null)),
             cancellationToken);
 
         hasRows.Should().BeFalse();
@@ -401,8 +399,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: true,
-                StartedFrom: Day2,
-                StartedTo: Day3),
+                Started: new UtcDateTimeRange(Day2, Day3)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay2Id);
@@ -430,7 +427,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
             seed.FormId,
             new ExportQueryOptions(
                 IncludeTestSubmissions: false,
-                StartedFrom: Day1),
+                Started: new UtcDateTimeRange(Day1, null)),
             cancellationToken);
 
         ids.Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id);

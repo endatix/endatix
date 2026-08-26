@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
@@ -40,8 +41,9 @@ public sealed class DataListRepository(
         var textKeys = searchKeys;
 
         var filteredItems = BuildFilteredItemsQuery(criteria, searchKeys);
-        filteredItems = ApplyCreatedRange(filteredItems, criteria.CreatedFrom, criteria.CreatedTo);
-        filteredItems = ApplyModifiedRange(filteredItems, criteria.ModifiedFrom, criteria.ModifiedTo);
+        filteredItems = filteredItems
+            .WhereUtcRange(item => item.CreatedAt, criteria.Created)
+            .WhereUtcRange(item => item.ModifiedAt, criteria.Modified);
 
         var total = await filteredItems.CountAsync(cancellationToken);
 
@@ -126,50 +128,6 @@ public sealed class DataListRepository(
                         criteria.SortDescending)
                     .ThenBy(item => item.Id),
         };
-    }
-
-    private static IQueryable<DataListItem> ApplyCreatedRange(
-        IQueryable<DataListItem> query,
-        DateTime? createdFrom,
-        DateTime? createdToExclusive)
-    {
-        if (createdFrom.HasValue)
-        {
-            var from = createdFrom.Value;
-            query = query.Where(item => item.CreatedAt >= from);
-        }
-
-        if (createdToExclusive.HasValue)
-        {
-            var to = createdToExclusive.Value;
-            query = to == DateTime.MaxValue
-                ? query.Where(item => item.CreatedAt <= to)
-                : query.Where(item => item.CreatedAt < to);
-        }
-
-        return query;
-    }
-
-    private static IQueryable<DataListItem> ApplyModifiedRange(
-        IQueryable<DataListItem> query,
-        DateTime? modifiedFrom,
-        DateTime? modifiedToExclusive)
-    {
-        if (modifiedFrom.HasValue)
-        {
-            var from = modifiedFrom.Value;
-            query = query.Where(item => item.ModifiedAt != null && item.ModifiedAt >= from);
-        }
-
-        if (modifiedToExclusive.HasValue)
-        {
-            var to = modifiedToExclusive.Value;
-            query = to == DateTime.MaxValue
-                ? query.Where(item => item.ModifiedAt != null && item.ModifiedAt <= to)
-                : query.Where(item => item.ModifiedAt != null && item.ModifiedAt < to);
-        }
-
-        return query;
     }
 
     /// <inheritdoc />

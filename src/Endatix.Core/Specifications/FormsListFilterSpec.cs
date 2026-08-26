@@ -1,5 +1,6 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications.Common;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.UseCases.Forms.List;
@@ -14,15 +15,13 @@ public sealed class FormsListFilterSpec : Specification<Form>
     public FormsListFilterSpec(
         FilterParameters filterParams,
         string? search,
-        DateTime? createdFrom = null,
-        DateTime? createdTo = null,
-        DateTime? modifiedFrom = null,
-        DateTime? modifiedTo = null)
+        UtcDateTimeRange created = default,
+        UtcDateTimeRange modified = default)
     {
         Query.Filter(filterParams).AsNoTracking();
         ApplyNameSearch(Query, search);
-        Query.WhereCreatedRange(createdFrom, createdTo);
-        Query.WhereModifiedRange(modifiedFrom, modifiedTo);
+        Query.WhereUtcRange(x => x.CreatedAt, created);
+        Query.WhereUtcRange(x => x.ModifiedAt, modified);
     }
 
     internal static void ApplyNameSearch(ISpecificationBuilder<Form> query, string? search)

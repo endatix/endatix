@@ -1,4 +1,5 @@
 using Endatix.Core.Common.Translations;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.UseCases.DataLists.Search;
 
 namespace Endatix.Core.Abstractions.Repositories;
@@ -60,22 +61,12 @@ public sealed record DataListSearchCriteria
     public bool SortDescending { get; init; }
 
     /// <summary>
-    /// Inclusive UTC start of created-at day filter.
+    /// UTC created-at instant range.
     /// </summary>
-    public DateTime? CreatedFrom { get; init; }
+    public UtcDateTimeRange Created { get; init; }
 
     /// <summary>
-    /// Exclusive UTC end of created-at day filter.
+    /// UTC modified-at instant range.
     /// </summary>
-    public DateTime? CreatedTo { get; init; }
-
-    /// <summary>
-    /// Inclusive UTC start of modified-at day filter.
-    /// </summary>
-    public DateTime? ModifiedFrom { get; init; }
-
-    /// <summary>
-    /// Exclusive UTC end of modified-at day filter.
-    /// </summary>
-    public DateTime? ModifiedTo { get; init; }
+    public UtcDateTimeRange Modified { get; init; }
 }

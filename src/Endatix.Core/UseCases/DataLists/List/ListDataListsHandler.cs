@@ -22,10 +22,8 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
             request.Search,
             request.SortBy,
             request.SortDescending,
-            request.CreatedFrom,
-            request.CreatedTo,
-            request.ModifiedFrom,
-            request.ModifiedTo);
+            request.Created,
+            request.Modified);
         var pagedSpec = new DataListsSpecifications.ListWithPagingToDtoSpec(pagingParams, filter);
         var listSpec = new DataListsSpecifications.ListSpec(filter);
         var totalRecords = await repository.CountAsync(listSpec, cancellationToken);

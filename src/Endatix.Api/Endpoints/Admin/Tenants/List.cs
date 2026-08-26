@@ -41,10 +41,8 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
             request.Search,
             sort.Field,
             sort.Direction == SortDirection.Desc,
-            request.ToCreatedFromUtc(),
-            request.ToCreatedToUtc(),
-            request.ToModifiedFromUtc(),
-            request.ToModifiedToUtc(),
+            request.ToCreatedRange(),
+            request.ToModifiedRange(),
             ct);
 
         return TypedResultsBuilder.FromResult(result)
@@ -81,7 +79,7 @@ public sealed class ListPlatformTenantsValidator : Validator<ListPlatformTenants
     {
         Include(new SearchablePagedRequestValidator());
         Include(new SortableRequestValidator<PlatformTenantListSortBy>());
-        Include(new CreatedRangeRequestValidator());
-        Include(new ModifiedRangeRequestValidator());
+        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
+        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
     }
 }

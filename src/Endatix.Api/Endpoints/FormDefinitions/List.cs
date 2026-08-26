@@ -43,10 +43,8 @@ public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Res
                 request.PageSize,
                 sort.Field,
                 sort.Direction == SortDirection.Desc,
-                request.ToCreatedFromUtc(),
-                request.ToCreatedToUtc(),
-                request.ToModifiedFromUtc(),
-                request.ToModifiedToUtc()),
+                request.ToCreatedRange(),
+                request.ToModifiedRange()),
             cancellationToken);
 
         return TypedResultsBuilder

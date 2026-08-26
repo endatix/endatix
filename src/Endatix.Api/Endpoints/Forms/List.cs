@@ -82,10 +82,8 @@ public class List(IMediator mediator)
                 request.FolderId,
                 sort.Field,
                 sort.Direction == SortDirection.Desc,
-                request.ToCreatedFromUtc(),
-                request.ToCreatedToUtc(),
-                request.ToModifiedFromUtc(),
-                request.ToModifiedToUtc()),
+                request.ToCreatedRange(),
+                request.ToModifiedRange()),
             ct);
 
         return TypedResultsBuilder
@@ -130,8 +128,8 @@ public sealed class FormsListValidator : Validator<FormsListRequest>
         Include(new SearchablePagedRequestValidator());
         Include(new FilteredRequestValidator(_filterableFields));
         Include(new SortableRequestValidator<FormListSortBy>());
-        Include(new CreatedRangeRequestValidator());
-        Include(new ModifiedRangeRequestValidator());
+        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
+        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
     }
 }
 

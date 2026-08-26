@@ -113,8 +113,8 @@ public class ListTests
                 q.PageSize == 20 &&
                 q.SortBy == CustomQuestionListSortBy.ModifiedAt &&
                 q.SortDescending == false &&
-                q.CreatedFrom == new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
-                q.CreatedTo == new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)),
+                q.Created.InclusiveFrom == new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                q.Created.ExclusiveTo == new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)),
             Arg.Any<CancellationToken>());
     }
 }

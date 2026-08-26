@@ -10,7 +10,7 @@ public class ListValidator : Validator<ListRequest>
     {
         Include(new PageableRequestValidator());
         Include(new SortableRequestValidator<ThemeListSortBy>());
-        Include(new CreatedRangeRequestValidator());
-        Include(new ModifiedRangeRequestValidator());
+        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
+        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
     }
 }

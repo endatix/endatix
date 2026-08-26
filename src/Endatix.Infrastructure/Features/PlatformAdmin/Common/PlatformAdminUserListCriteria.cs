@@ -1,3 +1,5 @@
+using Endatix.Core.Infrastructure.Paging;
+
 namespace Endatix.Infrastructure.Features.PlatformAdmin.Common;
 
 /// <summary>
@@ -11,5 +13,4 @@ public sealed record PlatformAdminUserListCriteria(
     bool PrioritizeLocalPlatformAdminRole = false,
     PlatformAdminListSortBy? SortBy = null,
     bool SortDescending = false,
-    DateTime? LastLoginFrom = null,
-    DateTime? LastLoginTo = null);
+    UtcDateTimeRange LastLogin = default);

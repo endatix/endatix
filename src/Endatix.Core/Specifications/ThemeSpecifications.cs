@@ -1,5 +1,6 @@
 using Ardalis.Specification;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.Specifications.Common;
 using Endatix.Core.UseCases.Themes.List;
@@ -55,14 +56,12 @@ public static class ThemeSpecifications
             PagingParameters pagingParams,
             ThemeListSortBy sortBy = ThemeListSortBy.ModifiedAt,
             bool sortDescending = true,
-            DateTime? createdFrom = null,
-            DateTime? createdTo = null,
-            DateTime? modifiedFrom = null,
-            DateTime? modifiedTo = null)
+            UtcDateTimeRange created = default,
+            UtcDateTimeRange modified = default)
         {
             Query
-                .WhereCreatedRange(createdFrom, createdTo)
-                .WhereModifiedRange(modifiedFrom, modifiedTo);
+                .WhereUtcRange(x => x.CreatedAt, created)
+                .WhereUtcRange(x => x.ModifiedAt, modified);
 
             ApplyOrdering(Query, sortBy, sortDescending);
 

@@ -1,3 +1,5 @@
+using Endatix.Core.Infrastructure.Paging;
+
 namespace Endatix.Core.UseCases.Submissions.ListByFormId;
 
 /// <summary>
@@ -6,11 +8,7 @@ namespace Endatix.Core.UseCases.Submissions.ListByFormId;
 public sealed record SubmissionsListFilter(
     SubmissionListSortBy? SortBy = null,
     bool SortDescending = true,
-    DateTime? CreatedFrom = null,
-    DateTime? CreatedTo = null,
-    DateTime? ModifiedFrom = null,
-    DateTime? ModifiedTo = null,
-    DateTime? StartedFrom = null,
-    DateTime? StartedTo = null,
-    DateTime? CompletedFrom = null,
-    DateTime? CompletedTo = null);
+    UtcDateTimeRange Created = default,
+    UtcDateTimeRange Modified = default,
+    UtcDateTimeRange Started = default,
+    UtcDateTimeRange Completed = default);

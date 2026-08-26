@@ -52,10 +52,8 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
                 request.FolderId,
                 sort.Field,
                 sort.Direction == SortDirection.Desc,
-                request.ToCreatedFromUtc(),
-                request.ToCreatedToUtc(),
-                request.ToModifiedFromUtc(),
-                request.ToModifiedToUtc()),
+                request.ToCreatedRange(),
+                request.ToModifiedRange()),
             cancellationToken);
 
         return TypedResultsBuilder

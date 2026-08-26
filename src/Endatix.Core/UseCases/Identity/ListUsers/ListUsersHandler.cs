@@ -24,8 +24,7 @@ public class ListUsersHandler(IUserService userService)
             request.Status,
             request.SortBy,
             request.SortDescending,
-            request.LastLoginFrom,
-            request.LastLoginTo,
+            request.LastLogin,
             cancellationToken);
 
         if (!result.IsSuccess)

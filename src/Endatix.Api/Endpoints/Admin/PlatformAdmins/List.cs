@@ -52,8 +52,7 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
             request.TenantId,
             sort?.Field,
             sort?.Direction == SortDirection.Desc,
-            request.ToLastLoginFromUtc(),
-            request.ToLastLoginToUtc(),
+            request.ToLastLoginRange(),
             ct);
 
         return TypedResultsBuilder
@@ -175,7 +174,7 @@ public sealed class ListPlatformAdminsValidator : Validator<ListPlatformAdminsRe
     {
         Include(new SearchablePagedRequestValidator());
         Include(new SortableRequestValidator<PlatformAdminListSortBy>());
-        Include(new LastLoginRangeRequestValidator());
+        this.RuleForCalendarDayRange(x => x.LastLoginFrom, x => x.LastLoginTo, "LastLoginFrom");
 
         RuleFor(x => x.Scope)
             .Must(scope => scope is null || IsKnownScope(scope))

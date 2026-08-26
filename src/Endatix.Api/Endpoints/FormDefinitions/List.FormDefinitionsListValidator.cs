@@ -17,8 +17,8 @@ public class FormDefinitionsListValidator : Validator<FormDefinitionsListRequest
     {
         Include(new PageableRequestValidator());
         Include(new SortableRequestValidator<FormDefinitionListSortBy>());
-        Include(new CreatedRangeRequestValidator());
-        Include(new ModifiedRangeRequestValidator());
+        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
+        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
 
         RuleFor(x => x.FormId)
             .GreaterThan(0);

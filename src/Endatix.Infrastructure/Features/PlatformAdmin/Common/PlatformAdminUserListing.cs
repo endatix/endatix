@@ -50,7 +50,7 @@ public sealed class PlatformAdminUserListing(
             criteria.PlatformAdminRoleId,
             criteria.ScopeFilter);
         usersQuery = ApplySearch(usersQuery, paging.Search);
-        usersQuery = ApplyLastLoginRange(usersQuery, criteria.LastLoginFrom, criteria.LastLoginTo);
+        usersQuery = usersQuery.WhereUtcRange(user => user.LastLoginAt, criteria.LastLogin);
 
         var totalRecords = await usersQuery.CountAsync(cancellationToken);
 
@@ -136,35 +136,6 @@ public sealed class PlatformAdminUserListing(
             search);
 
         return userNameMatches.Union(emailMatches).Union(displayNameMatches);
-    }
-
-    private static IQueryable<AppUser> ApplyLastLoginRange(
-        IQueryable<AppUser> query,
-        DateTime? lastLoginFrom,
-        DateTime? lastLoginToExclusive)
-    {
-        if (lastLoginFrom.HasValue)
-        {
-            var from = new DateTimeOffset(DateTime.SpecifyKind(lastLoginFrom.Value, DateTimeKind.Utc));
-            query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt >= from);
-        }
-
-        if (lastLoginToExclusive.HasValue)
-        {
-            var to = lastLoginToExclusive.Value;
-            if (to == DateTime.MaxValue)
-            {
-                var inclusiveTo = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc));
-                query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt <= inclusiveTo);
-            }
-            else
-            {
-                var exclusiveTo = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc));
-                query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt < exclusiveTo);
-            }
-        }
-
-        return query;
     }
 
     private static IOrderedQueryable<AppUser> OrderUsers(
