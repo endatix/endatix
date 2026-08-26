@@ -530,13 +530,16 @@ public sealed class RoleManagementService : IRoleManagementService
             .AsNoTracking()
             .Where(role =>
                 role.IsActive &&
-                requestedNormalizedRoleNames.Contains(role.NormalizedName!) &&
+                role.NormalizedName != null &&
+                requestedNormalizedRoleNames.Contains(role.NormalizedName) &&
                 (role.TenantId == tenantId ||
                  (role.IsSystemDefined && role.TenantId <= 0 && role.Name != SystemRole.PlatformAdmin.Name)))
-            .Select(role => role.Name!)
+            .Select(role => role.Name)
             .ToListAsync(cancellationToken);
 
-        var knownNames = persistedNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var knownNames = persistedNames
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var systemRole in SystemRole.AllSystemRoles)
         {
             if (systemRole.IsPersisted && !SystemRole.IsPlatformAdminRoleName(systemRole.Name))
