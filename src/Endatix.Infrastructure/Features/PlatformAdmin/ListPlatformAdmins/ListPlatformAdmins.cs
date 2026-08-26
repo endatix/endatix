@@ -14,31 +14,28 @@ public sealed class ListPlatformAdmins(IPlatformAdminUserListing listing)
     /// </summary>
     public async Task<Result<Paged<PlatformAdminUserListItem>>> ExecuteAsync(
         SearchablePageRequest paging,
-        PlatformAdminListScope scope,
-        long? tenantId,
-        SortRequest<PlatformAdminListSortBy>? sort = null,
-        UtcDateTimeRange lastLogin = default,
+        ListPlatformAdminsCriteria criteria,
         CancellationToken cancellationToken = default)
     {
         var platformAdminRoleId = await listing.GetPlatformAdminRoleIdAsync(cancellationToken);
-        if (scope == PlatformAdminListScope.Approved && platformAdminRoleId is null)
+        if (criteria.Scope == PlatformAdminListScope.Approved && platformAdminRoleId is null)
         {
             return Result.Success(Paged<PlatformAdminUserListItem>.Empty(paging.Paging.PageSize));
         }
 
         var (scopeFilter, prioritizeExternalPlatformAdminRole, prioritizeLocalPlatformAdminRole) =
-            ResolveScopeFilter(scope, platformAdminRoleId);
+            ResolveScopeFilter(criteria.Scope, platformAdminRoleId);
 
-        var criteria = new PlatformAdminUserListCriteria(
+        var listingCriteria = new PlatformAdminUserListCriteria(
             platformAdminRoleId,
             scopeFilter,
-            tenantId,
+            criteria.TenantId,
             prioritizeExternalPlatformAdminRole,
             prioritizeLocalPlatformAdminRole,
-            sort,
-            lastLogin);
+            criteria.Sort,
+            criteria.LastLogin);
 
-        return await listing.ListAsync(paging, criteria, cancellationToken);
+        return await listing.ListAsync(paging, listingCriteria, cancellationToken);
     }
 
     internal static (

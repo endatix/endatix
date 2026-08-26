@@ -45,13 +45,13 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
         ListPlatformAdminsRequest request,
         CancellationToken ct)
     {
-        var sort = request.ToNullableSortRequest(PlatformAdminListSortBy.Email, SortDirection.Asc);
         var result = await listPlatformAdmins.ExecuteAsync(
             request.ToSearchablePageRequest(),
-            PlatformAdminListScopeParser.Parse(request.Scope),
-            request.TenantId,
-            sort,
-            request.ToLastLoginRange(),
+            new ListPlatformAdminsCriteria(
+                PlatformAdminListScopeParser.Parse(request.Scope),
+                request.TenantId,
+                request.ToNullableSortRequest(PlatformAdminListSortBy.Email, SortDirection.Asc),
+                request.ToLastLoginRange()),
             ct);
 
         return TypedResultsBuilder

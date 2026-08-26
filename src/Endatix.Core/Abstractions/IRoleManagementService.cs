@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.UseCases.Identity.ListRoles;
@@ -81,13 +82,12 @@ public interface IRoleManagementService
     /// <summary>
     /// Lists roles visible in the current tenant context with paging, optional role type filtering, and sort.
     /// </summary>
+    /// <param name="paging">Page, page size and free-text search, already normalized.</param>
+    /// <param name="criteria">Role type filter and sort.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
     Task<Result<Paged<RoleListItem>>> ListRolesAsync(
-        int skip,
-        int take,
-        string? roleType,
-        string? search,
-        RoleListSortBy sortBy = RoleListSortBy.Name,
-        bool sortDescending = false,
+        SearchablePageRequest paging,
+        RoleListCriteria criteria,
         CancellationToken cancellationToken = default);
 
     /// <summary>

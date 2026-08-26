@@ -14,11 +14,7 @@ public sealed class ListRolesHandler(IRoleManagementService roleManagementServic
     /// <inheritdoc/>
     public Task<Result<Paged<RoleListItem>>> Handle(ListRolesQuery request, CancellationToken cancellationToken)
         => roleManagementService.ListRolesAsync(
-            request.Skip,
-            request.PageSize,
-            request.RoleType,
-            request.Search,
-            request.SortBy,
-            request.SortDescending,
+            request.Paging,
+            request.Criteria,
             cancellationToken);
 }

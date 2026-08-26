@@ -51,14 +51,11 @@ public sealed class ListRoles(IMediator mediator)
         ListRolesRequest request,
         CancellationToken ct)
     {
-        var sort = request.ToSortRequest(RoleListSortBy.Name, SortDirection.Asc);
         var query = new ListRolesQuery(
-            request.Page,
-            request.PageSize,
-            request.RoleType,
-            request.Search,
-            sort.Field,
-            sort.IsDescending);
+            request.ToSearchablePageRequest(),
+            new RoleListCriteria(
+                request.RoleType,
+                request.ToSortRequest(RoleListSortBy.Name, SortDirection.Asc)));
         var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
@@ -96,7 +93,9 @@ public sealed class ListRoles(IMediator mediator)
 /// <summary>
 /// Request for listing roles.
 /// </summary>
-public sealed record ListRolesRequest : IPagedRequest, ISortableRequest<RoleListSortBy>
+public sealed record ListRolesRequest :
+    ISearchablePagedRequest,
+    ISortableRequest<RoleListSortBy>
 {
     public int? Page { get; set; }
 
@@ -123,12 +122,8 @@ public sealed class ListRolesValidator : Validator<ListRolesRequest>
     /// </summary>
     public ListRolesValidator()
     {
-        Include(new PageableRequestValidator());
+        Include(new SearchablePagedRequestValidator());
         Include(new SortableRequestValidator<RoleListSortBy>());
-
-        RuleFor(x => x.PageSize)
-            .LessThanOrEqualTo(ListRolesQuery.MaxPageSize)
-            .When(x => x.PageSize.HasValue);
 
         RuleFor(x => x.RoleType)
             .Must(roleType =>
@@ -140,10 +135,6 @@ public sealed class ListRolesValidator : Validator<ListRolesRequest>
                     string.Equals(normalized, "custom", StringComparison.OrdinalIgnoreCase);
             })
             .WithMessage("RoleType must be 'all', 'system', or 'custom'.");
-
-        RuleFor(x => x.Search)
-            .MaximumLength(256)
-            .When(x => x.Search is not null);
     }
 }
 

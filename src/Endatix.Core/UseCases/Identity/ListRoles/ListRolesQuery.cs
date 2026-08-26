@@ -1,39 +1,16 @@
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.Identity.ListRoles;
 
 /// <summary>
 /// Query for listing roles in the current tenant. Tenant filter is implicit.
+/// Paging/search and the role type filter are normalized by the value objects themselves.
 /// </summary>
-public sealed record ListRolesQuery : IQuery<Result<Paged<RoleListItem>>>
-{
-    public const int DefaultPage = 1;
-    public const int DefaultPageSize = 10;
-    public const int MaxPageSize = 100;
-
-    public ListRolesQuery(
-        int? page,
-        int? pageSize,
-        string? roleType,
-        string? search,
-        RoleListSortBy sortBy = RoleListSortBy.Name,
-        bool sortDescending = false)
-    {
-        Page = Math.Max(page ?? DefaultPage, DefaultPage);
-        PageSize = Math.Clamp(pageSize ?? DefaultPageSize, 1, MaxPageSize);
-        RoleType = string.IsNullOrWhiteSpace(roleType) ? null : roleType.Trim().ToLowerInvariant();
-        Search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
-        SortBy = sortBy;
-        SortDescending = sortDescending;
-    }
-
-    public int Page { get; }
-    public int PageSize { get; }
-    public string? RoleType { get; }
-    public string? Search { get; }
-    public RoleListSortBy SortBy { get; }
-    public bool SortDescending { get; }
-    public int Skip => (Page - 1) * PageSize;
-}
+/// <param name="Paging">Page, page size and free-text search.</param>
+/// <param name="Criteria">Role type filter and sort.</param>
+public sealed record ListRolesQuery(
+    SearchablePageRequest Paging,
+    RoleListCriteria Criteria) : IQuery<Result<Paged<RoleListItem>>>;

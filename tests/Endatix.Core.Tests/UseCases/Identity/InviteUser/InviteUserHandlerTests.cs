@@ -2,6 +2,8 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Identity.ListRoles;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.UseCases.Identity.InviteUser;
 
 namespace Endatix.Core.Tests.UseCases.Identity.InviteUser;
@@ -69,11 +71,9 @@ public class InviteUserHandlerTests
         result.Status.Should().Be(ResultStatus.Forbidden);
         await _roleManagementService.DidNotReceive()
             .ListRolesAsync(
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                cancellationToken: Arg.Any<CancellationToken>());
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<RoleListCriteria>(),
+                Arg.Any<CancellationToken>());
         await _userRegistrationService.DidNotReceive()
             .RegisterInvitedUserAsync(
                 Arg.Any<string>(),
@@ -97,11 +97,9 @@ public class InviteUserHandlerTests
         result.Status.Should().Be(ResultStatus.Forbidden);
         await _roleManagementService.DidNotReceive()
             .ListRolesAsync(
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                cancellationToken: Arg.Any<CancellationToken>());
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<RoleListCriteria>(),
+                Arg.Any<CancellationToken>());
         await _userRegistrationService.DidNotReceive()
             .RegisterInvitedUserAsync(
                 Arg.Any<string>(),
@@ -127,11 +125,9 @@ public class InviteUserHandlerTests
             .Returns(Result.Success());
         _roleManagementService
             .ListRolesAsync(
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                cancellationToken: Arg.Any<CancellationToken>())
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<RoleListCriteria>(),
+                Arg.Any<CancellationToken>())
             .Returns(Result<Paged<RoleListItem>>.Success(
                 Paged<RoleListItem>.FromSkipAndTake(0, int.MaxValue, 1, [
                     new RoleListItem
@@ -159,7 +155,13 @@ public class InviteUserHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _roleManagementService.Received(1)
-            .ListRolesAsync(0, int.MaxValue, null, null, cancellationToken: Arg.Any<CancellationToken>());
+            .ListRolesAsync(
+                Arg.Is<SearchablePageRequest>(p =>
+                    p.Paging.Page == PagedRequestLimits.DEFAULT_PAGE &&
+                    p.Paging.PageSize == PagedRequestLimits.MAX_PAGE_SIZE &&
+                    p.Search == null),
+                Arg.Is<RoleListCriteria>(c => c.RoleType == null && c.Sort == null),
+                Arg.Any<CancellationToken>());
         await _userRegistrationService.Received(1)
             .RegisterInvitedUserAsync(command.Email, 10, Arg.Any<CancellationToken>());
         await _roleManagementService.Received(1)
@@ -182,11 +184,9 @@ public class InviteUserHandlerTests
         _tenantContext.TenantId.Returns(10);
         _roleManagementService
             .ListRolesAsync(
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                cancellationToken: Arg.Any<CancellationToken>())
+                Arg.Any<SearchablePageRequest>(),
+                Arg.Any<RoleListCriteria>(),
+                Arg.Any<CancellationToken>())
             .Returns(Result<Paged<RoleListItem>>.Success(
                 Paged<RoleListItem>.FromSkipAndTake(0, int.MaxValue, 2, [
                     new RoleListItem

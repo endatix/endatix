@@ -214,7 +214,7 @@ public class ListUsersValidator : Validator<ListUsersRequest>
 
         RuleFor(x => x.Status)
             .Must(status => status is null || IsKnownStatus(status))
-            .WithMessage("Status must be either 'active' or 'pending'.");
+            .WithMessage("Status must be 'active', 'pending', or 'locked'.");
     }
 
     private static bool IsKnownStatus(string status)
