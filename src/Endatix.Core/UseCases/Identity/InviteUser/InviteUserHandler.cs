@@ -2,9 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Messaging;
-using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Identity.ListRoles;
 
 namespace Endatix.Core.UseCases.Identity.InviteUser;
 
@@ -108,29 +106,15 @@ public sealed class InviteUserHandler(
             });
         }
 
-        // Bounded lookup: pull one max-size page of assignable roles rather than the whole
-        // table. Tenants are far below MAX_PAGE_SIZE roles today; see the tracking issue for
-        // replacing this with a targeted existence check (or search-backed role picker).
-        var rolesResult = await roleManagementService.ListRolesAsync(
-            new SearchablePageRequest(
-                PagedRequestLimits.DEFAULT_PAGE,
-                PagedRequestLimits.MAX_PAGE_SIZE,
-                search: null),
-            new RoleListCriteria(),
+        var missingRolesResult = await roleManagementService.GetMissingAssignableRoleNamesAsync(
+            roleNames,
             cancellationToken);
-        if (!rolesResult.IsSuccess)
+        if (!missingRolesResult.IsSuccess)
         {
-            return Result.Error(new ErrorList(rolesResult.Errors, rolesResult.CorrelationId));
+            return Result.Error(new ErrorList(missingRolesResult.Errors, missingRolesResult.CorrelationId));
         }
 
-        var availableRoles = rolesResult.Value!.Items
-            .Select(role => role.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var missingRoles = roleNames
-            .Where(roleName => !availableRoles.Contains(roleName))
-            .ToList();
-
+        var missingRoles = missingRolesResult.Value ?? [];
         if (missingRoles.Count > 0)
         {
             return Result.Invalid(new ValidationError

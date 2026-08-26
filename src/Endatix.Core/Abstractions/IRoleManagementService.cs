@@ -91,6 +91,14 @@ public interface IRoleManagementService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns requested role names that are not assignable in the current tenant.
+    /// Looks up each name directly; does not depend on list paging.
+    /// </summary>
+    Task<Result<IReadOnlyList<string>>> GetMissingAssignableRoleNamesAsync(
+        IReadOnlyList<string> roleNames,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Lists active permissions available for custom roles.
     /// </summary>
     Task<Result<IReadOnlyList<PermissionListItem>>> ListPermissionsAsync(CancellationToken cancellationToken = default);

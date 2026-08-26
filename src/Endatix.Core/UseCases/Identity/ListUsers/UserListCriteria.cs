@@ -13,7 +13,7 @@ public sealed record UserListCriteria
     /// Creates user list criteria, normalizing the role and status filters.
     /// </summary>
     /// <param name="role">Role name filter.</param>
-    /// <param name="status">Invitation status filter (active/pending).</param>
+    /// <param name="status">Status filter: <c>active</c>, <c>pending</c>, or <c>locked</c>.</param>
     /// <param name="sort">Sort field and direction. When null, default order is UserName then Email ascending.</param>
     /// <param name="lastLogin">Last-login UTC bounds.</param>
     public UserListCriteria(
@@ -34,7 +34,7 @@ public sealed record UserListCriteria
     public string? Role { get; }
 
     /// <summary>
-    /// Invitation status filter, trimmed and lowercased; null when not supplied.
+    /// Status filter (<c>active</c>, <c>pending</c>, or <c>locked</c>), trimmed and lowercased; null when not supplied.
     /// </summary>
     public string? Status { get; }
 

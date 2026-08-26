@@ -121,7 +121,7 @@ public record ListUsersRequest :
     public string? Role { get; set; }
 
     /// <summary>
-    /// Filters by invitation status: active or pending.
+    /// Filters by status: <c>active</c>, <c>pending</c>, or <c>locked</c>.
     /// </summary>
     public string? Status { get; set; }
 
