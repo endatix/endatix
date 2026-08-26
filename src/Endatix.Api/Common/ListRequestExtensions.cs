@@ -82,62 +82,35 @@ public static class ListRequestExtensions
         new(request.Filter ?? []);
 
     /// <summary>
-    /// Inclusive UTC start of <see cref="ICreatedRange.CreatedFrom"/>.
+    /// Parses <see cref="ICreatedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
     /// </summary>
-    public static DateTime? ToCreatedFromUtc(this ICreatedRange request) =>
-        UtcCalendarDay.InclusiveStartUtc(request.CreatedFrom);
+    public static UtcDateTimeRange ToCreatedRange(this ICreatedRange request) =>
+        ToUtcDateTimeRange(request.CreatedFrom, request.CreatedTo);
 
     /// <summary>
-    /// Exclusive UTC end of <see cref="ICreatedRange.CreatedTo"/>.
+    /// Parses <see cref="IModifiedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
     /// </summary>
-    public static DateTime? ToCreatedToUtc(this ICreatedRange request) =>
-        UtcCalendarDay.ExclusiveEndUtc(request.CreatedTo);
+    public static UtcDateTimeRange ToModifiedRange(this IModifiedRange request) =>
+        ToUtcDateTimeRange(request.ModifiedFrom, request.ModifiedTo);
 
     /// <summary>
-    /// Inclusive UTC start of <see cref="IModifiedRange.ModifiedFrom"/>.
+    /// Parses <see cref="IStartedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
     /// </summary>
-    public static DateTime? ToModifiedFromUtc(this IModifiedRange request) =>
-        UtcCalendarDay.InclusiveStartUtc(request.ModifiedFrom);
+    public static UtcDateTimeRange ToStartedRange(this IStartedRange request) =>
+        ToUtcDateTimeRange(request.StartedFrom, request.StartedTo);
 
     /// <summary>
-    /// Exclusive UTC end of <see cref="IModifiedRange.ModifiedTo"/>.
+    /// Parses <see cref="ICompletedRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
     /// </summary>
-    public static DateTime? ToModifiedToUtc(this IModifiedRange request) =>
-        UtcCalendarDay.ExclusiveEndUtc(request.ModifiedTo);
+    public static UtcDateTimeRange ToCompletedRange(this ICompletedRange request) =>
+        ToUtcDateTimeRange(request.CompletedFrom, request.CompletedTo);
 
     /// <summary>
-    /// Inclusive UTC start of <see cref="IStartedRange.StartedFrom"/>.
+    /// Parses <see cref="ILastLoginRange"/> calendar days into a <see cref="UtcDateTimeRange"/>.
     /// </summary>
-    public static DateTime? ToStartedFromUtc(this IStartedRange request) =>
-        UtcCalendarDay.InclusiveStartUtc(request.StartedFrom);
+    public static UtcDateTimeRange ToLastLoginRange(this ILastLoginRange request) =>
+        ToUtcDateTimeRange(request.LastLoginFrom, request.LastLoginTo);
 
-    /// <summary>
-    /// Exclusive UTC end of <see cref="IStartedRange.StartedTo"/>.
-    /// </summary>
-    public static DateTime? ToStartedToUtc(this IStartedRange request) =>
-        UtcCalendarDay.ExclusiveEndUtc(request.StartedTo);
-
-    /// <summary>
-    /// Inclusive UTC start of <see cref="ICompletedRange.CompletedFrom"/>.
-    /// </summary>
-    public static DateTime? ToCompletedFromUtc(this ICompletedRange request) =>
-        UtcCalendarDay.InclusiveStartUtc(request.CompletedFrom);
-
-    /// <summary>
-    /// Exclusive UTC end of <see cref="ICompletedRange.CompletedTo"/>.
-    /// </summary>
-    public static DateTime? ToCompletedToUtc(this ICompletedRange request) =>
-        UtcCalendarDay.ExclusiveEndUtc(request.CompletedTo);
-
-    /// <summary>
-    /// Inclusive UTC start of <see cref="ILastLoginRange.LastLoginFrom"/>.
-    /// </summary>
-    public static DateTime? ToLastLoginFromUtc(this ILastLoginRange request) =>
-        UtcCalendarDay.InclusiveStartUtc(request.LastLoginFrom);
-
-    /// <summary>
-    /// Exclusive UTC end of <see cref="ILastLoginRange.LastLoginTo"/>.
-    /// </summary>
-    public static DateTime? ToLastLoginToUtc(this ILastLoginRange request) =>
-        UtcCalendarDay.ExclusiveEndUtc(request.LastLoginTo);
+    private static UtcDateTimeRange ToUtcDateTimeRange(string? from, string? to) =>
+        new(UtcCalendarDay.InclusiveStartUtc(from), UtcCalendarDay.ExclusiveEndUtc(to));
 }

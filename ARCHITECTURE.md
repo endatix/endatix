@@ -316,27 +316,28 @@ When touching Platform Admin registration or new admin lists, migrate toward **o
 
 ## Paged list requests
 
-**Api:** compose capability interfaces on the request DTO (`IPagedRequest`, `ISearchableRequest`, `ISortableRequest<T>`, `IFilterable`, plus typed calendar ranges such as `ICreatedRange` / `IModifiedRange`; or `ISearchablePagedRequest` = page + search). Validate with the matching `*RequestValidator`. Map once via `ListRequestExtensions` (`ToPageRequest`, `ToSortRequest`, `ToCreatedFromUtc`, …).
+**Api:** compose capability interfaces on the request DTO (`IPagedRequest`, `ISearchableRequest`, `ISortableRequest<T>`, `IFilterable`, plus typed calendar ranges such as `ICreatedRange` / `IModifiedRange`; or `ISearchablePagedRequest` = page + search). Validate with the matching `*RequestValidator`. Map once via `ListRequestExtensions` (`ToPageRequest`, `ToSortRequest`, `ToCreatedRange`, …). HTTP stays flat stem strings (`createdFrom`/`createdTo`).
 
-**Core:** pass normalized records into read models — `PageRequest`, `SearchablePageRequest`, `SortRequest<T>`. Limits in `PagedRequestLimits.cs`. Calendar day strings (`YYYY-MM-DD`) are parsed at the API boundary into inclusive-From / exclusive-To UTC `DateTime` bounds.
+**Core:** pass normalized records into read models — `PageRequest`, `SearchablePageRequest`, `SortRequest<T>`, and **`UtcDateTimeRange`** for each timestamp column. Limits in `PagedRequestLimits.cs`. Calendar day strings (`YYYY-MM-DD`) are parsed at the API boundary into one `UtcDateTimeRange` (inclusive From / exclusive To UTC). Specs call `WhereUtcRange`; do not explode back to paired `DateTime?` on ports, queries, or export DTOs.
 
-**Hub client** (`hub/lib/endatix-api/shared`, future `packages/@endatix/api-client`): compose the same wire shape with TypeScript helpers — `IPagedRequest`, `SortRequest<TFields>`, `DateRangeFilter<"created">` / `AuditDateFilters`, plus `parseCalendarDateYmd` / `pickDateRangeFilters` / `appendSortParams` / `appendDateRangeFilters` in `list-query.ts`. Sort field unions stay property names (`createdAt`); date stems stay bare verbs (`"created"` → `createdFrom`/`createdTo`). Feature URL parsers call these helpers; do not hand-copy From/To fields on new list DTOs.
+**Hub client** (`hub/lib/endatix-api/shared`, future `packages/@endatix/api-client`): compose the same wire shape with TypeScript helpers — `IPagedRequest`, `SortRequest<TFields>`, `DateRangeFilter<"created">` / `AuditDateFilters`, plus `parseCalendarDateYmd` / `pickDateRangeFilters` / `appendSortParams` / `appendDateRangeFilters` in `list-query.ts`. Sort field unions stay property names (`createdAt`); date stems stay bare verbs (`"created"` → `createdFrom`/`createdTo`). Feature URL parsers call these helpers; do not hand-copy From/To fields on new list DTOs. Do not nest query objects to mirror Core’s `UtcDateTimeRange`.
 
 | Capability           | Api                                                                   | Core / notes                                                                                 | Hub (`lib/endatix-api`)                             |
 | -------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | Paging               | `IPagedRequest`                                                       | `PageRequest`                                                                                | `IPagedRequest`                                     |
 | Search               | `ISearchableRequest`                                                  | `SearchablePageRequest`                                                                      | explicit `search?` on list DTOs                     |
 | Sort                 | `ISortableRequest<TEnum>` (`sortBy` + `sortDir`)                      | `SortRequest<TEnum>` — enum per list                                                         | `SortRequest<TFields>`                              |
-| Calendar dates       | `ICreatedRange` / `IModifiedRange` / … (`createdFrom`/`createdTo`, …) | `DateTime?` bounds on queries/specs                                                          | `DateRangeFilter<"created">`, `AuditDateFilters`, … |
+| Calendar dates       | `ICreatedRange` / `IModifiedRange` / … (`createdFrom`/`createdTo`, …) | `UtcDateTimeRange` on queries/specs/ports; `WhereUtcRange`                                    | `DateRangeFilter<"created">`, `AuditDateFilters`, … |
 | Filter (REST facets) | `IFilterable`                                                         | `FilterParameters` via `FilteredRequestValidator(validFields)` — **not** for DateTime ranges | explicit facet props / `filter=` segments           |
 | Filter (domain)      | explicit props / criteria record                                      | e.g. `PlatformAdminUserListCriteria`                                                         | feature-specific request fields                     |
 
 ```csharp
 var paging = request.ToSearchablePageRequest();
 var sort = request.ToSortRequest(PlatformTenantListSortBy.Name);
-var createdFrom = request.ToCreatedFromUtc();
+var created = request.ToCreatedRange();
 var filters = request.ToFilterParameters(); // facets only
 ```
+
 
 Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as output only** (not input). See `IPlatformAdminUserListing` + `PlatformAdminUserListCriteria`.
 
