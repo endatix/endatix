@@ -41,7 +41,7 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
     /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<FormTemplateModelWithoutJsonData>>, BadRequest>> ExecuteAsync(
         FormTemplatesListRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var sort = request.ToSortRequest(FormTemplateListSortBy.CreatedAt, SortDirection.Desc);
         var result = await mediator.Send(
@@ -51,10 +51,10 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
                 request.Filter,
                 request.FolderId,
                 sort.Field,
-                sort.Direction == SortDirection.Desc,
+                sort.IsDescending,
                 request.ToCreatedRange(),
                 request.ToModifiedRange()),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, formTemplates => formTemplates.ToFormTemplateModelList())

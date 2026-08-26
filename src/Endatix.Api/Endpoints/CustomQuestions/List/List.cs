@@ -17,6 +17,8 @@ namespace Endatix.Api.Endpoints.CustomQuestions;
 public class List(IMediator mediator)
     : Endpoint<CustomQuestionsListRequest, Results<Ok<Paged<CustomQuestionModel>>, BadRequest>>
 {
+    public const int DefaultPageSize = 25;
+
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -32,7 +34,7 @@ public class List(IMediator mediator)
             s.ExampleRequest = new CustomQuestionsListRequest
             {
                 Page = 1,
-                PageSize = 20,
+                PageSize = DefaultPageSize,
                 SortBy = CustomQuestionListSortBy.CreatedAt,
                 SortDir = SortDirection.Desc
             };
@@ -44,17 +46,17 @@ public class List(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Ok<Paged<CustomQuestionModel>>, BadRequest>> ExecuteAsync(
         CustomQuestionsListRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var sort = request.ToSortRequest(CustomQuestionListSortBy.CreatedAt, SortDirection.Desc);
         var query = new ListCustomQuestionsQuery(
             request.Page,
-            request.PageSize,
+            request.PageSize ?? DefaultPageSize,
             sort.Field,
-            sort.Direction == SortDirection.Desc,
+            sort.IsDescending,
             request.ToCreatedRange(),
             request.ToModifiedRange());
-        var result = await mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
             .MapResult(result, Map)
@@ -121,7 +123,7 @@ public sealed class CustomQuestionsListValidator : Validator<CustomQuestionsList
             .When(x => x.PageSize.HasValue);
 
         Include(new SortableRequestValidator<CustomQuestionListSortBy>());
-        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
-        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
     }
 }

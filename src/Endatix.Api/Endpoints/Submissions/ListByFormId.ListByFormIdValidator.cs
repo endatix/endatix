@@ -1,4 +1,4 @@
-﻿using Endatix.Api.Common;
+using Endatix.Api.Common;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 using Endatix.Infrastructure.Features.Submitters;
 using FastEndpoints;
@@ -28,10 +28,10 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
     {
         Include(new PageableRequestValidator());
         Include(new SortableRequestValidator<SubmissionListSortBy>());
-        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
-        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
-        this.RuleForCalendarDayRange(x => x.StartedFrom, x => x.StartedTo, "StartedFrom");
-        this.RuleForCalendarDayRange(x => x.CompletedFrom, x => x.CompletedTo, "CompletedFrom");
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
+        Include(new StartedRangeValidator());
+        Include(new CompletedRangeValidator());
         Include(new FilteredRequestValidator(BuildFilterableFields(submitterOptions.Value)));
 
         RuleFor(x => x.FormId)

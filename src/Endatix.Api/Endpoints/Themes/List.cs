@@ -41,17 +41,17 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
     /// <inheritdoc/>
     public override async Task<Results<Ok<IEnumerable<ThemeModel>>, BadRequest>> ExecuteAsync(
         ListRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var sort = request.ToSortRequest(ThemeListSortBy.ModifiedAt, SortDirection.Desc);
         var query = new ListThemesQuery(
             request.Page,
             request.PageSize,
             sort.Field,
-            sort.Direction == SortDirection.Desc,
+            sort.IsDescending,
             request.ToCreatedRange(),
             request.ToModifiedRange());
-        var result = await mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
             .MapResult(result, ThemeMapper.Map<ThemeModel>)

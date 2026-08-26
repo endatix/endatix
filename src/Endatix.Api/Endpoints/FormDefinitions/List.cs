@@ -1,4 +1,4 @@
-﻿using FastEndpoints;
+using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Common;
@@ -42,7 +42,7 @@ public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Res
                 request.Page,
                 request.PageSize,
                 sort.Field,
-                sort.Direction == SortDirection.Desc,
+                sort.IsDescending,
                 request.ToCreatedRange(),
                 request.ToModifiedRange()),
             cancellationToken);

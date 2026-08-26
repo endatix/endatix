@@ -58,7 +58,7 @@ public sealed class ListRoles(IMediator mediator)
             request.RoleType,
             request.Search,
             sort.Field,
-            sort.Direction == SortDirection.Desc);
+            sort.IsDescending);
         var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder

@@ -40,7 +40,7 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
             request.ResolvePageSize(),
             request.Search,
             sort.Field,
-            sort.Direction == SortDirection.Desc,
+            sort.IsDescending,
             request.ToCreatedRange(),
             request.ToModifiedRange(),
             ct);
@@ -79,7 +79,7 @@ public sealed class ListPlatformTenantsValidator : Validator<ListPlatformTenants
     {
         Include(new SearchablePagedRequestValidator());
         Include(new SortableRequestValidator<PlatformTenantListSortBy>());
-        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
-        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
     }
 }

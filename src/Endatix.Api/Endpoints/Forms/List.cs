@@ -1,4 +1,4 @@
-﻿using Endatix.Api.Common;
+using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Paging;
@@ -81,7 +81,7 @@ public class List(IMediator mediator)
                 request.Filter,
                 request.FolderId,
                 sort.Field,
-                sort.Direction == SortDirection.Desc,
+                sort.IsDescending,
                 request.ToCreatedRange(),
                 request.ToModifiedRange()),
             ct);
@@ -128,8 +128,8 @@ public sealed class FormsListValidator : Validator<FormsListRequest>
         Include(new SearchablePagedRequestValidator());
         Include(new FilteredRequestValidator(_filterableFields));
         Include(new SortableRequestValidator<FormListSortBy>());
-        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
-        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
     }
 }
 

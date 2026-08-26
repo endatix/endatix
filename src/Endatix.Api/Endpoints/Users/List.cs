@@ -63,7 +63,7 @@ public sealed class List(IMediator mediator)
             request.Role,
             request.Status,
             sort?.Field,
-            sort?.Direction == SortDirection.Desc,
+            sort?.IsDescending ?? false,
             request.ToLastLoginRange());
         var result = await mediator.Send(listUsersQuery, ct);
 
@@ -209,7 +209,7 @@ public class ListUsersValidator : Validator<ListUsersRequest>
     {
         Include(new SearchablePagedRequestValidator());
         Include(new SortableRequestValidator<UserListSortBy>());
-        this.RuleForCalendarDayRange(x => x.LastLoginFrom, x => x.LastLoginTo, "LastLoginFrom");
+        Include(new LastLoginRangeValidator());
 
         RuleFor(x => x.Role)
             .MaximumLength(256)

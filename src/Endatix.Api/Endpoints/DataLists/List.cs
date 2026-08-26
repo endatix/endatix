@@ -82,7 +82,7 @@ public sealed class List(
                 request.HasLocale,
                 request.Search,
                 sort.Field,
-                sort.Direction == SortDirection.Desc,
+                sort.IsDescending,
                 request.ToCreatedRange(),
                 request.ToModifiedRange()),
             ct);
@@ -110,8 +110,8 @@ public sealed class DataListsListValidator : Validator<DataListsListRequest>
     {
         Include(new SearchablePagedRequestValidator());
         Include(new SortableRequestValidator<DataListListSortBy>());
-        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
-        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
         RuleFor(x => x.HasLocale)
             .IsHasLocaleFilter()
             .When(x => !string.IsNullOrWhiteSpace(x.HasLocale));

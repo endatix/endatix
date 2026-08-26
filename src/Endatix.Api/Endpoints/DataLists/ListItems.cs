@@ -74,7 +74,7 @@ public sealed class ListItems(IMediator mediator)
                 request.IncludeLocales,
                 RequireActive: false,
                 SortBy: sort?.Field,
-                SortDescending: sort?.Direction == SortDirection.Desc,
+                SortDescending: sort?.IsDescending ?? false,
                 Created: request.ToCreatedRange(),
                 Modified: request.ToModifiedRange()));
         var result = await mediator.Send(query, ct);
@@ -156,8 +156,8 @@ public sealed class ListDataListItemsValidator : Validator<ListDataListItemsRequ
     {
         Include(new PageableRequestValidator());
         Include(new SortableRequestValidator<DataListItemListSortBy>());
-        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
-        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
         RuleFor(x => x.DataListId).GreaterThan(0);
         RuleFor(x => x.Query)
             .MaximumLength(PagedRequestLimits.MAX_SEARCH_LENGTH)

@@ -22,7 +22,7 @@ public class FormTemplatesListValidator : Validator<FormTemplatesListRequest>
         Include(new PageableRequestValidator());
         Include(new FilteredRequestValidator(_filterableFields));
         Include(new SortableRequestValidator<FormTemplateListSortBy>());
-        this.RuleForCalendarDayRange(x => x.CreatedFrom, x => x.CreatedTo, "CreatedFrom");
-        this.RuleForCalendarDayRange(x => x.ModifiedFrom, x => x.ModifiedTo, "ModifiedFrom");
+        Include(new CreatedRangeValidator());
+        Include(new ModifiedRangeValidator());
     }
 }

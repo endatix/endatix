@@ -51,7 +51,7 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
             PlatformAdminListScopeParser.Parse(request.Scope),
             request.TenantId,
             sort?.Field,
-            sort?.Direction == SortDirection.Desc,
+            sort?.IsDescending ?? false,
             request.ToLastLoginRange(),
             ct);
 
@@ -174,7 +174,7 @@ public sealed class ListPlatformAdminsValidator : Validator<ListPlatformAdminsRe
     {
         Include(new SearchablePagedRequestValidator());
         Include(new SortableRequestValidator<PlatformAdminListSortBy>());
-        this.RuleForCalendarDayRange(x => x.LastLoginFrom, x => x.LastLoginTo, "LastLoginFrom");
+        Include(new LastLoginRangeValidator());
 
         RuleFor(x => x.Scope)
             .Must(scope => scope is null || IsKnownScope(scope))

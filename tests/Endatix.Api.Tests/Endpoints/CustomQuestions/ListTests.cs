@@ -72,7 +72,7 @@ public class ListTests
     {
         // Arrange
         var request = new CustomQuestionsListRequest();
-        var result = Result.Success(Paged<CustomQuestion>.Empty(10));
+        var result = Result.Success(Paged<CustomQuestion>.Empty(List.DefaultPageSize));
 
         _mediator.Send(Arg.Any<ListCustomQuestionsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -85,6 +85,29 @@ public class ListTests
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Items.Should().BeEmpty();
+
+        await _mediator.Received(1).Send(
+            Arg.Is<ListCustomQuestionsQuery>(q => q.PageSize == List.DefaultPageSize),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPageSizeOmitted_UsesDefaultPageSize()
+    {
+        // Arrange
+        var request = new CustomQuestionsListRequest { Page = 1 };
+        _mediator.Send(Arg.Any<ListCustomQuestionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(Paged<CustomQuestion>.Empty(List.DefaultPageSize)));
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<ListCustomQuestionsQuery>(q =>
+                q.Page == 1 &&
+                q.PageSize == List.DefaultPageSize),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -42,7 +42,7 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
             request.PageSize,
             request.Filter,
             sort?.Field,
-            sort?.Direction == SortDirection.Desc,
+            sort?.IsDescending ?? false,
             request.ToCreatedRange(),
             request.ToModifiedRange(),
             request.ToStartedRange(),

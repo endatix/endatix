@@ -8,6 +8,12 @@ public sealed record SortRequest<TSortField>(TSortField Field, SortDirection Dir
     where TSortField : struct, Enum
 {
     /// <summary>
+    /// True when <see cref="Direction"/> is <see cref="SortDirection.Desc"/>. Read models take a
+    /// <c>sortDescending</c> flag, so expose the projection once instead of comparing at each call site.
+    /// </summary>
+    public bool IsDescending => Direction == SortDirection.Desc;
+
+    /// <summary>
     /// Creates a new <see cref="SortRequest{TSortField}"/> from a sort by and direction.
     /// </summary>
     /// <param name="sortBy">The sort by.</param>
