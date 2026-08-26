@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Infrastructure.Identity;
 using Endatix.IntegrationTests.Shared;
@@ -55,10 +56,12 @@ public sealed class InviteUserBeyondPageSizeTests
     {
         using IServiceScope scope = world.Services.CreateScope();
         AppIdentityDbContext identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        IIdGenerator<long> idGenerator = scope.ServiceProvider.GetRequiredService<IIdGenerator<long>>();
 
         List<AppRole> roles = Enumerable.Range(0, PagedRequestLimits.MAX_PAGE_SIZE)
             .Select(index => new AppRole
             {
+                Id = idGenerator.CreateId(),
                 TenantId = tenantId,
                 Name = $"Aaa{index:000}",
                 NormalizedName = $"AAA{index:000}",
@@ -67,6 +70,7 @@ public sealed class InviteUserBeyondPageSizeTests
             .ToList();
         roles.Add(new AppRole
         {
+            Id = idGenerator.CreateId(),
             TenantId = tenantId,
             Name = TargetRoleName,
             NormalizedName = TargetRoleName.ToUpperInvariant(),
