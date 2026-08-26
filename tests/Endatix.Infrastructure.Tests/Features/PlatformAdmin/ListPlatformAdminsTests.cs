@@ -23,6 +23,10 @@ public sealed class ListPlatformAdminsTests
             paging,
             PlatformAdminListScope.Approved,
             tenantId: null,
+            sortBy: null,
+            sortDescending: false,
+            lastLoginFrom: null,
+            lastLoginTo: null,
             CancellationToken.None);
 
         // Assert
@@ -59,6 +63,10 @@ public sealed class ListPlatformAdminsTests
             paging,
             PlatformAdminListScope.Approved,
             tenantId: null,
+            sortBy: null,
+            sortDescending: false,
+            lastLoginFrom: null,
+            lastLoginTo: null,
             CancellationToken.None);
 
         // Assert
@@ -91,6 +99,10 @@ public sealed class ListPlatformAdminsTests
             paging,
             PlatformAdminListScope.All,
             tenantId: 5,
+            sortBy: null,
+            sortDescending: false,
+            lastLoginFrom: null,
+            lastLoginTo: null,
             CancellationToken.None);
 
         // Assert
@@ -131,6 +143,10 @@ public sealed class ListPlatformAdminsTests
             paging,
             PlatformAdminListScope.Candidates,
             tenantId: null,
+            sortBy: null,
+            sortDescending: false,
+            lastLoginFrom: null,
+            lastLoginTo: null,
             CancellationToken.None);
 
         // Assert

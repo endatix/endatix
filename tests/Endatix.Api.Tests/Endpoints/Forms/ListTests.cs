@@ -1,4 +1,5 @@
 using Endatix.Api.Endpoints.Forms;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms;
 using Endatix.Core.UseCases.Forms.List;
@@ -81,6 +82,12 @@ public class ListTests
             IsPublic = false,
             FolderId = 42,
             Filter = ["expression1", "expression2"],
+            SortBy = FormListSortBy.Name,
+            SortDir = SortDirection.Asc,
+            CreatedFrom = "2024-01-01",
+            CreatedTo = "2024-01-31",
+            ModifiedFrom = "2024-02-01",
+            ModifiedTo = "2024-02-28",
         };
         var result = Result.Success(Paged<FormDto>.Empty(20));
 
@@ -99,10 +106,15 @@ public class ListTests
                 query.IsEnabled == request.IsEnabled &&
                 query.IsPublic == request.IsPublic &&
                 query.FolderId == request.FolderId &&
-                query.FilterExpressions == request.Filter),
+                query.FilterExpressions == request.Filter &&
+                query.SortBy == FormListSortBy.Name &&
+                query.SortDescending == false &&
+                query.CreatedFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.CreatedTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.ModifiedFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.ModifiedTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
             Arg.Any<CancellationToken>());
     }
-
     [Fact]
     public async Task ExecuteAsync_NoFilter_DoesNotPassFilterToQuery()
     {

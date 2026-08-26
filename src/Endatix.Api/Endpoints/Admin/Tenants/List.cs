@@ -1,5 +1,6 @@
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
 using Endatix.Infrastructure.Identity.Authorization;
@@ -21,7 +22,8 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
         Summary(s =>
         {
             s.Summary = "List platform tenants";
-            s.Description = "Returns a platform-scoped paged list of tenants.";
+            s.Description =
+                "Returns a platform-scoped paged list of tenants with optional search, sort, and created/modified date bounds.";
             s.Responses[200] = "Tenants retrieved successfully.";
             s.Responses[400] = "Invalid request.";
         });
@@ -32,10 +34,17 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
         ListPlatformTenantsRequest request,
         CancellationToken ct)
     {
+        var sort = request.ToSortRequest(PlatformTenantListSortBy.Name, SortDirection.Asc);
         var result = await listPlatformTenants.ExecuteAsync(
             request.ResolvePage(),
             request.ResolvePageSize(),
             request.Search,
+            sort.Field,
+            sort.Direction == SortDirection.Desc,
+            request.ToCreatedFromUtc(),
+            request.ToCreatedToUtc(),
+            request.ToModifiedFromUtc(),
+            request.ToModifiedToUtc(),
             ct);
 
         return TypedResultsBuilder.FromResult(result)
@@ -46,13 +55,22 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
 /// <summary>
 /// Request for listing platform tenants.
 /// </summary>
-public sealed record ListPlatformTenantsRequest : ISearchablePagedRequest
+public sealed record ListPlatformTenantsRequest :
+    ISearchablePagedRequest,
+    ISortableRequest<PlatformTenantListSortBy>,
+    ICreatedRange,
+    IModifiedRange
 {
     public int? Page { get; set; }
     public int? PageSize { get; set; }
     public string? Search { get; set; }
+    public PlatformTenantListSortBy? SortBy { get; set; }
+    public SortDirection? SortDir { get; set; }
+    public string? CreatedFrom { get; set; }
+    public string? CreatedTo { get; set; }
+    public string? ModifiedFrom { get; set; }
+    public string? ModifiedTo { get; set; }
 }
-
 
 /// <summary>
 /// Validator for listing platform tenants.
@@ -62,5 +80,8 @@ public sealed class ListPlatformTenantsValidator : Validator<ListPlatformTenants
     public ListPlatformTenantsValidator()
     {
         Include(new SearchablePagedRequestValidator());
+        Include(new SortableRequestValidator<PlatformTenantListSortBy>());
+        Include(new CreatedRangeRequestValidator());
+        Include(new ModifiedRangeRequestValidator());
     }
 }

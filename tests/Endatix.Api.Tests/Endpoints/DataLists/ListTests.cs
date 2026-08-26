@@ -1,4 +1,5 @@
 using Endatix.Api.Endpoints.DataLists;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists;
 using Endatix.Core.UseCases.DataLists.List;
@@ -78,8 +79,8 @@ public class ListTests
     {
         DataListsListRequest request = new()
         {
-            SortBy = "name",
-            SortDir = "asc",
+            SortBy = DataListListSortBy.Name,
+            SortDir = SortDirection.Asc,
             CreatedFrom = "2024-01-01",
             CreatedTo = "2024-01-31",
             ModifiedFrom = "2024-02-01",
@@ -104,9 +105,6 @@ public class ListTests
     [Fact]
     public async Task ExecuteAsync_DateBoundAtCalendarMaximum_DoesNotThrow()
     {
-        // Regression guard: ParseExclusiveDayEndUtc must clamp instead of
-        // overflowing when CreatedTo/ModifiedTo is the last representable
-        // calendar date (DateOnly.MaxValue has no "next day").
         DataListsListRequest request = new()
         {
             CreatedTo = "9999-12-31",

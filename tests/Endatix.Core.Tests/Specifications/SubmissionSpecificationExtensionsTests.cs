@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Core.UseCases.Submissions.ListByFormId;
 
 namespace Endatix.Core.Tests.Specifications;
 
@@ -31,13 +32,14 @@ public class SubmissionSpecificationExtensionsTests
     public void SubmissionsByFormIdSpec_CreatedAtRange_AppliesDateFilters()
     {
         // Arrange
+        var listFilter = new SubmissionsListFilter(
+            CreatedFrom: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+            CreatedTo: new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc));
         var spec = new SubmissionsByFormIdSpec(
             10,
             new PagingParameters(1, 10),
-            new FilterParameters([
-                "createdAt>:2026-01-02T00:00:00.000Z",
-                "createdAt<2026-01-04T00:00:00.000Z"
-            ]));
+            new FilterParameters([]),
+            listFilter);
 
         // Act
         var matchesBefore = Matches(spec, CreateSubmission(10, SubmissionStatus.New, createdAt: new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc)));
@@ -54,12 +56,10 @@ public class SubmissionSpecificationExtensionsTests
     public void SubmissionsByFormIdCountSpec_CreatedAtRange_AppliesDateFilters()
     {
         // Arrange
-        var spec = new SubmissionsByFormIdCountSpec(
-            10,
-            new FilterParameters([
-                "createdAt>:2026-01-02T00:00:00.000Z",
-                "createdAt<2026-01-04T00:00:00.000Z"
-            ]));
+        var listFilter = new SubmissionsListFilter(
+            CreatedFrom: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+            CreatedTo: new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc));
+        var spec = new SubmissionsByFormIdCountSpec(10, new FilterParameters([]), listFilter);
 
         // Act
         var matchesBefore = Matches(spec, CreateSubmission(10, SubmissionStatus.New, createdAt: new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc)));
@@ -76,13 +76,14 @@ public class SubmissionSpecificationExtensionsTests
     public void SubmissionsByFormIdSpec_CompletedAtRange_AppliesDateFiltersAndExcludesIncompleteSubmissions()
     {
         // Arrange
+        var listFilter = new SubmissionsListFilter(
+            CompletedFrom: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+            CompletedTo: new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc));
         var spec = new SubmissionsByFormIdSpec(
             10,
             new PagingParameters(1, 10),
-            new FilterParameters([
-                "completedAt>:2026-01-02T00:00:00.000Z",
-                "completedAt<2026-01-04T00:00:00.000Z"
-            ]));
+            new FilterParameters([]),
+            listFilter);
 
         // Act
         var matchesBefore = Matches(spec, CreateSubmission(10, SubmissionStatus.New, completedAt: new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc)));
@@ -99,12 +100,10 @@ public class SubmissionSpecificationExtensionsTests
     public void SubmissionsByFormIdCountSpec_CompletedAtRange_AppliesDateFiltersAndExcludesIncompleteSubmissions()
     {
         // Arrange
-        var spec = new SubmissionsByFormIdCountSpec(
-            10,
-            new FilterParameters([
-                "completedAt>:2026-01-02T00:00:00.000Z",
-                "completedAt<2026-01-04T00:00:00.000Z"
-            ]));
+        var listFilter = new SubmissionsListFilter(
+            CompletedFrom: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+            CompletedTo: new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc));
+        var spec = new SubmissionsByFormIdCountSpec(10, new FilterParameters([]), listFilter);
 
         // Act
         var matchesBefore = Matches(spec, CreateSubmission(10, SubmissionStatus.New, completedAt: new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc)));

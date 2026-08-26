@@ -23,7 +23,13 @@ public sealed class ListFormsHandler(IFormsRepository repository)
             var filterParams = CreateFilterParameters(request);
             var search = request.Search?.Trim();
 
-            var countSpec = new FormsListFilterSpec(filterParams, search);
+            var countSpec = new FormsListFilterSpec(
+                filterParams,
+                search,
+                request.CreatedFrom,
+                request.CreatedTo,
+                request.ModifiedFrom,
+                request.ModifiedTo);
             var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
 
             var page = Paged<FormDto>.ResolvePage(
@@ -37,6 +43,7 @@ public sealed class ListFormsHandler(IFormsRepository repository)
                 queryPagingParams,
                 filterParams,
                 search,
+                request,
                 cancellationToken);
 
             var paged = Paged<FormDto>.FromPage(
@@ -58,6 +65,7 @@ public sealed class ListFormsHandler(IFormsRepository repository)
         PagingParameters pagingParams,
         FilterParameters filterParams,
         string? search,
+        ListFormsQuery request,
         CancellationToken cancellationToken)
     {
         if (totalRecords <= 0)
@@ -65,7 +73,16 @@ public sealed class ListFormsHandler(IFormsRepository repository)
             return [];
         }
 
-        var searchFormSpec = new FormsWithSubmissionsCountSpec(pagingParams, filterParams, search);
+        var searchFormSpec = new FormsWithSubmissionsCountSpec(
+            pagingParams,
+            filterParams,
+            search,
+            request.SortBy,
+            request.SortDescending,
+            request.CreatedFrom,
+            request.CreatedTo,
+            request.ModifiedFrom,
+            request.ModifiedTo);
 
         return await repository.ListAsync(searchFormSpec, cancellationToken);
     }

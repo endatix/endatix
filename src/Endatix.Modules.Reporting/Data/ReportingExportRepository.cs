@@ -157,38 +157,63 @@ internal sealed class ReportingExportRepository(
             query = query.Where(submission => !submission.IsTestSubmission);
         }
 
-        if (options.CreatedAfter is DateTime createdAfter)
+        if (options.CreatedFrom is DateTime createdFrom)
         {
-            query = query.Where(submission => submission.CreatedAt >= createdAfter);
+            query = query.Where(submission => submission.CreatedAt >= createdFrom);
         }
 
-        if (options.CreatedBefore is DateTime createdBefore)
+        if (options.CreatedTo is DateTime createdTo)
         {
-            query = query.Where(submission => submission.CreatedAt < createdBefore);
+            // The 9999-12-31 calendar day clamps to DateTime.MaxValue, which has no exclusive
+            // successor - compare inclusively so a row stamped at the sentinel isn't dropped.
+            query = createdTo == DateTime.MaxValue
+                ? query.Where(submission => submission.CreatedAt <= createdTo)
+                : query.Where(submission => submission.CreatedAt < createdTo);
         }
 
-        if (options.StartedAfter is DateTime startedAfter)
+        if (options.ModifiedFrom is DateTime modifiedFrom)
         {
             query = query.Where(submission =>
-                submission.StartedAt != null && submission.StartedAt >= startedAfter);
+                submission.ModifiedAt != null && submission.ModifiedAt >= modifiedFrom);
         }
 
-        if (options.StartedBefore is DateTime startedBefore)
+        if (options.ModifiedTo is DateTime modifiedTo)
         {
-            query = query.Where(submission =>
-                submission.StartedAt != null && submission.StartedAt < startedBefore);
+            query = modifiedTo == DateTime.MaxValue
+                ? query.Where(submission =>
+                    submission.ModifiedAt != null && submission.ModifiedAt <= modifiedTo)
+                : query.Where(submission =>
+                    submission.ModifiedAt != null && submission.ModifiedAt < modifiedTo);
         }
 
-        if (options.CompletedAfter is DateTime completedAfter)
+        if (options.StartedFrom is DateTime startedFrom)
         {
             query = query.Where(submission =>
-                submission.CompletedAt != null && submission.CompletedAt >= completedAfter);
+                submission.StartedAt != null && submission.StartedAt >= startedFrom);
         }
 
-        if (options.CompletedBefore is DateTime completedBefore)
+        if (options.StartedTo is DateTime startedTo)
+        {
+            query = startedTo == DateTime.MaxValue
+                ? query.Where(submission =>
+                    submission.StartedAt != null && submission.StartedAt <= startedTo)
+                : query.Where(submission =>
+                    submission.StartedAt != null && submission.StartedAt < startedTo);
+        }
+
+        if (options.CompletedFrom is DateTime completedFrom)
         {
             query = query.Where(submission =>
-                submission.CompletedAt != null && submission.CompletedAt < completedBefore);
+                submission.CompletedAt != null && submission.CompletedAt >= completedFrom);
+        }
+
+        if (options.CompletedTo is DateTime completedTo)
+        {
+            query = completedTo == DateTime.MaxValue
+                ? query.Where(submission =>
+                    submission.CompletedAt != null && submission.CompletedAt <= completedTo)
+                : query.Where(submission =>
+                    submission.CompletedAt != null && submission.CompletedAt < completedTo);
         }
 
         if (options.IsComplete is bool isComplete)

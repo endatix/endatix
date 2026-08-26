@@ -1,6 +1,7 @@
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Features.PlatformAdmin.Common;
 using Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformAdmins;
@@ -24,7 +25,16 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
         Summary(s =>
         {
             s.Summary = "List platform administrators";
-            s.Description = "Returns users with a local Endatix PlatformAdmin role assignment.";
+            s.Description =
+                "Returns users with a local Endatix PlatformAdmin role assignment, " +
+                "with sort and last-login date bounds.";
+            s.ExampleRequest = new ListPlatformAdminsRequest
+            {
+                Page = 1,
+                PageSize = 20,
+                SortBy = PlatformAdminListSortBy.Email,
+                SortDir = SortDirection.Asc
+            };
             s.Responses[200] = "Platform administrators retrieved successfully.";
             s.Responses[400] = "Invalid request.";
         });
@@ -35,10 +45,15 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
         ListPlatformAdminsRequest request,
         CancellationToken ct)
     {
+        var sort = request.ToNullableSortRequest(PlatformAdminListSortBy.Email, SortDirection.Asc);
         var result = await listPlatformAdmins.ExecuteAsync(
             request.ToSearchablePageRequest(),
             PlatformAdminListScopeParser.Parse(request.Scope),
             request.TenantId,
+            sort?.Field,
+            sort?.Direction == SortDirection.Desc,
+            request.ToLastLoginFromUtc(),
+            request.ToLastLoginToUtc(),
             ct);
 
         return TypedResultsBuilder
@@ -47,7 +62,10 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
     }
 }
 
-public sealed record ListPlatformAdminsRequest : ISearchablePagedRequest
+public sealed record ListPlatformAdminsRequest :
+    ISearchablePagedRequest,
+    ISortableRequest<PlatformAdminListSortBy>,
+    ILastLoginRange
 {
     public int? Page { get; set; }
     public int? PageSize { get; set; }
@@ -62,6 +80,18 @@ public sealed record ListPlatformAdminsRequest : ISearchablePagedRequest
     /// Filters by tenant ID.
     /// </summary>
     public long? TenantId { get; set; }
+
+    /// <inheritdoc />
+    public PlatformAdminListSortBy? SortBy { get; set; }
+
+    /// <inheritdoc />
+    public SortDirection? SortDir { get; set; }
+
+    /// <inheritdoc />
+    public string? LastLoginFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? LastLoginTo { get; set; }
 }
 
 /// <summary>
@@ -144,6 +174,8 @@ public sealed class ListPlatformAdminsValidator : Validator<ListPlatformAdminsRe
     public ListPlatformAdminsValidator()
     {
         Include(new SearchablePagedRequestValidator());
+        Include(new SortableRequestValidator<PlatformAdminListSortBy>());
+        Include(new LastLoginRangeRequestValidator());
 
         RuleFor(x => x.Scope)
             .Must(scope => scope is null || IsKnownScope(scope))

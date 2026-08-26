@@ -11,5 +11,11 @@ public interface IListPlatformTenants
         int page,
         int pageSize,
         string? search,
+        PlatformTenantListSortBy sortBy,
+        bool sortDescending,
+        DateTime? createdFrom,
+        DateTime? createdTo,
+        DateTime? modifiedFrom,
+        DateTime? modifiedTo,
         CancellationToken cancellationToken);
 }

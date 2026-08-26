@@ -40,15 +40,12 @@ public sealed class DataListRepository(
         var textKeys = searchKeys;
 
         var filteredItems = BuildFilteredItemsQuery(criteria, searchKeys);
+        filteredItems = ApplyCreatedRange(filteredItems, criteria.CreatedFrom, criteria.CreatedTo);
+        filteredItems = ApplyModifiedRange(filteredItems, criteria.ModifiedFrom, criteria.ModifiedTo);
 
         var total = await filteredItems.CountAsync(cancellationToken);
 
-        var pageItems = await jsonObjectKeyFilter
-            .OrderByKeyThenBy(
-                filteredItems,
-                nameof(DataListItem.LabelsJson),
-                displayKey,
-                nameof(DataListItem.Value))
+        var pageItems = await ApplyOrdering(filteredItems, criteria, displayKey)
             .Skip(criteria.Skip)
             .Take(criteria.Take)
             .ToArrayAsync(cancellationToken);
@@ -83,6 +80,96 @@ public sealed class DataListRepository(
             searchKeys,
             criteria.Query.Trim(),
             ToRelationalMode(criteria.MatchMode));
+    }
+
+    private IOrderedQueryable<DataListItem> ApplyOrdering(
+        IQueryable<DataListItem> query,
+        DataListSearchCriteria criteria,
+        string displayKey)
+    {
+        // Default: label (display key) then value.
+        if (criteria.SortBy is null)
+        {
+            return jsonObjectKeyFilter.OrderByKeyThenBy(
+                query,
+                nameof(DataListItem.LabelsJson),
+                displayKey,
+                nameof(DataListItem.Value));
+        }
+
+        return criteria.SortBy.Value switch
+        {
+            DataListItemListSortBy.Value when criteria.SortDescending =>
+                query.OrderByDescending(item => item.Value).ThenBy(item => item.Id),
+            DataListItemListSortBy.Value =>
+                query.OrderBy(item => item.Value).ThenBy(item => item.Id),
+            DataListItemListSortBy.CreatedAt when criteria.SortDescending =>
+                query.OrderByDescending(item => item.CreatedAt).ThenBy(item => item.Id),
+            DataListItemListSortBy.CreatedAt =>
+                query.OrderBy(item => item.CreatedAt).ThenBy(item => item.Id),
+            DataListItemListSortBy.ModifiedAt when criteria.SortDescending =>
+                query.OrderByDescending(item => item.ModifiedAt).ThenBy(item => item.Id),
+            DataListItemListSortBy.ModifiedAt =>
+                query.OrderBy(item => item.ModifiedAt).ThenBy(item => item.Id),
+            DataListItemListSortBy.Label =>
+                jsonObjectKeyFilter.OrderByKey(
+                        query,
+                        nameof(DataListItem.LabelsJson),
+                        displayKey,
+                        criteria.SortDescending)
+                    .ThenBy(item => item.Id),
+            _ =>
+                jsonObjectKeyFilter.OrderByKey(
+                        query,
+                        nameof(DataListItem.LabelsJson),
+                        displayKey,
+                        criteria.SortDescending)
+                    .ThenBy(item => item.Id),
+        };
+    }
+
+    private static IQueryable<DataListItem> ApplyCreatedRange(
+        IQueryable<DataListItem> query,
+        DateTime? createdFrom,
+        DateTime? createdToExclusive)
+    {
+        if (createdFrom.HasValue)
+        {
+            var from = createdFrom.Value;
+            query = query.Where(item => item.CreatedAt >= from);
+        }
+
+        if (createdToExclusive.HasValue)
+        {
+            var to = createdToExclusive.Value;
+            query = to == DateTime.MaxValue
+                ? query.Where(item => item.CreatedAt <= to)
+                : query.Where(item => item.CreatedAt < to);
+        }
+
+        return query;
+    }
+
+    private static IQueryable<DataListItem> ApplyModifiedRange(
+        IQueryable<DataListItem> query,
+        DateTime? modifiedFrom,
+        DateTime? modifiedToExclusive)
+    {
+        if (modifiedFrom.HasValue)
+        {
+            var from = modifiedFrom.Value;
+            query = query.Where(item => item.ModifiedAt != null && item.ModifiedAt >= from);
+        }
+
+        if (modifiedToExclusive.HasValue)
+        {
+            var to = modifiedToExclusive.Value;
+            query = to == DateTime.MaxValue
+                ? query.Where(item => item.ModifiedAt != null && item.ModifiedAt <= to)
+                : query.Where(item => item.ModifiedAt != null && item.ModifiedAt < to);
+        }
+
+        return query;
     }
 
     /// <inheritdoc />

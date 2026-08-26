@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Ardalis.Specification;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
@@ -106,47 +105,8 @@ public static class DataListsSpecifications
                 (x.Description != null && x.Description.ToLower().Contains(term)));
         }
 
-        if (filter.CreatedFrom.HasValue)
-        {
-            var from = filter.CreatedFrom.Value;
-            query.Where(x => x.CreatedAt >= from);
-        }
-
-        if (filter.CreatedTo.HasValue)
-        {
-            var toExclusive = filter.CreatedTo.Value;
-            // DateTime.MaxValue has no exclusive "successor" moment (see
-            // List.ParseExclusiveDayEndUtc, which clamps the 9999-12-31 day
-            // bound to it) -- treat it as an inclusive upper bound so a
-            // record timestamped at the sentinel itself isn't dropped.
-            if (toExclusive == DateTime.MaxValue)
-            {
-                query.Where(x => x.CreatedAt <= toExclusive);
-            }
-            else
-            {
-                query.Where(x => x.CreatedAt < toExclusive);
-            }
-        }
-
-        if (filter.ModifiedFrom.HasValue)
-        {
-            var from = filter.ModifiedFrom.Value;
-            query.Where(x => x.ModifiedAt != null && x.ModifiedAt >= from);
-        }
-
-        if (filter.ModifiedTo.HasValue)
-        {
-            var toExclusive = filter.ModifiedTo.Value;
-            if (toExclusive == DateTime.MaxValue)
-            {
-                query.Where(x => x.ModifiedAt != null && x.ModifiedAt <= toExclusive);
-            }
-            else
-            {
-                query.Where(x => x.ModifiedAt != null && x.ModifiedAt < toExclusive);
-            }
-        }
+        query.WhereCreatedRange(filter.CreatedFrom, filter.CreatedTo);
+        query.WhereModifiedRange(filter.ModifiedFrom, filter.ModifiedTo);
     }
 
     private static void ApplyListOrdering(
@@ -158,35 +118,21 @@ public static class DataListsSpecifications
         switch (filter.SortBy)
         {
             case DataListListSortBy.Name:
-                OrderByWithIdTiebreaker(query, x => x.Name, filter.SortDescending);
+                query.OrderByWithIdTiebreaker(x => x.Name, filter.SortDescending);
                 break;
             case DataListListSortBy.ModifiedAt:
-                OrderByWithIdTiebreaker(query, x => x.ModifiedAt, filter.SortDescending);
+                query.OrderByWithIdTiebreaker(x => x.ModifiedAt, filter.SortDescending);
                 break;
             case DataListListSortBy.ItemsCount:
-                OrderByWithIdTiebreaker(query, x => x.Items.Count, filter.SortDescending);
+                query.OrderByWithIdTiebreaker(x => x.Items.Count, filter.SortDescending);
                 break;
             case DataListListSortBy.IsActive:
-                OrderByWithIdTiebreaker(query, x => x.IsActive, filter.SortDescending);
+                query.OrderByWithIdTiebreaker(x => x.IsActive, filter.SortDescending);
                 break;
             default:
-                OrderByWithIdTiebreaker(query, x => x.CreatedAt, filter.SortDescending);
+                query.OrderByWithIdTiebreaker(x => x.CreatedAt, filter.SortDescending);
                 break;
         }
-    }
-
-    private static void OrderByWithIdTiebreaker(
-        ISpecificationBuilder<DataList> query,
-        Expression<Func<DataList, object?>> keySelector,
-        bool descending)
-    {
-        if (descending)
-        {
-            query.OrderByDescending(keySelector).ThenBy(x => x.Id);
-            return;
-        }
-
-        query.OrderBy(keySelector).ThenBy(x => x.Id);
     }
 
     /// <summary>

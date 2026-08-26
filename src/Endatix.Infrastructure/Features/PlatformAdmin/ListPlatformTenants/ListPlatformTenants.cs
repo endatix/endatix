@@ -11,18 +11,17 @@ namespace Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
 /// </summary>
 public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatformTenants
 {
-    /// <summary>
-    /// Executes the query to list platform tenants.
-    /// </summary>
-    /// <param name="page">The page number.</param>
-    /// <param name="pageSize">The page size.</param>
-    /// <param name="search">The search query.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The result of the query.</returns>
+    /// <inheritdoc />
     public async Task<Result<Paged<PlatformTenantListItem>>> ExecuteAsync(
         int page,
         int pageSize,
         string? search,
+        PlatformTenantListSortBy sortBy,
+        bool sortDescending,
+        DateTime? createdFrom,
+        DateTime? createdTo,
+        DateTime? modifiedFrom,
+        DateTime? modifiedTo,
         CancellationToken cancellationToken)
     {
         var normalizedPage = Math.Max(page, 1);
@@ -42,10 +41,11 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
                 (tenant.Description != null && tenant.Description.Contains(trimmedSearch)));
         }
 
+        tenantsQuery = ApplyCreatedRange(tenantsQuery, createdFrom, createdTo);
+        tenantsQuery = ApplyModifiedRange(tenantsQuery, modifiedFrom, modifiedTo);
+
         var totalRecords = await tenantsQuery.CountAsync(cancellationToken);
-        var pageTenants = await tenantsQuery
-            .OrderBy(tenant => tenant.Name)
-            .ThenBy(tenant => tenant.Id)
+        var pageTenants = await ApplyOrdering(tenantsQuery, sortBy, sortDescending)
             .Skip(skip)
             .Take(normalizedPageSize)
             .Select(tenant => new
@@ -93,5 +93,72 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             normalizedPageSize,
             totalRecords,
             items));
+    }
+
+    private static IQueryable<Tenant> ApplyCreatedRange(
+        IQueryable<Tenant> query,
+        DateTime? createdFrom,
+        DateTime? createdToExclusive)
+    {
+        if (createdFrom.HasValue)
+        {
+            var from = createdFrom.Value;
+            query = query.Where(tenant => tenant.CreatedAt >= from);
+        }
+
+        if (createdToExclusive.HasValue)
+        {
+            var to = createdToExclusive.Value;
+            query = to == DateTime.MaxValue
+                ? query.Where(tenant => tenant.CreatedAt <= to)
+                : query.Where(tenant => tenant.CreatedAt < to);
+        }
+
+        return query;
+    }
+
+    private static IQueryable<Tenant> ApplyModifiedRange(
+        IQueryable<Tenant> query,
+        DateTime? modifiedFrom,
+        DateTime? modifiedToExclusive)
+    {
+        if (modifiedFrom.HasValue)
+        {
+            var from = modifiedFrom.Value;
+            query = query.Where(tenant => tenant.ModifiedAt != null && tenant.ModifiedAt >= from);
+        }
+
+        if (modifiedToExclusive.HasValue)
+        {
+            var to = modifiedToExclusive.Value;
+            query = to == DateTime.MaxValue
+                ? query.Where(tenant => tenant.ModifiedAt != null && tenant.ModifiedAt <= to)
+                : query.Where(tenant => tenant.ModifiedAt != null && tenant.ModifiedAt < to);
+        }
+
+        return query;
+    }
+
+    private static IOrderedQueryable<Tenant> ApplyOrdering(
+        IQueryable<Tenant> query,
+        PlatformTenantListSortBy sortBy,
+        bool sortDescending)
+    {
+        // Default Name then Id when Name asc (v1); Id tiebreaker always.
+        return sortBy switch
+        {
+            PlatformTenantListSortBy.CreatedAt when sortDescending =>
+                query.OrderByDescending(tenant => tenant.CreatedAt).ThenBy(tenant => tenant.Id),
+            PlatformTenantListSortBy.CreatedAt =>
+                query.OrderBy(tenant => tenant.CreatedAt).ThenBy(tenant => tenant.Id),
+            PlatformTenantListSortBy.ModifiedAt when sortDescending =>
+                query.OrderByDescending(tenant => tenant.ModifiedAt).ThenBy(tenant => tenant.Id),
+            PlatformTenantListSortBy.ModifiedAt =>
+                query.OrderBy(tenant => tenant.ModifiedAt).ThenBy(tenant => tenant.Id),
+            PlatformTenantListSortBy.Name when sortDescending =>
+                query.OrderByDescending(tenant => tenant.Name).ThenBy(tenant => tenant.Id),
+            _ =>
+                query.OrderBy(tenant => tenant.Name).ThenBy(tenant => tenant.Id),
+        };
     }
 }

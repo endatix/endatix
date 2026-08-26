@@ -1,10 +1,13 @@
-﻿using FastEndpoints;
+using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+
+using Endatix.Core.Infrastructure.Paging;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -20,7 +23,9 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
         Summary(s =>
         {
             s.Summary = "Get a list of Submissions for a given form";
-            s.Description = "Returns all submissions for a form given formId. Includes all Form Definitions as well as complete and non-complete responses";
+            s.Description =
+                "Returns submissions for a form given formId. Supports paging, facet filters, " +
+                "sortBy/sortDir, and created/modified/started/completed UTC calendar day bounds.";
             s.Responses[200] = "List of form Submissions";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found. Pass correct formId";
@@ -30,8 +35,22 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
     /// <inheritdoc/>
     public override async Task<Results<Ok<Paged<SubmissionModel>>, ProblemHttpResult>> ExecuteAsync(ListByFormIdRequest request, CancellationToken cancellationToken)
     {
-        var filterExpressions = request.Filter ?? [];
-        var getSubmissionsQuery = new ListByFormIdQuery(request.FormId, request.Page, request.PageSize, filterExpressions);
+        var sort = request.ToNullableSortRequest(SubmissionListSortBy.CreatedAt, SortDirection.Desc);
+        var getSubmissionsQuery = new ListByFormIdQuery(
+            request.FormId,
+            request.Page,
+            request.PageSize,
+            request.Filter,
+            sort?.Field,
+            sort?.Direction == SortDirection.Desc,
+            request.ToCreatedFromUtc(),
+            request.ToCreatedToUtc(),
+            request.ToModifiedFromUtc(),
+            request.ToModifiedToUtc(),
+            request.ToStartedFromUtc(),
+            request.ToStartedToUtc(),
+            request.ToCompletedFromUtc(),
+            request.ToCompletedToUtc());
 
         var result = await mediator.Send(getSubmissionsQuery, cancellationToken);
 

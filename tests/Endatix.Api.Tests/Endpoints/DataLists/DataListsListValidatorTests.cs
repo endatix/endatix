@@ -1,5 +1,7 @@
 using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Endpoints.DataLists;
+using Endatix.Core.Infrastructure.Paging;
+using Endatix.Core.UseCases.DataLists.List;
 using FluentValidation.TestHelper;
 
 namespace Endatix.Api.Tests.Endpoints.DataLists;
@@ -56,12 +58,12 @@ public class DataListsListValidatorTests
     }
 
     [Theory]
-    [InlineData("name")]
-    [InlineData("CreatedAt")]
-    [InlineData("modifiedAt")]
-    [InlineData("itemsCount")]
-    [InlineData("isActive")]
-    public void Validate_AllowedSortBy_Passes(string sortBy)
+    [InlineData(DataListListSortBy.Name)]
+    [InlineData(DataListListSortBy.CreatedAt)]
+    [InlineData(DataListListSortBy.ModifiedAt)]
+    [InlineData(DataListListSortBy.ItemsCount)]
+    [InlineData(DataListListSortBy.IsActive)]
+    public void Validate_AllowedSortBy_Passes(DataListListSortBy sortBy)
     {
         var result = _validator.TestValidate(new DataListsListRequest { SortBy = sortBy });
 
@@ -71,15 +73,15 @@ public class DataListsListValidatorTests
     [Fact]
     public void Validate_UnknownSortBy_Fails()
     {
-        var result = _validator.TestValidate(new DataListsListRequest { SortBy = "unknownField" });
+        var result = _validator.TestValidate(new DataListsListRequest { SortBy = (DataListListSortBy)999 });
 
         result.ShouldHaveValidationErrorFor(x => x.SortBy);
     }
 
     [Theory]
-    [InlineData("asc")]
-    [InlineData("DESC")]
-    public void Validate_AllowedSortDir_Passes(string sortDir)
+    [InlineData(SortDirection.Asc)]
+    [InlineData(SortDirection.Desc)]
+    public void Validate_AllowedSortDir_Passes(SortDirection sortDir)
     {
         var result = _validator.TestValidate(new DataListsListRequest { SortDir = sortDir });
 
@@ -89,7 +91,7 @@ public class DataListsListValidatorTests
     [Fact]
     public void Validate_UnknownSortDir_Fails()
     {
-        var result = _validator.TestValidate(new DataListsListRequest { SortDir = "sideways" });
+        var result = _validator.TestValidate(new DataListsListRequest { SortDir = (SortDirection)999 });
 
         result.ShouldHaveValidationErrorFor(x => x.SortDir);
     }
@@ -112,8 +114,6 @@ public class DataListsListValidatorTests
     [Fact]
     public void Validate_DateBoundAtCalendarMaximum_Passes()
     {
-        // Regression guard: List.ParseExclusiveDayEndUtc must not overflow on the
-        // last representable calendar date when computing the exclusive upper bound.
         var result = _validator.TestValidate(new DataListsListRequest
         {
             CreatedTo = "9999-12-31",

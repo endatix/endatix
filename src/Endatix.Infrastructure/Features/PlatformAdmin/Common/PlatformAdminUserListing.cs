@@ -50,6 +50,7 @@ public sealed class PlatformAdminUserListing(
             criteria.PlatformAdminRoleId,
             criteria.ScopeFilter);
         usersQuery = ApplySearch(usersQuery, paging.Search);
+        usersQuery = ApplyLastLoginRange(usersQuery, criteria.LastLoginFrom, criteria.LastLoginTo);
 
         var totalRecords = await usersQuery.CountAsync(cancellationToken);
 
@@ -59,7 +60,9 @@ public sealed class PlatformAdminUserListing(
                 userRoles,
                 criteria.PlatformAdminRoleId,
                 criteria.PrioritizeExternalPlatformAdminRole,
-                criteria.PrioritizeLocalPlatformAdminRole)
+                criteria.PrioritizeLocalPlatformAdminRole,
+                criteria.SortBy,
+                criteria.SortDescending)
             .Skip(skip)
             .Take(pageSize)
             .Select(user => new UserRow(
@@ -135,34 +138,74 @@ public sealed class PlatformAdminUserListing(
         return userNameMatches.Union(emailMatches).Union(displayNameMatches);
     }
 
+    private static IQueryable<AppUser> ApplyLastLoginRange(
+        IQueryable<AppUser> query,
+        DateTime? lastLoginFrom,
+        DateTime? lastLoginToExclusive)
+    {
+        if (lastLoginFrom.HasValue)
+        {
+            var from = new DateTimeOffset(DateTime.SpecifyKind(lastLoginFrom.Value, DateTimeKind.Utc));
+            query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt >= from);
+        }
+
+        if (lastLoginToExclusive.HasValue)
+        {
+            var to = lastLoginToExclusive.Value;
+            if (to == DateTime.MaxValue)
+            {
+                var inclusiveTo = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc));
+                query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt <= inclusiveTo);
+            }
+            else
+            {
+                var exclusiveTo = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc));
+                query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt < exclusiveTo);
+            }
+        }
+
+        return query;
+    }
+
     private static IOrderedQueryable<AppUser> OrderUsers(
         IQueryable<AppUser> usersQuery,
         IQueryable<IdentityUserRole<long>> userRoles,
         long? platformAdminRoleId,
         bool prioritizeExternalPlatformAdminRole,
-        bool prioritizeLocalPlatformAdminRole)
+        bool prioritizeLocalPlatformAdminRole,
+        PlatformAdminListSortBy? sortBy,
+        bool sortDescending)
     {
         var quotedRoleName = PlatformAdminExternalRoleReader.QuotedPlatformAdminRoleName;
 
+        IQueryable<AppUser> prioritized = usersQuery;
         if (prioritizeExternalPlatformAdminRole)
         {
-            return usersQuery
+            prioritized = usersQuery
                 .OrderByDescending(user =>
                     user.AuthProvider != AuthProviders.Endatix &&
                     user.ExternalRolesJson != null &&
-                    user.ExternalRolesJson.Contains(quotedRoleName))
-                .ThenBy(user => user.Email)
-                .ThenBy(user => user.UserName);
+                    user.ExternalRolesJson.Contains(quotedRoleName));
         }
-
-        if (prioritizeLocalPlatformAdminRole && platformAdminRoleId is not null)
+        else if (prioritizeLocalPlatformAdminRole && platformAdminRoleId is not null)
         {
             var platformAdminUserIds = userRoles
                 .Where(userRole => userRole.RoleId == platformAdminRoleId.Value)
                 .Select(userRole => userRole.UserId);
 
-            return usersQuery
-                .OrderByDescending(user => platformAdminUserIds.Contains(user.Id))
+            prioritized = usersQuery
+                .OrderByDescending(user => platformAdminUserIds.Contains(user.Id));
+        }
+
+        // Client sort when provided; otherwise keep Email then UserName.
+        if (sortBy is not null)
+        {
+            return ApplyClientSort(prioritized, sortBy.Value, sortDescending);
+        }
+
+        if (prioritizeExternalPlatformAdminRole || (prioritizeLocalPlatformAdminRole && platformAdminRoleId is not null))
+        {
+            return ((IOrderedQueryable<AppUser>)prioritized)
                 .ThenBy(user => user.Email)
                 .ThenBy(user => user.UserName);
         }
@@ -170,6 +213,48 @@ public sealed class PlatformAdminUserListing(
         return usersQuery
             .OrderBy(user => user.Email)
             .ThenBy(user => user.UserName);
+    }
+
+    private static IOrderedQueryable<AppUser> ApplyClientSort(
+        IQueryable<AppUser> query,
+        PlatformAdminListSortBy sortBy,
+        bool sortDescending)
+    {
+        // When priority OrderBy already applied, append ThenBy; otherwise start fresh.
+        if (query is IOrderedQueryable<AppUser> ordered)
+        {
+            return sortBy switch
+            {
+                PlatformAdminListSortBy.UserName when sortDescending =>
+                    ordered.ThenByDescending(user => user.UserName).ThenBy(user => user.Id),
+                PlatformAdminListSortBy.UserName =>
+                    ordered.ThenBy(user => user.UserName).ThenBy(user => user.Id),
+                PlatformAdminListSortBy.LastLoginAt when sortDescending =>
+                    ordered.ThenByDescending(user => user.LastLoginAt).ThenBy(user => user.Id),
+                PlatformAdminListSortBy.LastLoginAt =>
+                    ordered.ThenBy(user => user.LastLoginAt).ThenBy(user => user.Id),
+                PlatformAdminListSortBy.Email when sortDescending =>
+                    ordered.ThenByDescending(user => user.Email).ThenBy(user => user.Id),
+                _ =>
+                    ordered.ThenBy(user => user.Email).ThenBy(user => user.Id),
+            };
+        }
+
+        return sortBy switch
+        {
+            PlatformAdminListSortBy.UserName when sortDescending =>
+                query.OrderByDescending(user => user.UserName).ThenBy(user => user.Id),
+            PlatformAdminListSortBy.UserName =>
+                query.OrderBy(user => user.UserName).ThenBy(user => user.Id),
+            PlatformAdminListSortBy.LastLoginAt when sortDescending =>
+                query.OrderByDescending(user => user.LastLoginAt).ThenBy(user => user.Id),
+            PlatformAdminListSortBy.LastLoginAt =>
+                query.OrderBy(user => user.LastLoginAt).ThenBy(user => user.Id),
+            PlatformAdminListSortBy.Email when sortDescending =>
+                query.OrderByDescending(user => user.Email).ThenBy(user => user.Id),
+            _ =>
+                query.OrderBy(user => user.Email).ThenBy(user => user.Id),
+        };
     }
 
     private static PlatformAdminUserListItem MapToListItem(

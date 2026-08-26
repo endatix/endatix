@@ -12,15 +12,15 @@ This document describes how the Endatix API packages are organized today and the
 
 ## Package layout (today)
 
-| Package | Role |
-|---------|------|
-| `Endatix.Core` | Domain entities, authorization model, shared abstractions (`IRoleManagementService`, …), domain events, **mutation** use cases that must stay persistence-agnostic |
-| `Endatix.Infrastructure` | EF Core, identity, email, auth providers, **feature read models** and infrastructure services |
-| `Endatix.Api` | FastEndpoints (HTTP), request/response DTOs, validation |
-| `Endatix.Framework` | Shared hosting/DI helpers |
-| `Endatix.Hosting` / `Endatix.WebHost` | Composition root |
-| `Endatix.Modules.*` | Optional bounded contexts (domain, persistence, features) |
-| `Endatix.Modules.*.Contracts` | Module **public** surface only — see [Module packaging](#module-packaging-contracts-vs-domain) |
+| Package                               | Role                                                                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Endatix.Core`                        | Domain entities, authorization model, shared abstractions (`IRoleManagementService`, …), domain events, **mutation** use cases that must stay persistence-agnostic |
+| `Endatix.Infrastructure`              | EF Core, identity, email, auth providers, **feature read models** and infrastructure services                                                                      |
+| `Endatix.Api`                         | FastEndpoints (HTTP), request/response DTOs, validation                                                                                                            |
+| `Endatix.Framework`                   | Shared hosting/DI helpers                                                                                                                                          |
+| `Endatix.Hosting` / `Endatix.WebHost` | Composition root                                                                                                                                                   |
+| `Endatix.Modules.*`                   | Optional bounded contexts (domain, persistence, features)                                                                                                          |
+| `Endatix.Modules.*.Contracts`         | Module **public** surface only — see [Module packaging](#module-packaging-contracts-vs-domain)                                                                     |
 
 Dependency flow:
 
@@ -53,12 +53,12 @@ Core cannot reference EF and other infrastructure concerns. Forcing every list t
 
 ### Work classification
 
-| Kind | Where | Example |
-|------|-------|---------|
-| Domain rules / invariants | `Core` | Folder slug uniqueness, `SystemRole` governance |
+| Kind                         | Where                                                                        | Example                                                |
+| ---------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Domain rules / invariants    | `Core`                                                                       | Folder slug uniqueness, `SystemRole` governance        |
 | Commands (mutations, events) | `Core` use case + handler **or** Infrastructure/module command (per feature) | `GrantPlatformAdminCommand` → `IRoleManagementService` |
-| Queries (lists, admin views) | `Infrastructure/Features/{Feature}/` | `ListPlatformAdmins`, `ListPlatformTenants` |
-| HTTP | `Api/Endpoints/{Feature}/` | FastEndpoints, validators, API response mapping |
+| Queries (lists, admin views) | `Infrastructure/Features/{Feature}/`                                         | `ListPlatformAdmins`, `ListPlatformTenants`            |
+| HTTP                         | `Api/Endpoints/{Feature}/`                                                   | FastEndpoints, validators, API response mapping        |
 
 **Naming:** feature query types are named after the operation (`ListPlatformAdmins`), with a single `ExecuteAsync` entry point. This is a **read model**, not MediatR `IQuery<T>`.
 
@@ -68,16 +68,16 @@ Core cannot reference EF and other infrastructure concerns. Forcing every list t
 
 Monolith features and modules follow the same vertical-slice mindset at different packaging levels.
 
-| Concern | OSS monolith (`Infrastructure/Features/…`) | SaaS module (`Endatix.Modules.*`) |
-|---------|---------------------------------------------|-----------------------------------|
-| **Feature folder** | `Features/PlatformAdmin/ListPlatformAdmins/` | `Features/Conversations/ListConversations.cs` + handler |
-| **Public contracts** | API response DTOs in `Endatix.Api` endpoints | `Endatix.Modules.*.Contracts` (DTOs, commands, queries, events, wire codes — not domain) |
-| **Domain** | Shared `Endatix.Core` entities | Module `Domain/` (e.g. `Agent`, `Conversation`) |
-| **Persistence** | Shared `AppDbContext` / `AppIdentityDbContext` | Module `Persistence/AgentsDbContext` |
-| **DI registration** | `AddPlatformAdminFeatures()` | `{Name}Module` + `EndatixBuilder.UseModule()` (OSS Reporting, SaaS Agents) |
-| **Reads** | Concrete `List*` type → `ExecuteAsync` (no MediatR) | Often MediatR handler + DbContext **inside the module** (still no Core interface) |
-| **Writes** | MediatR + Core handler + port (`IRoleManagementService`) | MediatR command/handler in module |
-| **Endpoints** | `Endatix.Api/Endpoints/Admin/…` | FastEndpoints colocated in module `Features/*/…cs` |
+| Concern              | OSS monolith (`Infrastructure/Features/…`)               | SaaS module (`Endatix.Modules.*`)                                                        |
+| -------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Feature folder**   | `Features/PlatformAdmin/ListPlatformAdmins/`             | `Features/Conversations/ListConversations.cs` + handler                                  |
+| **Public contracts** | API response DTOs in `Endatix.Api` endpoints             | `Endatix.Modules.*.Contracts` (DTOs, commands, queries, events, wire codes — not domain) |
+| **Domain**           | Shared `Endatix.Core` entities                           | Module `Domain/` (e.g. `Agent`, `Conversation`)                                          |
+| **Persistence**      | Shared `AppDbContext` / `AppIdentityDbContext`           | Module `Persistence/AgentsDbContext`                                                     |
+| **DI registration**  | `AddPlatformAdminFeatures()`                             | `{Name}Module` + `EndatixBuilder.UseModule()` (OSS Reporting, SaaS Agents)               |
+| **Reads**            | Concrete `List*` type → `ExecuteAsync` (no MediatR)      | Often MediatR handler + DbContext **inside the module** (still no Core interface)        |
+| **Writes**           | MediatR + Core handler + port (`IRoleManagementService`) | MediatR command/handler in module                                                        |
+| **Endpoints**        | `Endatix.Api/Endpoints/Admin/…`                          | FastEndpoints colocated in module `Features/*/…cs`                                       |
 
 **Agents** (`ListConversationsHandler`) uses MediatR but injects `AgentsDbContext` directly — no `IConversationListService` in Core. That is the same pragmatic read-side pattern; only the dispatch mechanism differs (Mediator vs direct injection).
 
@@ -91,10 +91,10 @@ Monolith features and modules follow the same vertical-slice mindset at differen
 
 Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules: **domain stays inside the module**; **Contracts is the only intentional outward face**.
 
-| Package | Put here | Do **not** put here |
-|---------|----------|---------------------|
-| `Endatix.Modules.{Name}.Contracts` | DTOs, commands, queries, integration events, **wire codes** (e.g. status strings for filters/API) | Domain entities, value objects, EF types, handlers |
-| `Endatix.Modules.{Name}` | `Domain/`, `Persistence/`, `Features/`, `{Name}Module.cs` | HTTP models owned by `Endatix.Api` unless the module ships its own endpoints |
+| Package                            | Put here                                                                                          | Do **not** put here                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `Endatix.Modules.{Name}.Contracts` | DTOs, commands, queries, integration events, **wire codes** (e.g. status strings for filters/API) | Domain entities, value objects, EF types, handlers                           |
+| `Endatix.Modules.{Name}`           | `Domain/`, `Persistence/`, `Features/`, `{Name}Module.cs`                                         | HTTP models owned by `Endatix.Api` unless the module ships its own endpoints |
 
 **Reporting example (`SubmissionIntegrationState`):**
 
@@ -159,13 +159,13 @@ Persistence                ──► Domain
 
 **Classification rules (apply the shared-code checklist):**
 
-| Kind | Where | Example |
-|------|-------|---------|
-| Reporting entities / pipeline state | `Domain/` | `FlattenedSubmission`, `FormSchema` |
-| Compiled form schema model + limits | `Features/FormSchema/FormSchema/` | `MergedFormSchema`, `SchemaCompilationLimits` |
-| Definition → column flattening | `Features/FormSchema/FlattenedFormDefinition/` | `FormDefinitionFlattener` |
-| Submission → flat row pipeline | `Features/FlattenedSubmission/` | `FlattenedSubmissionFlattener` |
-| SurveyJS JSON traversal helpers | `Shared/SurveyJs/` | `SurveyJsChoiceHelper`, `ExportPathBuilder` |
+| Kind                                | Where                                          | Example                                       |
+| ----------------------------------- | ---------------------------------------------- | --------------------------------------------- |
+| Reporting entities / pipeline state | `Domain/`                                      | `FlattenedSubmission`, `FormSchema`           |
+| Compiled form schema model + limits | `Features/FormSchema/FormSchema/`              | `MergedFormSchema`, `SchemaCompilationLimits` |
+| Definition → column flattening      | `Features/FormSchema/FlattenedFormDefinition/` | `FormDefinitionFlattener`                     |
+| Submission → flat row pipeline      | `Features/FlattenedSubmission/`                | `FlattenedSubmissionFlattener`                |
+| SurveyJS JSON traversal helpers     | `Shared/SurveyJs/`                             | `SurveyJsChoiceHelper`, `ExportPathBuilder`   |
 
 **Why not all JSON in Domain?** SurveyJS parsing is reporting-pipeline infrastructure colocated in feature slices; persisted aggregates stay in `Domain/`. Handlers in PR-E5+ call `FormSchemaCompiler` / `FlattenedSubmissionFlattener` — they do not reimplement tree walks.
 
@@ -236,12 +236,12 @@ This split is the template for new platform-admin and similar admin read endpoin
 
 ## When to use MediatR
 
-| Use MediatR | Prefer direct feature type |
-|-------------|----------------------------|
-| Mutations with invariants and domain events | Paged admin list / report projection |
-| Multi-step workflow | Single DbContext (or two) + map to DTO |
-| Shared pipeline behaviors (validation, logging) | Endpoint → `ListX.ExecuteAsync` |
-| Cross-feature orchestration in Core | Auth admin settings read (`IAuthSettingsReader`) |
+| Use MediatR                                     | Prefer direct feature type                       |
+| ----------------------------------------------- | ------------------------------------------------ |
+| Mutations with invariants and domain events     | Paged admin list / report projection             |
+| Multi-step workflow                             | Single DbContext (or two) + map to DTO           |
+| Shared pipeline behaviors (validation, logging) | Endpoint → `ListX.ExecuteAsync`                  |
+| Cross-feature orchestration in Core             | Auth admin settings read (`IAuthSettingsReader`) |
 
 Modules may keep MediatR for reads when endpoints and handlers already live in one package. OSS monolith admin lists use **direct `List*` injection** when a slice has shared `Common/` EF (path A); standalone reads should lean toward **Infrastructure `IQuery` + `IMediator`** (path B) for consistent endpoint tests — see [Testing evolution](#testing-evolution).
 
@@ -265,12 +265,12 @@ We do **not** rely on integration or test-database coverage for feature read mod
 
 ### Layers
 
-| Layer | What to test | How |
-|-------|----------------|-----|
-| **API endpoints** | HTTP mapping, paging defaults, response shaping | `Factory.Create` + mock **`IMediator`** (preferred for reads that use it) or mock **internal** slice contract only when the endpoint already depends on one. Response mapper tests (e.g. `PlatformAdminUserResponseTests`) where mapping is non-trivial. |
-| **Thin orchestrators** | Parameter forwarding, early exits, scope selection | Unit-test the `List*` class with **mocked shared read contract** (e.g. `ListPlatformAdmins` + `IPlatformAdminUserListing`). |
-| **Shared EF read logic** | Query composition, filters, projections | Extract **pure or mockable** pieces and test those (`PlatformAdminUserRoleScope`, `PlatformAdminExternalRoleReader`, `IRelationalSubstringLikeFilter`). The DbContext-heavy class itself is an orchestrator of EF — cover behavior through collaborators + orchestrator tests above, not a live database. |
-| **Core mutations** | Invariants, events, port calls | Unit tests with mocked ports (`IRoleManagementService`, …) on `ICommandHandler` / handler types. |
+| Layer                    | What to test                                       | How                                                                                                                                                                                                                                                                                                       |
+| ------------------------ | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **API endpoints**        | HTTP mapping, paging defaults, response shaping    | `Factory.Create` + mock **`IMediator`** (preferred for reads that use it) or mock **internal** slice contract only when the endpoint already depends on one. Response mapper tests (e.g. `PlatformAdminUserResponseTests`) where mapping is non-trivial.                                                  |
+| **Thin orchestrators**   | Parameter forwarding, early exits, scope selection | Unit-test the `List*` class with **mocked shared read contract** (e.g. `ListPlatformAdmins` + `IPlatformAdminUserListing`).                                                                                                                                                                               |
+| **Shared EF read logic** | Query composition, filters, projections            | Extract **pure or mockable** pieces and test those (`PlatformAdminUserRoleScope`, `PlatformAdminExternalRoleReader`, `IRelationalSubstringLikeFilter`). The DbContext-heavy class itself is an orchestrator of EF — cover behavior through collaborators + orchestrator tests above, not a live database. |
+| **Core mutations**       | Invariants, events, port calls                     | Unit tests with mocked ports (`IRoleManagementService`, …) on `ICommandHandler` / handler types.                                                                                                                                                                                                          |
 
 ### `IListPlatformTenants` and similar
 
@@ -288,11 +288,11 @@ Core already defines MediatR markers — `ICommand<T>`, `IQuery<T>`, `ICommandHa
 
 **Direction (no big-bang):**
 
-| Path | When | Endpoint tests | Implementation tests |
-|------|------|----------------|----------------------|
-| **A — Decomposed direct injection** (current Platform Admin users) | Shared EF across multiple lists in a slice | Inject concrete `List*`; mock only if an **internal** shared contract exists | Mock shared contract; unit-test extracted `Common/` helpers |
-| **B — Infrastructure MediatR reads** (Agents module style) | New or refactored OSS read endpoints | Always **`IMediator`** — one established mock | Handler unit tests with mocked DbContext ports / sub-services (same as Core handlers) |
-| **C — Core `IQuery`** | Read belongs in Core (persistence-agnostic, shared rules) | `IMediator` | Core handler + mocked ports |
+| Path                                                               | When                                                      | Endpoint tests                                                               | Implementation tests                                                                  |
+| ------------------------------------------------------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **A — Decomposed direct injection** (current Platform Admin users) | Shared EF across multiple lists in a slice                | Inject concrete `List*`; mock only if an **internal** shared contract exists | Mock shared contract; unit-test extracted `Common/` helpers                           |
+| **B — Infrastructure MediatR reads** (Agents module style)         | New or refactored OSS read endpoints                      | Always **`IMediator`** — one established mock                                | Handler unit tests with mocked DbContext ports / sub-services (same as Core handlers) |
+| **C — Core `IQuery`**                                              | Read belongs in Core (persistence-agnostic, shared rules) | `IMediator`                                                                  | Core handler + mocked ports                                                           |
 
 Prefer **A** when a slice has shared EF in `Common/`. Prefer **B** when a read is standalone and endpoint test consistency matters more than avoiding MediatR. Do **not** introduce parallel `IListX` interfaces solely for API tests — either use `IMediator` (B/C) or extract internal collaborators (A).
 
@@ -316,22 +316,26 @@ When touching Platform Admin registration or new admin lists, migrate toward **o
 
 ## Paged list requests
 
-**Api:** compose capability interfaces on the request DTO (`IPageable`, `ISearchable`, `ISortable<T>`, `IFilterable`; or `ISearchablePagedRequest` = page + search). Validate with the matching `*RequestValidator`. Map once via `ListRequestExtensions`.
+**Api:** compose capability interfaces on the request DTO (`IPagedRequest`, `ISearchableRequest`, `ISortableRequest<T>`, `IFilterable`, plus typed calendar ranges such as `ICreatedRange` / `IModifiedRange`; or `ISearchablePagedRequest` = page + search). Validate with the matching `*RequestValidator`. Map once via `ListRequestExtensions` (`ToPageRequest`, `ToSortRequest`, `ToCreatedFromUtc`, …).
 
-**Core:** pass normalized records into read models — `PageRequest`, `SearchablePageRequest`, `SortRequest<T>`. Limits in `PagedRequestLimits.cs`.
+**Core:** pass normalized records into read models — `PageRequest`, `SearchablePageRequest`, `SortRequest<T>`. Limits in `PagedRequestLimits.cs`. Calendar day strings (`YYYY-MM-DD`) are parsed at the API boundary into inclusive-From / exclusive-To UTC `DateTime` bounds.
 
-| Capability | Api | Core / notes |
-|------------|-----|--------------|
-| Paging | `IPageable` | `PageRequest` |
-| Search | `ISearchable` | `SearchablePageRequest` |
-| Sort | `ISortable<TEnum>` | `SortRequest<TEnum>` — enum per list |
-| Filter (REST) | `IFilterable` | `FilterParameters` via `FilteredRequestValidator(validFields)` |
-| Filter (domain) | explicit props / criteria record | e.g. `PlatformAdminUserListCriteria` |
+**Hub client** (`hub/lib/endatix-api/shared`, future `packages/@endatix/api-client`): compose the same wire shape with TypeScript helpers — `IPagedRequest`, `SortRequest<TFields>`, `DateRangeFilter<"created">` / `AuditDateFilters`, plus `parseCalendarDateYmd` / `pickDateRangeFilters` / `appendSortParams` / `appendDateRangeFilters` in `list-query.ts`. Sort field unions stay property names (`createdAt`); date stems stay bare verbs (`"created"` → `createdFrom`/`createdTo`). Feature URL parsers call these helpers; do not hand-copy From/To fields on new list DTOs.
+
+| Capability           | Api                                                                   | Core / notes                                                                                 | Hub (`lib/endatix-api`)                             |
+| -------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Paging               | `IPagedRequest`                                                       | `PageRequest`                                                                                | `IPagedRequest`                                     |
+| Search               | `ISearchableRequest`                                                  | `SearchablePageRequest`                                                                      | explicit `search?` on list DTOs                     |
+| Sort                 | `ISortableRequest<TEnum>` (`sortBy` + `sortDir`)                      | `SortRequest<TEnum>` — enum per list                                                         | `SortRequest<TFields>`                              |
+| Calendar dates       | `ICreatedRange` / `IModifiedRange` / … (`createdFrom`/`createdTo`, …) | `DateTime?` bounds on queries/specs                                                          | `DateRangeFilter<"created">`, `AuditDateFilters`, … |
+| Filter (REST facets) | `IFilterable`                                                         | `FilterParameters` via `FilteredRequestValidator(validFields)` — **not** for DateTime ranges | explicit facet props / `filter=` segments           |
+| Filter (domain)      | explicit props / criteria record                                      | e.g. `PlatformAdminUserListCriteria`                                                         | feature-specific request fields                     |
 
 ```csharp
 var paging = request.ToSearchablePageRequest();
-var sort = request.ToSortRequest(PlatformTenantSortField.Name);
-var filters = request.ToFilterParameters();
+var sort = request.ToSortRequest(PlatformTenantListSortBy.Name);
+var createdFrom = request.ToCreatedFromUtc();
+var filters = request.ToFilterParameters(); // facets only
 ```
 
 Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as output only** (not input). See `IPlatformAdminUserListing` + `PlatformAdminUserListCriteria`.
@@ -344,12 +348,12 @@ Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsB
 
 ### Classification
 
-| Kind | Interface | Dispatch | Example |
-|------|-----------|----------|---------|
-| In-process only | `DomainEventBase` | MediatR after save (when wired) | Internal notifications |
-| Durable / integration | `IIntegrationEvent` | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated` |
-| Customer webhook | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP | `form.updated`, `submission.completed` |
-| Module subscriber | `IIntegrationEvent` + `IOutboxIntegrationEventHandler` | Outbox relay → in-process handler | Reporting: `form.definition.updated`, `submission.updated` |
+| Kind                  | Interface                                                            | Dispatch                                         | Example                                                    |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                  | Internal notifications                                     |
+| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated`          |
+| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP                              | `form.updated`, `submission.completed`                     |
+| Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler                | Reporting: `form.definition.updated`, `submission.updated` |
 
 Plain `DomainEventBase` events that are **not** `IIntegrationEvent` are ignored by the outbox dispatcher and stay in-process.
 
@@ -357,7 +361,7 @@ Plain `DomainEventBase` events that are **not** `IIntegrationEvent` are ignored 
 
 Apply these rules in **Core entities** (`Submission`, `Form`, …). Application handlers orchestrate persistence and authorization; they must **not** diff fields or call separate `Notify*` methods after mutation.
 
-1. **Evaluate before mutate** — compare incoming values to current state *before* assignment. Avoid capturing `previousX` variables, mutating, then passing them to a detector method (parameter creep).
+1. **Evaluate before mutate** — compare incoming values to current state _before_ assignment. Avoid capturing `previousX` variables, mutating, then passing them to a detector method (parameter creep).
 2. **No-op when unchanged** — if material state is identical, return without bumping revision or raising an event (`UpdateStatus`, `SetEnabled`, active-definition activation).
 3. **Pair revision + event** — use a private `RegisterRevisedDomainEvent(...)` helper that calls `IncrementRevision()` then `RegisterDomainEvent(...)`. Do **not** override `RegisterDomainEvent` globally — some events intentionally skip the bump (e.g. `form.created` at revision 1, `submission.deleted`).
 4. **Encapsulate reporting triggers on the aggregate** — e.g. `Form.UpdateActiveDefinitionSchema` and `Form.SetActiveFormDefinition` raise `FormDefinitionUpdatedEvent`; handlers call those methods instead of separate notify methods. Keep the split explicit: `SetActiveFormDefinition` changes which definition row is active (pointer swap); `UpdateActiveDefinitionSchema` mutates the current active row's JSON/draft status. Do not pass constructed clones to `SetActiveFormDefinition` to effect schema edits.
@@ -399,11 +403,11 @@ Handler → aggregate mutation (RegisterDomainEvent)
 
 ### Testing split
 
-| Layer | Project | What to test |
-|-------|---------|--------------|
-| Event rules & revision | `Endatix.Core.Tests` | Aggregate methods raise the right events / flags; payload shape unit tests |
-| Outbox capture | `Endatix.Infrastructure.Tests` | `OutboxIntegrationEventDispatcher` serializes integration events |
-| End-to-end persistence | `Endatix.IntegrationTests` | Real DB: outbox rows commit with aggregates; module handlers (Reporting) |
+| Layer                  | Project                        | What to test                                                               |
+| ---------------------- | ------------------------------ | -------------------------------------------------------------------------- |
+| Event rules & revision | `Endatix.Core.Tests`           | Aggregate methods raise the right events / flags; payload shape unit tests |
+| Outbox capture         | `Endatix.Infrastructure.Tests` | `OutboxIntegrationEventDispatcher` serializes integration events           |
+| End-to-end persistence | `Endatix.IntegrationTests`     | Real DB: outbox rows commit with aggregates; module handlers (Reporting)   |
 
 Do **not** use EF InMemory in module unit tests for persistence — use `Endatix.IntegrationTests` with Testcontainers when the behavior depends on a real provider (JSON columns, query filters, repositories).
 
@@ -413,13 +417,14 @@ Do **not** use EF InMemory in module unit tests for persistence — use `Endatix
 
 `Submission` carries three distinct clocks:
 
-| Property | When set | Meaning |
-|----------|----------|---------|
-| `CreatedAt` | EF insert stamp | Row created (includes prefill / create-on-behalf) |
-| `StartedAt` | Respondent `Create` (`StartSubmission`), first content `Update(...)`, or complete-without-prior-start | First respondent engagement recorded by the API |
-| `CompletedAt` | First incomplete→complete transition | Submission finished |
+| Property      | When set                                                                                              | Meaning                                           |
+| ------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `CreatedAt`   | EF insert stamp                                                                                       | Row created (includes prefill / create-on-behalf) |
+| `StartedAt`   | Respondent `Create` (`StartSubmission`), first content `Update(...)`, or complete-without-prior-start | First respondent engagement recorded by the API   |
+| `CompletedAt` | First incomplete→complete transition                                                                  | Submission finished                               |
 
 Rules:
+
 - Respondent `Create` (public submit / `submissions.create`) stamps `StartedAt` via `StartSubmission`.
 - CreateOnBehalf / prefill leave `StartedAt` null until first engagement `Update` (unless completing on create).
 - `Update` calls `EnsureStarted()` once (idempotent).
@@ -433,14 +438,14 @@ Rules:
 Logs, metrics and traces come from **one mechanism**: the OpenTelemetry SDK, exporting OTLP. There is
 no second logging stack and no vendor SDK in the dependency graph.
 
-| Concern | Decision |
-|---|---|
-| Signals | All three from the OTel SDK, sharing one resource so a record and its span agree on `service.name` |
-| Activation | Off until an OTLP endpoint resolves. Nothing configured means no exporter allocated |
-| Precedence | `OTEL_*` environment variables are authoritative; `Endatix:Telemetry` is a fallback, never an override |
-| Registration | `EndatixTelemetryBuilder` owns all three exporters; `EndatixLoggingBuilder` owns the provider list |
-| Failure mode | A malformed endpoint or protocol throws at startup rather than exporting nothing quietly |
-| Vendors | None shipped. Consumers add their own through `Logging.Configure(...)` or `AddOpenTelemetry()` |
+| Concern      | Decision                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------ |
+| Signals      | All three from the OTel SDK, sharing one resource so a record and its span agree on `service.name`     |
+| Activation   | Off until an OTLP endpoint resolves. Nothing configured means no exporter allocated                    |
+| Precedence   | `OTEL_*` environment variables are authoritative; `Endatix:Telemetry` is a fallback, never an override |
+| Registration | `EndatixTelemetryBuilder` owns all three exporters; `EndatixLoggingBuilder` owns the provider list     |
+| Failure mode | A malformed endpoint or protocol throws at startup rather than exporting nothing quietly               |
+| Vendors      | None shipped. Consumers add their own through `Logging.Configure(...)` or `AddOpenTelemetry()`         |
 
 **Why the log exporter lives in the telemetry builder, not the logging builder.** All three signals
 have to resolve the same endpoint, protocol and resource. Splitting that across two builders means
@@ -466,8 +471,8 @@ documented lines.
 
 ## Decision log
 
-| Date | Decision |
-|------|----------|
-| 2026-07 | Submission `StartedAt` for reliable completion duration (distinct from `CreatedAt`); export includes `StartedAt` + computed `DurationSeconds`. See [Submission lifecycle timestamps](#submission-lifecycle-timestamps). |
-| 2026-07 | Domain events: evaluate-before-mutate on aggregates; reporting triggers (`FormDefinitionUpdatedEvent`, `SubmissionUpdatedEvent`) live on entities, not handlers. Documented in [Domain and integration events](#domain-and-integration-events). |
+| Date    | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07 | Submission `StartedAt` for reliable completion duration (distinct from `CreatedAt`); export includes `StartedAt` + computed `DurationSeconds`. See [Submission lifecycle timestamps](#submission-lifecycle-timestamps).                                                                                                                                                                                                                                             |
+| 2026-07 | Domain events: evaluate-before-mutate on aggregates; reporting triggers (`FormDefinitionUpdatedEvent`, `SubmissionUpdatedEvent`) live on entities, not handlers. Documented in [Domain and integration events](#domain-and-integration-events).                                                                                                                                                                                                                     |
 | 2026-08 | Observability: three signals, one mechanism. The OpenTelemetry SDK owns logs, metrics and traces; `OTEL_*` environment variables are authoritative over `appsettings.json`; telemetry is off until an endpoint is configured. Serilog is removed as the logging pipeline and retained only as the rotation implementation behind an optional, off-by-default file provider. **Endatix ships no vendor exporters** — OTLP only. See [Observability](#observability). |

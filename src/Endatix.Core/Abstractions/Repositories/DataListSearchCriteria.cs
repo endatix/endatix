@@ -48,4 +48,34 @@ public sealed record DataListSearchCriteria
     /// Management item search sets this to <see langword="false"/>.
     /// </summary>
     public bool RequireActive { get; init; } = true;
+
+    /// <summary>
+    /// When null, default order is label (display key) then value.
+    /// </summary>
+    public DataListItemListSortBy? SortBy { get; init; }
+
+    /// <summary>
+    /// When true, sort descending.
+    /// </summary>
+    public bool SortDescending { get; init; }
+
+    /// <summary>
+    /// Inclusive UTC start of created-at day filter.
+    /// </summary>
+    public DateTime? CreatedFrom { get; init; }
+
+    /// <summary>
+    /// Exclusive UTC end of created-at day filter.
+    /// </summary>
+    public DateTime? CreatedTo { get; init; }
+
+    /// <summary>
+    /// Inclusive UTC start of modified-at day filter.
+    /// </summary>
+    public DateTime? ModifiedFrom { get; init; }
+
+    /// <summary>
+    /// Exclusive UTC end of modified-at day filter.
+    /// </summary>
+    public DateTime? ModifiedTo { get; init; }
 }

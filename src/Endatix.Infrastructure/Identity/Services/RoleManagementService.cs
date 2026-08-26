@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Identity.ListRoles;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Repositories;
 using Microsoft.AspNetCore.Http;
@@ -478,7 +479,14 @@ public sealed class RoleManagementService : IRoleManagementService
     }
 
     /// <inheritdoc/>
-    public async Task<Result<Paged<RoleListItem>>> ListRolesAsync(int skip, int take, string? roleType, string? search, CancellationToken cancellationToken = default)
+    public async Task<Result<Paged<RoleListItem>>> ListRolesAsync(
+        int skip,
+        int take,
+        string? roleType,
+        string? search,
+        RoleListSortBy sortBy = RoleListSortBy.Name,
+        bool sortDescending = false,
+        CancellationToken cancellationToken = default)
     {
         var tenantId = _tenantContext.TenantId;
 
@@ -494,6 +502,7 @@ public sealed class RoleManagementService : IRoleManagementService
 
         var allItems = MergeWithPersistedSystemRolePlaceholders(persistedItems);
         allItems = ApplyRoleListFilters(allItems, roleType, search);
+        allItems = ApplyRoleListOrdering(allItems, sortBy, sortDescending);
 
         var totalRecords = allItems.Count;
         var pagedItems = allItems.Skip(skip).Take(take).ToList();
@@ -659,8 +668,33 @@ public sealed class RoleManagementService : IRoleManagementService
         return filteredRoles.ToList();
     }
 
+    private static List<RoleListItem> ApplyRoleListOrdering(
+        List<RoleListItem> roles,
+        RoleListSortBy sortBy,
+        bool sortDescending)
+    {
+        IOrderedEnumerable<RoleListItem> ordered = sortBy switch
+        {
+            RoleListSortBy.IsActive when sortDescending =>
+                roles.OrderByDescending(role => role.IsActive).ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase),
+            RoleListSortBy.IsActive =>
+                roles.OrderBy(role => role.IsActive).ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase),
+            RoleListSortBy.UsersCount when sortDescending =>
+                roles.OrderByDescending(role => role.UsersCount).ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase),
+            RoleListSortBy.UsersCount =>
+                roles.OrderBy(role => role.UsersCount).ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase),
+            RoleListSortBy.Name when sortDescending =>
+                roles.OrderByDescending(role => role.Name, StringComparer.OrdinalIgnoreCase),
+            _ =>
+                roles.OrderBy(role => role.Name, StringComparer.OrdinalIgnoreCase),
+        };
+
+        return ordered.ToList();
+    }
+
     /// <inheritdoc/>
-    public async Task<Result<IReadOnlyList<PermissionListItem>>> ListPermissionsAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<PermissionListItem>>> ListPermissionsAsync(
+        CancellationToken cancellationToken = default)
     {
         IReadOnlyList<PermissionListItem> permissions = await _identityDbContext.Permissions
             .AsNoTracking()

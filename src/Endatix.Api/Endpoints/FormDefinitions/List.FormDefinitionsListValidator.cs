@@ -1,4 +1,5 @@
 ﻿using Endatix.Api.Common;
+using Endatix.Core.UseCases.FormDefinitions.List;
 using FastEndpoints;
 using FluentValidation;
 
@@ -15,6 +16,9 @@ public class FormDefinitionsListValidator : Validator<FormDefinitionsListRequest
     public FormDefinitionsListValidator()
     {
         Include(new PageableRequestValidator());
+        Include(new SortableRequestValidator<FormDefinitionListSortBy>());
+        Include(new CreatedRangeRequestValidator());
+        Include(new ModifiedRangeRequestValidator());
 
         RuleFor(x => x.FormId)
             .GreaterThan(0);

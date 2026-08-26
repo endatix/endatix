@@ -106,7 +106,12 @@ public sealed class InviteUserHandler(
             });
         }
 
-        var rolesResult = await roleManagementService.ListRolesAsync(0, int.MaxValue, null, null, cancellationToken);
+        var rolesResult = await roleManagementService.ListRolesAsync(
+            0,
+            int.MaxValue,
+            null,
+            null,
+            cancellationToken: cancellationToken);
         if (!rolesResult.IsSuccess)
         {
             return Result.Error(new ErrorList(rolesResult.Errors, rolesResult.CorrelationId));

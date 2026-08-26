@@ -1,6 +1,7 @@
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Themes;
@@ -81,5 +82,42 @@ public class ListTests
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
         okResult!.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PassesSortAndDateBoundsToQuery()
+    {
+        // Arrange
+        var request = new ListRequest
+        {
+            Page = 2,
+            PageSize = 15,
+            SortBy = ThemeListSortBy.Name,
+            SortDir = SortDirection.Asc,
+            CreatedFrom = "2024-01-01",
+            CreatedTo = "2024-01-31",
+            ModifiedFrom = "2024-02-01",
+            ModifiedTo = "2024-02-28",
+        };
+        var result = Result<IEnumerable<Theme>>.Success([]);
+
+        _mediator.Send(Arg.Any<ListThemesQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(result));
+
+        // Act
+        await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<ListThemesQuery>(query =>
+                query.Page == 2 &&
+                query.PageSize == 15 &&
+                query.SortBy == ThemeListSortBy.Name &&
+                query.SortDescending == false &&
+                query.CreatedFrom == new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.CreatedTo == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.ModifiedFrom == new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc) &&
+                query.ModifiedTo == new DateTime(2024, 2, 29, 0, 0, 0, DateTimeKind.Utc)),
+            Arg.Any<CancellationToken>());
     }
 }

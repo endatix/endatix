@@ -88,7 +88,9 @@ public class ListTests
             Arg.Is<ListFormDefinitionsQuery>(query =>
                 query.FormId == request.FormId &&
                 query.Page == request.Page &&
-                query.PageSize == request.PageSize
+                query.PageSize == request.PageSize &&
+                query.SortBy == FormDefinitionListSortBy.CreatedAt &&
+                query.SortDescending
             ),
             Arg.Any<CancellationToken>()
         );

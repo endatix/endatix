@@ -22,7 +22,13 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
             MatchMode = request.MatchMode,
             Locale = request.Locale,
             IncludeLocales = request.IncludeLocales,
-            RequireActive = request.RequireActive
+            RequireActive = request.RequireActive,
+            SortBy = request.SortBy,
+            SortDescending = request.SortDescending,
+            CreatedFrom = request.CreatedFrom,
+            CreatedTo = request.CreatedTo,
+            ModifiedFrom = request.ModifiedFrom,
+            ModifiedTo = request.ModifiedTo
         };
 
         DataListSearchPageResult? searchPage;

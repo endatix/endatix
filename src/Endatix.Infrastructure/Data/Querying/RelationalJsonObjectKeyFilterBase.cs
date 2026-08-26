@@ -67,7 +67,8 @@ public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectK
     public IOrderedQueryable<TEntity> OrderByKey<TEntity>(
         IQueryable<TEntity> source,
         string jsonPropertyName,
-        string jsonObjectKey)
+        string jsonObjectKey,
+        bool descending = false)
         where TEntity : class
     {
         var parameter = Expression.Parameter(typeof(TEntity), "e");
@@ -75,7 +76,9 @@ public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectK
             ExtractKey(parameter, jsonPropertyName, jsonObjectKey),
             parameter);
 
-        return source.OrderBy(keySelector);
+        return descending
+            ? source.OrderByDescending(keySelector)
+            : source.OrderBy(keySelector);
     }
 
     /// <inheritdoc />

@@ -1,3 +1,4 @@
+using Endatix.Api.Common;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -11,6 +12,11 @@ public class ExportValidator : Validator<ExportRequest>
      public ExportValidator(IExporterFactory exporterFactory)
      {
           var supportedFormats = GetSupportedExportFormats(exporterFactory);
+
+          Include(new CreatedRangeRequestValidator());
+          Include(new ModifiedRangeRequestValidator());
+          Include(new StartedRangeRequestValidator());
+          Include(new CompletedRangeRequestValidator());
 
           RuleFor(x => x.FormId)
                .GreaterThan(0);
@@ -36,32 +42,11 @@ public class ExportValidator : Validator<ExportRequest>
                .IsInEnum()
                .When(x => x.CompletionStatus.HasValue);
 
-          // CreatedBefore / StartedBefore / CompletedBefore are exclusive upper bounds in the reporting repository.
-          RuleFor(x => x)
-               .Must(request => !request.CreatedAfter.HasValue ||
-                                !request.CreatedBefore.HasValue ||
-                                request.CreatedAfter < request.CreatedBefore)
-               .WithMessage("CreatedAfter must be earlier than CreatedBefore (exclusive upper bound).")
-               .WithName("CreatedAfter");
-
-          RuleFor(x => x)
-               .Must(request => !request.StartedAfter.HasValue ||
-                                !request.StartedBefore.HasValue ||
-                                request.StartedAfter < request.StartedBefore)
-               .WithMessage("StartedAfter must be earlier than StartedBefore (exclusive upper bound).")
-               .WithName("StartedAfter");
-
-          RuleFor(x => x)
-               .Must(request => !request.CompletedAfter.HasValue ||
-                                !request.CompletedBefore.HasValue ||
-                                request.CompletedAfter < request.CompletedBefore)
-               .WithMessage("CompletedAfter must be earlier than CompletedBefore (exclusive upper bound).")
-               .WithName("CompletedAfter");
-
           RuleFor(x => x)
                .Must(request => request.CompletionStatus is not ExportCompletionStatus.Incomplete ||
-                                (!request.CompletedAfter.HasValue && !request.CompletedBefore.HasValue))
-               .WithMessage("CompletedAfter/CompletedBefore cannot be used when CompletionStatus is incomplete.")
+                                (string.IsNullOrWhiteSpace(request.CompletedFrom) &&
+                                 string.IsNullOrWhiteSpace(request.CompletedTo)))
+               .WithMessage("CompletedFrom/CompletedTo cannot be used when CompletionStatus is incomplete.")
                .WithName("CompletionStatus");
 
           RuleFor(x => x)

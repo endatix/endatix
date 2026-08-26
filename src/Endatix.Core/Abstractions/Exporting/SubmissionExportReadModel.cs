@@ -27,12 +27,14 @@ public sealed record SubmissionExportExecutionSettings(
     /// (Crunch/Shoji). When false, booleans stay lowercase <c>true</c>/<c>false</c>.
     /// </summary>
     bool EncodeBooleansAsCategoryIds = false,
-    DateTime? CreatedAfter = null,
-    DateTime? CreatedBefore = null,
-    DateTime? StartedAfter = null,
-    DateTime? StartedBefore = null,
-    DateTime? CompletedAfter = null,
-    DateTime? CompletedBefore = null,
+    DateTime? CreatedFrom = null,
+    DateTime? CreatedTo = null,
+    DateTime? ModifiedFrom = null,
+    DateTime? ModifiedTo = null,
+    DateTime? StartedFrom = null,
+    DateTime? StartedTo = null,
+    DateTime? CompletedFrom = null,
+    DateTime? CompletedTo = null,
     long? MinSubmissionId = null,
     long? MaxSubmissionId = null,
     bool? IsComplete = null);

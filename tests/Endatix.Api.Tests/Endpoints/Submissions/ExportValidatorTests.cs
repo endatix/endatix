@@ -26,8 +26,10 @@ public sealed class ExportValidatorTests
             FormId = 1,
             ExportFormatId = 10,
             Locale = "es",
-            CreatedAfter = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            CreatedBefore = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+            CreatedFrom = "2026-01-01",
+            CreatedTo = "2026-01-02",
+            ModifiedFrom = "2026-01-01",
+            ModifiedTo = "2026-01-02",
             MinSubmissionId = 1,
             MaxSubmissionId = 10,
         };
@@ -63,68 +65,84 @@ public sealed class ExportValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenCreatedAfterNotBeforeCreatedBefore_Fails()
+    public async Task Validate_WhenCreatedFromAfterCreatedTo_Fails()
     {
         ExportRequest request = new()
         {
             FormId = 1,
             ExportFormatId = 10,
-            CreatedAfter = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc),
-            CreatedBefore = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+            CreatedFrom = "2026-01-03",
+            CreatedTo = "2026-01-02",
         };
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
 
-        result.ShouldHaveValidationErrorFor("CreatedAfter");
+        result.ShouldHaveValidationErrorFor("CreatedFrom");
     }
 
     [Fact]
-    public async Task Validate_WhenCreatedAfterEqualsCreatedBefore_Fails()
+    public async Task Validate_WhenCreatedFromEqualsCreatedTo_Passes()
     {
-        DateTime stamp = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+        // Same calendar day is valid: InclusiveStart < ExclusiveEnd (next day).
         ExportRequest request = new()
         {
             FormId = 1,
             ExportFormatId = 10,
-            CreatedAfter = stamp,
-            CreatedBefore = stamp,
+            CreatedFrom = "2026-01-02",
+            CreatedTo = "2026-01-02",
         };
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
 
-        result.ShouldHaveValidationErrorFor("CreatedAfter");
+        result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
-    public async Task Validate_WhenStartedAfterNotBeforeStartedBefore_Fails()
+    public async Task Validate_WhenModifiedFromAfterModifiedTo_Fails()
     {
         ExportRequest request = new()
         {
             FormId = 1,
             ExportFormatId = 10,
-            StartedAfter = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc),
-            StartedBefore = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+            ModifiedFrom = "2026-01-03",
+            ModifiedTo = "2026-01-02",
         };
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
 
-        result.ShouldHaveValidationErrorFor("StartedAfter");
+        result.ShouldHaveValidationErrorFor("ModifiedFrom");
     }
 
     [Fact]
-    public async Task Validate_WhenCompletedAfterNotBeforeCompletedBefore_Fails()
+    public async Task Validate_WhenStartedFromAfterStartedTo_Fails()
     {
         ExportRequest request = new()
         {
             FormId = 1,
             ExportFormatId = 10,
-            CompletedAfter = new DateTime(2026, 1, 5, 0, 0, 0, DateTimeKind.Utc),
-            CompletedBefore = new DateTime(2026, 1, 4, 0, 0, 0, DateTimeKind.Utc),
+            StartedFrom = "2026-01-03",
+            StartedTo = "2026-01-02",
         };
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
 
-        result.ShouldHaveValidationErrorFor("CompletedAfter");
+        result.ShouldHaveValidationErrorFor("StartedFrom");
+    }
+
+    [Fact]
+    public async Task Validate_WhenCompletedFromAfterCompletedTo_Fails()
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CompletedFrom = "2026-01-05",
+            CompletedTo = "2026-01-04",
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldHaveValidationErrorFor("CompletedFrom");
     }
 
     [Fact]
@@ -135,7 +153,7 @@ public sealed class ExportValidatorTests
             FormId = 1,
             ExportFormatId = 10,
             CompletionStatus = ExportCompletionStatus.Incomplete,
-            CompletedAfter = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            CompletedFrom = "2026-01-01",
         };
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
@@ -191,20 +209,19 @@ public sealed class ExportValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenCompletedAfterEqualsCompletedBefore_Fails()
+    public async Task Validate_WhenCompletedFromEqualsCompletedTo_Passes()
     {
-        DateTime stamp = new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
         ExportRequest request = new()
         {
             FormId = 1,
             ExportFormatId = 10,
-            CompletedAfter = stamp,
-            CompletedBefore = stamp,
+            CompletedFrom = "2026-01-02",
+            CompletedTo = "2026-01-02",
         };
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
 
-        result.ShouldHaveValidationErrorFor("CompletedAfter");
+        result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
@@ -246,8 +263,8 @@ public sealed class ExportValidatorTests
             FormId = 1,
             ExportFormatId = 10,
             CompletionStatus = ExportCompletionStatus.Completed,
-            CompletedAfter = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            CompletedBefore = new DateTime(2026, 1, 5, 0, 0, 0, DateTimeKind.Utc),
+            CompletedFrom = "2026-01-01",
+            CompletedTo = "2026-01-05",
         };
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
@@ -256,17 +273,32 @@ public sealed class ExportValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenOnlyCreatedBeforePresent_Passes()
+    public async Task Validate_WhenOnlyCreatedToPresent_Passes()
     {
         ExportRequest request = new()
         {
             FormId = 1,
             ExportFormatId = 10,
-            CreatedBefore = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc),
+            CreatedTo = "2026-01-03",
         };
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
 
         result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public async Task Validate_WhenCreatedFromInvalidCalendarDay_Fails()
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CreatedFrom = "01-01-2026",
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldHaveValidationErrorFor(x => x.CreatedFrom);
     }
 }

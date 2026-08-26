@@ -12,12 +12,14 @@ public sealed class ExportRequestFilterGuardTests
     private static ExportFilterContext EmptyFilters() =>
         new(
             IncludeTestSubmissions: null,
-            CreatedAfter: null,
-            CreatedBefore: null,
-            StartedAfter: null,
-            StartedBefore: null,
-            CompletedAfter: null,
-            CompletedBefore: null,
+            CreatedFrom: null,
+            CreatedTo: null,
+            ModifiedFrom: null,
+            ModifiedTo: null,
+            StartedFrom: null,
+            StartedTo: null,
+            CompletedFrom: null,
+            CompletedTo: null,
             MinSubmissionId: null,
             MaxSubmissionId: null,
             Locale: null,
@@ -47,12 +49,14 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.ShojiCodebook,
             new ExportFilterContext(
                 IncludeTestSubmissions: true,
-                CreatedAfter: DateTime.UtcNow.AddDays(-1),
-                CreatedBefore: null,
-                StartedAfter: null,
-                StartedBefore: null,
-                CompletedAfter: null,
-                CompletedBefore: null,
+                CreatedFrom: "2026-01-01",
+                CreatedTo: null,
+                ModifiedFrom: null,
+                ModifiedTo: null,
+                StartedFrom: null,
+                StartedTo: null,
+                CompletedFrom: null,
+                CompletedTo: null,
                 MinSubmissionId: 10,
                 MaxSubmissionId: null,
                 Locale: "es",
@@ -113,12 +117,14 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilterSets.Submissions,
             new ExportFilterContext(
                 IncludeTestSubmissions: false,
-                CreatedAfter: DateTime.UtcNow.AddDays(-7),
-                CreatedBefore: DateTime.UtcNow,
-                StartedAfter: DateTime.UtcNow.AddDays(-7),
-                StartedBefore: DateTime.UtcNow,
-                CompletedAfter: DateTime.UtcNow.AddDays(-7),
-                CompletedBefore: DateTime.UtcNow,
+                CreatedFrom: "2026-01-01",
+                CreatedTo: "2026-01-07",
+                ModifiedFrom: "2026-01-01",
+                ModifiedTo: "2026-01-07",
+                StartedFrom: "2026-01-01",
+                StartedTo: "2026-01-07",
+                CompletedFrom: "2026-01-01",
+                CompletedTo: "2026-01-07",
                 MinSubmissionId: 1,
                 MaxSubmissionId: 100,
                 Locale: null,
@@ -153,21 +159,31 @@ public sealed class ExportRequestFilterGuardTests
     }
 
     [Fact]
-    public void GetDisallowedWireNames_WhenOnlyCreatedBeforePresent_CountsAsCreatedAtRange()
+    public void GetDisallowedWireNames_WhenOnlyCreatedToPresent_CountsAsCreatedAtRange()
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.ShojiCodebook,
-            EmptyFilters() with { CreatedBefore = DateTime.UtcNow });
+            EmptyFilters() with { CreatedTo = "2026-01-07" });
 
         disallowed.Should().Equal(AllowedExportFilters.CreatedAtRange);
     }
 
     [Fact]
-    public void GetDisallowedWireNames_WhenOnlyCompletedAfterPresent_CountsAsCompletedAtRange()
+    public void GetDisallowedWireNames_WhenOnlyModifiedFromPresent_CountsAsModifiedAtRange()
+    {
+        var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
+            ExportRequestFilterSets.ShojiCodebook,
+            EmptyFilters() with { ModifiedFrom = "2026-01-01" });
+
+        disallowed.Should().Equal(AllowedExportFilters.ModifiedAtRange);
+    }
+
+    [Fact]
+    public void GetDisallowedWireNames_WhenOnlyCompletedFromPresent_CountsAsCompletedAtRange()
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
             ExportRequestFilterSets.NativeCodebook,
-            EmptyFilters() with { CompletedAfter = DateTime.UtcNow.AddDays(-1) });
+            EmptyFilters() with { CompletedFrom = "2026-01-01" });
 
         disallowed.Should().Equal(AllowedExportFilters.CompletedAtRange);
     }
@@ -230,12 +246,14 @@ public sealed class ExportRequestFilterGuardTests
             ExportRequestFilters.None,
             new ExportFilterContext(
                 IncludeTestSubmissions: true,
-                CreatedAfter: DateTime.UtcNow,
-                CreatedBefore: null,
-                StartedAfter: DateTime.UtcNow,
-                StartedBefore: null,
-                CompletedAfter: DateTime.UtcNow,
-                CompletedBefore: null,
+                CreatedFrom: "2026-01-01",
+                CreatedTo: null,
+                ModifiedFrom: "2026-01-01",
+                ModifiedTo: null,
+                StartedFrom: "2026-01-01",
+                StartedTo: null,
+                CompletedFrom: "2026-01-01",
+                CompletedTo: null,
                 MinSubmissionId: 1,
                 MaxSubmissionId: null,
                 Locale: "en",
@@ -245,6 +263,7 @@ public sealed class ExportRequestFilterGuardTests
         disallowed.Should().Equal(
             AllowedExportFilters.IncludeTestSubmissions,
             AllowedExportFilters.CreatedAtRange,
+            AllowedExportFilters.ModifiedAtRange,
             AllowedExportFilters.StartedAtRange,
             AllowedExportFilters.CompletedAtRange,
             AllowedExportFilters.SubmissionIdRange,

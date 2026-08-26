@@ -1,9 +1,10 @@
 ﻿using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.UseCases.FormDefinitions.List;
-using Endatix.Infrastructure.Identity;
 using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
@@ -23,7 +24,8 @@ public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Res
         Summary(s =>
         {
             s.Summary = "List form definitions";
-            s.Description = "Lists all form definitions for a given form with optional pagination.";
+            s.Description =
+                "Lists form definitions for a given form with optional pagination, sort, and created/modified date bounds.";
             s.Responses[200] = "Form definitions retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
@@ -33,8 +35,18 @@ public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Res
     /// <inheritdoc />
     public override async Task<Results<Ok<IEnumerable<FormDefinitionModel>>, BadRequest, NotFound>> ExecuteAsync(FormDefinitionsListRequest request, CancellationToken cancellationToken)
     {
+        var sort = request.ToSortRequest(FormDefinitionListSortBy.CreatedAt, SortDirection.Desc);
         var result = await mediator.Send(
-            new ListFormDefinitionsQuery(request.FormId, request.Page, request.PageSize),
+            new ListFormDefinitionsQuery(
+                request.FormId,
+                request.Page,
+                request.PageSize,
+                sort.Field,
+                sort.Direction == SortDirection.Desc,
+                request.ToCreatedFromUtc(),
+                request.ToCreatedToUtc(),
+                request.ToModifiedFromUtc(),
+                request.ToModifiedToUtc()),
             cancellationToken);
 
         return TypedResultsBuilder

@@ -13,7 +13,13 @@ public sealed record SearchDataListItemsOptions(
     DataListSearchMatchMode MatchMode = DataListSearchMatchMode.Contains,
     string? Locale = null,
     IEnumerable<string>? IncludeLocales = null,
-    bool RequireActive = true);
+    bool RequireActive = true,
+    DataListItemListSortBy? SortBy = null,
+    bool SortDescending = false,
+    DateTime? CreatedFrom = null,
+    DateTime? CreatedTo = null,
+    DateTime? ModifiedFrom = null,
+    DateTime? ModifiedTo = null);
 
 /// <summary>
 /// Query for searching data list items by label (locale key).
@@ -43,6 +49,13 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
     /// </summary>
     public bool RequireActive { get; init; }
 
+    public DataListItemListSortBy? SortBy { get; init; }
+    public bool SortDescending { get; init; }
+    public DateTime? CreatedFrom { get; init; }
+    public DateTime? CreatedTo { get; init; }
+    public DateTime? ModifiedFrom { get; init; }
+    public DateTime? ModifiedTo { get; init; }
+
     public SearchDataListItemsQuery(
         long dataListId,
         string? query,
@@ -65,5 +78,11 @@ public sealed record SearchDataListItemsQuery : IQuery<Result<Paged<DataListItem
         IncludeLocales = TranslationLocaleList.ParseMany(options.IncludeLocales);
         Locale = string.IsNullOrWhiteSpace(options.Locale) ? null : CultureCode.Parse(options.Locale);
         RequireActive = options.RequireActive;
+        SortBy = options.SortBy;
+        SortDescending = options.SortDescending;
+        CreatedFrom = options.CreatedFrom;
+        CreatedTo = options.CreatedTo;
+        ModifiedFrom = options.ModifiedFrom;
+        ModifiedTo = options.ModifiedTo;
     }
 }

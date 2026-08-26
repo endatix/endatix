@@ -5,6 +5,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Core.UseCases.Identity.ListUsers;
 using Microsoft.AspNetCore.Identity;
 using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,10 @@ public sealed class AppUserService(
         string? search,
         string? role,
         string? status,
+        UserListSortBy? sortBy = null,
+        bool sortDescending = false,
+        DateTime? lastLoginFrom = null,
+        DateTime? lastLoginTo = null,
         CancellationToken cancellationToken = default)
     {
         var pagingGuard = ValidatePaging(skip, take);
@@ -56,13 +61,12 @@ public sealed class AppUserService(
         filteredUsers = ApplyStatusFilter(filteredUsers, status);
         filteredUsers = ApplyRoleFilter(filteredUsers, role);
         filteredUsers = ApplySearchFilter(filteredUsers, search);
+        filteredUsers = ApplyLastLoginRange(filteredUsers, lastLoginFrom, lastLoginTo);
 
         var totalRecords = await filteredUsers.CountAsync(cancellationToken);
         var effectiveSkip = NormalizeSkip(skip, take, totalRecords);
 
-        var pageUsers = await filteredUsers
-            .OrderBy(user => user.UserName)
-            .ThenBy(user => user.Email)
+        var pageUsers = await ApplyUserListOrdering(filteredUsers, sortBy, sortDescending)
             .Skip(effectiveSkip)
             .Take(take)
             .Select(user => new
@@ -138,6 +142,63 @@ public sealed class AppUserService(
             usersResult);
 
         return Result.Success(paged);
+    }
+
+    private static IQueryable<AppUser> ApplyLastLoginRange(
+        IQueryable<AppUser> query,
+        DateTime? lastLoginFrom,
+        DateTime? lastLoginToExclusive)
+    {
+        if (lastLoginFrom.HasValue)
+        {
+            var from = new DateTimeOffset(DateTime.SpecifyKind(lastLoginFrom.Value, DateTimeKind.Utc));
+            query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt >= from);
+        }
+
+        if (lastLoginToExclusive.HasValue)
+        {
+            var to = lastLoginToExclusive.Value;
+            if (to == DateTime.MaxValue)
+            {
+                var inclusiveTo = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc));
+                query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt <= inclusiveTo);
+            }
+            else
+            {
+                var exclusiveTo = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc));
+                query = query.Where(user => user.LastLoginAt != null && user.LastLoginAt < exclusiveTo);
+            }
+        }
+
+        return query;
+    }
+
+    private static IOrderedQueryable<AppUser> ApplyUserListOrdering(
+        IQueryable<AppUser> query,
+        UserListSortBy? sortBy,
+        bool sortDescending)
+    {
+        // Preserve v1 default when sort is omitted: UserName then Email ascending.
+        if (sortBy is null)
+        {
+            return query.OrderBy(user => user.UserName).ThenBy(user => user.Email);
+        }
+
+        return sortBy.Value switch
+        {
+            UserListSortBy.Email when sortDescending =>
+                query.OrderByDescending(user => user.Email).ThenBy(user => user.Id),
+            UserListSortBy.Email =>
+                query.OrderBy(user => user.Email).ThenBy(user => user.Id),
+            UserListSortBy.LastLoginAt when sortDescending =>
+                query.OrderByDescending(user => user.LastLoginAt).ThenBy(user => user.Id),
+            UserListSortBy.LastLoginAt =>
+                query.OrderBy(user => user.LastLoginAt).ThenBy(user => user.Id),
+            UserListSortBy.UserName when sortDescending =>
+                query.OrderByDescending(user => user.UserName).ThenBy(user => user.Id),
+            _ =>
+                query.OrderBy(user => user.UserName).ThenBy(user => user.Id),
+        };
     }
 
     private static IQueryable<AppUser> ApplyStatusFilter(IQueryable<AppUser> query, string? status)

@@ -22,6 +22,10 @@ public class ListUsersHandler(IUserService userService)
             request.Search,
             request.Role,
             request.Status,
+            request.SortBy,
+            request.SortDescending,
+            request.LastLoginFrom,
+            request.LastLoginTo,
             cancellationToken);
 
         if (!result.IsSuccess)

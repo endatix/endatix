@@ -1,5 +1,6 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
+using Endatix.Api.Common;
 using Endatix.Core.UseCases.Submissions.Export;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
@@ -277,12 +278,14 @@ public partial class Export : Endpoint<ExportRequest>
             IncludeTestSubmissions: request.IncludeTestSubmissions,
             ColumnScope: NormalizeColumnScope(request.ColumnScope),
             Locale: NormalizeLocale(request.Locale),
-            CreatedAfter: request.CreatedAfter,
-            CreatedBefore: request.CreatedBefore,
-            StartedAfter: request.StartedAfter,
-            StartedBefore: request.StartedBefore,
-            CompletedAfter: request.CompletedAfter,
-            CompletedBefore: request.CompletedBefore,
+            CreatedFrom: request.ToCreatedFromUtc(),
+            CreatedTo: request.ToCreatedToUtc(),
+            ModifiedFrom: request.ToModifiedFromUtc(),
+            ModifiedTo: request.ToModifiedToUtc(),
+            StartedFrom: request.ToStartedFromUtc(),
+            StartedTo: request.ToStartedToUtc(),
+            CompletedFrom: request.ToCompletedFromUtc(),
+            CompletedTo: request.ToCompletedToUtc(),
             MinSubmissionId: request.MinSubmissionId,
             MaxSubmissionId: request.MaxSubmissionId,
             IsComplete: MapCompletionStatusToIsComplete(request.CompletionStatus));
@@ -355,12 +358,14 @@ public partial class Export : Endpoint<ExportRequest>
     private static ExportFilterContext CreateExportFilterContext(ExportRequest request) =>
         new(
             IncludeTestSubmissions: request.IncludeTestSubmissions,
-            CreatedAfter: request.CreatedAfter,
-            CreatedBefore: request.CreatedBefore,
-            StartedAfter: request.StartedAfter,
-            StartedBefore: request.StartedBefore,
-            CompletedAfter: request.CompletedAfter,
-            CompletedBefore: request.CompletedBefore,
+            CreatedFrom: request.CreatedFrom,
+            CreatedTo: request.CreatedTo,
+            ModifiedFrom: request.ModifiedFrom,
+            ModifiedTo: request.ModifiedTo,
+            StartedFrom: request.StartedFrom,
+            StartedTo: request.StartedTo,
+            CompletedFrom: request.CompletedFrom,
+            CompletedTo: request.CompletedTo,
             MinSubmissionId: request.MinSubmissionId,
             MaxSubmissionId: request.MaxSubmissionId,
             Locale: request.Locale,

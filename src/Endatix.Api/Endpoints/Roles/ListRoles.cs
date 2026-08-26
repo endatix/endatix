@@ -2,6 +2,7 @@ using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.ListRoles;
 using FastEndpoints;
@@ -28,7 +29,15 @@ public sealed class ListRoles(IMediator mediator)
         Summary(s =>
         {
             s.Summary = "List roles";
-            s.Description = "Retrieves roles with paging and optional role type filtering (all, system, custom).";
+            s.Description =
+                "Retrieves roles with paging, optional role type filtering (all, system, custom), and sort.";
+            s.ExampleRequest = new ListRolesRequest
+            {
+                Page = 1,
+                PageSize = 10,
+                SortBy = RoleListSortBy.Name,
+                SortDir = SortDirection.Asc
+            };
             s.Responses[200] = "Roles retrieved successfully.";
             s.Responses[400] = "Invalid request.";
         });
@@ -42,7 +51,14 @@ public sealed class ListRoles(IMediator mediator)
         ListRolesRequest request,
         CancellationToken ct)
     {
-        var query = new ListRolesQuery(request.Page, request.PageSize, request.RoleType, request.Search);
+        var sort = request.ToSortRequest(RoleListSortBy.Name, SortDirection.Asc);
+        var query = new ListRolesQuery(
+            request.Page,
+            request.PageSize,
+            request.RoleType,
+            request.Search,
+            sort.Field,
+            sort.Direction == SortDirection.Desc);
         var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
@@ -80,7 +96,7 @@ public sealed class ListRoles(IMediator mediator)
 /// <summary>
 /// Request for listing roles.
 /// </summary>
-public sealed record ListRolesRequest : IPagedRequest
+public sealed record ListRolesRequest : IPagedRequest, ISortableRequest<RoleListSortBy>
 {
     public int? Page { get; set; }
 
@@ -89,6 +105,12 @@ public sealed record ListRolesRequest : IPagedRequest
     public string? RoleType { get; set; }
 
     public string? Search { get; set; }
+
+    /// <inheritdoc />
+    public RoleListSortBy? SortBy { get; set; }
+
+    /// <inheritdoc />
+    public SortDirection? SortDir { get; set; }
 }
 
 /// <summary>
@@ -102,6 +124,7 @@ public sealed class ListRolesValidator : Validator<ListRolesRequest>
     public ListRolesValidator()
     {
         Include(new PageableRequestValidator());
+        Include(new SortableRequestValidator<RoleListSortBy>());
 
         RuleFor(x => x.PageSize)
             .LessThanOrEqualTo(ListRolesQuery.MaxPageSize)

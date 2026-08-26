@@ -2,6 +2,7 @@ using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.Specifications.Common;
+using Endatix.Core.UseCases.Themes.List;
 
 namespace Endatix.Core.Specifications;
 
@@ -46,16 +47,47 @@ public static class ThemeSpecifications
     }
 
     /// <summary>
-    /// Specification to get themes with pagination
+    /// Specification to get themes with pagination, sort, and calendar date bounds.
     /// </summary>
     public sealed class Paginated : Specification<Theme>
     {
-        public Paginated(PagingParameters pagingParams)
+        public Paginated(
+            PagingParameters pagingParams,
+            ThemeListSortBy sortBy = ThemeListSortBy.ModifiedAt,
+            bool sortDescending = true,
+            DateTime? createdFrom = null,
+            DateTime? createdTo = null,
+            DateTime? modifiedFrom = null,
+            DateTime? modifiedTo = null)
         {
             Query
-                .OrderByDescending(x => x.ModifiedAt)
+                .WhereCreatedRange(createdFrom, createdTo)
+                .WhereModifiedRange(modifiedFrom, modifiedTo);
+
+            ApplyOrdering(Query, sortBy, sortDescending);
+
+            Query
                 .Paginate(pagingParams)
                 .AsNoTracking();
+        }
+
+        private static void ApplyOrdering(
+            ISpecificationBuilder<Theme> query,
+            ThemeListSortBy sortBy,
+            bool sortDescending)
+        {
+            switch (sortBy)
+            {
+                case ThemeListSortBy.Name:
+                    query.OrderByWithIdTiebreaker(x => x.Name, sortDescending);
+                    break;
+                case ThemeListSortBy.CreatedAt:
+                    query.OrderByWithIdTiebreaker(x => x.CreatedAt, sortDescending);
+                    break;
+                default:
+                    query.OrderByWithIdTiebreaker(x => x.ModifiedAt, sortDescending);
+                    break;
+            }
         }
     }
 }

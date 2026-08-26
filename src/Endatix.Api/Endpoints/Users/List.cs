@@ -2,6 +2,7 @@ using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.ListUsers;
 using FastEndpoints;
@@ -28,14 +29,18 @@ public sealed class List(IMediator mediator)
         Summary(s =>
         {
             s.Summary = "List users";
-            s.Description = "Lists all users for the current tenant. Multi-tenancy is assumed.";
+            s.Description =
+                "Lists users for the current tenant with paging, search, role/status filters, " +
+                "sort, and last-login date bounds.";
             s.ExampleRequest = new ListUsersRequest
             {
                 Page = 1,
                 PageSize = 10,
                 Search = null,
                 Role = null,
-                Status = null
+                Status = null,
+                SortBy = UserListSortBy.UserName,
+                SortDir = SortDirection.Asc
             };
             s.Responses[200] = "Users retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
@@ -50,12 +55,17 @@ public sealed class List(IMediator mediator)
         ListUsersRequest request,
         CancellationToken ct)
     {
+        var sort = request.ToNullableSortRequest(UserListSortBy.UserName, SortDirection.Asc);
         var listUsersQuery = new ListUsersQuery(
             request.Page,
             request.PageSize,
             request.Search,
             request.Role,
-            request.Status);
+            request.Status,
+            sort?.Field,
+            sort?.Direction == SortDirection.Desc,
+            request.ToLastLoginFromUtc(),
+            request.ToLastLoginToUtc());
         var result = await mediator.Send(listUsersQuery, ct);
 
         return TypedResultsBuilder
@@ -67,18 +77,18 @@ public sealed class List(IMediator mediator)
     {
         var items = pagedUsers.Items
             .Select(u => new ListUsersResponse
-        {
-            Id = u.Id,
-            UserName = u.UserName,
-            Email = u.Email,
-            IsVerified = u.IsVerified,
-            Roles = u.Roles,
-            AuthProvider = u.AuthProvider,
-            IsExternal = u.IsExternal,
-            IsLockedOut = u.IsLockedOut,
-            DisplayName = u.DisplayName,
-            LastLoginAt = u.LastLoginAt
-        })
+            {
+                Id = u.Id,
+                UserName = u.UserName,
+                Email = u.Email,
+                IsVerified = u.IsVerified,
+                Roles = u.Roles,
+                AuthProvider = u.AuthProvider,
+                IsExternal = u.IsExternal,
+                IsLockedOut = u.IsLockedOut,
+                DisplayName = u.DisplayName,
+                LastLoginAt = u.LastLoginAt
+            })
             .ToList();
 
         return new Paged<ListUsersResponse>(
@@ -93,7 +103,10 @@ public sealed class List(IMediator mediator)
 /// <summary>
 /// Request for listing users in the current tenant. Tenant filter is implicit.
 /// </summary>
-public record ListUsersRequest : ISearchablePagedRequest
+public record ListUsersRequest :
+    ISearchablePagedRequest,
+    ISortableRequest<UserListSortBy>,
+    ILastLoginRange
 {
     /// <inheritdoc />
     public int? Page { get; set; }
@@ -115,6 +128,18 @@ public record ListUsersRequest : ISearchablePagedRequest
     /// Filters by invitation status: active or pending.
     /// </summary>
     public string? Status { get; set; }
+
+    /// <inheritdoc />
+    public UserListSortBy? SortBy { get; set; }
+
+    /// <inheritdoc />
+    public SortDirection? SortDir { get; set; }
+
+    /// <inheritdoc />
+    public string? LastLoginFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? LastLoginTo { get; set; }
 }
 
 /// <summary>
@@ -184,6 +209,8 @@ public class ListUsersValidator : Validator<ListUsersRequest>
     public ListUsersValidator()
     {
         Include(new SearchablePagedRequestValidator());
+        Include(new SortableRequestValidator<UserListSortBy>());
+        Include(new LastLoginRangeRequestValidator());
 
         RuleFor(x => x.Role)
             .MaximumLength(256)

@@ -1,6 +1,7 @@
 ﻿using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms;
 using Endatix.Core.UseCases.Forms.List;
@@ -26,7 +27,8 @@ public class List(IMediator mediator)
         {
             s.Summary = "List forms";
             s.Description =
-                "Lists tenant forms with paging, search, optional enabled/public filters, filter expressions, and optional folder scope.";
+                "Lists tenant forms with paging, search, optional enabled/public filters, filter expressions, " +
+                "sort, created/modified date bounds, and optional folder scope.";
             s.ExampleRequest = new FormsListRequest
             {
                 Page = 1,
@@ -36,6 +38,8 @@ public class List(IMediator mediator)
                 IsPublic = false,
                 FolderId = 1,
                 Filter = ["name:contains:survey"],
+                SortBy = FormListSortBy.Name,
+                SortDir = SortDirection.Asc,
             };
             s.ResponseExamples[200] = new Paged<FormModel>(
                 page: 1,
@@ -66,6 +70,7 @@ public class List(IMediator mediator)
         FormsListRequest request,
         CancellationToken ct)
     {
+        var sort = request.ToSortRequest(FormListSortBy.CreatedAt, SortDirection.Desc);
         var result = await mediator.Send(
             new ListFormsQuery(
                 request.Page,
@@ -74,7 +79,13 @@ public class List(IMediator mediator)
                 request.IsEnabled,
                 request.IsPublic,
                 request.Filter,
-                request.FolderId),
+                request.FolderId,
+                sort.Field,
+                sort.Direction == SortDirection.Desc,
+                request.ToCreatedFromUtc(),
+                request.ToCreatedToUtc(),
+                request.ToModifiedFromUtc(),
+                request.ToModifiedToUtc()),
             ct);
 
         return TypedResultsBuilder
@@ -102,8 +113,6 @@ public sealed class FormsListValidator : Validator<FormsListRequest>
     private static readonly Dictionary<string, Type> _filterableFields = new()
     {
         { "id", typeof(long) },
-        { "createdAt", typeof(DateTime) },
-        { "updatedAt", typeof(DateTime) },
         { "isEnabled", typeof(bool) },
         { "isPublic", typeof(bool) },
         { "themeId", typeof(long) },
@@ -120,13 +129,21 @@ public sealed class FormsListValidator : Validator<FormsListRequest>
     {
         Include(new SearchablePagedRequestValidator());
         Include(new FilteredRequestValidator(_filterableFields));
+        Include(new SortableRequestValidator<FormListSortBy>());
+        Include(new CreatedRangeRequestValidator());
+        Include(new ModifiedRangeRequestValidator());
     }
 }
 
 /// <summary>
 /// Request model for listing forms.
 /// </summary>
-public sealed class FormsListRequest : ISearchablePagedRequest, IFilterable
+public sealed class FormsListRequest :
+    ISearchablePagedRequest,
+    IFilterable,
+    ISortableRequest<FormListSortBy>,
+    ICreatedRange,
+    IModifiedRange
 {
     /// <inheritdoc />
     public int? Page { get; set; }
@@ -148,7 +165,7 @@ public sealed class FormsListRequest : ISearchablePagedRequest, IFilterable
     public bool? IsPublic { get; set; }
 
     /// <summary>
-    /// Optional filter expressions.
+    /// Optional filter expressions (facets only; not calendar dates).
     /// </summary>
     public IEnumerable<string>? Filter { get; set; }
 
@@ -156,4 +173,22 @@ public sealed class FormsListRequest : ISearchablePagedRequest, IFilterable
     /// Optional folder id to filter forms.
     /// </summary>
     public long? FolderId { get; set; }
+
+    /// <inheritdoc />
+    public FormListSortBy? SortBy { get; set; }
+
+    /// <inheritdoc />
+    public SortDirection? SortDir { get; set; }
+
+    /// <inheritdoc />
+    public string? CreatedFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? CreatedTo { get; set; }
+
+    /// <inheritdoc />
+    public string? ModifiedFrom { get; set; }
+
+    /// <inheritdoc />
+    public string? ModifiedTo { get; set; }
 }
