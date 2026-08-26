@@ -21,11 +21,8 @@ public sealed class ListPlatformAdminsTests
         // Act
         var result = await sut.ExecuteAsync(
             paging,
-            PlatformAdminListScope.Approved,
-            tenantId: null,
-            sortBy: null,
-            sortDescending: false,
-            cancellationToken: CancellationToken.None);
+            new ListPlatformAdminsCriteria(PlatformAdminListScope.Approved),
+            CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -59,11 +56,8 @@ public sealed class ListPlatformAdminsTests
         // Act
         var result = await sut.ExecuteAsync(
             paging,
-            PlatformAdminListScope.Approved,
-            tenantId: null,
-            sortBy: null,
-            sortDescending: false,
-            cancellationToken: CancellationToken.None);
+            new ListPlatformAdminsCriteria(PlatformAdminListScope.Approved),
+            CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);
@@ -93,11 +87,8 @@ public sealed class ListPlatformAdminsTests
         // Act
         var result = await sut.ExecuteAsync(
             paging,
-            PlatformAdminListScope.All,
-            tenantId: 5,
-            sortBy: null,
-            sortDescending: false,
-            cancellationToken: CancellationToken.None);
+            new ListPlatformAdminsCriteria(PlatformAdminListScope.All, TenantId: 5),
+            CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);
@@ -135,11 +126,8 @@ public sealed class ListPlatformAdminsTests
         // Act
         var result = await sut.ExecuteAsync(
             paging,
-            PlatformAdminListScope.Candidates,
-            tenantId: null,
-            sortBy: null,
-            sortDescending: false,
-            cancellationToken: CancellationToken.None);
+            new ListPlatformAdminsCriteria(PlatformAdminListScope.Candidates),
+            CancellationToken.None);
 
         // Assert
         result.Should().BeSameAs(expected);

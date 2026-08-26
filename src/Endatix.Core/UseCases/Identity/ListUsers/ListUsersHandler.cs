@@ -17,14 +17,8 @@ public class ListUsersHandler(IUserService userService)
         CancellationToken cancellationToken)
     {
         var result = await userService.ListUsersAsync(
-            request.Skip,
-            request.PageSize,
-            request.Search,
-            request.Role,
-            request.Status,
-            request.SortBy,
-            request.SortDescending,
-            request.LastLogin,
+            request.Paging,
+            request.Criteria,
             cancellationToken);
 
         if (!result.IsSuccess)

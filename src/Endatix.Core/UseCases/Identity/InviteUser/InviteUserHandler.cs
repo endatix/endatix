@@ -106,25 +106,15 @@ public sealed class InviteUserHandler(
             });
         }
 
-        var rolesResult = await roleManagementService.ListRolesAsync(
-            0,
-            int.MaxValue,
-            null,
-            null,
-            cancellationToken: cancellationToken);
-        if (!rolesResult.IsSuccess)
+        var missingRolesResult = await roleManagementService.GetMissingAssignableRoleNamesAsync(
+            roleNames,
+            cancellationToken);
+        if (!missingRolesResult.IsSuccess)
         {
-            return Result.Error(new ErrorList(rolesResult.Errors, rolesResult.CorrelationId));
+            return Result.Error(new ErrorList(missingRolesResult.Errors, missingRolesResult.CorrelationId));
         }
 
-        var availableRoles = rolesResult.Value!.Items
-            .Select(role => role.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var missingRoles = roleNames
-            .Where(roleName => !availableRoles.Contains(roleName))
-            .ToList();
-
+        var missingRoles = missingRolesResult.Value ?? [];
         if (missingRoles.Count > 0)
         {
             return Result.Invalid(new ValidationError

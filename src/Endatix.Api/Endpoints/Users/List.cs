@@ -55,16 +55,13 @@ public sealed class List(IMediator mediator)
         ListUsersRequest request,
         CancellationToken ct)
     {
-        var sort = request.ToNullableSortRequest(UserListSortBy.UserName, SortDirection.Asc);
         var listUsersQuery = new ListUsersQuery(
-            request.Page,
-            request.PageSize,
-            request.Search,
-            request.Role,
-            request.Status,
-            sort?.Field,
-            sort?.IsDescending ?? false,
-            request.ToLastLoginRange());
+            request.ToSearchablePageRequest(),
+            new UserListCriteria(
+                request.Role,
+                request.Status,
+                request.ToNullableSortRequest(UserListSortBy.UserName, SortDirection.Asc),
+                request.ToLastLoginRange()));
         var result = await mediator.Send(listUsersQuery, ct);
 
         return TypedResultsBuilder
@@ -124,7 +121,7 @@ public record ListUsersRequest :
     public string? Role { get; set; }
 
     /// <summary>
-    /// Filters by invitation status: active or pending.
+    /// Filters by status: <c>active</c>, <c>pending</c>, or <c>locked</c>.
     /// </summary>
     public string? Status { get; set; }
 
@@ -217,7 +214,7 @@ public class ListUsersValidator : Validator<ListUsersRequest>
 
         RuleFor(x => x.Status)
             .Must(status => status is null || IsKnownStatus(status))
-            .WithMessage("Status must be either 'active' or 'pending'.");
+            .WithMessage("Status must be 'active', 'pending', or 'locked'.");
     }
 
     private static bool IsKnownStatus(string status)

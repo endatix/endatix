@@ -61,8 +61,7 @@ public sealed class PlatformAdminUserListing(
                 criteria.PlatformAdminRoleId,
                 criteria.PrioritizeExternalPlatformAdminRole,
                 criteria.PrioritizeLocalPlatformAdminRole,
-                criteria.SortBy,
-                criteria.SortDescending)
+                criteria.Sort)
             .Skip(skip)
             .Take(pageSize)
             .Select(user => new UserRow(
@@ -144,8 +143,7 @@ public sealed class PlatformAdminUserListing(
         long? platformAdminRoleId,
         bool prioritizeExternalPlatformAdminRole,
         bool prioritizeLocalPlatformAdminRole,
-        PlatformAdminListSortBy? sortBy,
-        bool sortDescending)
+        SortRequest<PlatformAdminListSortBy>? sort)
     {
         var quotedRoleName = PlatformAdminExternalRoleReader.QuotedPlatformAdminRoleName;
 
@@ -169,9 +167,9 @@ public sealed class PlatformAdminUserListing(
         }
 
         // Client sort when provided; otherwise keep Email then UserName.
-        if (sortBy is not null)
+        if (sort is not null)
         {
-            return ApplyClientSort(prioritized, sortBy.Value, sortDescending);
+            return ApplyClientSort(prioritized, sort.Field, sort.IsDescending);
         }
 
         if (prioritizeExternalPlatformAdminRole || (prioritizeLocalPlatformAdminRole && platformAdminRoleId is not null))

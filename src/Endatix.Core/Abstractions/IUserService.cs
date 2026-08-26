@@ -37,17 +37,14 @@ public interface IUserService
 
     /// <summary>
     /// Lists users for the current tenant with their role names. Multi-tenancy is assumed; tenant filter is applied by the implementation.
-    /// When <paramref name="sortBy"/> is omitted, default order is UserName then Email ascending.
+    /// When <see cref="UserListCriteria.Sort"/> is omitted, default order is UserName then Email ascending.
     /// </summary>
+    /// <param name="paging">Page, page size and free-text search, already normalized.</param>
+    /// <param name="criteria">Role/status filters, sort and last-login bounds.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
     Task<Result<Paged<UserWithRoles>>> ListUsersAsync(
-        int skip,
-        int take,
-        string? search,
-        string? role,
-        string? status,
-        UserListSortBy? sortBy = null,
-        bool sortDescending = false,
-        UtcDateTimeRange lastLogin = default,
+        SearchablePageRequest paging,
+        UserListCriteria criteria,
         CancellationToken cancellationToken = default);
 
     /// <summary>

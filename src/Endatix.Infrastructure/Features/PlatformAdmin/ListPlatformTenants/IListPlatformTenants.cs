@@ -8,13 +8,14 @@ namespace Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
 /// </summary>
 public interface IListPlatformTenants
 {
+    /// <summary>
+    /// Lists platform tenants.
+    /// </summary>
+    /// <param name="paging">Page, page size and free-text search, already normalized.</param>
+    /// <param name="criteria">Sort and created/modified bounds.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
     Task<Result<Paged<PlatformTenantListItem>>> ExecuteAsync(
-        int page,
-        int pageSize,
-        string? search,
-        PlatformTenantListSortBy sortBy,
-        bool sortDescending,
-        UtcDateTimeRange created = default,
-        UtcDateTimeRange modified = default,
+        SearchablePageRequest paging,
+        PlatformTenantListCriteria criteria,
         CancellationToken cancellationToken = default);
 }

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.ListRoles;
 using Endatix.Infrastructure.Identity.Authentication;
@@ -480,14 +481,12 @@ public sealed class RoleManagementService : IRoleManagementService
 
     /// <inheritdoc/>
     public async Task<Result<Paged<RoleListItem>>> ListRolesAsync(
-        int skip,
-        int take,
-        string? roleType,
-        string? search,
-        RoleListSortBy sortBy = RoleListSortBy.Name,
-        bool sortDescending = false,
+        SearchablePageRequest paging,
+        RoleListCriteria criteria,
         CancellationToken cancellationToken = default)
     {
+        var skip = paging.Paging.Skip;
+        var take = paging.Paging.PageSize;
         var tenantId = _tenantContext.TenantId;
 
         var roles = await LoadPersistedRolesWithPermissionsAsync(tenantId, cancellationToken);
@@ -501,14 +500,59 @@ public sealed class RoleManagementService : IRoleManagementService
             externalRoleUserCountsByName);
 
         var allItems = MergeWithPersistedSystemRolePlaceholders(persistedItems);
-        allItems = ApplyRoleListFilters(allItems, roleType, search);
-        allItems = ApplyRoleListOrdering(allItems, sortBy, sortDescending);
+        allItems = ApplyRoleListFilters(allItems, criteria.RoleType, paging.Search);
+        allItems = ApplyRoleListOrdering(allItems, criteria.Sort);
 
         var totalRecords = allItems.Count;
         var pagedItems = allItems.Skip(skip).Take(take).ToList();
 
         return Result<Paged<RoleListItem>>.Success(
             Paged<RoleListItem>.FromSkipAndTake(skip, take, totalRecords, pagedItems));
+    }
+
+    /// <inheritdoc/>
+    public async Task<Result<IReadOnlyList<string>>> GetMissingAssignableRoleNamesAsync(
+        IReadOnlyList<string> roleNames,
+        CancellationToken cancellationToken = default)
+    {
+        if (roleNames.Count == 0)
+        {
+            return Result<IReadOnlyList<string>>.Success([]);
+        }
+
+        var requestedRoleNames = GetDistinctRoleNames(roleNames);
+        var requestedNormalizedRoleNames = requestedRoleNames
+            .Select(NormalizeRoleName)
+            .ToList();
+        var tenantId = _tenantContext.TenantId;
+
+        var persistedNames = await _identityDbContext.Roles
+            .AsNoTracking()
+            .Where(role =>
+                role.IsActive &&
+                role.NormalizedName != null &&
+                requestedNormalizedRoleNames.Contains(role.NormalizedName) &&
+                (role.TenantId == tenantId ||
+                 (role.IsSystemDefined && role.TenantId <= 0 && role.Name != SystemRole.PlatformAdmin.Name)))
+            .Select(role => role.Name)
+            .ToListAsync(cancellationToken);
+
+        var knownNames = persistedNames
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var systemRole in SystemRole.AllSystemRoles)
+        {
+            if (systemRole.IsPersisted && !SystemRole.IsPlatformAdminRoleName(systemRole.Name))
+            {
+                knownNames.Add(systemRole.Name);
+            }
+        }
+
+        IReadOnlyList<string> missingRoleNames = requestedRoleNames
+            .Where(roleName => !knownNames.Contains(roleName))
+            .ToList();
+
+        return Result<IReadOnlyList<string>>.Success(missingRoleNames);
     }
 
     private async Task<IReadOnlyList<PersistedRoleRow>> LoadPersistedRolesWithPermissionsAsync(
@@ -670,10 +714,15 @@ public sealed class RoleManagementService : IRoleManagementService
 
     private static List<RoleListItem> ApplyRoleListOrdering(
         List<RoleListItem> roles,
-        RoleListSortBy sortBy,
-        bool sortDescending)
+        SortRequest<RoleListSortBy>? sort)
     {
-        IOrderedEnumerable<RoleListItem> ordered = sortBy switch
+        if (sort is null)
+        {
+            return [.. roles.OrderBy(role => role.Name, StringComparer.OrdinalIgnoreCase)];
+        }
+
+        var sortDescending = sort.IsDescending;
+        IOrderedEnumerable<RoleListItem> ordered = sort.Field switch
         {
             RoleListSortBy.IsActive when sortDescending =>
                 roles.OrderByDescending(role => role.IsActive).ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase),

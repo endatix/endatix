@@ -68,12 +68,9 @@ public class InviteUserHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Forbidden);
         await _roleManagementService.DidNotReceive()
-            .ListRolesAsync(
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                cancellationToken: Arg.Any<CancellationToken>());
+            .GetMissingAssignableRoleNamesAsync(
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>());
         await _userRegistrationService.DidNotReceive()
             .RegisterInvitedUserAsync(
                 Arg.Any<string>(),
@@ -96,12 +93,9 @@ public class InviteUserHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Forbidden);
         await _roleManagementService.DidNotReceive()
-            .ListRolesAsync(
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                cancellationToken: Arg.Any<CancellationToken>());
+            .GetMissingAssignableRoleNamesAsync(
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>());
         await _userRegistrationService.DidNotReceive()
             .RegisterInvitedUserAsync(
                 Arg.Any<string>(),
@@ -126,23 +120,10 @@ public class InviteUserHandlerTests
             .ValidateAccessAsync(Actions.Tenant.InviteUsers, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         _roleManagementService
-            .ListRolesAsync(
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(Result<Paged<RoleListItem>>.Success(
-                Paged<RoleListItem>.FromSkipAndTake(0, int.MaxValue, 1, [
-                    new RoleListItem
-                    {
-                        Id = 1,
-                        Name = SystemRole.Creator.Name,
-                        IsSystemDefined = true,
-                        IsActive = true,
-                        Permissions = []
-                    }
-                ])));
+            .GetMissingAssignableRoleNamesAsync(
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<string>>.Success([]));
         _userRegistrationService
             .RegisterInvitedUserAsync(
                 command.Email,
@@ -159,7 +140,9 @@ public class InviteUserHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _roleManagementService.Received(1)
-            .ListRolesAsync(0, int.MaxValue, null, null, cancellationToken: Arg.Any<CancellationToken>());
+            .GetMissingAssignableRoleNamesAsync(
+                Arg.Is<IReadOnlyList<string>>(names => names.SequenceEqual(new[] { SystemRole.Creator.Name })),
+                Arg.Any<CancellationToken>());
         await _userRegistrationService.Received(1)
             .RegisterInvitedUserAsync(command.Email, 10, Arg.Any<CancellationToken>());
         await _roleManagementService.Received(1)
@@ -181,31 +164,10 @@ public class InviteUserHandlerTests
 
         _tenantContext.TenantId.Returns(10);
         _roleManagementService
-            .ListRolesAsync(
-                Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<string?>(),
-                Arg.Any<string?>(),
-                cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(Result<Paged<RoleListItem>>.Success(
-                Paged<RoleListItem>.FromSkipAndTake(0, int.MaxValue, 2, [
-                    new RoleListItem
-                    {
-                        Id = 1,
-                        Name = SystemRole.Creator.Name,
-                        IsSystemDefined = true,
-                        IsActive = true,
-                        Permissions = []
-                    },
-                    new RoleListItem
-                    {
-                        Id = 2,
-                        Name = reviewerRoleName,
-                        IsSystemDefined = false,
-                        IsActive = true,
-                        Permissions = []
-                    }
-                ])));
+            .GetMissingAssignableRoleNamesAsync(
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<string>>.Success([]));
         _userRegistrationService
             .RegisterInvitedUserAsync(
                 command.Email,
@@ -231,5 +193,28 @@ public class InviteUserHandlerTests
             .RemoveRoleFromUserAsync(user.Id, SystemRole.Creator.Name, Arg.Any<CancellationToken>());
         await _roleManagementService.DidNotReceive()
             .RemoveRoleFromUserAsync(user.Id, reviewerRoleName, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenRequestedRoleIsMissing_ReturnsInvalid()
+    {
+        var command = new InviteUserCommand("new-user@endatix.com", ["MissingRole"]);
+        _tenantContext.TenantId.Returns(10);
+        _roleManagementService
+            .GetMissingAssignableRoleNamesAsync(
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<string>>.Success(["MissingRole"]));
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsInvalid().Should().BeTrue();
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Contain("MissingRole");
+        await _userRegistrationService.DidNotReceive()
+            .RegisterInvitedUserAsync(
+                Arg.Any<string>(),
+                Arg.Any<long>(),
+                Arg.Any<CancellationToken>());
     }
 }

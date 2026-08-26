@@ -339,7 +339,7 @@ var filters = request.Filter; // facet expressions, validated by FilteredRequest
 ```
 
 
-Infrastructure lists take Core paging + feature criteria; return **`Paged<T>` as output only** (not input). See `IPlatformAdminUserListing` + `PlatformAdminUserListCriteria`.
+**Core / Infrastructure list contracts:** `(SearchablePageRequest paging, TCriteria criteria, CancellationToken)`. Put feature filters, `SortRequest<T>?`, and `UtcDateTimeRange` on the criteria record — not as extra method parameters. `SortRequest<T>?` null means keep that list’s documented default order. Return **`Paged<T>` as output only** (not input). Examples: `IUserService.ListUsersAsync` + `UserListCriteria`, `IRoleManagementService.ListRolesAsync` + `RoleListCriteria`, `IListPlatformTenants` + `PlatformTenantListCriteria`, `IPlatformAdminUserListing` + `PlatformAdminUserListCriteria`. Specs still taking a loose `(sortBy, sortDescending)` pair should move to `SortRequest<T>` (see endatix/endatix#980).
 
 ---
 
