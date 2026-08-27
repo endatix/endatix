@@ -74,7 +74,6 @@ jobs:
         with:
           format: cobertura
           file: .coverage/merged.cobertura.xml
-          debug: true
       - name: 📝 Output Summary Report
         run: |
           echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
