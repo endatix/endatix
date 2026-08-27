@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using Endatix.Core.Abstractions.Authorization;
 
@@ -26,14 +25,31 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
         {
             s.Summary = "Partially update a form";
             s.Description = "Partially updates a form.";
+            s.ExampleRequest = new PartialUpdateFormRequest
+            {
+                FormId = 1,
+                Name = "Customer satisfaction",
+                IsEnabled = true,
+            };
+            s.ResponseExamples[200] = new PartialUpdateFormResponse
+            {
+                Id = "1",
+                Name = "Customer satisfaction",
+                IsEnabled = true,
+                IsPublic = false,
+            };
             s.Responses[200] = "Form updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
         });
+        Description(builder => builder
+            .Produces<PartialUpdateFormResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<PartialUpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateFormRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<PartialUpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateFormRequest request, CancellationToken ct)
     {
         var folderId = request.FolderId.ParseToLong();
 
@@ -53,14 +69,10 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
                 ClearFolderId = request.ClearFolderId,
                 FolderId = folderId,
             },
-            cancellationToken);
+            ct);
 
-        var mappedResult = result.Map(FormMapper.Map<PartialUpdateFormResponse>);
-
-        return mappedResult.Status switch
-        {
-            ResultStatus.Ok => TypedResults.Ok(mappedResult.Value),
-            _ => mappedResult.ToProblem()
-        };
+        return TypedResultsBuilder
+            .MapResult(result, FormMapper.Map<PartialUpdateFormResponse>)
+            .SetTypedResults<Ok<PartialUpdateFormResponse>, ProblemHttpResult>();
     }
 }
