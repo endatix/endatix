@@ -6,13 +6,15 @@ using Endatix.Api.Infrastructure;
 using Endatix.Api.Common;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Paging;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.FormTemplates;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
 /// <summary>
 /// Endpoint for listing form templates.
 /// </summary>
-public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Results<Ok<IEnumerable<FormTemplateModelWithoutJsonData>>, BadRequest>>
+public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Results<Ok<Paged<FormTemplateModelWithoutJsonData>>, BadRequest>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -25,7 +27,7 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
         {
             s.Summary = "List form templates";
             s.Description =
-                "Lists all form templates with optional pagination, sort, and created/modified date bounds.";
+                "Lists form templates with paging, optional folder/filter, sort, and created/modified date bounds.";
             s.ExampleRequest = new FormTemplatesListRequest
             {
                 Page = 1,
@@ -39,7 +41,7 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<IEnumerable<FormTemplateModelWithoutJsonData>>, BadRequest>> ExecuteAsync(
+    public override async Task<Results<Ok<Paged<FormTemplateModelWithoutJsonData>>, BadRequest>> ExecuteAsync(
         FormTemplatesListRequest request,
         CancellationToken ct)
     {
@@ -57,7 +59,10 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
             ct);
 
         return TypedResultsBuilder
-            .MapResult(result, formTemplates => formTemplates.ToFormTemplateModelList())
-            .SetTypedResults<Ok<IEnumerable<FormTemplateModelWithoutJsonData>>, BadRequest>();
+            .MapResult(result, Map)
+            .SetTypedResults<Ok<Paged<FormTemplateModelWithoutJsonData>>, BadRequest>();
     }
+
+    private static Paged<FormTemplateModelWithoutJsonData> Map(Paged<FormTemplateDto> paged) =>
+        paged.MapToPaged(dto => dto.ToFormTemplateModel());
 }

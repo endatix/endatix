@@ -8,23 +8,44 @@ using Endatix.Core.Specifications.Parameters;
 namespace Endatix.Core.UseCases.FormTemplates.List;
 
 public class ListFormTemplatesHandler(IRepository<FormTemplate> repository)
-    : IQueryHandler<ListFormTemplatesQuery, Result<IEnumerable<FormTemplateDto>>>
+    : IQueryHandler<ListFormTemplatesQuery, Result<Paged<FormTemplateDto>>>
 {
-    public async Task<Result<IEnumerable<FormTemplateDto>>> Handle(
+    public async Task<Result<Paged<FormTemplateDto>>> Handle(
         ListFormTemplatesQuery request,
         CancellationToken cancellationToken)
     {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
         var filterParams = CreateFilterParameters(request.FilterExpressions, request.FolderId);
-        var spec = new FormTemplatesSpec(
-            pagingParams,
+
+        var countSpec = new FormTemplatesListFilterSpec(
             filterParams,
-            request.SortBy,
-            request.SortDescending,
             request.Created,
             request.Modified);
-        IEnumerable<FormTemplateDto> formTemplates = await repository.ListAsync(spec, cancellationToken);
-        return Result.Success(formTemplates);
+        var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
+
+        var page = Paged<FormTemplateDto>.ResolvePage(
+            pagingParams.Page,
+            pagingParams.PageSize,
+            totalRecords);
+
+        IReadOnlyList<FormTemplateDto> items = [];
+        if (totalRecords > 0)
+        {
+            var spec = new FormTemplatesSpec(
+                new PagingParameters(page, pagingParams.PageSize),
+                filterParams,
+                request.SortBy,
+                request.SortDescending,
+                request.Created,
+                request.Modified);
+            items = [.. await repository.ListAsync(spec, cancellationToken)];
+        }
+
+        return Result.Success(Paged<FormTemplateDto>.FromPage(
+            page,
+            pagingParams.PageSize,
+            totalRecords,
+            items));
     }
 
     private static FilterParameters CreateFilterParameters(
