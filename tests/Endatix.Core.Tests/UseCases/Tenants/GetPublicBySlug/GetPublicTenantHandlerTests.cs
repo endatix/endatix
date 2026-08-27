@@ -8,7 +8,7 @@ namespace Endatix.Core.Tests.UseCases.Tenants.GetPublicBySlug;
 
 public class GetPublicTenantHandlerTests
 {
-    private const string Slug = "xK9mP2qR8vNw";
+    private const string Slug = "xK9mP2qR";
     private const long TenantId = 4242;
 
     private readonly IRepository<CoreEntities.Tenant> _tenantRepository;

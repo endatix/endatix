@@ -23,7 +23,7 @@ public sealed class GetBySlugTests
             .Returns(Result<PublicTenantDto>.NotFound("Tenant not found."));
 
         var response = await endpoint.ExecuteAsync(
-            new GetPublicTenantRequest { Slug = "xK9mP2qR8vNw" },
+            new GetPublicTenantRequest { Slug = "xK9mP2qR" },
             TestContext.Current.CancellationToken);
 
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status404NotFound);
@@ -35,17 +35,17 @@ public sealed class GetBySlugTests
         var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
         _mediator.Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new PublicTenantDto(
-                "xK9mP2qR8vNw",
+                "xK9mP2qR",
                 "Acme",
                 true,
                 ["endatix"])));
 
         var response = await endpoint.ExecuteAsync(
-            new GetPublicTenantRequest { Slug = "xK9mP2qR8vNw" },
+            new GetPublicTenantRequest { Slug = "xK9mP2qR" },
             TestContext.Current.CancellationToken);
 
         var ok = response.Result.As<Ok<PublicTenantModel>>();
-        ok.Value!.Slug.Should().Be("xK9mP2qR8vNw");
+        ok.Value!.Slug.Should().Be("xK9mP2qR");
         ok.Value.SelfRegistrationEnabled.Should().BeTrue();
         ok.Value.GetType().GetProperty("Id").Should().BeNull();
     }

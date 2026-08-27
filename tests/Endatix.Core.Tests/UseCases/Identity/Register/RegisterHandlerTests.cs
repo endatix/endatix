@@ -12,7 +12,7 @@ namespace Endatix.Core.Tests.UseCases.Identity.Register;
 
 public class RegisterHandlerTests
 {
-    private const string Slug = "xK9mP2qR8vNw";
+    private const string Slug = "xK9mP2qR";
     private const long TenantId = 99;
 
     private readonly IUserRegistrationService _userRegistrationService;

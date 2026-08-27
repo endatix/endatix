@@ -61,7 +61,7 @@ public class RegisterTests
     [Fact]
     public async Task ExecuteAsync_SelfRegistrationDisabled_ReturnsForbidden()
     {
-        var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR8vNw");
+        var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR");
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Forbidden("Self-registration is not enabled for this tenant."));
 
@@ -75,7 +75,7 @@ public class RegisterTests
     [Fact]
     public async Task ExecuteAsync_UnknownTenantSlug_ReturnsNotFound()
     {
-        var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR8vNw");
+        var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR");
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.NotFound("Tenant not found."));
 
