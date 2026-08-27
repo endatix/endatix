@@ -2,7 +2,6 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
 using static Endatix.Api.Infrastructure.ResultExtensions;
 
 namespace Endatix.Api.Tests.Infrastructure;
@@ -11,131 +10,10 @@ public class ResultExtensionsTests
 {
     private const string DEFAULT_UNEXPECTED_ERROR_TITLE = ResultTitles.INTERNAL_SERVER_ERROR;
     private const string DEFAULT_BAD_REQUEST_TITLE = ResultTitles.BAD_REQUEST;
-    private const string DEFAULT_NOT_FOUND_TITLE = ResultTitles.NOT_FOUND;
     private const string DEFAULT_UNAUTHORIZED_TITLE = ResultTitles.UNAUTHORIZED;
     private const string DEFAULT_FORBIDDEN_TITLE = ResultTitles.FORBIDDEN;
     private const string DEFAULT_CONFLICT_TITLE = ResultTitles.CONFLICT;
     private const string DEFAULT_SERVICE_UNAVAILABLE_TITLE = ResultTitles.SERVICE_UNAVAILABLE;
-
-    [Fact]
-    public void ToNotFound_WithErrors_ReturnsProblemDetailsWithErrors()
-    {
-        // Arrange
-        var result = Result.NotFound("Resource not found", "Additional error");
-
-        // Act
-        var httpResult = result.ToNotFound();
-
-        // Assert
-        httpResult.Should().NotBeNull();
-        httpResult.Should().BeOfType<NotFound<ProblemDetails>>();
-
-        var problemDetails = httpResult.Value;
-        if (problemDetails is null)
-        {
-            Assert.Fail("Problem details are null");
-        }
-        problemDetails.Title.Should().Be(DEFAULT_NOT_FOUND_TITLE);
-        problemDetails.Status.Should().Be(StatusCodes.Status404NotFound);
-        problemDetails.Detail.Should().Contain("Resource not found");
-        problemDetails.Detail.Should().Contain("Additional error");
-    }
-
-    [Fact]
-    public void ToNotFound_WithoutErrors_ReturnsProblemDetailsWithDefaultMessage()
-    {
-        // Arrange
-        var result = Result.NotFound();
-
-        // Act
-        var httpResult = result.ToNotFound();
-
-        // Assert
-        httpResult.Should().NotBeNull();
-        httpResult.Should().BeOfType<NotFound<ProblemDetails>>();
-
-        var problemDetails = httpResult.Value;
-        if (problemDetails is null)
-        {
-            Assert.Fail("Problem details are null");
-        }
-        problemDetails.Title.Should().Be(DEFAULT_NOT_FOUND_TITLE);
-        problemDetails.Status.Should().Be(StatusCodes.Status404NotFound);
-        problemDetails.Detail.Should().Contain(DEFAULT_NOT_FOUND_TITLE);
-    }
-
-    [Fact]
-    public void ToBadRequest_WithValidationError_ReturnsProblemDetailsWithValidationError()
-    {
-        // Arrange
-        var validationError = new ValidationError("Field", "Invalid field value", "INVALID_FIELD", ValidationSeverity.Error);
-        var result = Result.Invalid(validationError);
-
-        // Act
-        var httpResult = result.ToBadRequest();
-
-        // Assert
-        httpResult.Should().NotBeNull();
-        httpResult.Should().BeOfType<BadRequest<ProblemDetails>>();
-
-        var problemDetails = httpResult.Value;
-        if (problemDetails is null)
-        {
-            Assert.Fail("Problem details are null");
-        }
-        problemDetails.Title.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
-        problemDetails.Status.Should().Be(StatusCodes.Status400BadRequest);
-        problemDetails.Detail.Should().Be("Invalid field value");
-        problemDetails.Extensions.Should().ContainKey("errorCode");
-        problemDetails.Extensions["errorCode"].Should().Be("INVALID_FIELD");
-    }
-
-    [Fact]
-    public void ToBadRequest_WithCustomTitle_ReturnsProblemDetailsWithCustomTitle()
-    {
-        // Arrange
-        var validationError = new ValidationError("Field", "Invalid field value", "ERROR_CODE", ValidationSeverity.Error);
-        var result = Result.Invalid(validationError);
-        var customTitle = "Custom validation error";
-
-        // Act
-        var httpResult = result.ToBadRequest(customTitle);
-
-        // Assert
-        httpResult.Should().NotBeNull();
-        httpResult.Should().BeOfType<BadRequest<ProblemDetails>>();
-
-        var problemDetails = httpResult.Value;
-        if (problemDetails is null)
-        {
-            Assert.Fail("Problem details are null");
-        }
-        problemDetails.Title.Should().Be(customTitle);
-        problemDetails.Status.Should().Be(StatusCodes.Status400BadRequest);
-    }
-
-    [Fact]
-    public void ToBadRequest_WithoutValidationError_ReturnsProblemDetailsWithDefaultMessage()
-    {
-        // Arrange
-        var result = Result.Error("Some error occurred");
-
-        // Act
-        var httpResult = result.ToBadRequest();
-
-        // Assert
-        httpResult.Should().NotBeNull();
-        httpResult.Should().BeOfType<BadRequest<ProblemDetails>>();
-
-        var problemDetails = httpResult.Value;
-        if (problemDetails is null)
-        {
-            Assert.Fail("Problem details are null");
-        }
-        problemDetails.Title.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
-        problemDetails.Status.Should().Be(StatusCodes.Status400BadRequest);
-        problemDetails.Detail.Should().Be(DEFAULT_BAD_REQUEST_TITLE);
-    }
 
     [Theory]
     [InlineData(ResultStatus.Invalid, StatusCodes.Status400BadRequest)]
@@ -299,7 +177,7 @@ public class ResultExtensionsTests
             Assert.Fail("Problem details are null");
         }
         problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
-        problemDetails.Detail.Should().BeEmpty();
+        problemDetails.Detail.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
     }
 
     [Fact]
@@ -380,7 +258,7 @@ public class ResultExtensionsTests
             Assert.Fail("Problem details are null");
         }
         problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
-        problemDetails.Detail.Should().BeEmpty();
+        problemDetails.Detail.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
     }
 
     [Fact]
@@ -513,7 +391,35 @@ public class ResultExtensionsTests
             Assert.Fail("Problem details are null");
         }
         problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
-        problemDetails.Detail.Should().BeEmpty();
+        problemDetails.Detail.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
+    }
+
+    [Fact]
+    public void ToProblem_NotFoundWithoutErrors_FallsBackToTitleForDetail()
+    {
+        // Arrange
+        var result = Result.NotFound();
+
+        // Act
+        var httpResult = result.ToProblem();
+
+        // Assert
+        httpResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        httpResult.ProblemDetails.Title.Should().Be(ResultTitles.NOT_FOUND);
+        httpResult.ProblemDetails.Detail.Should().Be(ResultTitles.NOT_FOUND);
+    }
+
+    [Fact]
+    public void ToProblem_WithErrors_DoesNotPadDetailWithWhitespace()
+    {
+        // Arrange
+        var result = Result.NotFound("Form not found.");
+
+        // Act
+        var httpResult = result.ToProblem();
+
+        // Assert
+        httpResult.ProblemDetails.Detail.Should().Be("Form not found.");
     }
 
     private static Core.Infrastructure.Result.IResult CreateResultWithStatus(ResultStatus status, params string[] errors)
