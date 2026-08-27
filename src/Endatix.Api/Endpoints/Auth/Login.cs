@@ -36,10 +36,10 @@ public class Login(IMediator mediator) : Endpoint<LoginRequest, Results<Ok<Login
     }
 
     /// <inheritdoc />
-    public override async Task<Results<Ok<LoginResponse>, ProblemHttpResult>> ExecuteAsync(LoginRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<LoginResponse>, ProblemHttpResult>> ExecuteAsync(LoginRequest request, CancellationToken ct)
     {
         var loginCommand = new LoginCommand(request.Email, request.Password);
-        var result = await mediator.Send(loginCommand, cancellationToken);
+        var result = await mediator.Send(loginCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, tokenDto => new LoginResponse(request.Email, tokenDto.AccessToken.Token, tokenDto.RefreshToken.Token))

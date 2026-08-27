@@ -39,11 +39,11 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormTemplateRequest, Re
     /// <inheritdoc/>
     public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(
         DeleteFormTemplateRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var result = await mediator.Send(
             new DeleteFormTemplateCommand(request.FormTemplateId),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, template => template.Id.ToString())

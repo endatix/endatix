@@ -20,11 +20,10 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
     /// Placeholder used only to burn the same password-hashing work when no account matched.
     /// </summary>
     private static readonly AppUser DummyUser = new() { Email = "dummy@endatix.invalid" };
-    private const string DUMMY_PASSWORD = "N0tARea1Passw0rd!";
 
     /// <summary>
-    /// Hash of <see cref="DUMMY_PASSWORD"/>, computed once. A benign race just recomputes an
-    /// equivalent hash, so no locking is needed.
+    /// Throwaway hash (from a random GUID, never a real credential), computed once.
+    /// A benign race just recomputes an equivalent hash, so no locking is needed.
     /// </summary>
     private static string? _dummyPasswordHash;
 
@@ -40,7 +39,7 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
         // unconfirmed account skips the hash and answers measurably faster, which lets an
         // attacker enumerate accounts by response time even though the payloads are identical.
         var passwordVerified = user is null
-            ? BurnPasswordHashingWork(password)
+            ? BurnPasswordHashingWork(_passwordHasher, password)
             : await _userManager.CheckPasswordAsync(user, password);
 
         if (user is null || !user.EmailConfirmed || !passwordVerified)
@@ -55,10 +54,10 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
     /// Verifies the supplied password against a throwaway hash so the unknown-account path
     /// costs the same as a real verification. Always returns false.
     /// </summary>
-    private bool BurnPasswordHashingWork(string password)
+    private static bool BurnPasswordHashingWork(IPasswordHasher<AppUser> passwordHasher, string password)
     {
-        _dummyPasswordHash ??= _passwordHasher.HashPassword(DummyUser, DUMMY_PASSWORD);
-        _passwordHasher.VerifyHashedPassword(DummyUser, _dummyPasswordHash, password);
+        _dummyPasswordHash ??= passwordHasher.HashPassword(DummyUser, Guid.NewGuid().ToString("N"));
+        passwordHasher.VerifyHashedPassword(DummyUser, _dummyPasswordHash, password);
 
         return false;
     }

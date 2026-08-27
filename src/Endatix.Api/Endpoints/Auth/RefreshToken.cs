@@ -34,12 +34,12 @@ public class RefreshToken(IMediator mediator) : Endpoint<RefreshTokenRequest, Re
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<RefreshTokenResponse>, ProblemHttpResult>> ExecuteAsync(RefreshTokenRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<RefreshTokenResponse>, ProblemHttpResult>> ExecuteAsync(RefreshTokenRequest request, CancellationToken ct)
     {
         var authHeader = request.Authorization;
         var accessToken = authHeader!["Bearer ".Length..].Trim();
         var refreshCommand = new RefreshTokenCommand(accessToken, request.RefreshToken!);
-        var result = await mediator.Send(refreshCommand, cancellationToken);
+        var result = await mediator.Send(refreshCommand, ct);
 
         return TypedResultsBuilder
                 .MapResult(result, (tokenDto) => new RefreshTokenResponse(tokenDto.AccessToken.Token, tokenDto.RefreshToken.Token))

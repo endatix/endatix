@@ -31,10 +31,10 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, Results<Ok
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<RegisterResponse>, ProblemHttpResult>> ExecuteAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<RegisterResponse>, ProblemHttpResult>> ExecuteAsync(RegisterRequest request, CancellationToken ct)
     {
         var registerUserCommand = new RegisterCommand(request.Email, request.Password);
-        var userRegistrationResult = await mediator.Send(registerUserCommand, cancellationToken);
+        var userRegistrationResult = await mediator.Send(registerUserCommand, ct);
 
         var errorMessage = "Registration failed. ";
         if (userRegistrationResult.Status == Core.Infrastructure.Result.ResultStatus.Invalid && userRegistrationResult.ValidationErrors.Any())

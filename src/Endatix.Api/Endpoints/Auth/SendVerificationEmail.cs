@@ -31,10 +31,10 @@ public class SendVerificationEmail(IMediator mediator) : Endpoint<SendVerificati
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(SendVerificationEmailRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(SendVerificationEmailRequest request, CancellationToken ct)
     {
         var sendVerificationEmailCommand = new SendVerificationEmailCommand(request.Email);
-        var result = await mediator.Send(sendVerificationEmailCommand, cancellationToken);
+        var result = await mediator.Send(sendVerificationEmailCommand, ct);
 
         return TypedResultsBuilder
                 .MapResult(result, result => "Verification email sent successfully")

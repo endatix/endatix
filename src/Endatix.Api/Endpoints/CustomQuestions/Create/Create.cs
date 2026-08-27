@@ -49,13 +49,13 @@ public class Create(IMediator mediator)
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateCustomQuestionResponse>, ProblemHttpResult>> ExecuteAsync(
         CreateCustomQuestionRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var command = new CreateCustomQuestionCommand(
             request.Name!,
             request.JsonData!,
             request.Description);
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, CustomQuestionMapper.Map<CreateCustomQuestionResponse>)
