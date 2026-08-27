@@ -29,9 +29,7 @@ public static class UrlSlugNormalizer
     public static readonly ImmutableHashSet<string> ReservedSlugs = ImmutableHashSet.Create(
         "create", "templates", "new", "api", "folders", "by-slug", "design", "analytics", "submissions",
         "share", "embed", "preview", "login", "signup", "logout", "register", "forgot-password",
-        "reset-password", "verify-email", "email-verification", "email-confirmation",
-        // Tenant slug / Hub route collisions
-        "t", "admin", "signin", "signout", "create-account", "auth", "forms", "settings");
+        "reset-password", "verify-email", "email-verification", "email-confirmation");
 
     /// <summary>
     /// Produces a slug from a display name (e.g. folder title).

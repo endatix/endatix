@@ -6,7 +6,7 @@ namespace Endatix.Core.Abstractions;
 public enum PublicIdKind
 {
     /// <summary>
-    /// Tenant URL token stored on <c>Tenant.Slug</c> (12 characters).
+    /// Tenant URL token stored on <c>Tenant.Slug</c> (8 characters).
     /// </summary>
     Tenant = 0
 }
