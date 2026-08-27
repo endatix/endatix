@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
@@ -20,7 +21,7 @@ public class CreateTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
+    public async Task ExecuteAsync_InvalidRequest_ReturnsProblemDetails()
     {
         // Arrange
         var request = new CreateCustomQuestionRequest
@@ -39,8 +40,9 @@ public class CreateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

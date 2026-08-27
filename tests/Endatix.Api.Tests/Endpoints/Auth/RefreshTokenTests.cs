@@ -1,7 +1,7 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Api.Endpoints.Auth;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity;
@@ -59,9 +59,9 @@ public class RefreshTokenTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badResult = response?.Result as BadRequest<Errors.ProblemDetails>;
-        badResult.Should().NotBeNull();
-        badResult?.StatusCode.Should().Be(400);
-        badResult?.Value?.Title.Should().Be("Invalid or expired token.");
+        var problemResult = response?.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult?.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problemResult?.ProblemDetails.Title.Should().Be("Invalid or expired token.");
     }
 }

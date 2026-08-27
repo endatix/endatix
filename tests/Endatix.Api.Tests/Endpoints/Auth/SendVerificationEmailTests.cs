@@ -96,9 +96,9 @@ public class SendVerificationEmailTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badResponse = response!.Result as BadRequest<Microsoft.AspNetCore.Mvc.ProblemDetails>;
+        var problemResult = response!.Result as ProblemHttpResult;
 
-        badResponse.Should().NotBeNull();
-        badResponse!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 } 
