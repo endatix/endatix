@@ -4,6 +4,7 @@ using Endatix.Core.UseCases.Identity.ReplaceUserRoles;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Users;
@@ -29,15 +30,19 @@ public sealed class ReplaceUserRoles(IMediator mediator)
             s.Responses[400] = "Invalid request or role replacement failed.";
             s.Responses[404] = "User not found.";
         });
+        Description(builder => builder
+            .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
     public override async Task<Results<Ok<UserOperation>, ProblemHttpResult>> ExecuteAsync(
         ReplaceUserRolesRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var command = new ReplaceUserRolesCommand(request.UserId, request.RoleNames);
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, message => UserOperation.Success(message))

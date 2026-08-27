@@ -30,8 +30,8 @@ public sealed class CancelUserInvite(IMediator mediator)
             s.Responses[404] = "User or invite not found.";
         });
         Description(builder => builder
-            .Produces<UserOperation>(200, "application/json")
-            .ProducesProblem(404));
+            .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>

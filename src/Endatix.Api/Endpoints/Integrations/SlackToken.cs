@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Microsoft.Extensions.Logging;
@@ -10,7 +11,7 @@ namespace Endatix.Api.Endpoints.Integrations;
 /// <summary>
 /// Endpoint for receiving the slack token.
 /// </summary>
-public class SlackToken(ILogger<SlackToken> logger, IEmailSender emailSender) : Endpoint<SlackTokenRequest, Results<Ok<string>, BadRequest>>
+public class SlackToken(ILogger<SlackToken> logger, IEmailSender emailSender) : Endpoint<SlackTokenRequest, Results<Ok<string>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -24,13 +25,17 @@ public class SlackToken(ILogger<SlackToken> logger, IEmailSender emailSender) : 
         {
             s.Summary = "Receives a Slack token";
             s.Description = "Receives a Slack token";
-            s.Responses[201] = "Token received successfully.";
+            s.Responses[200] = "Token received successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.ResponseExamples[200] = "ok";
         });
+        Description(builder => builder
+            .Produces<string>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<string>, BadRequest>> ExecuteAsync(SlackTokenRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(SlackTokenRequest request, CancellationToken ct)
     {
         logger.LogInformation($"Received slack token: {request.Token}");
 
@@ -43,12 +48,12 @@ public class SlackToken(ILogger<SlackToken> logger, IEmailSender emailSender) : 
             PlainTextBody = request.Token
         };
 
-        await emailSender.SendEmailAsync(email, cancellationToken);
+        await emailSender.SendEmailAsync(email, ct);
 
         var operationResult = Result.Success("ok");
 
         return TypedResultsBuilder
             .FromResult(operationResult)
-            .SetTypedResults<Ok<string>, BadRequest>();
+            .SetTypedResults<Ok<string>, ProblemHttpResult>();
     }
 }

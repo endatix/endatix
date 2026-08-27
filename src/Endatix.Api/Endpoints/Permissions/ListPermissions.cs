@@ -30,8 +30,8 @@ public sealed class ListPermissions(IMediator mediator)
             s.Responses[400] = "Invalid request.";
         });
         Description(builder => builder
-            .Produces<IEnumerable<ListPermissionsResponse>>(200, "application/json")
-            .ProducesProblem(400));
+            .Produces<IEnumerable<ListPermissionsResponse>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>

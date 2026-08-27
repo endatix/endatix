@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.Create;
@@ -24,13 +25,30 @@ public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Re
         {
             s.Summary = "Create a new form template";
             s.Description = "Creates a new form template.";
+            s.ExampleRequest = new CreateFormTemplateRequest
+            {
+                Name = "Customer satisfaction",
+                Description = "A reusable customer satisfaction survey template.",
+                JsonData = "{}",
+            };
+            s.ResponseExamples[201] = new CreateFormTemplateResponse
+            {
+                Id = "1",
+                Name = "Customer satisfaction",
+                JsonData = "{}",
+            };
             s.Responses[201] = "Form template created successfully.";
             s.Responses[400] = "Invalid input data.";
         });
+        Description(builder => builder
+            .Produces<CreateFormTemplateResponse>(StatusCodes.Status201Created, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateFormTemplateResponse>, ProblemHttpResult>> ExecuteAsync(CreateFormTemplateRequest request, CancellationToken ct)
+    public override async Task<Results<Created<CreateFormTemplateResponse>, ProblemHttpResult>> ExecuteAsync(
+        CreateFormTemplateRequest request,
+        CancellationToken ct)
     {
         var folderId = request.FolderId.ParseToLong();
 

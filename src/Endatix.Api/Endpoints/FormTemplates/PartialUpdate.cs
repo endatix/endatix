@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.PartialUpdate;
@@ -11,7 +12,8 @@ namespace Endatix.Api.Endpoints.FormTemplates;
 /// <summary>
 /// Endpoint for partially updating a form template.
 /// </summary>
-public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTemplateRequest, Results<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>>
+public class PartialUpdate(IMediator mediator)
+    : Endpoint<PartialUpdateFormTemplateRequest, Results<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -24,14 +26,33 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTempl
         {
             s.Summary = "Partially update a form template";
             s.Description = "Partially updates a form template.";
+            s.ExampleRequest = new PartialUpdateFormTemplateRequest
+            {
+                FormTemplateId = 1,
+                Name = "Customer satisfaction",
+                Description = "Updated description.",
+            };
+            s.ResponseExamples[200] = new PartialUpdateFormTemplateResponse
+            {
+                Id = "1",
+                Name = "Customer satisfaction",
+                Description = "Updated description.",
+                JsonData = "{}",
+            };
             s.Responses[200] = "Form template updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form template not found.";
         });
+        Description(builder => builder
+            .Produces<PartialUpdateFormTemplateResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateFormTemplateRequest request, CancellationToken ct)
+    public override async Task<Results<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>> ExecuteAsync(
+        PartialUpdateFormTemplateRequest request,
+        CancellationToken ct)
     {
         var folderId = request.FolderId.ParseToLong();
 
@@ -44,10 +65,9 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormTempl
             ct);
 
         return TypedResultsBuilder
-         .MapResult(
-            result,
-            formTemplate => formTemplate.ToFormTemplateModel<PartialUpdateFormTemplateResponse>()
-        )
-        .SetTypedResults<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>();
+            .MapResult(
+                result,
+                formTemplate => formTemplate.ToFormTemplateModel<PartialUpdateFormTemplateResponse>())
+            .SetTypedResults<Ok<PartialUpdateFormTemplateResponse>, ProblemHttpResult>();
     }
 }

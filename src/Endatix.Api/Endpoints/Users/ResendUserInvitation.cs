@@ -31,9 +31,9 @@ public sealed class ResendUserInvitation(IMediator mediator)
             s.Responses[404] = "User not found.";
         });
         Description(builder => builder
-            .Produces<UserOperation>(200, "application/json")
-            .ProducesProblem(400)
-            .ProducesProblem(404));
+            .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>

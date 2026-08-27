@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.FormTemplates.Delete;
@@ -10,7 +11,7 @@ namespace Endatix.Api.Endpoints.FormTemplates;
 /// <summary>
 /// Endpoint for deleting a form template.
 /// </summary>
-public class Delete(IMediator mediator) : Endpoint<DeleteFormTemplateRequest, Results<Ok<string>, BadRequest, NotFound>>
+public class Delete(IMediator mediator) : Endpoint<DeleteFormTemplateRequest, Results<Ok<string>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -23,14 +24,22 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormTemplateRequest, Re
         {
             s.Summary = "Delete a form template";
             s.Description = "Deletes a form template.";
-            s.Responses[204] = "Form template deleted successfully.";
+            s.ExampleRequest = new DeleteFormTemplateRequest { FormTemplateId = 1 };
+            s.ResponseExamples[200] = "1";
+            s.Responses[200] = "Form template deleted successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form template not found.";
         });
+        Description(builder => builder
+            .Produces<string>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<string>, BadRequest, NotFound>> ExecuteAsync(DeleteFormTemplateRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(
+        DeleteFormTemplateRequest request,
+        CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
             new DeleteFormTemplateCommand(request.FormTemplateId),
@@ -38,6 +47,6 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormTemplateRequest, Re
 
         return TypedResultsBuilder
             .MapResult(result, template => template.Id.ToString())
-            .SetTypedResults<Ok<string>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<string>, ProblemHttpResult>();
     }
 }
