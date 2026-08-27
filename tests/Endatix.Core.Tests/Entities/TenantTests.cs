@@ -5,7 +5,7 @@ namespace Endatix.Core.Tests.Entities;
 
 public class TenantTests
 {
-    private const string ValidSlug = "xK9mP2qR8vNw";
+    private const string ValidSlug = "xK9mP2qR";
 
     [Fact]
     public void Constructor_ValidNameAndPublicId_SetsProperties()

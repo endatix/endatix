@@ -45,27 +45,33 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             migrationBuilder.AddColumn<string>(
                 name: "Slug",
                 table: "Tenants",
-                type: "character varying(12)",
-                maxLength: 12,
+                type: "character varying(8)",
+                maxLength: 8,
                 nullable: true);
 
-            // Opaque 12-char ids (hex subset of the public-id alphabet). Not derived from name.
+            // Opaque YouTube-style 8-char ids (base64url of MD5). Not derived from name.
             migrationBuilder.Sql(
                 """
                 UPDATE "Tenants"
-                SET "Slug" = substr(md5('tenant-' || "Id"::text), 1, 12)
+                SET "Slug" = replace(
+                    translate(
+                        substr(encode(decode(md5('tenant-' || "Id"::text), 'hex'), 'base64'), 1, 8),
+                        '+/',
+                        '-_'),
+                    '=',
+                    'A')
                 WHERE "Slug" IS NULL OR "Slug" = '';
                 """);
 
             migrationBuilder.AlterColumn<string>(
                 name: "Slug",
                 table: "Tenants",
-                type: "character varying(12)",
-                maxLength: 12,
+                type: "character varying(8)",
+                maxLength: 8,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "character varying(12)",
-                oldMaxLength: 12,
+                oldType: "character varying(8)",
+                oldMaxLength: 8,
                 oldNullable: true);
 
             migrationBuilder.CreateIndex(

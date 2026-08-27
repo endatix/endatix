@@ -9,12 +9,24 @@ public class PublicIdGeneratorTests
     private readonly PublicIdGenerator _sut = new();
 
     [Fact]
-    public void Create_Tenant_ReturnsTwelveAlphabetCharacters()
+    public void Create_Tenant_ReturnsEightAlphabetCharacters()
     {
         var value = _sut.Create(PublicIdKind.Tenant);
 
         value.Should().HaveLength(PublicId.TenantLength);
         PublicId.IsValidTenantSlug(value).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_Tenant_PrefersLetterHeavyIds()
+    {
+        for (var i = 0; i < 50; i++)
+        {
+            var value = _sut.Create(PublicIdKind.Tenant);
+
+            PublicId.IsValidTenantSlug(value).Should().BeTrue();
+            PublicId.IsLetterHeavy(value).Should().BeTrue();
+        }
     }
 
     [Fact]

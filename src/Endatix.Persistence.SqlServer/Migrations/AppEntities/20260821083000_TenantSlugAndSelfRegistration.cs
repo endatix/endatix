@@ -44,27 +44,32 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
             migrationBuilder.AddColumn<string>(
                 name: "Slug",
                 table: "Tenants",
-                type: "nvarchar(12)",
-                maxLength: 12,
+                type: "nvarchar(8)",
+                maxLength: 8,
                 nullable: true);
 
-            // Opaque 12-char ids (hex subset of the public-id alphabet). Not derived from name.
+            // Opaque YouTube-style 8-char ids (base64url of MD5). Not derived from name.
             migrationBuilder.Sql(
                 """
                 UPDATE [Tenants]
-                SET [Slug] = LEFT(LOWER(CONVERT(varchar(32), HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), [Id]))), 2)), 12)
+                SET [Slug] = LEFT(
+                    REPLACE(REPLACE(REPLACE(
+                        (SELECT CAST(HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), [Id]))) AS varbinary(max))
+                         FOR XML PATH(''), BINARY BASE64),
+                        '+', '-'), '/', '_'), '=', 'A'),
+                    8)
                 WHERE [Slug] IS NULL OR [Slug] = '';
                 """);
 
             migrationBuilder.AlterColumn<string>(
                 name: "Slug",
                 table: "Tenants",
-                type: "nvarchar(12)",
-                maxLength: 12,
+                type: "nvarchar(8)",
+                maxLength: 8,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "nvarchar(12)",
-                oldMaxLength: 12,
+                oldType: "nvarchar(8)",
+                oldMaxLength: 8,
                 oldNullable: true);
 
             migrationBuilder.CreateIndex(

@@ -6,14 +6,10 @@ namespace Endatix.Infrastructure.Data;
 
 /// <summary>
 /// CSPRNG public-id generator. Uniqueness is the unique index's job; callers retry a few times.
+/// Prefers YouTube-style letter-heavy ids (more letters than digits).
 /// </summary>
 public sealed class PublicIdGenerator : IPublicIdGenerator
 {
-    /// <summary>
-    /// Draws to attempt when a generated id collides with an existing row.
-    /// </summary>
-    public const int CollisionRetries = 3;
-
     /// <inheritdoc />
     public string Create(PublicIdKind kind)
     {
@@ -23,6 +19,14 @@ public sealed class PublicIdGenerator : IPublicIdGenerator
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported public id kind.")
         };
 
-        return RandomNumberGenerator.GetString(PublicId.Alphabet, length);
+        string value = RandomNumberGenerator.GetString(PublicId.Alphabet, length);
+        for (var attempt = 0;
+             attempt < PublicId.LetterHeavyDrawRetries && !PublicId.IsLetterHeavy(value);
+             attempt++)
+        {
+            value = RandomNumberGenerator.GetString(PublicId.Alphabet, length);
+        }
+
+        return value;
     }
 }

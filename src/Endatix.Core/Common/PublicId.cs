@@ -15,15 +15,54 @@ public static class PublicId
 
     /// <summary>
     /// Length of tenant public ids stored on <c>Tenant.Slug</c>.
+    /// Short enough for URLs; collision risk is negligible under 10K tenants with a 64-symbol alphabet.
     /// </summary>
-    public const int TenantLength = 12;
+    public const int TenantLength = 8;
+
+    /// <summary>
+    /// Draws to attempt when a generated id collides with an existing unique index.
+    /// </summary>
+    public const int CollisionRetries = 3;
+
+    /// <summary>
+    /// Caps rejection sampling when preferring letter-heavy ids (more letters than digits).
+    /// </summary>
+    public const int LetterHeavyDrawRetries = 32;
 
     private static readonly SearchValues<char> AlphabetChars = SearchValues.Create(Alphabet);
 
     /// <summary>
-    /// Returns true when <paramref name="value"/> is a 12-character tenant public id.
+    /// Returns true when <paramref name="value"/> is an 8-character tenant public id.
     /// </summary>
     public static bool IsValidTenantSlug(string? value) => IsValid(value, TenantLength);
+
+    /// <summary>
+    /// Returns true when <paramref name="value"/> has more Latin letters than digits.
+    /// Characters outside <c>A-Za-z0-9</c> (e.g. <c>-</c>, <c>_</c>) count toward neither side.
+    /// </summary>
+    public static bool IsLetterHeavy(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        var letters = 0;
+        var digits = 0;
+        foreach (var c in value)
+        {
+            if (char.IsAsciiLetter(c))
+            {
+                letters++;
+            }
+            else if (char.IsAsciiDigit(c))
+            {
+                digits++;
+            }
+        }
+
+        return letters > digits;
+    }
 
     /// <summary>
     /// Returns true when <paramref name="value"/> has the expected length and only alphabet characters.
