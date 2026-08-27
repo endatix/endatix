@@ -40,17 +40,18 @@ public class ListTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ValidRequest_ReturnsOkWithFormDefinitions()
+    public async Task ExecuteAsync_ValidRequest_ReturnsOkWithPagedFormDefinitions()
     {
         // Arrange
         var formId = 1L;
         var request = new FormDefinitionsListRequest { FormId = formId };
         var formDefinitions = new List<FormDefinition>
         {
-            FormDefinitionFactory.CreateForTesting(true,"{ }", formId, 1),
-            FormDefinitionFactory.CreateForTesting(false,"{ }", formId, 2)
+            FormDefinitionFactory.CreateForTesting(true, "{ }", formId, 1),
+            FormDefinitionFactory.CreateForTesting(false, "{ }", formId, 2)
         };
-        var result = Result.Success(formDefinitions.AsEnumerable());
+        var paged = Paged<FormDefinition>.FromPage(1, 10, 2, formDefinitions);
+        var result = Result.Success(paged);
 
         _mediator.Send(Arg.Any<ListFormDefinitionsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -59,10 +60,29 @@ public class ListTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<FormDefinitionModel>>;
+        var okResult = response.Result as Ok<Paged<FormDefinitionModel>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult!.Value!.Count().Should().Be(2);
+        okResult.Value!.Items.Should().HaveCount(2);
+        okResult.Value.TotalRecords.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_FormNotFound_ReturnsNotFound()
+    {
+        // Arrange
+        var request = new FormDefinitionsListRequest { FormId = 1 };
+        var result = Result<Paged<FormDefinition>>.NotFound("Form not found.");
+
+        _mediator.Send(Arg.Any<ListFormDefinitionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(result);
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, default);
+
+        // Assert
+        var notFoundResult = response.Result as NotFound;
+        notFoundResult.Should().NotBeNull();
     }
 
     [Fact]
@@ -75,7 +95,11 @@ public class ListTests
             Page = 2,
             PageSize = 20
         };
-        var result = Result.Success(Enumerable.Empty<FormDefinition>());
+        var result = Result.Success(Paged<FormDefinition>.FromPage(
+            1,
+            20,
+            1,
+            [FormDefinitionFactory.CreateForTesting(true, "{ }", 123, 1)]));
 
         _mediator.Send(Arg.Any<ListFormDefinitionsQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

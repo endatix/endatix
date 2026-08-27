@@ -2570,7 +2570,7 @@
           "Forms"
         ],
         "summary": "List form definitions",
-        "description": "Lists all form definitions for a given form with optional pagination.",
+        "description": "Lists form definitions for a given form as a paged envelope (items, page, pageSize, totalRecords, totalPages). Optional sort and created/modified date bounds. Empty form returns 404.",
         "operationId": "EndatixApiEndpointsFormDefinitionsList",
         "parameters": [
           {
@@ -2586,7 +2586,7 @@
           {
             "name": "page",
             "in": "query",
-            "description": "The number of the page",
+            "description": "The page number (1-based).",
             "schema": {
               "type": "integer",
               "format": "int32",
@@ -2596,10 +2596,64 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "The number of items to take.",
+            "description": "The number of items per page.",
             "schema": {
               "type": "integer",
               "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "description": "Sort field (createdAt, modifiedAt).",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "sortDir",
+            "in": "query",
+            "description": "Sort direction (asc, desc).",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "createdFrom",
+            "in": "query",
+            "description": "Inclusive UTC calendar day (YYYY-MM-DD) for createdAt.",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "createdTo",
+            "in": "query",
+            "description": "Inclusive UTC calendar day (YYYY-MM-DD) for createdAt.",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "modifiedFrom",
+            "in": "query",
+            "description": "Inclusive UTC calendar day (YYYY-MM-DD) for modifiedAt.",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "modifiedTo",
+            "in": "query",
+            "description": "Inclusive UTC calendar day (YYYY-MM-DD) for modifiedAt.",
+            "schema": {
+              "type": "string",
               "nullable": true
             }
           }
@@ -2610,10 +2664,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/FormDefinitionModel"
-                  }
+                  "$ref": "#/components/schemas/PagedOfFormDefinitionModel"
                 }
               }
             }
@@ -4284,6 +4335,34 @@
             }
           }
         ]
+      },
+      "PagedOfFormDefinitionModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalRecords": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FormDefinitionModel"
+            }
+          }
+        }
       },
       "FormDefinitionModel": {
         "type": "object",
