@@ -17,10 +17,10 @@ jobs:
     timeout-minutes: 12
     if: github.event.action == 'opened'
     steps:
-      - uses: actions/first-interaction@v3
+      - uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          pr-message: |
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_message: |
             Thank you so much for submitting your first Pull Request and contributing to Endatix! 🚀 🖖 😻
             Your work helps us towards our mission of improving how data is collected, managed, and processed. You are a hero! 🥷
 
@@ -28,7 +28,7 @@ jobs:
             Please feel welcome to join us for discussion on [Discord](https://discord.gg/VPqzMJgS). We’d love to chat with you!
 
             If you haven't already, please take a moment to review our [contribution guide](https://docs.endatix.com/docs/intro). This guide provides helpful information to ensure your contribution aligns with our standards.
-          issue-message: |
+          issue_message: |
             Thank you for submitting your first issue, this is just awesome! 🚀 🖖 😻
             We will review it and get back to you as soon as possible.
 
