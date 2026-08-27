@@ -17,6 +17,8 @@ public static class TenantSpecifications
     /// <summary>
     /// Matches any tenant holding the given short URL, including soft-deleted ones: the unique index
     /// on <see cref="Tenant.ShortUrl"/> is unfiltered, so a deleted tenant still owns its identifier.
+    /// Stored values are already lowercase; inbound input is normalized, then compared exactly so
+    /// the match is an index seek.
     /// </summary>
     public sealed class ExistsByShortUrlSpec : Specification<Tenant>
     {
@@ -25,7 +27,7 @@ public static class TenantSpecifications
             var normalized = ShortUrl.Normalize(shortUrl);
             Query
                 .IgnoreQueryFilters()
-                .Where(tenant => tenant.ShortUrl.ToLower() == normalized);
+                .Where(tenant => tenant.ShortUrl == normalized);
         }
     }
 
