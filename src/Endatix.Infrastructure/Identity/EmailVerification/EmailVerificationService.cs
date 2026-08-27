@@ -16,6 +16,17 @@ namespace Endatix.Infrastructure.Identity.EmailVerification;
 public class EmailVerificationService : IEmailVerificationService
 {
     private const int TOKEN_SIZE_BYTES = 32; // 256 bits
+
+    /// <summary>
+    /// Single client-facing message for every unresolvable verification token, so a caller
+    /// cannot tell an unknown token apart from one whose account no longer exists.
+    /// </summary>
+    public const string INVALID_VERIFICATION_TOKEN_MESSAGE = "Invalid verification token";
+
+    /// <summary>
+    /// Single client-facing message for every unresolvable invite token, for the same reason.
+    /// </summary>
+    public const string INVALID_INVITE_TOKEN_MESSAGE = "Invalid invite token";
     private readonly IRepository<EmailVerificationToken> _tokenRepository;
     private readonly UserManager<AppUser> _userManager;
     private readonly EmailVerificationOptions _options;
@@ -83,7 +94,9 @@ public class EmailVerificationService : IEmailVerificationService
 
         if (verificationToken == null)
         {
-            return Result.NotFound("Invalid verification token");
+            // Same status and message as the expired/used branches below: the response must not
+            // tell the caller whether the token ever existed.
+            return Result.Invalid(new ValidationError(INVALID_VERIFICATION_TOKEN_MESSAGE));
         }
 
         if (verificationToken.IsExpired)
@@ -99,7 +112,9 @@ public class EmailVerificationService : IEmailVerificationService
         var user = await _userManager.FindByIdAsync(verificationToken.UserId.ToString());
         if (user == null)
         {
-            return Result.NotFound("User not found");
+            // Report the same failure as an unknown token. A dangling token must not tell the
+            // caller that the token itself was genuine but the account behind it is gone.
+            return Result.Invalid(new ValidationError(INVALID_VERIFICATION_TOKEN_MESSAGE));
         }
 
         if (user.EmailConfirmed)
@@ -220,7 +235,7 @@ public class EmailVerificationService : IEmailVerificationService
 
         if (verificationToken == null)
         {
-            return Result.NotFound("Invalid invite token");
+            return Result.Invalid(new ValidationError(INVALID_INVITE_TOKEN_MESSAGE));
         }
 
         if (verificationToken.IsExpired)
@@ -236,7 +251,7 @@ public class EmailVerificationService : IEmailVerificationService
         var user = await _userManager.FindByIdAsync(verificationToken.UserId.ToString());
         if (user == null)
         {
-            return Result.NotFound("User not found");
+            return Result.Invalid(new ValidationError(INVALID_INVITE_TOKEN_MESSAGE));
         }
 
         if (user.EmailConfirmed)

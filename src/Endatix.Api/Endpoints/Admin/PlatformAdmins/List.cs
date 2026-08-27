@@ -8,6 +8,7 @@ using Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformAdmins;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Admin.PlatformAdmins;
@@ -38,6 +39,9 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
             s.Responses[200] = "Platform administrators retrieved successfully.";
             s.Responses[400] = "Invalid request.";
         });
+        Description(builder => builder
+            .Produces<Paged<PlatformAdminUserResponse>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc />

@@ -31,7 +31,9 @@ public class ListTemplates(IMediator mediator)
             s.Responses[403] = "Forbidden - insufficient privileges (PlatformAdmin required).";
         });
         Description(builder => builder
-            .Produces<IEnumerable<EmailTemplateSummaryDto>>(200, "application/json"));
+            .Produces<IEnumerable<EmailTemplateSummaryDto>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden));
     }
 
     /// <inheritdoc/>

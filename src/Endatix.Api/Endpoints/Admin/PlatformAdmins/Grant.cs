@@ -4,6 +4,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Admin.PlatformAdmins;
@@ -27,6 +28,11 @@ public sealed class Grant(IMediator mediator)
             s.Responses[403] = "The current user is not allowed to grant platform administrator access.";
             s.Responses[404] = "User not found.";
         });
+        Description(builder => builder
+            .Produces<PlatformAdminOperation>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />

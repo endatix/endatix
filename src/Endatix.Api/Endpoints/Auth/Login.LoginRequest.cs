@@ -3,14 +3,14 @@
 namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
-/// This Represents the request for the "/login" endpoint, handled by the <see cref="Login.HandleAsync"/> method.
+/// This Represents the request for the "/login" endpoint, handled by the <see cref="Login.ExecuteAsync"/> method.
 /// </summary>
 public record LoginRequest(string Email, string Password)
 {
-    [Sensitive(SensitivityType.Email)]
     /// <summary>
     /// The Email of the user. Must be a valid email address
     /// </summary>
+    [Sensitive(SensitivityType.Email)]
     public string Email { get; init; } = Email;
 
     /// <summary>

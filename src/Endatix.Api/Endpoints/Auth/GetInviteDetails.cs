@@ -34,8 +34,8 @@ public sealed class GetInviteDetails(IEmailVerificationService emailVerification
             s.Responses[400] = "Invalid or expired invitation token.";
         });
         Description(builder => builder
-            .Produces<GetInviteDetailsResponse>(200, "application/json")
-            .ProducesProblem(400));
+            .Produces<GetInviteDetailsResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>

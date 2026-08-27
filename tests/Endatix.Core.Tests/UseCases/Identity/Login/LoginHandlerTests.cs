@@ -6,6 +6,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.Login;
 using Endatix.Core.Abstractions.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.Tests.UseCases.Identity.Login;
 
@@ -15,6 +16,7 @@ public class LoginHandlerTests
     private readonly IUserTokenService _tokenService;
     private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly IMediator _mediator;
+    private readonly ILogger<LoginHandler> _logger;
     private readonly LoginHandler _handler;
 
     public LoginHandlerTests()
@@ -23,7 +25,8 @@ public class LoginHandlerTests
         _tokenService = Substitute.For<IUserTokenService>();
         _mediator = Substitute.For<IMediator>();
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
-        _handler = new LoginHandler(_authService, _tokenService, _authorizationService, _mediator);
+        _logger = Substitute.For<ILogger<LoginHandler>>();
+        _handler = new LoginHandler(_authService, _tokenService, _authorizationService, _mediator, _logger);
     }
 
     [Fact]
@@ -40,25 +43,41 @@ public class LoginHandlerTests
 
         // Assert
         result.IsInvalid().Should().BeTrue();
-        result.ValidationErrors.Should().BeEquivalentTo(validationErrors);
         _tokenService.DidNotReceive().IssueRefreshToken();
     }
 
-    [Fact]
-    public async Task Handle_AuthServiceError_ReturnsErrorResult()
+    /// <summary>
+    /// OWASP A07: unknown account, unconfirmed email and wrong password must be
+    /// indistinguishable to the caller, whatever the IAuthService implementation returns.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(CredentialFailureResults))]
+    public async Task Handle_AnyCredentialFailure_ReturnsIdenticalInvalidResult(Result<User> authFailure)
     {
         // Arrange
         var command = new LoginCommand("test@example.com", "password");
         _authService.ValidateCredentials(command.Email, command.Password, Arg.Any<CancellationToken>())
-            .Returns(Result.Error());
+            .Returns(authFailure);
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
-        result.IsError().Should().BeTrue();
+        // Assert - always Invalid (400), always the same single message.
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(LoginHandler.INVALID_CREDENTIALS_MESSAGE);
+        result.Errors.Should().BeEmpty();
         _tokenService.DidNotReceive().IssueRefreshToken();
     }
+
+    public static TheoryData<Result<User>> CredentialFailureResults() => new()
+    {
+        Result<User>.Invalid(new ValidationError("No such user")),
+        Result<User>.NotFound("User does not exist"),
+        Result<User>.Unauthorized("Account is locked"),
+        Result<User>.Forbidden("Email not confirmed"),
+        Result<User>.Error("Upstream identity provider failed"),
+    };
 
     [Fact]
     public async Task Handle_ValidCredentials_ReturnsSuccessResultWithTokens()
@@ -110,6 +129,32 @@ public class LoginHandlerTests
             Arg.Any<string>(),
             Arg.Any<DateTime>(),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_PersistSessionFails_PreservesUnderlyingErrorMessage()
+    {
+        // Arrange
+        var command = new LoginCommand("test@example.com", "password");
+        var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", true);
+        var refreshToken = new TokenDto("refresh_token", DateTime.UtcNow.AddDays(7));
+
+        _authService.ValidateCredentials(command.Email, command.Password, Arg.Any<CancellationToken>())
+            .Returns(Result<User>.Success(user));
+        _tokenService.IssueRefreshToken().Returns(refreshToken);
+        _authService.PersistLoginSessionAsync(
+                user.Id,
+                refreshToken.Token,
+                refreshToken.ExpireAt,
+                Arg.Any<CancellationToken>())
+            .Returns(Result.Error("Failed to persist login session."));
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsError().Should().BeTrue();
+        result.Errors.Should().Contain("Failed to persist login session.");
     }
 
     [Fact]

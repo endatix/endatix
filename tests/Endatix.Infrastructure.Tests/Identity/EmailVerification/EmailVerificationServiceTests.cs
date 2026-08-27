@@ -134,7 +134,7 @@ public class EmailVerificationServiceTests
     }
 
     [Fact]
-    public async Task VerifyEmailAsync_TokenNotFound_ReturnsNotFoundResult()
+    public async Task VerifyEmailAsync_TokenNotFound_ReturnsInvalidResult()
     {
         // Arrange
         var token = "not-found-token";
@@ -148,8 +148,39 @@ public class EmailVerificationServiceTests
         // Assert
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
-        result.Status.Should().Be(ResultStatus.NotFound);
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(EmailVerificationService.INVALID_VERIFICATION_TOKEN_MESSAGE);
     }
+
+    #region Security and Privacy Tests
+
+    /// <summary>
+    /// A token whose user record no longer exists must be indistinguishable from an unknown
+    /// token, so the response cannot confirm that the token itself was ever genuine.
+    /// </summary>
+    [Fact]
+    public async Task VerifyEmailAsync_TokenWithMissingUser_DoesNotLeakThatTokenWasGenuine()
+    {
+        // Arrange
+        var token = "dangling-token";
+        var verificationToken = new EmailVerificationToken(userId: 42, token, DateTime.UtcNow.AddHours(1));
+
+        _tokenRepository.FirstOrDefaultAsync(Arg.Any<EmailVerificationTokenByTokenSpec>(), Arg.Any<CancellationToken>())
+            .Returns(verificationToken);
+        _userManager.FindByIdAsync("42").Returns((AppUser?)null);
+
+        // Act
+        var result = await _sut.VerifyEmailAsync(token, CancellationToken.None);
+
+        // Assert - identical status and message to the unknown-token case.
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(EmailVerificationService.INVALID_VERIFICATION_TOKEN_MESSAGE);
+        result.ValidationErrors.Select(error => error.ErrorMessage).Should().NotContain("User not found");
+    }
+
+    #endregion
 
     [Fact]
     public async Task ActivateInviteAsync_ValidToken_SetsPasswordConfirmsEmailAndMarksTokenAsUsed()
@@ -192,7 +223,7 @@ public class EmailVerificationServiceTests
     }
 
     [Fact]
-    public async Task ActivateInviteAsync_TokenNotFound_ReturnsNotFoundResult()
+    public async Task ActivateInviteAsync_TokenNotFound_ReturnsInvalidResult()
     {
         // Arrange
         var token = "missing-token";
@@ -205,7 +236,9 @@ public class EmailVerificationServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.NotFound);
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(EmailVerificationService.INVALID_INVITE_TOKEN_MESSAGE);
     }
 
     [Fact]

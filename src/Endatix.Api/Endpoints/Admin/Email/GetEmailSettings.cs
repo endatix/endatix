@@ -29,8 +29,8 @@ public class GetEmailSettings(IMediator mediator)
             s.Responses[400] = "Invalid request or tenant context.";
         });
         Description(builder => builder
-            .Produces<EmailSettingsDto>(200, "application/json")
-            .ProducesProblem(400));
+            .Produces<EmailSettingsDto>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
