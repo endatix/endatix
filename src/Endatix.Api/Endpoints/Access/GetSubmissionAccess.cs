@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure;
 using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Access;
@@ -29,6 +30,11 @@ public class GetSubmissionAccess(
             s.Responses[401] = "Authentication required.";
             s.Responses[403] = "Forbidden.";
         });
+        Description(builder => builder
+            .Produces<GetSubmissionAccessResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden));
     }
 
     public override async Task<Results<Ok<GetSubmissionAccessResponse>, ProblemHttpResult>> ExecuteAsync(

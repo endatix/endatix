@@ -2,6 +2,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Account.ForgotPassword;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Account;
@@ -21,12 +22,15 @@ public class ForgotPassword(IMediator mediator) :
             s.Responses[400] = "Invalid request or email.";
             s.ExampleRequest = new { Email = "user@example.com" };
         });
+        Description(builder => builder
+            .Produces<ForgotPasswordResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
-    public override async Task<Results<Ok<ForgotPasswordResponse>, ProblemHttpResult>> ExecuteAsync(ForgotPasswordRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<ForgotPasswordResponse>, ProblemHttpResult>> ExecuteAsync(ForgotPasswordRequest request, CancellationToken ct)
     {
         var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
-        var result = await mediator.Send(forgotPasswordCommand, cancellationToken);
+        var result = await mediator.Send(forgotPasswordCommand, ct);
 
         return TypedResultsBuilder
                  .MapResult(result, (message) => new ForgotPasswordResponse { Message = message })
