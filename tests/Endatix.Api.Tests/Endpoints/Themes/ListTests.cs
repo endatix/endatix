@@ -25,10 +25,10 @@ public class ListTests
     {
         // Arrange
         var request = new ListRequest();
-        var result = Result<IEnumerable<Theme>>.Invalid();
+        var result = Result.Invalid();
 
         _mediator.Send(Arg.Any<ListThemesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(result));
+            .Returns(result);
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, default);
@@ -39,49 +39,52 @@ public class ListTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ValidRequest_ReturnsOkWithThemes()
+    public async Task ExecuteAsync_ValidRequest_ReturnsOkWithPagedThemes()
     {
         // Arrange
-        var request = new ListRequest();
+        var request = new ListRequest { Page = 1, PageSize = 10 };
         var themes = new List<Theme>
         {
             new Theme(SampleData.TENANT_ID, "Theme 1") { Id = 1 },
             new Theme(SampleData.TENANT_ID, "Theme 2") { Id = 2 }
         };
-        var result = Result<IEnumerable<Theme>>.Success(themes);
+        var paged = Paged<Theme>.FromPage(1, 10, 2, themes);
+        var result = Result.Success(paged);
 
         _mediator.Send(Arg.Any<ListThemesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(result));
+            .Returns(result);
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<ThemeModel>>;
+        var okResult = response.Result as Ok<Paged<ThemeModel>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult!.Value.Should().HaveCount(2);
+        okResult.Value!.Items.Should().HaveCount(2);
+        okResult.Value.TotalRecords.Should().Be(2);
+        okResult.Value.Items.First().Name.Should().Be("Theme 1");
     }
 
     [Fact]
-    public async Task ExecuteAsync_EmptyList_ReturnsOkWithEmptyList()
+    public async Task ExecuteAsync_EmptyList_ReturnsOkWithEmptyPage()
     {
         // Arrange
-        var request = new ListRequest();
-        var themes = new List<Theme>();
-        var result = Result<IEnumerable<Theme>>.Success(themes);
+        var request = new ListRequest { Page = 1, PageSize = 10 };
+        var result = Result.Success(Paged<Theme>.Empty(10));
 
         _mediator.Send(Arg.Any<ListThemesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(result));
+            .Returns(result);
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<ThemeModel>>;
+        var okResult = response.Result as Ok<Paged<ThemeModel>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult!.Value.Should().BeEmpty();
+        okResult.Value!.Items.Should().BeEmpty();
+        okResult.Value.TotalRecords.Should().Be(0);
     }
 
     [Fact]
@@ -99,10 +102,10 @@ public class ListTests
             ModifiedFrom = "2024-02-01",
             ModifiedTo = "2024-02-28",
         };
-        var result = Result<IEnumerable<Theme>>.Success([]);
+        var result = Result.Success(Paged<Theme>.Empty(15));
 
         _mediator.Send(Arg.Any<ListThemesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(result));
+            .Returns(result);
 
         // Act
         await _endpoint.ExecuteAsync(request, CancellationToken.None);

@@ -21,4 +21,4 @@ public record ListThemesQuery(
     bool SortDescending = true,
     UtcDateTimeRange Created = default,
     UtcDateTimeRange Modified = default)
-    : IQuery<Result<IEnumerable<Theme>>>;
+    : IQuery<Result<Paged<Theme>>>;
