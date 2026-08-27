@@ -17,7 +17,7 @@ public class SwitchTenantHandlerTests
     private const long UserId = 7;
     private const long HomeTenantId = 10;
     private const long TargetTenantId = 20;
-    private const string ValidSlug = "xK9mP2qR8vNw";
+    private const string ValidSlug = "xK9mP2qR";
 
     private readonly IUserContext _userContext = Substitute.For<IUserContext>();
     private readonly IUserService _userService = Substitute.For<IUserService>();

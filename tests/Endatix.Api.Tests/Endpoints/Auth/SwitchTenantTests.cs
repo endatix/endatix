@@ -32,8 +32,8 @@ public sealed class ListMyTenantsTests
         var endpoint = Factory.Create<ListMyTenants>(_mediator, MultiTenancyConfiguration.Create(true));
         IReadOnlyList<UserTenantDto> tenants =
         [
-            new(10, "Home", "xK9mP2qR8vNw", true),
-            new(20, "Other", "aB3dE5fG7hIj", false)
+            new(10, "Home", "xK9mP2qR", true),
+            new(20, "Other", "aB3dE5fG", false)
         ];
         _mediator.Send(Arg.Any<ListMyTenantsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new UserTenantsDto(tenants)));
