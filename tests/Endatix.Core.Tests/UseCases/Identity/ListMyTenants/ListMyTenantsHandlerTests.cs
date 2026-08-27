@@ -13,8 +13,8 @@ public class ListMyTenantsHandlerTests
     private const long UserId = 7;
     private const long HomeTenantId = 10;
     private const long OtherTenantId = 20;
-    private const string HomeSlug = "xK9mP2qR8vNw";
-    private const string OtherSlug = "aB3dE5fG7hIj";
+    private const string HomeSlug = "xK9mP2qR";
+    private const string OtherSlug = "aB3dE5fG";
 
     private readonly IUserContext _userContext = Substitute.For<IUserContext>();
     private readonly IUserService _userService = Substitute.For<IUserService>();
