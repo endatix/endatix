@@ -440,7 +440,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
         await using AppDbContext appDb = CreateAppDbContext();
-        Tenant tenant = new("export-filter-tenant") { Id = TenantId };
+        Tenant tenant = new("export-filter-tenant", "tnntexpf") { Id = TenantId };
         appDb.Set<Tenant>().Add(tenant);
         await appDb.SaveChangesAsync(cancellationToken);
 

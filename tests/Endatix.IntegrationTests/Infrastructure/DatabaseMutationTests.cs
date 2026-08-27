@@ -39,7 +39,7 @@ public sealed class DatabaseMutationTests
             using (var scope = _fixture.Factory.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                Tenant tenant = new("integration-mutation-tenant");
+                Tenant tenant = new("integration-mutation-tenant", "tnntmuta");
                 db.Set<Tenant>().Add(tenant);
                 await db.SaveChangesAsync(cancellationToken);
                 Form form = Form.Create(new FormCreateArgs(TenantId: tenant.Id, Name: "integration-test-form"));
