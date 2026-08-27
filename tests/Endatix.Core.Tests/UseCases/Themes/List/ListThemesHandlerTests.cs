@@ -19,12 +19,14 @@ public class ListThemesHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NoThemes_ReturnsEmptyList()
+    public async Task Handle_NoThemes_ReturnsEmptyPage()
     {
         // Arrange
-        var request = new ListThemesQuery();
-        _themesRepository.ListAsync(Arg.Any<ThemeSpecifications.Paginated>(), Arg.Any<CancellationToken>())
-                     .Returns(new List<Theme>());
+        var request = new ListThemesQuery(1, 10);
+        _themesRepository.CountAsync(
+            Arg.Any<ThemeSpecifications.ListFilter>(),
+            Arg.Any<CancellationToken>())
+            .Returns(0);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -33,11 +35,16 @@ public class ListThemesHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEmpty();
+        result.Value.Items.Should().BeEmpty();
+        result.Value.TotalRecords.Should().Be(0);
+
+        await _themesRepository.DidNotReceive().ListAsync(
+            Arg.Any<ThemeSpecifications.Paginated>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_ExistingThemes_ReturnsAllThemes()
+    public async Task Handle_ExistingThemes_ReturnsPagedThemes()
     {
         // Arrange
         var themes = new List<Theme>
@@ -46,9 +53,15 @@ public class ListThemesHandlerTests
             new Theme(SampleData.TENANT_ID, "Theme 2", "Description 2") { Id = 2 },
             new Theme(SampleData.TENANT_ID, "Theme 3", "Description 3") { Id = 3 }
         };
-        var request = new ListThemesQuery();
-        _themesRepository.ListAsync(Arg.Any<ThemeSpecifications.Paginated>(), Arg.Any<CancellationToken>())
-                     .Returns(themes);
+        var request = new ListThemesQuery(1, 10);
+        _themesRepository.CountAsync(
+            Arg.Any<ThemeSpecifications.ListFilter>(),
+            Arg.Any<CancellationToken>())
+            .Returns(3);
+        _themesRepository.ListAsync(
+            Arg.Any<ThemeSpecifications.Paginated>(),
+            Arg.Any<CancellationToken>())
+            .Returns(themes);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -57,19 +70,23 @@ public class ListThemesHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().HaveCount(3);
-        result.Value.Should().BeEquivalentTo(themes);
+        result.Value.Items.Should().HaveCount(3);
+        result.Value.Items.Should().BeEquivalentTo(themes);
+        result.Value.TotalRecords.Should().Be(3);
+        result.Value.Page.Should().Be(1);
     }
 
     [Fact]
     public async Task Handle_RepositoryException_ThrowsException()
     {
         // Arrange
-        var request = new ListThemesQuery();
-        _themesRepository.ListAsync(Arg.Any<ThemeSpecifications.Paginated>(), Arg.Any<CancellationToken>())
-                     .ThrowsAsync(new Exception("Database error"));
+        var request = new ListThemesQuery(1, 10);
+        _themesRepository.CountAsync(
+            Arg.Any<ThemeSpecifications.ListFilter>(),
+            Arg.Any<CancellationToken>())
+            .ThrowsAsync(new Exception("Database error"));
 
-        // Act 
+        // Act
         var act = () => _handler.Handle(request, CancellationToken.None);
 
         // Assert

@@ -8,18 +8,13 @@ using Endatix.Core.Specifications.Parameters;
 namespace Endatix.Core.UseCases.Themes.List;
 
 /// <summary>
-/// Handler for retrieving all themes.
+/// Handler for retrieving themes as a paged envelope.
 /// </summary>
 public class ListThemesHandler(IRepository<Theme> themeRepository)
-    : IQueryHandler<ListThemesQuery, Result<IEnumerable<Theme>>>
+    : IQueryHandler<ListThemesQuery, Result<Paged<Theme>>>
 {
-    /// <summary>
-    /// Handles the retrieval of all themes.
-    /// </summary>
-    /// <param name="request">The query containing optional pagination, sort, and date bounds.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Result containing the list of themes.</returns>
-    public async Task<Result<IEnumerable<Theme>>> Handle(
+    /// <inheritdoc />
+    public async Task<Result<Paged<Theme>>> Handle(
         ListThemesQuery request,
         CancellationToken cancellationToken)
     {
@@ -27,14 +22,32 @@ public class ListThemesHandler(IRepository<Theme> themeRepository)
             request.Page,
             request.PageSize);
 
-        var spec = new ThemeSpecifications.Paginated(
-            pagingParams,
-            request.SortBy,
-            request.SortDescending,
+        var countSpec = new ThemeSpecifications.ListFilter(
             request.Created,
             request.Modified);
-        IEnumerable<Theme> themes = await themeRepository.ListAsync(spec, cancellationToken);
+        var totalRecords = await themeRepository.CountAsync(countSpec, cancellationToken);
 
-        return Result<IEnumerable<Theme>>.Success(themes);
+        var page = Paged<Theme>.ResolvePage(
+            pagingParams.Page,
+            pagingParams.PageSize,
+            totalRecords);
+
+        IReadOnlyList<Theme> items = [];
+        if (totalRecords > 0)
+        {
+            var spec = new ThemeSpecifications.Paginated(
+                new PagingParameters(page, pagingParams.PageSize),
+                request.SortBy,
+                request.SortDescending,
+                request.Created,
+                request.Modified);
+            items = [.. await themeRepository.ListAsync(spec, cancellationToken)];
+        }
+
+        return Result.Success(Paged<Theme>.FromPage(
+            page,
+            pagingParams.PageSize,
+            totalRecords,
+            items));
     }
 }

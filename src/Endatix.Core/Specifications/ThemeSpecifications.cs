@@ -48,6 +48,22 @@ public static class ThemeSpecifications
     }
 
     /// <summary>
+    /// Applies calendar date bounds without pagination (for counts).
+    /// </summary>
+    public sealed class ListFilter : Specification<Theme>
+    {
+        public ListFilter(
+            UtcDateTimeRange created = default,
+            UtcDateTimeRange modified = default)
+        {
+            Query
+                .WhereUtcRange(x => x.CreatedAt, created)
+                .WhereUtcRange(x => x.ModifiedAt, modified)
+                .AsNoTracking();
+        }
+    }
+
+    /// <summary>
     /// Specification to get themes with pagination, sort, and calendar date bounds.
     /// </summary>
     public sealed class Paginated : Specification<Theme>

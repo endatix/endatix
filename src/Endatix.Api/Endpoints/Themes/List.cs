@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Common;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Paging;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Themes.List;
 
 namespace Endatix.Api.Endpoints.Themes;
@@ -12,7 +14,7 @@ namespace Endatix.Api.Endpoints.Themes;
 /// <summary>
 /// Endpoint for listing themes.
 /// </summary>
-public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumerable<ThemeModel>>, BadRequest>>
+public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<Paged<ThemeModel>>, BadRequest>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -25,7 +27,7 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
         {
             s.Summary = "List themes";
             s.Description =
-                "Lists all themes with optional pagination, sort, and created/modified date bounds.";
+                "Lists themes with paging, optional sort, and created/modified date bounds.";
             s.ExampleRequest = new ListRequest
             {
                 Page = 1,
@@ -39,7 +41,7 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<IEnumerable<ThemeModel>>, BadRequest>> ExecuteAsync(
+    public override async Task<Results<Ok<Paged<ThemeModel>>, BadRequest>> ExecuteAsync(
         ListRequest request,
         CancellationToken ct)
     {
@@ -54,7 +56,10 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<IEnumer
         var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
-            .MapResult(result, ThemeMapper.Map<ThemeModel>)
-            .SetTypedResults<Ok<IEnumerable<ThemeModel>>, BadRequest>();
+            .MapResult(result, Map)
+            .SetTypedResults<Ok<Paged<ThemeModel>>, BadRequest>();
     }
+
+    private static Paged<ThemeModel> Map(Paged<Theme> paged) =>
+        paged.MapToPaged(ThemeMapper.Map<ThemeModel>);
 }
