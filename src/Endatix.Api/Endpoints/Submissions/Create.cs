@@ -29,10 +29,10 @@ public sealed class Create(IMediator mediator)
             s.Responses[409] = "A submission already exists for this user and form.";
         });
         Description(builder => builder
-            .Produces<SubmissionModel>(201, "application/json")
-            .ProducesProblem(400)
-            .ProducesProblem(404)
-            .ProducesProblem(409));
+            .Produces<SubmissionModel>(StatusCodes.Status201Created, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict));
     }
 
     /// <inheritdoc/>

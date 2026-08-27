@@ -1,5 +1,6 @@
 ﻿using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions;
@@ -10,7 +11,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Endpoint for updating a form submission.
 /// </summary>
-public class Update(IMediator mediator) : Endpoint<UpdateSubmissionRequest, Results<Ok<UpdateSubmissionResponse>, BadRequest, NotFound>>
+public class Update(IMediator mediator) : Endpoint<UpdateSubmissionRequest, Results<Ok<UpdateSubmissionResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -27,10 +28,14 @@ public class Update(IMediator mediator) : Endpoint<UpdateSubmissionRequest, Resu
             s.Responses[400] = "Bad request";
             s.Responses[404] = "Form submission not found";
         });
+        Description(builder => builder
+            .Produces<UpdateSubmissionResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<UpdateSubmissionResponse>, BadRequest, NotFound>> ExecuteAsync(UpdateSubmissionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<UpdateSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(UpdateSubmissionRequest request, CancellationToken ct)
     {
         var updateSubmissionCommand = new UpdateSubmissionCommand(
             request.SubmissionId,
@@ -41,10 +46,10 @@ public class Update(IMediator mediator) : Endpoint<UpdateSubmissionRequest, Resu
             request.Metadata
         );
 
-        var result = await mediator.Send(updateSubmissionCommand, cancellationToken);
+        var result = await mediator.Send(updateSubmissionCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionMapper.Map<UpdateSubmissionResponse>)
-            .SetTypedResults<Ok<UpdateSubmissionResponse>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<UpdateSubmissionResponse>, ProblemHttpResult>();
     }
 }

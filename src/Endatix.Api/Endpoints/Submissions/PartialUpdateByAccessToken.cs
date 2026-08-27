@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByAccessToken;
@@ -27,11 +28,15 @@ public class PartialUpdateByAccessToken(IMediator mediator)
             s.Responses[400] = "Bad request or invalid token/permissions";
             s.Responses[404] = "Submission not found";
         });
+        Description(builder => builder
+            .Produces<PartialUpdateSubmissionByTokenResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
     public override async Task<Results<Ok<PartialUpdateSubmissionByTokenResponse>, ProblemHttpResult>>
-        ExecuteAsync(PartialUpdateByAccessTokenRequest request, CancellationToken cancellationToken)
+        ExecuteAsync(PartialUpdateByAccessTokenRequest request, CancellationToken ct)
     {
         var command = new PartialUpdateByAccessTokenCommand(
             request.Token!,
@@ -42,7 +47,7 @@ public class PartialUpdateByAccessToken(IMediator mediator)
             request.Metadata
         );
 
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionMapper.Map<PartialUpdateSubmissionByTokenResponse>)

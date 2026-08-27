@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Common;
@@ -14,7 +15,7 @@ namespace Endatix.Api.Endpoints.Themes;
 /// <summary>
 /// Endpoint for listing themes.
 /// </summary>
-public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<Paged<ThemeModel>>, BadRequest>>
+public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<Paged<ThemeModel>>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -35,13 +36,34 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<Paged<T
                 SortBy = ThemeListSortBy.Name,
                 SortDir = SortDirection.Asc,
             };
+            s.ResponseExamples[200] = new Paged<ThemeModel>(
+                page: 1,
+                pageSize: 20,
+                totalRecords: 1,
+                totalPages: 1,
+                items:
+                [
+                    new ThemeModel
+                    {
+                        Id = "1",
+                        Name = "Corporate Blue",
+                        Description = "Default corporate theme",
+                        JsonData = "{\"primaryColor\":\"#0066cc\"}",
+                        CreatedAt = new DateTime(2024, 1, 15, 10, 0, 0, DateTimeKind.Utc),
+                        ModifiedAt = new DateTime(2024, 6, 1, 14, 30, 0, DateTimeKind.Utc),
+                        FormsCount = 3,
+                    },
+                ]);
             s.Responses[200] = "Themes retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
         });
+        Description(builder => builder
+            .Produces<Paged<ThemeModel>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<Paged<ThemeModel>>, BadRequest>> ExecuteAsync(
+    public override async Task<Results<Ok<Paged<ThemeModel>>, ProblemHttpResult>> ExecuteAsync(
         ListRequest request,
         CancellationToken ct)
     {
@@ -57,7 +79,7 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<Paged<T
 
         return TypedResultsBuilder
             .MapResult(result, Map)
-            .SetTypedResults<Ok<Paged<ThemeModel>>, BadRequest>();
+            .SetTypedResults<Ok<Paged<ThemeModel>>, ProblemHttpResult>();
     }
 
     private static Paged<ThemeModel> Map(Paged<Theme> paged) =>

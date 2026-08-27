@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Delete;
@@ -30,14 +31,18 @@ public class Delete(IMediator mediator) : Endpoint<DeleteSubmissionRequest, Resu
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Submission not found.";
         });
+        Description(builder => builder
+            .Produces<string>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(DeleteSubmissionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(DeleteSubmissionRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(
             new DeleteSubmissionCommand(request.FormId, request.SubmissionId),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, submission => submission.Id.ToString())
