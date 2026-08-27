@@ -165,7 +165,7 @@ Deleting a form will delete all associated form definitions and submissions.
 | Method | Route | Permission | Description |
 |--------|-------|------------|-------------|
 | POST | `/forms/{formId}/definitions` | `forms.edit` | Create new form definition |
-| GET | `/forms/{formId}/definitions` | `forms.view` | List all form definitions for a form |
+| GET | `/forms/{formId}/definitions` | `forms.view` | List form definitions for a form. Empty form is 404. |
 | GET | `/forms/{formId}/definition` | **Public** | Get active form definition (for rendering) |
 | GET | `/forms/{formId}/definitions/{definitionId}` | `forms.view` | Get specific form definition by ID |
 | PUT | `/forms/{formId}/definitions/{definitionId}` | `forms.edit` | Update form definition |

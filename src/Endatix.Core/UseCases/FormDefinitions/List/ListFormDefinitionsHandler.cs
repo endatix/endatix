@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Endatix.Core.Entities;
+﻿using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -10,24 +7,46 @@ using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.UseCases.FormDefinitions.List;
 
-public class ListFormDefinitionsHandler(IRepository<FormDefinition> _repository) : IQueryHandler<ListFormDefinitionsQuery, Result<IEnumerable<FormDefinition>>>
+/// <summary>
+/// Handler for retrieving form definitions as a paged envelope.
+/// Returns NotFound when the form has no matching definitions.
+/// </summary>
+public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository)
+    : IQueryHandler<ListFormDefinitionsQuery, Result<Paged<FormDefinition>>>
 {
-    public async Task<Result<IEnumerable<FormDefinition>>> Handle(ListFormDefinitionsQuery request, CancellationToken cancellationToken)
+    public async Task<Result<Paged<FormDefinition>>> Handle(
+        ListFormDefinitionsQuery request,
+        CancellationToken cancellationToken)
     {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
-        var spec = new FormDefinitionsByFormIdSpec(
+        var countSpec = new FormDefinitionsListFilterSpec(
             request.FormId,
-            pagingParams,
+            request.Created,
+            request.Modified);
+        var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
+        if (totalRecords == 0)
+        {
+            return Result.NotFound("Form not found.");
+        }
+
+        var page = Paged<FormDefinition>.ResolvePage(
+            pagingParams.Page,
+            pagingParams.PageSize,
+            totalRecords);
+
+        var spec = new FormDefinitionsListSpec(
+            request.FormId,
+            new PagingParameters(page, pagingParams.PageSize),
             request.SortBy,
             request.SortDescending,
             request.Created,
             request.Modified);
-        IEnumerable<FormDefinition> formDefinitions = await _repository.ListAsync(spec, cancellationToken);
-        if (formDefinitions.Any())
-        {
-            return Result.Success(formDefinitions);
-        }
+        IReadOnlyList<FormDefinition> items = [.. await repository.ListAsync(spec, cancellationToken)];
 
-        return Result.NotFound("Form not found.");
+        return Result.Success(Paged<FormDefinition>.FromPage(
+            page,
+            pagingParams.PageSize,
+            totalRecords,
+            items));
     }
 }

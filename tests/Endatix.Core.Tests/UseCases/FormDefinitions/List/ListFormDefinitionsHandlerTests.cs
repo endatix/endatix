@@ -18,7 +18,29 @@ public class ListFormDefinitionsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidRequest_ReturnsFormDefinitions()
+    public async Task Handle_NoDefinitions_ReturnsNotFound()
+    {
+        // Arrange
+        var request = new ListFormDefinitionsQuery(1, 1, 10);
+        _repository.CountAsync(
+            Arg.Any<FormDefinitionsListFilterSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(0);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Status.Should().Be(ResultStatus.NotFound);
+
+        await _repository.DidNotReceive().ListAsync(
+            Arg.Any<FormDefinitionsListSpec>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ValidRequest_ReturnsPagedFormDefinitions()
     {
         // Arrange
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
@@ -33,8 +55,12 @@ public class ListFormDefinitionsHandlerTests
             formDefinition2
         };
         var request = new ListFormDefinitionsQuery(1, 1, 10);
+        _repository.CountAsync(
+            Arg.Any<FormDefinitionsListFilterSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(2);
         _repository.ListAsync(
-            Arg.Any<FormDefinitionsByFormIdSpec>(),
+            Arg.Any<FormDefinitionsListSpec>(),
             Arg.Any<CancellationToken>()
         ).Returns(formDefinitions);
 
@@ -45,6 +71,8 @@ public class ListFormDefinitionsHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEquivalentTo(formDefinitions);
+        result.Value.Items.Should().BeEquivalentTo(formDefinitions);
+        result.Value.TotalRecords.Should().Be(2);
+        result.Value.Page.Should().Be(1);
     }
 }

@@ -7,9 +7,9 @@ using Endatix.Core.Infrastructure.Result;
 namespace Endatix.Core.UseCases.FormDefinitions.List;
 
 /// <summary>
-/// Query for listing form definitions with pagination, sort, and date bounds.
+/// Query for listing form definitions as a paged envelope.
 /// </summary>
-public sealed record ListFormDefinitionsQuery : IQuery<Result<IEnumerable<FormDefinition>>>
+public sealed record ListFormDefinitionsQuery : IQuery<Result<Paged<FormDefinition>>>
 {
     public long FormId { get; init; }
     public int? Page { get; init; }
