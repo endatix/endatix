@@ -1,6 +1,7 @@
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.FormTemplates;
 
 namespace Endatix.Core.UseCases.FormTemplates.List;
 
@@ -24,4 +25,4 @@ public record ListFormTemplatesQuery(
     bool SortDescending = true,
     UtcDateTimeRange Created = default,
     UtcDateTimeRange Modified = default)
-    : IQuery<Result<IEnumerable<FormTemplateDto>>>;
+    : IQuery<Result<Paged<FormTemplateDto>>>;

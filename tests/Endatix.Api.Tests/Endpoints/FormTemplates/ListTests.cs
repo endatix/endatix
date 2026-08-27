@@ -3,7 +3,6 @@ using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.FormTemplates;
 using Endatix.Core.UseCases.FormTemplates.List;
 using Endatix.Core.UseCases.FormTemplates;
@@ -40,7 +39,7 @@ public class ListTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ValidRequest_ReturnsOkWithFormTemplates()
+    public async Task ExecuteAsync_ValidRequest_ReturnsOkWithPagedFormTemplates()
     {
         // Arrange
         var request = new FormTemplatesListRequest { Page = 1, PageSize = 10 };
@@ -49,7 +48,8 @@ public class ListTests
             new() { Id = "1", Name = "Template 1" },
             new() { Id = "2", Name = "Template 2" }
         };
-        var result = Result.Success(formTemplates.AsEnumerable());
+        var paged = Paged<FormTemplateDto>.FromPage(1, 10, 2, formTemplates);
+        var result = Result.Success(paged);
 
         _mediator.Send(Arg.Any<ListFormTemplatesQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -58,12 +58,13 @@ public class ListTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var okResult = response.Result as Ok<IEnumerable<FormTemplateModelWithoutJsonData>>;
+        var okResult = response.Result as Ok<Paged<FormTemplateModelWithoutJsonData>>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
-        okResult!.Value.Should().HaveCount(2);
-        okResult!.Value!.First().Id.Should().Be("1");
-        okResult!.Value!.First().Name.Should().Be("Template 1");
+        okResult.Value!.Items.Should().HaveCount(2);
+        okResult.Value.TotalRecords.Should().Be(2);
+        okResult.Value.Items.First().Id.Should().Be("1");
+        okResult.Value.Items.First().Name.Should().Be("Template 1");
     }
 
     [Fact]
@@ -82,8 +83,8 @@ public class ListTests
             ModifiedFrom = "2024-02-01",
             ModifiedTo = "2024-02-28",
         };
-        var result = Result.Success(Enumerable.Empty<FormTemplateDto>());
-        
+        var result = Result.Success(Paged<FormTemplateDto>.Empty(20));
+
         _mediator.Send(Arg.Any<ListFormTemplatesQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

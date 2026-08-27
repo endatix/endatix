@@ -19,7 +19,7 @@ public class ListFormTemplatesHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidRequest_ReturnsFormTemplates()
+    public async Task Handle_ValidRequest_ReturnsPagedFormTemplates()
     {
         // Arrange
         var formTemplates = new List<FormTemplateDto>
@@ -43,6 +43,10 @@ public class ListFormTemplatesHandlerTests
         };
 
         var request = new ListFormTemplatesQuery(1, 10, null);
+        _repository.CountAsync(
+            Arg.Any<FormTemplatesListFilterSpec>(),
+            Arg.Any<CancellationToken>()
+        ).Returns(2);
         _repository.ListAsync(
             Arg.Any<FormTemplatesSpec>(),
             Arg.Any<CancellationToken>()
@@ -55,8 +59,10 @@ public class ListFormTemplatesHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEquivalentTo(formTemplates);
-        
+        result.Value.Items.Should().BeEquivalentTo(formTemplates);
+        result.Value.TotalRecords.Should().Be(2);
+        result.Value.Page.Should().Be(1);
+
         await _repository.Received(1).ListAsync(
             Arg.Any<FormTemplatesSpec>(),
             Arg.Any<CancellationToken>()
@@ -64,15 +70,14 @@ public class ListFormTemplatesHandlerTests
     }
 
     [Fact]
-    public async Task Handle_EmptyResult_ReturnsEmptyList()
+    public async Task Handle_EmptyResult_ReturnsEmptyPage()
     {
         // Arrange
-        var formTemplates = new List<FormTemplateDto>();
         var request = new ListFormTemplatesQuery(1, 10, null);
-        _repository.ListAsync(
-            Arg.Any<FormTemplatesSpec>(),
+        _repository.CountAsync(
+            Arg.Any<FormTemplatesListFilterSpec>(),
             Arg.Any<CancellationToken>()
-        ).Returns(formTemplates);
+        ).Returns(0);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -81,6 +86,12 @@ public class ListFormTemplatesHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
-        result.Value.Should().BeEmpty();
+        result.Value.Items.Should().BeEmpty();
+        result.Value.TotalRecords.Should().Be(0);
+
+        await _repository.DidNotReceive().ListAsync(
+            Arg.Any<FormTemplatesSpec>(),
+            Arg.Any<CancellationToken>()
+        );
     }
-} 
+}

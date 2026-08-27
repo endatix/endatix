@@ -50,7 +50,10 @@ public class ThemeData : ITheme
     public double? BackgroundOpacity { get; set; } = 1.0;
     
     /// <summary>
-    /// CSS variables for theming
+    /// CSS variables for theming.
+    /// SurveyJS v3 prefers <c>--sjs2-*</c> tokens but still maps legacy <c>--sjs-*</c>
+    /// names internally. Keep stored tenant themes on <c>--sjs-*</c> until a dedicated
+    /// rewrite; defaults remain on the legacy names for compatibility.
     /// </summary>
     [JsonPropertyName("cssVariables")]
     public Dictionary<string, string>? CssVariables { get; set; } = new Dictionary<string, string>
