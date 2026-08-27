@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Folders;
@@ -30,6 +31,11 @@ public sealed class PartialUpdate(IMediator mediator)
             s.Responses[404] = "Folder not found.";
             s.Responses[409] = "Folder is locked and cannot be updated.";
         });
+        Description(builder => builder
+            .Produces<FolderModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict));
     }
 
     /// <inheritdoc/>

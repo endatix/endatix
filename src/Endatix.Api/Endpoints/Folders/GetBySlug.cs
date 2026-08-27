@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Folders;
@@ -29,6 +30,10 @@ public sealed class GetBySlug(IMediator mediator)
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[404] = "Folder not found.";
         });
+        Description(builder => builder
+            .Produces<FolderModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>

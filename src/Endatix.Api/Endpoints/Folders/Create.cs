@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Folders;
@@ -25,6 +26,9 @@ public sealed class Create(IMediator mediator)
             s.Responses[201] = "Folder created successfully.";
             s.Responses[400] = "Invalid input data.";
         });
+        Description(builder => builder
+            .Produces<FolderModel>(StatusCodes.Status201Created, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>

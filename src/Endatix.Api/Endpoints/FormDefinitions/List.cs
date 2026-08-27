@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
@@ -14,7 +15,7 @@ namespace Endatix.Api.Endpoints.FormDefinitions;
 /// <summary>
 /// Endpoint for listing form definitions.
 /// </summary>
-public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Results<Ok<Paged<FormDefinitionModel>>, BadRequest, NotFound>>
+public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Results<Ok<Paged<FormDefinitionModel>>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -36,14 +37,33 @@ public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Res
                 SortBy = FormDefinitionListSortBy.CreatedAt,
                 SortDir = SortDirection.Desc,
             };
+            s.ResponseExamples[200] = new Paged<FormDefinitionModel>(
+                page: 1,
+                pageSize: 20,
+                totalRecords: 1,
+                totalPages: 1,
+                items:
+                [
+                    new FormDefinitionModel
+                    {
+                        Id = "1",
+                        FormId = "1",
+                        IsDraft = false,
+                        JsonData = "{}",
+                    },
+                ]);
             s.Responses[200] = "Form definitions retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
         });
+        Description(builder => builder
+            .Produces<Paged<FormDefinitionModel>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />
-    public override async Task<Results<Ok<Paged<FormDefinitionModel>>, BadRequest, NotFound>> ExecuteAsync(
+    public override async Task<Results<Ok<Paged<FormDefinitionModel>>, ProblemHttpResult>> ExecuteAsync(
         FormDefinitionsListRequest request,
         CancellationToken ct)
     {
@@ -61,7 +81,7 @@ public class List(IMediator mediator) : Endpoint<FormDefinitionsListRequest, Res
 
         return TypedResultsBuilder
             .MapResult(result, Map)
-            .SetTypedResults<Ok<Paged<FormDefinitionModel>>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<Paged<FormDefinitionModel>>, ProblemHttpResult>();
     }
 
     private static Paged<FormDefinitionModel> Map(Paged<FormDefinition> paged) =>
