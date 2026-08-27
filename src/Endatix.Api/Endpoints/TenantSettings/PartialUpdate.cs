@@ -4,6 +4,7 @@ using Endatix.Core.UseCases.TenantSettings.PartialUpdate;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.TenantSettings;
@@ -27,6 +28,10 @@ public sealed class PartialUpdate(IMediator mediator)
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Tenant settings not found.";
         });
+        Description(builder => builder
+            .Produces<TenantSettingsModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>

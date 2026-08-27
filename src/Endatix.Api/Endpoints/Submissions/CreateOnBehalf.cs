@@ -30,9 +30,9 @@ public sealed class CreateOnBehalf(IMediator mediator)
             s.Responses[404] = "Form not found. Cannot create a submission.";
         });
         Description(builder => builder
-            .Produces<SubmissionModel>(201, "application/json")
-            .ProducesProblem(400)
-            .ProducesProblem(404));
+            .Produces<SubmissionModel>(StatusCodes.Status201Created, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>

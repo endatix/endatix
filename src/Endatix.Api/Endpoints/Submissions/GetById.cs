@@ -1,5 +1,6 @@
 ﻿using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
@@ -10,7 +11,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Endpoint for getting a form submission by ID.
 /// </summary>
-public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<SubmissionDetailsModel>, BadRequest, NotFound>>
+public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<SubmissionDetailsModel>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -27,17 +28,20 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<S
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form submission not found";
         });
+        Description(builder => builder
+            .Produces<SubmissionDetailsModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<SubmissionDetailsModel>, BadRequest, NotFound>> ExecuteAsync(GetByIdRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<SubmissionDetailsModel>, ProblemHttpResult>> ExecuteAsync(GetByIdRequest request, CancellationToken ct)
     {
         var getSubmissionByIdQuery = new GetByIdQuery(request.FormId, request.SubmissionId);
-        var result = await mediator.Send(getSubmissionByIdQuery, cancellationToken);
+        var result = await mediator.Send(getSubmissionByIdQuery, ct);
 
         return TypedResultsBuilder
-                    .MapResult(result, SubmissionMapper.MapToSubmissionDetails)
-                    .SetTypedResults<Ok<SubmissionModel>, BadRequest, NotFound>();
-
+            .MapResult(result, SubmissionMapper.MapToSubmissionDetails)
+            .SetTypedResults<Ok<SubmissionDetailsModel>, ProblemHttpResult>();
     }
 }

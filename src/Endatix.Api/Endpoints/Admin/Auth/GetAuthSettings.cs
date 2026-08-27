@@ -27,8 +27,8 @@ public sealed class GetAuthSettings(IMediator mediator)
             s.Responses[400] = "Invalid request.";
         });
         Description(builder => builder
-            .Produces<AuthSettingsDto>(200, "application/json")
-            .ProducesProblem(400));
+            .Produces<AuthSettingsDto>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc />

@@ -3,7 +3,6 @@ using HttpResults = Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http;
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Result;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -96,22 +95,6 @@ public class TypedResultsBuilder<TData> : TypedResultsBuilder
           where TResult2 : HttpResults.IResult
     {
         return new TypedResultsBuilder<TData, TResult1, TResult2>(SourceResult, ErrorMessage);
-
-    }
-
-    /// <summary>
-    /// Produces a new TypedResultsBuilder instance that can map to additional result types.
-    /// </summary>
-    /// <typeparam name="TResult1">The first result type to map to.</typeparam>
-    /// <typeparam name="TResult2">The second result type to map to.</typeparam>
-    /// <typeparam name="TResult3">The thrid result type to map to.</typeparam>
-    /// <returns>A new instance of TypedResultsBuilder that can map to TResult1, TResult2 and TResult3.</returns>
-    public TypedResultsBuilder<TData, TResult1, TResult2, TResult3> SetTypedResults<TResult1, TResult2, TResult3>()
-          where TResult1 : HttpResults.IResult
-          where TResult2 : HttpResults.IResult
-          where TResult3 : HttpResults.IResult
-    {
-        return new TypedResultsBuilder<TData, TResult1, TResult2, TResult3>(SourceResult, ErrorMessage);
     }
 }
 
@@ -137,36 +120,6 @@ where TResult2 : HttpResults.IResult
     }
 
     /// <summary>
-    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok and BadRequest.
-    /// </summary>
-    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
-    /// <returns>A Results instance for Ok and BadRequest.</returns>
-    public static implicit operator Results<Ok<TData>, BadRequest>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
-    {
-        return resultMapper.SourceResult.Status switch
-        {
-            ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
-            ResultStatus.Invalid => TypedResults.BadRequest(),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-        };
-    }
-
-    /// <summary>
-    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok and BadRequest.
-    /// </summary>
-    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
-    /// <returns>A Results instance for Ok and BadRequest.</returns>
-    public static implicit operator Results<Ok<TData>, BadRequest<ProblemDetails>>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
-    {
-        return resultMapper.SourceResult.Status switch
-        {
-            ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
-            ResultStatus.Invalid => resultMapper.SourceResult.ToBadRequest(resultMapper.ErrorMessage),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-        };
-    }
-
-    /// <summary>
     /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok and ProblemDetails.
     /// </summary>
     /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
@@ -176,40 +129,11 @@ where TResult2 : HttpResults.IResult
         return resultMapper.SourceResult.Status switch
         {
             ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
-            ResultStatus.Invalid => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.NotFound => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Conflict => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Unauthorized => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Forbidden => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Error => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Unavailable => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.CriticalError => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-        };
-    }
-
-    /// <summary>
-    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok and NotFound.
-    /// </summary>
-    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
-    /// <returns>A Results instance for Ok and NotFound.</returns>
-    public static implicit operator Results<Ok<TData>, NotFound>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
-    {
-        return resultMapper.SourceResult.Status switch
-        {
-            ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
-            ResultStatus.NotFound => TypedResults.NotFound(),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-        };
-    }
-
-    public static implicit operator Results<Created<TData>, BadRequest>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
-    {
-        return resultMapper.SourceResult.Status switch
-        {
-            ResultStatus.Created => TypedResults.Created(default(string), resultMapper.SourceResult.Value),
-            ResultStatus.Invalid => TypedResults.BadRequest(),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
+            // Success statuses this union cannot express mean the endpoint declared the wrong
+            // Results<> signature - fail loudly rather than answer with a misleading status.
+            ResultStatus.Created or ResultStatus.NoContent => throw new InvalidCastException(BuildCastErrorMessage(resultMapper)),
+            // Every remaining status is a failure: RFC7807 problem+json, status picked by ToProblem.
+            _ => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage)
         };
     }
 
@@ -223,114 +147,14 @@ where TResult2 : HttpResults.IResult
         return resultMapper.SourceResult.Status switch
         {
             ResultStatus.Created => TypedResults.Created(default(string), resultMapper.SourceResult.Value),
-            ResultStatus.Invalid => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.NotFound => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Conflict => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Unauthorized => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Forbidden => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Error => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.Unavailable => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            ResultStatus.CriticalError => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-        };
-    }
-}
-
-
-/// <summary>
-/// Maps results to HTTP typed results for a specific data type and multiple result types.
-/// </summary>
-/// <typeparam name="TData">The type of the data in the result.</typeparam>
-/// <typeparam name="TResult1">The first result type to map to.</typeparam>
-/// <typeparam name="TResult2">The second result type to map to.</typeparam>
-/// <typeparam name="TResult3">The third result type to map to.</typeparam>
-public class TypedResultsBuilder<TData, TResult1, TResult2, TResult3> : TypedResultsBuilder<TData>
-where TData : class
-where TResult1 : HttpResults.IResult
-where TResult2 : HttpResults.IResult
-where TResult3 : HttpResults.IResult
-{
-    /// <summary>
-    /// Initializes a new instance of the TypedResultsBuilder with the specified source result.
-    /// </summary>
-    /// <param name="sourceResult">The source result to map.</param>
-    /// <param name="errorMessage">Optional error message to set.</param>
-    protected internal TypedResultsBuilder(Result<TData> sourceResult, string? errorMessage = null) : base(sourceResult)
-    {
-        ErrorMessage = errorMessage;
-    }
-
-    /// <summary>
-    /// Implicitly converts the TypedResultsBuilder to a Results instance for Created, BadRequest, and NotFound.
-    /// </summary>
-    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
-    /// <returns>A Results instance for Created, BadRequest, and NotFound.</returns>
-    public static implicit operator Results<Created<TData>, BadRequest, NotFound>(TypedResultsBuilder<TData, TResult1, TResult2, TResult3> resultMapper)
-    {
-        return resultMapper.SourceResult.Status switch
-        {
-            ResultStatus.Created => TypedResults.Created(default(string), resultMapper.SourceResult.Value),
-            ResultStatus.Invalid => TypedResults.BadRequest(),
-            ResultStatus.NotFound => TypedResults.NotFound(),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
+            // Success statuses this union cannot express mean the endpoint declared the wrong
+            // Results<> signature - fail loudly rather than answer with a misleading status.
+            ResultStatus.Ok or ResultStatus.NoContent => throw new InvalidCastException(BuildCastErrorMessage(resultMapper)),
+            // Every remaining status is a failure: RFC7807 problem+json, status picked by ToProblem.
+            _ => resultMapper.SourceResult.ToProblem(resultMapper.ErrorMessage)
         };
     }
 
-    /// <summary>
-    /// Implicitly converts the TypedResultsBuilder to a Results instance for Created, BadRequest with <see cref="ProblemDetails"/>, and NotFound.
-    /// </summary>
-    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
-    /// <returns>A Results instance for Created, BadRequest with <see cref="ProblemDetails"/>, and NotFound.</returns>
-    public static implicit operator Results<Created<TData>, BadRequest<ProblemDetails>, NotFound>(TypedResultsBuilder<TData, TResult1, TResult2, TResult3> resultMapper)
-    {
-        return resultMapper.SourceResult.Status switch
-        {
-            ResultStatus.Created => TypedResults.Created(default(string), resultMapper.SourceResult.Value),
-            ResultStatus.Invalid => resultMapper.SourceResult.ToBadRequest(resultMapper.ErrorMessage),
-            ResultStatus.NotFound => TypedResults.NotFound(),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-        };
-    }
-
-    /// <summary>
-    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok, BadRequest, and NotFound.
-    /// </summary>
-    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
-    /// <returns>A Results instance for Ok, BadRequest, and NotFound.</returns>
-    public static implicit operator Results<Ok<TData>, BadRequest, NotFound>(TypedResultsBuilder<TData, TResult1, TResult2, TResult3> resultMapper)
-    {
-        return resultMapper.SourceResult.Status switch
-        {
-            ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
-            ResultStatus.Invalid => TypedResults.BadRequest(),
-            ResultStatus.NotFound => TypedResults.NotFound(),
-            _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-        };
-    }
-
-    /// <summary>
-    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok, BadRequest, and NotFound with <see cref="ProblemDetails"/>.
-    /// </summary>
-    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
-    /// <returns>A Results instance for Ok, BadRequest, and NotFound with <see cref="ProblemDetails"/>.</returns>
-    public static implicit operator Results<Ok<TData>, BadRequest, NotFound<ProblemDetails>>(TypedResultsBuilder<TData, TResult1, TResult2, TResult3> resultMapper) => resultMapper.SourceResult.Status switch
-    {
-        ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
-        ResultStatus.Invalid => TypedResults.BadRequest(),
-        ResultStatus.NotFound => resultMapper.SourceResult.ToNotFound(),
-        _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-    };
-
-    /// <summary>
-    /// Implicitly converts the TypedResultsBuilder to a Results instance for Ok, BadRequest with <see cref="ProblemDetails"/>, and NotFound.
-    /// </summary>
-    /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
-    /// <returns>A Results instance for Ok, BadRequest with <see cref="ProblemDetails"/>, and NotFound.</returns>
-    public static implicit operator Results<Ok<TData>, BadRequest<ProblemDetails>, NotFound>(TypedResultsBuilder<TData, TResult1, TResult2, TResult3> resultMapper) => resultMapper.SourceResult.Status switch
-    {
-        ResultStatus.Ok => TypedResults.Ok(resultMapper.SourceResult.Value),
-        ResultStatus.Invalid => resultMapper.SourceResult.ToBadRequest(resultMapper.ErrorMessage),
-        ResultStatus.NotFound => TypedResults.NotFound(),
-        _ => throw new InvalidCastException($"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}")
-    };
+    private static string BuildCastErrorMessage(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper) =>
+        $"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}";
 }

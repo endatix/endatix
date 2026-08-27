@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Identity.GetUserRoles;
@@ -27,15 +28,18 @@ public class GetUserRoles(IMediator mediator)
             s.Responses[200] = "Roles retrieved successfully.";
             s.Responses[404] = "User not found.";
         });
+        Description(builder => builder
+            .Produces<IList<string>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
     public override async Task<Results<Ok<IList<string>>, ProblemHttpResult>> ExecuteAsync(
         GetUserRolesRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var query = new GetUserRolesQuery(request.UserId);
-        var result = await mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
             .FromResult(result)

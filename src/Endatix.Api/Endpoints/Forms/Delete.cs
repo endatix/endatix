@@ -25,23 +25,23 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormRequest, Results<Ok
             s.Summary = "Delete a form";
             s.Description = "Deletes a form and all its definitions and submissions.";
             s.ExampleRequest = new DeleteFormRequest { FormId = 1 };
-            s.ResponseExamples[204] = new { Message = "Form deleted successfully." };
-            s.Responses[204] = "Form deleted successfully.";
+            s.ResponseExamples[200] = "1";
+            s.Responses[200] = "Form deleted successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
         });
         Description(builder => builder
-            .Produces<string>(200, "application/json")
-            .ProducesProblem(404)
-            .ProducesProblem(400));
+            .Produces<string>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(DeleteFormRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(DeleteFormRequest request, CancellationToken ct)
     {
         var result = await mediator.Send(
             new DeleteFormCommand(request.FormId),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, form => form.Id.ToString())

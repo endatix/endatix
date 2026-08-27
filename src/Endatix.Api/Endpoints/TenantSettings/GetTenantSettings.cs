@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.TenantSettings.Get;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.TenantSettings;
@@ -28,12 +29,16 @@ public class GetTenantSettings(IMediator mediator) : EndpointWithoutRequest<Resu
             s.Responses[400] = "Invalid request or tenant context.";
             s.Responses[404] = "Tenant settings not found.";
         });
+        Description(builder => builder
+            .Produces<TenantSettingsModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<TenantSettingsModel>, ProblemHttpResult>> ExecuteAsync(CancellationToken cancellationToken)
+    public override async Task<Results<Ok<TenantSettingsModel>, ProblemHttpResult>> ExecuteAsync(CancellationToken ct)
     {
-        var result = await mediator.Send(new GetTenantSettingsQuery(), cancellationToken);
+        var result = await mediator.Send(new GetTenantSettingsQuery(), ct);
 
         return TypedResultsBuilder
             .MapResult(result, TenantSettingsMapper.Map)

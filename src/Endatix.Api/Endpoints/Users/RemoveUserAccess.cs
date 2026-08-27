@@ -30,8 +30,8 @@ public sealed class RemoveUserAccess(IMediator mediator)
             s.Responses[404] = "User not found.";
         });
         Description(builder => builder
-            .Produces<UserOperation>(200, "application/json")
-            .ProducesProblem(404));
+            .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>

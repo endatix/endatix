@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.Update;
 using Endatix.Core.Abstractions.Authorization;
 
@@ -26,14 +25,33 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
         {
             s.Summary = "Update a form";
             s.Description = "Updates a form.";
+            s.ExampleRequest = new UpdateFormRequest
+            {
+                FormId = 1,
+                Name = "Customer satisfaction",
+                Description = "Updated description.",
+                IsEnabled = true,
+            };
+            s.ResponseExamples[200] = new UpdateFormResponse
+            {
+                Id = "1",
+                Name = "Customer satisfaction",
+                Description = "Updated description.",
+                IsEnabled = true,
+                IsPublic = false,
+            };
             s.Responses[200] = "Form updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
         });
+        Description(builder => builder
+            .Produces<UpdateFormResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<UpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(UpdateFormRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<UpdateFormResponse>, ProblemHttpResult>> ExecuteAsync(UpdateFormRequest request, CancellationToken ct)
     {
         var folderId = request.FolderId.ParseToLong();
 
@@ -49,14 +67,10 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
                 request.ClearSubmissionTokenExpiryHours,
                 request.Metadata,
                 folderId),
-            cancellationToken);
+            ct);
 
-        var mappedResult = result.Map(FormMapper.Map<UpdateFormResponse>);
-
-        return mappedResult.Status switch
-        {
-            ResultStatus.Ok => TypedResults.Ok(mappedResult.Value),
-            _ => mappedResult.ToProblem()
-        };
+        return TypedResultsBuilder
+            .MapResult(result, FormMapper.Map<UpdateFormResponse>)
+            .SetTypedResults<Ok<UpdateFormResponse>, ProblemHttpResult>();
     }
 }

@@ -26,10 +26,10 @@ public class Me(ICurrentUserAuthorizationService authorizationService)
     }
 
     public override async Task<Results<Ok<AuthorizationData>, UnauthorizedHttpResult>> ExecuteAsync(
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         // Get user roles and permissions from AuthorizationService
-        var authorizationDataResult = await authorizationService.GetAuthorizationDataAsync(cancellationToken);
+        var authorizationDataResult = await authorizationService.GetAuthorizationDataAsync(ct);
         if (!authorizationDataResult.IsSuccess)
         {
             return TypedResults.Unauthorized();

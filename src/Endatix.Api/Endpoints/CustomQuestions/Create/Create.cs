@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
@@ -10,7 +11,8 @@ namespace Endatix.Api.Endpoints.CustomQuestions;
 /// <summary>
 /// Endpoint for creating a new custom question.
 /// </summary>
-public class Create(IMediator mediator) : Endpoint<CreateCustomQuestionRequest, Results<Created<CreateCustomQuestionResponse>, BadRequest>>
+public class Create(IMediator mediator)
+    : Endpoint<CreateCustomQuestionRequest, Results<Created<CreateCustomQuestionResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -23,22 +25,40 @@ public class Create(IMediator mediator) : Endpoint<CreateCustomQuestionRequest, 
         {
             s.Summary = "Create a new custom question";
             s.Description = "Creates a new custom question with the provided data.";
+            s.ExampleRequest = new CreateCustomQuestionRequest
+            {
+                Name = "NPS score",
+                Description = "Net promoter score question.",
+                JsonData = "{ \"type\": \"rating\" }",
+            };
+            s.ResponseExamples[201] = new CreateCustomQuestionResponse
+            {
+                Id = "1",
+                Name = "NPS score",
+                Description = "Net promoter score question.",
+                JsonData = "{ \"type\": \"rating\" }",
+            };
             s.Responses[201] = "Custom question created successfully.";
             s.Responses[400] = "Invalid input data.";
         });
+        Description(builder => builder
+            .Produces<CreateCustomQuestionResponse>(StatusCodes.Status201Created, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Created<CreateCustomQuestionResponse>, BadRequest>> ExecuteAsync(CreateCustomQuestionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Created<CreateCustomQuestionResponse>, ProblemHttpResult>> ExecuteAsync(
+        CreateCustomQuestionRequest request,
+        CancellationToken ct)
     {
         var command = new CreateCustomQuestionCommand(
             request.Name!,
             request.JsonData!,
             request.Description);
-        var result = await mediator.Send(command, cancellationToken);
-        
+        var result = await mediator.Send(command, ct);
+
         return TypedResultsBuilder
             .MapResult(result, CustomQuestionMapper.Map<CreateCustomQuestionResponse>)
-            .SetTypedResults<Created<CreateCustomQuestionResponse>, BadRequest>();
+            .SetTypedResults<Created<CreateCustomQuestionResponse>, ProblemHttpResult>();
     }
 }

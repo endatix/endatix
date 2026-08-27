@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Admin.Tenants;
@@ -27,6 +28,9 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
             s.Responses[200] = "Tenants retrieved successfully.";
             s.Responses[400] = "Invalid request.";
         });
+        Description(builder => builder
+            .Produces<Paged<PlatformTenantListItem>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc />

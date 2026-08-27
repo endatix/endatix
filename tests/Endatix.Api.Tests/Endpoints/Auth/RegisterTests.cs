@@ -1,12 +1,10 @@
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Api.Endpoints.Auth;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.Register;
 using Microsoft.AspNetCore.Http;
-using static Endatix.Api.Infrastructure.ResultExtensions;
 
 namespace Endatix.Api.Tests.Endpoints.Auth;
 
@@ -57,12 +55,11 @@ public class RegisterTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badResponse = response!.Result as BadRequest<Errors.ProblemDetails>;
+        var problemResult = response!.Result as ProblemHttpResult;
 
-        badResponse.Should().NotBeNull();
-        badResponse!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-        badResponse!.Value!.Status.Should().Be(StatusCodes.Status400BadRequest);
-        badResponse!.Value!.Title.Should().Be("Registration failed. Please check your input and try again.");
-        badResponse!.Value!.Detail.Should().Be(ResultTitles.BAD_REQUEST);
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problemResult!.ProblemDetails.Status.Should().Be(StatusCodes.Status400BadRequest);
+        problemResult!.ProblemDetails.Title.Should().Be("Registration failed. Please check your input and try again.");
     }
 }

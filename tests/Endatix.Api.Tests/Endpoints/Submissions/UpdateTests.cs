@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
@@ -27,7 +28,7 @@ public class UpdateTests
         var submissionId = 1L;
         var request = new UpdateSubmissionRequest { FormId = formId, SubmissionId = submissionId };
         var result = Result.Invalid();
-        
+
         _mediator.Send(Arg.Any<UpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
@@ -35,8 +36,9 @@ public class UpdateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]
@@ -55,8 +57,9 @@ public class UpdateTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var notFoundResult = response.Result as NotFound;
-        notFoundResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]
@@ -66,8 +69,8 @@ public class UpdateTests
         var formId = 1L;
         var submissionId = 1L;
         var jsonData = "{ }";
-        var request = new UpdateSubmissionRequest 
-        { 
+        var request = new UpdateSubmissionRequest
+        {
             FormId = formId,
             SubmissionId = submissionId,
             JsonData = jsonData,
@@ -75,7 +78,7 @@ public class UpdateTests
             CurrentPage = 2,
             Metadata = "test metadata"
         };
-        
+
         var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, 456) { Id = submissionId };
         var result = Result.Success(submission);
 
@@ -106,7 +109,7 @@ public class UpdateTests
             Metadata = """{ "key": "value" }"""
         };
         var result = Result.Success(new Submission(SampleData.TENANT_ID, """"{ "field": "value" }"""", 123, 456));
-        
+
         _mediator.Send(Arg.Any<UpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 

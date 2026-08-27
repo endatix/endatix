@@ -4,6 +4,7 @@ using Endatix.Core.UseCases.PlatformAdmin.RevokePlatformAdmin;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Admin.PlatformAdmins;
@@ -28,6 +29,12 @@ public sealed class Revoke(IMediator mediator)
             s.Responses[404] = "User not found.";
             s.Responses[409] = "Revocation would leave the platform without an active platform administrator.";
         });
+        Description(builder => builder
+            .Produces<PlatformAdminOperation>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict));
     }
 
     public override async Task<Results<Ok<PlatformAdminOperation>, ProblemHttpResult>> ExecuteAsync(

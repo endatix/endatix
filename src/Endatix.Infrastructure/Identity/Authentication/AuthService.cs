@@ -16,6 +16,17 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
 
     public static readonly string INVALID_CREDENTIALS_ERROR_MESSAGE = "The supplied credentials are invalid";
 
+    /// <summary>
+    /// Placeholder used only to burn the same password-hashing work when no account matched.
+    /// </summary>
+    private static readonly AppUser DummyUser = new() { Email = "dummy@endatix.invalid" };
+
+    /// <summary>
+    /// Throwaway hash (from a random GUID, never a real credential), computed once.
+    /// A benign race just recomputes an equivalent hash, so no locking is needed.
+    /// </summary>
+    private static string? _dummyPasswordHash;
+
     /// <inheritdoc/>
     public async Task<Result<User>> ValidateCredentials(string email, string password, CancellationToken cancellationToken)
     {
@@ -24,18 +35,31 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
 
         var user = await _userManager.FindByEmailAsync(email);
 
-        if (user is null || !user.EmailConfirmed)
-        {
-            return Result.Invalid(new ValidationError(INVALID_CREDENTIALS_ERROR_MESSAGE));
-        }
+        // OWASP A07: run the password KDF on every path. Returning early for an unknown or
+        // unconfirmed account skips the hash and answers measurably faster, which lets an
+        // attacker enumerate accounts by response time even though the payloads are identical.
+        var passwordVerified = user is null
+            ? BurnPasswordHashingWork(_passwordHasher, password)
+            : await _userManager.CheckPasswordAsync(user, password);
 
-        var userVerified = await _userManager.CheckPasswordAsync(user, password);
-        if (!userVerified)
+        if (user is null || !user.EmailConfirmed || !passwordVerified)
         {
             return Result.Invalid(new ValidationError(INVALID_CREDENTIALS_ERROR_MESSAGE));
         }
 
         return Result.Success(user.ToUserEntity());
+    }
+
+    /// <summary>
+    /// Verifies the supplied password against a throwaway hash so the unknown-account path
+    /// costs the same as a real verification. Always returns false.
+    /// </summary>
+    private static bool BurnPasswordHashingWork(IPasswordHasher<AppUser> passwordHasher, string password)
+    {
+        _dummyPasswordHash ??= passwordHasher.HashPassword(DummyUser, Guid.NewGuid().ToString("N"));
+        passwordHasher.VerifyHashedPassword(DummyUser, _dummyPasswordHash, password);
+
+        return false;
     }
 
     /// <inheritdoc/>

@@ -68,7 +68,7 @@ Permission names follow the pattern: `{category}.{action}.{scope}`
 For a comprehensive guide showing which API endpoints require which permissions, see the [API Permissions Reference](/docs/guides/api-permissions-reference).
 :::
 
-  #### Access-Level Permissions
+#### Access-Level Permissions
 
 These are access-level permissions (not action-based):
 
@@ -144,13 +144,14 @@ Tenant-specific management permissions:
 
 ### Basic Authorization Setup
 
-Built-in default authorization is automatically configured when you set up Endatix application. This also includes the system roles and permissions mentioned above. 
+Built-in default authorization is automatically configured when you set up Endatix application. This also includes the system roles and permissions mentioned above.
 
 ### Using Roles in Your Code
 
 Once authorization is configured, you can use roles in your Fast endpoints using the `Permissions()` method (Claims, Roles, Policies, etc work as well).
 
 Use simple permission e.g. "forms.create". Note that it's accessed via convenient `Actions` class.
+
 ```csharp
 public class CreateForm(IMediator mediator) : Endpoint<CreateFormRequest, Results<Created<FormModel>, BadRequest>>
 {
@@ -165,7 +166,7 @@ public class CreateForm(IMediator mediator) : Endpoint<CreateFormRequest, Result
         });
     }
 
-    public override async Task<Results<Created<FormModel>, BadRequest>> ExecuteAsync(
+    public override async Task<Results<Created<FormModel>, ProblemHttpResult>> ExecuteAsync(
         CreateFormRequest request, CancellationToken cancellationToken)
     {
         // Only users with forms.create permission will reach this endpoint. Note that Admins will also pass this permission check
@@ -174,7 +175,7 @@ public class CreateForm(IMediator mediator) : Endpoint<CreateFormRequest, Result
 
         return TypedResultsBuilder
             .MapResult(result, Mapper.Map<FormModel>)
-            .SetTypedResults<Created<FormModel>, BadRequest>();
+            .SetTypedResults<Created<FormModel>, ProblemHttpResult>();
     }
 }
 ```

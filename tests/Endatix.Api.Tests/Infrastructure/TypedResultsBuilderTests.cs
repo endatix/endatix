@@ -27,7 +27,7 @@ public class TypedResultsBuilderTests
     public void FromResult_NoResultPassed_Throws()
     {
         // Arrange
-        Result<BadRequest>? nullResult = null;
+        Result<string>? nullResult = null;
 
         // Act
         var action = () => TypedResultsBuilder.FromResult(nullResult);
@@ -97,21 +97,21 @@ public class TypedResultsBuilderTests
 
     [Theory]
     [MemberData(nameof(TestResultsCombinations.SuccessAndInvalidResults), MemberType = typeof(TestResultsCombinations))]
-    public void ConfigureResults_MatchedOkAndBadRequestSignature_PickedByImplicitCast(Result<Source> result)
+    public void ConfigureResults_MatchedOkAndProblemHttpResultSignature_PickedByImplicitCast(Result<Source> result)
     {
         // Arrange
         var resultsBuilder = TypedResultsBuilder
             .FromResult(result);
 
         // Act
-        Results<Ok<Source>, BadRequest> httpResult = resultsBuilder.SetTypedResults<Ok<Source>, BadRequest>();
+        Results<Ok<Source>, ProblemHttpResult> httpResult = resultsBuilder.SetTypedResults<Ok<Source>, ProblemHttpResult>();
 
         // Assert
-        Assert.IsType<Results<Ok<Source>, BadRequest>>(httpResult);
+        Assert.IsType<Results<Ok<Source>, ProblemHttpResult>>(httpResult);
     }
 
     [Fact]
-    public void ConfigureResults_UnMatchedOkAndBadRequestSignature_PickedByImplicitCastAndThrows()
+    public void ConfigureResults_NotFoundWithOkAndProblemHttpResultSignature_ReturnsNotFoundProblem()
     {
         // Arrange
         Result<Source> result = Result.NotFound();
@@ -119,13 +119,11 @@ public class TypedResultsBuilderTests
             .FromResult(result);
 
         // Act
-        var action = () =>
-        {
-            Results<Ok<Source>, BadRequest> httpResult = resultsBuilder.SetTypedResults<Ok<Source>, BadRequest>();
-        };
+        Results<Ok<Source>, ProblemHttpResult> httpResult = resultsBuilder.SetTypedResults<Ok<Source>, ProblemHttpResult>();
 
         // Assert
-        action.Should().Throw<InvalidCastException>();
+        httpResult.Result.Should().BeOfType<ProblemHttpResult>();
+        ((ProblemHttpResult)httpResult.Result).StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]

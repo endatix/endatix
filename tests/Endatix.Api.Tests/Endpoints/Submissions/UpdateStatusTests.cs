@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.UpdateStatus;
@@ -58,7 +59,8 @@ public sealed class UpdateStatusTests
         var response = await _endpoint.ExecuteAsync(request, CancellationToken.None);
 
         // Assert
-        response.Result.Should().BeOfType<NotFound>();
+        var problemResult = response.Result.Should().BeOfType<ProblemHttpResult>().Subject;
+        problemResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]
@@ -75,7 +77,8 @@ public sealed class UpdateStatusTests
         var response = await _endpoint.ExecuteAsync(request, CancellationToken.None);
 
         // Assert
-        response.Result.Should().BeOfType<BadRequest>();
+        var problemResult = response.Result.Should().BeOfType<ProblemHttpResult>().Subject;
+        problemResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

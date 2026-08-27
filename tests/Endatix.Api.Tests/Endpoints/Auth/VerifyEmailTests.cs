@@ -56,28 +56,32 @@ public class VerifyEmailTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badResponse = response!.Result as BadRequest<Microsoft.AspNetCore.Mvc.ProblemDetails>;
+        var problemResult = response!.Result as ProblemHttpResult;
 
-        badResponse.Should().NotBeNull();
-        badResponse!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
+    /// <summary>
+    /// An unknown token is reported exactly like an expired or already-used one: 400 with the
+    /// same message, so the response cannot be used to probe token or account state.
+    /// </summary>
     [Fact]
-    public async Task ExecuteAsync_WithNotFoundToken_ReturnsNotFound()
+    public async Task ExecuteAsync_WithUnknownToken_ReturnsSameProblemAsExpiredToken()
     {
         // Arrange
         var request = new VerifyEmailRequest("not-found-token");
-        var notFoundResult = Result.NotFound("Verification token not found");
-
         _mediator.Send(Arg.Any<VerifyEmailCommand>(), Arg.Any<CancellationToken>())
-            .Returns(notFoundResult);
+            .Returns(Result<User>.Invalid(new ValidationError("Invalid verification token")));
 
         // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var notFoundResponse = response!.Result as NotFound;
+        var problemResult = response!.Result as ProblemHttpResult;
 
-        notFoundResponse.Should().NotBeNull();
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problemResult.ProblemDetails.Detail.Should().Be("Invalid verification token");
     }
 } 

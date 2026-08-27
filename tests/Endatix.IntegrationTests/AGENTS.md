@@ -29,13 +29,14 @@ public sealed class MyFlowTests(EndatixIntegrationWebHostFixture fixture)
 
 ## Reference tests
 
-| Test | Pattern |
-| --- | --- |
-| `AuthLoginFlowTests` | CriticalPath, `PrepareWorldAsync`, `IntegrationAuthMode.Login` |
-| `HealthCheckTests` | Host smoke, provider-agnostic |
-| `StartupMigrationTests` | DB-only, provider-agnostic migrations |
-| `SqlServerMigrationArtifactTests` | `DbSpecific=SqlServer` stored proc / seed checks |
-| `ReportingQueryFilterTests` | `DbSpecific=PostgreSql` module schema |
+| Test                                  | Pattern                                                        |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `AuthLoginFlowTests`                  | CriticalPath, `PrepareWorldAsync`, `IntegrationAuthMode.Login` |
+| `FormNotFoundProblemDetailsFlowTests` | FeatureFlow, 404 + problem+json on missing form / definitions  |
+| `HealthCheckTests`                    | Host smoke, provider-agnostic                                  |
+| `StartupMigrationTests`               | DB-only, provider-agnostic migrations                          |
+| `SqlServerMigrationArtifactTests`     | `DbSpecific=SqlServer` stored proc / seed checks               |
+| `ReportingQueryFilterTests`           | `DbSpecific=PostgreSql` module schema                          |
 
 ## Shared infrastructure (`Endatix.IntegrationTests.Shared`)
 

@@ -43,15 +43,15 @@ public class CreateAccessToken(IMediator mediator)
             s.Responses[404] = "Submission not found.";
         });
         Description(builder => builder
-            .Produces<CreateAccessTokenResponse>(200, "application/json")
-            .ProducesProblem(400)
-            .ProducesProblem(404));
+            .Produces<CreateAccessTokenResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
     public override async Task<Results<Ok<CreateAccessTokenResponse>, ProblemHttpResult>> ExecuteAsync(
         CreateAccessTokenRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var command = new CreateAccessTokenCommand(
             request.FormId,
@@ -59,7 +59,7 @@ public class CreateAccessToken(IMediator mediator)
             request.ExpiryMinutes!.Value,
             request.Permissions!
         );
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, dto => new CreateAccessTokenResponse(dto.Token, dto.ExpiresAt, dto.Permissions))

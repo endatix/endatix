@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Folders.List;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Folders;
@@ -29,6 +30,11 @@ public sealed class List(ICurrentUserAuthorizationService authorizationService, 
             s.Responses[403] = "Forbidden. User does not have permission to manage folders.";
             s.Responses[404] = "Not found. The requested resource was not found.";
         });
+        Description(builder => builder
+            .Produces<IEnumerable<FolderModel>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     public override async Task<Results<Ok<IEnumerable<FolderModel>>, ProblemHttpResult>> ExecuteAsync(

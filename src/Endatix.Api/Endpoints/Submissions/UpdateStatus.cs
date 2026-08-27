@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.UpdateStatus;
@@ -10,7 +11,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Endpoint for updating the status of a form submission.
 /// </summary>
-public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Results<Ok<UpdateStatusResponse>, BadRequest, NotFound>>
+public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Results<Ok<UpdateStatusResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -27,12 +28,16 @@ public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Re
             s.Responses[400] = "Invalid status or business rule violation";
             s.Responses[404] = "Submission not found";
         });
+        Description(builder => builder
+            .Produces<UpdateStatusResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<UpdateStatusResponse>, BadRequest, NotFound>> ExecuteAsync(
+    public override async Task<Results<Ok<UpdateStatusResponse>, ProblemHttpResult>> ExecuteAsync(
         UpdateStatusRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var command = new UpdateStatusCommand(
             request.SubmissionId,
@@ -40,10 +45,10 @@ public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Re
             request.Status
         );
 
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, result => new UpdateStatusResponse(result.Id, result.Status))
-            .SetTypedResults<Ok<UpdateStatusResponse>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<UpdateStatusResponse>, ProblemHttpResult>();
     }
 }

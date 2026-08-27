@@ -1,5 +1,6 @@
 ﻿using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
@@ -10,7 +11,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Endpoint for partially updating a form submission.
 /// </summary>
-public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissionRequest, Results<Ok<PartialUpdateSubmissionResponse>, BadRequest, NotFound>>
+public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissionRequest, Results<Ok<PartialUpdateSubmissionResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -27,10 +28,14 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissio
             s.Responses[400] = "Bad request";
             s.Responses[404] = "Form submission not found";
         });
+        Description(builder => builder
+            .Produces<PartialUpdateSubmissionResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<PartialUpdateSubmissionResponse>, BadRequest, NotFound>> ExecuteAsync(PartialUpdateSubmissionRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<PartialUpdateSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateSubmissionRequest request, CancellationToken ct)
     {
         var updateSubmissionCommand = new PartialUpdateSubmissionCommand(
                     request.SubmissionId,
@@ -41,10 +46,10 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissio
                     request.Metadata
                 );
 
-        var result = await mediator.Send(updateSubmissionCommand, cancellationToken);
+        var result = await mediator.Send(updateSubmissionCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionMapper.Map<PartialUpdateSubmissionResponse>)
-            .SetTypedResults<Ok<PartialUpdateSubmissionResponse>, BadRequest, NotFound>();
+            .SetTypedResults<Ok<PartialUpdateSubmissionResponse>, ProblemHttpResult>();
     }
 }

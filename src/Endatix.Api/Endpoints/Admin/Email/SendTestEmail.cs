@@ -36,9 +36,9 @@ public class SendTestEmail(IMediator mediator)
             s.Responses[503] = "Email provider is not configured.";
         });
         Description(builder => builder
-            .Produces<string>(200, "application/json")
-            .ProducesProblem(400)
-            .ProducesProblem(503));
+            .Produces<string>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
     }
 
     /// <inheritdoc/>

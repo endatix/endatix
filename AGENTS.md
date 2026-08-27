@@ -6,27 +6,27 @@ Clean Architecture + vertical slices in `oss/`. Architecture/testing rules of re
 
 **Do not duplicate the full decision tree here.** Use:
 
-| Need | Doc |
-| --- | --- |
-| When unit vs integration, naming (`UnitOfWork_Scenario_ExpectedBehavior`), AAA | [endatix-api-rules.mdc → Testing](../.cursor/rules/endatix-api-rules.mdc) |
-| Testcontainers, Respawn, traits (`Category` / `Priority` / `DbSpecific`), how to run | [`tests/README.md`](tests/README.md) |
+| Need                                                                                 | Doc                                                                       |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| When unit vs integration, naming (`UnitOfWork_Scenario_ExpectedBehavior`), AAA       | [endatix-api-rules.mdc → Testing](../.cursor/rules/endatix-api-rules.mdc) |
+| Testcontainers, Respawn, traits (`Category` / `Priority` / `DbSpecific`), how to run | [`tests/README.md`](tests/README.md)                                      |
 
 **Short rule of thumb**
 
-* **Unit** — domain, handlers, validators, mappers, endpoint `ExecuteAsync` mapping; mocks/substitutes only.
-* **Integration** — HTTP + auth + EF + real DB (`WebApplicationFactory` / Testcontainers). Prefer `CriticalPaths/` · `FeatureFlows/` · `Infrastructure/`.
+- **Unit** — domain, handlers, validators, mappers, endpoint `ExecuteAsync` mapping; mocks/substitutes only.
+- **Integration** — HTTP + auth + EF + real DB (`WebApplicationFactory` / Testcontainers). Prefer `CriticalPaths/` · `FeatureFlows/` · `Infrastructure/`.
 
 ## Unit test placement (OSS)
 
-| Layer | Project | Folder | Reference |
-| --- | --- | --- | --- |
-| FastEndpoints | `Endatix.Api.Tests` | `Endpoints/{Feature}/` | `Forms/DeleteTests.cs`, `DataLists/*LocaleTests.cs` |
-| Handlers / commands | `Endatix.Core.Tests` | `UseCases/{Feature}/{Action}/` | `Forms/Delete/DeleteFormHandlerTests.cs`, `DataLists/Locales/*Locale*Tests.cs` |
-| Domain | `Endatix.Core.Tests` | `Entities/` | `DataListLocaleCatalogTests.cs` |
-| Infrastructure | `Endatix.Infrastructure.Tests` | Mirror source | `Data/Querying/...` |
+| Layer               | Project                        | Folder                         | Reference                                                                      |
+| ------------------- | ------------------------------ | ------------------------------ | ------------------------------------------------------------------------------ |
+| FastEndpoints       | `Endatix.Api.Tests`            | `Endpoints/{Feature}/`         | `Forms/DeleteTests.cs`, `DataLists/*LocaleTests.cs`                            |
+| Handlers / commands | `Endatix.Core.Tests`           | `UseCases/{Feature}/{Action}/` | `Forms/Delete/DeleteFormHandlerTests.cs`, `DataLists/Locales/*Locale*Tests.cs` |
+| Domain              | `Endatix.Core.Tests`           | `Entities/`                    | `DataListLocaleCatalogTests.cs`                                                |
+| Infrastructure      | `Endatix.Infrastructure.Tests` | Mirror source                  | `Data/Querying/...`                                                            |
 
-* **Class:** `{Sut}Tests`. **Methods:** `Method_State_ExpectedBehavior`.
-* Always `// Arrange` · `// Act` · `// Assert`.
+- **Class:** `{Sut}Tests`. **Methods:** `Method_State_ExpectedBehavior`.
+- Always `// Arrange` · `// Act` · `// Assert`.
 
 ### FastEndpoints (`Endatix.Api.Tests`)
 
@@ -34,9 +34,39 @@ Pattern: substitute `IMediator` → `Factory.Create<TEndpoint>(_mediator)` → a
 
 Minimum cases: invalid → 400 · not found → 404 (if applicable) · success payload · request→command via `Received`/`Arg.Is`. Skip FluentValidation re-tests unless validation is the SUT.
 
+**Error HTTP contract:** resource endpoints return `Results<Ok|Created<T>, ProblemHttpResult>`. Assert failures as:
+
+```csharp
+var problemResult = response.Result as ProblemHttpResult;
+problemResult.Should().NotBeNull();
+problemResult!.StatusCode.Should().Be(StatusCodes.Status404NotFound); // or 400
+```
+
+Do **not** assert empty-body `BadRequest` / `NotFound`. References: `FormDefinitions/GetActiveTests.cs`, `Forms/Delete.cs` (OpenAPI `Produces` + `ProducesProblem`).
+
 ### Handlers (`Endatix.Core.Tests`)
 
 Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · happy path + persist · domain `Invalid` (no persist) · event reason/payload. Prefer real aggregates. Thin command-ctor tests when `Guard.Against.*` matters.
+
+## Error HTTP contract (API)
+
+- Handler failures → RFC7807 `application/problem+json` via `TypedResultsBuilder` + `ProblemHttpResult`.
+- `ToProblem` maps Invalid → 400, NotFound → 404, Conflict → 409, Unauthorized → 401, Forbidden → 403, Error/CriticalError → 500, Unavailable → 503.
+- **`detail` is always a non-empty string**, falling back to the title when the result carries no errors. Consumers treat it as required (Hub's `ProblemDetailsSchema` types it non-optional) — never emit `"detail": ""`.
+- `SetErrorMessage(...)` overrides the problem **title for every status**, so set it only on the branch it describes (see `Auth/VerifyEmail.cs`) — otherwise a 404 inherits a 400-shaped message.
+- OpenAPI: `Description(b => b.Produces<T>(...).ProducesProblem(400).ProducesProblem(404))` listing exactly the statuses the endpoint's `Summary(s => s.Responses[...])` declares — every endpoint returning `ProblemHttpResult` must have one.
+### Uniform failure responses (OWASP A07)
+
+Account-facing failures must be **indistinguishable to the caller**: same status, same message, whatever the real cause. Log the real reason server-side instead — never return it.
+
+- Applies to: login, registration, forgot/reset password, send-verification-email, verify-email, invite activation. Unknown account, unconfirmed email and wrong password all collapse to **one** `Result.Invalid` with one message.
+- Normalize at the **handler/service boundary**, not at the endpoint. `IAuthService` / `IUserPasswordManageService` are public abstractions — an external IdP implementation returning `NotFound` must not become a 404 that a wrong password would not produce.
+- **Do not `ToErrorResult<T>()` / propagate an upstream status on a credential path.** It is correct for post-authentication infrastructure errors (e.g. session persistence), which reveal nothing about the account.
+- Token flows (verify-email, invite activation) answer **400 for every token failure** - unknown, dangling, expired, used. Never `NotFound`: a 404-vs-400 split tells the caller whether the token ever existed.
+- Equalize work, not just payloads: run the password KDF on the unknown-account path too (`AuthService.BurnPasswordHashingWork`), or response time leaks what the body does not.
+- Pair each with a `#region Security and Privacy Tests` test asserting the disallowed strings are absent. References: `LoginHandler.INVALID_CREDENTIALS_MESSAGE`, `EmailVerificationService.INVALID_VERIFICATION_TOKEN_MESSAGE`, `ForgotPasswordHandler.GENERAL_SUCCESS_MESSAGE`, `SendVerificationEmailHandler` (returns `Success` for unknown users), `UserPasswordManageServiceTests` (`DoesNotLeakUserExistence`).
+
+- **Known gap:** FastEndpoints request-validation failures still return FE's `{statusCode, message, errors}` shape, not problem+json. Closing that needs `c.Errors.UseProblemDetails()` in `ApiApplicationBuilderExtensions` — tracked separately; don't assume a 400 is RFC7807 yet.
 
 ## Run (examples)
 
@@ -49,5 +79,5 @@ dotnet test tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj --filter "FullyQu
 
 ## Related
 
-* SaaS / Hub agent rules: [`../.cursor/AGENTS.md`](../.cursor/AGENTS.md)
-* Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)
+- SaaS / Hub agent rules: [`../.cursor/AGENTS.md`](../.cursor/AGENTS.md)
+- Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)

@@ -1,5 +1,6 @@
 ﻿using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.UseCases.Identity.Login;
 using Endatix.Api.Infrastructure;
@@ -21,15 +22,24 @@ public class Login(IMediator mediator) : Endpoint<LoginRequest, Results<Ok<Login
             s.Description = "Authenticates a user based on valid credentials and returns JWT token and refresh token";
             s.Responses[200] = "User has been successfully authenticated";
             s.Responses[400] = "The supplied credentials are invalid!";
+            s.Responses[500] = "The login session could not be persisted.";
             s.ExampleRequest = new LoginRequest("user@example.com", "Password123!");
+            s.ResponseExamples[200] = new LoginResponse(
+                "user@example.com",
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access-token",
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh-token");
         });
+        Description(builder => builder
+            .Produces<LoginResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status500InternalServerError));
     }
 
     /// <inheritdoc />
-    public override async Task<Results<Ok<LoginResponse>, ProblemHttpResult>> ExecuteAsync(LoginRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<LoginResponse>, ProblemHttpResult>> ExecuteAsync(LoginRequest request, CancellationToken ct)
     {
         var loginCommand = new LoginCommand(request.Email, request.Password);
-        var result = await mediator.Send(loginCommand, cancellationToken);
+        var result = await mediator.Send(loginCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, tokenDto => new LoginResponse(request.Email, tokenDto.AccessToken.Token, tokenDto.RefreshToken.Token))

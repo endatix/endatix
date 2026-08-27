@@ -7,6 +7,7 @@ using Endatix.Core.UseCases.CustomQuestions.List;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.CustomQuestions;
@@ -15,7 +16,7 @@ namespace Endatix.Api.Endpoints.CustomQuestions;
 /// Endpoint for listing custom questions.
 /// </summary>
 public class List(IMediator mediator)
-    : Endpoint<CustomQuestionsListRequest, Results<Ok<Paged<CustomQuestionModel>>, BadRequest>>
+    : Endpoint<CustomQuestionsListRequest, Results<Ok<Paged<CustomQuestionModel>>, ProblemHttpResult>>
 {
     public const int DefaultPageSize = 25;
 
@@ -38,13 +39,30 @@ public class List(IMediator mediator)
                 SortBy = CustomQuestionListSortBy.CreatedAt,
                 SortDir = SortDirection.Desc
             };
+            s.ResponseExamples[200] = new Paged<CustomQuestionModel>(
+                page: 1,
+                pageSize: DefaultPageSize,
+                totalRecords: 1,
+                totalPages: 1,
+                items:
+                [
+                    new CustomQuestionModel
+                    {
+                        Id = "1",
+                        Name = "NPS score",
+                        JsonData = "{ \"type\": \"rating\" }",
+                    },
+                ]);
             s.Responses[200] = "Custom questions retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
         });
+        Description(builder => builder
+            .Produces<Paged<CustomQuestionModel>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<Paged<CustomQuestionModel>>, BadRequest>> ExecuteAsync(
+    public override async Task<Results<Ok<Paged<CustomQuestionModel>>, ProblemHttpResult>> ExecuteAsync(
         CustomQuestionsListRequest request,
         CancellationToken ct)
     {
@@ -60,7 +78,7 @@ public class List(IMediator mediator)
 
         return TypedResultsBuilder
             .MapResult(result, Map)
-            .SetTypedResults<Ok<Paged<CustomQuestionModel>>, BadRequest>();
+            .SetTypedResults<Ok<Paged<CustomQuestionModel>>, ProblemHttpResult>();
     }
 
     private static Paged<CustomQuestionModel> Map(Paged<Core.Entities.CustomQuestion> paged)

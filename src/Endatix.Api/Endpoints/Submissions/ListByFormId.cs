@@ -1,12 +1,12 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
-
 using Endatix.Core.Infrastructure.Paging;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -30,10 +30,14 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found. Pass correct formId";
         });
+        Description(builder => builder
+            .Produces<Paged<SubmissionModel>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<Paged<SubmissionModel>>, ProblemHttpResult>> ExecuteAsync(ListByFormIdRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<Paged<SubmissionModel>>, ProblemHttpResult>> ExecuteAsync(ListByFormIdRequest request, CancellationToken ct)
     {
         var sort = request.ToNullableSortRequest(SubmissionListSortBy.CreatedAt, SortDirection.Desc);
         var getSubmissionsQuery = new ListByFormIdQuery(
@@ -48,7 +52,7 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
             request.ToStartedRange(),
             request.ToCompletedRange());
 
-        var result = await mediator.Send(getSubmissionsQuery, cancellationToken);
+        var result = await mediator.Send(getSubmissionsQuery, ct);
 
         return TypedResultsBuilder
             .MapResult(result, submissions => submissions.MapToPaged(SubmissionMapper.MapFromDto))

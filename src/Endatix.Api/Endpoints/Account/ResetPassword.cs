@@ -2,6 +2,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Account.ResetPassword;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Account;
@@ -20,13 +21,16 @@ public class ResetPassword(
             s.Description = "Resets a user's password.";
             s.Responses[200] = "Password reset successfully.";
         });
+        Description(builder => builder
+            .Produces<string>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(ResetPasswordRequest request, CancellationToken ct)
     {
         var resetPasswordCommand = new ResetPasswordCommand(request.Email, request.ResetCode, request.NewPassword);
-        var result = await mediator.Send(resetPasswordCommand, cancellationToken);
+        var result = await mediator.Send(resetPasswordCommand, ct);
 
         return TypedResultsBuilder
                 .FromResult(result)

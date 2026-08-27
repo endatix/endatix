@@ -4,6 +4,7 @@ using Endatix.Core.UseCases.Folders.Delete;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Folders;
@@ -28,6 +29,10 @@ public sealed class Delete(IMediator mediator)
             s.Responses[404] = "Folder not found.";
             s.Responses[409] = "Folder is locked and cannot be deleted.";
         });
+        Description(builder => builder
+            .Produces<string>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict));
     }
 
     /// <inheritdoc/>

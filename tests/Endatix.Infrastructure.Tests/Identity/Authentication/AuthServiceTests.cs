@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
@@ -101,6 +102,60 @@ public class AuthServiceTests
         result.ValidationErrors.Should().NotBeNull();
         result.ValidationErrors.First().ErrorMessage.Should().Contain(AuthService.INVALID_CREDENTIALS_ERROR_MESSAGE);
     }
+
+    #region Security and Privacy Tests
+
+    /// <summary>
+    /// OWASP A07: an unknown account must still pay the password-hashing cost, otherwise it
+    /// answers measurably faster than a wrong password and accounts become enumerable by timing.
+    /// </summary>
+    [Fact]
+    public async Task ValidateCredentials_UserNotFound_StillPerformsPasswordHashingWork()
+    {
+        // Arrange
+        _userManager.FindByEmailAsync(Arg.Any<string>()).Returns((AppUser?)null);
+
+        // Act
+        var result = await _authService.ValidateCredentials("ghost@example.com", "password", CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        _passwordHasher.Received().VerifyHashedPassword(
+            Arg.Any<AppUser>(),
+            Arg.Any<string>(),
+            "password");
+    }
+
+    /// <summary>
+    /// Unknown account, unconfirmed email and wrong password must be indistinguishable.
+    /// </summary>
+    [Fact]
+    public async Task ValidateCredentials_AllFailureModes_ReturnIdenticalResponses()
+    {
+        // Arrange
+        var unconfirmed = new AppUser { EmailConfirmed = false };
+        var confirmed = new AppUser { EmailConfirmed = true };
+
+        _userManager.FindByEmailAsync("missing@example.com").Returns((AppUser?)null);
+        _userManager.FindByEmailAsync("unconfirmed@example.com").Returns(unconfirmed);
+        _userManager.FindByEmailAsync("wrongpass@example.com").Returns(confirmed);
+        _userManager.CheckPasswordAsync(Arg.Any<AppUser>(), Arg.Any<string>()).Returns(false);
+
+        // Act
+        var missing = await _authService.ValidateCredentials("missing@example.com", "password", CancellationToken.None);
+        var unconfirmedResult = await _authService.ValidateCredentials("unconfirmed@example.com", "password", CancellationToken.None);
+        var wrongPassword = await _authService.ValidateCredentials("wrongpass@example.com", "password", CancellationToken.None);
+
+        // Assert - same status, same single message, on every path.
+        foreach (var result in new[] { missing, unconfirmedResult, wrongPassword })
+        {
+            result.Status.Should().Be(ResultStatus.Invalid);
+            result.ValidationErrors.Should().ContainSingle()
+                .Which.ErrorMessage.Should().Be(AuthService.INVALID_CREDENTIALS_ERROR_MESSAGE);
+        }
+    }
+
+    #endregion
 
     [Fact]
     public async Task ValidateCredentials_UserEmailNotConfirmed_ReturnsInvalidResult()

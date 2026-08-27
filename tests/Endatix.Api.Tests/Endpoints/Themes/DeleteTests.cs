@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Api.Endpoints.Themes;
@@ -19,7 +20,7 @@ public class DeleteTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ThemeNotFound_ReturnsNotFound()
+    public async Task ExecuteAsync_ThemeNotFound_ReturnsProblemDetails()
     {
         // Arrange
         var request = new DeleteRequest { ThemeId = 1 };
@@ -33,12 +34,13 @@ public class DeleteTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var notFoundResult = response.Result as NotFound;
-        notFoundResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
+    public async Task ExecuteAsync_InvalidRequest_ReturnsProblemDetails()
     {
         // Arrange
         var request = new DeleteRequest { ThemeId = 0 }; // Invalid ID
@@ -51,8 +53,9 @@ public class DeleteTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest;
-        badRequestResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
     [Fact]

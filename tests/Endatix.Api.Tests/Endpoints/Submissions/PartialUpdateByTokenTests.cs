@@ -1,11 +1,11 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Entities;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
-using Errors = Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Abstractions.Submissions;
 
@@ -38,10 +38,10 @@ public class PartialUpdateByTokenTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
-        badRequestResult.Should().NotBeNull();
-        badRequestResult!.Value!.Detail.Should().Be(SubmissonTokenErrors.Messages.SUBMISSION_TOKEN_INVALID);
-        badRequestResult!.Value!.Extensions["errorCode"].Should().Be(SubmissonTokenErrors.ErrorCodes.SUBMISSION_TOKEN_INVALID);
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.ProblemDetails.Detail.Trim().Should().Be(SubmissonTokenErrors.Messages.SUBMISSION_TOKEN_INVALID);
+        problemResult!.ProblemDetails.Extensions["errorCode"].Should().Be(SubmissonTokenErrors.ErrorCodes.SUBMISSION_TOKEN_INVALID);
     }
 
     [Fact]
@@ -60,8 +60,9 @@ public class PartialUpdateByTokenTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var notFoundResult = response.Result as NotFound;
-        notFoundResult.Should().NotBeNull();
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
     [Fact]
@@ -81,10 +82,10 @@ public class PartialUpdateByTokenTests
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
-        var badRequestResult = response.Result as BadRequest<Errors.ProblemDetails>;
-        badRequestResult.Should().NotBeNull();
-        badRequestResult!.Value!.Detail.Should().Be(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
-        badRequestResult!.Value!.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
+        var problemResult = response.Result as ProblemHttpResult;
+        problemResult.Should().NotBeNull();
+        problemResult!.ProblemDetails.Detail.Trim().Should().Be(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
+        problemResult!.ProblemDetails.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
     }
 
     [Fact]

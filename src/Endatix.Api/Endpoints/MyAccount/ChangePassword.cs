@@ -1,6 +1,7 @@
 using FastEndpoints;
 using MediatR;
 using Errors = Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.MyAccount.ChangePassword;
@@ -27,14 +28,17 @@ public class ChangePassword(IMediator mediator, IUserContext userContext) : Endp
             s.Responses[200] = "Password changed successfully.";
             s.Responses[400] = "Invalid request or current password.";
         });
+        Description(builder => builder
+            .Produces<ChangePasswordResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <summary>
     /// Executes the password change functionality
     /// </summary>
     /// <param name="request">The password change request containing the current and new password</param>
-    /// <param name="cancellationToken">Cancellation token for the async operation</param>
-    public override async Task<Results<Ok<ChangePasswordResponse>, ProblemHttpResult>> ExecuteAsync(ChangePasswordRequest request, CancellationToken cancellationToken)
+    /// <param name="ct">Cancellation token for the async operation</param>
+    public override async Task<Results<Ok<ChangePasswordResponse>, ProblemHttpResult>> ExecuteAsync(ChangePasswordRequest request, CancellationToken ct)
     {
         var userIdString = userContext.GetCurrentUserId();
 
@@ -44,7 +48,7 @@ public class ChangePassword(IMediator mediator, IUserContext userContext) : Endp
             request.NewPassword
         );
 
-        var result = await mediator.Send(changePasswordCmd, cancellationToken);
+        var result = await mediator.Send(changePasswordCmd, ct);
 
         return TypedResultsBuilder
             .MapResult(result, message => new ChangePasswordResponse(message))

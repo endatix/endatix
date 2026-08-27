@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.GetByAccessToken;
@@ -27,15 +28,19 @@ public class GetByAccessToken(IMediator mediator)
             s.Responses[400] = "Invalid token or permissions";
             s.Responses[404] = "Submission not found";
         });
+        Description(builder => builder
+            .Produces<SubmissionDetailsModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
     public override async Task<Results<Ok<SubmissionDetailsModel>, ProblemHttpResult>> ExecuteAsync(
         GetByAccessTokenRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var query = new GetByAccessTokenQuery(request.FormId, request.Token!);
-        var result = await mediator.Send(query, cancellationToken);
+        var result = await mediator.Send(query, ct);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionMapper.MapToSubmissionDetails)

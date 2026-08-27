@@ -1,5 +1,6 @@
 using MediatR;
 using FastEndpoints;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.UseCases.FormTemplates.List;
 using Endatix.Api.Infrastructure;
@@ -14,7 +15,8 @@ namespace Endatix.Api.Endpoints.FormTemplates;
 /// <summary>
 /// Endpoint for listing form templates.
 /// </summary>
-public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Results<Ok<Paged<FormTemplateModelWithoutJsonData>>, BadRequest>>
+public class List(IMediator mediator)
+    : Endpoint<FormTemplatesListRequest, Results<Ok<Paged<FormTemplateModelWithoutJsonData>>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -35,13 +37,29 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
                 SortBy = FormTemplateListSortBy.Name,
                 SortDir = SortDirection.Asc,
             };
+            s.ResponseExamples[200] = new Paged<FormTemplateModelWithoutJsonData>(
+                page: 1,
+                pageSize: 20,
+                totalRecords: 1,
+                totalPages: 1,
+                items:
+                [
+                    new FormTemplateModelWithoutJsonData
+                    {
+                        Id = "1",
+                        Name = "Customer satisfaction",
+                    },
+                ]);
             s.Responses[200] = "Form templates retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
         });
+        Description(builder => builder
+            .Produces<Paged<FormTemplateModelWithoutJsonData>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<Paged<FormTemplateModelWithoutJsonData>>, BadRequest>> ExecuteAsync(
+    public override async Task<Results<Ok<Paged<FormTemplateModelWithoutJsonData>>, ProblemHttpResult>> ExecuteAsync(
         FormTemplatesListRequest request,
         CancellationToken ct)
     {
@@ -60,7 +78,7 @@ public class List(IMediator mediator) : Endpoint<FormTemplatesListRequest, Resul
 
         return TypedResultsBuilder
             .MapResult(result, Map)
-            .SetTypedResults<Ok<Paged<FormTemplateModelWithoutJsonData>>, BadRequest>();
+            .SetTypedResults<Ok<Paged<FormTemplateModelWithoutJsonData>>, ProblemHttpResult>();
     }
 
     private static Paged<FormTemplateModelWithoutJsonData> Map(Paged<FormTemplateDto> paged) =>

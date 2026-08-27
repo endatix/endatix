@@ -38,8 +38,8 @@ public sealed class ActivateInvite(IMediator mediator)
             s.Responses[400] = "Invalid input data or invitation token.";
         });
         Description(builder => builder
-            .Produces<ActivateInviteResponse>(200, "application/json")
-            .ProducesProblem(400));
+            .Produces<ActivateInviteResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>

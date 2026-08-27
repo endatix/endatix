@@ -1,8 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
-using Errors = Microsoft.AspNetCore.Mvc;
 using FastEndpoints;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -10,7 +10,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Endpoint for partially updating a form submission by token.
 /// </summary>
-public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSubmissionByTokenRequest, Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>>
+public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSubmissionByTokenRequest, Results<Ok<PartialUpdateSubmissionByTokenResponse>, ProblemHttpResult>>
 {
     /// <summary>
     /// Configures the endpoint settings.
@@ -27,10 +27,14 @@ public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSu
             s.Responses[400] = "Bad request";
             s.Responses[404] = "Form submission not found or invalid token";
         });
+        Description(builder => builder
+            .Produces<PartialUpdateSubmissionByTokenResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>> ExecuteAsync(PartialUpdateSubmissionByTokenRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<PartialUpdateSubmissionByTokenResponse>, ProblemHttpResult>> ExecuteAsync(PartialUpdateSubmissionByTokenRequest request, CancellationToken ct)
     {
         var updateSubmissionCommand = new PartialUpdateSubmissionByTokenCommand(
             request.SubmissionToken,
@@ -42,10 +46,10 @@ public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSu
             request.ReCaptchaToken
         );
 
-        var result = await mediator.Send(updateSubmissionCommand, cancellationToken);
+        var result = await mediator.Send(updateSubmissionCommand, ct);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionMapper.Map<PartialUpdateSubmissionByTokenResponse>)
-            .SetTypedResults<Ok<PartialUpdateSubmissionByTokenResponse>, BadRequest<Errors.ProblemDetails>, NotFound>();
+            .SetTypedResults<Ok<PartialUpdateSubmissionByTokenResponse>, ProblemHttpResult>();
     }
 }

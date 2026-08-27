@@ -3,7 +3,7 @@ using Endatix.Core.Infrastructure.Logging;
 namespace Endatix.Api.Endpoints.Auth;
 
 /// <summary>
-/// Represents the request for the "/register" endpoint, handled by the <see cref="Register.HandleAsync"/> method.
+/// Represents the request for the "/register" endpoint, handled by the <see cref="Register.ExecuteAsync"/> method.
 /// </summary>
 public record RegisterRequest(string Email, string Password, string ConfirmPassword)
 {
