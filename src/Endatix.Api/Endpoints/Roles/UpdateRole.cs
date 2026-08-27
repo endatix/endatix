@@ -37,9 +37,9 @@ public sealed class UpdateRole(IMediator mediator)
             s.Responses[404] = "Role not found.";
         });
         Description(builder => builder
-            .Produces<UpdateRoleResponse>(200, "application/json")
-            .ProducesProblem(400)
-            .ProducesProblem(404));
+            .Produces<UpdateRoleResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>

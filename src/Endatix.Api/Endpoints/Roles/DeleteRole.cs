@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Identity.DeleteRole;
@@ -28,15 +29,19 @@ public class DeleteRole(IMediator mediator)
             s.Responses[400] = "Invalid request or role deletion failed.";
             s.Responses[404] = "Role not found.";
         });
+        Description(builder => builder
+            .Produces<DeleteRoleResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
     public override async Task<Results<Ok<DeleteRoleResponse>, ProblemHttpResult>> ExecuteAsync(
         DeleteRoleRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var command = new DeleteRoleCommand(request.RoleName);
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, (message) => new DeleteRoleResponse(message))

@@ -1,5 +1,6 @@
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Identity.CreateRole;
@@ -27,15 +28,18 @@ public class CreateRole(IMediator mediator)
             s.Responses[201] = "Role created successfully.";
             s.Responses[400] = "Invalid request or role creation failed.";
         });
+        Description(builder => builder
+            .Produces<CreateRoleResponse>(StatusCodes.Status201Created, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateRoleResponse>, ProblemHttpResult>> ExecuteAsync(
         CreateRoleRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var command = new CreateRoleCommand(request.Name!, request.Description, request.Permissions);
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(result, (message) => new CreateRoleResponse(message))

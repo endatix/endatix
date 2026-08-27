@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure;
 using Endatix.Infrastructure.Features.AccessControl;
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Public.Forms;
@@ -30,6 +31,10 @@ public sealed class GetFormPublicAccess(
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
         });
+        Description(builder => builder
+            .Produces<GetFormPublicAccessResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     public override async Task<Results<Ok<GetFormPublicAccessResponse>, ProblemHttpResult>> ExecuteAsync(

@@ -42,8 +42,8 @@ public sealed class ListRoles(IMediator mediator)
             s.Responses[400] = "Invalid request.";
         });
         Description(builder => builder
-            .Produces<Paged<ListRolesResponse>>(200, "application/json")
-            .ProducesProblem(400));
+            .Produces<Paged<ListRolesResponse>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>

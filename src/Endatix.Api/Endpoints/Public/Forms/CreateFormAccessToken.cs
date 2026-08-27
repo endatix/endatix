@@ -5,6 +5,7 @@ using Endatix.Core.UseCases.Authorization.PublicForm;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.Public.Forms;
@@ -30,6 +31,10 @@ public sealed class CreateFormAccessToken(IMediator mediator)
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[404] = "Form not found.";
         });
+        Description(builder => builder
+            .Produces<CreateFormAccessTokenResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />

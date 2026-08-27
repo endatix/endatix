@@ -41,6 +41,11 @@ public sealed class GetChoiceDisplayValues(
             s.Responses[404] = "Form not found.";
 
         });
+        Description(builder => builder
+            .Produces<IReadOnlyCollection<DataListPublicChoiceModel>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />
