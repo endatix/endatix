@@ -17,6 +17,7 @@ namespace Endatix.Core.UseCases.Identity.Register;
 /// </summary>
 public class RegisterHandler(
     IUserRegistrationService userRegistrationService,
+    IUserService userService,
     IRepository<Entities.Tenant> tenantRepository,
     IRepository<Entities.TenantSettings> tenantSettingsRepository,
     IRoleManagementService roleManagementService,
@@ -25,6 +26,7 @@ public class RegisterHandler(
 {
     public const string TenantNotFoundMessage = "Tenant not found.";
     public const string SelfRegistrationDisabledMessage = "Self-registration is not enabled for this tenant.";
+    public const string EmailAlreadyRegisteredMessage = "The email is already registered.";
 
     /// <inheritdoc />
     public async Task<Result<User>> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -63,6 +65,17 @@ public class RegisterHandler(
             return Result.Invalid(TenantWriteRules.ForbiddenRegistrationRole(
                 registrationRole,
                 nameof(Entities.TenantSettings.DefaultRegistrationRoleName)));
+        }
+
+        // Self-registration is anonymous, so it may only ever create a new account. Letting it fall
+        // through to RegisterUserAsync for an address that already exists would take the existing
+        // branches for an existing user: an unattached account would be silently moved into this
+        // tenant, and either way the account would then be granted the tenant's registration role
+        // below - a cross-tenant takeover driven purely by knowing someone's email address.
+        var existingUser = await userService.GetUserAsync(request.Email, cancellationToken);
+        if (existingUser.IsSuccess)
+        {
+            return Result.Invalid(new ValidationError(EmailAlreadyRegisteredMessage));
         }
 
         var registerResult = await userRegistrationService.RegisterUserAsync(

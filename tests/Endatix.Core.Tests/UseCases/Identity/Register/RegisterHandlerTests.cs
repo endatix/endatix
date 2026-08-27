@@ -16,6 +16,7 @@ public class RegisterHandlerTests
     private const long TenantId = 99;
 
     private readonly IUserRegistrationService _userRegistrationService;
+    private readonly IUserService _userService;
     private readonly IRepository<CoreEntities.Tenant> _tenantRepository;
     private readonly IRepository<CoreEntities.TenantSettings> _tenantSettingsRepository;
     private readonly IRoleManagementService _roleManagementService;
@@ -25,12 +26,16 @@ public class RegisterHandlerTests
     public RegisterHandlerTests()
     {
         _userRegistrationService = Substitute.For<IUserRegistrationService>();
+        _userService = Substitute.For<IUserService>();
         _tenantRepository = Substitute.For<IRepository<CoreEntities.Tenant>>();
         _tenantSettingsRepository = Substitute.For<IRepository<CoreEntities.TenantSettings>>();
         _roleManagementService = Substitute.For<IRoleManagementService>();
         _mediator = Substitute.For<IMediator>();
+        _userService.GetUserAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result<User>.NotFound());
         _handler = new RegisterHandler(
             _userRegistrationService,
+            _userService,
             _tenantRepository,
             _tenantSettingsRepository,
             _roleManagementService,
@@ -166,6 +171,40 @@ public class RegisterHandlerTests
             Arg.Any<string>(),
             Arg.Any<long>(),
             Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_TenantSlug_ExistingEmail_ReturnsInvalidAndDoesNotRegister()
+    {
+        var email = "existing@example.com";
+        CoreEntities.Tenant tenant = new("Acme", Slug) { Id = TenantId };
+        CoreEntities.TenantSettings settings = new(TenantId);
+        settings.UpdateSelfRegistrationPolicy(true, ["endatix"], "Respondent");
+        _tenantRepository
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveBySlugSpec>(), Arg.Any<CancellationToken>())
+            .Returns(tenant);
+        _tenantSettingsRepository
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.SettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(settings);
+        _userService.GetUserAsync(email, Arg.Any<CancellationToken>())
+            .Returns(Result<User>.Success(new User(7, TenantId, email, email, true)));
+
+        var result = await _handler.Handle(
+            new RegisterCommand(email, "Password123!", Slug),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        await _userRegistrationService.DidNotReceive().RegisterUserAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<long>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+        await _roleManagementService.DidNotReceive().AssignRoleToUserAsync(
+            Arg.Any<long>(),
+            Arg.Any<string>(),
+            Arg.Any<long>(),
             Arg.Any<CancellationToken>());
     }
 
