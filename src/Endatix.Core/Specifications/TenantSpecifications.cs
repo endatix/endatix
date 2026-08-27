@@ -1,4 +1,5 @@
 using Ardalis.Specification;
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 
 namespace Endatix.Core.Specifications;
@@ -21,9 +22,10 @@ public static class TenantSpecifications
     {
         public ExistsByShortUrlSpec(string shortUrl)
         {
+            var normalized = ShortUrl.Normalize(shortUrl);
             Query
                 .IgnoreQueryFilters()
-                .Where(tenant => tenant.ShortUrl == shortUrl);
+                .Where(tenant => tenant.ShortUrl.ToLower() == normalized);
         }
     }
 
