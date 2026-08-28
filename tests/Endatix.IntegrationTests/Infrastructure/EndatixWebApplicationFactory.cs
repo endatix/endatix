@@ -1,8 +1,10 @@
 extern alias EndatixWebHost;
 
+using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Endatix.IntegrationTests;
@@ -36,6 +38,10 @@ internal static class EndatixWebApplicationFactoryConfiguration
     public static void ConfigureCommon(IWebHostBuilder builder, string connectionString, TestDatabaseProvider provider)
     {
         builder.UseEnvironment(Environments.Staging);
+
+        // Test-only throwing route; see UnhandledExceptionRouteStartupFilter.
+        builder.ConfigureServices(services =>
+            services.AddSingleton<IStartupFilter, UnhandledExceptionRouteStartupFilter>());
 
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
         builder.UseSetting("ConnectionStrings:DefaultConnection_DbProvider", provider.ToString());

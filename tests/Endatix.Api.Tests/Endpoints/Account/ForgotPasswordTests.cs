@@ -1,3 +1,4 @@
+using static Endatix.Api.Infrastructure.ResultExtensions;
 using Endatix.Api.Endpoints.Account;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Account.ForgotPassword;
@@ -63,12 +64,12 @@ public class ForgotPasswordTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithSystemErrorDuringEmailSending_ReturnsProblemResult()
+    public async Task ExecuteAsync_WithEmailProviderFailure_ReturnsServiceUnavailableProblem()
     {
         // Arrange
         var request = new ForgotPasswordRequest { Email = "user@example.com" };
         var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
-        var errorResult = Result.Error(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
+        var errorResult = Result<string>.Unavailable(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
 
         _mediator.Send(forgotPasswordCommand)
            .Returns(errorResult);
@@ -76,10 +77,12 @@ public class ForgotPasswordTests
         // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
-        // Assert
+        // Assert - an upstream provider failure is 503, not 500.
         var problemResult = response!.Result as ProblemHttpResult;
         problemResult.Should().NotBeNull();
-        problemResult!.StatusCode.Should().Be(500);
-        problemResult!.ProblemDetails.Detail.Should().Contain(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
+        problemResult!.StatusCode.Should().Be(503);
+        problemResult!.ProblemDetails.Title.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
+        // 5xx detail stays generic so handler text cannot leak.
+        problemResult!.ProblemDetails.Detail.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
     }
 }

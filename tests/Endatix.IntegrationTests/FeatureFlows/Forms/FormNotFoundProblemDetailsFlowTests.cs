@@ -1,12 +1,13 @@
 using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
+using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Verifies resource GETs return RFC7807 problem+json for missing entities (API 0.7.5 error shape).
+/// Pins the RFC7807 problem+json body returned for missing entities. The whole envelope is
+/// compared against a literal, so the error shape is visible in the test and any extra or
+/// renamed member fails here.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -14,6 +15,11 @@ namespace Endatix.IntegrationTests;
 public sealed class FormNotFoundProblemDetailsFlowTests
 {
     private const string SeedPassword = "Password123!";
+    private const long MissingFormId = 9_999_999_999L;
+
+    /// <summary>`traceId` is per-request; everything else is ours and asserted verbatim.</summary>
+    private static readonly string[] VolatileMembers = ["traceId"];
+
     private readonly EndatixIntegrationWebHostFixture _fixture;
 
     public FormNotFoundProblemDetailsFlowTests(EndatixIntegrationWebHostFixture fixture)
@@ -22,74 +28,77 @@ public sealed class FormNotFoundProblemDetailsFlowTests
     }
 
     [Fact]
-    public async Task GetById_MissingForm_Returns404ProblemJson()
+    public async Task GetById_MissingForm_ReturnsCanonicalNotFoundProblem()
     {
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await _fixture.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword },
-            cancellationToken);
-        using HttpClient client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
-        const long missingFormId = 9_999_999_999L;
+        using HttpClient client = await CreateTenantAdminClientAsync(cancellationToken);
 
         // Act
         using HttpResponseMessage response = await client.GetAsync(
-            new Uri($"/api/forms/{missingFormId}", UriKind.Relative),
+            new Uri($"/api/forms/{MissingFormId}", UriKind.Relative),
             cancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        await AssertProblemDetailsAsync(response, expectedStatus: 404, cancellationToken);
+
+        string expected = ProblemDetailsJson.Shape(
+            $$"""
+            {
+              "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-404-not-found",
+              "title": "Resource not found",
+              "status": 404,
+              "detail": "Form not found.",
+              "instance": "/api/forms/{{MissingFormId}}",
+              "traceId": "<string>"
+            }
+            """,
+            VolatileMembers);
+
+        string actual = await ProblemDetailsJson.ReadShapeAsync(response, cancellationToken, VolatileMembers);
+
+        Assert.Equal(expected, actual);
     }
 
     [Fact]
-    public async Task ListDefinitions_MissingForm_Returns404ProblemJson()
+    public async Task ListDefinitions_MissingForm_ReturnsCanonicalNotFoundProblem()
     {
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await _fixture.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword },
-            cancellationToken);
-        using HttpClient client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
-        const long missingFormId = 9_999_999_999L;
+        using HttpClient client = await CreateTenantAdminClientAsync(cancellationToken);
 
         // Act
         using HttpResponseMessage response = await client.GetAsync(
-            new Uri($"/api/forms/{missingFormId}/definitions", UriKind.Relative),
+            new Uri($"/api/forms/{MissingFormId}/definitions", UriKind.Relative),
             cancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        await AssertProblemDetailsAsync(response, expectedStatus: 404, cancellationToken);
+
+        string expected = ProblemDetailsJson.Shape(
+            $$"""
+            {
+              "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-404-not-found",
+              "title": "Resource not found",
+              "status": 404,
+              "detail": "Form not found.",
+              "instance": "/api/forms/{{MissingFormId}}/definitions",
+              "traceId": "<string>"
+            }
+            """,
+            VolatileMembers);
+
+        string actual = await ProblemDetailsJson.ReadShapeAsync(response, cancellationToken, VolatileMembers);
+
+        Assert.Equal(expected, actual);
     }
 
-    private static async Task AssertProblemDetailsAsync(
-        HttpResponseMessage response,
-        int expectedStatus,
-        CancellationToken cancellationToken)
+    private async Task<HttpClient> CreateTenantAdminClientAsync(CancellationToken cancellationToken)
     {
-        string? mediaType = response.Content.Headers.ContentType?.MediaType;
-        Assert.True(
-            mediaType is "application/problem+json",
-            $"Expected application/problem+json content type, got '{mediaType}'.");
+        IntegrationTestWorld world = await _fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword },
+            cancellationToken);
 
-        using JsonDocument? document = await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken);
-        Assert.NotNull(document);
-
-        JsonElement root = document.RootElement;
-        Assert.True(root.TryGetProperty("status", out JsonElement statusElement), "ProblemDetails.status missing.");
-        Assert.Equal(expectedStatus, statusElement.GetInt32());
-
-        // Both members must be present AND non-empty. Asserting them separately matters:
-        // an `||` short-circuits on a present-but-empty `detail` and never checks `title`.
-        Assert.True(root.TryGetProperty("title", out JsonElement titleElement), "ProblemDetails.title missing.");
-        Assert.False(
-            string.IsNullOrWhiteSpace(titleElement.GetString()),
-            "ProblemDetails.title must not be empty.");
-
-        Assert.True(root.TryGetProperty("detail", out JsonElement detailElement), "ProblemDetails.detail missing.");
-        Assert.False(
-            string.IsNullOrWhiteSpace(detailElement.GetString()),
-            "ProblemDetails.detail must not be empty; ToProblem falls back to the title.");
+        return await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
     }
 }

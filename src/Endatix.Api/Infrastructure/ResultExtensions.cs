@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
 using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
@@ -18,6 +17,7 @@ public static partial class ResultExtensions
         public const string BAD_REQUEST = "There was a problem with your request";
         public const string INTERNAL_SERVER_ERROR = "An unexpected error occurred";
         public const string SERVICE_UNAVAILABLE = "Service unavailable";
+        public const string TOO_MANY_REQUESTS = "Too many requests";
     }
 
     /// <summary>
@@ -25,6 +25,7 @@ public static partial class ResultExtensions
     /// Maps Invalid → 400, NotFound → 404, Conflict → 409, Unauthorized → 401, Forbidden → 403,
     /// Error/CriticalError → 500, Unavailable → 503.
     /// <c>detail</c> is always populated, falling back to the title when the result carries no errors.
+    /// When an HTTP context is available, also sets <c>type</c>, <c>instance</c>, and <c>traceId</c>.
     /// </summary>
     public static ProblemHttpResult ToProblem(this AppDomain.IResult result, string? title = null)
     {
@@ -43,42 +44,42 @@ public static partial class ResultExtensions
         };
 
         var resolvedTitle = title ?? defaultTitle;
-        var problemResult = TypedResults.Problem(
-            title: resolvedTitle,
-            statusCode: status);
-
         var messages = new List<string>(result.Errors);
+        string? errorCode = null;
+        Dictionary<string, string[]>? fields = null;
 
         if (result.IsInvalid())
         {
             messages.AddRange(result.ValidationErrors.Select(error => error.ErrorMessage));
 
-            var errorCode = result.ValidationErrors.FirstOrDefault()?.ErrorCode;
-            if (errorCode != null)
-            {
-                problemResult.ProblemDetails.Extensions.Add("errorCode", errorCode);
-            }
+            errorCode = result.ValidationErrors.FirstOrDefault()?.ErrorCode;
 
-            var fields = result.ValidationErrors
+            fields = result.ValidationErrors
                 .Where(error => !string.IsNullOrWhiteSpace(error.Identifier))
                 .GroupBy(error => error.Identifier)
                 .ToDictionary(
                     group => group.Key,
                     group => group.Select(error => error.ErrorMessage).ToArray());
 
-            if (fields.Count > 0)
+            if (fields.Count == 0)
             {
-                problemResult.ProblemDetails.Extensions.Add("fields", fields);
+                fields = null;
             }
         }
 
         // `detail` is always populated - never an empty string. Consumers (Hub's
         // ProblemDetailsSchema included) treat it as a required, human-readable message,
         // so a result carrying no errors falls back to the title.
-        var detail = string.Join(Environment.NewLine, messages.Where(message => !string.IsNullOrWhiteSpace(message)));
-        problemResult.ProblemDetails.Detail = string.IsNullOrWhiteSpace(detail) ? resolvedTitle : detail;
+        var detail = string.Join('\n', messages.Where(message => !string.IsNullOrWhiteSpace(message)));
 
-        return problemResult;
+        var problem = EndatixProblemDetails.Create(
+            statusCode: status,
+            title: resolvedTitle,
+            detail: detail,
+            errorCode: errorCode,
+            fields: fields);
+
+        return TypedResults.Problem(problem);
     }
 }
 #endif

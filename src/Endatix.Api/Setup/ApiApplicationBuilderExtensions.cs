@@ -1,10 +1,13 @@
 using System.Security.Claims;
 using Endatix.Api.Builders;
+using Endatix.Api.Infrastructure;
 using Endatix.Framework.Serialization;
 using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -85,10 +88,15 @@ public static class ApiApplicationBuilderExtensions
     /// <param name="options">The middleware options.</param>
     private static void ConfigureApiMiddleware(IApplicationBuilder app, ApiOptions options)
     {
-        // Apply exception handling middleware if enabled
+        var httpContextAccessor = app.ApplicationServices.GetRequiredService<IHttpContextAccessor>();
+        var loggerFactory = app.ApplicationServices.GetService<ILoggerFactory>();
+        EndatixProblemDetails.Configure(httpContextAccessor, loggerFactory);
+
+        // Prefer IExceptionHandler (canonical ProblemDetails) over the legacy /error path redirect.
         if (options.UseExceptionHandler)
         {
-            app.UseExceptionHandler(options.ExceptionHandlerPath);
+            EnsureExceptionHandlerRegistered(app);
+            app.UseExceptionHandler();
         }
 
         // Apply FastEndpoints middleware with configuration
@@ -104,6 +112,11 @@ public static class ApiApplicationBuilderExtensions
             // Apply security configuration
             c.Security.RoleClaimType = ClaimTypes.Role;
             c.Security.PermissionsClaimType = ClaimNames.Permission;
+
+            // Unify FluentValidation 400s with handler ToProblem (fields dict, not FE stock errors[]).
+            c.Errors.ResponseBuilder = (failures, ctx, statusCode) =>
+                EndatixProblemDetails.FromValidationFailures(failures, ctx, statusCode);
+            c.Errors.ProducesMetadataType = typeof(Microsoft.AspNetCore.Mvc.ProblemDetails);
 
             // Apply any custom configuration
             options.ConfigureFastEndpoints?.Invoke(c);
@@ -151,6 +164,17 @@ public static class ApiApplicationBuilderExtensions
     public static IApplicationBuilder UseApiEndpoints(this IApplicationBuilder app, Action<ApiOptions> configureApi)
     {
         return app.UseEndatixApi(configureApi);
+    }
+
+    private static void EnsureExceptionHandlerRegistered(IApplicationBuilder app)
+    {
+        if (app.ApplicationServices.GetService<IExceptionHandler>() is not null)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "IExceptionHandler is not registered. Call ApiConfigurationBuilder.UseDefaults() (or equivalent) before UseExceptionHandler().");
     }
 
     private static ApiOptions GetApiOptions(IApplicationBuilder app)

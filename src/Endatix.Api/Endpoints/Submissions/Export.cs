@@ -1,6 +1,7 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Endatix.Api.Common;
+using Endatix.Api.Infrastructure;
 using Endatix.Core.UseCases.Submissions.Export;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
@@ -451,21 +452,18 @@ public partial class Export : Endpoint<ExportRequest>
         HttpContext.Response.ContentType = "application/problem+json";
 
         // Emit RFC7807 camelCase so Hub (and other clients) can surface Detail in the UI.
-        var problem = new Microsoft.AspNetCore.Mvc.ProblemDetails
-        {
-            Title = "Export failed",
-            Detail = message,
-            Status = resolvedStatus,
-            Type = resolvedStatus switch
-            {
-                StatusCodes.Status400BadRequest => "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-                StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-                StatusCodes.Status409Conflict => "https://tools.ietf.org/html/rfc7231#section-6.5.8",
-                _ => "https://tools.ietf.org/html/rfc7231#section-6.6.1",
-            },
-        };
+        var problem = EndatixProblemDetails.Create(
+            statusCode: resolvedStatus,
+            title: "Export failed",
+            detail: message,
+            httpContext: HttpContext);
 
-        await HttpContext.Response.WriteAsJsonAsync(problem);
+        // WriteAsJsonAsync overwrites Content-Type with application/json unless it is passed
+        // explicitly, which silently undid the problem+json set above.
+        await HttpContext.Response.WriteAsJsonAsync(
+            problem,
+            options: null,
+            contentType: "application/problem+json");
     }
 
     private async Task CompletePipeIfNeeded(PipeWriter? pipeWriter, Exception? exception, string fallbackMessage)

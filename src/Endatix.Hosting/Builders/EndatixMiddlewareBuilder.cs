@@ -102,14 +102,20 @@ public class EndatixMiddlewareBuilder
     }
 
     /// <summary>
-    /// Adds exception handling middleware.
+    /// Adds exception handling middleware that uses registered <c>IExceptionHandler</c>
+    /// implementations (canonical ProblemDetails via <c>EndatixExceptionHandler</c>).
     /// </summary>
-    /// <param name="path">The path for exception handling.</param>
     /// <returns>The builder for chaining.</returns>
-    public EndatixMiddlewareBuilder UseExceptionHandler(string path = "/error")
+    public EndatixMiddlewareBuilder UseExceptionHandler()
     {
-        _logger?.LogInformation($"Adding exception handler middleware with path: {path}");
-        App.UseExceptionHandler(path);
+        _logger?.LogInformation("Adding exception handler middleware (IExceptionHandler)");
+        if (App.ApplicationServices.GetService<Microsoft.AspNetCore.Diagnostics.IExceptionHandler>() is null)
+        {
+            throw new InvalidOperationException(
+                "IExceptionHandler is not registered. Call ApiConfigurationBuilder.UseDefaults() before UseExceptionHandler().");
+        }
+
+        App.UseExceptionHandler();
         return this;
     }
 

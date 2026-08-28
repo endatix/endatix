@@ -80,6 +80,11 @@ public class ApiConfigurationBuilder
         // Add default JSON options
         AddDefaultJsonOptions();
 
+        // Unhandled exceptions → canonical ProblemDetails (no exception text leak).
+        Services.AddHttpContextAccessor();
+        Services.AddExceptionHandler<EndatixExceptionHandler>();
+        Services.AddProblemDetails();
+
         // Register FastEndpoints for the core API assembly only.
         // Module assemblies are added via ScanAssemblies so feature-flagged modules
         // do not get endpoint discovery without their DI registrations.

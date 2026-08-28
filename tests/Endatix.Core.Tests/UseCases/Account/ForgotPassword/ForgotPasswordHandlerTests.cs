@@ -76,7 +76,8 @@ public class ForgotPasswordHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Error);
+        // Email provider is an upstream dependency: Unavailable -> 503, not a 500.
+        result.Status.Should().Be(ResultStatus.Unavailable);
         result.Errors.Should().Contain(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
 
         await _userPasswordManageService.Received(1).GeneratePasswordResetTokenAsync(email, Arg.Any<CancellationToken>());
@@ -103,7 +104,8 @@ public class ForgotPasswordHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Error);
+        // Email provider is an upstream dependency: Unavailable -> 503, not a 500.
+        result.Status.Should().Be(ResultStatus.Unavailable);
         result.Errors.Should().Contain(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
 
         await _userPasswordManageService.Received(1).GeneratePasswordResetTokenAsync(email, Arg.Any<CancellationToken>());
@@ -133,7 +135,8 @@ public class ForgotPasswordHandlerTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().Be(ResultStatus.Error);
+        // Email provider is an upstream dependency: Unavailable -> 503, not a 500.
+        result.Status.Should().Be(ResultStatus.Unavailable);
         result.Errors.Should().Contain(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
     }
 
