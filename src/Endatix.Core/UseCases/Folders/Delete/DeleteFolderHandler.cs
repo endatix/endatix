@@ -8,6 +8,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Folders.Delete;
 
@@ -21,7 +22,8 @@ public sealed class DeleteFolderHandler(
     IRepository<FormTemplate> formTemplateRepository,
     ITenantContext tenantContext,
     IUnitOfWork unitOfWork,
-    IMediator mediator) : ICommandHandler<DeleteFolderCommand, Result<string>>
+    IMediator mediator,
+    ILogger<DeleteFolderHandler> logger) : ICommandHandler<DeleteFolderCommand, Result<string>>
 {
     /// <inheritdoc/>
     public async Task<Result<string>> Handle(DeleteFolderCommand request, CancellationToken cancellationToken)
@@ -89,7 +91,8 @@ public sealed class DeleteFolderHandler(
         catch (Exception exception)
         {
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return Result.Error($"Error deleting folder: {exception.Message}");
+            logger.LogError(exception, "Failed to delete folder {FolderId}", request.FolderId);
+            return Result.Error("Failed to delete folder.");
         }
     }
 }

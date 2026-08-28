@@ -65,7 +65,7 @@ public class UserPasswordManageService(
         catch (Exception ex)
         {
             logger.LogError(ex, "An unexpected error occurred while resetting the password for user {Email}", SensitiveValue.Email(email));
-            
+
             return Result.Error("Could not reset password. Please try again or contact support.");
         }
 
@@ -117,7 +117,8 @@ public class UserPasswordManageService(
         }
         catch (Exception ex)
         {
-            return Result.Error(ex.Message);
+            logger.LogError(ex, "Failed to change password for user {UserId}", userId);
+            return Result.Error("Failed to change password.");
         }
 
         return Result.Success(appUser.ToUserEntity());

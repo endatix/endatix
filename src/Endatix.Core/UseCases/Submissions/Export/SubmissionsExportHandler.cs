@@ -79,7 +79,7 @@ public sealed class SubmissionsExportHandler(
                     ex.InnerException?.Message ?? "(none)");
             }
 
-            return Result<FileExport>.Error($"Export failed: {ex.Message}");
+            return Result<FileExport>.Error("Export failed.");
         }
     }
 

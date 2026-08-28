@@ -114,7 +114,14 @@ internal sealed class JwtTokenService : IUserTokenService
         var result = await tokenHandler.ValidateTokenAsync(accessToken, validationParameters);
         if (!result.IsValid)
         {
-            return Result.Invalid(new ValidationError(result.Exception?.Message ?? "Invalid access token"));
+            // Do not echo JWT validator diagnostics (issuer/audience/lifetime/key) on this
+            // anonymous-reachable path. Log the exception; clients get a static message.
+            if (result.Exception is not null)
+            {
+                _logger.LogWarning(result.Exception, "Access token validation failed");
+            }
+
+            return Result.Invalid(new ValidationError("Invalid access token"));
         }
 
         var validatedJwtToken = (JwtSecurityToken)result.SecurityToken;

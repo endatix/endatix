@@ -43,15 +43,16 @@ public class UpdateThemeHandlerTests
         // Arrange
         var themeId = 1;
         var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
-        
-        var themeData = new ThemeData { 
+
+        var themeData = new ThemeData
+        {
             ThemeName = "Updated Theme",
             ColorPalette = "dark",
             CssVariables = new Dictionary<string, string> { ["--primary-color"] = "#000000" }
         };
         var themeDataJson = JsonSerializer.Serialize(themeData);
         var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", themeDataJson);
-        
+
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
@@ -64,7 +65,7 @@ public class UpdateThemeHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.Name.Should().Be(request.Name);
         result.Value.Description.Should().Be(request.Description);
-        
+
         // Verify JSON data was updated
         var jsonData = JsonSerializer.Deserialize<ThemeData>(result.Value.JsonData);
         jsonData.Should().NotBeNull();
@@ -73,7 +74,7 @@ public class UpdateThemeHandlerTests
         jsonData!.CssVariables.Should().ContainKey("--primary-color");
 
         await _themesRepository.Received(1).UpdateAsync(
-            Arg.Is<Theme>(t => 
+            Arg.Is<Theme>(t =>
                 t.Id == themeId &&
                 t.Name == request.Name &&
                 t.Description == request.Description
@@ -88,17 +89,17 @@ public class UpdateThemeHandlerTests
         // Arrange
         var themeId = 1;
         var originalTheme = new Theme(
-            tenantId: SampleData.TENANT_ID, 
-            name: "Original Name", 
-            description: "Original Description", 
+            tenantId: SampleData.TENANT_ID,
+            name: "Original Name",
+            description: "Original Description",
             jsonData: "{\"themeName\":\"Original Name\",\"colorPalette\":\"light\"}"
-        ) 
-        { 
-            Id = themeId 
+        )
+        {
+            Id = themeId
         };
-        
+
         var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", null);
-        
+
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
@@ -111,7 +112,7 @@ public class UpdateThemeHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.Name.Should().Be(request.Name);
         result.Value.Description.Should().Be(request.Description);
-        
+
         // Verify name in JSON was updated but other properties remained
         var jsonData = JsonSerializer.Deserialize<ThemeData>(result.Value.JsonData);
         jsonData.Should().NotBeNull();
@@ -127,15 +128,15 @@ public class UpdateThemeHandlerTests
         var themeDataPayload = "{\"themeName\":\"Updated Theme\",\"colorPalette\":\"dark\"}";
         var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
         var request = new UpdateThemeCommand(
-            themeId: themeId, 
-            name: "Updated Theme", 
+            themeId: themeId,
+            name: "Updated Theme",
             description: "Updated Description",
             themeData: themeDataPayload
         );
-        
+
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
-        
+
         _themesRepository.UpdateAsync(Arg.Any<Theme>(), Arg.Any<CancellationToken>())
                      .ThrowsAsync(new Exception("Database error"));
 
@@ -145,7 +146,7 @@ public class UpdateThemeHandlerTests
         // Assert
         await act.Should().ThrowAsync<Exception>();
     }
-    
+
     [Fact]
     public async Task Handle_DuplicateThemeName_ReturnsErrorResult()
     {
@@ -154,15 +155,15 @@ public class UpdateThemeHandlerTests
         var existingThemeId = 2;
         var themeName = "Duplicate Theme Name";
         var emptyThemeData = string.Empty;
-        
+
         var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
         var existingTheme = new Theme(SampleData.TENANT_ID, themeName, "Another Description") { Id = existingThemeId };
-        
+
         var request = new UpdateThemeCommand(themeId, themeName, "Updated Description", emptyThemeData);
-        
+
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
-                     
+
         _themesRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Theme>>(), Arg.Any<CancellationToken>())
                      .Returns(existingTheme);
 
@@ -173,7 +174,7 @@ public class UpdateThemeHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Error);
         result.Errors.Should().Contain($"Another theme with the name '{themeName}' already exists");
-        
+
         // Verify the theme was not updated
         await _themesRepository.DidNotReceive().UpdateAsync(Arg.Any<Theme>(), Arg.Any<CancellationToken>());
     }
@@ -189,14 +190,14 @@ public class UpdateThemeHandlerTests
         var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", invalidThemeData);
 
         _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
-                     .Returns(originalTheme);   
+                     .Returns(originalTheme);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();    
+        result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("Invalid JSON"));
+        result.ValidationErrors.Should().Contain(e => e.ErrorMessage == "Theme JSON is invalid.");
     }
-} 
+}

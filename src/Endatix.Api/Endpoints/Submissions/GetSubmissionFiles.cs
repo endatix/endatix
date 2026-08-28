@@ -5,13 +5,14 @@ using Endatix.Infrastructure.Utils;
 using Endatix.Core.UseCases.Submissions.GetFiles;
 using FluentValidation.Results;
 using Endatix.Core.Abstractions.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Endpoint for downloading files for a submission.
 /// </summary>
-public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFilesRequest>
+public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> logger) : Endpoint<GetSubmissionFilesRequest>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -79,7 +80,8 @@ public class GetSubmissionFiles(IMediator mediator) : Endpoint<GetSubmissionFile
         }
         catch (Exception ex)
         {
-            ValidationFailures.Add(new ValidationFailure("error", ex.Message));
+            logger.LogError(ex, "Failed to download submission files");
+            ValidationFailures.Add(new ValidationFailure("error", "Failed to download submission files."));
             await Send.ErrorsAsync(500, cancellationToken);
         }
     }

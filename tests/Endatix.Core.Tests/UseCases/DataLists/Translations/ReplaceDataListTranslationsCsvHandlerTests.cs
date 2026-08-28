@@ -6,6 +6,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.DataLists.Translations;
+using Microsoft.Extensions.Logging.Abstractions;
 using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.Translations;
@@ -24,7 +25,11 @@ public class ReplaceDataListTranslationsCsvHandlerTests
         _mediator = Substitute.For<IMediator>();
         _idGenerator = Substitute.For<IIdGenerator<long>>();
         _idGenerator.CreateId().Returns(_ => Interlocked.Increment(ref _nextId));
-        _sut = new ReplaceDataListTranslationsCsvHandler(_repository, _mediator, _idGenerator);
+        _sut = new ReplaceDataListTranslationsCsvHandler(
+            _repository,
+            _mediator,
+            _idGenerator,
+            NullLogger<ReplaceDataListTranslationsCsvHandler>.Instance);
     }
 
     private DataList GivenDataList(params string[] locales)

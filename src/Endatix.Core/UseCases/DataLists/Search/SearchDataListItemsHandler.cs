@@ -34,12 +34,12 @@ public sealed class SearchDataListItemsHandler(IDataListRepository repository)
         {
             searchPage = await repository.SearchItemsAsync(criteria, cancellationToken).ConfigureAwait(false);
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
             ValidationError error = new()
             {
                 Identifier = nameof(request.Locale),
-                ErrorMessage = ex.Message
+                ErrorMessage = "Invalid locale."
             };
             return Result.Invalid(error);
         }

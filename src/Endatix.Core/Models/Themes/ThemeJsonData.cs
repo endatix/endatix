@@ -38,9 +38,9 @@ public sealed class ThemeJsonData
 
             return Result.Success(new ThemeJsonData(json, themeData));
         }
-        catch (JsonException ex)
+        catch (JsonException)
         {
-            return Result.Invalid(new ValidationError($"Invalid JSON: {ex.Message}"));
+            return Result.Invalid(new ValidationError("Theme JSON is invalid."));
         }
     }
 

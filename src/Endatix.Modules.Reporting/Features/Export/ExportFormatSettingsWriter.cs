@@ -62,12 +62,12 @@ internal sealed class ExportFormatSettingsWriter
         {
             ExportFormatSettings.RequireKeySeparator(settings.KeySeparator);
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
             errors.Add(new ValidationError
             {
                 Identifier = nameof(ExportFormatSettings.KeySeparator),
-                ErrorMessage = ex.Message,
+                ErrorMessage = "Key separator is invalid.",
             });
         }
 

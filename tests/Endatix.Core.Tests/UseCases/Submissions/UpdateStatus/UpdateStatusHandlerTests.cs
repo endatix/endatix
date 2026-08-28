@@ -1,6 +1,8 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.UseCases.Submissions.UpdateStatus;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.UpdateStatus;
@@ -13,7 +15,7 @@ public class UpdateStatusHandlerTests
     public UpdateStatusHandlerTests()
     {
         _submissionRepository = Substitute.For<IRepository<Submission>>();
-        _handler = new UpdateStatusHandler(_submissionRepository);
+        _handler = new UpdateStatusHandler(_submissionRepository, NullLogger<UpdateStatusHandler>.Instance);
     }
 
     [Fact]
@@ -67,14 +69,14 @@ public class UpdateStatusHandlerTests
 
         _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
             .Returns(submission);
-    
+
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
-        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage.Contains("Invalid status code provided"));
+        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "Invalid status code.");
         await _submissionRepository.DidNotReceive()
             .UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
     }

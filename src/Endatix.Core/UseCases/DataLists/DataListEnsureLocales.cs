@@ -51,7 +51,7 @@ public static class DataListEnsureLocales
                 errors.Add(new ValidationError
                 {
                     Identifier = $"EnsureLocales.{culture.Value}",
-                    ErrorMessage = ex.Message
+                    ErrorMessage = "Could not add locale."
                 });
             }
         }

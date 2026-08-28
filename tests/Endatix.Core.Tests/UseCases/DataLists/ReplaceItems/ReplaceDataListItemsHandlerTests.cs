@@ -6,6 +6,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.DataLists.ReplaceItems;
+using Microsoft.Extensions.Logging.Abstractions;
 using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.ReplaceItems;
@@ -24,7 +25,11 @@ public class ReplaceDataListItemsHandlerTests
         _mediator = Substitute.For<IMediator>();
         _idGenerator = Substitute.For<IIdGenerator<long>>();
         _idGenerator.CreateId().Returns(_ => Interlocked.Increment(ref _nextId));
-        _sut = new ReplaceDataListItemsHandler(_repository, _mediator, _idGenerator);
+        _sut = new ReplaceDataListItemsHandler(
+            _repository,
+            _mediator,
+            _idGenerator,
+            NullLogger<ReplaceDataListItemsHandler>.Instance);
     }
 
     private static ReplaceDataListItemInput Item(string label, string value) =>
@@ -266,9 +271,7 @@ public class ReplaceDataListItemsHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e =>
-            e.Identifier == "Items"
-            && e.ErrorMessage.Contains(DataList.MAX_ITEMS.ToString()));
+        result.ValidationErrors.Should().Contain(e => e.Identifier == "Items");
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
     }
 

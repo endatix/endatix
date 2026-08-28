@@ -107,7 +107,7 @@ public partial class Export : Endpoint<ExportRequest>
             {
                 _logger.LogWarning(ex, "Unsupported export format requested: {Format} for type {ItemType}",
                     validatedExportOperation.Format, validatedExportOperation.ItemType.Name);
-                await SetErrorResponse(ex.Message, StatusCodes.Status400BadRequest);
+                await SetErrorResponse("Unsupported export format.", StatusCodes.Status400BadRequest);
                 return;
             }
 

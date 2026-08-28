@@ -214,7 +214,8 @@ public class JwtTokenServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().NotBeNull();
-        result.ValidationErrors.First().ErrorMessage.Should().Contain("JWT must have three segments");
+        result.ValidationErrors.First().ErrorMessage.Should().Be("Invalid access token");
+        result.ValidationErrors.Should().NotContain(e => e.ErrorMessage.Contains("JWT must have three segments"));
     }
 
     [Fact]

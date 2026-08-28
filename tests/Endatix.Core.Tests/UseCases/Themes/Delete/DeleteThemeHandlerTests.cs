@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Microsoft.Extensions.Logging.Abstractions;
 using Endatix.Core.UseCases.Themes.Delete;
 using NSubstitute.ExceptionExtensions;
 
@@ -21,7 +22,11 @@ public class DeleteThemeHandlerTests
         _themesRepository = Substitute.For<IRepository<Theme>>();
         _formsRepository = Substitute.For<IRepository<Form>>();
         _unitOfWork = Substitute.For<IUnitOfWork>();
-        _handler = new DeleteThemeHandler(_themesRepository, _formsRepository, _unitOfWork);
+        _handler = new DeleteThemeHandler(
+            _themesRepository,
+            _formsRepository,
+            _unitOfWork,
+            NullLogger<DeleteThemeHandler>.Instance);
     }
 
     [Fact]
@@ -138,6 +143,6 @@ public class DeleteThemeHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().Contain(e => e.Contains("Error deleting theme"));
+        result.Errors.Should().Contain(e => e == "Failed to delete theme.");
     }
 }

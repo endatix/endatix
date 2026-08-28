@@ -7,6 +7,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 
@@ -16,7 +17,8 @@ namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 public sealed class ReplaceDataListItemsHandler(
     IRepository<DataList> repository,
     IMediator mediator,
-    IIdGenerator<long> idGenerator)
+    IIdGenerator<long> idGenerator,
+    ILogger<ReplaceDataListItemsHandler> logger)
     : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
@@ -53,7 +55,8 @@ public sealed class ReplaceDataListItemsHandler(
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Error($"Failed to persist data list items: {ex.Message}");
+            logger.LogError(ex, "Failed to persist data list items for data list {DataListId}", dataList.Id);
+            return Result.Error("Failed to persist data list items.");
         }
 
         await mediator.Publish(
@@ -159,7 +162,7 @@ public sealed class ReplaceDataListItemsHandler(
         return new()
         {
             Identifier = identifier,
-            ErrorMessage = ex.Message
+            ErrorMessage = $"Each label value cannot exceed {DataListItem.MAX_LABEL_LENGTH} characters."
         };
     }
 
@@ -183,7 +186,7 @@ public sealed class ReplaceDataListItemsHandler(
         && !string.Equals(paramName, "labels", StringComparison.Ordinal)
         && !string.Equals(paramName, "cultureCode", StringComparison.Ordinal);
 
-    private static Result<DataListDto>? TryReplaceItems(
+    private Result<DataListDto>? TryReplaceItems(
         DataList dataList,
         IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems,
         IIdGenerator<long> idGenerator)
@@ -195,18 +198,20 @@ public sealed class ReplaceDataListItemsHandler(
         }
         catch (ArgumentException ex)
         {
+            logger.LogWarning(ex, "Data list items were rejected for data list {DataListId}", dataList.Id);
             return Result.Invalid(new ValidationError
             {
                 Identifier = "Items",
-                ErrorMessage = ex.Message
+                ErrorMessage = "The data list items are invalid."
             });
         }
         catch (InvalidOperationException ex)
         {
+            logger.LogWarning(ex, "Data list items were rejected for data list {DataListId}", dataList.Id);
             return Result.Invalid(new ValidationError
             {
                 Identifier = "Items",
-                ErrorMessage = ex.Message
+                ErrorMessage = "The data list items are invalid."
             });
         }
     }

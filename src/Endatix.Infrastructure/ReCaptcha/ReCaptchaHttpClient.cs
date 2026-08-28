@@ -1,9 +1,10 @@
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.ReCaptcha;
 
-public class ReCaptchaHttpClient(HttpClient client) : IReCaptchaHttpClient
+public class ReCaptchaHttpClient(HttpClient client, ILogger<ReCaptchaHttpClient> logger) : IReCaptchaHttpClient
 {
     public async Task<Result<GoogleReCaptchaResponse>> GetTokenValidationResponseAsync(string token, string secretKey, CancellationToken cancellationToken)
     {
@@ -37,8 +38,9 @@ public class ReCaptchaHttpClient(HttpClient client) : IReCaptchaHttpClient
                     Result.Error("Failed to deserialize Google ReCaptcha response") :
                     Result.Success(result);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    logger.LogError(ex, "Failed to deserialize Google ReCaptcha response");
                     return Result.Error("Failed to deserialize Google ReCaptcha response");
                 }
             }
@@ -47,7 +49,8 @@ public class ReCaptchaHttpClient(HttpClient client) : IReCaptchaHttpClient
         }
         catch (Exception ex)
         {
-            return Result.Error($"Http error during token validation: {ex.Message}");
+            logger.LogError(ex, "HTTP error during reCAPTCHA token validation");
+            return Result.Error("Failed to validate reCAPTCHA token");
         }
     }
 }

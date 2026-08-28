@@ -1,19 +1,25 @@
 using System.Net;
 using Endatix.Infrastructure.ReCaptcha;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Features.ReCaptcha;
 
 public class ReCaptchaHttpClientTests
 {
+    private static ReCaptchaHttpClient CreateClient(HttpMessageHandler? handler = null)
+        => new(
+            handler is null ? new HttpClient() : new HttpClient(handler),
+            NullLogger<ReCaptchaHttpClient>.Instance);
+
     [Fact]
     public async Task ReturnsError_WhenTokenIsMissing()
     {
         // Arrange
-        var client = new ReCaptchaHttpClient(new HttpClient());
-        
+        var client = CreateClient();
+
         // Act
         var result = await client.GetTokenValidationResponseAsync(null!, "secret", CancellationToken.None);
-        
+
         // Assert
         Assert.False(result.IsSuccess);
         Assert.Contains("Token is required", result.Errors.FirstOrDefault());
@@ -23,11 +29,11 @@ public class ReCaptchaHttpClientTests
     public async Task ReturnsError_WhenSecretIsMissing()
     {
         // Arrange
-        var client = new ReCaptchaHttpClient(new HttpClient());
-        
+        var client = CreateClient();
+
         // Act
         var result = await client.GetTokenValidationResponseAsync("token", null!, CancellationToken.None);
-        
+
         // Assert
         Assert.False(result.IsSuccess);
         Assert.Contains("Secret key is required", result.Errors);
@@ -38,14 +44,14 @@ public class ReCaptchaHttpClientTests
     {
         // Arrange
         var handler = new ThrowingHandler();
-        var client = new ReCaptchaHttpClient(new HttpClient(handler));
-        
+        var client = CreateClient(handler);
+
         // Act
         var result = await client.GetTokenValidationResponseAsync("token", "secret", CancellationToken.None);
-        
+
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Http error during token validation", result.Errors.FirstOrDefault());
+        Assert.Contains("Failed to validate reCAPTCHA token", result.Errors.FirstOrDefault());
     }
 
     [Fact]
@@ -53,11 +59,11 @@ public class ReCaptchaHttpClientTests
     {
         // Arrange
         var handler = new StatusCodeHandler(HttpStatusCode.BadRequest, "{}");
-        var client = new ReCaptchaHttpClient(new HttpClient(handler));
-        
+        var client = CreateClient(handler);
+
         // Act
         var result = await client.GetTokenValidationResponseAsync("token", "secret", CancellationToken.None);
-        
+
         // Assert
         Assert.False(result.IsSuccess);
         Assert.Contains("Failed to validate reCAPTCHA token", result.Errors.FirstOrDefault());
@@ -68,11 +74,11 @@ public class ReCaptchaHttpClientTests
     {
         // Arrange
         var handler = new StatusCodeHandler(HttpStatusCode.OK, "not a json");
-        var client = new ReCaptchaHttpClient(new HttpClient(handler));
-        
+        var client = CreateClient(handler);
+
         // Act
         var result = await client.GetTokenValidationResponseAsync("token", "secret", CancellationToken.None);
-        
+
         // Assert
         Assert.False(result.IsSuccess);
         Assert.Contains("Failed to deserialize Google ReCaptcha response", result.Errors.FirstOrDefault());
@@ -89,11 +95,11 @@ public class ReCaptchaHttpClientTests
             "\"score\":0.9," +
             "\"action\":\"form_submit\"}";
         var handler = new StatusCodeHandler(HttpStatusCode.OK, json);
-        var client = new ReCaptchaHttpClient(new HttpClient(handler));
-        
+        var client = CreateClient(handler);
+
         // Act
         var result = await client.GetTokenValidationResponseAsync("token", "secret", CancellationToken.None);
-        
+
         // Assert
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
@@ -122,4 +128,4 @@ public class ReCaptchaHttpClientTests
                 Content = new StringContent(_content)
             });
     }
-} 
+}

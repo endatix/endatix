@@ -3,13 +3,16 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Forms.List;
 
 /// <summary>
 /// Handler for listing forms.
 /// </summary>
-public sealed class ListFormsHandler(IFormsRepository repository)
+public sealed class ListFormsHandler(
+    IFormsRepository repository,
+    ILogger<ListFormsHandler> logger)
     : IQueryHandler<ListFormsQuery, Result<Paged<FormDto>>>
 {
     /// <inheritdoc/>
@@ -54,7 +57,8 @@ public sealed class ListFormsHandler(IFormsRepository repository)
         }
         catch (Exception ex)
         {
-            return Result.Error($"Error listing forms: {ex.Message}");
+            logger.LogError(ex, "Failed to list forms");
+            return Result.Error("Failed to list forms.");
         }
     }
 

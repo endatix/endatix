@@ -2,6 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Submissions.UpdateStatus;
 
@@ -9,7 +10,8 @@ namespace Endatix.Core.UseCases.Submissions.UpdateStatus;
 /// Handles updating the status of a submission.
 /// </summary>
 public class UpdateStatusHandler(
-    IRepository<Submission> submissionRepository
+    IRepository<Submission> submissionRepository,
+    ILogger<UpdateStatusHandler> logger
 ) : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
 {
     /// <summary>
@@ -45,12 +47,13 @@ public class UpdateStatusHandler(
         }
         catch (ArgumentException ex)
         {
-            return Result<SubmissionDto>.Invalid(new ValidationError($"Invalid status code provided: {ex.Message}"));
+            logger.LogWarning(ex, "Invalid submission status code {StatusCode}", command.StatusCode);
+            return Result<SubmissionDto>.Invalid(new ValidationError("Invalid status code."));
         }
         catch (InvalidOperationException ex)
         {
-            // not allowed status transition
-            return Result<SubmissionDto>.Invalid(new ValidationError(ex.Message));
+            logger.LogWarning(ex, "Submission status transition rejected for submission {SubmissionId}", command.SubmissionId);
+            return Result<SubmissionDto>.Invalid(new ValidationError("Status transition is not allowed."));
         }
     }
 }

@@ -5,6 +5,7 @@ using Endatix.Core.UseCases.Submissions.GetFiles;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -16,7 +17,10 @@ public class GetSubmissionFilesTests
     public GetSubmissionFilesTests()
     {
         var httpContext = new DefaultHttpContext();
-        _endpoint = Factory.Create<GetSubmissionFiles>(httpContext: httpContext, _mediator);
+        _endpoint = Factory.Create<GetSubmissionFiles>(
+            httpContext: httpContext,
+            _mediator,
+            NullLogger<GetSubmissionFiles>.Instance);
     }
 
     [Fact]
