@@ -20,11 +20,13 @@ public class ForgotPassword(IMediator mediator) :
             s.Description = "Sends a password reset email to the user.";
             s.Responses[200] = "Password reset email sent successfully.";
             s.Responses[400] = "Invalid request or email.";
+            s.Responses[503] = "The email provider is unavailable. Retry later.";
             s.ExampleRequest = new { Email = "user@example.com" };
         });
         Description(builder => builder
             .Produces<ForgotPasswordResponse>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest));
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
     }
 
     public override async Task<Results<Ok<ForgotPasswordResponse>, ProblemHttpResult>> ExecuteAsync(ForgotPasswordRequest request, CancellationToken ct)

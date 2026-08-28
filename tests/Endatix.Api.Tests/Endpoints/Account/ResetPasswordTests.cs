@@ -1,3 +1,4 @@
+using static Endatix.Api.Infrastructure.ResultExtensions;
 using Endatix.Api.Endpoints.Account;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Account.ResetPassword;
@@ -105,6 +106,7 @@ public class ResetPasswordTests
         var problemResult = response!.Result as ProblemHttpResult;
         problemResult.Should().NotBeNull();
         problemResult!.StatusCode.Should().Be(500);
-        problemResult!.ProblemDetails.Detail.Should().Contain("Could not reset password. Please try again or contact support.");
+        // 5xx detail is suppressed to the generic title so handler text cannot leak.
+        problemResult!.ProblemDetails.Detail.Should().Be(ResultTitles.INTERNAL_SERVER_ERROR);
     }
 }

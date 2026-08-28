@@ -108,7 +108,12 @@ public static class IntegrationAuthClients
             new { email, password },
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            string body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Login failed with {(int)response.StatusCode} {response.StatusCode}. Body: {body}");
+        }
 
         var payload = await response.Content.ReadFromJsonAsync<LoginTokenPayload>(cancellationToken);
         if (payload is null || string.IsNullOrWhiteSpace(payload.AccessToken))

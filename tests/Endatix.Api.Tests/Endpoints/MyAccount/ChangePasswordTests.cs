@@ -96,7 +96,8 @@ public class ChangePasswordTests
         Assert.NotNull(problemDetailsResult);
         Assert.NotNull(problemDetailsResult.ProblemDetails);
         problemDetailsResult.ProblemDetails.Title.Should().Be(ResultTitles.INTERNAL_SERVER_ERROR);
-        problemDetailsResult.ProblemDetails.Detail.Should().Contain("Failed to change password");
+        // 5xx detail is suppressed to the generic title so handler text cannot leak.
+        problemDetailsResult.ProblemDetails.Detail.Should().Be(ResultTitles.INTERNAL_SERVER_ERROR);
         problemDetailsResult.ProblemDetails.Status.Should().Be(500);
     }
 

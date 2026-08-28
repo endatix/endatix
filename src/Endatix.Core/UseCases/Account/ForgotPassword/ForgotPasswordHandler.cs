@@ -32,7 +32,10 @@ public class ForgotPasswordHandler(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to send forgot password email to {Email}", SensitiveValue.Email(request.Email));
-                return Result.Error(FAILED_TO_SEND_EMAIL_MESSAGE);
+
+                // The email provider is an upstream dependency: 503 is the accurate status and
+                // signals the caller may retry. A bare 500 implied a fault in this service.
+                return Result.Unavailable(FAILED_TO_SEND_EMAIL_MESSAGE);
             }
         }
 
