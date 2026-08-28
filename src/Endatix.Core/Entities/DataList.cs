@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Common.Translations;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -42,7 +43,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             defaultLocale ?? SurveyJsTranslationKeys.FallbackDefaultCulture);
         if (defaultCulture.IsSyntheticDefault)
         {
-            throw new ArgumentException(
+            throw new DomainValidationException(
                 "DefaultLocale must be a real culture code (e.g. 'en'), not the synthetic 'default' key.",
                 nameof(defaultLocale));
         }
@@ -110,12 +111,12 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">Thrown when the culture code is the synthetic 'default' key.</exception>
+    /// <exception cref="DomainValidationException">Thrown when the culture code is the synthetic 'default' key. Its message is caller-safe.</exception>
     public void SetDefaultCulture(CultureCode cultureCode)
     {
         if (cultureCode.IsSyntheticDefault)
         {
-            throw new ArgumentException(
+            throw new DomainValidationException(
                 "DefaultCulture must be a real culture code (e.g. 'en'), not the synthetic 'default' key.",
                 nameof(cultureCode));
         }
@@ -124,13 +125,13 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">Thrown when the culture code is the synthetic 'default' key.</exception>
-    /// <exception cref="InvalidOperationException">Thrown when the data list has more than the maximum allowed cultures.</exception>
+    /// <exception cref="DomainValidationException">Thrown when the culture code is the synthetic 'default' key. Its message is caller-safe.</exception>
+    /// <exception cref="DomainRuleException">Thrown when the data list already holds <see cref="MaxAvailableCultures"/> cultures. Its message is caller-safe.</exception>
     public void AddCulture(CultureCode cultureCode)
     {
         if (cultureCode.IsSyntheticDefault)
         {
-            throw new ArgumentException("The synthetic 'default' key cannot be added as a culture.", nameof(cultureCode));
+            throw new DomainValidationException("The synthetic 'default' key cannot be added as a culture.", nameof(cultureCode));
         }
 
         if (_availableLocales.Contains(cultureCode.Value, StringComparer.OrdinalIgnoreCase))
@@ -140,7 +141,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
 
         if (_availableLocales.Count >= MaxAvailableCultures)
         {
-            throw new InvalidOperationException($"A data list cannot have more than {MaxAvailableCultures} cultures.");
+            throw new DomainRuleException($"A data list cannot have more than {MaxAvailableCultures} cultures.");
         }
 
         _availableLocales.Add(cultureCode.Value);
@@ -151,7 +152,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     {
         if (cultureCode.IsSyntheticDefault)
         {
-            throw new ArgumentException("The synthetic 'default' key cannot be removed.", nameof(cultureCode));
+            throw new DomainValidationException("The synthetic 'default' key cannot be removed.", nameof(cultureCode));
         }
 
         var removed = _availableLocales.RemoveAll(x =>
@@ -342,7 +343,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
 
             if (!CultureCode.TryParse(key, out CultureCode culture) || !AllowsTranslationKey(culture))
             {
-                throw new ArgumentException(
+                throw new DomainValidationException(
                     $"Culture '{key}' is not in the data list culture catalog. Add the culture before assigning labels.",
                     key);
             }

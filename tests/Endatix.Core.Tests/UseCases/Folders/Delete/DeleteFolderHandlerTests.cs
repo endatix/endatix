@@ -6,6 +6,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Folders.Delete;
+using Microsoft.Extensions.Logging.Abstractions;
 using MediatR;
 using NSubstitute.ExceptionExtensions;
 
@@ -35,7 +36,8 @@ public class DeleteFolderHandlerTests
             _formTemplateRepository,
             _tenantContext,
             _unitOfWork,
-            _mediator);
+            _mediator,
+            NullLogger<DeleteFolderHandler>.Instance);
     }
 
     [Fact]
@@ -305,7 +307,7 @@ public class DeleteFolderHandlerTests
         var result = await _handler.Handle(request, CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().Contain(e => e.Contains("Error deleting folder"));
+        result.Errors.Should().Contain(e => e == "Failed to delete folder.");
         await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
     }
 }

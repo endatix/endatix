@@ -2,11 +2,13 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 
@@ -16,7 +18,8 @@ namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 public sealed class ReplaceDataListItemsHandler(
     IRepository<DataList> repository,
     IMediator mediator,
-    IIdGenerator<long> idGenerator)
+    IIdGenerator<long> idGenerator,
+    ILogger<ReplaceDataListItemsHandler> logger)
     : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
@@ -30,7 +33,7 @@ public sealed class ReplaceDataListItemsHandler(
         }
 
         var ensureErrors =
-            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales);
+            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales, logger);
         if (ensureErrors is not null)
         {
             return Result.Invalid(ensureErrors);
@@ -53,7 +56,8 @@ public sealed class ReplaceDataListItemsHandler(
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Error($"Failed to persist data list items: {ex.Message}");
+            logger.LogError(ex, "Failed to persist data list items for data list {DataListId}", dataList.Id);
+            return Result.Error("Failed to persist data list items.");
         }
 
         await mediator.Publish(
@@ -63,7 +67,7 @@ public sealed class ReplaceDataListItemsHandler(
         return Result.Success(DataListDtoMapper.FromEntity(dataList));
     }
 
-    private static bool TryResolveItems(
+    private bool TryResolveItems(
         DataList dataList,
         IReadOnlyCollection<ReplaceDataListItemInput> items,
         out List<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems,
@@ -86,7 +90,7 @@ public sealed class ReplaceDataListItemsHandler(
         return errors.Count == 0;
     }
 
-    private static void CollectItemErrors(
+    private void CollectItemErrors(
         DataList dataList,
         int index,
         ReplaceDataListItemInput item,
@@ -116,7 +120,7 @@ public sealed class ReplaceDataListItemsHandler(
         }
     }
 
-    private static void CollectLabelMapErrors(
+    private void CollectLabelMapErrors(
         DataList dataList,
         int index,
         IReadOnlyDictionary<string, string> labels,
@@ -147,22 +151,40 @@ public sealed class ReplaceDataListItemsHandler(
         }
         catch (ArgumentException ex)
         {
-            errors.Add(ToLabelValidationError(index, ex));
+            errors.Add(ToLabelValidationError(dataList, index, ex));
         }
     }
 
-    private static ValidationError ToLabelValidationError(int index, ArgumentException ex)
+    /// <summary>
+    /// Turns a label rejection from <see cref="DataListItem.NormalizeLabels"/> into a validation error.
+    /// </summary>
+    /// <remarks>
+    /// The reason is read back off the exception through <see cref="SafeError.LogAndResolve"/> rather
+    /// than re-derived here: <c>NormalizeLabels</c> throws <see cref="DomainValidationException"/>, so its
+    /// author-written text is already the text the caller should see, and duplicating the conditions
+    /// would only give the two copies a chance to disagree. Going through <c>LogAndResolve</c> keeps the
+    /// diagnostic record for the other case - an <see cref="ArgumentException"/> that did not opt in is a
+    /// defect, and the caller only ever sees the static fallback.
+    /// </remarks>
+    private ValidationError ToLabelValidationError(DataList dataList, int index, ArgumentException ex)
     {
         var labelsPrefix = $"Items[{index}].Labels";
-        var identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex);
 
         return new()
         {
-            Identifier = identifier,
-            ErrorMessage = ex.Message
+            Identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex),
+            ErrorMessage = SafeError.LogAndResolve(
+                logger,
+                ex,
+                "Labels are not valid for this item.",
+                $"normalizing labels for item {index} of data list {dataList.Id}")
         };
     }
 
+    /// <summary>
+    /// Points the error at the offending culture key when the throw named one; the whole-map throws
+    /// name the <c>labels</c> parameter, which is attributed to the <c>default</c> entry they are about.
+    /// </summary>
     private static string ResolveLabelErrorIdentifier(string labelsPrefix, ArgumentException ex)
     {
         if (IsConcreteLabelKey(ex.ParamName))
@@ -170,7 +192,7 @@ public sealed class ReplaceDataListItemsHandler(
             return $"{labelsPrefix}.{ex.ParamName}";
         }
 
-        if (ex.Message.Contains(SurveyJsTranslationKeys.DefaultKey, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(ex.ParamName, "labels", StringComparison.Ordinal))
         {
             return $"{labelsPrefix}.{SurveyJsTranslationKeys.DefaultKey}";
         }
@@ -183,7 +205,7 @@ public sealed class ReplaceDataListItemsHandler(
         && !string.Equals(paramName, "labels", StringComparison.Ordinal)
         && !string.Equals(paramName, "cultureCode", StringComparison.Ordinal);
 
-    private static Result<DataListDto>? TryReplaceItems(
+    private Result<DataListDto>? TryReplaceItems(
         DataList dataList,
         IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems,
         IIdGenerator<long> idGenerator)
@@ -195,18 +217,20 @@ public sealed class ReplaceDataListItemsHandler(
         }
         catch (ArgumentException ex)
         {
+            logger.LogWarning(ex, "Data list items were rejected for data list {DataListId}", dataList.Id);
             return Result.Invalid(new ValidationError
             {
                 Identifier = "Items",
-                ErrorMessage = ex.Message
+                ErrorMessage = "The data list items are invalid."
             });
         }
         catch (InvalidOperationException ex)
         {
+            logger.LogWarning(ex, "Data list items were rejected for data list {DataListId}", dataList.Id);
             return Result.Invalid(new ValidationError
             {
                 Identifier = "Items",
-                ErrorMessage = ex.Message
+                ErrorMessage = "The data list items are invalid."
             });
         }
     }

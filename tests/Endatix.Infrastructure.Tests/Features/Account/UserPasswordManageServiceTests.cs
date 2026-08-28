@@ -347,7 +347,7 @@ public class UserPasswordManageServiceTests
         result.Errors.Should().Contain("Could not reset password. Please try again or contact support.");
 
         await _userManager.Received(1).ResetPasswordAsync(user, Arg.Any<string>(), newPassword);
-        
+
         _logger.Received().Log(
             LogLevel.Error,
             Arg.Any<EventId>(),
@@ -491,7 +491,7 @@ public class UserPasswordManageServiceTests
         // Assert
         result.Status.Should().Be(ResultStatus.Error);
         result.Errors.Should().HaveCount(1);
-        result.Errors.First().Should().Be("An unexpected error occurred while changing the password");
+        result.Errors.First().Should().Be("Failed to change password.");
     }
 
     [Fact]

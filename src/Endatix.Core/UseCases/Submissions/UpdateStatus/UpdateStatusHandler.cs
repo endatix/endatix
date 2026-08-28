@@ -2,6 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Submissions.UpdateStatus;
 
@@ -9,7 +10,8 @@ namespace Endatix.Core.UseCases.Submissions.UpdateStatus;
 /// Handles updating the status of a submission.
 /// </summary>
 public class UpdateStatusHandler(
-    IRepository<Submission> submissionRepository
+    IRepository<Submission> submissionRepository,
+    ILogger<UpdateStatusHandler> logger
 ) : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
 {
     /// <summary>
@@ -21,6 +23,7 @@ public class UpdateStatusHandler(
     /// Success result with updated submission DTO if successful.
     /// NotFound if submission doesn't exist or doesn't match form ID.
     /// Invalid if status code is invalid or transition not allowed.
+    /// Persistence failures are not caught here - they surface as a logged, opaque 500.
     /// </returns>
     public async Task<Result<SubmissionDto>> Handle(
         UpdateStatusCommand command,
@@ -38,19 +41,23 @@ public class UpdateStatusHandler(
         {
             var newStatus = SubmissionStatus.FromCode(command.StatusCode);
             submission.UpdateStatus(newStatus);
-
-            await submissionRepository.UpdateAsync(submission, cancellationToken);
-
-            return Result<SubmissionDto>.Success(SubmissionDto.FromSubmission(submission));
         }
         catch (ArgumentException ex)
         {
-            return Result<SubmissionDto>.Invalid(new ValidationError($"Invalid status code provided: {ex.Message}"));
+            logger.LogWarning(ex, "Invalid submission status code {StatusCode}", command.StatusCode);
+            return Result<SubmissionDto>.Invalid(new ValidationError("Invalid status code."));
         }
         catch (InvalidOperationException ex)
         {
-            // not allowed status transition
-            return Result<SubmissionDto>.Invalid(new ValidationError(ex.Message));
+            logger.LogWarning(ex, "Submission status transition rejected for submission {SubmissionId}", command.SubmissionId);
+            return Result<SubmissionDto>.Invalid(new ValidationError("Status transition is not allowed."));
         }
+
+        // Outside the catches above: a persistence failure is not a rejected transition, and mapping
+        // one to a 400 would report an EF Core tracking conflict as caller error. Let it reach
+        // EndatixExceptionHandler as an opaque, logged 500.
+        await submissionRepository.UpdateAsync(submission, cancellationToken);
+
+        return Result<SubmissionDto>.Success(SubmissionDto.FromSubmission(submission));
     }
 }

@@ -83,7 +83,7 @@ public class SubmissionCsvExporter(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting submissions to CSV");
-            return Result<FileExport>.Error($"Failed to export submissions: {ex.Message}");
+            return Result<FileExport>.Error("Failed to export submissions.");
         }
     }
 

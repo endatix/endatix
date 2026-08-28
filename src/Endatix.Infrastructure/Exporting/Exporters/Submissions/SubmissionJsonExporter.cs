@@ -84,7 +84,7 @@ internal sealed partial class SubmissionJsonExporter(
         {
             var formIdForLog = _formId ?? GetFormIdFromOptions(options);
             LogExportError(ex, formIdForLog);
-            return Result<FileExport>.Error($"Failed to export submissions: {ex.Message}");
+            return Result<FileExport>.Error("Failed to export submissions.");
         }
     }
 
@@ -100,7 +100,7 @@ internal sealed partial class SubmissionJsonExporter(
         {
             return null;
         }
-        
+
         return value as long?;
     }
 }

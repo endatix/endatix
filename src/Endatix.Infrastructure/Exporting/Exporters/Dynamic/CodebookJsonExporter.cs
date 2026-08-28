@@ -39,7 +39,7 @@ public class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExpor
             {
                 return fileHeadersResult;
             }
-            
+
             using var stream = writer.AsStream();
             await foreach (var row in records.WithCancellation(cancellationToken))
             {
@@ -58,7 +58,7 @@ public class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExpor
         catch (Exception ex)
         {
             logger.LogError(ex, "Error exporting Codebook JSON");
-            return Result<FileExport>.Error($"Failed to export Codebook JSON: {ex.Message}");
+            return Result<FileExport>.Error("Failed to export Codebook JSON.");
         }
     }
 
@@ -73,7 +73,7 @@ public class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExpor
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting Codebook JSON export headers");
-            return Task.FromResult(Result<FileExport>.Error($"Failed to get export headers: {ex.Message}"));
+            return Task.FromResult(Result<FileExport>.Error("Failed to get export headers."));
         }
     }
 

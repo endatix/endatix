@@ -36,7 +36,7 @@ public sealed class AddDataListLocaleHandler(
             ValidationError error = new()
             {
                 Identifier = nameof(request.Locale),
-                ErrorMessage = ex.Message
+                ErrorMessage = "Invalid locale."
             };
             return Result.Invalid(error);
         }

@@ -7,6 +7,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.DataLists.Translations;
 
@@ -16,7 +17,8 @@ namespace Endatix.Core.UseCases.DataLists.Translations;
 public sealed class ReplaceDataListTranslationsCsvHandler(
     IRepository<DataList> repository,
     IMediator mediator,
-    IIdGenerator<long> idGenerator)
+    IIdGenerator<long> idGenerator,
+    ILogger<ReplaceDataListTranslationsCsvHandler> logger)
     : ICommandHandler<ReplaceDataListTranslationsCsvCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
@@ -32,7 +34,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
         }
 
         var ensureErrors =
-            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales);
+            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales, logger);
         if (ensureErrors is not null)
         {
             return Result.Invalid(ensureErrors);
@@ -45,7 +47,8 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
         }
         catch (FormatException ex)
         {
-            return Invalid("Csv", ex.Message);
+            logger.LogWarning(ex, "Failed to parse data list translations CSV for data list {DataListId}", request.DataListId);
+            return Invalid("Csv", "The translations CSV is invalid.");
         }
 
         if (document.Rows.Count > ReplaceDataListTranslationsCsvCommand.MAX_ROWS)
@@ -69,11 +72,13 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
         }
         catch (ArgumentException ex)
         {
-            return Invalid("Csv", ex.Message);
+            logger.LogWarning(ex, "Data list translations CSV was rejected for data list {DataListId}", request.DataListId);
+            return Invalid("Csv", "The translations CSV is invalid.");
         }
         catch (InvalidOperationException ex)
         {
-            return Invalid("Csv", ex.Message);
+            logger.LogWarning(ex, "Data list translations CSV was rejected for data list {DataListId}", request.DataListId);
+            return Invalid("Csv", "The translations CSV is invalid.");
         }
 
         try
@@ -82,7 +87,8 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Error($"Failed to persist data list items: {ex.Message}");
+            logger.LogError(ex, "Failed to persist data list translations for data list {DataListId}", request.DataListId);
+            return Result.Error("Failed to persist data list items.");
         }
 
         await mediator.Publish(

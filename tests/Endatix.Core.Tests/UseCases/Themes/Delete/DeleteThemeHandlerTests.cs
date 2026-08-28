@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Microsoft.Extensions.Logging;
 using Endatix.Core.UseCases.Themes.Delete;
 using NSubstitute.ExceptionExtensions;
 
@@ -15,13 +16,18 @@ public class DeleteThemeHandlerTests
     private readonly IRepository<Form> _formsRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly DeleteThemeHandler _handler;
+    private readonly RecordingLogger _logger = new();
 
     public DeleteThemeHandlerTests()
     {
         _themesRepository = Substitute.For<IRepository<Theme>>();
         _formsRepository = Substitute.For<IRepository<Form>>();
         _unitOfWork = Substitute.For<IUnitOfWork>();
-        _handler = new DeleteThemeHandler(_themesRepository, _formsRepository, _unitOfWork);
+        _handler = new DeleteThemeHandler(
+            _themesRepository,
+            _formsRepository,
+            _unitOfWork,
+            _logger);
     }
 
     [Fact]
@@ -138,6 +144,62 @@ public class DeleteThemeHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Error);
-        result.Errors.Should().Contain(e => e.Contains("Error deleting theme"));
+        result.Errors.Should().Contain(e => e == "Failed to delete theme.");
+    }
+
+    /// <summary>
+    /// The original cause is the only thing worth diagnosing, so it must be logged before the rollback
+    /// that follows it. Rollback itself can no longer destroy it - <c>IUnitOfWork.RollbackTransactionAsync</c>
+    /// is contractually non-throwing, covered by <c>AppUnitOfWorkTests</c> - but the ordering keeps the
+    /// record independent of that guarantee.
+    /// </summary>
+    [Fact]
+    public async Task Handle_WhenDeletionFails_LogsTheCauseBeforeRollingBack()
+    {
+        // Arrange
+        var theme = new Theme(SampleData.TENANT_ID, "Test Theme") { Id = 1 };
+        var request = new DeleteThemeCommand(1);
+        var cause = new Exception("Database error");
+
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
+                     .Returns(theme);
+
+        _formsRepository.ListAsync(
+            Arg.Any<FormSpecifications.ByThemeId>(),
+            Arg.Any<CancellationToken>())
+            .Returns(new List<Form>());
+
+        _themesRepository.DeleteAsync(Arg.Any<Theme>(), Arg.Any<CancellationToken>())
+                     .ThrowsAsync(cause);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Error);
+        result.Errors.Should().Contain(e => e == "Failed to delete theme.");
+        _logger.Entries.Should().ContainSingle(entry =>
+            entry.Level == LogLevel.Error && entry.Exception == cause);
+        await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Captures what was logged so a test can assert the record exists, not just its absence.
+    /// </summary>
+    private sealed class RecordingLogger : ILogger<DeleteThemeHandler>
+    {
+        public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception), exception));
     }
 }

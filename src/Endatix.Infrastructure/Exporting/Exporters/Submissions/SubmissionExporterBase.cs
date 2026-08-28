@@ -78,7 +78,7 @@ public abstract class SubmissionExporterBase(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting export headers");
-            return Task.FromResult(Result<FileExport>.Error($"Failed to get export headers: {ex.Message}"));
+            return Task.FromResult(Result<FileExport>.Error("Failed to get export headers."));
         }
     }
 

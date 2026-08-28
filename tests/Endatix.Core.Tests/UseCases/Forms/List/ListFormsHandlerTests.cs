@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Forms;
+using Microsoft.Extensions.Logging.Abstractions;
 using Endatix.Core.UseCases.Forms.List;
 
 namespace Endatix.Core.Tests.UseCases.Forms.List;
@@ -14,7 +15,7 @@ public class ListFormsHandlerTests
     public ListFormsHandlerTests()
     {
         _repository = Substitute.For<IFormsRepository>();
-        _handler = new ListFormsHandler(_repository);
+        _handler = new ListFormsHandler(_repository, NullLogger<ListFormsHandler>.Instance);
     }
 
     [Fact]

@@ -31,12 +31,12 @@ public class CreateThemeHandlerTests
         // Arrange
         var themeData = new ThemeData { ThemeName = "Test Theme" };
         var request = new CreateThemeCommand("Test Theme", "Test Description", JsonSerializer.Serialize(themeData));
-        
+
         _themesRepository.FirstOrDefaultAsync(
             Arg.Any<ThemeSpecifications.ByName>(),
             Arg.Any<CancellationToken>())
             .Returns((Theme?)null);
-        
+
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
         // Act
@@ -48,14 +48,14 @@ public class CreateThemeHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.Name.Should().Be(request.Name);
         result.Value.Description.Should().Be(request.Description);
-        
+
         // Verify JSON data contains the theme name
         var jsonData = JsonSerializer.Deserialize<ThemeData>(result.Value.JsonData);
         jsonData.Should().NotBeNull();
         jsonData!.ThemeName.Should().Be(request.Name);
 
         await _themesRepository.Received(1).AddAsync(
-            Arg.Is<Theme>(t => 
+            Arg.Is<Theme>(t =>
                 t.Name == request.Name &&
                 t.Description == request.Description
             ),
@@ -86,7 +86,7 @@ public class CreateThemeHandlerTests
         // Arrange
         var request = new CreateThemeCommand("Existing Theme", "Test Description");
         var existingTheme = new Theme(SampleData.TENANT_ID, "Existing Theme") { Id = 1 };
-        
+
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         _themesRepository.FirstOrDefaultAsync(
             Arg.Any<ThemeSpecifications.ByName>(),
@@ -108,7 +108,7 @@ public class CreateThemeHandlerTests
     {
         // Arrange
         var request = new CreateThemeCommand("Test Theme", "Test Description", "invalid-json-data");
-        
+
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         _themesRepository.FirstOrDefaultAsync(
             Arg.Any<ThemeSpecifications.ByName>(),
@@ -122,6 +122,6 @@ public class CreateThemeHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Invalid);
         result.IsInvalid().Should().BeTrue();
-        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.Contains("Invalid JSON"));
+        result.ValidationErrors.Should().Contain(e => e.ErrorMessage == "Theme JSON is invalid.");
     }
-} 
+}

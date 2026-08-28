@@ -6,6 +6,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Themes.Delete;
 
@@ -15,7 +16,8 @@ namespace Endatix.Core.UseCases.Themes.Delete;
 public class DeleteThemeHandler(
     IRepository<Theme> themeRepository,
     IRepository<Form> formRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    ILogger<DeleteThemeHandler> logger
 ) : ICommandHandler<DeleteThemeCommand, Result<string>>
 {
     /// <summary>
@@ -63,8 +65,9 @@ public class DeleteThemeHandler(
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Failed to delete theme {ThemeId}", request.ThemeId);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return Result.Error($"Error deleting theme: {ex.Message}");
+            return Result.Error("Failed to delete theme.");
         }
     }
 }

@@ -1,9 +1,10 @@
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.ReCaptcha;
 
-public class ReCaptchaHttpClient(HttpClient client) : IReCaptchaHttpClient
+public class ReCaptchaHttpClient(HttpClient client, ILogger<ReCaptchaHttpClient> logger) : IReCaptchaHttpClient
 {
     public async Task<Result<GoogleReCaptchaResponse>> GetTokenValidationResponseAsync(string token, string secretKey, CancellationToken cancellationToken)
     {
@@ -33,21 +34,33 @@ public class ReCaptchaHttpClient(HttpClient client) : IReCaptchaHttpClient
                 try
                 {
                     var result = await JsonSerializer.DeserializeAsync<GoogleReCaptchaResponse>(responseContent, cancellationToken: cancellationToken);
-                    return result is null ?
-                    Result.Error("Failed to deserialize Google ReCaptcha response") :
-                    Result.Success(result);
+                    if (result is null)
+                    {
+                        logger.LogError("Google ReCaptcha returned a success status with a null response body");
+                        return Result.Error("Failed to deserialize Google ReCaptcha response");
+                    }
+
+                    return Result.Success(result);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    logger.LogError(ex, "Failed to deserialize Google ReCaptcha response");
                     return Result.Error("Failed to deserialize Google ReCaptcha response");
                 }
             }
 
-            return Result.Error("Failed to validate reCAPTCHA token");
+            // Distinct from the transport failure below: Google answered, and it refused the request
+            // (bad secret key, malformed form, quota). The status code is diagnostic for us, not for the
+            // caller, so it is logged and kept out of the returned message.
+            logger.LogError(
+                "reCAPTCHA verification returned {StatusCode} for the siteverify request",
+                (int)response.StatusCode);
+            return Result.Error("The reCAPTCHA verification service rejected the request.");
         }
         catch (Exception ex)
         {
-            return Result.Error($"Http error during token validation: {ex.Message}");
+            logger.LogError(ex, "HTTP error during reCAPTCHA token validation");
+            return Result.Error("Could not reach the reCAPTCHA verification service.");
         }
     }
 }

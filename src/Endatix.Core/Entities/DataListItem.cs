@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Common.Translations;
+using Endatix.Core.Exceptions;
 
 namespace Endatix.Core.Entities;
 
@@ -162,7 +163,7 @@ public class DataListItem : BaseEntity
     {
         if (!labels.TryGetValue(DefaultLabelKey, out var defaultLabel) || string.IsNullOrWhiteSpace(defaultLabel))
         {
-            throw new ArgumentException("Labels must include a non-empty 'default' entry.", nameof(labels));
+            throw new DomainValidationException("Labels must include a non-empty 'default' entry.", nameof(labels));
         }
 
         Dictionary<string, string> normalized = new(StringComparer.Ordinal);
@@ -175,7 +176,7 @@ public class DataListItem : BaseEntity
 
             if (!CultureCode.TryParse(key, out var code))
             {
-                throw new ArgumentException($"'{key}' is not a valid culture code.", key);
+                throw new DomainValidationException($"'{key}' is not a valid culture code.", key);
             }
 
             normalized[code.Value] = EnforceLabelLength(value.Trim(), code.Value);
@@ -193,7 +194,7 @@ public class DataListItem : BaseEntity
     {
         if (trimmedLabel.Length > MAX_LABEL_LENGTH)
         {
-            throw new ArgumentException(
+            throw new DomainValidationException(
                 $"Each label value cannot exceed {MAX_LABEL_LENGTH} characters.",
                 labelKey);
         }

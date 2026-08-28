@@ -31,12 +31,12 @@ public sealed class SetDataListDefaultLocaleHandler(
         {
             dataList.SetDefaultCulture(CultureCode.Parse(request.DefaultLocale));
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
             ValidationError error = new()
             {
                 Identifier = nameof(request.DefaultLocale),
-                ErrorMessage = ex.Message
+                ErrorMessage = "Invalid locale."
             };
             return Result.Invalid(error);
         }
