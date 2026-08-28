@@ -17,6 +17,7 @@ public static partial class ResultExtensions
         public const string BAD_REQUEST = "There was a problem with your request";
         public const string INTERNAL_SERVER_ERROR = "An unexpected error occurred";
         public const string SERVICE_UNAVAILABLE = "Service unavailable";
+        public const string TOO_MANY_REQUESTS = "Too many requests";
     }
 
     /// <summary>
@@ -69,7 +70,7 @@ public static partial class ResultExtensions
         // `detail` is always populated - never an empty string. Consumers (Hub's
         // ProblemDetailsSchema included) treat it as a required, human-readable message,
         // so a result carrying no errors falls back to the title.
-        var detail = string.Join(Environment.NewLine, messages.Where(message => !string.IsNullOrWhiteSpace(message)));
+        var detail = string.Join('\n', messages.Where(message => !string.IsNullOrWhiteSpace(message)));
 
         var problem = EndatixProblemDetails.Create(
             statusCode: status,

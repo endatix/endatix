@@ -81,6 +81,7 @@ public class ApiConfigurationBuilder
         AddDefaultJsonOptions();
 
         // Unhandled exceptions → canonical ProblemDetails (no exception text leak).
+        Services.AddHttpContextAccessor();
         Services.AddExceptionHandler<EndatixExceptionHandler>();
         Services.AddProblemDetails();
 

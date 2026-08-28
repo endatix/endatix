@@ -31,9 +31,10 @@ public class EndatixProblemDetailsTests
         // Assert
         problem.Status.Should().Be(StatusCodes.Status400BadRequest);
         problem.Title.Should().Be(ResultTitles.BAD_REQUEST);
-        problem.Type.Should().Be("https://www.rfc-editor.org/rfc/rfc9110#name-400-bad-request");
+        problem.Type.Should().Be("https://www.rfc-editor.org/rfc/rfc9110.html#name-400-bad-request");
         problem.Instance.Should().Be("/api/forms");
         problem.Detail.Should().Contain("Name is required.");
+        problem.Detail.Should().NotContain("\r");
         problem.Detail.Should().NotBeNullOrWhiteSpace();
         problem.Extensions.Should().ContainKey("traceId");
         problem.Extensions["traceId"].Should().Be("trace-abc");
@@ -78,7 +79,7 @@ public class EndatixProblemDetailsTests
         problem.Status.Should().Be(StatusCodes.Status404NotFound);
         problem.Title.Should().Be(ResultTitles.NOT_FOUND);
         problem.Detail.Should().Be("Form not found");
-        problem.Type.Should().Be("https://www.rfc-editor.org/rfc/rfc9110#name-404-not-found");
+        problem.Type.Should().Be("https://www.rfc-editor.org/rfc/rfc9110.html#name-404-not-found");
     }
 
     [Fact]
@@ -114,7 +115,7 @@ public class EndatixProblemDetailsTests
 
         // Assert
         httpResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
-        httpResult.ProblemDetails.Type.Should().Be("https://www.rfc-editor.org/rfc/rfc9110#name-404-not-found");
+        httpResult.ProblemDetails.Type.Should().Be("https://www.rfc-editor.org/rfc/rfc9110.html#name-404-not-found");
         httpResult.ProblemDetails.Instance.Should().Be("/api/forms/99");
         httpResult.ProblemDetails.Extensions.Should().ContainKey("traceId");
         httpResult.ProblemDetails.Extensions["traceId"].Should().Be("trace-to-problem");
@@ -208,6 +209,15 @@ public class EndatixProblemDetailsTests
         // Assert
         problem.Detail.Should().Be("Export failed");
         problem.Detail.Should().NotContain("Object reference");
+    }
+
+    [Fact]
+    public void TitleForStatus_RateLimit_DoesNotUseInternalServerErrorTitle()
+    {
+        EndatixProblemDetails.TitleForStatus(StatusCodes.Status429TooManyRequests)
+            .Should().Be(ResultTitles.TOO_MANY_REQUESTS);
+        EndatixProblemDetails.TitleForStatus(StatusCodes.Status422UnprocessableEntity)
+            .Should().Be(ResultTitles.BAD_REQUEST);
     }
 
     #endregion

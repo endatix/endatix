@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -87,15 +88,14 @@ public static class ApiApplicationBuilderExtensions
     /// <param name="options">The middleware options.</param>
     private static void ConfigureApiMiddleware(IApplicationBuilder app, ApiOptions options)
     {
-        var httpContextAccessor = app.ApplicationServices.GetService<IHttpContextAccessor>();
-        if (httpContextAccessor is not null)
-        {
-            EndatixProblemDetails.Configure(httpContextAccessor);
-        }
+        var httpContextAccessor = app.ApplicationServices.GetRequiredService<IHttpContextAccessor>();
+        var loggerFactory = app.ApplicationServices.GetService<ILoggerFactory>();
+        EndatixProblemDetails.Configure(httpContextAccessor, loggerFactory);
 
         // Prefer IExceptionHandler (canonical ProblemDetails) over the legacy /error path redirect.
         if (options.UseExceptionHandler)
         {
+            EnsureExceptionHandlerRegistered(app);
             app.UseExceptionHandler();
         }
 
@@ -164,6 +164,17 @@ public static class ApiApplicationBuilderExtensions
     public static IApplicationBuilder UseApiEndpoints(this IApplicationBuilder app, Action<ApiOptions> configureApi)
     {
         return app.UseEndatixApi(configureApi);
+    }
+
+    private static void EnsureExceptionHandlerRegistered(IApplicationBuilder app)
+    {
+        if (app.ApplicationServices.GetService<IExceptionHandler>() is not null)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "IExceptionHandler is not registered. Call ApiConfigurationBuilder.UseDefaults() (or equivalent) before UseExceptionHandler().");
     }
 
     private static ApiOptions GetApiOptions(IApplicationBuilder app)

@@ -45,7 +45,7 @@ public sealed class FormNotFoundProblemDetailsFlowTests
         string expected = ProblemDetailsJson.Shape(
             $$"""
             {
-              "type": "https://www.rfc-editor.org/rfc/rfc9110#name-404-not-found",
+              "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-404-not-found",
               "title": "Resource not found",
               "status": 404,
               "detail": "Form not found.",
@@ -78,7 +78,7 @@ public sealed class FormNotFoundProblemDetailsFlowTests
         string expected = ProblemDetailsJson.Shape(
             $$"""
             {
-              "type": "https://www.rfc-editor.org/rfc/rfc9110#name-404-not-found",
+              "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-404-not-found",
               "title": "Resource not found",
               "status": 404,
               "detail": "Form not found.",

@@ -15,8 +15,8 @@ public sealed class EndatixExceptionHandler(ILogger<EndatixExceptionHandler> log
         CancellationToken cancellationToken)
     {
         logger.LogError(exception, "Unhandled exception for {Method} {Path}",
-            httpContext.Request.Method,
-            httpContext.Request.Path.Value);
+            RequestLogSanitizer.Sanitize(httpContext.Request.Method),
+            RequestLogSanitizer.Sanitize(httpContext.Request.Path.Value));
 
         if (httpContext.Response.HasStarted)
         {

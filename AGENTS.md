@@ -54,7 +54,7 @@ Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, un
 
 ```json
 {
-  "type": "https://www.rfc-editor.org/rfc/rfc9110#name-400-bad-request",
+  "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-400-bad-request",
   "title": "There was a problem with your request",
   "status": 400,
   "detail": "Name is required.",

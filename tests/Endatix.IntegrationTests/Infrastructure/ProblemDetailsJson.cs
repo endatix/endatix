@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests.Infrastructure;
 /// comparison order- and whitespace-insensitive; the placeholder keeps values that we do not
 /// own (trace ids, third-party validator wording) out of the assertion while still proving the
 /// member is present and is a string. String values are also newline-normalized to LF so
-/// multi-line members (a `detail` joined with <see cref="Environment.NewLine"/>) compare equal
+/// multi-line members (a `detail` joined with <c>\\n</c>) compare equal
 /// across operating systems.
 ///
 /// Because the comparison is an exact match, an unexpected member (e.g. a resurrected

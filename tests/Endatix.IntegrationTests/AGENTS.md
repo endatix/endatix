@@ -34,6 +34,7 @@ public sealed class MyFlowTests(EndatixIntegrationWebHostFixture fixture)
 | `AuthLoginFlowTests`                  | CriticalPath, `PrepareWorldAsync`, `IntegrationAuthMode.Login` |
 | `FormNotFoundProblemDetailsFlowTests` | FeatureFlow, 404 + problem+json on missing form / definitions (`type`/`instance`/`traceId`) |
 | `FormValidationProblemDetailsFlowTests` | FeatureFlow, FE FluentValidation 400 + problem+json with `fields` (not FE ErrorResponse) |
+| `ProblemDetailsContractFlowTests`     | FeatureFlow, unhandled 500 / export / 409 conflict + documented empty-body 401/403 |
 | `HealthCheckTests`                    | Host smoke, provider-agnostic                                  |
 | `StartupMigrationTests`               | DB-only, provider-agnostic migrations                          |
 | `SqlServerMigrationArtifactTests`     | `DbSpecific=SqlServer` stored proc / seed checks               |

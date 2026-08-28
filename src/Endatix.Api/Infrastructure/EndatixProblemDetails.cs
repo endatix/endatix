@@ -15,15 +15,19 @@ namespace Endatix.Api.Infrastructure;
 public static class EndatixProblemDetails
 {
     private static IHttpContextAccessor? _httpContextAccessor;
+    private static ILoggerFactory? _loggerFactory;
 
     /// <summary>
     /// Wires the request-scoped <see cref="IHttpContextAccessor"/> so static helpers
     /// (e.g. <c>ToProblem</c>) can enrich <c>instance</c> / <c>traceId</c>.
     /// </summary>
-    public static void Configure(IHttpContextAccessor httpContextAccessor)
+    public static void Configure(
+        IHttpContextAccessor httpContextAccessor,
+        ILoggerFactory? loggerFactory = null)
     {
         ArgumentNullException.ThrowIfNull(httpContextAccessor);
         _httpContextAccessor = httpContextAccessor;
+        _loggerFactory = loggerFactory;
     }
 
     /// <summary>
@@ -63,7 +67,7 @@ public static class EndatixProblemDetails
         return Create(
             statusCode: statusCode,
             title: null,
-            detail: string.Join(Environment.NewLine, messages),
+            detail: string.Join('\n', messages),
             httpContext: httpContext,
             errorCode: errorCode,
             fields: fields.Count > 0 ? fields : null);
@@ -146,10 +150,14 @@ public static class EndatixProblemDetails
     /// </summary>
     private static void LogSuppressedDetail(HttpContext? httpContext, int statusCode, string detail)
     {
-        var logger = httpContext?.RequestServices
-            ?.GetService<ILoggerFactory>()
-            ?.CreateLogger(typeof(EndatixProblemDetails).FullName!);
+        ILoggerFactory? loggerFactory = null;
+        if (httpContext?.RequestServices is not null)
+        {
+            loggerFactory = httpContext.RequestServices.GetService<ILoggerFactory>();
+        }
 
+        loggerFactory ??= _loggerFactory;
+        var logger = loggerFactory?.CreateLogger(typeof(EndatixProblemDetails));
         if (logger is null)
         {
             return;
@@ -158,23 +166,23 @@ public static class EndatixProblemDetails
         logger.LogError(
             "Suppressed {StatusCode} problem detail for {Method} {Path} (traceId {TraceId}): {SuppressedDetail}",
             statusCode,
-            httpContext?.Request.Method,
-            httpContext?.Request.Path.Value,
+            RequestLogSanitizer.Sanitize(httpContext?.Request.Method),
+            RequestLogSanitizer.Sanitize(httpContext?.Request.Path.Value),
             Activity.Current?.Id ?? httpContext?.TraceIdentifier,
-            detail);
+            RequestLogSanitizer.Sanitize(detail));
     }
 
     internal static string TypeForStatus(int statusCode) =>
         statusCode switch
         {
-            StatusCodes.Status400BadRequest => "https://www.rfc-editor.org/rfc/rfc9110#name-400-bad-request",
-            StatusCodes.Status401Unauthorized => "https://www.rfc-editor.org/rfc/rfc9110#name-401-unauthorized",
-            StatusCodes.Status403Forbidden => "https://www.rfc-editor.org/rfc/rfc9110#name-403-forbidden",
-            StatusCodes.Status404NotFound => "https://www.rfc-editor.org/rfc/rfc9110#name-404-not-found",
-            StatusCodes.Status409Conflict => "https://www.rfc-editor.org/rfc/rfc9110#name-409-conflict",
-            StatusCodes.Status429TooManyRequests => "https://www.rfc-editor.org/rfc/rfc6585#section-4",
-            StatusCodes.Status500InternalServerError => "https://www.rfc-editor.org/rfc/rfc9110#name-500-internal-server-error",
-            StatusCodes.Status503ServiceUnavailable => "https://www.rfc-editor.org/rfc/rfc9110#name-503-service-unavailable",
+            StatusCodes.Status400BadRequest => "https://www.rfc-editor.org/rfc/rfc9110.html#name-400-bad-request",
+            StatusCodes.Status401Unauthorized => "https://www.rfc-editor.org/rfc/rfc9110.html#name-401-unauthorized",
+            StatusCodes.Status403Forbidden => "https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden",
+            StatusCodes.Status404NotFound => "https://www.rfc-editor.org/rfc/rfc9110.html#name-404-not-found",
+            StatusCodes.Status409Conflict => "https://www.rfc-editor.org/rfc/rfc9110.html#name-409-conflict",
+            StatusCodes.Status429TooManyRequests => "https://www.rfc-editor.org/rfc/rfc6585.html#section-4",
+            StatusCodes.Status500InternalServerError => "https://www.rfc-editor.org/rfc/rfc9110.html#name-500-internal-server-error",
+            StatusCodes.Status503ServiceUnavailable => "https://www.rfc-editor.org/rfc/rfc9110.html#name-503-service-unavailable",
             _ => "about:blank",
         };
 
@@ -186,7 +194,26 @@ public static class EndatixProblemDetails
             StatusCodes.Status403Forbidden => ResultTitles.FORBIDDEN,
             StatusCodes.Status404NotFound => ResultTitles.NOT_FOUND,
             StatusCodes.Status409Conflict => ResultTitles.CONFLICT,
+            StatusCodes.Status429TooManyRequests => ResultTitles.TOO_MANY_REQUESTS,
             StatusCodes.Status503ServiceUnavailable => ResultTitles.SERVICE_UNAVAILABLE,
+            >= StatusCodes.Status400BadRequest and < StatusCodes.Status500InternalServerError
+                => ResultTitles.BAD_REQUEST,
             _ => ResultTitles.INTERNAL_SERVER_ERROR,
         };
+}
+
+/// <summary>
+/// Strips CR/LF from request-derived values before they are written to logs (CodeQL log injection).
+/// </summary>
+internal static class RequestLogSanitizer
+{
+    public static string Sanitize(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Replace('\r', ' ').Replace('\n', ' ');
+    }
 }

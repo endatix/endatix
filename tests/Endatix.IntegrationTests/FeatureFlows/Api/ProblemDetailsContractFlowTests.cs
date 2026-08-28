@@ -58,7 +58,7 @@ public sealed class ProblemDetailsContractFlowTests
         string expected = ProblemDetailsJson.Shape(
             $$"""
             {
-              "type": "https://www.rfc-editor.org/rfc/rfc9110#name-500-internal-server-error",
+              "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-500-internal-server-error",
               "title": "An unexpected error occurred",
               "status": 500,
               "detail": "An unexpected error occurred",
@@ -96,7 +96,7 @@ public sealed class ProblemDetailsContractFlowTests
         string expected = ProblemDetailsJson.Shape(
             $$"""
             {
-              "type": "https://www.rfc-editor.org/rfc/rfc9110#name-400-bad-request",
+              "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-400-bad-request",
               "title": "Export failed",
               "status": 400,
               "detail": "Form with ID {{MissingFormId}} not found",
@@ -135,7 +135,7 @@ public sealed class ProblemDetailsContractFlowTests
         string expected = ProblemDetailsJson.Shape(
             $$"""
             {
-              "type": "https://www.rfc-editor.org/rfc/rfc9110#name-409-conflict",
+              "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-409-conflict",
               "title": "There was a conflict",
               "status": 409,
               "detail": "A single-submission form cannot be made public.",

@@ -109,6 +109,12 @@ public class EndatixMiddlewareBuilder
     public EndatixMiddlewareBuilder UseExceptionHandler()
     {
         _logger?.LogInformation("Adding exception handler middleware (IExceptionHandler)");
+        if (App.ApplicationServices.GetService<Microsoft.AspNetCore.Diagnostics.IExceptionHandler>() is null)
+        {
+            throw new InvalidOperationException(
+                "IExceptionHandler is not registered. Call ApiConfigurationBuilder.UseDefaults() before UseExceptionHandler().");
+        }
+
         App.UseExceptionHandler();
         return this;
     }
