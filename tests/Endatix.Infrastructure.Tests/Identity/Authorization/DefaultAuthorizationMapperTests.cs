@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Query;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Core.Entities.Identity;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
@@ -28,7 +29,10 @@ public sealed class DefaultAuthorizationMapperTests
 
         _roleManager.Roles.Returns(_roles.AsQueryable());
 
-        _mapper = new DefaultAuthorizationMapper(_roleManager, _keyNormalizer);
+        _mapper = new DefaultAuthorizationMapper(
+            _roleManager,
+            _keyNormalizer,
+            NullLogger<DefaultAuthorizationMapper>.Instance);
     }
 
     #region Empty Input Tests

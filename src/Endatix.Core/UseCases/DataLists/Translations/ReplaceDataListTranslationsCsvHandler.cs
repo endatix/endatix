@@ -34,7 +34,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
         }
 
         var ensureErrors =
-            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales);
+            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales, logger);
         if (ensureErrors is not null)
         {
             return Result.Invalid(ensureErrors);

@@ -3,6 +3,9 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Core.Common.Translations;
+using Endatix.Core.Exceptions;
+using NSubstitute.ExceptionExtensions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.Search;
 
@@ -14,7 +17,7 @@ public class SearchDataListItemsHandlerTests
     public SearchDataListItemsHandlerTests()
     {
         _repository = Substitute.For<IDataListRepository>();
-        _sut = new SearchDataListItemsHandler(_repository);
+        _sut = new SearchDataListItemsHandler(_repository, NullLogger<SearchDataListItemsHandler>.Instance);
     }
 
     private static DataListSearchItemResult Item(
@@ -289,5 +292,49 @@ public class SearchDataListItemsHandlerTests
 
         act.Should().Throw<ArgumentException>()
             .Which.ParamName.Should().Be("cultureCode");
+    }
+
+    /// <summary>
+    /// BCL and EF Core argument text can name columns, expressions and providers, so it must never reach
+    /// the response - only author-written text does.
+    /// </summary>
+    [Fact]
+    public async Task Handle_WhenSearchRejectsAnArgument_DoesNotEchoTheExceptionMessage()
+    {
+        // Arrange
+        const string internalDetail = "The LINQ expression 'DbSet<DataListItem>.Where(...)' could not be translated";
+        _repository.SearchItemsAsync(Arg.Any<DataListSearchCriteria>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ArgumentException(internalDetail, "cultureCode"));
+
+        // Act
+        var result = await _sut.Handle(new SearchDataListItemsQuery(1, "App", 0, 10), CancellationToken.None);
+
+        // Assert
+        var error = result.ValidationErrors.Should().ContainSingle().Which;
+        error.ErrorMessage.Should().NotContain("LINQ");
+        error.Identifier.Should().Be(nameof(SearchDataListItemsQuery.Locale));
+        error.ErrorMessage.Should().Be("Invalid locale.");
+    }
+
+    /// <summary>
+    /// A domain rule that opted into <see cref="IEndUserSafeError"/> is surfaced intact.
+    /// </summary>
+    [Fact]
+    public async Task Handle_WhenSearchRejectsWithASafeDomainError_SurfacesTheDomainMessage()
+    {
+        // Arrange
+        _repository.SearchItemsAsync(Arg.Any<DataListSearchCriteria>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainValidationException(
+                "'zz-ZZ' is not in the data list AvailableLocales catalog.",
+                "cultureCode"));
+
+        // Act
+        var result = await _sut.Handle(new SearchDataListItemsQuery(1, "App", 0, 10), CancellationToken.None);
+
+        // Assert
+        var error = result.ValidationErrors.Should().ContainSingle().Which;
+        error.Identifier.Should().Be(nameof(SearchDataListItemsQuery.Locale));
+        error.ErrorMessage.Should().Be("'zz-ZZ' is not in the data list AvailableLocales catalog.");
+        error.ErrorMessage.Should().NotContain("cultureCode");
     }
 }

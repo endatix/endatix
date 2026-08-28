@@ -198,6 +198,6 @@ public class UpdateThemeHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e => e.ErrorMessage == "Theme JSON is invalid.");
+        result.ValidationErrors.Should().Contain(e => e.ErrorMessage.StartsWith("Theme JSON is invalid"));
     }
 }

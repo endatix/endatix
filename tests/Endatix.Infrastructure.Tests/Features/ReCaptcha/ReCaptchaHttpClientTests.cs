@@ -51,7 +51,7 @@ public class ReCaptchaHttpClientTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Failed to validate reCAPTCHA token", result.Errors.FirstOrDefault());
+        Assert.Contains("Could not reach the reCAPTCHA verification service.", result.Errors.FirstOrDefault());
     }
 
     [Fact]
@@ -66,7 +66,28 @@ public class ReCaptchaHttpClientTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("Failed to validate reCAPTCHA token", result.Errors.FirstOrDefault());
+        Assert.Contains("The reCAPTCHA verification service rejected the request.", result.Errors.FirstOrDefault());
+    }
+
+    /// <summary>
+    /// A transport failure and a refusal by Google are different operational problems - one is our egress,
+    /// the other our secret key or quota - so they must not collapse into one indistinguishable string.
+    /// </summary>
+    [Fact]
+    public async Task ReturnsError_DistinguishesTransportFailureFromServiceRejection()
+    {
+        // Arrange
+        var throwingClient = CreateClient(new ThrowingHandler());
+        var rejectingClient = CreateClient(new StatusCodeHandler(HttpStatusCode.BadRequest, "{}"));
+
+        // Act
+        var transportResult = await throwingClient.GetTokenValidationResponseAsync("token", "secret", CancellationToken.None);
+        var rejectionResult = await rejectingClient.GetTokenValidationResponseAsync("token", "secret", CancellationToken.None);
+
+        // Assert
+        Assert.False(transportResult.IsSuccess);
+        Assert.False(rejectionResult.IsSuccess);
+        Assert.NotEqual(transportResult.Errors.FirstOrDefault(), rejectionResult.Errors.FirstOrDefault());
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Ardalis.GuardClauses;
+using Endatix.Core.Exceptions;
 
 namespace Endatix.Core.Common.Translations;
 
@@ -40,7 +41,7 @@ public readonly partial record struct CultureCode
         Guard.Against.NullOrWhiteSpace(cultureCode);
         if (!TryParse(cultureCode, out var code))
         {
-            throw new ArgumentException($"'{cultureCode}' is not a valid culture code.", nameof(cultureCode));
+            throw new DomainValidationException($"'{cultureCode}' is not a valid culture code.", nameof(cultureCode));
         }
 
         return code;

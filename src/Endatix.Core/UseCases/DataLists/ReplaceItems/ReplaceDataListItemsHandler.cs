@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -32,7 +33,7 @@ public sealed class ReplaceDataListItemsHandler(
         }
 
         var ensureErrors =
-            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales);
+            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales, logger);
         if (ensureErrors is not null)
         {
             return Result.Invalid(ensureErrors);
@@ -154,18 +155,30 @@ public sealed class ReplaceDataListItemsHandler(
         }
     }
 
+    /// <summary>
+    /// Turns a label rejection from <see cref="DataListItem.NormalizeLabels"/> into a validation error.
+    /// </summary>
+    /// <remarks>
+    /// The reason is read back off the exception through <see cref="SafeError.MessageOr"/> rather than
+    /// re-derived here: <c>NormalizeLabels</c> throws <see cref="DomainValidationException"/>, so its
+    /// author-written text is already the text the caller should see, and duplicating the conditions
+    /// would only give the two copies a chance to disagree.
+    /// </remarks>
     private static ValidationError ToLabelValidationError(int index, ArgumentException ex)
     {
         var labelsPrefix = $"Items[{index}].Labels";
-        var identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex);
 
         return new()
         {
-            Identifier = identifier,
-            ErrorMessage = $"Each label value cannot exceed {DataListItem.MAX_LABEL_LENGTH} characters."
+            Identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex),
+            ErrorMessage = SafeError.MessageOr(ex, "Labels are not valid for this item.")
         };
     }
 
+    /// <summary>
+    /// Points the error at the offending culture key when the throw named one; the whole-map throws
+    /// name the <c>labels</c> parameter, which is attributed to the <c>default</c> entry they are about.
+    /// </summary>
     private static string ResolveLabelErrorIdentifier(string labelsPrefix, ArgumentException ex)
     {
         if (IsConcreteLabelKey(ex.ParamName))
@@ -173,7 +186,7 @@ public sealed class ReplaceDataListItemsHandler(
             return $"{labelsPrefix}.{ex.ParamName}";
         }
 
-        if (ex.Message.Contains(SurveyJsTranslationKeys.DefaultKey, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(ex.ParamName, "labels", StringComparison.Ordinal))
         {
             return $"{labelsPrefix}.{SurveyJsTranslationKeys.DefaultKey}";
         }

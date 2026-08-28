@@ -40,6 +40,8 @@ public sealed class ThemeJsonData
         }
         catch (JsonException)
         {
+            // System.Text.Json messages name .NET types and property paths; the caller only needs to
+            // know their payload did not parse.
             return Result.Invalid(new ValidationError("Theme JSON is invalid."));
         }
     }

@@ -69,11 +69,47 @@ Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, un
 - `ToProblem` maps Invalid → 400, NotFound → 404, Conflict → 409, Unauthorized → 401, Forbidden → 403, Error/CriticalError → 500, Unavailable → 503.
 - **`detail` is always a non-empty string**, falling back to the title when the result carries no errors. Consumers treat it as required (Hub's `ProblemDetailsSchema` types it non-optional) — never emit `"detail": ""`.
 - FastEndpoints FluentValidation uses `c.Errors.ResponseBuilder` → `EndatixProblemDetails` (`fields` dictionary). Do **not** use stock `UseProblemDetails()` (wrong `errors` array shape).
-- Unhandled exceptions → `EndatixExceptionHandler` (`IExceptionHandler`); 500 body never includes exception text.
+- Unhandled exceptions → `EndatixExceptionHandler` (`IExceptionHandler`); 500 body never includes exception text. It is a safety net, not a status mapper — see below.
 - **No 5xx body ever echoes handler- or exception-derived text.** `EndatixProblemDetails.Create` replaces any `>= 500` detail with the generic title and logs the original (correlate via `traceId`). Handlers that wrap `ex.Message` into `Result.Error(...)` are safe by construction — do not add a bypass. If a 5xx message must reach the user, model the failure as a 4xx/503 instead.
 - Writing a problem body by hand? Pass `contentType: "application/problem+json"` to `WriteAsJsonAsync`; it otherwise overwrites `Response.ContentType` with `application/json`.
 - `SetErrorMessage(...)` overrides the problem **title for every status**, so set it only on the branch it describes (see `Auth/VerifyEmail.cs`) — otherwise a 404 inherits a 400-shaped message.
 - OpenAPI: `Description(b => b.Produces<T>(...).ProducesProblem(400).ProducesProblem(404))` listing exactly the statuses the endpoint's `Summary(s => s.Responses[...])` declares — every endpoint returning `ProblemHttpResult` must have one. FE validators set `ProducesMetadataType = typeof(ProblemDetails)`.
+
+### Exception text never reaches the caller (`IEndUserSafeError` / `SafeError`)
+
+`Result` error messages become RFC7807 `detail`, and 4xx `detail` is echoed verbatim. `ex.Message` — EF Core, Npgsql, `JsonException`, any BCL guard — carries connection strings, SQL and file paths, so it must never reach a `Result.*` factory or a `ValidationError`. `ResultFactoryMustNotInterpolateExceptionMessageTests` fails the build on it.
+
+Failure travels one way, and only `ToProblem` maps status:
+
+| Layer | Signals failure by | Becomes |
+|---|---|---|
+| Entity / value object | `throw Domain*Exception` (a void invariant has no other channel) | caught by its handler |
+| Handler / use case | `return Result.Invalid / NotFound / Conflict / Error` | `ToProblem` → status + `fields` |
+| Anything uncaught | — | opaque 500, logged (`EndatixExceptionHandler`) |
+
+The handler is the conversion point, and `SafeError` is how it recovers an author-written message there:
+
+```csharp
+// Domain (Endatix.Core/Exceptions): DomainValidationException : ArgumentException,
+// DomainRuleException : InvalidOperationException — both IEndUserSafeError, so existing catches still work.
+throw new DomainRuleException($"A data list cannot have more than {MaxAvailableCultures} cultures.");
+
+// Handler: no ex.Message, no re-derived reason, no severity decision.
+catch (ArgumentException ex)
+{
+    return Result.Invalid(new ValidationError
+    {
+        Identifier = nameof(Query.Locale),
+        ErrorMessage = SafeError.LogAndResolve(logger, ex, "Invalid locale.", $"searching data list {id}")
+    });
+}
+```
+
+- `SafeError.MessageOr` / `LogAndResolve` are the **only** places `EndUserMessage` may be read. `LogAndResolve` also picks the severity: `Information` for an opted-in rejection, `Error` **with the exception** otherwise.
+- **Never re-derive the reason in the handler** by re-inspecting input or sniffing `ex.Message` — that duplicates the domain's conditions and the copies drift. `ParamName` is for attribution (which field), never for the message.
+- **Never opt in a type that wraps a provider exception**, and never return `InnerException.Message`. `DomainValidationException` holds `EndUserMessage` separately because `ArgumentException` appends `" (Parameter 'x')"`.
+- **Prefer a real message over a mask.** "…cannot have more than 25 cultures." is actionable; "Could not add locale." is not. No safe message to author? Log and return a static string (`DefaultAuthorizationMapper`, `ReCaptchaHttpClient`, `ThemeJsonData`).
+- **The boundary is not a status mapper.** A `Domain*Exception` reaching `EndatixExceptionHandler` is a missing `catch`, and gets an opaque 500 so the defect surfaces. Prefer a Result-returning domain API where input is caller-supplied and validated in a loop (`DataListEnsureLocales.TryEnsure`) — it keeps throws off hot paths entirely.
 
 ### Uniform failure responses (OWASP A07)
 

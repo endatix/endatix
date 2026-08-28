@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -43,6 +44,40 @@ public class EndatixExceptionHandlerTests
         root.GetProperty("detail").GetString().Should().NotContain(secretMessage);
         root.GetProperty("instance").GetString().Should().Be("/api/forms");
         root.GetProperty("traceId").GetString().Should().Be("trace-exception");
+    }
+
+    /// <summary>
+    /// Deliberate: the boundary is a safety net, not a status mapper. A domain exception that opted into
+    /// <see cref="IEndUserSafeError"/> still gets an opaque 500 here, because reaching the boundary means
+    /// a handler failed to convert it to a <c>Result</c> - a defect a tidy 4xx would hide.
+    /// </summary>
+    [Fact]
+    public async Task TryHandleAsync_WithSafeDomainError_StillWritesGeneric500()
+    {
+        // Arrange
+        const string domainMessage = "A data list cannot have more than 25 cultures.";
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Path = "/api/data-lists/1/items";
+        httpContext.Response.Body = new MemoryStream();
+        var handler = new EndatixExceptionHandler(NullLogger<EndatixExceptionHandler>.Instance);
+
+        // Act
+        await handler.TryHandleAsync(
+            httpContext,
+            new DomainRuleException(domainMessage),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+
+        httpContext.Response.Body.Seek(0, SeekOrigin.Begin);
+        using var document = await JsonDocument.ParseAsync(
+            httpContext.Response.Body,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var detail = document.RootElement.GetProperty("detail").GetString();
+        detail.Should().Be(ResultTitles.INTERNAL_SERVER_ERROR);
+        detail.Should().NotContain(domainMessage);
     }
 
     [Fact]

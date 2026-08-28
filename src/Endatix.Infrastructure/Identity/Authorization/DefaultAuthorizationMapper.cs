@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using static Endatix.Infrastructure.Identity.Authorization.IExternalAuthorizationMapper;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
@@ -9,9 +10,11 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// </summary>
 /// <param name="roleManager">The role manager to query roles.</param>
 /// <param name="keyNormalizer">The key normalizer for normalizing role names.</param>
+/// <param name="logger">The logger used to record role-mapping failures.</param>
 internal sealed class DefaultAuthorizationMapper(
         RoleManager<AppRole> roleManager,
-        ILookupNormalizer keyNormalizer
+        ILookupNormalizer keyNormalizer,
+        ILogger<DefaultAuthorizationMapper> logger
 ) : IExternalAuthorizationMapper
 {
 
@@ -62,7 +65,9 @@ internal sealed class DefaultAuthorizationMapper(
         }
         catch (Exception ex)
         {
-            return MappingResult.Failure(ex.Message);
+            // Store/EF exception text must not travel back to the caller as an error message.
+            logger.LogError(ex, "Failed to map external roles to application roles and permissions");
+            return MappingResult.Failure("Could not resolve roles and permissions for the external identity.");
         }
     }
 

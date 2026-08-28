@@ -334,7 +334,11 @@ public class ReplaceDataListItemsHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e => e.Identifier == "Items[0].Labels.default");
+        result.ValidationErrors.Should().Contain(e =>
+            e.Identifier == "Items[0].Labels.default"
+            && e.ErrorMessage == "Labels must include a non-empty 'default' entry.");
+        result.ValidationErrors.Should().NotContain(e =>
+            e.ErrorMessage.Contains(DataListItem.MAX_LABEL_LENGTH.ToString()));
     }
 
     [Fact]
