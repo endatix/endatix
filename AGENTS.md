@@ -70,7 +70,7 @@ Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, un
 - **`detail` is always a non-empty string**, falling back to the title when the result carries no errors. Consumers treat it as required (Hub's `ProblemDetailsSchema` types it non-optional) — never emit `"detail": ""`.
 - FastEndpoints FluentValidation uses `c.Errors.ResponseBuilder` → `EndatixProblemDetails` (`fields` dictionary). Do **not** use stock `UseProblemDetails()` (wrong `errors` array shape).
 - Unhandled exceptions → `EndatixExceptionHandler` (`IExceptionHandler`); 500 body never includes exception text. It is a safety net, not a status mapper — see below.
-- **No 5xx body ever echoes handler- or exception-derived text.** `EndatixProblemDetails.Create` replaces any `>= 500` detail with the generic title and logs the original (correlate via `traceId`). Handlers that wrap `ex.Message` into `Result.Error(...)` are safe by construction — do not add a bypass. If a 5xx message must reach the user, model the failure as a 4xx/503 instead.
+- **No 5xx body ever echoes handler- or exception-derived text.** `EndatixProblemDetails.Create` replaces any `>= 500` detail with the generic title and logs the original (correlate via `traceId`). Never pass `ex.Message` to a `Result.*` factory — including `Result.Error`: the 5xx scrub is defense in depth, not a license (see below). Log the exception, return author-written text. If a 5xx message must reach the user, model the failure as a 4xx/503 instead.
 - Writing a problem body by hand? Pass `contentType: "application/problem+json"` to `WriteAsJsonAsync`; it otherwise overwrites `Response.ContentType` with `application/json`.
 - `SetErrorMessage(...)` overrides the problem **title for every status**, so set it only on the branch it describes (see `Auth/VerifyEmail.cs`) — otherwise a 404 inherits a 400-shaped message.
 - OpenAPI: `Description(b => b.Produces<T>(...).ProducesProblem(400).ProducesProblem(404))` listing exactly the statuses the endpoint's `Summary(s => s.Responses[...])` declares — every endpoint returning `ProblemHttpResult` must have one. FE validators set `ProducesMetadataType = typeof(ProblemDetails)`.
@@ -81,11 +81,11 @@ Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, un
 
 Failure travels one way, and only `ToProblem` maps status:
 
-| Layer | Signals failure by | Becomes |
-|---|---|---|
-| Entity / value object | `throw Domain*Exception` (a void invariant has no other channel) | caught by its handler |
-| Handler / use case | `return Result.Invalid / NotFound / Conflict / Error` | `ToProblem` → status + `fields` |
-| Anything uncaught | — | opaque 500, logged (`EndatixExceptionHandler`) |
+| Layer                 | Signals failure by                                               | Becomes                                        |
+| --------------------- | ---------------------------------------------------------------- | ---------------------------------------------- |
+| Entity / value object | `throw Domain*Exception` (a void invariant has no other channel) | caught by its handler                          |
+| Handler / use case    | `return Result.Invalid / NotFound / Conflict / Error`            | `ToProblem` → status + `fields`                |
+| Anything uncaught     | —                                                                | opaque 500, logged (`EndatixExceptionHandler`) |
 
 The handler is the conversion point, and `SafeError` is how it recovers an author-written message there:
 

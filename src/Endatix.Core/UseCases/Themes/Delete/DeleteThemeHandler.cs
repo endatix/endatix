@@ -65,8 +65,8 @@ public class DeleteThemeHandler(
         }
         catch (Exception ex)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(ex, "Failed to delete theme {ThemeId}", request.ThemeId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.Error("Failed to delete theme.");
         }
     }

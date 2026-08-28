@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Endatix.Infrastructure.Data
 {
     /// <summary>
@@ -9,7 +11,9 @@ namespace Endatix.Infrastructure.Data
         /// Initializes a new instance of the <see cref="AppUnitOfWork"/> class.
         /// </summary>
         /// <param name="context">The Entity Framework Core DbContext.</param>
-        public AppUnitOfWork(AppDbContext context) : base(context)
+        /// <param name="logger">Records rollback failures. Optional; DI supplies it.</param>
+        public AppUnitOfWork(AppDbContext context, ILogger<AppUnitOfWork>? logger = null)
+            : base(context, logger)
         {
         }
     }

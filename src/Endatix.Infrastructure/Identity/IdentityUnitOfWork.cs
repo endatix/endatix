@@ -1,4 +1,5 @@
 using Endatix.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -11,7 +12,9 @@ public class IdentityUnitOfWork : EfUnitOfWorkBase<AppIdentityDbContext>
     /// Initializes a new instance of the <see cref="IdentityUnitOfWork"/> class.
     /// </summary>
     /// <param name="context">The AppIdentityDbContext instance.</param>
-    public IdentityUnitOfWork(AppIdentityDbContext context) : base(context)
+    /// <param name="logger">Records rollback failures. Optional; DI supplies it.</param>
+    public IdentityUnitOfWork(AppIdentityDbContext context, ILogger<IdentityUnitOfWork>? logger = null)
+        : base(context, logger)
     {
     }
 }

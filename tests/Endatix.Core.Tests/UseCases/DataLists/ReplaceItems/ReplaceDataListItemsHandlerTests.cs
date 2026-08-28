@@ -1,12 +1,13 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.DataLists.ReplaceItems;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.ReplaceItems;
@@ -17,6 +18,7 @@ public class ReplaceDataListItemsHandlerTests
     private readonly IMediator _mediator;
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ReplaceDataListItemsHandler _sut;
+    private readonly RecordingLogger _logger = new();
     private long _nextId = 100;
 
     public ReplaceDataListItemsHandlerTests()
@@ -29,7 +31,7 @@ public class ReplaceDataListItemsHandlerTests
             _repository,
             _mediator,
             _idGenerator,
-            NullLogger<ReplaceDataListItemsHandler>.Instance);
+            _logger);
     }
 
     private static ReplaceDataListItemInput Item(string label, string value) =>
@@ -383,5 +385,55 @@ public class ReplaceDataListItemsHandlerTests
         result.ValidationErrors.Should().Contain(e => e.Identifier == "Items[0].Labels");
         result.ValidationErrors.Should().Contain(e => e.Identifier == "Items[0].Value");
         result.ValidationErrors.Should().Contain(e => e.Identifier == "Items[1].Labels.fr");
+    }
+
+    /// <summary>
+    /// A label rejection reaches the caller through <see cref="SafeError.LogAndResolve"/> rather than
+    /// <c>MessageOr</c>, so closing the leak did not also close the log. Every throw in
+    /// <c>NormalizeLabels</c> is a <c>DomainValidationException</c> today, so this asserts the opted-in
+    /// half; the other half - an <see cref="ArgumentException"/> that never opted in is logged at
+    /// <see cref="LogLevel.Error"/> with the exception, the caller seeing only the static fallback - is
+    /// covered by <c>SafeErrorTests.LogAndResolve_WithUnexpectedException_LogsErrorWithTheExceptionAndReturnsTheFallback</c>.
+    /// </summary>
+    [Fact]
+    public async Task Handle_LabelRejected_LogsTheRejection()
+    {
+        DataList dataList = new(SampleData.TENANT_ID, "Cities") { Id = 1 };
+        dataList.AddCulture(CultureCode.Parse("es"));
+        _repository.SingleOrDefaultAsync(Arg.Any<DataListsSpecifications.ByIdWithItemsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(dataList);
+
+        var result = await _sut.Handle(
+            new ReplaceDataListItemsCommand(1, [
+                new(
+                    Value: "NYC",
+                    Labels: new Dictionary<string, string> { ["es"] = "Nueva York" })
+            ]),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Invalid);
+        _logger.Entries.Should().Contain(entry =>
+            entry.Level == LogLevel.Information
+            && entry.Message.Contains("normalizing labels for item 0 of data list 1"));
+    }
+
+    /// <summary>
+    /// Captures what was logged so a test can assert the record exists, not just its absence.
+    /// </summary>
+    private sealed class RecordingLogger : ILogger<ReplaceDataListItemsHandler>
+    {
+        public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception), exception));
     }
 }

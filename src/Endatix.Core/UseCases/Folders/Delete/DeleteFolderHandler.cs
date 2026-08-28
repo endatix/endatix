@@ -90,8 +90,8 @@ public sealed class DeleteFolderHandler(
         }
         catch (Exception exception)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             logger.LogError(exception, "Failed to delete folder {FolderId}", request.FolderId);
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.Error("Failed to delete folder.");
         }
     }

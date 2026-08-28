@@ -1,6 +1,8 @@
 using Endatix.Core.Abstractions.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -13,15 +15,21 @@ public abstract class EfUnitOfWorkBase<TContext> : IUnitOfWork
     where TContext : DbContext
 {
     private readonly TContext _context;
+    private readonly ILogger _logger;
     private IDbContextTransaction? _transaction;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EfUnitOfWorkBase{TContext}"/> class.
     /// </summary>
     /// <param name="context">The Entity Framework Core DbContext.</param>
-    protected EfUnitOfWorkBase(TContext context)
+    /// <param name="logger">
+    /// Records rollback failures, which are never surfaced to the caller. Optional so a test can
+    /// construct a unit of work without wiring logging; DI supplies the real one.
+    /// </param>
+    protected EfUnitOfWorkBase(TContext context, ILogger? logger = null)
     {
         _context = context;
+        _logger = logger ?? NullLogger.Instance;
     }
 
     /// <inheritdoc/>
@@ -53,18 +61,46 @@ public abstract class EfUnitOfWorkBase<TContext> : IUnitOfWork
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Rollback is cleanup, and cleanup runs on the failure path - so it neither throws nor observes
+    /// <paramref name="cancellationToken"/>:
+    /// <list type="bullet">
+    /// <item>No active transaction is the desired end state, not an error. Throwing here turned a
+    /// failed <c>BeginTransactionAsync</c> into "Transaction not started", masking the real cause.</item>
+    /// <item>A rollback failure is not actionable - the transaction is dead either way - and letting it
+    /// propagate out of a <c>catch</c> block replaces the exception the caller was actually handling.</item>
+    /// <item>The token that cancelled the work must not also cancel undoing it, or a cancelled request
+    /// leaves the transaction open until disposal.</item>
+    /// </list>
+    /// </remarks>
     public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
     {
-        EnsureTransactionStarted();
+        if (_transaction is null)
+        {
+            return;
+        }
+
+        var transaction = _transaction;
+        _transaction = null;
 
         try
         {
-            await _transaction!.RollbackAsync(cancellationToken);
+            await transaction.RollbackAsync(CancellationToken.None);
+        }
+        catch (Exception rollbackException)
+        {
+            _logger.LogError(rollbackException, "Failed to roll back the transaction");
         }
         finally
         {
-            await _transaction.DisposeAsync();
-            _transaction = null;
+            try
+            {
+                await transaction.DisposeAsync();
+            }
+            catch (Exception disposeException)
+            {
+                _logger.LogError(disposeException, "Failed to dispose the rolled back transaction");
+            }
         }
     }
 
@@ -79,4 +115,4 @@ public abstract class EfUnitOfWorkBase<TContext> : IUnitOfWork
             throw new InvalidOperationException("Transaction not started. Call BeginTransactionAsync first.");
         }
     }
-} 
+}

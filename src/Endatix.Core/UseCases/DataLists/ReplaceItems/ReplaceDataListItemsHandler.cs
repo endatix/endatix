@@ -67,7 +67,7 @@ public sealed class ReplaceDataListItemsHandler(
         return Result.Success(DataListDtoMapper.FromEntity(dataList));
     }
 
-    private static bool TryResolveItems(
+    private bool TryResolveItems(
         DataList dataList,
         IReadOnlyCollection<ReplaceDataListItemInput> items,
         out List<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems,
@@ -90,7 +90,7 @@ public sealed class ReplaceDataListItemsHandler(
         return errors.Count == 0;
     }
 
-    private static void CollectItemErrors(
+    private void CollectItemErrors(
         DataList dataList,
         int index,
         ReplaceDataListItemInput item,
@@ -120,7 +120,7 @@ public sealed class ReplaceDataListItemsHandler(
         }
     }
 
-    private static void CollectLabelMapErrors(
+    private void CollectLabelMapErrors(
         DataList dataList,
         int index,
         IReadOnlyDictionary<string, string> labels,
@@ -151,7 +151,7 @@ public sealed class ReplaceDataListItemsHandler(
         }
         catch (ArgumentException ex)
         {
-            errors.Add(ToLabelValidationError(index, ex));
+            errors.Add(ToLabelValidationError(dataList, index, ex));
         }
     }
 
@@ -159,19 +159,25 @@ public sealed class ReplaceDataListItemsHandler(
     /// Turns a label rejection from <see cref="DataListItem.NormalizeLabels"/> into a validation error.
     /// </summary>
     /// <remarks>
-    /// The reason is read back off the exception through <see cref="SafeError.MessageOr"/> rather than
-    /// re-derived here: <c>NormalizeLabels</c> throws <see cref="DomainValidationException"/>, so its
+    /// The reason is read back off the exception through <see cref="SafeError.LogAndResolve"/> rather
+    /// than re-derived here: <c>NormalizeLabels</c> throws <see cref="DomainValidationException"/>, so its
     /// author-written text is already the text the caller should see, and duplicating the conditions
-    /// would only give the two copies a chance to disagree.
+    /// would only give the two copies a chance to disagree. Going through <c>LogAndResolve</c> keeps the
+    /// diagnostic record for the other case - an <see cref="ArgumentException"/> that did not opt in is a
+    /// defect, and the caller only ever sees the static fallback.
     /// </remarks>
-    private static ValidationError ToLabelValidationError(int index, ArgumentException ex)
+    private ValidationError ToLabelValidationError(DataList dataList, int index, ArgumentException ex)
     {
         var labelsPrefix = $"Items[{index}].Labels";
 
         return new()
         {
             Identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex),
-            ErrorMessage = SafeError.MessageOr(ex, "Labels are not valid for this item.")
+            ErrorMessage = SafeError.LogAndResolve(
+                logger,
+                ex,
+                "Labels are not valid for this item.",
+                $"normalizing labels for item {index} of data list {dataList.Id}")
         };
     }
 
