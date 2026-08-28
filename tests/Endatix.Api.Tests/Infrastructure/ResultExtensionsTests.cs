@@ -119,7 +119,8 @@ public class ResultExtensionsTests
             Assert.Fail("Problem details are null");
         }
         problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
-        problemDetails.Detail.Should().Contain("General error");
+        // 5xx detail is suppressed to the title; "General error" must not reach the client.
+        problemDetails.Detail.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
         problemDetails.Extensions.Should().NotContainKey("errorCode");
     }
 
@@ -283,7 +284,7 @@ public class ResultExtensionsTests
             Assert.Fail("Problem details are null");
         }
         problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
-        problemDetails.Detail.Should().Contain("Error occurred");
+        problemDetails.Detail.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
     }
 
     [Fact]
@@ -309,14 +310,14 @@ public class ResultExtensionsTests
             Assert.Fail("Problem details are null");
         }
         problemDetails.Title.Should().Be(customTitle);
-        problemDetails.Detail.Should().Contain("Error occurred");
+        problemDetails.Detail.Should().Be(customTitle);
     }
 
     [Fact]
     public void ToProblem_WithMultipleErrors_CombinesAllErrorMessages()
     {
-        // Arrange
-        var result = Result.Error(new ErrorList(["First error", "Second error"]));
+        // Arrange - a 4xx, since 5xx detail is deliberately suppressed.
+        var result = Result.Conflict("First error", "Second error");
 
         // Act
         var httpResult = result.ToProblem();
@@ -326,14 +327,14 @@ public class ResultExtensionsTests
         httpResult.Should().BeOfType<ProblemHttpResult>();
 
         var statusCode = httpResult.StatusCode;
-        statusCode.Should().Be(StatusCodes.Status500InternalServerError);
+        statusCode.Should().Be(StatusCodes.Status409Conflict);
 
         var problemDetails = httpResult.ProblemDetails;
         if (problemDetails is null)
         {
             Assert.Fail("Problem details are null");
         }
-        problemDetails.Title.Should().Be(DEFAULT_UNEXPECTED_ERROR_TITLE);
+        problemDetails.Title.Should().Be(DEFAULT_CONFLICT_TITLE);
         problemDetails.Detail.Should().Contain("First error");
         problemDetails.Detail.Should().Contain("Second error");
     }

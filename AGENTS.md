@@ -50,11 +50,31 @@ Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · h
 
 ## Error HTTP contract (API)
 
-- Handler failures → RFC7807 `application/problem+json` via `TypedResultsBuilder` + `ProblemHttpResult`.
+Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, unhandled exceptions, export stream errors):
+
+```json
+{
+  "type": "https://www.rfc-editor.org/rfc/rfc9110#name-400-bad-request",
+  "title": "There was a problem with your request",
+  "status": 400,
+  "detail": "Name is required.",
+  "instance": "/api/forms",
+  "traceId": "0HMPNHL0JHL76:00000001",
+  "errorCode": "NotEmptyValidator",
+  "fields": { "name": ["Name is required."] }
+}
+```
+
+- Handler failures → RFC7807 `application/problem+json` via `TypedResultsBuilder` + `ProblemHttpResult` / `ToProblem`.
 - `ToProblem` maps Invalid → 400, NotFound → 404, Conflict → 409, Unauthorized → 401, Forbidden → 403, Error/CriticalError → 500, Unavailable → 503.
 - **`detail` is always a non-empty string**, falling back to the title when the result carries no errors. Consumers treat it as required (Hub's `ProblemDetailsSchema` types it non-optional) — never emit `"detail": ""`.
+- FastEndpoints FluentValidation uses `c.Errors.ResponseBuilder` → `EndatixProblemDetails` (`fields` dictionary). Do **not** use stock `UseProblemDetails()` (wrong `errors` array shape).
+- Unhandled exceptions → `EndatixExceptionHandler` (`IExceptionHandler`); 500 body never includes exception text.
+- **No 5xx body ever echoes handler- or exception-derived text.** `EndatixProblemDetails.Create` replaces any `>= 500` detail with the generic title and logs the original (correlate via `traceId`). Handlers that wrap `ex.Message` into `Result.Error(...)` are safe by construction — do not add a bypass. If a 5xx message must reach the user, model the failure as a 4xx/503 instead.
+- Writing a problem body by hand? Pass `contentType: "application/problem+json"` to `WriteAsJsonAsync`; it otherwise overwrites `Response.ContentType` with `application/json`.
 - `SetErrorMessage(...)` overrides the problem **title for every status**, so set it only on the branch it describes (see `Auth/VerifyEmail.cs`) — otherwise a 404 inherits a 400-shaped message.
-- OpenAPI: `Description(b => b.Produces<T>(...).ProducesProblem(400).ProducesProblem(404))` listing exactly the statuses the endpoint's `Summary(s => s.Responses[...])` declares — every endpoint returning `ProblemHttpResult` must have one.
+- OpenAPI: `Description(b => b.Produces<T>(...).ProducesProblem(400).ProducesProblem(404))` listing exactly the statuses the endpoint's `Summary(s => s.Responses[...])` declares — every endpoint returning `ProblemHttpResult` must have one. FE validators set `ProducesMetadataType = typeof(ProblemDetails)`.
+
 ### Uniform failure responses (OWASP A07)
 
 Account-facing failures must be **indistinguishable to the caller**: same status, same message, whatever the real cause. Log the real reason server-side instead — never return it.
@@ -65,8 +85,6 @@ Account-facing failures must be **indistinguishable to the caller**: same status
 - Token flows (verify-email, invite activation) answer **400 for every token failure** - unknown, dangling, expired, used. Never `NotFound`: a 404-vs-400 split tells the caller whether the token ever existed.
 - Equalize work, not just payloads: run the password KDF on the unknown-account path too (`AuthService.BurnPasswordHashingWork`), or response time leaks what the body does not.
 - Pair each with a `#region Security and Privacy Tests` test asserting the disallowed strings are absent. References: `LoginHandler.INVALID_CREDENTIALS_MESSAGE`, `EmailVerificationService.INVALID_VERIFICATION_TOKEN_MESSAGE`, `ForgotPasswordHandler.GENERAL_SUCCESS_MESSAGE`, `SendVerificationEmailHandler` (returns `Success` for unknown users), `UserPasswordManageServiceTests` (`DoesNotLeakUserExistence`).
-
-- **Known gap:** FastEndpoints request-validation failures still return FE's `{statusCode, message, errors}` shape, not problem+json. Closing that needs `c.Errors.UseProblemDetails()` in `ApiApplicationBuilderExtensions` — tracked separately; don't assume a 400 is RFC7807 yet.
 
 ## Run (examples)
 

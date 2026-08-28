@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using Endatix.Api.Builders;
+using Endatix.Api.Infrastructure;
 using Endatix.Framework.Serialization;
 using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -85,10 +87,16 @@ public static class ApiApplicationBuilderExtensions
     /// <param name="options">The middleware options.</param>
     private static void ConfigureApiMiddleware(IApplicationBuilder app, ApiOptions options)
     {
-        // Apply exception handling middleware if enabled
+        var httpContextAccessor = app.ApplicationServices.GetService<IHttpContextAccessor>();
+        if (httpContextAccessor is not null)
+        {
+            EndatixProblemDetails.Configure(httpContextAccessor);
+        }
+
+        // Prefer IExceptionHandler (canonical ProblemDetails) over the legacy /error path redirect.
         if (options.UseExceptionHandler)
         {
-            app.UseExceptionHandler(options.ExceptionHandlerPath);
+            app.UseExceptionHandler();
         }
 
         // Apply FastEndpoints middleware with configuration
@@ -104,6 +112,11 @@ public static class ApiApplicationBuilderExtensions
             // Apply security configuration
             c.Security.RoleClaimType = ClaimTypes.Role;
             c.Security.PermissionsClaimType = ClaimNames.Permission;
+
+            // Unify FluentValidation 400s with handler ToProblem (fields dict, not FE stock errors[]).
+            c.Errors.ResponseBuilder = (failures, ctx, statusCode) =>
+                EndatixProblemDetails.FromValidationFailures(failures, ctx, statusCode);
+            c.Errors.ProducesMetadataType = typeof(Microsoft.AspNetCore.Mvc.ProblemDetails);
 
             // Apply any custom configuration
             options.ConfigureFastEndpoints?.Invoke(c);
