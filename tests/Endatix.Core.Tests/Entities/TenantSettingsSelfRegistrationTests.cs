@@ -112,6 +112,33 @@ public class TenantSettingsSelfRegistrationTests
     }
 
     [Fact]
+    public void UpdateSelfRegistrationPolicy_TrimsRoleNameBeforeValidateAndStore()
+    {
+        var settings = new TenantSettings(tenantId: 1);
+
+        settings.UpdateSelfRegistrationPolicy(
+            allowSelfRegistration: true,
+            allowedAuthProviderKeys: null,
+            defaultRegistrationRoleName: "  Respondent  ");
+
+        settings.DefaultRegistrationRoleName.Should().Be(SystemRole.Respondent.Name);
+    }
+
+    [Fact]
+    public void UpdateSelfRegistrationPolicy_PaddedForbiddenRole_Throws()
+    {
+        var settings = new TenantSettings(tenantId: 1);
+
+        var act = () => settings.UpdateSelfRegistrationPolicy(
+            allowSelfRegistration: true,
+            allowedAuthProviderKeys: null,
+            defaultRegistrationRoleName: "  Public  ");
+
+        act.Should().Throw<DomainValidationException>();
+        settings.DefaultRegistrationRoleName.Should().Be(TenantSettings.DefaultRegistrationRole);
+    }
+
+    [Fact]
     public void UpdateSelfRegistrationPolicy_ForbiddenDefaultRole_LeavesSettingsUnchanged()
     {
         // Arrange

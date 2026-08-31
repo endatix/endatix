@@ -32,6 +32,13 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 nullable: false,
                 defaultValue: "Respondent");
 
+            migrationBuilder.Sql(
+                """
+                UPDATE [Tenants]
+                SET [Description] = LEFT([Description], 500)
+                WHERE [Description] IS NOT NULL AND LEN([Description]) > 500;
+                """);
+
             migrationBuilder.AlterColumn<string>(
                 name: "Description",
                 table: "Tenants",
@@ -49,8 +56,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 maxLength: 8,
                 nullable: true);
 
-            // Opaque 8-char lowercase-alphanumeric ids. CONVERT style 2 renders the hash as bare
-            // hex; LOWER keeps it inside ShortUrl.Alphabet. Not derived from the tenant name.
+            // CONVERT style 2 is bare hex; LOWER keeps it inside ShortUrl.Alphabet.
             migrationBuilder.Sql(
                 """
                 UPDATE [Tenants]
@@ -60,21 +66,27 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 WHERE [ShortUrl] IS NULL OR [ShortUrl] = '';
                 """);
 
-            // 8 hex chars is 32 bits, so a hash collision is unlikely but not impossible; the unique
-            // index below would abort the whole migration. Redraw only the colliding rows.
             migrationBuilder.Sql(
                 """
-                WITH duplicates AS (
-                    SELECT [Id], ROW_NUMBER() OVER (PARTITION BY [ShortUrl] ORDER BY [Id]) AS seq
-                    FROM [Tenants]
+                DECLARE @pass int = 0;
+                WHILE @pass < 8 AND EXISTS (
+                    SELECT 1 FROM [Tenants] GROUP BY [ShortUrl] HAVING COUNT(*) > 1
                 )
-                UPDATE t
-                SET [ShortUrl] = LOWER(LEFT(
-                    CONVERT(varchar(32), HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), t.[Id]), '-', d.seq)), 2),
-                    8))
-                FROM [Tenants] AS t
-                INNER JOIN duplicates AS d ON d.[Id] = t.[Id]
-                WHERE d.seq > 1;
+                BEGIN
+                    SET @pass = @pass + 1;
+                    WITH duplicates AS (
+                        SELECT [Id], ROW_NUMBER() OVER (PARTITION BY [ShortUrl] ORDER BY [Id]) AS seq
+                        FROM [Tenants]
+                    )
+                    UPDATE t
+                    SET [ShortUrl] = LOWER(LEFT(
+                        CONVERT(varchar(32), HASHBYTES('MD5', CONCAT(
+                            'tenant-', CONVERT(varchar(20), t.[Id]), '-', d.seq, '-', @pass)), 2),
+                        8))
+                    FROM [Tenants] AS t
+                    INNER JOIN duplicates AS d ON d.[Id] = t.[Id]
+                    WHERE d.seq > 1;
+                END
                 """);
 
             migrationBuilder.AlterColumn<string>(

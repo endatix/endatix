@@ -22,8 +22,8 @@ namespace Endatix.Core.Entities
         /// <param name="description">Optional description.</param>
         public Tenant(string name, string shortUrl, string? description = null)
         {
-            Guard.Against.NullOrEmpty(name, nameof(name));
-            Guard.Against.NullOrEmpty(shortUrl, nameof(shortUrl));
+            Guard.Against.NullOrEmpty(name);
+            Guard.Against.NullOrEmpty(shortUrl);
             Guard.Against.InvalidInput(
                 shortUrl,
                 nameof(shortUrl),
@@ -35,13 +35,12 @@ namespace Endatix.Core.Entities
             Description = description;
         }
 
-        public string Name { get; private set; } = null!;
+        public string Name { get; private set; } = string.Empty;
 
         /// <summary>
-        /// Unique short URL identifier for unauthenticated discovery (sign-in / self-reg).
-        /// Immutable after create.
+        /// Unique short URL for unauthenticated discovery. Immutable after create.
         /// </summary>
-        public string ShortUrl { get; private set; } = null!;
+        public string ShortUrl { get; private set; } = string.Empty;
 
         public string? Description { get; private set; }
 
@@ -59,7 +58,7 @@ namespace Endatix.Core.Entities
         /// </summary>
         public void UpdateName(string name)
         {
-            Guard.Against.NullOrEmpty(name, nameof(name));
+            Guard.Against.NullOrEmpty(name);
             Name = name;
         }
 

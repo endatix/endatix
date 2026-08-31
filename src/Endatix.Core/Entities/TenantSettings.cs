@@ -66,7 +66,7 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     public bool RequireFolderAssignment { get; private set; }
 
     /// <summary>
-    /// When true, anonymous users may self-register via the tenant slug URL.
+    /// When true, anonymous users may self-register via the tenant short URL.
     /// </summary>
     public bool AllowSelfRegistration { get; private set; }
 
@@ -222,20 +222,16 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         ModifiedAt = DateTime.UtcNow;
     }
 
-    /// <summary>
-    /// Updates self-registration policy. Rejects forbidden default roles (PlatformAdmin, Public,
-    /// non-persisted). Does not verify that <paramref name="defaultRegistrationRoleName"/> exists -
-    /// see <see cref="DefaultRegistrationRoleName"/> for why, and validate at the write boundary.
-    /// </summary>
     public void UpdateSelfRegistrationPolicy(
         bool allowSelfRegistration,
         IReadOnlyList<string>? allowedAuthProviderKeys,
         string defaultRegistrationRoleName)
     {
-        EnsureAllowedDefaultRegistrationRole(defaultRegistrationRoleName);
+        var roleName = defaultRegistrationRoleName.Trim();
+        EnsureAllowedDefaultRegistrationRole(roleName);
 
         AllowSelfRegistration = allowSelfRegistration;
-        DefaultRegistrationRoleName = defaultRegistrationRoleName.Trim();
+        DefaultRegistrationRoleName = roleName;
         var keys = (allowedAuthProviderKeys ?? [])
             .Where(key => !string.IsNullOrWhiteSpace(key))
             .Select(key => key.Trim())
@@ -248,19 +244,8 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     }
 
     /// <summary>
-    /// Validates a candidate default self-registration role and explains any rejection.
+    /// Policy check only — unknown names pass. Existence is the write boundary's job.
     /// </summary>
-    /// <remarks>
-    /// Returns <see cref="Result"/> rather than a bool so the caller can surface <em>why</em> a role
-    /// was refused without re-deriving the conditions - handlers that re-inspect the input duplicate
-    /// this logic and the copies drift. Every message here is author-written and safe to return.
-    /// <para>
-    /// This is a policy check, not an existence check: an unknown name passes. The domain cannot
-    /// reach the identity store, so whoever persists the policy must also confirm the name resolves
-    /// for the tenant, or self-registration will fail at role-assignment time.
-    /// </para>
-    /// </remarks>
-    /// <returns>Success when the role may be used; otherwise <see cref="Result.Invalid(ValidationError)"/>.</returns>
     public static Result ValidateDefaultRegistrationRole(string? roleName)
     {
         if (string.IsNullOrWhiteSpace(roleName))
@@ -300,16 +285,6 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         });
     }
 
-    /// <summary>
-    /// Last-resort invariant for the mutator, which is void and so has no other channel.
-    /// </summary>
-    /// <remarks>
-    /// Throws <see cref="DomainValidationException"/> rather than a bare <see cref="ArgumentException"/>
-    /// so the reason survives to the caller: only <see cref="IEndUserSafeError"/> messages are readable
-    /// through <c>SafeError</c>, and a non-opted-in type is logged as an error with a stack trace rather
-    /// than as a routine rejection. Callers holding caller-supplied input should prefer
-    /// <see cref="ValidateDefaultRegistrationRole"/> and never reach this.
-    /// </remarks>
     private static void EnsureAllowedDefaultRegistrationRole(string? roleName)
     {
         var validation = ValidateDefaultRegistrationRole(roleName);

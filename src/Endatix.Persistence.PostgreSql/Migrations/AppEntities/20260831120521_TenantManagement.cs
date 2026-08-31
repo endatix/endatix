@@ -59,8 +59,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 maxLength: 8,
                 nullable: true);
 
-            // Opaque 8-char lowercase-alphanumeric ids. md5() already returns lowercase hex, which
-            // is a subset of ShortUrl.Alphabet. Not derived from the tenant name.
+            // md5 hex is lowercase and a subset of ShortUrl.Alphabet. Not derived from the name.
             migrationBuilder.Sql(
                 """
                 UPDATE "Tenants"
@@ -68,18 +67,31 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 WHERE "ShortUrl" IS NULL OR "ShortUrl" = '';
                 """);
 
-            // 8 hex chars is 32 bits, so a hash collision is unlikely but not impossible; the unique
-            // index below would abort the whole migration. Redraw only the colliding rows.
+            // 8 hex chars is 32 bits. Loop until no duplicates remain before CREATE UNIQUE INDEX.
             migrationBuilder.Sql(
                 """
-                WITH duplicates AS (
-                    SELECT "Id", row_number() OVER (PARTITION BY "ShortUrl" ORDER BY "Id") AS seq
-                    FROM "Tenants"
-                )
-                UPDATE "Tenants" AS t
-                SET "ShortUrl" = substr(md5('tenant-' || t."Id"::text || '-' || d.seq::text), 1, 8)
-                FROM duplicates AS d
-                WHERE d."Id" = t."Id" AND d.seq > 1;
+                DO $$
+                DECLARE
+                    pass int := 0;
+                    remaining int;
+                BEGIN
+                    LOOP
+                        pass := pass + 1;
+                        WITH duplicates AS (
+                            SELECT "Id", row_number() OVER (PARTITION BY "ShortUrl" ORDER BY "Id") AS seq
+                            FROM "Tenants"
+                        )
+                        UPDATE "Tenants" AS t
+                        SET "ShortUrl" = substr(
+                            md5('tenant-' || t."Id"::text || '-' || d.seq::text || '-' || pass::text),
+                            1, 8)
+                        FROM duplicates AS d
+                        WHERE d."Id" = t."Id" AND d.seq > 1;
+
+                        GET DIAGNOSTICS remaining = ROW_COUNT;
+                        EXIT WHEN remaining = 0 OR pass >= 8;
+                    END LOOP;
+                END $$;
                 """);
 
             migrationBuilder.AlterColumn<string>(

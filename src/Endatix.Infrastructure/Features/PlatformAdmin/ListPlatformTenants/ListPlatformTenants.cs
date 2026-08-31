@@ -1,3 +1,4 @@
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
@@ -29,9 +30,10 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
         if (!string.IsNullOrWhiteSpace(search))
         {
             var trimmedSearch = search.Trim();
+            var shortUrlSearch = ShortUrl.Normalize(trimmedSearch)!;
             tenantsQuery = tenantsQuery.Where(tenant =>
                 tenant.Name.Contains(trimmedSearch) ||
-                tenant.ShortUrl.Contains(trimmedSearch) ||
+                tenant.ShortUrl.Contains(shortUrlSearch) ||
                 (tenant.Description != null && tenant.Description.Contains(trimmedSearch)));
         }
 

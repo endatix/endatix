@@ -7,10 +7,7 @@ namespace Endatix.Core.Abstractions;
 public enum ShortUrlKind
 {
     /// <summary>
-    /// 8-character token over a 36-symbol alphabet (~2.8 * 10^12 combinations). Sized for
-    /// aggregates in the 10K-20K range, where collision risk stays negligible and a create can
-    /// simply redraw. Used today for <c>Tenant.ShortUrl</c>; reusable for any entity that needs a
-    /// compact, unguessable URL segment.
+    /// 8-character token over a 36-symbol alphabet. Used for <c>Tenant.ShortUrl</c>.
     /// </summary>
     Standard = 0
 }
