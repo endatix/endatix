@@ -5,6 +5,11 @@ namespace Endatix.Core.Common;
 /// <summary>
 /// Opaque public identifiers for unauthenticated routing (tenant URLs now; forms later).
 /// Not derived from names. Uniqueness is enforced by each aggregate's unique index, not here.
+/// <para>
+/// Distinct from <see cref="Endatix.Core.Abstractions.IHasUrlSlug"/> / <see cref="UrlSlugNormalizer"/>,
+/// which produce readable name-derived slugs for folders and forms. These ids are random and
+/// meaningless on purpose, so they are never normalized and never reserved-word checked.
+/// </para>
 /// </summary>
 public static class PublicId
 {
