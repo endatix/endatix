@@ -49,13 +49,9 @@ public sealed class CreateTenantHandler(
         {
             Entities.Tenant tenant = new(name, shortUrl, request.Description?.Trim())
             {
-                // The settings row keys off the tenant id, so it is assigned up front rather than
-                // stamped by the context on save.
                 Id = idGenerator.CreateId()
             };
 
-            // tenant.created is captured to the outbox inside the save below; there are no in-process
-            // MediatR subscribers, so nothing is published here.
             tenant.RaiseCreated();
             await tenantRepository.AddAsync(tenant, cancellationToken);
 

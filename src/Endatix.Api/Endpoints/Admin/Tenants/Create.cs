@@ -45,7 +45,7 @@ public sealed class Create(IMediator mediator, IConfiguration configuration)
         }
 
         CreateTenantCommand command = new(
-            request.Name!,
+            request.Name ?? string.Empty,
             request.Description,
             request.AllowSelfRegistration,
             request.AllowedAuthProviderKeys,

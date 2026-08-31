@@ -28,10 +28,6 @@ public sealed record TenantDto
 
     public DateTime? ModifiedAt { get; init; }
 
-    /// <summary>
-    /// Projects a tenant aggregate. <paramref name="settings"/> may be null for tenants provisioned before
-    /// settings existed; the self-registration fields then fall back to the persisted defaults.
-    /// </summary>
     public static TenantDto FromEntity(Entities.Tenant tenant, Entities.TenantSettings? settings) => new()
     {
         Id = tenant.Id,

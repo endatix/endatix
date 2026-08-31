@@ -4,9 +4,7 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Core.Events;
 
 /// <summary>
-/// Event dispatched when a new tenant is created. Also an <see cref="IIntegrationEvent"/> — captured to the
-/// outbox and delivered as the <c>tenant.created</c> message by the relay, so provisioning consumers
-/// (billing, search, workspace bootstrap) learn about the tenant in the same transaction that created it.
+/// Outbox <c>tenant.created</c> payload for provisioning consumers.
 /// </summary>
 public sealed class TenantCreatedEvent(Tenant tenant) : DomainEventBase, IIntegrationEvent
 {

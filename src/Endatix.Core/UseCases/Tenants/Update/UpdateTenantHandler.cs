@@ -8,8 +8,7 @@ using Entities = Endatix.Core.Entities;
 namespace Endatix.Core.UseCases.Tenants.Update;
 
 /// <summary>
-/// Handler for partially updating a tenant. The short URL stays immutable: public sign-in and
-/// self-registration URLs are built from it, so renaming a tenant never invalidates links already in the wild.
+/// Handler for partially updating a tenant. The short URL is immutable.
 /// </summary>
 public sealed class UpdateTenantHandler(
     IRepository<Entities.Tenant> tenantRepository,
@@ -55,16 +54,11 @@ public sealed class UpdateTenantHandler(
             return selfRegistrationFailure;
         }
 
-        // Tenant and settings are tracked by the same context, so one save covers both.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(TenantDto.FromEntity(tenant, settings));
     }
 
-    /// <summary>
-    /// Applies the self-registration fields that were provided, keeping the current value for the rest.
-    /// Returns a failed result when the update cannot be applied, otherwise null.
-    /// </summary>
     private static Result<TenantDto>? ApplySelfRegistrationPolicy(
         Entities.TenantSettings? settings,
         UpdateTenantCommand request)

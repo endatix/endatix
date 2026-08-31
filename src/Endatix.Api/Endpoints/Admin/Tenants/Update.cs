@@ -24,7 +24,7 @@ public sealed class Update(IMediator mediator, IConfiguration configuration)
         Summary(s =>
         {
             s.Summary = "Update tenant";
-            s.Description = "Updates the name, description, and self-registration policy of a tenant. The slug cannot be changed.";
+            s.Description = "Updates the name, description, and self-registration policy of a tenant. The short URL cannot be changed.";
             s.Responses[200] = "Tenant updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[403] = "The current user is not a platform administrator.";
@@ -80,7 +80,7 @@ public sealed class UpdateTenantRequest
     public string? Description { get; set; }
 
     /// <summary>
-    /// When set, toggles anonymous self-registration via the tenant slug.
+    /// When set, toggles anonymous self-registration via the tenant short URL.
     /// </summary>
     public bool? AllowSelfRegistration { get; set; }
 

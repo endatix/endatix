@@ -5,13 +5,8 @@ using Microsoft.Extensions.Configuration;
 namespace Endatix.Api.Infrastructure;
 
 /// <summary>
-/// Deployment-level gate for tenant management endpoints.
+/// Deployment-level gate for tenant management endpoints. Disabled → 404 (not 403).
 /// </summary>
-/// <remarks>
-/// The <see cref="FeatureFlags.MultiTenancy"/> flag is deployment-scoped, so it is read straight from
-/// configuration. Disabled deployments answer 404 rather than 403, so a single-tenant install does not
-/// advertise the feature's existence.
-/// </remarks>
 internal static class MultiTenancyGate
 {
     internal const string DisabledMessage = "Multi-tenancy is not enabled on this deployment.";
