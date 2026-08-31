@@ -112,7 +112,7 @@ public class CreateTenantHandlerTests
 
         result.Status.Should().Be(ResultStatus.Created);
         result.Value.ShortUrl.Should().Be(GeneratedShortUrl);
-        await _shortUrlGenerator.Received(2).Create(ShortUrlKind.Standard);
+        _shortUrlGenerator.Received(2).Create(ShortUrlKind.Standard);
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public class CreateTenantHandlerTests
         result.Status.Should().Be(ResultStatus.Error);
         await _tenantRepository.DidNotReceive().AddAsync(Arg.Any<CoreEntities.Tenant>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().BeginTransactionAsync(Arg.Any<CancellationToken>());
-        await _shortUrlGenerator.Received(ShortUrl.CollisionRetries).Create(ShortUrlKind.Standard);
+        _shortUrlGenerator.Received(ShortUrl.CollisionRetries).Create(ShortUrlKind.Standard);
     }
 
     [Fact]

@@ -477,16 +477,16 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 **Isolation vs routing**
 
 - **Authorization** is the signed JWT `tid` (and later optional `act` for assume-tenant). Path segments, headers, and query strings are never trusted for data access.
-- **`Tenant.Slug`** is an **opaque 8-character alphanumeric public id** (alphabet `A-Za-z0-9`, CSPRNG via `IPublicIdGenerator`, letter-heavy). It is unique, immutable, and used only on unauthenticated routes such as `/t/{slug}/signin`. It is **not** derived from the tenant name and is not client-supplied. Lookup is case-insensitive.
+- **`Tenant.ShortUrl`** is an **opaque 8-character lowercase alphanumeric id** (alphabet `a-z0-9`, CSPRNG via `IShortUrlGenerator`, letter-heavy). It is unique, immutable, and used only on unauthenticated routes such as `/t/{shortUrl}/signin`. It is **not** derived from the tenant name and is not client-supplied. Inbound lookup is folded with `ShortUrl.Normalize`, then compared exactly.
 - Numeric `Tenant.Id` stays internal (JWT, FKs, admin APIs). Public lookup must not return it.
 
 **Create/edit**
 
 - PlatformAdmin `POST /admin/tenants` provisions `Tenant` + `TenantSettings` in one transaction and assigns the public id server-side (unique-index retry).
-- `PATCH /admin/tenants/{id}` may change name, description, and self-registration policy. The slug cannot change.
+- `PATCH /admin/tenants/{id}` may change name, description, and self-registration policy. The short URL cannot change.
 - Creating a tenant does **not** add the PlatformAdmin as a member of that tenant.
 
-**Later (not this wave):** assume-tenant (`act` claim, not impersonation), membership-based switch, public GET by slug + tenant-scoped register. Forms can reuse `IPublicIdGenerator` with a `Form.PublicId` column; a polymorphic URLs table is deferred until vanity aliases or redirects are required.
+**Later (not this wave):** assume-tenant (`act` claim, not impersonation), membership-based switch, public GET by short URL + tenant-scoped register. Forms can reuse `IShortUrlGenerator` with a `Form.ShortUrl` column; a polymorphic URLs table is deferred until vanity aliases or redirects are required.
 
 ---
 
@@ -497,4 +497,4 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 | 2026-07 | Submission `StartedAt` for reliable completion duration (distinct from `CreatedAt`); export includes `StartedAt` + computed `DurationSeconds`. See [Submission lifecycle timestamps](#submission-lifecycle-timestamps).                                                                                                                                                                                                                                             |
 | 2026-07 | Domain events: evaluate-before-mutate on aggregates; reporting triggers (`FormDefinitionUpdatedEvent`, `SubmissionUpdatedEvent`) live on entities, not handlers. Documented in [Domain and integration events](#domain-and-integration-events).                                                                                                                                                                                                                     |
 | 2026-08 | Observability: three signals, one mechanism. The OpenTelemetry SDK owns logs, metrics and traces; `OTEL_*` environment variables are authoritative over `appsettings.json`; telemetry is off until an endpoint is configured. Serilog is removed as the logging pipeline and retained only as the rotation implementation behind an optional, off-by-default file provider. **Endatix ships no vendor exporters** — OTLP only. See [Observability](#observability). |
-| 2026-08 | Tenant public id: keep `Tenant.Slug` as a unique immutable `varchar(8)` column; generate with `IPublicIdGenerator` (CSPRNG, `A-Za-z0-9` alphabet, letter-heavy). Do not derive from name. JWT `tid` remains the isolation boundary. See [Multi-tenancy (platform tenants)](#multi-tenancy-platform-tenants). |
+| 2026-08 | Tenant public id: keep `Tenant.ShortUrl` as a unique immutable `varchar(8)` column; generate with `IShortUrlGenerator` (CSPRNG, `a-z0-9` alphabet, letter-heavy). Do not derive from name. JWT `tid` remains the isolation boundary. See [Multi-tenancy (platform tenants)](#multi-tenancy-platform-tenants). |
