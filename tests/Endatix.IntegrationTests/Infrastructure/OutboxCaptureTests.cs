@@ -112,7 +112,7 @@ public sealed class OutboxCaptureTests
         long formDefinitionId;
         using (var ctx = CreateContext())
         {
-            Tenant tenant = new("acme");
+            Tenant tenant = new("acme", "tnntobx1");
             ctx.Set<Tenant>().Add(tenant);
             await ctx.SaveChangesAsync(cancellationToken);
 
@@ -154,7 +154,7 @@ public sealed class OutboxCaptureTests
 
         using (var ctx = CreateContext())
         {
-            Tenant tenant = new("delete-outbox-tenant");
+            Tenant tenant = new("delete-outbox-tenant", "tnntobx2");
             ctx.Set<Tenant>().Add(tenant);
             await ctx.SaveChangesAsync(cancellationToken);
             tenantId = tenant.Id;
@@ -211,7 +211,7 @@ public sealed class OutboxCaptureTests
             cancellationToken);
 
         using var ctx = CreateContext();
-        Tenant tenant = new("restriction-reuse-tenant");
+        Tenant tenant = new("restriction-reuse-tenant", "tnntobx3");
         ctx.Set<Tenant>().Add(tenant);
         await ctx.SaveChangesAsync(cancellationToken);
         // Align ambient tenant with the seeded tenant so query filters see the rows.

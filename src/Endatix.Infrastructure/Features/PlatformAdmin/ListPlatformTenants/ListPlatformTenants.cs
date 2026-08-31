@@ -1,3 +1,4 @@
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
@@ -26,11 +27,12 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             .AsNoTracking()
             .Where(tenant => !tenant.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (ShortUrl.Normalize(search) is string shortUrlSearch)
         {
             var trimmedSearch = search.Trim();
             tenantsQuery = tenantsQuery.Where(tenant =>
                 tenant.Name.Contains(trimmedSearch) ||
+                tenant.ShortUrl.Contains(shortUrlSearch) ||
                 (tenant.Description != null && tenant.Description.Contains(trimmedSearch)));
         }
 
@@ -46,9 +48,11 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             {
                 tenant.Id,
                 tenant.Name,
+                tenant.ShortUrl,
                 tenant.Description,
                 tenant.CreatedAt,
-                tenant.ModifiedAt
+                tenant.ModifiedAt,
+                SelfRegistrationEnabled = tenant.Settings != null && tenant.Settings.AllowSelfRegistration
             })
             .ToListAsync(cancellationToken);
 
@@ -75,11 +79,13 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             .Select(tenant => new PlatformTenantListItem(
                 tenant.Id,
                 tenant.Name,
+                tenant.ShortUrl,
                 tenant.Description,
                 tenant.CreatedAt,
                 tenant.ModifiedAt,
                 formCountsByTenantId.GetValueOrDefault(tenant.Id),
-                submissionCountsByTenantId.GetValueOrDefault(tenant.Id)))
+                submissionCountsByTenantId.GetValueOrDefault(tenant.Id),
+                tenant.SelfRegistrationEnabled))
             .ToList();
 
         return Result.Success(Paged<PlatformTenantListItem>.FromSkipAndTake(

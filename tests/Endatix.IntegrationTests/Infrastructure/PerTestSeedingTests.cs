@@ -37,7 +37,7 @@ public sealed class PerTestSeedingTests
         using (var tenantScope = _fixture.Factory.Services.CreateScope())
         {
             var db = tenantScope.ServiceProvider.GetRequiredService<AppDbContext>();
-            Tenant tenant = new("integration-seed-tenant");
+            Tenant tenant = new("integration-seed-tenant", "tnntseed");
             db.Set<Tenant>().Add(tenant);
             await db.SaveChangesAsync(cancellationToken);
             tenantId = tenant.Id;

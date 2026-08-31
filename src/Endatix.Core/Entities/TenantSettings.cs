@@ -2,7 +2,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Entities;
 
@@ -11,12 +14,16 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public sealed class TenantSettings : IAggregateRoot, ITenantOwned
 {
+    public const string DefaultRegistrationRole = "Respondent";
+
     private string? _slackSettingsJson;
     private SlackSettings? _slackSettings;
     private string? _webHookSettingsJson;
     private WebHookConfiguration? _webHookSettings;
     private string? _customExportsJson;
     private List<CustomExportConfiguration>? _customExports;
+    private string? _allowedAuthProviderKeysJson;
+    private List<string>? _allowedAuthProviderKeys;
 
     private TenantSettings() { } // For EF Core
 
@@ -31,6 +38,8 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         WebHookSettingsJson = webHookSettingsJson;
         CustomExportsJson = customExportsJson;
         RequireFolderAssignment = false;
+        AllowSelfRegistration = false;
+        DefaultRegistrationRoleName = DefaultRegistrationRole;
     }
 
     /// <summary>
@@ -55,6 +64,46 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     /// When true, forms and templates must be assigned to a folder on create/update.
     /// </summary>
     public bool RequireFolderAssignment { get; private set; }
+
+    /// <summary>
+    /// When true, anonymous users may self-register via the tenant short URL.
+    /// </summary>
+    public bool AllowSelfRegistration { get; private set; }
+
+    /// <summary>
+    /// JSON array of host auth provider keys allowed for self-registration. Empty means none.
+    /// </summary>
+    public string? AllowedAuthProviderKeysJson
+    {
+        get => _allowedAuthProviderKeysJson;
+        private set
+        {
+            _allowedAuthProviderKeysJson = value;
+            _allowedAuthProviderKeys = null;
+        }
+    }
+
+    [NotMapped]
+    public IReadOnlyList<string> AllowedAuthProviderKeys =>
+        _allowedAuthProviderKeys ??= DeserializeAllowedAuthProviderKeys();
+
+    /// <summary>
+    /// Name of the role assigned on self-registration. Default <see cref="DefaultRegistrationRole"/>.
+    /// <para>
+    /// Held by name, not by foreign key, on purpose. Roles live in <c>AppIdentityDbContext</c> under
+    /// the <c>identity</c> schema with its own migration history, so EF cannot model a relationship
+    /// to them from here. More importantly, a role name does not identify one row: it resolves as
+    /// <c>(name, TenantId)</c> falling back to the global system role (<c>TenantId &lt;= 0</c>), and a
+    /// tenant-scoped copy can appear later. A key pinned at configuration time would keep pointing
+    /// at the row that was current then, while every other lookup moved to the tenant's own copy.
+    /// </para>
+    /// <para>
+    /// Consequence: this name is resolved late and is not guaranteed to match an existing role.
+    /// <see cref="ValidateDefaultRegistrationRole"/> only rejects roles that must never be used;
+    /// callers that persist a policy must check the name actually resolves for the tenant.
+    /// </para>
+    /// </summary>
+    public string DefaultRegistrationRoleName { get; private set; } = DefaultRegistrationRole;
 
     public string? SlackSettingsJson
     {
@@ -171,6 +220,92 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     {
         RequireFolderAssignment = require;
         ModifiedAt = DateTime.UtcNow;
+    }
+
+    public void UpdateSelfRegistrationPolicy(
+        bool allowSelfRegistration,
+        IReadOnlyList<string>? allowedAuthProviderKeys,
+        string defaultRegistrationRoleName)
+    {
+        var roleName = defaultRegistrationRoleName.Trim();
+        EnsureAllowedDefaultRegistrationRole(roleName);
+
+        AllowSelfRegistration = allowSelfRegistration;
+        DefaultRegistrationRoleName = roleName;
+        var keys = (allowedAuthProviderKeys ?? [])
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .Select(key => key.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        // Assign the JSON first: its setter clears the cache, so seed the cache afterwards.
+        AllowedAuthProviderKeysJson = keys.Count == 0 ? null : JsonSerializer.Serialize(keys);
+        _allowedAuthProviderKeys = keys;
+        ModifiedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Policy check only — unknown names pass. Existence is the write boundary's job.
+    /// </summary>
+    public static Result ValidateDefaultRegistrationRole(string? roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName))
+        {
+            return Rejected("A default self-registration role is required.");
+        }
+
+        var candidate = roleName.Trim();
+
+        if (SystemRole.IsPlatformAdminRoleName(candidate))
+        {
+            return Rejected(
+                $"'{candidate}' is a platform-scoped role and cannot be a tenant's self-registration default.");
+        }
+
+        if (string.Equals(candidate, SystemRole.Public.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return Rejected(
+                $"'{candidate}' is the anonymous role and cannot be granted by self-registration.");
+        }
+
+        var systemRole = SystemRole.AllSystemRoles
+            .FirstOrDefault(role => string.Equals(role.Name, candidate, StringComparison.OrdinalIgnoreCase));
+        if (systemRole is not null && !systemRole.IsPersisted)
+        {
+            return Rejected(
+                $"'{candidate}' is not a persisted role, so it cannot be assigned on self-registration. " +
+                $"Use a persisted tenant role (default: {DefaultRegistrationRole}).");
+        }
+
+        return Result.Success();
+
+        static Result Rejected(string message) => Result.Invalid(new ValidationError
+        {
+            Identifier = nameof(DefaultRegistrationRoleName),
+            ErrorMessage = message
+        });
+    }
+
+    private static void EnsureAllowedDefaultRegistrationRole(string? roleName)
+    {
+        var validation = ValidateDefaultRegistrationRole(roleName);
+        if (validation.IsSuccess)
+        {
+            return;
+        }
+
+        throw new DomainValidationException(
+            validation.ValidationErrors.First().ErrorMessage,
+            nameof(roleName));
+    }
+
+    private List<string> DeserializeAllowedAuthProviderKeys()
+    {
+        if (string.IsNullOrEmpty(AllowedAuthProviderKeysJson))
+        {
+            return [];
+        }
+
+        return JsonSerializer.Deserialize<List<string>>(AllowedAuthProviderKeysJson) ?? [];
     }
 
     private SlackSettings DeserializeSlackSettings()

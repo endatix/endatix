@@ -224,7 +224,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
         await using AppDbContext appDb = CreateAppDbContext();
-        Tenant tenant = new("form-schema-replace-tenant") { Id = TenantId };
+        Tenant tenant = new("form-schema-replace-tenant", "tnntfsrm") { Id = TenantId };
         appDb.Set<Tenant>().Add(tenant);
         await appDb.SaveChangesAsync(cancellationToken);
 

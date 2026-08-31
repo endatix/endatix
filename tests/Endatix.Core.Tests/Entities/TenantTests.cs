@@ -1,0 +1,67 @@
+using Endatix.Core.Common;
+using Endatix.Core.Entities;
+
+namespace Endatix.Core.Tests.Entities;
+
+public class TenantTests
+{
+    private const string ValidShortUrl = "xk9mp2qr";
+
+    [Fact]
+    public void Constructor_ValidNameAndShortUrl_SetsProperties()
+    {
+        var tenant = new Tenant("Acme Surveys", ValidShortUrl, "Demo tenant");
+
+        tenant.Name.Should().Be("Acme Surveys");
+        tenant.ShortUrl.Should().Be(ValidShortUrl);
+        tenant.Description.Should().Be("Demo tenant");
+    }
+
+    [Fact]
+    public void Constructor_EmptyName_ThrowsArgumentException()
+    {
+        var act = () => new Tenant("", ValidShortUrl);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Constructor_NameDerivedSlug_ThrowsArgumentException()
+    {
+        var act = () => new Tenant("Acme Regional Surveys", UrlSlugNormalizer.FromDisplayName("Acme Regional Surveys"));
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData("acme")]           // too short
+    [InlineData("XK9MP2QR")]       // uppercase is outside the alphabet
+    [InlineData("xk9mp2q-")]       // hyphen is outside the alphabet
+    public void Constructor_InvalidShortUrlFormat_ThrowsArgumentException(string shortUrl)
+    {
+        var act = () => new Tenant("Bad", shortUrl);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void UpdateName_ValidName_DoesNotChangeShortUrl()
+    {
+        var tenant = new Tenant("Acme", ValidShortUrl);
+
+        tenant.UpdateName("Acme Corp");
+
+        tenant.Name.Should().Be("Acme Corp");
+        tenant.ShortUrl.Should().Be(ValidShortUrl);
+    }
+
+    [Fact]
+    public void UpdateDescription_SetsDescription()
+    {
+        var tenant = new Tenant("Acme", ValidShortUrl);
+
+        tenant.UpdateDescription("Updated");
+
+        tenant.Description.Should().Be("Updated");
+    }
+}

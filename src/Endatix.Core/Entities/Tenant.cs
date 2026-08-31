@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Ardalis.GuardClauses;
+using Endatix.Core.Common;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Domain;
 
@@ -13,15 +14,34 @@ namespace Endatix.Core.Entities
 
         private Tenant() { } // For EF Core
 
-        public Tenant(string name, string? description = null)
+        /// <summary>
+        /// Creates a tenant with a unique immutable short URL identifier.
+        /// </summary>
+        /// <param name="name">Display name.</param>
+        /// <param name="shortUrl">Server-generated 8-character lowercase alphanumeric identifier. Not derived from <paramref name="name"/>.</param>
+        /// <param name="description">Optional description.</param>
+        public Tenant(string name, string shortUrl, string? description = null)
         {
-            Guard.Against.NullOrEmpty(name, nameof(name));
+            Guard.Against.NullOrEmpty(name);
+            Guard.Against.NullOrEmpty(shortUrl);
+            Guard.Against.InvalidInput(
+                shortUrl,
+                nameof(shortUrl),
+                value => Common.ShortUrl.IsValid(value),
+                "ShortUrl must be an 8-character lowercase alphanumeric identifier.");
 
             Name = name;
+            ShortUrl = shortUrl;
             Description = description;
         }
 
-        public string Name { get; private set; } = null!;
+        public string Name { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// Unique short URL for unauthenticated discovery. Immutable after create.
+        /// </summary>
+        public string ShortUrl { get; private set; } = string.Empty;
+
         public string? Description { get; private set; }
 
         public IReadOnlyCollection<Form> Forms => _forms.AsReadOnly();
@@ -32,5 +52,22 @@ namespace Endatix.Core.Entities
         public ICollection<User> Users { get; set; } = new List<User>();
 
         public TenantSettings? Settings { get; private set; }
+
+        /// <summary>
+        /// Updates the tenant display name. Does not change <see cref="ShortUrl"/>.
+        /// </summary>
+        public void UpdateName(string name)
+        {
+            Guard.Against.NullOrEmpty(name);
+            Name = name;
+        }
+
+        /// <summary>
+        /// Updates the tenant description.
+        /// </summary>
+        public void UpdateDescription(string? description)
+        {
+            Description = description;
+        }
     }
 }

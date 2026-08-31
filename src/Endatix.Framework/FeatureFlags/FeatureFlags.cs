@@ -44,4 +44,10 @@ public static class FeatureFlags
     /// Feature flag key for enabling the Reporting module (endpoints, DbContext, migrations).
     /// </summary>
     public const string ReportingModule = "ReportingModule";
+
+    /// <summary>
+    /// Feature flag key for enabling multi-tenancy management (create/edit tenants, assume, switch, self-reg).
+    /// Deployment-scoped: PlatformAdmin flows run without a target-tenant evaluation context.
+    /// </summary>
+    public const string MultiTenancy = "MultiTenancy";
 }

@@ -190,4 +190,22 @@ public class FeatureFlagCatalogueTests
             FeatureFlagScope.Deployment,
             "ShouldRegister reads it at startup, where no tenant or user exists");
     }
+
+    [Fact]
+    public void Definitions_MultiTenancy_IsDeploymentScoped()
+    {
+        // Arrange
+        var multiTenancy = FeatureFlagCatalogue.FindByConfigKey(
+            Endatix.Framework.FeatureFlags.FeatureFlags.MultiTenancy);
+
+        // Act
+        var scope = multiTenancy?.Scope;
+
+        // Assert
+        multiTenancy.Should().NotBeNull();
+        multiTenancy!.Key.Should().Be("multi-tenancy");
+        scope.Should().Be(
+            FeatureFlagScope.Deployment,
+            "PlatformAdmin create/assume runs before a target-tenant evaluation context exists");
+    }
 }

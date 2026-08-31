@@ -467,7 +467,7 @@ public sealed class DataListSearchMatchModeTests
             return;
         }
 
-        Tenant tenant = new($"datalist-search-tenant-{tenantId}") { Id = tenantId };
+        Tenant tenant = new($"datalist-search-tenant-{tenantId}", $"dl{tenantId:D6}") { Id = tenantId };
         db.Set<Tenant>().Add(tenant);
         await db.SaveChangesAsync(ct);
     }

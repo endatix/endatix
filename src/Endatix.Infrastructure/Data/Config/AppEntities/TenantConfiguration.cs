@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 
 namespace Endatix.Infrastructure.Data.Config.AppEntities;
@@ -7,6 +8,8 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 {
+    public const string UniqueShortUrlIndexName = "IX_Tenants_ShortUrl";
+
     public void Configure(EntityTypeBuilder<Tenant> builder)
     {
         builder.ToTable("Tenants");
@@ -17,6 +20,18 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.Name)
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
+
+        builder.Property(t => t.ShortUrl)
+            .HasMaxLength(ShortUrl.StandardLength)
+            .IsRequired();
+
+        builder.Property(t => t.Description)
+            .HasMaxLength(DataSchemaConstants.MAX_DESCRIPTION_LENGTH)
+            .IsRequired(false);
+
+        builder.HasIndex(t => t.ShortUrl)
+            .IsUnique()
+            .HasDatabaseName(UniqueShortUrlIndexName);
 
         builder.HasMany(t => t.Forms)
             .WithOne(f => f.Tenant)

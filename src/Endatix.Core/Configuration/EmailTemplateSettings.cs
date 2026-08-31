@@ -13,8 +13,12 @@ namespace Endatix.Core.Configuration;
 /// <item>
 /// <see cref="UserInvitation"/> — admin invite (shipped).
 /// Sends an activate-invite link so the invited user can set a password.
+/// Also used when waitlist approval creates a new user.
 /// </item>
 /// </list>
+/// Waitlist templates <see cref="TenantSignupRequestTemplateId"/> (platform admins)
+/// and <see cref="TenantSignupApprovedTemplateId"/> (existing users after approval)
+/// are seeded in AppEntities; they are not account-activation emails.
 /// <para>
 /// <see cref="EmailTemplateConfig.FromAddress"/> is the supported way for hosts to
 /// change the sender without a database edit, until Hub UI/API persist FromAddress
@@ -28,6 +32,17 @@ public class EmailTemplateSettings
     /// Hub lists this name; <see cref="UserInvitation"/> is the config key.
     /// </summary>
     public const string UserInvitationTemplateId = "user-invitation";
+
+    /// <summary>
+    /// Seeded database template name for platform-admin waitlist notifications.
+    /// </summary>
+    public const string TenantSignupRequestTemplateId = "tenant-signup-request";
+
+    /// <summary>
+    /// Seeded database template name for existing users after waitlist approval.
+    /// New users receive <see cref="UserInvitation"/> instead.
+    /// </summary>
+    public const string TenantSignupApprovedTemplateId = "tenant-signup-approved";
 
     /// <summary>
     /// The base URL for Endatix Hub application.

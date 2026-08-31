@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
@@ -40,13 +43,29 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
             return existing.Id;
         }
 
-        Tenant tenant = new(tenantName, description);
+        Tenant tenant = new(tenantName, CreateStableShortUrl(tenantName), description);
         db.Set<Tenant>().Add(tenant);
         await db.SaveChangesAsync(cancellationToken);
 
         await SeedDefaultExportFormatsIfAvailableAsync(scope.ServiceProvider, tenant.Id, cancellationToken);
 
         return tenant.Id;
+    }
+
+    /// <summary>
+    /// Derives a deterministic, valid short URL identifier from the tenant name so re-seeding the
+    /// same tenant keeps the same value while distinct names stay distinct.
+    /// </summary>
+    private static string CreateStableShortUrl(string tenantName)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(tenantName));
+        var shortUrl = new char[ShortUrl.StandardLength];
+        for (var i = 0; i < shortUrl.Length; i++)
+        {
+            shortUrl[i] = ShortUrl.Alphabet[hash[i] % ShortUrl.Alphabet.Length];
+        }
+
+        return new string(shortUrl);
     }
 
     private static async Task SeedDefaultExportFormatsIfAvailableAsync(

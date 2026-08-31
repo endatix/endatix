@@ -64,6 +64,14 @@ public static class FeatureFlagCatalogue
             defaultValue: false,
             flagClass: FeatureFlagClass.Rollout,
             scope: FeatureFlagScope.Deployment),
+
+        // Deployment-scoped: PlatformAdmin create/assume runs before a target-tenant context exists.
+        FeatureFlagDefinition.Boolean(
+            key: "multi-tenancy",
+            configKey: FeatureFlags.MultiTenancy,
+            defaultValue: false,
+            flagClass: FeatureFlagClass.Rollout,
+            scope: FeatureFlagScope.Deployment),
     ];
 
     private static readonly ImmutableDictionary<string, FeatureFlagDefinition> ByKeyIndex =
