@@ -1,11 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Endatix.Framework.Scripts;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     /// <inheritdoc />
-    public partial class TenantShortUrlAndSelfRegistration : Migration
+    public partial class TenantManagement : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -97,6 +98,9 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 table: "Tenants",
                 column: "ShortUrl",
                 unique: true);
+
+            var script = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_tenant_signup_email_templates.sql");
+            migrationBuilder.Sql(script);
         }
 
         /// <inheritdoc />
@@ -131,6 +135,9 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 oldType: "character varying(500)",
                 oldMaxLength: 500,
                 oldNullable: true);
+
+            migrationBuilder.Sql(
+                """DELETE FROM public."EmailTemplates" WHERE "Name" IN ('tenant-signup-request', 'tenant-signup-approved');""");
         }
     }
 }

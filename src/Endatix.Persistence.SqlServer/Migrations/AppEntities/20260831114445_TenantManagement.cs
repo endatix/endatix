@@ -1,3 +1,4 @@
+﻿using Endatix.Framework.Scripts;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -5,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     /// <inheritdoc />
-    public partial class TenantShortUrlAndSelfRegistration : Migration
+    public partial class TenantManagement : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -30,15 +31,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 maxLength: 100,
                 nullable: false,
                 defaultValue: "Respondent");
-
-            // Narrowing nvarchar(max) -> nvarchar(500): trim any pre-existing longer value first so
-            // the AlterColumn below cannot fail with "String or binary data would be truncated".
-            migrationBuilder.Sql(
-                """
-                UPDATE [Tenants]
-                SET [Description] = LEFT([Description], 500)
-                WHERE [Description] IS NOT NULL AND LEN([Description]) > 500;
-                """);
 
             migrationBuilder.AlterColumn<string>(
                 name: "Description",
@@ -101,6 +93,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 table: "Tenants",
                 column: "ShortUrl",
                 unique: true);
+
+            var script = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_tenant_signup_email_templates.sql");
+            migrationBuilder.Sql(script);
         }
 
         /// <inheritdoc />
@@ -135,6 +130,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 oldType: "nvarchar(500)",
                 oldMaxLength: 500,
                 oldNullable: true);
+
+            migrationBuilder.Sql(
+               "DELETE FROM EmailTemplates WHERE Name IN (N'tenant-signup-request', N'tenant-signup-approved');");
         }
     }
 }
