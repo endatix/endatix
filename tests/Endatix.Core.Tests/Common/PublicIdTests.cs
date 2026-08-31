@@ -8,7 +8,7 @@ public class PublicIdTests
     public void IsValidTenantSlug_EightAlphabetChars_ReturnsTrue()
     {
         PublicId.IsValidTenantSlug("xK9mP2qR").Should().BeTrue();
-        PublicId.IsValidTenantSlug("AZaz09_-").Should().BeTrue();
+        PublicId.IsValidTenantSlug("AZaz09xy").Should().BeTrue();
     }
 
     [Theory]
@@ -20,6 +20,8 @@ public class PublicIdTests
     [InlineData("acme-regional-surveys")]
     [InlineData("Bad Slug!!!!")]
     [InlineData("xxxxxxx!")]
+    [InlineData("AZaz09_-")]
+    [InlineData("jj-8VjcR")]
     public void IsValidTenantSlug_Invalid_ReturnsFalse(string? value)
     {
         PublicId.IsValidTenantSlug(value).Should().BeFalse();
@@ -38,7 +40,7 @@ public class PublicIdTests
     [InlineData("abcdefgh", true)]
     [InlineData("abc12345", false)]
     [InlineData("12345678", false)]
-    [InlineData("ab12-_XY", true)]
+    [InlineData("ab12XYZZ", true)]
     [InlineData(null, false)]
     [InlineData("", false)]
     public void IsLetterHeavy_ReturnsExpected(string? value, bool expected)

@@ -48,7 +48,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 maxLength: 8,
                 nullable: true);
 
-            // Opaque YouTube-style 8-char ids (base64url of MD5). Not derived from name.
+            // Opaque 8-char alphanumeric ids (base64 of MD5 with +/= mapped to ABC). Not derived from name.
             migrationBuilder.Sql(
                 """
                 UPDATE [Tenants]
@@ -56,7 +56,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     REPLACE(REPLACE(REPLACE(
                         (SELECT CAST(HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), [Id]))) AS varbinary(max))
                          FOR XML PATH(''), BINARY BASE64),
-                        '+', '-'), '/', '_'), '=', 'A'),
+                        '+', 'A'), '/', 'B'), '=', 'C'),
                     8)
                 WHERE [Slug] IS NULL OR [Slug] = '';
                 """);

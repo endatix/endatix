@@ -12,7 +12,7 @@ public enum PublicIdKind
 }
 
 /// <summary>
-/// Generates cryptographically random public ids (nanoid / YouTube alphabet).
+/// Generates cryptographically random public ids (alphanumeric alphabet).
 /// </summary>
 public interface IPublicIdGenerator
 {

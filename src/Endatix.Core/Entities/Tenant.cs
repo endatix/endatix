@@ -18,7 +18,7 @@ namespace Endatix.Core.Entities
         /// Creates a tenant with a unique immutable public id stored as <see cref="Slug"/>.
         /// </summary>
         /// <param name="name">Display name.</param>
-        /// <param name="slug">Server-generated 8-character YouTube-style public id. Not derived from <paramref name="name"/>.</param>
+        /// <param name="slug">Server-generated 8-character alphanumeric public id. Not derived from <paramref name="name"/>.</param>
         /// <param name="description">Optional description.</param>
         public Tenant(string name, string slug, string? description = null)
         {

@@ -49,17 +49,14 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 maxLength: 8,
                 nullable: true);
 
-            // Opaque YouTube-style 8-char ids (base64url of MD5). Not derived from name.
+            // Opaque 8-char alphanumeric ids (base64 of MD5 with +/= mapped to ABC). Not derived from name.
             migrationBuilder.Sql(
                 """
                 UPDATE "Tenants"
-                SET "Slug" = replace(
-                    translate(
-                        substr(encode(decode(md5('tenant-' || "Id"::text), 'hex'), 'base64'), 1, 8),
-                        '+/',
-                        '-_'),
-                    '=',
-                    'A')
+                SET "Slug" = translate(
+                    substr(encode(decode(md5('tenant-' || "Id"::text), 'hex'), 'base64'), 1, 8),
+                    '+/=',
+                    'ABC')
                 WHERE "Slug" IS NULL OR "Slug" = '';
                 """);
 

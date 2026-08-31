@@ -9,13 +9,14 @@ namespace Endatix.Core.Common;
 public static class PublicId
 {
     /// <summary>
-    /// Nanoid / YouTube URL-safe alphabet (64 symbols).
+    /// URL-safe alphanumeric alphabet (62 symbols). Hyphens and underscores are excluded
+    /// so generated ids stay visually compact (no <c>jj-8VjcR</c>-style tokens).
     /// </summary>
-    public const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    public const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     /// <summary>
     /// Length of tenant public ids stored on <c>Tenant.Slug</c>.
-    /// Short enough for URLs; collision risk is negligible under 10K tenants with a 64-symbol alphabet.
+    /// Short enough for URLs; collision risk is negligible under 10K tenants with a 62-symbol alphabet.
     /// </summary>
     public const int TenantLength = 8;
 
@@ -38,7 +39,7 @@ public static class PublicId
 
     /// <summary>
     /// Returns true when <paramref name="value"/> has more Latin letters than digits.
-    /// Characters outside <c>A-Za-z0-9</c> (e.g. <c>-</c>, <c>_</c>) count toward neither side.
+    /// Characters outside <c>A-Za-z0-9</c> count toward neither side.
     /// </summary>
     public static bool IsLetterHeavy(string? value)
     {

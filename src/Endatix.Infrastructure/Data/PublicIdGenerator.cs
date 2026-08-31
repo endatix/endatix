@@ -6,7 +6,7 @@ namespace Endatix.Infrastructure.Data;
 
 /// <summary>
 /// CSPRNG public-id generator. Uniqueness is the unique index's job; callers retry a few times.
-/// Prefers YouTube-style letter-heavy ids (more letters than digits).
+/// Prefers letter-heavy ids (more letters than digits).
 /// </summary>
 public sealed class PublicIdGenerator : IPublicIdGenerator
 {
