@@ -57,17 +57,32 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 maxLength: 8,
                 nullable: true);
 
-            // Opaque 8-char alphanumeric ids (base64 of MD5 with +/= mapped to ABC). Not derived from name.
+            // Opaque 8-char lowercase-alphanumeric ids. CONVERT style 2 renders the hash as bare
+            // hex; LOWER keeps it inside PublicId.Alphabet. Not derived from the tenant name.
             migrationBuilder.Sql(
                 """
                 UPDATE [Tenants]
-                SET [Slug] = LEFT(
-                    REPLACE(REPLACE(REPLACE(
-                        (SELECT CAST(HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), [Id]))) AS varbinary(max))
-                         FOR XML PATH(''), BINARY BASE64),
-                        '+', 'A'), '/', 'B'), '=', 'C'),
-                    8)
+                SET [Slug] = LOWER(LEFT(
+                    CONVERT(varchar(32), HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), [Id]))), 2),
+                    8))
                 WHERE [Slug] IS NULL OR [Slug] = '';
+                """);
+
+            // 8 hex chars is 32 bits, so a hash collision is unlikely but not impossible; the unique
+            // index below would abort the whole migration. Redraw only the colliding rows.
+            migrationBuilder.Sql(
+                """
+                WITH duplicates AS (
+                    SELECT [Id], ROW_NUMBER() OVER (PARTITION BY [Slug] ORDER BY [Id]) AS seq
+                    FROM [Tenants]
+                )
+                UPDATE t
+                SET [Slug] = LOWER(LEFT(
+                    CONVERT(varchar(32), HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), t.[Id]), '-', d.seq)), 2),
+                    8))
+                FROM [Tenants] AS t
+                INNER JOIN duplicates AS d ON d.[Id] = t.[Id]
+                WHERE d.seq > 1;
                 """);
 
             migrationBuilder.AlterColumn<string>(

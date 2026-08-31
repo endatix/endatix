@@ -9,15 +9,24 @@ namespace Endatix.Core.Common;
 public static class PublicId
 {
     /// <summary>
-    /// URL-safe alphanumeric alphabet (62 symbols). Hyphens and underscores are excluded
-    /// so generated ids stay visually compact (no <c>jj-8VjcR</c>-style tokens).
+    /// URL-safe alphabet: lowercase letters and digits (36 symbols). Hyphens and underscores are
+    /// excluded so generated ids stay visually compact (no <c>jj-8vjcr</c>-style tokens).
+    /// <para>
+    /// Lowercase-only is deliberate. A mixed-case alphabet behaves differently per provider:
+    /// PostgreSQL compares case-sensitively while SQL Server's default collation does not, so
+    /// <c>abcdefgh</c> and <c>ABCDEFGH</c> would be two tenants on one and one tenant on the other.
+    /// Restricting the alphabet makes every stored slug already normalized, so the unique index and
+    /// every lookup mean the same thing on both providers with no collation annotation and no second
+    /// normalized column. Matches <see cref="UrlSlugNormalizer"/>, which also emits lowercase.
+    /// </para>
     /// </summary>
-    public const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    public const string Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
 
     /// <summary>
     /// Length of <see cref="Endatix.Core.Abstractions.PublicIdKind.ShortSlug"/> ids
-    /// (<c>Tenant.Slug</c> today). Eight symbols over a 62-symbol alphabet give ~2.2 * 10^14
-    /// combinations: brief enough for a URL, with negligible collision risk in the 10K-20K range.
+    /// (<c>Tenant.Slug</c> today). Eight symbols over a 36-symbol alphabet give ~2.8 * 10^12
+    /// combinations: brief enough for a URL, with negligible collision risk in the 10K-20K range
+    /// (~4 * 10^-5 at 20K rows, and a create redraws on the unique index anyway).
     /// </summary>
     public const int ShortSlugLength = 8;
 
@@ -36,12 +45,22 @@ public static class PublicId
     /// <summary>
     /// Returns true when <paramref name="value"/> is a well-formed short slug
     /// (<see cref="ShortSlugLength"/> characters drawn from <see cref="Alphabet"/>).
+    /// Strict: uppercase input is rejected rather than folded. Normalize inbound URL segments
+    /// with <see cref="Normalize"/> before validating.
     /// </summary>
     public static bool IsValidShortSlug(string? value) => IsValid(value, ShortSlugLength);
 
     /// <summary>
+    /// Folds a public id taken from a URL or user input into stored form (trimmed, lowercase),
+    /// so a hand-typed <c>/ABC12XYZ</c> still resolves. Returns null for null/whitespace input.
+    /// Persisted values are already normalized, so lookups can compare exactly after this call.
+    /// </summary>
+    public static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+
+    /// <summary>
     /// Returns true when <paramref name="value"/> has more Latin letters than digits.
-    /// Characters outside <c>A-Za-z0-9</c> count toward neither side.
+    /// Characters outside <c>a-z0-9</c> count toward neither side.
     /// </summary>
     public static bool IsLetterHeavy(string? value)
     {

@@ -30,6 +30,17 @@ public class PublicIdGeneratorTests
     }
 
     [Fact]
+    public void Create_ShortSlug_IsAlreadyNormalized()
+    {
+        var value = _sut.Create(PublicIdKind.ShortSlug);
+
+        // Lowercase-only output is what lets the unique index behave the same on
+        // PostgreSQL and on SQL Server's default case-insensitive collation.
+        value.Should().Be(value.ToLowerInvariant());
+        PublicId.Normalize(value).Should().Be(value);
+    }
+
+    [Fact]
     public void Create_ShortSlug_DoesNotMatchNameDerivedSlug()
     {
         var value = _sut.Create(PublicIdKind.ShortSlug);

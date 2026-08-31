@@ -58,15 +58,27 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 maxLength: 8,
                 nullable: true);
 
-            // Opaque 8-char alphanumeric ids (base64 of MD5 with +/= mapped to ABC). Not derived from name.
+            // Opaque 8-char lowercase-alphanumeric ids. md5() already returns lowercase hex, which
+            // is a subset of PublicId.Alphabet. Not derived from the tenant name.
             migrationBuilder.Sql(
                 """
                 UPDATE "Tenants"
-                SET "Slug" = translate(
-                    substr(encode(decode(md5('tenant-' || "Id"::text), 'hex'), 'base64'), 1, 8),
-                    '+/=',
-                    'ABC')
+                SET "Slug" = substr(md5('tenant-' || "Id"::text), 1, 8)
                 WHERE "Slug" IS NULL OR "Slug" = '';
+                """);
+
+            // 8 hex chars is 32 bits, so a hash collision is unlikely but not impossible; the unique
+            // index below would abort the whole migration. Redraw only the colliding rows.
+            migrationBuilder.Sql(
+                """
+                WITH duplicates AS (
+                    SELECT "Id", row_number() OVER (PARTITION BY "Slug" ORDER BY "Id") AS seq
+                    FROM "Tenants"
+                )
+                UPDATE "Tenants" AS t
+                SET "Slug" = substr(md5('tenant-' || t."Id"::text || '-' || d.seq::text), 1, 8)
+                FROM duplicates AS d
+                WHERE d."Id" = t."Id" AND d.seq > 1;
                 """);
 
             migrationBuilder.AlterColumn<string>(

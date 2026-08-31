@@ -5,7 +5,7 @@ namespace Endatix.Core.Tests.Entities;
 
 public class TenantTests
 {
-    private const string ValidSlug = "xK9mP2qR";
+    private const string ValidSlug = "xk9mp2qr";
 
     [Fact]
     public void Constructor_ValidNameAndPublicId_SetsProperties()
@@ -33,10 +33,13 @@ public class TenantTests
         act.Should().Throw<ArgumentException>();
     }
 
-    [Fact]
-    public void Constructor_InvalidSlugFormat_ThrowsArgumentException()
+    [Theory]
+    [InlineData("acme")]           // too short
+    [InlineData("XK9MP2QR")]       // uppercase is outside the alphabet
+    [InlineData("xk9mp2q-")]       // hyphen is outside the alphabet
+    public void Constructor_InvalidSlugFormat_ThrowsArgumentException(string slug)
     {
-        var act = () => new Tenant("Bad", "acme");
+        var act = () => new Tenant("Bad", slug);
 
         act.Should().Throw<ArgumentException>();
     }
