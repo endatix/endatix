@@ -86,7 +86,20 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         _allowedAuthProviderKeys ??= DeserializeAllowedAuthProviderKeys();
 
     /// <summary>
-    /// Persisted system or custom role assigned on self-registration. Default <see cref="DefaultRegistrationRole"/>.
+    /// Name of the role assigned on self-registration. Default <see cref="DefaultRegistrationRole"/>.
+    /// <para>
+    /// Held by name, not by foreign key, on purpose. Roles live in <c>AppIdentityDbContext</c> under
+    /// the <c>identity</c> schema with its own migration history, so EF cannot model a relationship
+    /// to them from here. More importantly, a role name does not identify one row: it resolves as
+    /// <c>(name, TenantId)</c> falling back to the global system role (<c>TenantId &lt;= 0</c>), and a
+    /// tenant-scoped copy can appear later. A key pinned at configuration time would keep pointing
+    /// at the row that was current then, while every other lookup moved to the tenant's own copy.
+    /// </para>
+    /// <para>
+    /// Consequence: this name is resolved late and is not guaranteed to match an existing role.
+    /// <see cref="IsAllowedDefaultRegistrationRole"/> only rejects roles that must never be used;
+    /// callers that persist a policy must check the name actually resolves for the tenant.
+    /// </para>
     /// </summary>
     public string DefaultRegistrationRoleName { get; private set; } = DefaultRegistrationRole;
 
@@ -208,7 +221,9 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     }
 
     /// <summary>
-    /// Updates self-registration policy. Rejects forbidden default roles (PlatformAdmin, Public, non-persisted).
+    /// Updates self-registration policy. Rejects forbidden default roles (PlatformAdmin, Public,
+    /// non-persisted). Does not verify that <paramref name="defaultRegistrationRoleName"/> exists -
+    /// see <see cref="DefaultRegistrationRoleName"/> for why, and validate at the write boundary.
     /// </summary>
     public void UpdateSelfRegistrationPolicy(
         bool allowSelfRegistration,
@@ -232,7 +247,13 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     }
 
     /// <summary>
-    /// Returns true when the role name may be used as the default self-registration role.
+    /// Returns true when the role name is not one that must never be a self-registration default
+    /// (<c>PlatformAdmin</c>, <c>Public</c>, or a non-persisted system role).
+    /// <para>
+    /// This is a policy check, not an existence check: an unknown name passes. The domain cannot
+    /// reach the identity store, so whoever persists the policy must confirm the name resolves for
+    /// the tenant, or self-registration will fail at role-assignment time.
+    /// </para>
     /// </summary>
     public static bool IsAllowedDefaultRegistrationRole(string roleName)
     {
