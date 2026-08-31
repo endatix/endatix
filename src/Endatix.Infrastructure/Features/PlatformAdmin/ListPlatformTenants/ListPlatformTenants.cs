@@ -27,10 +27,9 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             .AsNoTracking()
             .Where(tenant => !tenant.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (ShortUrl.Normalize(search) is string shortUrlSearch)
         {
             var trimmedSearch = search.Trim();
-            var shortUrlSearch = ShortUrl.Normalize(trimmedSearch)!;
             tenantsQuery = tenantsQuery.Where(tenant =>
                 tenant.Name.Contains(trimmedSearch) ||
                 tenant.ShortUrl.Contains(shortUrlSearch) ||
