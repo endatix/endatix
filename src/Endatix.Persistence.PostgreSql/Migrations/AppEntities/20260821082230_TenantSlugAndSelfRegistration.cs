@@ -31,6 +31,15 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 nullable: false,
                 defaultValue: "Respondent");
 
+            // Narrowing text -> varchar(500): trim any pre-existing longer value first so the
+            // AlterColumn below cannot fail with "value too long" on a populated database.
+            migrationBuilder.Sql(
+                """
+                UPDATE "Tenants"
+                SET "Description" = LEFT("Description", 500)
+                WHERE "Description" IS NOT NULL AND LENGTH("Description") > 500;
+                """);
+
             migrationBuilder.AlterColumn<string>(
                 name: "Description",
                 table: "Tenants",

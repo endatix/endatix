@@ -24,7 +24,7 @@ namespace Endatix.Core.Entities
         {
             Guard.Against.NullOrEmpty(name, nameof(name));
             Guard.Against.NullOrEmpty(slug, nameof(slug));
-            Guard.Against.InvalidInput(slug, nameof(slug), PublicId.IsValidTenantSlug, "Slug must be an 8-character public id.");
+            Guard.Against.InvalidInput(slug, nameof(slug), PublicId.IsValidShortSlug, "Slug must be an 8-character short-slug public id.");
 
             Name = name;
             Slug = slug;

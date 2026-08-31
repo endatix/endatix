@@ -15,10 +15,11 @@ public static class PublicId
     public const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     /// <summary>
-    /// Length of tenant public ids stored on <c>Tenant.Slug</c>.
-    /// Short enough for URLs; collision risk is negligible under 10K tenants with a 62-symbol alphabet.
+    /// Length of <see cref="Endatix.Core.Abstractions.PublicIdKind.ShortSlug"/> ids
+    /// (<c>Tenant.Slug</c> today). Eight symbols over a 62-symbol alphabet give ~2.2 * 10^14
+    /// combinations: brief enough for a URL, with negligible collision risk in the 10K-20K range.
     /// </summary>
-    public const int TenantLength = 8;
+    public const int ShortSlugLength = 8;
 
     /// <summary>
     /// Draws to attempt when a generated id collides with an existing unique index.
@@ -33,9 +34,10 @@ public static class PublicId
     private static readonly SearchValues<char> AlphabetChars = SearchValues.Create(Alphabet);
 
     /// <summary>
-    /// Returns true when <paramref name="value"/> is an 8-character tenant public id.
+    /// Returns true when <paramref name="value"/> is a well-formed short slug
+    /// (<see cref="ShortSlugLength"/> characters drawn from <see cref="Alphabet"/>).
     /// </summary>
-    public static bool IsValidTenantSlug(string? value) => IsValid(value, TenantLength);
+    public static bool IsValidShortSlug(string? value) => IsValid(value, ShortSlugLength);
 
     /// <summary>
     /// Returns true when <paramref name="value"/> has more Latin letters than digits.

@@ -9,41 +9,41 @@ public class PublicIdGeneratorTests
     private readonly PublicIdGenerator _sut = new();
 
     [Fact]
-    public void Create_Tenant_ReturnsEightAlphabetCharacters()
+    public void Create_ShortSlug_ReturnsShortSlugLengthAlphabetCharacters()
     {
-        var value = _sut.Create(PublicIdKind.Tenant);
+        var value = _sut.Create(PublicIdKind.ShortSlug);
 
-        value.Should().HaveLength(PublicId.TenantLength);
-        PublicId.IsValidTenantSlug(value).Should().BeTrue();
+        value.Should().HaveLength(PublicId.ShortSlugLength);
+        PublicId.IsValidShortSlug(value).Should().BeTrue();
     }
 
     [Fact]
-    public void Create_Tenant_PrefersLetterHeavyIds()
+    public void Create_ShortSlug_PrefersLetterHeavyIds()
     {
         for (var i = 0; i < 50; i++)
         {
-            var value = _sut.Create(PublicIdKind.Tenant);
+            var value = _sut.Create(PublicIdKind.ShortSlug);
 
-            PublicId.IsValidTenantSlug(value).Should().BeTrue();
+            PublicId.IsValidShortSlug(value).Should().BeTrue();
             PublicId.IsLetterHeavy(value).Should().BeTrue();
         }
     }
 
     [Fact]
-    public void Create_Tenant_DoesNotMatchNameDerivedSlug()
+    public void Create_ShortSlug_DoesNotMatchNameDerivedSlug()
     {
-        var value = _sut.Create(PublicIdKind.Tenant);
+        var value = _sut.Create(PublicIdKind.ShortSlug);
 
         value.Should().NotBe(UrlSlugNormalizer.FromDisplayName("Acme Regional Surveys"));
     }
 
     [Fact]
-    public void Create_Tenant_RepeatedDrawsAreUsuallyUnique()
+    public void Create_ShortSlug_RepeatedDrawsAreUsuallyUnique()
     {
         HashSet<string> seen = new(StringComparer.Ordinal);
         for (int i = 0; i < 200; i++)
         {
-            seen.Add(_sut.Create(PublicIdKind.Tenant)).Should().BeTrue();
+            seen.Add(_sut.Create(PublicIdKind.ShortSlug)).Should().BeTrue();
         }
     }
 

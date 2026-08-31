@@ -5,10 +5,10 @@ namespace Endatix.Core.Tests.Common;
 public class PublicIdTests
 {
     [Fact]
-    public void IsValidTenantSlug_EightAlphabetChars_ReturnsTrue()
+    public void IsValidShortSlug_EightAlphabetChars_ReturnsTrue()
     {
-        PublicId.IsValidTenantSlug("xK9mP2qR").Should().BeTrue();
-        PublicId.IsValidTenantSlug("AZaz09xy").Should().BeTrue();
+        PublicId.IsValidShortSlug("xK9mP2qR").Should().BeTrue();
+        PublicId.IsValidShortSlug("AZaz09xy").Should().BeTrue();
     }
 
     [Theory]
@@ -22,17 +22,24 @@ public class PublicIdTests
     [InlineData("xxxxxxx!")]
     [InlineData("AZaz09_-")]
     [InlineData("jj-8VjcR")]
-    public void IsValidTenantSlug_Invalid_ReturnsFalse(string? value)
+    public void IsValidShortSlug_Invalid_ReturnsFalse(string? value)
     {
-        PublicId.IsValidTenantSlug(value).Should().BeFalse();
+        PublicId.IsValidShortSlug(value).Should().BeFalse();
     }
 
     [Fact]
-    public void IsValidTenantSlug_TypicalNameSlug_IsUsuallyWrongLength()
+    public void IsValidShortSlug_TypicalNameSlug_IsUsuallyWrongLength()
     {
         var fromName = UrlSlugNormalizer.FromDisplayName("Acme Regional Surveys");
         fromName.Should().Be("acme-regional-surveys");
-        PublicId.IsValidTenantSlug(fromName).Should().BeFalse();
+        PublicId.IsValidShortSlug(fromName).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShortSlugLength_StaysEight_SoIssuedUrlsRemainStable()
+    {
+        // Changing this invalidates every slug already handed out in a URL.
+        PublicId.ShortSlugLength.Should().Be(8);
     }
 
     [Theory]

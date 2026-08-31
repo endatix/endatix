@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
@@ -40,13 +43,29 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
             return existing.Id;
         }
 
-        Tenant tenant = new(tenantName, description);
+        Tenant tenant = new(tenantName, CreateStableSlug(tenantName), description);
         db.Set<Tenant>().Add(tenant);
         await db.SaveChangesAsync(cancellationToken);
 
         await SeedDefaultExportFormatsIfAvailableAsync(scope.ServiceProvider, tenant.Id, cancellationToken);
 
         return tenant.Id;
+    }
+
+    /// <summary>
+    /// Derives a deterministic, valid public id from the tenant name so re-seeding the same
+    /// tenant keeps the same slug while distinct names stay distinct.
+    /// </summary>
+    private static string CreateStableSlug(string tenantName)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(tenantName));
+        var slug = new char[PublicId.ShortSlugLength];
+        for (var i = 0; i < slug.Length; i++)
+        {
+            slug[i] = PublicId.Alphabet[hash[i] % PublicId.Alphabet.Length];
+        }
+
+        return new string(slug);
     }
 
     private static async Task SeedDefaultExportFormatsIfAvailableAsync(

@@ -22,7 +22,7 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .IsRequired();
 
         builder.Property(t => t.Slug)
-            .HasMaxLength(PublicId.TenantLength)
+            .HasMaxLength(PublicId.ShortSlugLength)
             .IsRequired();
 
         builder.Property(t => t.Description)

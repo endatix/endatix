@@ -15,7 +15,7 @@ public sealed class PublicIdGenerator : IPublicIdGenerator
     {
         int length = kind switch
         {
-            PublicIdKind.Tenant => PublicId.TenantLength,
+            PublicIdKind.ShortSlug => PublicId.ShortSlugLength,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported public id kind.")
         };
 

@@ -1,14 +1,18 @@
 namespace Endatix.Core.Abstractions;
 
 /// <summary>
-/// Kinds of opaque public ids. Length is per kind; uniqueness is per aggregate unique index.
+/// Shapes of opaque public ids. The kind fixes the length; uniqueness is enforced by each
+/// aggregate's own unique index, so the same kind can be reused across entities.
 /// </summary>
 public enum PublicIdKind
 {
     /// <summary>
-    /// Tenant URL token stored on <c>Tenant.Slug</c> (8 characters).
+    /// Short 8-character alphanumeric token for brief public URLs (62^8 ≈ 2.2 * 10^14 combinations).
+    /// Sized for aggregates in the 10K-20K range, where collision risk stays negligible and a
+    /// create can simply redraw. Used today for <c>Tenant.Slug</c>; reusable for any entity that
+    /// needs a compact, non-guessable URL segment.
     /// </summary>
-    Tenant = 0
+    ShortSlug = 0
 }
 
 /// <summary>

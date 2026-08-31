@@ -225,8 +225,9 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
             .Select(key => key.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        _allowedAuthProviderKeys = keys;
+        // Assign the JSON first: its setter clears the cache, so seed the cache afterwards.
         AllowedAuthProviderKeysJson = keys.Count == 0 ? null : JsonSerializer.Serialize(keys);
+        _allowedAuthProviderKeys = keys;
         ModifiedAt = DateTime.UtcNow;
     }
 
