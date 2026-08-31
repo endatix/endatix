@@ -3,7 +3,9 @@ using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Entities;
 
@@ -97,7 +99,7 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     /// </para>
     /// <para>
     /// Consequence: this name is resolved late and is not guaranteed to match an existing role.
-    /// <see cref="IsAllowedDefaultRegistrationRole"/> only rejects roles that must never be used;
+    /// <see cref="ValidateDefaultRegistrationRole"/> only rejects roles that must never be used;
     /// callers that persist a policy must check the name actually resolves for the tenant.
     /// </para>
     /// </summary>
@@ -230,7 +232,6 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         IReadOnlyList<string>? allowedAuthProviderKeys,
         string defaultRegistrationRoleName)
     {
-        Guard.Against.NullOrWhiteSpace(defaultRegistrationRoleName, nameof(defaultRegistrationRoleName));
         EnsureAllowedDefaultRegistrationRole(defaultRegistrationRoleName);
 
         AllowSelfRegistration = allowSelfRegistration;
@@ -247,45 +248,79 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     }
 
     /// <summary>
-    /// Returns true when the role name is not one that must never be a self-registration default
-    /// (<c>PlatformAdmin</c>, <c>Public</c>, or a non-persisted system role).
+    /// Validates a candidate default self-registration role and explains any rejection.
+    /// </summary>
+    /// <remarks>
+    /// Returns <see cref="Result"/> rather than a bool so the caller can surface <em>why</em> a role
+    /// was refused without re-deriving the conditions - handlers that re-inspect the input duplicate
+    /// this logic and the copies drift. Every message here is author-written and safe to return.
     /// <para>
     /// This is a policy check, not an existence check: an unknown name passes. The domain cannot
-    /// reach the identity store, so whoever persists the policy must confirm the name resolves for
-    /// the tenant, or self-registration will fail at role-assignment time.
+    /// reach the identity store, so whoever persists the policy must also confirm the name resolves
+    /// for the tenant, or self-registration will fail at role-assignment time.
     /// </para>
-    /// </summary>
-    public static bool IsAllowedDefaultRegistrationRole(string roleName)
+    /// </remarks>
+    /// <returns>Success when the role may be used; otherwise <see cref="Result.Invalid(ValidationError)"/>.</returns>
+    public static Result ValidateDefaultRegistrationRole(string? roleName)
     {
         if (string.IsNullOrWhiteSpace(roleName))
         {
-            return false;
+            return Rejected("A default self-registration role is required.");
         }
 
-        if (SystemRole.IsPlatformAdminRoleName(roleName) ||
-            string.Equals(roleName, SystemRole.Public.Name, StringComparison.OrdinalIgnoreCase))
+        var candidate = roleName.Trim();
+
+        if (SystemRole.IsPlatformAdminRoleName(candidate))
         {
-            return false;
+            return Rejected(
+                $"'{candidate}' is a platform-scoped role and cannot be a tenant's self-registration default.");
+        }
+
+        if (string.Equals(candidate, SystemRole.Public.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return Rejected(
+                $"'{candidate}' is the anonymous role and cannot be granted by self-registration.");
         }
 
         var systemRole = SystemRole.AllSystemRoles
-            .FirstOrDefault(role => string.Equals(role.Name, roleName, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(role => string.Equals(role.Name, candidate, StringComparison.OrdinalIgnoreCase));
         if (systemRole is not null && !systemRole.IsPersisted)
         {
-            return false;
+            return Rejected(
+                $"'{candidate}' is not a persisted role, so it cannot be assigned on self-registration. " +
+                $"Use a persisted tenant role (default: {DefaultRegistrationRole}).");
         }
 
-        return true;
+        return Result.Success();
+
+        static Result Rejected(string message) => Result.Invalid(new ValidationError
+        {
+            Identifier = nameof(DefaultRegistrationRoleName),
+            ErrorMessage = message
+        });
     }
 
-    private static void EnsureAllowedDefaultRegistrationRole(string roleName)
+    /// <summary>
+    /// Last-resort invariant for the mutator, which is void and so has no other channel.
+    /// </summary>
+    /// <remarks>
+    /// Throws <see cref="DomainValidationException"/> rather than a bare <see cref="ArgumentException"/>
+    /// so the reason survives to the caller: only <see cref="IEndUserSafeError"/> messages are readable
+    /// through <c>SafeError</c>, and a non-opted-in type is logged as an error with a stack trace rather
+    /// than as a routine rejection. Callers holding caller-supplied input should prefer
+    /// <see cref="ValidateDefaultRegistrationRole"/> and never reach this.
+    /// </remarks>
+    private static void EnsureAllowedDefaultRegistrationRole(string? roleName)
     {
-        if (!IsAllowedDefaultRegistrationRole(roleName))
+        var validation = ValidateDefaultRegistrationRole(roleName);
+        if (validation.IsSuccess)
         {
-            throw new ArgumentException(
-                $"Default registration role '{roleName}' is not allowed. Use a persisted tenant role (default: {DefaultRegistrationRole}).",
-                nameof(roleName));
+            return;
         }
+
+        throw new DomainValidationException(
+            validation.ValidationErrors.First().ErrorMessage,
+            nameof(roleName));
     }
 
     private List<string> DeserializeAllowedAuthProviderKeys()

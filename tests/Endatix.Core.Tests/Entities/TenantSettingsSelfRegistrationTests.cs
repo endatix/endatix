@@ -1,5 +1,7 @@
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Tests.Entities;
 
@@ -36,10 +38,57 @@ public class TenantSettingsSelfRegistrationTests
     }
 
     [Theory]
+    [InlineData("Respondent")]
+    [InlineData("Creator")]
+    [InlineData("Admin")]
+    [InlineData("Regional Reviewer")] // custom tenant role: existence is the write boundary's check
+    public void ValidateDefaultRegistrationRole_AllowedRole_ReturnsSuccess(string roleName)
+    {
+        // Act
+        var result = TenantSettings.ValidateDefaultRegistrationRole(roleName);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("PlatformAdmin", "platform-scoped")]
+    [InlineData("Public", "anonymous role")]
+    [InlineData("Authenticated", "not a persisted role")]
+    public void ValidateDefaultRegistrationRole_ForbiddenRole_ExplainsWhy(string roleName, string expectedReason)
+    {
+        // Act
+        var result = TenantSettings.ValidateDefaultRegistrationRole(roleName);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        var error = result.ValidationErrors.Should().ContainSingle().Subject;
+        error.Identifier.Should().Be(nameof(TenantSettings.DefaultRegistrationRoleName));
+        // The caller must not have to re-derive the reason: it names the offending role and the rule.
+        error.ErrorMessage.Should().Contain(roleName).And.Contain(expectedReason);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ValidateDefaultRegistrationRole_BlankRole_ReturnsInvalidRatherThanThrowing(string? roleName)
+    {
+        // Act
+        var result = TenantSettings.ValidateDefaultRegistrationRole(roleName);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.Identifier.Should().Be(nameof(TenantSettings.DefaultRegistrationRoleName));
+    }
+
+    [Theory]
     [InlineData("PlatformAdmin")]
     [InlineData("Public")]
     [InlineData("Authenticated")]
-    public void UpdateSelfRegistrationPolicy_ForbiddenDefaultRole_ThrowsArgumentException(string roleName)
+    [InlineData("")]
+    public void UpdateSelfRegistrationPolicy_ForbiddenDefaultRole_ThrowsEndUserSafeException(string roleName)
     {
         // Arrange
         var settings = new TenantSettings(tenantId: 1);
@@ -51,15 +100,33 @@ public class TenantSettingsSelfRegistrationTests
             defaultRegistrationRoleName: roleName);
 
         // Assert
-        act.Should().Throw<ArgumentException>();
-        TenantSettings.IsAllowedDefaultRegistrationRole(roleName).Should().BeFalse();
+        var thrown = act.Should().Throw<DomainValidationException>().Which;
+        thrown.Should().BeAssignableTo<ArgumentException>("existing catch (ArgumentException) sites must keep working");
+        thrown.Should().BeAssignableTo<IEndUserSafeError>("otherwise the handler masks the reason and logs it as an error");
+
+        // EndUserMessage is held separately so ArgumentException's " (Parameter 'x')" suffix never leaks.
+        thrown.EndUserMessage.Should().NotContain("Parameter");
+        thrown.EndUserMessage.Should().Be(
+            TenantSettings.ValidateDefaultRegistrationRole(roleName).ValidationErrors.Single().ErrorMessage,
+            "the throw and the Result path must not drift apart");
     }
 
     [Fact]
-    public void IsAllowedDefaultRegistrationRole_Respondent_ReturnsTrue()
+    public void UpdateSelfRegistrationPolicy_ForbiddenDefaultRole_LeavesSettingsUnchanged()
     {
-        // Arrange & Act & Assert
-        TenantSettings.IsAllowedDefaultRegistrationRole(SystemRole.Respondent.Name).Should().BeTrue();
-        TenantSettings.IsAllowedDefaultRegistrationRole(SystemRole.Creator.Name).Should().BeTrue();
+        // Arrange
+        var settings = new TenantSettings(tenantId: 1);
+
+        // Act
+        var act = () => settings.UpdateSelfRegistrationPolicy(
+            allowSelfRegistration: true,
+            allowedAuthProviderKeys: ["endatix"],
+            defaultRegistrationRoleName: SystemRole.PlatformAdmin.Name);
+
+        // Assert
+        act.Should().Throw<DomainValidationException>();
+        settings.AllowSelfRegistration.Should().BeFalse();
+        settings.DefaultRegistrationRoleName.Should().Be(TenantSettings.DefaultRegistrationRole);
+        settings.AllowedAuthProviderKeys.Should().BeEmpty();
     }
 }
