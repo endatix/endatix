@@ -62,7 +62,7 @@ public sealed class GetBySlug(IMediator mediator, IMemoryCache cache)
 public sealed class GetPublicTenantRequest
 {
     /// <summary>
-    /// Opaque 8-character YouTube-style public id stored on <c>Tenant.Slug</c>.
+    /// Opaque 8-character alphanumeric public id stored on <c>Tenant.Slug</c>.
     /// </summary>
     public string Slug { get; set; } = string.Empty;
 }
