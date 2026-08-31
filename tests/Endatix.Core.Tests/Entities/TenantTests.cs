@@ -5,22 +5,22 @@ namespace Endatix.Core.Tests.Entities;
 
 public class TenantTests
 {
-    private const string ValidSlug = "xk9mp2qr";
+    private const string ValidShortUrl = "xk9mp2qr";
 
     [Fact]
-    public void Constructor_ValidNameAndPublicId_SetsProperties()
+    public void Constructor_ValidNameAndShortUrl_SetsProperties()
     {
-        var tenant = new Tenant("Acme Surveys", ValidSlug, "Demo tenant");
+        var tenant = new Tenant("Acme Surveys", ValidShortUrl, "Demo tenant");
 
         tenant.Name.Should().Be("Acme Surveys");
-        tenant.Slug.Should().Be(ValidSlug);
+        tenant.ShortUrl.Should().Be(ValidShortUrl);
         tenant.Description.Should().Be("Demo tenant");
     }
 
     [Fact]
     public void Constructor_EmptyName_ThrowsArgumentException()
     {
-        var act = () => new Tenant("", ValidSlug);
+        var act = () => new Tenant("", ValidShortUrl);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -37,28 +37,28 @@ public class TenantTests
     [InlineData("acme")]           // too short
     [InlineData("XK9MP2QR")]       // uppercase is outside the alphabet
     [InlineData("xk9mp2q-")]       // hyphen is outside the alphabet
-    public void Constructor_InvalidSlugFormat_ThrowsArgumentException(string slug)
+    public void Constructor_InvalidShortUrlFormat_ThrowsArgumentException(string shortUrl)
     {
-        var act = () => new Tenant("Bad", slug);
+        var act = () => new Tenant("Bad", shortUrl);
 
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void UpdateName_ValidName_DoesNotChangeSlug()
+    public void UpdateName_ValidName_DoesNotChangeShortUrl()
     {
-        var tenant = new Tenant("Acme", ValidSlug);
+        var tenant = new Tenant("Acme", ValidShortUrl);
 
         tenant.UpdateName("Acme Corp");
 
         tenant.Name.Should().Be("Acme Corp");
-        tenant.Slug.Should().Be(ValidSlug);
+        tenant.ShortUrl.Should().Be(ValidShortUrl);
     }
 
     [Fact]
     public void UpdateDescription_SetsDescription()
     {
-        var tenant = new Tenant("Acme", ValidSlug);
+        var tenant = new Tenant("Acme", ValidShortUrl);
 
         tenant.UpdateDescription("Updated");
 

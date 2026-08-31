@@ -835,16 +835,16 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("Slug")
+                    b.Property<string>("ShortUrl")
                         .IsRequired()
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Slug")
+                    b.HasIndex("ShortUrl")
                         .IsUnique()
-                        .HasDatabaseName("IX_Tenants_Slug");
+                        .HasDatabaseName("IX_Tenants_ShortUrl");
 
                     b.ToTable("Tenants", (string)null);
                 });

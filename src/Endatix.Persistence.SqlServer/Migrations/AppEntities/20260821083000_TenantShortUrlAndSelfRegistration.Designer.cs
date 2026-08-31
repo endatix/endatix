@@ -13,8 +13,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260821083000_TenantSlugAndSelfRegistration")]
-    partial class TenantSlugAndSelfRegistration
+    [Migration("20260821083000_TenantShortUrlAndSelfRegistration")]
+    partial class TenantShortUrlAndSelfRegistration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -833,16 +833,16 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("Slug")
+                    b.Property<string>("ShortUrl")
                         .IsRequired()
                         .HasMaxLength(8)
                         .HasColumnType("nvarchar(8)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Slug")
+                    b.HasIndex("ShortUrl")
                         .IsUnique()
-                        .HasDatabaseName("IX_Tenants_Slug");
+                        .HasDatabaseName("IX_Tenants_ShortUrl");
 
                     b.ToTable("Tenants", (string)null);
                 });

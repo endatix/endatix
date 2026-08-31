@@ -6,7 +6,7 @@ namespace Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
 public sealed record PlatformTenantListItem(
     long Id,
     string Name,
-    string Slug,
+    string ShortUrl,
     string? Description,
     DateTime CreatedAt,
     DateTime? ModifiedAt,

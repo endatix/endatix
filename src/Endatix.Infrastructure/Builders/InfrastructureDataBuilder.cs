@@ -49,7 +49,7 @@ public class InfrastructureDataBuilder
         LogSetupInfo("Configuring data infrastructure with default settings");
 
         Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
-        Services.AddSingleton<IPublicIdGenerator, PublicIdGenerator>();
+        Services.AddSingleton<IShortUrlGenerator, ShortUrlGenerator>();
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
         Services.AddSingleton<EfCoreValueGeneratorFactory>();
         Services.AddSingleton<Endatix.Infrastructure.Features.Outbox.OutboxIntegrationEventDispatcher>();

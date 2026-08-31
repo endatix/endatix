@@ -8,7 +8,7 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 {
-    public const string UniqueSlugIndexName = "IX_Tenants_Slug";
+    public const string UniqueShortUrlIndexName = "IX_Tenants_ShortUrl";
 
     public void Configure(EntityTypeBuilder<Tenant> builder)
     {
@@ -21,17 +21,17 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
 
-        builder.Property(t => t.Slug)
-            .HasMaxLength(PublicId.ShortSlugLength)
+        builder.Property(t => t.ShortUrl)
+            .HasMaxLength(ShortUrl.StandardLength)
             .IsRequired();
 
         builder.Property(t => t.Description)
             .HasMaxLength(DataSchemaConstants.MAX_DESCRIPTION_LENGTH)
             .IsRequired(false);
 
-        builder.HasIndex(t => t.Slug)
+        builder.HasIndex(t => t.ShortUrl)
             .IsUnique()
-            .HasDatabaseName(UniqueSlugIndexName);
+            .HasDatabaseName(UniqueShortUrlIndexName);
 
         builder.HasMany(t => t.Forms)
             .WithOne(f => f.Tenant)

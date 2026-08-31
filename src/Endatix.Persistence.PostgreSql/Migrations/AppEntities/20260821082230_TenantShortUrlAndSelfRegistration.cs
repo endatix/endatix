@@ -5,7 +5,7 @@
 namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     /// <inheritdoc />
-    public partial class TenantSlugAndSelfRegistration : Migration
+    public partial class TenantShortUrlAndSelfRegistration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -52,19 +52,19 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
             // Nullable first so existing rows can be backfilled before the unique index.
             migrationBuilder.AddColumn<string>(
-                name: "Slug",
+                name: "ShortUrl",
                 table: "Tenants",
                 type: "character varying(8)",
                 maxLength: 8,
                 nullable: true);
 
             // Opaque 8-char lowercase-alphanumeric ids. md5() already returns lowercase hex, which
-            // is a subset of PublicId.Alphabet. Not derived from the tenant name.
+            // is a subset of ShortUrl.Alphabet. Not derived from the tenant name.
             migrationBuilder.Sql(
                 """
                 UPDATE "Tenants"
-                SET "Slug" = substr(md5('tenant-' || "Id"::text), 1, 8)
-                WHERE "Slug" IS NULL OR "Slug" = '';
+                SET "ShortUrl" = substr(md5('tenant-' || "Id"::text), 1, 8)
+                WHERE "ShortUrl" IS NULL OR "ShortUrl" = '';
                 """);
 
             // 8 hex chars is 32 bits, so a hash collision is unlikely but not impossible; the unique
@@ -72,17 +72,17 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             migrationBuilder.Sql(
                 """
                 WITH duplicates AS (
-                    SELECT "Id", row_number() OVER (PARTITION BY "Slug" ORDER BY "Id") AS seq
+                    SELECT "Id", row_number() OVER (PARTITION BY "ShortUrl" ORDER BY "Id") AS seq
                     FROM "Tenants"
                 )
                 UPDATE "Tenants" AS t
-                SET "Slug" = substr(md5('tenant-' || t."Id"::text || '-' || d.seq::text), 1, 8)
+                SET "ShortUrl" = substr(md5('tenant-' || t."Id"::text || '-' || d.seq::text), 1, 8)
                 FROM duplicates AS d
                 WHERE d."Id" = t."Id" AND d.seq > 1;
                 """);
 
             migrationBuilder.AlterColumn<string>(
-                name: "Slug",
+                name: "ShortUrl",
                 table: "Tenants",
                 type: "character varying(8)",
                 maxLength: 8,
@@ -93,9 +93,9 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 oldNullable: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Tenants_Slug",
+                name: "IX_Tenants_ShortUrl",
                 table: "Tenants",
-                column: "Slug",
+                column: "ShortUrl",
                 unique: true);
         }
 
@@ -103,7 +103,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "IX_Tenants_Slug",
+                name: "IX_Tenants_ShortUrl",
                 table: "Tenants");
 
             migrationBuilder.DropColumn(
@@ -119,7 +119,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 table: "TenantSettings");
 
             migrationBuilder.DropColumn(
-                name: "Slug",
+                name: "ShortUrl",
                 table: "Tenants");
 
             migrationBuilder.AlterColumn<string>(

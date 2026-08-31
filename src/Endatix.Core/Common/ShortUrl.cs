@@ -1,17 +1,19 @@
 using System.Buffers;
+using Endatix.Core.Abstractions;
 
 namespace Endatix.Core.Common;
 
 /// <summary>
-/// Opaque public identifiers for unauthenticated routing (tenant URLs now; forms later).
+/// Short URL identifiers: compact, globally unique, URL-ready segments for unauthenticated routing
+/// (tenant URLs now; forms later). Optimised for length and uniqueness, not for reading.
 /// Not derived from names. Uniqueness is enforced by each aggregate's unique index, not here.
 /// <para>
-/// Distinct from <see cref="Endatix.Core.Abstractions.IHasUrlSlug"/> / <see cref="UrlSlugNormalizer"/>,
-/// which produce readable name-derived slugs for folders and forms. These ids are random and
-/// meaningless on purpose, so they are never normalized and never reserved-word checked.
+/// Distinct from <see cref="IHasUrlSlug"/> / <see cref="UrlSlugNormalizer"/>, which produce
+/// readable name-derived slugs for folders and forms. Those exist to reveal the name; these exist
+/// to keep it out of the URL, so they are never normalized and never reserved-word checked.
 /// </para>
 /// </summary>
-public static class PublicId
+public static class ShortUrl
 {
     /// <summary>
     /// URL-safe alphabet: lowercase letters and digits (36 symbols). Hyphens and underscores are
@@ -20,44 +22,53 @@ public static class PublicId
     /// Lowercase-only is deliberate. A mixed-case alphabet behaves differently per provider:
     /// PostgreSQL compares case-sensitively while SQL Server's default collation does not, so
     /// <c>abcdefgh</c> and <c>ABCDEFGH</c> would be two tenants on one and one tenant on the other.
-    /// Restricting the alphabet makes every stored slug already normalized, so the unique index and
+    /// Restricting the alphabet makes every stored value already normalized, so the unique index and
     /// every lookup mean the same thing on both providers with no collation annotation and no second
-    /// normalized column. Matches <see cref="UrlSlugNormalizer"/>, which also emits lowercase.
+    /// normalized column.
     /// </para>
     /// </summary>
     public const string Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
 
     /// <summary>
-    /// Length of <see cref="Endatix.Core.Abstractions.PublicIdKind.ShortSlug"/> ids
-    /// (<c>Tenant.Slug</c> today). Eight symbols over a 36-symbol alphabet give ~2.8 * 10^12
-    /// combinations: brief enough for a URL, with negligible collision risk in the 10K-20K range
-    /// (~4 * 10^-5 at 20K rows, and a create redraws on the unique index anyway).
+    /// Length of <see cref="ShortUrlKind.Standard"/> identifiers (<c>Tenant.ShortUrl</c> today).
+    /// Eight symbols over a 36-symbol alphabet give ~2.8 * 10^12 combinations: brief enough for a
+    /// URL, with negligible collision risk in the 10K-20K range (~4 * 10^-5 at 20K rows, and a
+    /// create redraws on the unique index anyway).
     /// </summary>
-    public const int ShortSlugLength = 8;
+    public const int StandardLength = 8;
 
     /// <summary>
-    /// Draws to attempt when a generated id collides with an existing unique index.
+    /// Draws to attempt when a generated identifier collides with an existing unique index.
     /// </summary>
     public const int CollisionRetries = 3;
 
     /// <summary>
-    /// Caps rejection sampling when preferring letter-heavy ids (more letters than digits).
+    /// Caps rejection sampling when preferring letter-heavy identifiers (more letters than digits).
     /// </summary>
     public const int LetterHeavyDrawRetries = 32;
 
     private static readonly SearchValues<char> AlphabetChars = SearchValues.Create(Alphabet);
 
     /// <summary>
-    /// Returns true when <paramref name="value"/> is a well-formed short slug
-    /// (<see cref="ShortSlugLength"/> characters drawn from <see cref="Alphabet"/>).
-    /// Strict: uppercase input is rejected rather than folded. Normalize inbound URL segments
-    /// with <see cref="Normalize"/> before validating.
+    /// Returns the identifier length for <paramref name="kind"/>.
     /// </summary>
-    public static bool IsValidShortSlug(string? value) => IsValid(value, ShortSlugLength);
+    public static int LengthOf(ShortUrlKind kind) => kind switch
+    {
+        ShortUrlKind.Standard => StandardLength,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported short URL kind.")
+    };
 
     /// <summary>
-    /// Folds a public id taken from a URL or user input into stored form (trimmed, lowercase),
-    /// so a hand-typed <c>/ABC12XYZ</c> still resolves. Returns null for null/whitespace input.
+    /// Returns true when <paramref name="value"/> is a well-formed identifier of the given kind.
+    /// Strict: uppercase input is rejected rather than folded. Normalize inbound URL segments with
+    /// <see cref="Normalize"/> before validating.
+    /// </summary>
+    public static bool IsValid(string? value, ShortUrlKind kind = ShortUrlKind.Standard) =>
+        IsValid(value, LengthOf(kind));
+
+    /// <summary>
+    /// Folds an identifier taken from a URL or user input into stored form (trimmed, lowercase), so
+    /// a hand-typed <c>/ABC12XYZ</c> still resolves. Returns null for null/whitespace input.
     /// Persisted values are already normalized, so lookups can compare exactly after this call.
     /// </summary>
     public static string? Normalize(string? value) =>

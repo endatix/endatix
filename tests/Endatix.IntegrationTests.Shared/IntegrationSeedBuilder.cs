@@ -43,7 +43,7 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
             return existing.Id;
         }
 
-        Tenant tenant = new(tenantName, CreateStableSlug(tenantName), description);
+        Tenant tenant = new(tenantName, CreateStableShortUrl(tenantName), description);
         db.Set<Tenant>().Add(tenant);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -53,19 +53,19 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
     }
 
     /// <summary>
-    /// Derives a deterministic, valid public id from the tenant name so re-seeding the same
-    /// tenant keeps the same slug while distinct names stay distinct.
+    /// Derives a deterministic, valid short URL identifier from the tenant name so re-seeding the
+    /// same tenant keeps the same value while distinct names stay distinct.
     /// </summary>
-    private static string CreateStableSlug(string tenantName)
+    private static string CreateStableShortUrl(string tenantName)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(tenantName));
-        var slug = new char[PublicId.ShortSlugLength];
-        for (var i = 0; i < slug.Length; i++)
+        var shortUrl = new char[ShortUrl.StandardLength];
+        for (var i = 0; i < shortUrl.Length; i++)
         {
-            slug[i] = PublicId.Alphabet[hash[i] % PublicId.Alphabet.Length];
+            shortUrl[i] = ShortUrl.Alphabet[hash[i] % ShortUrl.Alphabet.Length];
         }
 
-        return new string(slug);
+        return new string(shortUrl);
     }
 
     private static async Task SeedDefaultExportFormatsIfAvailableAsync(

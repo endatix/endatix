@@ -15,28 +15,33 @@ namespace Endatix.Core.Entities
         private Tenant() { } // For EF Core
 
         /// <summary>
-        /// Creates a tenant with a unique immutable public id stored as <see cref="Slug"/>.
+        /// Creates a tenant with a unique immutable short URL identifier.
         /// </summary>
         /// <param name="name">Display name.</param>
-        /// <param name="slug">Server-generated 8-character alphanumeric public id. Not derived from <paramref name="name"/>.</param>
+        /// <param name="shortUrl">Server-generated 8-character lowercase alphanumeric identifier. Not derived from <paramref name="name"/>.</param>
         /// <param name="description">Optional description.</param>
-        public Tenant(string name, string slug, string? description = null)
+        public Tenant(string name, string shortUrl, string? description = null)
         {
             Guard.Against.NullOrEmpty(name, nameof(name));
-            Guard.Against.NullOrEmpty(slug, nameof(slug));
-            Guard.Against.InvalidInput(slug, nameof(slug), PublicId.IsValidShortSlug, "Slug must be an 8-character short-slug public id.");
+            Guard.Against.NullOrEmpty(shortUrl, nameof(shortUrl));
+            Guard.Against.InvalidInput(
+                shortUrl,
+                nameof(shortUrl),
+                value => Common.ShortUrl.IsValid(value),
+                "ShortUrl must be an 8-character lowercase alphanumeric identifier.");
 
             Name = name;
-            Slug = slug;
+            ShortUrl = shortUrl;
             Description = description;
         }
 
         public string Name { get; private set; } = null!;
 
         /// <summary>
-        /// Unique public identifier for unauthenticated discovery (sign-in / self-reg). Immutable after create.
+        /// Unique short URL identifier for unauthenticated discovery (sign-in / self-reg).
+        /// Immutable after create.
         /// </summary>
-        public string Slug { get; private set; } = null!;
+        public string ShortUrl { get; private set; } = null!;
 
         public string? Description { get; private set; }
 
@@ -50,7 +55,7 @@ namespace Endatix.Core.Entities
         public TenantSettings? Settings { get; private set; }
 
         /// <summary>
-        /// Updates the tenant display name. Does not change <see cref="Slug"/>.
+        /// Updates the tenant display name. Does not change <see cref="ShortUrl"/>.
         /// </summary>
         public void UpdateName(string name)
         {

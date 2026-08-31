@@ -2,13 +2,13 @@ using Endatix.Core.Common;
 
 namespace Endatix.Core.Tests.Common;
 
-public class PublicIdTests
+public class ShortUrlTests
 {
     [Fact]
-    public void IsValidShortSlug_EightAlphabetChars_ReturnsTrue()
+    public void IsValid_EightAlphabetChars_ReturnsTrue()
     {
-        PublicId.IsValidShortSlug("xk9mp2qr").Should().BeTrue();
-        PublicId.IsValidShortSlug("az09wxyz").Should().BeTrue();
+        ShortUrl.IsValid("xk9mp2qr").Should().BeTrue();
+        ShortUrl.IsValid("az09wxyz").Should().BeTrue();
     }
 
     [Theory]
@@ -23,24 +23,24 @@ public class PublicIdTests
     [InlineData("xxxxxxx!")]
     [InlineData("az09wx_-")]
     [InlineData("jj-8vjcr")]
-    public void IsValidShortSlug_Invalid_ReturnsFalse(string? value)
+    public void IsValid_Malformed_ReturnsFalse(string? value)
     {
-        PublicId.IsValidShortSlug(value).Should().BeFalse();
+        ShortUrl.IsValid(value).Should().BeFalse();
     }
 
     [Fact]
-    public void IsValidShortSlug_TypicalNameSlug_IsUsuallyWrongLength()
+    public void IsValid_NameDerivedSlug_ReturnsFalse()
     {
         var fromName = UrlSlugNormalizer.FromDisplayName("Acme Regional Surveys");
         fromName.Should().Be("acme-regional-surveys");
-        PublicId.IsValidShortSlug(fromName).Should().BeFalse();
+        ShortUrl.IsValid(fromName).Should().BeFalse();
     }
 
     [Fact]
-    public void ShortSlugLength_StaysEight_SoIssuedUrlsRemainStable()
+    public void StandardLength_StaysEight_SoIssuedUrlsRemainStable()
     {
         // Changing this invalidates every slug already handed out in a URL.
-        PublicId.ShortSlugLength.Should().Be(8);
+        ShortUrl.StandardLength.Should().Be(8);
     }
 
     [Theory]
@@ -50,16 +50,16 @@ public class PublicIdTests
     [InlineData("   ", null)]
     public void Normalize_FoldsInboundUrlSegmentsToStoredForm(string? value, string? expected)
     {
-        PublicId.Normalize(value).Should().Be(expected);
+        ShortUrl.Normalize(value).Should().Be(expected);
     }
 
     [Fact]
     public void Alphabet_IsLowercaseOnly_SoProviderCollationCannotDiverge()
     {
         // A mixed-case alphabet means PostgreSQL (case-sensitive) and SQL Server (default
-        // case-insensitive collation) disagree on what IX_Tenants_Slug considers a duplicate.
-        PublicId.Alphabet.Should().Be(PublicId.Alphabet.ToLowerInvariant());
-        PublicId.Alphabet.Should().HaveLength(36);
+        // case-insensitive collation) disagree on what IX_Tenants_ShortUrl considers a duplicate.
+        ShortUrl.Alphabet.Should().Be(ShortUrl.Alphabet.ToLowerInvariant());
+        ShortUrl.Alphabet.Should().HaveLength(36);
     }
 
     [Theory]
@@ -72,6 +72,6 @@ public class PublicIdTests
     [InlineData("", false)]
     public void IsLetterHeavy_ReturnsExpected(string? value, bool expected)
     {
-        PublicId.IsLetterHeavy(value).Should().Be(expected);
+        ShortUrl.IsLetterHeavy(value).Should().Be(expected);
     }
 }

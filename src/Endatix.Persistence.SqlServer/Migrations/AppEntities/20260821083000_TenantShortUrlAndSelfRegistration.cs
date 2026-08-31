@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     /// <inheritdoc />
-    public partial class TenantSlugAndSelfRegistration : Migration
+    public partial class TenantShortUrlAndSelfRegistration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -51,21 +51,21 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 oldNullable: true);
 
             migrationBuilder.AddColumn<string>(
-                name: "Slug",
+                name: "ShortUrl",
                 table: "Tenants",
                 type: "nvarchar(8)",
                 maxLength: 8,
                 nullable: true);
 
             // Opaque 8-char lowercase-alphanumeric ids. CONVERT style 2 renders the hash as bare
-            // hex; LOWER keeps it inside PublicId.Alphabet. Not derived from the tenant name.
+            // hex; LOWER keeps it inside ShortUrl.Alphabet. Not derived from the tenant name.
             migrationBuilder.Sql(
                 """
                 UPDATE [Tenants]
-                SET [Slug] = LOWER(LEFT(
+                SET [ShortUrl] = LOWER(LEFT(
                     CONVERT(varchar(32), HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), [Id]))), 2),
                     8))
-                WHERE [Slug] IS NULL OR [Slug] = '';
+                WHERE [ShortUrl] IS NULL OR [ShortUrl] = '';
                 """);
 
             // 8 hex chars is 32 bits, so a hash collision is unlikely but not impossible; the unique
@@ -73,11 +73,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
             migrationBuilder.Sql(
                 """
                 WITH duplicates AS (
-                    SELECT [Id], ROW_NUMBER() OVER (PARTITION BY [Slug] ORDER BY [Id]) AS seq
+                    SELECT [Id], ROW_NUMBER() OVER (PARTITION BY [ShortUrl] ORDER BY [Id]) AS seq
                     FROM [Tenants]
                 )
                 UPDATE t
-                SET [Slug] = LOWER(LEFT(
+                SET [ShortUrl] = LOWER(LEFT(
                     CONVERT(varchar(32), HASHBYTES('MD5', CONCAT('tenant-', CONVERT(varchar(20), t.[Id]), '-', d.seq)), 2),
                     8))
                 FROM [Tenants] AS t
@@ -86,7 +86,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 """);
 
             migrationBuilder.AlterColumn<string>(
-                name: "Slug",
+                name: "ShortUrl",
                 table: "Tenants",
                 type: "nvarchar(8)",
                 maxLength: 8,
@@ -97,9 +97,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 oldNullable: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Tenants_Slug",
+                name: "IX_Tenants_ShortUrl",
                 table: "Tenants",
-                column: "Slug",
+                column: "ShortUrl",
                 unique: true);
         }
 
@@ -107,7 +107,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "IX_Tenants_Slug",
+                name: "IX_Tenants_ShortUrl",
                 table: "Tenants");
 
             migrationBuilder.DropColumn(
@@ -123,7 +123,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 table: "TenantSettings");
 
             migrationBuilder.DropColumn(
-                name: "Slug",
+                name: "ShortUrl",
                 table: "Tenants");
 
             migrationBuilder.AlterColumn<string>(
