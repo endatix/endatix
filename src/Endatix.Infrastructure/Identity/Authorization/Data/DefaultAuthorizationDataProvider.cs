@@ -47,9 +47,7 @@ internal sealed class DefaultAuthorizationDataProvider(
 
             if (!IsUserInAuthorizationTenantScope(user, tenantId))
             {
-                var assumed = actorUserId is long actorId
-                    && actorId == user.Id
-                    && tenantId > 0
+                var assumed = IsAssumeTenantSession(user.Id, actorUserId, user.TenantId, tenantId)
                     && await UserHasPlatformAdminRoleAsync(user.Id, cancellationToken);
                 if (!assumed)
                 {
@@ -76,7 +74,6 @@ internal sealed class DefaultAuthorizationDataProvider(
                 .AsSplitQuery()
                 .AsNoTracking()
                 .ToListAsync(cancellationToken);
-
 
             var assignedRoles = userRoles
                 .Select(r => r.Name!)

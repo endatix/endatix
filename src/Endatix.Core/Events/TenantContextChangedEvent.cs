@@ -1,11 +1,7 @@
-using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Events;
 
-/// <summary>
-/// Outbox event when the active tenant on a session changes (assume, exit, or later switch).
-/// </summary>
 public sealed class TenantContextChangedEvent(
     long actorUserId,
     long fromTenantId,

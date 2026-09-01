@@ -118,7 +118,6 @@ public static class ClaimsPrincipalExtensions
         return null;
     }
 
-
     /// <summary>
     /// Gets the issuer from the claims principal.
     /// </summary>

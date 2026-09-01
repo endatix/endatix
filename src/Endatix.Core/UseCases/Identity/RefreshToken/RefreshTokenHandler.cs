@@ -5,8 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 namespace Endatix.Core.UseCases.Identity.RefreshToken;
 
 /// <summary>
-/// Handles the refresh token logic by validating the refresh token and issuing new access and refresh tokens.
-/// Assumed sessions keep their target tenant and actor claim across refresh.
+/// Handles refresh-token rotation. Assumed sessions keep target tenant and actor claim.
 /// </summary>
 public class RefreshTokenHandler(IAuthService authService, IUserTokenService tokenService) : ICommandHandler<RefreshTokenCommand, Result<AuthTokensDto>>
 {

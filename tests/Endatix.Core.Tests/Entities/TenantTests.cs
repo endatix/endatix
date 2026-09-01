@@ -70,7 +70,7 @@ public class TenantTests
     [Fact]
     public void RaiseContextChanged_RegistersOutboxEvent()
     {
-        var tenant = new Tenant("Acme", ValidSlug);
+        var tenant = new Tenant("Acme", ValidShortUrl);
         var occurredAt = DateTime.UtcNow;
 
         tenant.RaiseContextChanged(7, fromTenantId: 1, TenantContextChangedEvent.KindAssumed, occurredAt);

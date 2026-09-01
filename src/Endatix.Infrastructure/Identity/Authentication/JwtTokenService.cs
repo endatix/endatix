@@ -68,7 +68,7 @@ internal sealed class JwtTokenService : IUserTokenService
         var secret = _endatixJwtOptions.SigningKey;
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var forAudience = string.IsNullOrEmpty(options.Audience)
-            ? _endatixJwtOptions.Audiences.First()
+            ? _endatixJwtOptions.Audiences[0]
             : options.Audience;
 
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
