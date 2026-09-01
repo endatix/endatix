@@ -27,16 +27,14 @@ Copy [`hub/.env.example`](https://github.com/endatix/endatix-hub/blob/main/.env.
 
 ## Runtime vs build
 
-Next.js **inlines** any `NEXT_PUBLIC_*` literal (and anything stuffed into `next.config.env`) when you **build**. Hub’s browser-facing settings are **not** `NEXT_PUBLIC_*`. They are `ENDATIX_*` names resolved **at request time** on the server, then passed into the client tree.
+Next.js **inlines** any `NEXT_PUBLIC_*` environment variable into any JavaScript sent to the browser and this cannot be overrided even if they are set on the process.env as this is the [Next.js's design choice](https://nextjs.org/docs/app/guides/environment-variables#bundling-environment-variables-for-the-browser) on how bundling of env variables (inlining) for the browser should work. 
+
+To better support containerized deployment scenarios like Docker or Kubernetes, the Endatix Hub’s browser-facing settings are deliberately **not** using `NEXT_PUBLIC_*` prefix - instead they use `ENDATIX_*` names resolved **at request time** on the server, then passed into the client tree. This allows you to set them up like standard Node.js environment variables
 
 That means **one Hub image** can talk to different APIs, toggle debug, or swap a SurveyJS licence by changing container env — no rebuild. Changing blob hostnames for `next/image` still needs a rebuild (`images.remotePatterns`). Path prefix (`NEXT_PUBLIC_BASE_PATH`) is still a Next.js public path and is baked at build.
 
 :::tip[Do not use `--build-arg` for the API URL]
 Baking the API origin into the image ties that artifact to one environment. Set `ENDATIX_BASE_URL` (and `ENDATIX_API_URL` if you do not use the default `/api` prefix) at **runtime**.
-:::
-
-:::danger[Do not reintroduce `NEXT_PUBLIC_*` for Hub client config]
-A `NEXT_PUBLIC_` key is compiled into the client bundle. Changing it requires a new image. Licence keys in particular must always be replaceable at runtime.
 :::
 
 ## Request-time client config
