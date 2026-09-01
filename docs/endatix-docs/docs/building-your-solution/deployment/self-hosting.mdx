@@ -200,12 +200,12 @@ Configuration is passed primarily via `appsettings.json` or Environment Override
 |------------------|-------------|---------|
 | `ConnectionStrings__DefaultConnection` | SQL Server connection string | Required |
 | `Security__JwtSigningKey` | Secret used to sign API tokens | Required |
-| `Endatix__Hub__HubBaseUrl` | The public URL of the Hub Front-end | Optional |
+| `Endatix__Hub__HubBaseUrl` | Public Hub origin for email links — [API Hub URL](/docs/configuration/settings/hub-settings) | Optional |
 | `Endatix__Cors__CorsPolicies__0__AllowedOrigins` | Array of CORS URLs allowed | `["*"]` |
 | `Email__SendGridSettings__ApiKey` / `Email__MailgunSettings__ApiKey` | Keys for email delivery integrations | Optional |
 
 ### Endatix Hub (Next.js) Configuration
-Configuration is passed via `.env` or system environment variables.
+Configuration is passed via `.env` or container environment variables. See [Hub environment variables](/docs/developers/hub/environment) for runtime vs build, Helm, and the full catalog.
 
 | Variable | Description |
 |----------|-------------|

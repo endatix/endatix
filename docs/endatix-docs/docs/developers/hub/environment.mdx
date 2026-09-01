@@ -1,0 +1,161 @@
+---
+title: Hub environment variables
+description: Configure Endatix Hub with env vars — required keys, request-time ENDATIX_* client config, deprecated NEXT_PUBLIC fallbacks, and Helm.
+sidebar_label: Environment variables
+sidebar_position: 2
+---
+
+# Hub environment variables
+
+Endatix Hub is a Next.js app. You configure it with **environment variables** (`.env`, Helm, Azure Static Web Apps) — not `appsettings.json`.
+
+The API has its own settings under [Configuration](/docs/configuration/). Need the API to *link back* to Hub in emails? That is [API Hub URL](/docs/configuration/settings/hub-settings), not this page.
+
+Platform admins can **audit** the live Hub runtime on **Platform Admin → Environment**. That page never shows secret values — see [Environment](/docs/end-users/administration/environment).
+
+## How to set values
+
+| How | When it applies |
+| --- | --- |
+| `.env` / `.env.local` | Local `pnpm dev` |
+| Helm / container env / SWA appsettings | A **published** image or Static Web App |
+| `withEndatix(nextConfig, options)` | Rebuild only — cannot retarget an image you already built |
+
+Always wrap Next.js with `export default withEndatix(nextConfig)` so image hosts compile correctly.
+
+Copy [`hub/.env.example`](https://github.com/endatix/endatix-hub/blob/main/.env.example) for the full key list.
+
+## Runtime vs build
+
+Next.js **inlines** any `NEXT_PUBLIC_*` variable into client JavaScript at build time. That cannot be overridden later from `process.env` — see [Next.js environment variables](https://nextjs.org/docs/app/guides/environment-variables#bundling-environment-variables-for-the-browser).
+
+For Docker and Kubernetes, Hub’s browser-facing settings use **`ENDATIX_*` names** resolved **at request time** on the server, then passed into the client tree. You set them like ordinary Node.js environment variables.
+
+That means **one Hub image** can talk to different APIs, toggle debug, or swap a SurveyJS licence by changing container env — no rebuild. Changing blob hostnames for `next/image` still needs a rebuild (`images.remotePatterns`). Path prefix (`NEXT_PUBLIC_BASE_PATH`) is still a Next.js public path and is baked at build.
+
+:::tip[Do not use `--build-arg` for the API URL]
+Baking the API origin into the image ties that artifact to one environment. Set `ENDATIX_BASE_URL` (and `ENDATIX_API_URL` if you do not use the default `/api` prefix) at **runtime**.
+:::
+
+## Request-time client config
+
+On Node boot, Hub copies any **unset** current name from its deprecated `NEXT_PUBLIC_*` counterpart (`applyLegacyPublicEnv`). After that, every reader — layouts, public forms, the Environment admin page — reads **only** `ENDATIX_*`.
+
+Precedence:
+
+1. A non-blank `ENDATIX_*` value always wins.
+2. If `ENDATIX_*` is missing or whitespace-only, the deprecated `NEXT_PUBLIC_*` name fills it **once at process start**.
+3. Consumers never merge the two names at read time. That avoids “current equals default, so legacy wins” bugs.
+
+The SurveyJS Creator licence is **not** part of the public client projection (that HTML is also served on anonymous form routes). It is injected only on the authenticated designer via a server-only reader (`ENDATIX_SURVEY_LICENSE_KEY`).
+
+## Minimum to run
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_BASE_URL` | API origin, no `/api` suffix — e.g. `https://localhost:5001` |
+| `ENDATIX_API_PREFIX` | Optional. Defaults to `/api` |
+| `ENDATIX_API_URL` | Optional complete API URL. Use when `ENDATIX_BASE_URL` is unset (Helm often sets both) |
+| `SESSION_SECRET` | Hub session cookie — `openssl rand -hex 32` |
+| `AUTH_SECRET` | Auth.js — `npx auth secret` |
+| `AUTH_URL` | Public Hub origin behind a proxy (recommended) |
+| `AUTH_TRUST_HOST` | `true` behind a reverse proxy |
+
+## Request-time `ENDATIX_*` variables
+
+These match the groups on **Platform Admin → Environment**. Hosts and flags are shown as values. Keys and the SurveyJS licence are **Set / Not set** only.
+
+### API
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_BASE_URL` | API origin. Combined with prefix to form the URL Hub calls |
+| `ENDATIX_API_PREFIX` | Path prefix. Default `/api` |
+| `ENDATIX_API_URL` | Full API URL. Used when `ENDATIX_BASE_URL` is unset |
+
+No deprecated `NEXT_PUBLIC_*` names for API origin.
+
+### Experimental
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_ENABLE_EXTENSIONS` | SurveyJS extensions (data-list questions, custom widgets). Off in Hub by default; **Helm defaults on** |
+
+No deprecated `NEXT_PUBLIC_*` name.
+
+### Debug
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_IS_DEBUG_MODE` | `"true"` / `"false"` to force debug. When unset, debug follows `NODE_ENV` (on in development, off otherwise) |
+
+Deprecated: `NEXT_PUBLIC_IS_DEBUG_MODE`.
+
+### Analytics (PostHog)
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_POSTHOG_KEY` | Project API key. Shown in full on the Environment page (it already ships to the browser) |
+| `ENDATIX_POSTHOG_HOST` | Capture host. Default `https://us.i.posthog.com` |
+| `ENDATIX_POSTHOG_UI_HOST` | Optional UI host for deep links |
+
+Deprecated: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, `NEXT_PUBLIC_POSTHOG_UI_HOST`.
+
+### reCAPTCHA
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_RECAPTCHA_SITE_KEY` | Google reCAPTCHA v3 site key. Shown in full on the Environment page (it is already public in the browser) |
+
+Deprecated: `NEXT_PUBLIC_RECAPTCHA_SITE_KEY`.
+
+### SurveyJS
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_SURVEY_LICENSE_KEY` | Creator licence. Server-only. Never in the public client config. Environment page: Set / Not set |
+
+Deprecated: `NEXT_PUBLIC_SLK`.
+
+### Submitter labels (optional)
+
+| Variable | Role |
+| --- | --- |
+| `ENDATIX_SUBMITTER_PRIMARY_FILTER_LABEL` | Filter label. Default `Submitter` |
+| `ENDATIX_SUBMITTER_GRID_PROFILE_FIELDS` | Comma-separated profile fields for the submissions grid |
+
+Deprecated: `NEXT_PUBLIC_SUBMITTER_PRIMARY_FILTER_LABEL`, `NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS`. Not shown on the Environment page in v1.
+
+## Deprecated `NEXT_PUBLIC_*` names
+
+Existing self-hosted `.env` files keep working across the rename. Prefer the `ENDATIX_*` names in new deployments.
+
+| Current | Deprecated (boot-time fallback) |
+| --- | --- |
+| `ENDATIX_SURVEY_LICENSE_KEY` | `NEXT_PUBLIC_SLK` |
+| `ENDATIX_RECAPTCHA_SITE_KEY` | `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` |
+| `ENDATIX_POSTHOG_KEY` | `NEXT_PUBLIC_POSTHOG_KEY` |
+| `ENDATIX_POSTHOG_HOST` | `NEXT_PUBLIC_POSTHOG_HOST` |
+| `ENDATIX_POSTHOG_UI_HOST` | `NEXT_PUBLIC_POSTHOG_UI_HOST` |
+| `ENDATIX_IS_DEBUG_MODE` | `NEXT_PUBLIC_IS_DEBUG_MODE` |
+| `ENDATIX_SUBMITTER_PRIMARY_FILTER_LABEL` | `NEXT_PUBLIC_SUBMITTER_PRIMARY_FILTER_LABEL` |
+| `ENDATIX_SUBMITTER_GRID_PROFILE_FIELDS` | `NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS` |
+
+`NEXT_PUBLIC_BASE_PATH` is **not** in this table. It is still Next.js’s public base path and is a build-time setting.
+
+## What else to configure
+
+| Topic | Hub keys (summary) | Details |
+| --- | --- | --- |
+| Sign-in / SSO | `AUTH_KEYCLOAK_*`, `AUTH_GOOGLE_*` | [Authentication](/docs/building-your-solution/authentication/) |
+| File uploads | `STORAGE_PROVIDER`, `STORAGE_AZURE_*`, `STORAGE_S3_*` | [Asset storage](/docs/configuration/asset-storage) |
+| Path prefix | `NEXT_PUBLIC_BASE_PATH` | [Subfolder deployment](/docs/building-your-solution/deployment/subfolder-deployment) |
+| Proxy / TLS | `AUTH_URL`, `AUTH_TRUST_HOST` | [Reverse proxy](/docs/building-your-solution/deployment/reverse-proxy-deployment) |
+| Data-list questions | `ENDATIX_ENABLE_EXTENSIONS` | Off in Hub by default; **Helm defaults on** |
+| Slack, OpenTelemetry, maintenance, robots | See `.env.example` | Optional. Storage and auth stay on their own admin pages |
+
+## Containers
+
+Helm maps `api.baseUrl` → `ENDATIX_BASE_URL`, `api.apiUrl` → `ENDATIX_API_URL`, and `experimental.extensions` → `ENDATIX_ENABLE_EXTENSIONS`. Set those as **pod env**, not Docker build args.
+
+The same rule applies to request-time keys (`ENDATIX_POSTHOG_*`, `ENDATIX_SURVEY_LICENSE_KEY`, `ENDATIX_IS_DEBUG_MODE`, …): change the pod env and recycle the Hub process. Do not bake them into the image.

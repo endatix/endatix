@@ -3,9 +3,9 @@ sidebar_position: 2
 title: Persistence Settings
 ---
 
-# Configuring Persistence Settings in Endatix
+# Persistence Settings
 
-Persistence settings control how Endatix interacts with your database, including which database provider to use, connection strings, and migration behavior.
+These are **Endatix API** settings (`Endatix:Persistence`). They pick the database provider, connection strings, and migration behavior.
 
 ## Configuring the Database Provider
 

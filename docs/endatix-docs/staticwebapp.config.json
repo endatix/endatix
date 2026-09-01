@@ -43,17 +43,27 @@
     },
     {
       "route": "/docs/settings/health-settings",
-      "redirect": "/docs/configuration/settings/health-settings",
+      "redirect": "/docs/configuration/settings/health-checks",
+      "statusCode": 301
+    },
+    {
+      "route": "/docs/configuration/settings/health-settings",
+      "redirect": "/docs/configuration/settings/health-checks",
       "statusCode": 301
     },
     {
       "route": "/docs/settings/jwt-settings",
-      "redirect": "/docs/configuration/settings/jwt-settings",
+      "redirect": "/docs/configuration/settings/auth-settings",
       "statusCode": 301
     },
     {
       "route": "/docs/settings/persistence-settings",
       "redirect": "/docs/configuration/settings/persistence-settings",
+      "statusCode": 301
+    },
+    {
+      "route": "/docs/settings/hub-settings",
+      "redirect": "/docs/configuration/settings/hub-settings",
       "statusCode": 301
     },
     {

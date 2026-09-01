@@ -4,6 +4,10 @@ description: Understand how the Endatix API and the Endatix Hub authentication c
 sidebar_position: 2
 ---
 
+import ThemedImage from "@theme/ThemedImage";
+import OverviewLight from "./auth-settings-overview_light.png";
+import OverviewDark from "./auth-settings-overview_dark.png";
+
 # Auth Settings
 
 Authentication in Endatix runs in two places:
@@ -12,6 +16,15 @@ Authentication in Endatix runs in two places:
 - **Endatix Hub** runs the sign-in experience with NextAuth and bridges external OIDC sessions.
 
 The Platform Admin **Auth Settings** page reads both sides and shows a safe summary without exposing secrets.
+
+1. Sign in as a **platform administrator**.
+2. Open **Platform Admin**.
+3. Under **Configuration**, choose **Auth**.
+
+<ThemedImage
+  alt="Auth Settings showing API authentication, Hub sign-in, and platform admin approval"
+  sources={{ light: OverviewLight, dark: OverviewDark }}
+/>
 
 ## API authentication
 

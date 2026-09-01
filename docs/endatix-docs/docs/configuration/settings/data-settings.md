@@ -3,9 +3,9 @@ sidebar_position: 1
 title: Data Settings
 ---
 
-# Configuring Data Settings in Endatix
+# Data Settings
 
-Data settings control the behavior of the data persistence layer, including database migrations and sample data seeding.
+These are **Endatix API** settings (`Endatix:Data`). They control migrations and sample seeding.
 
 ## Configuration
 

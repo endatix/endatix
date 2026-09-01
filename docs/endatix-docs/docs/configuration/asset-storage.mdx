@@ -11,6 +11,10 @@ import TabItem from "@theme/TabItem";
 
 Endatix stores user-uploaded files and form content assets in external object storage. By keeping large binary data out of the primary application database, you benefit from improved API performance, easier backup management, and the ability to scale to millions of users under heavy load.
 
+:::info[Two configs]
+**Hub** signs browser uploads from Hub env (`STORAGE_*`). The **API** rewrites export URLs and fetches submission files using `Endatix:Storage`. See [Hub environment variables](/docs/developers/hub/environment) and [Storage Settings](/docs/configuration/settings/storage-settings).
+:::
+
 External asset storage enables features that require securely collecting user files at scale:
 - File upload questions and respondent attachments.
 - Signature images and image annotation questions.
@@ -150,6 +154,5 @@ When testing or self-hosting object layers locally inside Docker topologies, alw
 
 ## Next steps:
 
-* [Endatix Hub: Configure Azure BLOB Storage](/docs/developers/hub/azure-storage)
-* [Endatix Hub: Configure RustFS Storage](/docs/developers/hub/rustfs-storage)
-* [Endatix API Storage Configuration Reference](/docs/configuration/settings/storage-settings)
+* [Hub environment variables](/docs/developers/hub/environment)
+* [Endatix API Storage Settings](/docs/configuration/settings/storage-settings)

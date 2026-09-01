@@ -3,9 +3,11 @@ sidebar_position: 3
 title: CORS Settings
 ---
 
-# Configuring CORS Settings in Endatix
+# CORS Settings
 
-This guide will help you configure CORS (Cross-Origin Resource Sharing) settings for the Endatix application. By default if you omit the settings default CORS settings will be applied:
+These are **Endatix API** settings (`Endatix:Cors`). Hub origin for Auth.js is `AUTH_URL` — see [Hub environment variables](/docs/developers/hub/environment).
+
+This guide will help you configure CORS (Cross-Origin Resource Sharing) for the API. By default if you omit the settings default CORS settings will be applied:
 
 - On **Development** - very permissive CORS policy, allowing any origin, header and method, a.k.a. **AllowAll**
 - On **Production** - very restrictive CORS policy, which disables all origins, headers and methods, a.k.a. **DisallowAll**

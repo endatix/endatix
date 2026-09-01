@@ -3,17 +3,19 @@ sidebar_position: 2
 title: Auth Settings
 ---
 
-# Configuring Auth Settings in Endatix
+# Auth Settings
 
-JWT (JSON Web Token) settings control the authentication and authorization mechanisms in Endatix. These settings are essential for securing your API and client interactions, ensuring that only authorized users can access protected resources.
+These are **Endatix API** JWT settings (`Endatix:Auth`). They sign tokens the API issues.
+
+Hub session cookies and Keycloak/Google client env live in [Hub environment variables](/docs/developers/hub/environment). SSO walkthroughs: [Authentication](/docs/building-your-solution/authentication/).
 
 :::warning[Security Note]
 
-:lock: Never expose sensitive JWT settings, like the SigningKey, in public configuration files or the client-side code. Exposing these keys is a security vulnerability that can lead to token forgery, data breaches, or unauthorized access. Always store them securely in environment variables or a dedicated secrets manager.
+:lock: Never expose `SigningKey` in public files or client-side code. Store it in environment variables or a secrets manager.
 
 :::
 
-## Setting Thing Up
+## Configuration
 
 To configure JWT settings, add the following snippet to your appSettings.json file. Ensure the SigningKey and other sensitive values are securely stored:
 
