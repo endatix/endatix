@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Data;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -59,6 +60,9 @@ public class UpdateTenantHandlerTests
         tenant.Name.Should().Be("Renamed");
         tenant.Description.Should().Be("New description");
         result.Value.Name.Should().Be("Renamed");
+        tenant.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<TenantUpdatedEvent>()
+            .Which.EventType.Should().Be("tenant.updated");
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -218,6 +222,7 @@ public class UpdateTenantHandlerTests
         tenant.Name.Should().Be("Acme");
         tenant.Description.Should().Be("Original description");
         settings.DefaultRegistrationRoleName.Should().Be(CoreEntities.TenantSettings.DefaultRegistrationRole);
+        tenant.DomainEvents.Should().BeEmpty();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 

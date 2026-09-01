@@ -82,5 +82,8 @@ namespace Endatix.Core.Entities
         }
 
         public void RaiseCreated() => RegisterDomainEvent(new TenantCreatedEvent(this));
+
+        public void RaiseUpdated(TenantSettings? settings) =>
+            RegisterDomainEvent(new TenantUpdatedEvent(this, settings));
     }
 }

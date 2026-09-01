@@ -39,8 +39,6 @@ public sealed class CreateTenantHandler(
             return Result.Invalid(roleCheck.ValidationErrors);
         }
 
-        // The pre-check only narrows the field - the unique index is the authority, since a
-        // concurrent create can take the candidate between the two. Both outcomes spend one draw.
         for (var attempt = 0; attempt < ShortUrl.CollisionRetries; attempt++)
         {
             var shortUrl = shortUrlGenerator.Create(ShortUrlKind.Standard);
@@ -62,10 +60,6 @@ public sealed class CreateTenantHandler(
         return Result<TenantDto>.Unavailable("Could not allocate a unique tenant short URL. Retry the request.");
     }
 
-    /// <summary>
-    /// Persists the tenant and its settings in one transaction. Returns null when the unique index
-    /// rejected <paramref name="shortUrl"/>, meaning the caller should draw another candidate.
-    /// </summary>
     private async Task<TenantDto?> TryProvisionAsync(
         CreateTenantCommand request,
         string name,

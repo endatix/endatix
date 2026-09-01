@@ -31,8 +31,23 @@ public sealed class UpdateTenantHandler(
             new TenantSpecifications.SettingsByTenantIdSpec(request.TenantId),
             cancellationToken);
 
-        // Validate the whole patch before mutating: both entities are tracked, so a change left
-        // behind on a rejected request would be flushed by the next SaveChanges on this context.
+        var patchResult = ValidatePatch(request, settings);
+        if (!patchResult.IsSuccess)
+        {
+            return patchResult.ToErrorResult<TenantDto>();
+        }
+
+        ApplyPatch(tenant, settings, request, patchResult.Value);
+        tenant.RaiseUpdated(settings);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(TenantDto.FromEntity(tenant, settings));
+    }
+
+    private static Result<TenantPatch> ValidatePatch(
+        UpdateTenantCommand request,
+        Entities.TenantSettings? settings)
+    {
         string? name = null;
         if (request.Name is not null)
         {
@@ -46,28 +61,37 @@ public sealed class UpdateTenantHandler(
         var updatesSelfRegistration = request.AllowSelfRegistration.HasValue
             || request.AllowedAuthProviderKeys is not null
             || request.DefaultRegistrationRoleName is not null;
-        string? registrationRole = null;
-        if (updatesSelfRegistration)
+        if (!updatesSelfRegistration)
         {
-            if (settings is null)
-            {
-                return Result.NotFound("Tenant settings not found.");
-            }
-
-            registrationRole = string.IsNullOrWhiteSpace(request.DefaultRegistrationRoleName)
-                ? settings.DefaultRegistrationRoleName
-                : request.DefaultRegistrationRoleName.Trim();
-
-            var roleCheck = Entities.TenantSettings.ValidateDefaultRegistrationRole(registrationRole);
-            if (!roleCheck.IsSuccess)
-            {
-                return Result.Invalid(roleCheck.ValidationErrors);
-            }
+            return Result.Success(new TenantPatch(name, null));
         }
 
-        if (name is not null)
+        if (settings is null)
         {
-            tenant.UpdateName(name);
+            return Result.NotFound("Tenant settings not found.");
+        }
+
+        var registrationRole = string.IsNullOrWhiteSpace(request.DefaultRegistrationRoleName)
+            ? settings.DefaultRegistrationRoleName
+            : request.DefaultRegistrationRoleName.Trim();
+        var roleCheck = Entities.TenantSettings.ValidateDefaultRegistrationRole(registrationRole);
+        if (!roleCheck.IsSuccess)
+        {
+            return Result.Invalid(roleCheck.ValidationErrors);
+        }
+
+        return Result.Success(new TenantPatch(name, registrationRole));
+    }
+
+    private static void ApplyPatch(
+        Entities.Tenant tenant,
+        Entities.TenantSettings? settings,
+        UpdateTenantCommand request,
+        TenantPatch patch)
+    {
+        if (patch.Name is not null)
+        {
+            tenant.UpdateName(patch.Name);
         }
 
         if (request.Description is not null)
@@ -76,16 +100,14 @@ public sealed class UpdateTenantHandler(
             tenant.UpdateDescription(description.Length == 0 ? null : description);
         }
 
-        if (settings is not null && registrationRole is not null)
+        if (settings is not null && patch.RegistrationRole is not null)
         {
             settings.UpdateSelfRegistrationPolicy(
                 request.AllowSelfRegistration ?? settings.AllowSelfRegistration,
                 request.AllowedAuthProviderKeys ?? settings.AllowedAuthProviderKeys,
-                registrationRole);
+                patch.RegistrationRole);
         }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result.Success(TenantDto.FromEntity(tenant, settings));
     }
+
+    private readonly record struct TenantPatch(string? Name, string? RegistrationRole);
 }

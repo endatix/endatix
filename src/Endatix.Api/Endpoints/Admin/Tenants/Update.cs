@@ -130,7 +130,6 @@ public sealed class UpdateTenantValidator : Validator<UpdateTenantRequest>
                 || request.DefaultRegistrationRoleName is not null)
             .WithMessage("At least one field must be provided.");
 
-        // Measured after trimming, so the validator and the handler judge the same string.
         RuleFor(request => (request.Name ?? string.Empty).Trim())
             .NotEmpty()
             .MinimumLength(DataSchemaConstants.MIN_NAME_LENGTH)

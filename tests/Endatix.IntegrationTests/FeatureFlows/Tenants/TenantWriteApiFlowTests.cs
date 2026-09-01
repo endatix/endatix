@@ -7,10 +7,6 @@ using Endatix.IntegrationTests.Shared;
 
 namespace Endatix.IntegrationTests.FeatureFlows.Tenants;
 
-/// <summary>
-/// Covers what the endpoint unit tests cannot: the PlatformAdmin policy, the generated short URL
-/// clearing the unfiltered unique index, and tenant + settings landing in the same transaction.
-/// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
