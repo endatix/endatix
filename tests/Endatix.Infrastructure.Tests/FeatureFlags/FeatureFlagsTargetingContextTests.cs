@@ -63,6 +63,7 @@ public sealed class FeatureFlagsTargetingContextTests
         public bool IsAnonymous => userId is null;
         public bool IsAuthenticated => userId is not null;
         public string? GetCurrentUserId() => userId;
+        public long? GetActorUserId() => null;
         public User? GetCurrentUser() =>
             userId is null ? null : new User(1, userId, "test@example.com", true);
     }

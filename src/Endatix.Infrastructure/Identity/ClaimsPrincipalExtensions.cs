@@ -99,6 +99,24 @@ public static class ClaimsPrincipalExtensions
         return AuthConstants.DEFAULT_TENANT_ID;
     }
 
+    /// <summary>
+    /// Gets the assume-tenant actor user id, or null when this is a normal membership session.
+    /// </summary>
+    public static long? GetActorUserId(this ClaimsPrincipal principal)
+    {
+        if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
+        {
+            return null;
+        }
+
+        var actorClaim = identity.FindFirst(ClaimNames.Actor);
+        if (actorClaim is not null && long.TryParse(actorClaim.Value, out var actorUserId) && actorUserId > 0)
+        {
+            return actorUserId;
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Gets the issuer from the claims principal.

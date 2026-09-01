@@ -54,6 +54,10 @@ public sealed class DefaultAuthorization(
             return Result.Error("Tenant ID is required");
         }
 
-        return await authorizationDataProvider.GetAuthorizationDataAsync(endatixUserId, tenantId, cancellationToken);
+        return await authorizationDataProvider.GetAuthorizationDataAsync(
+            endatixUserId,
+            tenantId,
+            cancellationToken,
+            principal.GetActorUserId());
     }
 }

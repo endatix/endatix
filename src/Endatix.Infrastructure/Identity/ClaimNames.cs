@@ -33,6 +33,11 @@ public static class ClaimNames
     public const string TenantId = "tid";
 
     /// <summary>
+    /// Acting PlatformAdmin user id on an assume-tenant session. Absent on membership tokens.
+    /// </summary>
+    public const string Actor = "act";
+
+    /// <summary>
     /// Represents a claim for the user's unique identifier.
     /// Uses standard JWT 'sub' (subject) claim for better interoperability.
     /// </summary>

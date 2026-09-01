@@ -5,26 +5,26 @@ using Endatix.Core.Infrastructure.Result;
 namespace Endatix.Core.UseCases.Identity.RefreshToken;
 
 /// <summary>
-/// Handles the refresh token logic by validating the refresh token and issuing new access and refresh tokens.
+/// Handles refresh-token rotation. Remints from the access-token session (tid + optional act).
 /// </summary>
 public class RefreshTokenHandler(IAuthService authService, IUserTokenService tokenService) : ICommandHandler<RefreshTokenCommand, Result<AuthTokensDto>>
 {
     public async Task<Result<AuthTokensDto>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        var accessTokenValidationResult = await tokenService.ValidateAccessTokenAsync(request.AccessToken, validateLifetime: false);
+        var sessionResult = await tokenService.ReadAccessTokenSessionAsync(request.AccessToken, validateLifetime: false);
 
-        if (accessTokenValidationResult.IsInvalid())
+        if (sessionResult.IsInvalid())
         {
-            return Result.Invalid(accessTokenValidationResult.ValidationErrors);
+            return Result.Invalid(sessionResult.ValidationErrors);
         }
 
-        if (!accessTokenValidationResult.IsSuccess)
+        if (!sessionResult.IsSuccess)
         {
             return Result.Error();
         }
 
-        var userId = accessTokenValidationResult.Value;
-        var refreshTokenValidationResult = await authService.ValidateRefreshToken(userId, request.RefreshToken, cancellationToken);
+        var session = sessionResult.Value;
+        var refreshTokenValidationResult = await authService.ValidateRefreshToken(session.UserId, request.RefreshToken, cancellationToken);
 
         if (refreshTokenValidationResult.IsInvalid())
         {
@@ -37,7 +37,9 @@ public class RefreshTokenHandler(IAuthService authService, IUserTokenService tok
         }
 
         var user = refreshTokenValidationResult.Value;
-        var accessToken = tokenService.IssueAccessToken(user);
+        var accessToken = tokenService.IssueAccessToken(
+            user,
+            new AccessTokenIssueOptions(session.TenantId, session.ActorUserId));
         var refreshToken = tokenService.IssueRefreshToken();
 
         await authService.StoreRefreshToken(user.Id, refreshToken.Token, refreshToken.ExpireAt, cancellationToken);

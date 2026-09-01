@@ -58,6 +58,18 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
         return principal.GetUserId();
     }
 
+    /// <inheritdoc/>
+    public long? GetActorUserId()
+    {
+        var principal = httpContextAccessor.HttpContext?.User;
+        if (principal is null)
+        {
+            return null;
+        }
+
+        return principal.GetActorUserId();
+    }
+
     private static long? ExtractUserId(ClaimsPrincipal principal)
     {
         var userId = principal.GetUserId();

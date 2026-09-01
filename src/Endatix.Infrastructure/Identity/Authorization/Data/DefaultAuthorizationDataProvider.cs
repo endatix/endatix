@@ -22,7 +22,11 @@ internal sealed class DefaultAuthorizationDataProvider(
     ILogger<DefaultAuthorizationDataProvider> logger) : IAuthorizationDataProvider
 {
     /// <inheritdoc />
-    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(long userId, long tenantId, CancellationToken cancellationToken)
+    public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(
+        long userId,
+        long tenantId,
+        CancellationToken cancellationToken,
+        long? actorUserId = null)
     {
         var utcNow = dateTimeProvider.Now.UtcDateTime;
 
@@ -43,12 +47,17 @@ internal sealed class DefaultAuthorizationDataProvider(
 
             if (!IsUserInAuthorizationTenantScope(user, tenantId))
             {
-                logger.LogWarning(
-                    "Blocked authorization data request for user {UserId} with mismatched tenant scope {TenantId}. User belongs to tenant {UserTenantId}.",
-                    userId,
-                    tenantId,
-                    user.TenantId);
-                return Result.Forbidden("User does not belong to the requested tenant.");
+                var assumed = IsAssumeTenantSession(user.Id, actorUserId, user.TenantId, tenantId)
+                    && await UserHasPlatformAdminRoleAsync(user.Id, cancellationToken);
+                if (!assumed)
+                {
+                    logger.LogWarning(
+                        "Blocked authorization data request for user {UserId} with mismatched tenant scope {TenantId}. User belongs to tenant {UserTenantId}.",
+                        userId,
+                        tenantId,
+                        user.TenantId);
+                    return Result.Forbidden("User does not belong to the requested tenant.");
+                }
             }
 
             var userRoleIds = identityDbContext.UserRoles
@@ -65,7 +74,6 @@ internal sealed class DefaultAuthorizationDataProvider(
                 .AsSplitQuery()
                 .AsNoTracking()
                 .ToListAsync(cancellationToken);
-
 
             var assignedRoles = userRoles
                 .Select(r => r.Name!)
@@ -100,6 +108,29 @@ internal sealed class DefaultAuthorizationDataProvider(
     internal static bool IsUserInAuthorizationTenantScope(AppUser user, long tenantId)
     {
         return user.TenantId == tenantId;
+    }
+
+    internal static bool IsAssumeTenantSession(long userId, long? actorUserId, long homeTenantId, long requestedTenantId)
+    {
+        return actorUserId is long actorId
+            && actorId == userId
+            && requestedTenantId > 0
+            && homeTenantId != requestedTenantId;
+    }
+
+    private async Task<bool> UserHasPlatformAdminRoleAsync(long userId, CancellationToken cancellationToken)
+    {
+        var platformAdminRoleName = SystemRole.PlatformAdmin.Name;
+        return await identityDbContext.UserRoles
+            .Where(userRole => userRole.UserId == userId)
+            .Join(
+                identityDbContext.Roles,
+                userRole => userRole.RoleId,
+                role => role.Id,
+                (_, role) => role)
+            .AnyAsync(
+                role => role.IsActive && role.Name == platformAdminRoleName,
+                cancellationToken);
     }
 }
 

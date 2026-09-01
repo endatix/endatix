@@ -85,5 +85,12 @@ namespace Endatix.Core.Entities
 
         public void RaiseUpdated(TenantSettings? settings) =>
             RegisterDomainEvent(new TenantUpdatedEvent(this, settings));
+
+        public void RaiseContextChanged(
+            long actorUserId,
+            long fromTenantId,
+            TenantContextChangedEvent.Kind changeKind,
+            DateTime occurredAt)
+            => RegisterDomainEvent(new TenantContextChangedEvent(actorUserId, fromTenantId, Id, changeKind, occurredAt));
     }
 }
