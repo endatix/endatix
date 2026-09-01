@@ -3,28 +3,64 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Core.Events;
 
 /// <summary>
-/// Outbox <c>tenant.context.changed</c>. Kinds: assumed, exited, switched. See ARCHITECTURE.md (JWT session).
+/// Outbox <c>tenant.context.changed</c>. See ARCHITECTURE.md (JWT session).
 /// </summary>
-public sealed class TenantContextChangedEvent(
-    long actorUserId,
-    long fromTenantId,
-    long toTenantId,
-    string changeKind,
-    DateTime occurredAt) : DomainEventBase, IIntegrationEvent
+public sealed class TenantContextChangedEvent : DomainEventBase, IIntegrationEvent
 {
-    public const string KindAssumed = "assumed";
-    public const string KindExited = "exited";
-    public const string KindSwitched = "switched";
+    /// <summary>
+    /// Closed set of wire kinds. Payload still emits <c>changeKind</c> as assumed | exited | switched.
+    /// </summary>
+    public abstract record Kind
+    {
+        private Kind()
+        {
+        }
 
-    public long ActorUserId { get; } = actorUserId;
+        public sealed record Assumed : Kind;
 
-    public long FromTenantId { get; } = fromTenantId;
+        public sealed record Exited : Kind;
 
-    public long ToTenantId { get; } = toTenantId;
+        public sealed record Switched : Kind;
 
-    public string ChangeKind { get; } = changeKind;
+        public string WireValue => this switch
+        {
+            Assumed => "assumed",
+            Exited => "exited",
+            Switched => "switched",
+            _ => throw new InvalidOperationException()
+        };
+    }
 
-    public DateTime OccurredAt { get; } = occurredAt;
+    public static Kind Assumed { get; } = new Kind.Assumed();
+
+    public static Kind Exited { get; } = new Kind.Exited();
+
+    public static Kind Switched { get; } = new Kind.Switched();
+
+    public TenantContextChangedEvent(
+        long actorUserId,
+        long fromTenantId,
+        long toTenantId,
+        Kind changeKind,
+        DateTime occurredAt)
+    {
+        ActorUserId = actorUserId;
+        FromTenantId = fromTenantId;
+        ToTenantId = toTenantId;
+        ChangeKind = changeKind;
+        OccurredAt = occurredAt;
+        DateOccurred = occurredAt;
+    }
+
+    public long ActorUserId { get; }
+
+    public long FromTenantId { get; }
+
+    public long ToTenantId { get; }
+
+    public Kind ChangeKind { get; }
+
+    public DateTime OccurredAt { get; }
 
     /// <inheritdoc />
     public string EventType => "tenant.context.changed";
@@ -35,7 +71,7 @@ public sealed class TenantContextChangedEvent(
         actorUserId = ActorUserId,
         fromTenantId = FromTenantId,
         toTenantId = ToTenantId,
-        changeKind = ChangeKind,
+        changeKind = ChangeKind.WireValue,
         occurredAt = OccurredAt
     };
 }
