@@ -16,19 +16,22 @@ public sealed class TenantContextChangedEvent : DomainEventBase, IIntegrationEve
         {
         }
 
-        public sealed record Assumed : Kind;
+        public abstract string WireValue { get; }
 
-        public sealed record Exited : Kind;
-
-        public sealed record Switched : Kind;
-
-        public string WireValue => this switch
+        public sealed record Assumed : Kind
         {
-            Assumed => "assumed",
-            Exited => "exited",
-            Switched => "switched",
-            _ => throw new InvalidOperationException()
-        };
+            public override string WireValue => "assumed";
+        }
+
+        public sealed record Exited : Kind
+        {
+            public override string WireValue => "exited";
+        }
+
+        public sealed record Switched : Kind
+        {
+            public override string WireValue => "switched";
+        }
     }
 
     public static Kind Assumed { get; } = new Kind.Assumed();
