@@ -12,9 +12,10 @@ Configure Hub with **environment variables**. The API uses `appsettings.json` �
 
 ## Start here
 
-- [Hub environment variables](/docs/developers/hub/environment) — required keys, runtime vs build, Helm
+- [Hub environment variables](/docs/developers/hub/environment) — required keys, request-time `ENDATIX_*`, Helm
+- [Environment](/docs/end-users/administration/environment) — Platform Admin runtime audit (no secret values)
 - [Asset storage](/docs/configuration/asset-storage) — Azure or S3/RustFS for uploads
 - [Authentication](/docs/building-your-solution/authentication/) — JWT, Keycloak, Google
 - [Self-hosting](/docs/building-your-solution/deployment/self-hosting) · [Subfolder](/docs/building-your-solution/deployment/subfolder-deployment) · [Reverse proxy](/docs/building-your-solution/deployment/reverse-proxy-deployment)
 
-Local clone: copy `hub/.env.example`, set the required secrets, run `pnpm dev`. The environment page has the operator story.
+Local clone: copy `hub/.env.example`, set the required secrets, run `pnpm dev`. Platform Admin → Environment shows the live request-time values.

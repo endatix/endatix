@@ -218,6 +218,7 @@ const sidebars: SidebarsConfig = {
         "end-users/administration/platform-admins",
         "end-users/administration/auth-settings",
         "end-users/administration/email-settings",
+        "end-users/administration/environment",
       ],
     },
   ],

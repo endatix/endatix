@@ -1,0 +1,41 @@
+---
+title: Environment
+description: Review Hub runtime configuration from Platform Admin — API, debug, analytics, reCAPTCHA, and SurveyJS licence presence. Secret values are never shown.
+sidebar_label: Environment
+sidebar_position: 4
+---
+
+# Environment
+
+**Environment** is a Platform Admin page in Hub. It is a **runtime audit** of Hub process environment: which API origin this instance talks to, whether experimental features are on, and whether optional keys (PostHog, reCAPTCHA, SurveyJS licence) are set.
+
+You cannot change values here. To change them, update deployment env (Helm, Docker, host `.env`) and recycle Hub.
+
+Storage credentials and authentication secrets stay on their own admin pages. Email stays on [Email Settings](/docs/end-users/administration/email-settings). Developer catalog: [Hub environment variables](/docs/developers/hub/environment).
+
+## Open Environment
+
+1. Sign in as a **platform administrator**.
+2. Open **Platform Admin**.
+3. Under **Configuration**, choose **Environment**.
+
+Tenant admins do not see this page.
+
+## What you see
+
+| Section | Shown | Hidden |
+| --- | --- | --- |
+| **API** | Status, Endatix API URL, origin, prefix | — |
+| **Experimental** | SurveyJS extensions enabled / disabled | — |
+| **Debug** | Debug mode on / off, `NODE_ENV` | — |
+| **Analytics** | PostHog **Set / Not set**, capture host, UI host | Project key |
+| **reCAPTCHA** | Site key **Set / Not set** | Site key value |
+| **SurveyJS** | Creator licence **Set / Not set** | Licence string |
+
+**Set / Not set** means Hub detected a non-empty env var. The page never copies the raw string into the HTML. Tooltips name the env var to change (for example `ENDATIX_POSTHOG_KEY`, `ENDATIX_SURVEY_LICENSE_KEY`).
+
+## Deprecated names
+
+If you still have `NEXT_PUBLIC_IS_DEBUG_MODE`, `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_SLK`, and similar keys, Hub copies them into the `ENDATIX_*` names **once at process start** when the current name is empty. The Environment page then shows the result of that copy — the same values layouts and public forms use.
+
+Prefer `ENDATIX_*` in new deployments. See [Hub environment variables](/docs/developers/hub/environment).
