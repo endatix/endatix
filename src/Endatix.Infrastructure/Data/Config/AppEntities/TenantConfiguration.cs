@@ -8,8 +8,6 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 {
-    public const string UniqueShortUrlIndexName = "IX_Tenants_ShortUrl";
-
     public void Configure(EntityTypeBuilder<Tenant> builder)
     {
         builder.ToTable("Tenants");
@@ -31,7 +29,7 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 
         builder.HasIndex(t => t.ShortUrl)
             .IsUnique()
-            .HasDatabaseName(UniqueShortUrlIndexName);
+            .HasDatabaseName(Tenant.UniqueConstraints.ShortUrl);
 
         builder.HasMany(t => t.Forms)
             .WithOne(f => f.Tenant)

@@ -2,12 +2,23 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Ardalis.GuardClauses;
 using Endatix.Core.Common;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities
 {
     public class Tenant : BaseEntity, IAggregateRoot
     {
+        /// <summary>
+        /// Unique entity constraints that enforce tenant identity.
+        /// Values should be used as domain and database indexes to enforce uniqueness.
+        /// </summary>
+        public static class UniqueConstraints
+        {
+            /// <summary>Unique public short URL across the deployment. Unfiltered: soft-deleted rows still hold theirs.</summary>
+            public const string ShortUrl = "IX_Tenants_ShortUrl";
+        }
+
         private readonly List<Form> _forms = [];
         private readonly List<FormDefinition> _formDefinitions = [];
         private readonly List<Submission> _submissions = [];
@@ -69,5 +80,10 @@ namespace Endatix.Core.Entities
         {
             Description = description;
         }
+
+        public void RaiseCreated() => RegisterDomainEvent(new TenantCreatedEvent(this));
+
+        public void RaiseUpdated(TenantSettings? settings) =>
+            RegisterDomainEvent(new TenantUpdatedEvent(this, settings));
     }
 }
