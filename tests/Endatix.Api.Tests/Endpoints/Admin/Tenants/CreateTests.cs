@@ -18,24 +18,29 @@ public sealed class CreateTests
     [Fact]
     public async Task ExecuteAsync_MultiTenancyDisabled_ReturnsNotFoundWithoutSendingCommand()
     {
+        // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: false);
 
+        // Act
         var response = await endpoint.ExecuteAsync(ValidRequest(), TestContext.Current.CancellationToken);
 
-        var problemResult = response.Result.As<ProblemHttpResult>();
-        problemResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        // Assert
+        response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status404NotFound);
         await _mediator.DidNotReceive().Send(Arg.Any<CreateTenantCommand>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_ValidRequest_ReturnsCreatedTenant()
     {
+        // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: true);
         _mediator.Send(Arg.Any<CreateTenantCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TenantDto>.Created(SampleTenant()));
 
+        // Act
         var response = await endpoint.ExecuteAsync(ValidRequest(), TestContext.Current.CancellationToken);
 
+        // Assert
         var createdResult = response.Result.As<Created<TenantModel>>();
         createdResult.Value!.Id.Should().Be(42);
         createdResult.Value.ShortUrl.Should().Be("xk9mp2qr");
@@ -46,12 +51,15 @@ public sealed class CreateTests
     [Fact]
     public async Task ExecuteAsync_ValidRequest_DoesNotSendClientShortUrl()
     {
+        // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: true);
         _mediator.Send(Arg.Any<CreateTenantCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TenantDto>.Created(SampleTenant()));
 
+        // Act
         await endpoint.ExecuteAsync(ValidRequest(), CancellationToken.None);
 
+        // Assert
         await _mediator.Received(1).Send(
             Arg.Is<CreateTenantCommand>(command =>
                 command.Name == "Acme"
@@ -64,12 +72,15 @@ public sealed class CreateTests
     [Fact]
     public async Task ExecuteAsync_InvalidCommand_ReturnsBadRequestProblem()
     {
+        // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: true);
         _mediator.Send(Arg.Any<CreateTenantCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TenantDto>.Invalid(new ValidationError("Name is required.")));
 
+        // Act
         var response = await endpoint.ExecuteAsync(ValidRequest(), TestContext.Current.CancellationToken);
 
+        // Assert
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 

@@ -197,6 +197,50 @@ public class UpdateTenantHandlerTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task Handle_ValidNameButForbiddenRole_LeavesTenantUnmutated()
+    {
+        // Arrange
+        var tenant = ExistingTenant();
+        var settings = ExistingSettings();
+
+        // Act
+        var result = await _sut.Handle(
+            new UpdateTenantCommand(
+                TENANT_ID,
+                Name: "Renamed",
+                Description: "New description",
+                DefaultRegistrationRoleName: "PlatformAdmin"),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        tenant.Name.Should().Be("Acme");
+        tenant.Description.Should().Be("Original description");
+        settings.DefaultRegistrationRoleName.Should().Be(CoreEntities.TenantSettings.DefaultRegistrationRole);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ValidNameButMissingSettings_LeavesTenantUnmutated()
+    {
+        // Arrange
+        var tenant = ExistingTenant();
+        _tenantSettingsRepository
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.SettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<CoreEntities.TenantSettings?>(null));
+
+        // Act
+        var result = await _sut.Handle(
+            new UpdateTenantCommand(TENANT_ID, Name: "Renamed", AllowSelfRegistration: true),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        tenant.Name.Should().Be("Acme");
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
     private CoreEntities.Tenant ExistingTenant()
     {
         CoreEntities.Tenant tenant = new("Acme", "xk9mp2qr", "Original description") { Id = TENANT_ID };

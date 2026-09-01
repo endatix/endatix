@@ -49,6 +49,9 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Endatix:Data:SeedSampleData", "false");
         builder.UseSetting("Endatix:Data:SeedSampleForms", "false");
 
+        // Deployment-scoped and off by default, so the tenant management endpoints would 404 here.
+        builder.UseSetting("Endatix:FeatureFlags:MultiTenancy", "true");
+
         var auth = IntegrationTestAuthSettings.FromEnvironment();
         builder.UseSetting("Endatix:Auth:Providers:Keycloak:Enabled", "false");
         builder.UseSetting("Endatix:Auth:Providers:EndatixJwt:Enabled", "true");

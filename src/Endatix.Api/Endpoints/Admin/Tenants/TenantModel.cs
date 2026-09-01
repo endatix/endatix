@@ -53,6 +53,21 @@ public sealed record TenantModel
     public DateTime? ModifiedAt { get; init; }
 
     /// <summary>
+    /// OpenAPI response example shared by the tenant endpoints.
+    /// </summary>
+    internal static TenantModel Example { get; } = new()
+    {
+        Id = 1,
+        Name = "Acme",
+        ShortUrl = "xk9mp2qr",
+        Description = "Primary tenant",
+        AllowSelfRegistration = true,
+        AllowedAuthProviderKeys = ["google"],
+        DefaultRegistrationRoleName = "Respondent",
+        CreatedAt = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc)
+    };
+
+    /// <summary>
     /// Maps a tenant use-case DTO to the API model.
     /// </summary>
     public static TenantModel Map(TenantDto tenant) => new()

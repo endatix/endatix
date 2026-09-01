@@ -17,7 +17,8 @@ public sealed class CreateTenantHandler(
     IRepository<Entities.TenantSettings> tenantSettingsRepository,
     IUnitOfWork unitOfWork,
     IIdGenerator<long> idGenerator,
-    IShortUrlGenerator shortUrlGenerator)
+    IShortUrlGenerator shortUrlGenerator,
+    IUniqueConstraintViolationChecker uniqueConstraintViolationChecker)
     : ICommandHandler<CreateTenantCommand, Result<TenantDto>>
 {
     /// <inheritdoc/>
@@ -38,12 +39,40 @@ public sealed class CreateTenantHandler(
             return Result.Invalid(roleCheck.ValidationErrors);
         }
 
-        var shortUrl = await AllocateUniqueShortUrlAsync(cancellationToken);
-        if (shortUrl is null)
+        // The pre-check only narrows the field - the unique index is the authority, since a
+        // concurrent create can take the candidate between the two. Both outcomes spend one draw.
+        for (var attempt = 0; attempt < ShortUrl.CollisionRetries; attempt++)
         {
-            return Result.Error("Could not allocate a unique tenant short URL. Retry the request.");
+            var shortUrl = shortUrlGenerator.Create(ShortUrlKind.Standard);
+            var taken = await tenantRepository.AnyAsync(
+                new TenantSpecifications.ExistsByShortUrlSpec(shortUrl),
+                cancellationToken);
+            if (taken)
+            {
+                continue;
+            }
+
+            var tenant = await TryProvisionAsync(request, name, shortUrl, registrationRole, cancellationToken);
+            if (tenant is not null)
+            {
+                return Result<TenantDto>.Created(tenant);
+            }
         }
 
+        return Result<TenantDto>.Unavailable("Could not allocate a unique tenant short URL. Retry the request.");
+    }
+
+    /// <summary>
+    /// Persists the tenant and its settings in one transaction. Returns null when the unique index
+    /// rejected <paramref name="shortUrl"/>, meaning the caller should draw another candidate.
+    /// </summary>
+    private async Task<TenantDto?> TryProvisionAsync(
+        CreateTenantCommand request,
+        string name,
+        string shortUrl,
+        string registrationRole,
+        CancellationToken cancellationToken)
+    {
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -64,29 +93,19 @@ public sealed class CreateTenantHandler(
 
             await unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            return Result<TenantDto>.Created(TenantDto.FromEntity(tenant, settings));
+            return TenantDto.FromEntity(tenant, settings);
         }
-        catch
+        catch (Exception exception)
         {
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
+
+            var violation = uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(exception);
+            if (violation.IsUniqueConstraintViolation && violation.IsTenantShortUrlViolation())
+            {
+                return null;
+            }
+
             throw;
         }
-    }
-
-    private async Task<string?> AllocateUniqueShortUrlAsync(CancellationToken cancellationToken)
-    {
-        for (int attempt = 0; attempt < ShortUrl.CollisionRetries; attempt++)
-        {
-            var candidate = shortUrlGenerator.Create(ShortUrlKind.Standard);
-            var taken = await tenantRepository.AnyAsync(
-                new TenantSpecifications.ExistsByShortUrlSpec(candidate),
-                cancellationToken);
-            if (!taken)
-            {
-                return candidate;
-            }
-        }
-
-        return null;
     }
 }

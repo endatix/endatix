@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 
@@ -17,6 +18,9 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class Update(IMediator mediator, IConfiguration configuration)
     : Endpoint<UpdateTenantRequest, Results<Ok<TenantModel>, ProblemHttpResult>>
 {
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Patch("/admin/tenants/{tenantId}");
@@ -25,11 +29,23 @@ public sealed class Update(IMediator mediator, IConfiguration configuration)
         {
             s.Summary = "Update tenant";
             s.Description = "Updates the name, description, and self-registration policy of a tenant. The short URL cannot be changed.";
+            s.ExampleRequest = new UpdateTenantRequest
+            {
+                TenantId = 1,
+                Name = "Acme",
+                AllowSelfRegistration = true
+            };
+            s.ResponseExamples[200] = TenantModel.Example;
             s.Responses[200] = "Tenant updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Tenant not found, or multi-tenancy is not enabled on this deployment.";
         });
+        Description(builder => builder
+            .Produces<TenantModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />
@@ -114,10 +130,12 @@ public sealed class UpdateTenantValidator : Validator<UpdateTenantRequest>
                 || request.DefaultRegistrationRoleName is not null)
             .WithMessage("At least one field must be provided.");
 
-        RuleFor(request => request.Name)
+        // Measured after trimming, so the validator and the handler judge the same string.
+        RuleFor(request => (request.Name ?? string.Empty).Trim())
             .NotEmpty()
             .MinimumLength(DataSchemaConstants.MIN_NAME_LENGTH)
             .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH)
+            .OverridePropertyName(nameof(UpdateTenantRequest.Name))
             .When(request => request.Name is not null);
 
         RuleFor(request => request.Description)

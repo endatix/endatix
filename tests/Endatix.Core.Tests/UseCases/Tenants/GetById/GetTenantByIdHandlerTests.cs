@@ -24,18 +24,22 @@ public class GetTenantByIdHandlerTests
     [Fact]
     public async Task Handle_TenantNotFound_ReturnsNotFound()
     {
+        // Arrange
         _tenantRepository
             .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.ByIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<CoreEntities.Tenant?>(null));
 
+        // Act
         var result = await _sut.Handle(new GetTenantByIdQuery(TENANT_ID), TestContext.Current.CancellationToken);
 
+        // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
     }
 
     [Fact]
     public async Task Handle_TenantExists_ReturnsDtoWithSettings()
     {
+        // Arrange
         CoreEntities.Tenant tenant = new("Acme", "xk9mp2qr", "Primary") { Id = TENANT_ID };
         CoreEntities.TenantSettings settings = new(TENANT_ID);
         settings.UpdateSelfRegistrationPolicy(true, ["google"], "Respondent");
@@ -46,8 +50,10 @@ public class GetTenantByIdHandlerTests
             .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.SettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(settings);
 
+        // Act
         var result = await _sut.Handle(new GetTenantByIdQuery(TENANT_ID), TestContext.Current.CancellationToken);
 
+        // Assert
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.ShortUrl.Should().Be("xk9mp2qr");
         result.Value.AllowSelfRegistration.Should().BeTrue();

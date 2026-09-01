@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 
@@ -16,6 +17,9 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class GetById(IMediator mediator, IConfiguration configuration)
     : Endpoint<GetTenantByIdRequest, Results<Ok<TenantModel>, ProblemHttpResult>>
 {
+    /// <summary>
+    /// Configures the endpoint settings.
+    /// </summary>
     public override void Configure()
     {
         Get("/admin/tenants/{tenantId}");
@@ -24,10 +28,16 @@ public sealed class GetById(IMediator mediator, IConfiguration configuration)
         {
             s.Summary = "Get tenant";
             s.Description = "Returns a tenant and its self-registration policy.";
+            s.ExampleRequest = new GetTenantByIdRequest { TenantId = 1 };
+            s.ResponseExamples[200] = TenantModel.Example;
             s.Responses[200] = "Tenant retrieved successfully.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Tenant not found, or multi-tenancy is not enabled on this deployment.";
         });
+        Description(builder => builder
+            .Produces<TenantModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />

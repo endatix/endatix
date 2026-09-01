@@ -9,6 +9,16 @@ namespace Endatix.Core.Entities
 {
     public class Tenant : BaseEntity, IAggregateRoot
     {
+        /// <summary>
+        /// Unique entity constraints that enforce tenant identity.
+        /// Values should be used as domain and database indexes to enforce uniqueness.
+        /// </summary>
+        public static class UniqueConstraints
+        {
+            /// <summary>Unique public short URL across the deployment. Unfiltered: soft-deleted rows still hold theirs.</summary>
+            public const string ShortUrl = "IX_Tenants_ShortUrl";
+        }
+
         private readonly List<Form> _forms = [];
         private readonly List<FormDefinition> _formDefinitions = [];
         private readonly List<Submission> _submissions = [];
