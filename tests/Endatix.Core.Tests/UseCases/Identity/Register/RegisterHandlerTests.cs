@@ -12,7 +12,7 @@ namespace Endatix.Core.Tests.UseCases.Identity.Register;
 
 public class RegisterHandlerTests
 {
-    private const string Slug = "xK9mP2qR";
+    private const string Slug = "xk9mp2qr";
     private const long TenantId = 99;
 
     private readonly IUserRegistrationService _userRegistrationService;
@@ -89,7 +89,7 @@ public class RegisterHandlerTests
     public async Task Handle_UnknownTenantSlug_ReturnsNotFound()
     {
         _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveBySlugSpec>(), Arg.Any<CancellationToken>())
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<CoreEntities.Tenant?>(null));
 
         var result = await _handler.Handle(
@@ -114,7 +114,7 @@ public class RegisterHandlerTests
 
         result.Status.Should().Be(ResultStatus.NotFound);
         await _tenantRepository.DidNotReceive().SingleOrDefaultAsync(
-            Arg.Any<TenantSpecifications.LiveBySlugSpec>(),
+            Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -124,7 +124,7 @@ public class RegisterHandlerTests
         CoreEntities.Tenant tenant = new("Acme", Slug) { Id = TenantId };
         CoreEntities.TenantSettings settings = new(TenantId);
         _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveBySlugSpec>(), Arg.Any<CancellationToken>())
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenant);
         _tenantSettingsRepository
             .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.SettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
@@ -153,7 +153,7 @@ public class RegisterHandlerTests
             .GetProperty(nameof(CoreEntities.TenantSettings.DefaultRegistrationRoleName))!
             .SetValue(settings, "PlatformAdmin");
         _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveBySlugSpec>(), Arg.Any<CancellationToken>())
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenant);
         _tenantSettingsRepository
             .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.SettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
@@ -182,7 +182,7 @@ public class RegisterHandlerTests
         CoreEntities.TenantSettings settings = new(TenantId);
         settings.UpdateSelfRegistrationPolicy(true, ["endatix"], "Respondent");
         _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveBySlugSpec>(), Arg.Any<CancellationToken>())
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenant);
         _tenantSettingsRepository
             .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.SettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
@@ -218,7 +218,7 @@ public class RegisterHandlerTests
         settings.UpdateSelfRegistrationPolicy(true, ["endatix"], "Respondent");
         var user = new User(7, TenantId, email, email, false);
         _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveBySlugSpec>(), Arg.Any<CancellationToken>())
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenant);
         _tenantSettingsRepository
             .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.SettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())

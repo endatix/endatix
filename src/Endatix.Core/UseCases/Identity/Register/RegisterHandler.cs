@@ -36,13 +36,14 @@ public class RegisterHandler(
             return await RegisterUnattachedAsync(request.Email, request.Password, cancellationToken);
         }
 
-        if (!PublicId.IsValidTenantSlug(request.TenantSlug))
+        var shortUrl = ShortUrl.Normalize(request.TenantSlug);
+        if (shortUrl is null || !ShortUrl.IsValid(shortUrl))
         {
             return Result.NotFound(TenantNotFoundMessage);
         }
 
         var tenant = await tenantRepository.SingleOrDefaultAsync(
-            new TenantSpecifications.LiveBySlugSpec(request.TenantSlug),
+            new TenantSpecifications.LiveByShortUrlSpec(shortUrl),
             cancellationToken);
         if (tenant is null)
         {
@@ -60,11 +61,10 @@ public class RegisterHandler(
         var registrationRole = string.IsNullOrWhiteSpace(settings.DefaultRegistrationRoleName)
             ? Entities.TenantSettings.DefaultRegistrationRole
             : settings.DefaultRegistrationRoleName;
-        if (!Entities.TenantSettings.IsAllowedDefaultRegistrationRole(registrationRole))
+        var roleCheck = Entities.TenantSettings.ValidateDefaultRegistrationRole(registrationRole);
+        if (!roleCheck.IsSuccess)
         {
-            return Result.Invalid(TenantWriteRules.ForbiddenRegistrationRole(
-                registrationRole,
-                nameof(Entities.TenantSettings.DefaultRegistrationRoleName)));
+            return Result.Invalid(roleCheck.ValidationErrors);
         }
 
         // Self-registration is anonymous, so it may only ever create a new account. Letting it fall

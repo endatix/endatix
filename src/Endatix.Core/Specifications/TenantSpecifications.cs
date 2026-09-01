@@ -29,6 +29,20 @@ public static class TenantSpecifications
     }
 
     /// <summary>
+    /// Live tenant by public short URL for unauthenticated discovery (soft-deleted excluded).
+    /// </summary>
+    public sealed class LiveByShortUrlSpec : Specification<Tenant>, ISingleResultSpecification<Tenant>
+    {
+        public LiveByShortUrlSpec(string shortUrl)
+        {
+            var normalized = ShortUrl.Normalize(shortUrl);
+            Query
+                .IgnoreQueryFilters()
+                .Where(tenant => tenant.ShortUrl == normalized && !tenant.IsDeleted);
+        }
+    }
+
+    /// <summary>
     /// Loads a live tenant for platform-scoped edits.
     /// </summary>
     public sealed class ByIdSpec : Specification<Tenant>, ISingleResultSpecification<Tenant>

@@ -20,13 +20,14 @@ public sealed class GetPublicTenantHandler(
     /// <inheritdoc/>
     public async Task<Result<PublicTenantDto>> Handle(GetPublicTenantQuery request, CancellationToken cancellationToken)
     {
-        if (!PublicId.IsValidTenantSlug(request.Slug))
+        var shortUrl = ShortUrl.Normalize(request.Slug);
+        if (shortUrl is null || !ShortUrl.IsValid(shortUrl))
         {
             return Result.NotFound(TenantNotFoundMessage);
         }
 
         var tenant = await tenantRepository.SingleOrDefaultAsync(
-            new TenantSpecifications.LiveBySlugSpec(request.Slug),
+            new TenantSpecifications.LiveByShortUrlSpec(shortUrl),
             cancellationToken);
         if (tenant is null)
         {
@@ -38,7 +39,7 @@ public sealed class GetPublicTenantHandler(
             cancellationToken);
 
         return Result.Success(new PublicTenantDto(
-            tenant.Slug,
+            tenant.ShortUrl,
             tenant.Name,
             settings?.AllowSelfRegistration ?? false,
             settings?.AllowedAuthProviderKeys ?? []));

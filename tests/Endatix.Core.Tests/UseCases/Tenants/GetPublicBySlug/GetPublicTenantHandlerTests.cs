@@ -8,7 +8,7 @@ namespace Endatix.Core.Tests.UseCases.Tenants.GetPublicBySlug;
 
 public class GetPublicTenantHandlerTests
 {
-    private const string Slug = "xK9mP2qR";
+    private const string Slug = "xk9mp2qr";
     private const long TenantId = 4242;
 
     private readonly IRepository<CoreEntities.Tenant> _tenantRepository;
@@ -29,7 +29,7 @@ public class GetPublicTenantHandlerTests
 
         result.Status.Should().Be(ResultStatus.NotFound);
         await _tenantRepository.DidNotReceive().SingleOrDefaultAsync(
-            Arg.Any<TenantSpecifications.LiveBySlugSpec>(),
+            Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -37,7 +37,7 @@ public class GetPublicTenantHandlerTests
     public async Task Handle_UnknownSlug_ReturnsNotFound()
     {
         _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveBySlugSpec>(), Arg.Any<CancellationToken>())
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<CoreEntities.Tenant?>(null));
 
         var result = await _sut.Handle(new GetPublicTenantQuery(Slug), TestContext.Current.CancellationToken);
@@ -52,7 +52,7 @@ public class GetPublicTenantHandlerTests
         CoreEntities.TenantSettings settings = new(TenantId);
         settings.UpdateSelfRegistrationPolicy(true, ["google", "endatix"], "Respondent");
         _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveBySlugSpec>(), Arg.Any<CancellationToken>())
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenant);
         _tenantSettingsRepository
             .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.SettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
