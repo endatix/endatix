@@ -1,17 +1,28 @@
 ---
 title: Environment
-description: Review Hub runtime configuration from Platform Admin — API, debug, analytics, reCAPTCHA, and SurveyJS licence presence. Secret values are never shown.
+description: Review Hub runtime configuration from Platform Admin. Read-only — you cannot edit values here.
 sidebar_label: Environment
 sidebar_position: 4
 ---
 
+import ThemedImage from "@theme/ThemedImage";
+import OverviewLight from "./environment-overview_light.png";
+import OverviewDark from "./environment-overview_dark.png";
+import SectionsLight from "./environment-sections_light.png";
+import SectionsDark from "./environment-sections_dark.png";
+import SurveyJsLight from "./environment-surveyjs_light.png";
+import SurveyJsDark from "./environment-surveyjs_dark.png";
+
 # Environment
 
-**Environment** is a Platform Admin page in Hub. It is a **runtime audit** of Hub process environment: which API origin this instance talks to, whether experimental features are on, and whether optional keys (PostHog, reCAPTCHA, SurveyJS licence) are set.
+**Environment** is a Platform Admin page. After a deploy — or when Hub cannot reach the API, analytics, reCAPTCHA, or the form designer — use it to confirm what this Hub process actually loaded.
 
-You cannot change values here. To change them, update deployment env (Helm, Docker, host `.env`) and recycle Hub.
+It is **read-only**. Nothing here writes to env, Helm, or `.env`. Tenant admins do not see this page.
 
-Storage credentials and authentication secrets stay on their own admin pages. Email stays on [Email Settings](/docs/end-users/administration/email-settings). Developer catalog: [Hub environment variables](/docs/developers/hub/environment).
+- Public values (API URL, PostHog, reCAPTCHA site key) show in full and can be copied.
+- The SurveyJS Creator licence is a real secret — **Set** or **Not set** only.
+
+Storage, Auth, and Email have their own Platform Admin pages. The full variable catalog is [Hub environment variables](/docs/developers/hub/environment).
 
 ## Open Environment
 
@@ -19,23 +30,102 @@ Storage credentials and authentication secrets stay on their own admin pages. Em
 2. Open **Platform Admin**.
 3. Under **Configuration**, choose **Environment**.
 
-Tenant admins do not see this page.
+## At a glance
 
-## What you see
+The strip at the top answers whether anything is missing.
 
-| Section | Shown | Hidden |
+<ThemedImage
+  alt="Environment overview strip showing Node environment and how many checks are configured"
+  sources={{ light: OverviewLight, dark: OverviewDark }}
+/>
+
+| Control | Meaning |
+| --- | --- |
+| **Node environment** | `NODE_ENV` for this Hub process. |
+| **Not set: …** | Shown only when at least one check below is empty. |
+| **n of 4 configured** | Count of the four checks that are present. |
+
+| Check | Required | Configured when |
 | --- | --- | --- |
-| **API** | Status, Endatix API URL, origin, prefix | — |
-| **Experimental** | SurveyJS extensions enabled / disabled | — |
-| **Debug** | Debug mode on / off, `NODE_ENV` | — |
-| **Analytics** | PostHog **Set / Not set**, capture host, UI host | Project key |
-| **reCAPTCHA** | Site key **Set / Not set** | Site key value |
-| **SurveyJS** | Creator licence **Set / Not set** | Licence string |
+| **Endatix API URL** | Yes | Hub has a non-empty API URL |
+| **PostHog project key** | No | PostHog key is set |
+| **reCAPTCHA site key** | No | Site key is set |
+| **SurveyJS creator licence** | No | Licence key is set |
 
-**Set / Not set** means Hub detected a non-empty env var. The page never copies the raw string into the HTML. Tooltips name the env var to change (for example `ENDATIX_POSTHOG_KEY`, `ENDATIX_SURVEY_LICENSE_KEY`).
+A missing API URL uses the **attention** (warning) badge. Optional gaps use a muted badge. All four set shows **4 of 4 configured**.
 
-## Deprecated names
+## Sections
 
-If you still have `NEXT_PUBLIC_IS_DEBUG_MODE`, `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_SLK`, and similar keys, Hub copies them into the `ENDATIX_*` names **once at process start** when the current name is empty. The Environment page then shows the result of that copy — the same values layouts and public forms use.
+Each card is one config group. Env var names sit under the labels.
 
-Prefer `ENDATIX_*` in new deployments. See [Hub environment variables](/docs/developers/hub/environment).
+<ThemedImage
+  alt="Environment configuration cards for API, Debug, Experimental, Analytics, reCAPTCHA, and SurveyJS"
+  sources={{ light: SectionsLight, dark: SectionsDark }}
+/>
+
+### API
+
+How this Hub talks to the Endatix API.
+
+| Row | Meaning |
+| --- | --- |
+| **Status** | **Configured** or **Not configured** |
+| **Endatix API URL** | URL Hub calls (copyable) |
+| **API origin** / **API prefix** | Shown when the URL was split from `ENDATIX_BASE_URL` |
+
+If Status is **Not configured**, Hub cannot load forms, submissions, or most admin data. Fix env and recycle Hub.
+
+### Debug
+
+| Row | Meaning |
+| --- | --- |
+| **Debug mode** | Extra diagnostics. Leave **Off** in production unless you are diagnosing. |
+| **Node environment** | Same value as the overview strip |
+
+### Experimental
+
+| Row | Meaning |
+| --- | --- |
+| **SurveyJS extensions** | Endatix designer extension pack. Not the SurveyJS licence. Use with care in production. |
+
+### Analytics
+
+PostHog values already ship to the browser, so the page shows the **literal** key and hosts (or an em dash). Copy to compare with deployment config.
+
+### reCAPTCHA
+
+Public **site key** only (copyable). The reCAPTCHA **secret** never appears in Hub.
+
+### SurveyJS
+
+The only secret on this page. Server-only; never sent to the browser.
+
+<ThemedImage
+  alt="SurveyJS card showing Creator licence as Set or Not set"
+  sources={{ light: SurveyJsLight, dark: SurveyJsDark }}
+/>
+
+**Not set** is normal without a licence. If the designer shows a SurveyJS licence warning, set `ENDATIX_SURVEY_LICENSE_KEY` and recycle Hub.
+
+## How to read values
+
+| Display | Meaning |
+| --- | --- |
+| Monospace + copy | Public value Hub loaded |
+| Em dash (—) | Not set |
+| **On / Off / Enabled / Disabled / Configured / Set** | Status. Warning tone is only for a missing required API URL |
+
+## Change a value
+
+1. Update the named variable on the Hub host (`.env`, Helm, container env).
+2. Recycle Hub so it re-reads env.
+3. Refresh **Environment**.
+
+Prefer `ENDATIX_*` names. Deprecated `NEXT_PUBLIC_*` names still work as a one-time copy at process start when the current name is empty. This page shows the result after that copy.
+
+## Related Hub pages
+
+- **Platform Admin → Storage** — object storage
+- **Platform Admin → Auth** — identity providers
+- **Platform Admin → Email** — [Email Settings](/docs/end-users/administration/email-settings)
+- Developers: [Hub environment variables](/docs/developers/hub/environment)
