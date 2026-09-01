@@ -5,6 +5,10 @@ sidebar_label: Email Settings
 sidebar_position: 3
 ---
 
+import ThemedImage from "@theme/ThemedImage";
+import OverviewLight from "./email-settings-overview_light.png";
+import OverviewDark from "./email-settings-overview_dark.png";
+
 # Email Settings
 
 **Email Settings** is a Platform Admin page in Hub. Use it to confirm that the Endatix API can send mail, which identity templates are registered, and which sender address each template will use.
@@ -18,6 +22,11 @@ This page does not take Hub `.env` keys. SMTP credentials stay on the API. To ch
 3. Under **Configuration**, choose **Email**.
 
 The page title is **Email Settings**. Tenant admins do not see this page; it is platform-wide, not per organization.
+
+<ThemedImage
+  alt="Email Settings showing provider status, templates, and Send Test Email"
+  sources={{ light: OverviewLight, dark: OverviewDark }}
+/>
 
 ## Email Provider
 

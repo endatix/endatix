@@ -9,8 +9,16 @@ import DocCardList from '@theme/DocCardList';
 
 These pages are **Endatix API** settings: the `Endatix` object in `appsettings.json` (or environment variables bound the ASP.NET Core way). Per-environment files work like `appsettings.Production.json`.
 
+Endatix settings live in **three places**. Use the matching docs so operators do not hunt in the wrong file.
+
+| Layer | Where | Who | Docs |
+| --- | --- | --- | --- |
+| **API host** | `appsettings.json` / API env (`Endatix:*`) | Developers / host operators | This Settings section |
+| **Hub host** | Hub `.env` / Helm (`ENDATIX_*`, `AUTH_*`, `STORAGE_*`) | Developers / host operators | [Hub environment variables](/docs/developers/hub/environment) |
+| **Hub UI (audit)** | Platform Admin pages | Platform administrators | [Email Settings](/docs/end-users/administration/email-settings), [Environment](/docs/end-users/administration/environment), [Auth Settings](/docs/end-users/administration/auth-settings) |
+
 :::info[Hub is different]
-Hub uses a `.env` file. See [Hub environment variables](/docs/developers/hub/environment). The [API Hub URL](/docs/configuration/settings/hub-settings) page is only how the API builds links *to* Hub (emails).
+Hub does not read `appsettings.json`. The [API Hub URL](/docs/configuration/settings/hub-settings) page is only how the API builds links *to* Hub (emails and exports).
 :::
 
 ```json
