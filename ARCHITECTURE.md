@@ -476,7 +476,7 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 
 **Isolation vs routing**
 
-- **Authorization** is the signed JWT `tid` (and later optional `act` for assume-tenant). Path segments, headers, and query strings are never trusted for data access.
+- **Authorization** is the signed JWT `tid` (session tenant). Optional `act` marks an assume-tenant session. Path segments, headers, and query strings are never trusted for data access.
 - **`Tenant.ShortUrl`** is an **opaque 8-character lowercase alphanumeric id** (alphabet `a-z0-9`, CSPRNG via `IShortUrlGenerator`, letter-heavy). It is unique, immutable, and used only on unauthenticated routes such as `/t/{shortUrl}/signin`. It is **not** derived from the tenant name and is not client-supplied. Inbound lookup is folded with `ShortUrl.Normalize`, then compared exactly.
 - Numeric `Tenant.Id` stays internal (JWT, FKs, admin APIs). Public lookup must not return it.
 
@@ -486,7 +486,17 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 - `PATCH /admin/tenants/{id}` may change name, description, and self-registration policy. The short URL cannot change.
 - Creating a tenant does **not** add the PlatformAdmin as a member of that tenant.
 
-**Later (not this wave):** assume-tenant (`act` claim, not impersonation), membership-based switch, public GET by short URL + tenant-scoped register. Forms can reuse `IShortUrlGenerator` with a `Form.ShortUrl` column; a polymorphic URLs table is deferred until vanity aliases or redirects are required.
+**JWT session** (`AccessTokenIssueOptions` / `AccessTokenSession`). Refresh remints from the **token** (`tid` + optional `act`), not from `AppUser.TenantId`. One mint path; `act` is not impersonation (`sub` stays the admin). Outbox `tenant.context.changed` with kinds `assumed` / `exited` / `switched`.
+
+| Session | `sub` | `tid` | `act` | Status |
+|---------|-------|-------|-------|--------|
+| Login / membership switch | member | that tenant | absent | switch in a later PR; refresh must keep `tid` |
+| Assume tenant | **admin** | target | admin | this wave; not impersonation |
+| On-behalf / login-as-customer | **customer** | customer tenant | support plus a **new claim** (do not reuse `act` alone) | **not implemented** |
+
+Overloading `act` so `sub` is the customer would break assume-authz (`act == sub`) and “exit assume before switch.” Support until then is assume-tenant (see the tenant as admin).
+
+**Later:** public GET by short URL + tenant-scoped register. Forms can reuse `IShortUrlGenerator` with a `Form.ShortUrl` column; a polymorphic URLs table is deferred until vanity aliases or redirects are required.
 
 ---
 
@@ -498,3 +508,4 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 | 2026-07 | Domain events: evaluate-before-mutate on aggregates; reporting triggers (`FormDefinitionUpdatedEvent`, `SubmissionUpdatedEvent`) live on entities, not handlers. Documented in [Domain and integration events](#domain-and-integration-events).                                                                                                                                                                                                                     |
 | 2026-08 | Observability: three signals, one mechanism. The OpenTelemetry SDK owns logs, metrics and traces; `OTEL_*` environment variables are authoritative over `appsettings.json`; telemetry is off until an endpoint is configured. Serilog is removed as the logging pipeline and retained only as the rotation implementation behind an optional, off-by-default file provider. **Endatix ships no vendor exporters** — OTLP only. See [Observability](#observability). |
 | 2026-08 | Tenant public id: keep `Tenant.ShortUrl` as a unique immutable `varchar(8)` column; generate with `IShortUrlGenerator` (CSPRNG, `a-z0-9` alphabet, letter-heavy). Do not derive from name. JWT `tid` remains the isolation boundary. See [Multi-tenancy (platform tenants)](#multi-tenancy-platform-tenants). |
+| 2026-09 | JWT session is `tid` + optional `act`. Refresh copies that session. `tenant.context.changed` covers assume, exit, and membership switch. Impersonation (`sub` = customer) is a later claim, not a second token service. See [JWT session](#multi-tenancy-platform-tenants). |

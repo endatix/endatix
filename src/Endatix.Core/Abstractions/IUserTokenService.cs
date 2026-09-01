@@ -15,7 +15,7 @@ public interface IUserTokenService
     TokenDto IssueAccessToken(User forUser, string? forAudience = null);
 
     /// <summary>
-    /// Issues an access token with an explicit tenant, optional actor claim, and optional expiry override.
+    /// Issues an access token for a session (tid + optional act). See ARCHITECTURE.md (JWT session).
     /// </summary>
     TokenDto IssueAccessToken(User forUser, AccessTokenIssueOptions options);
 

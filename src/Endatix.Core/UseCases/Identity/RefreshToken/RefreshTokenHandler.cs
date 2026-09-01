@@ -5,7 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 namespace Endatix.Core.UseCases.Identity.RefreshToken;
 
 /// <summary>
-/// Handles refresh-token rotation. Assumed sessions keep target tenant and actor claim.
+/// Handles refresh-token rotation. Remints from the access-token session (tid + optional act).
 /// </summary>
 public class RefreshTokenHandler(IAuthService authService, IUserTokenService tokenService) : ICommandHandler<RefreshTokenCommand, Result<AuthTokensDto>>
 {
@@ -37,11 +37,9 @@ public class RefreshTokenHandler(IAuthService authService, IUserTokenService tok
         }
 
         var user = refreshTokenValidationResult.Value;
-        var accessToken = session.ActorUserId is not null
-            ? tokenService.IssueAccessToken(
-                user,
-                new AccessTokenIssueOptions(session.TenantId, session.ActorUserId))
-            : tokenService.IssueAccessToken(user);
+        var accessToken = tokenService.IssueAccessToken(
+            user,
+            new AccessTokenIssueOptions(session.TenantId, session.ActorUserId));
         var refreshToken = tokenService.IssueRefreshToken();
 
         await authService.StoreRefreshToken(user.Id, refreshToken.Token, refreshToken.ExpireAt, cancellationToken);

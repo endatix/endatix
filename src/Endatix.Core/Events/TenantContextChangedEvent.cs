@@ -2,6 +2,9 @@ using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Events;
 
+/// <summary>
+/// Outbox <c>tenant.context.changed</c>. Kinds: assumed, exited, switched. See ARCHITECTURE.md (JWT session).
+/// </summary>
 public sealed class TenantContextChangedEvent(
     long actorUserId,
     long fromTenantId,
