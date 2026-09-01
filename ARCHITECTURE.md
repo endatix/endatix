@@ -496,6 +496,8 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 
 Overloading `act` so `sub` is the customer would break assume-authz (`act == sub`) and “exit assume before switch.” Support until then is assume-tenant (see the tenant as admin).
 
+`Actions.Platform.AssumeTenants` is reserved and **not catalog-seeded** — add an AppIdentity migration before any policy requires it. `Actions.Platform.ImpersonateUsers` is catalog-seeded but unused.
+
 **Later:** public GET by short URL + tenant-scoped register. Forms can reuse `IShortUrlGenerator` with a `Form.ShortUrl` column; a polymorphic URLs table is deferred until vanity aliases or redirects are required.
 
 ---

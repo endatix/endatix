@@ -33,9 +33,19 @@ public static class Actions
     public static class Platform
     {
         public const string ManageTenants = "platform.tenants.manage";
+
+        /// <summary>
+        /// Reserved. Not enforced yet (assume uses PlatformAdmin + <c>act</c>). Seed with an AppIdentity
+        /// migration (permission + RolePermissions); it is not in the original catalog seed.
+        /// </summary>
         public const string AssumeTenants = "platform.tenants.assume";
         public const string ManageSettings = "platform.settings.manage";
         public const string ManageIntegrations = "platform.integrations.manage";
+
+        /// <summary>
+        /// Reserved. Catalog-seeded in RolesAndPermissions; not on a policy yet. Login-as-customer
+        /// needs a later claim — do not treat this as assume-tenant. See ARCHITECTURE.md (JWT session).
+        /// </summary>
         public const string ImpersonateUsers = "platform.users.impersonate";
         public const string ViewMetrics = "platform.metrics.view";
         public const string ViewLogs = "platform.logs.view";
