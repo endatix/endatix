@@ -68,7 +68,8 @@ public static class ShortUrl
         string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
 
     /// <summary>
-    /// True when there are more ASCII letters than digits.
+    /// True when there are more ASCII letters than digits. Used only by
+    /// the generator as a draw preference; lookups use <c>IsValid</c>.
     /// </summary>
     public static bool IsLetterHeavy(string? value)
     {

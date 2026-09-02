@@ -114,15 +114,21 @@ public class EmailVerificationServiceTests
         // Arrange
         var token = "expired-token";
         var userId = 123L;
-        // Create token with valid expiry first, then modify it to be expired
+        var user = new AppUser
+        {
+            Id = userId,
+            UserName = "testuser",
+            Email = "test@example.com",
+            EmailConfirmed = false
+        };
         var verificationToken = new EmailVerificationToken(userId, token, DateTime.UtcNow.AddHours(1));
 
-        // Use reflection to set the expired date for testing
         var expiresAtProperty = typeof(EmailVerificationToken).GetProperty("ExpiresAt");
         expiresAtProperty!.SetValue(verificationToken, DateTime.UtcNow.AddHours(-1));
 
         _tokenRepository.FirstOrDefaultAsync(Arg.Any<EmailVerificationTokenByTokenSpec>(), Arg.Any<CancellationToken>())
             .Returns(verificationToken);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
 
         // Act
         var result = await _sut.VerifyEmailAsync(token, CancellationToken.None);
@@ -178,6 +184,58 @@ public class EmailVerificationServiceTests
         result.ValidationErrors.Should().ContainSingle()
             .Which.ErrorMessage.Should().Be(EmailVerificationService.INVALID_VERIFICATION_TOKEN_MESSAGE);
         result.ValidationErrors.Select(error => error.ErrorMessage).Should().NotContain("User not found");
+    }
+
+    [Fact]
+    public async Task VerifyEmailAsync_UsedTokenAndConfirmedUser_ReturnsSuccess()
+    {
+        var token = "used-token";
+        var userId = 123L;
+        var user = new AppUser
+        {
+            Id = userId,
+            UserName = "testuser",
+            Email = "test@example.com",
+            EmailConfirmed = true
+        };
+        var verificationToken = new EmailVerificationToken(userId, token, DateTime.UtcNow.AddHours(1));
+        verificationToken.MarkAsUsed();
+
+        _tokenRepository.FirstOrDefaultAsync(Arg.Any<EmailVerificationTokenByTokenSpec>(), Arg.Any<CancellationToken>())
+            .Returns(verificationToken);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+
+        var result = await _sut.VerifyEmailAsync(token, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Email.Should().Be(user.Email);
+        await _tokenRepository.DidNotReceive().UpdateAsync(Arg.Any<EmailVerificationToken>(), Arg.Any<CancellationToken>());
+        _userManager.DidNotReceive().UpdateAsync(Arg.Any<AppUser>());
+    }
+
+    [Fact]
+    public async Task VerifyEmailAsync_ConfirmedUserUnusedToken_MarksTokenUsedAndSucceeds()
+    {
+        var token = "unused-after-confirm";
+        var userId = 123L;
+        var user = new AppUser
+        {
+            Id = userId,
+            UserName = "testuser",
+            Email = "test@example.com",
+            EmailConfirmed = true
+        };
+        var verificationToken = new EmailVerificationToken(userId, token, DateTime.UtcNow.AddHours(1));
+
+        _tokenRepository.FirstOrDefaultAsync(Arg.Any<EmailVerificationTokenByTokenSpec>(), Arg.Any<CancellationToken>())
+            .Returns(verificationToken);
+        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
+
+        var result = await _sut.VerifyEmailAsync(token, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        verificationToken.IsUsed.Should().BeTrue();
+        await _tokenRepository.Received(1).UpdateAsync(verificationToken, Arg.Any<CancellationToken>());
     }
 
     #endregion

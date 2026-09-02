@@ -11,7 +11,7 @@ namespace Endatix.Core.Abstractions;
 public interface IRoleManagementService
 {
     /// <summary>
-    /// Assigns a role to a user.
+    /// Assigns a role to a user in the current tenant context.
     /// </summary>
     /// <param name="userId">The ID of the user.</param>
     /// <param name="roleName">The name of the role to assign.</param>
@@ -96,6 +96,15 @@ public interface IRoleManagementService
     /// </summary>
     Task<Result<IReadOnlyList<string>>> GetMissingAssignableRoleNamesAsync(
         IReadOnlyList<string> roleNames,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns requested role names that are not assignable in <paramref name="tenantId"/>.
+    /// Use when there is no ambient tenant context, such as anonymous self-registration.
+    /// </summary>
+    Task<Result<IReadOnlyList<string>>> GetMissingAssignableRoleNamesAsync(
+        IReadOnlyList<string> roleNames,
+        long tenantId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

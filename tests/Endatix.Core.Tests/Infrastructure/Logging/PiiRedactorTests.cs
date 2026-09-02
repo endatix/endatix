@@ -49,6 +49,13 @@ public class PiiRedactorTests
 
     #region RedactEmail Tests
 
+    [Fact]
+    public void RedactEmail_DiscardsInputAndDoesNotEmitTheAddress()
+    {
+        PiiRedactor.RedactEmail("john.doe@example.com").Should().Be(PiiRedactor.REDACTED_EMAIL);
+        PiiRedactor.RedactEmail(null).Should().Be(PiiRedactor.REDACTED_EMAIL);
+    }
+
     [Theory]
     [InlineData("john.doe@example.com")]
     [InlineData("test@domain.com")]

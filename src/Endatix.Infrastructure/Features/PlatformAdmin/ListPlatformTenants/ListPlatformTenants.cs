@@ -1,8 +1,8 @@
-using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
@@ -10,7 +10,9 @@ namespace Endatix.Infrastructure.Features.PlatformAdmin.ListPlatformTenants;
 /// <summary>
 /// Platform-scoped read model: paged tenant list with form and submission counts.
 /// </summary>
-public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatformTenants
+public sealed class ListPlatformTenants(
+    AppDbContext appDbContext,
+    IRelationalSubstringLikeFilter substringLikeFilter) : IListPlatformTenants
 {
     /// <inheritdoc />
     public async Task<Result<Paged<PlatformTenantListItem>>> ExecuteAsync(
@@ -20,21 +22,13 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
     {
         var normalizedPageSize = paging.Paging.PageSize;
         var skip = paging.Paging.Skip;
-        var search = paging.Search;
 
         var tenantsQuery = appDbContext.Set<Tenant>()
             .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(tenant => !tenant.IsDeleted);
 
-        if (ShortUrl.Normalize(search) is string shortUrlSearch)
-        {
-            var trimmedSearch = search.Trim();
-            tenantsQuery = tenantsQuery.Where(tenant =>
-                tenant.Name.Contains(trimmedSearch) ||
-                tenant.ShortUrl.Contains(shortUrlSearch) ||
-                (tenant.Description != null && tenant.Description.Contains(trimmedSearch)));
-        }
+        tenantsQuery = ApplySearch(tenantsQuery, paging.Search);
 
         tenantsQuery = tenantsQuery
             .WhereUtcRange(tenant => tenant.CreatedAt, criteria.Created)
@@ -93,6 +87,30 @@ public sealed class ListPlatformTenants(AppDbContext appDbContext) : IListPlatfo
             normalizedPageSize,
             totalRecords,
             items));
+    }
+
+    private IQueryable<Tenant> ApplySearch(IQueryable<Tenant> tenantsQuery, string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return tenantsQuery;
+        }
+
+        var trimmed = search.Trim();
+        var nameMatches = substringLikeFilter.WherePropertyMatchesLikeSubstring(
+            tenantsQuery,
+            nameof(Tenant.Name),
+            trimmed);
+        var shortUrlMatches = substringLikeFilter.WherePropertyMatchesLikeSubstring(
+            tenantsQuery,
+            nameof(Tenant.ShortUrl),
+            trimmed);
+        var descriptionMatches = substringLikeFilter.WherePropertyMatchesLikeSubstring(
+            tenantsQuery,
+            nameof(Tenant.Description),
+            trimmed);
+
+        return nameMatches.Union(shortUrlMatches).Union(descriptionMatches);
     }
 
     private static IOrderedQueryable<Tenant> ApplyOrdering(

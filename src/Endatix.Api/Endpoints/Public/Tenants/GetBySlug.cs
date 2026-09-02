@@ -1,0 +1,103 @@
+using Endatix.Api.Common;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Tenants.GetPublicBySlug;
+using Endatix.Infrastructure.Caching;
+using FastEndpoints;
+using FluentValidation;
+using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Caching.Hybrid;
+
+namespace Endatix.Api.Endpoints.Public.Tenants;
+
+/// <summary>
+/// Unauthenticated tenant discovery by opaque public id. Rate-limited; 404s are not cached.
+/// </summary>
+public sealed class GetBySlug(IMediator mediator, HybridCache cache)
+    : Endpoint<GetPublicTenantRequest, Results<Ok<PublicTenantModel>, ProblemHttpResult>>
+{
+    /// <inheritdoc />
+    public override void Configure()
+    {
+        Get("tenants/{slug}");
+        Group<PublicApiGroup>();
+        AllowAnonymous();
+        Throttle(20, 60);
+        Summary(s =>
+        {
+            s.Summary = "Get public tenant";
+            s.Description = "Returns the tenant name and self-registration policy for an opaque public id. Does not return the numeric tenant id.";
+            s.Responses[200] = "Tenant found.";
+            s.Responses[404] = "Unknown or deleted public id.";
+            s.Responses[429] = "Too many requests.";
+        });
+        Description(builder => builder
+            .Produces<PublicTenantModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests));
+    }
+
+    /// <inheritdoc />
+    public override async Task<Results<Ok<PublicTenantModel>, ProblemHttpResult>> ExecuteAsync(
+        GetPublicTenantRequest request,
+        CancellationToken ct)
+    {
+        var normalizedSlug = PublicTenantCacheKeys.TryNormalized(request.Slug);
+        if (normalizedSlug is null)
+        {
+            return TypedResultsBuilder
+                .FromResult(Result<PublicTenantModel>.NotFound(GetPublicTenantHandler.TenantNotFoundMessage))
+                .SetTypedResults<Ok<PublicTenantModel>, ProblemHttpResult>();
+        }
+
+        var result = await cache.GetOrCreateResultAsync(
+            PublicTenantCacheKeys.Entry(normalizedSlug),
+            token => mediator.Send(new GetPublicTenantQuery(normalizedSlug), token),
+            new HybridCacheEntryOptions
+            {
+                Expiration = PublicTenantCacheKeys.Ttl,
+                LocalCacheExpiration = PublicTenantCacheKeys.Ttl
+            },
+            PublicTenantCacheKeys.TagsFor(normalizedSlug),
+            ct);
+
+        return TypedResultsBuilder
+            .MapResult(result, PublicTenantModel.Map)
+            .SetTypedResults<Ok<PublicTenantModel>, ProblemHttpResult>();
+    }
+}
+
+/// <summary>
+/// Request for public tenant discovery.
+/// </summary>
+public sealed class GetPublicTenantRequest
+{
+    /// <summary>Opaque 8-character public id (<c>Tenant.ShortUrl</c>).</summary>
+    public string Slug { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Empty-only. Invalid short URL format is 404 (same as unknown) so we do not leak structure.
+/// </summary>
+public sealed class GetPublicTenantValidator : Validator<GetPublicTenantRequest>
+{
+    public GetPublicTenantValidator()
+    {
+        RuleFor(request => request.Slug).NotEmpty();
+    }
+}
+
+/// <summary>
+/// Public tenant discovery response. The numeric tenant id is omitted on purpose.
+/// </summary>
+public sealed record PublicTenantModel(
+    string Slug,
+    string Name,
+    bool SelfRegistrationEnabled,
+    IReadOnlyList<string> AllowedAuthProviders)
+{
+    public static PublicTenantModel Map(PublicTenantDto tenant) =>
+        new(tenant.Slug, tenant.Name, tenant.SelfRegistrationEnabled, tenant.AllowedAuthProviders);
+}

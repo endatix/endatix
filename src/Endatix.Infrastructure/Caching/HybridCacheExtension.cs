@@ -4,7 +4,7 @@ using Endatix.Core.Infrastructure;
 
 namespace Endatix.Infrastructure.Caching;
 
-internal static class HybridCacheExtensions
+public static class HybridCacheExtensions
 {
     /// <summary>
     /// Options to disable cache write operations for HybridCache.

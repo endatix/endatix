@@ -1,6 +1,7 @@
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Users;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Result;
@@ -20,6 +21,8 @@ public class AppUserRegistrationServiceTests
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly IEmailSender _emailSender;
     private readonly IEmailTemplateService _emailTemplateService;
+    private readonly IRoleManagementService _roleManagementService;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AppUserRegistrationService> _logger;
     private readonly AppUserRegistrationService _sut;
 
@@ -31,9 +34,19 @@ public class AppUserRegistrationServiceTests
         _emailVerificationService = Substitute.For<IEmailVerificationService>();
         _emailSender = Substitute.For<IEmailSender>();
         _emailTemplateService = Substitute.For<IEmailTemplateService>();
+        _roleManagementService = Substitute.For<IRoleManagementService>();
+        _unitOfWork = Substitute.For<IUnitOfWork>();
         _logger = Substitute.For<ILogger<AppUserRegistrationService>>();
 
-        _sut = new AppUserRegistrationService(_userManager, _userStore, _emailVerificationService, _emailSender, _emailTemplateService, _logger);
+        _sut = new AppUserRegistrationService(
+            _userManager,
+            _userStore,
+            _emailVerificationService,
+            _emailSender,
+            _emailTemplateService,
+            _roleManagementService,
+            _unitOfWork,
+            _logger);
     }
 
     [Fact]
@@ -393,4 +406,190 @@ public class AppUserRegistrationServiceTests
         _emailTemplateService.DidNotReceive().CreateVerificationEmail(email, token);
         await _emailSender.Received(1).SendEmailAsync(emailWithTemplate, cancellationToken);
     }
+
+    #region RegisterTenantUserAsync Tests
+
+    [Fact]
+    public async Task RegisterTenantUserAsync_RoleAssigned_CommitsAndSendsEmailAfterCommit()
+    {
+        // Arrange
+        ArrangeTenantRegistration();
+        _roleManagementService.AssignRoleToUserAsync(Arg.Any<long>(), TenantRole, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        // Act
+        var result = await _sut.RegisterTenantUserAsync(TenantEmail, TenantPassword, TenantId, TenantRole, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        Received.InOrder(() =>
+        {
+            _unitOfWork.BeginTransactionAsync(Arg.Any<CancellationToken>());
+            _userManager.CreateAsync(Arg.Any<AppUser>(), TenantPassword);
+            _roleManagementService.AssignRoleToUserAsync(Arg.Any<long>(), TenantRole, Arg.Any<CancellationToken>());
+            _unitOfWork.CommitTransactionAsync(Arg.Any<CancellationToken>());
+            _emailSender.SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>());
+        });
+        await _unitOfWork.DidNotReceive().RollbackTransactionAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterTenantUserAsync_RoleAssignmentFails_RollsBackAndSendsNoEmail()
+    {
+        // Arrange
+        ArrangeTenantRegistration();
+        _roleManagementService.AssignRoleToUserAsync(Arg.Any<long>(), TenantRole, Arg.Any<CancellationToken>())
+            .Returns(Result.Error("Role store unavailable"));
+
+        // Act
+        var result = await _sut.RegisterTenantUserAsync(TenantEmail, TenantPassword, TenantId, TenantRole, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().CommitTransactionAsync(Arg.Any<CancellationToken>());
+        await _emailSender.DidNotReceive().SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterTenantUserAsync_DuplicateUserNameOnCreate_ReturnsNoContentAndRollsBack()
+    {
+        ArrangeTenantRegistration();
+        _userManager.CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>())
+            .Returns(IdentityResult.Failed(new IdentityError { Code = "DuplicateUserName" }));
+
+        var result = await _sut.RegisterTenantUserAsync(TenantEmail, TenantPassword, TenantId, TenantRole, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.NoContent);
+        await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
+        await _roleManagementService.DidNotReceive().AssignRoleToUserAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _emailSender.DidNotReceive().SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterTenantUserAsync_UserCreationFails_RollsBackWithoutAssigningRole()
+    {
+        ArrangeTenantRegistration();
+        _userManager.CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>())
+            .Returns(IdentityResult.Failed(new IdentityError { Code = "PasswordTooShort", Description = "Too short." }));
+
+        var result = await _sut.RegisterTenantUserAsync(TenantEmail, TenantPassword, TenantId, TenantRole, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Error);
+        await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
+        await _roleManagementService.DidNotReceive().AssignRoleToUserAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _emailSender.DidNotReceive().SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterTenantUserAsync_EmailAlreadyRegistered_ReturnsNoContentWithoutTransaction()
+    {
+        // Arrange
+        ArrangeTenantRegistration();
+        _userManager.FindByEmailAsync(TenantEmail).Returns(new AppUser { Id = 42 });
+
+        // Act
+        var result = await _sut.RegisterTenantUserAsync(TenantEmail, TenantPassword, TenantId, TenantRole, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NoContent);
+        result.ValidationErrors.Should().BeEmpty();
+        result.Errors.Should().BeEmpty();
+        await _unitOfWork.DidNotReceive().BeginTransactionAsync(Arg.Any<CancellationToken>());
+        await _userManager.DidNotReceive().CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>());
+    }
+
+    #region Security and Privacy Tests
+
+    [Fact]
+    public async Task RegisterUserAsync_EmailAlreadyRegistered_LeaksNoAccountExistence()
+    {
+        // Arrange
+        _userManager.SupportsUserEmail.Returns(true);
+        _userManager.FindByEmailAsync(TenantEmail).Returns(new AppUser { Id = 42, TenantId = 0, EmailConfirmed = true });
+
+        // Act
+        var result = await _sut.RegisterUserAsync(TenantEmail, TenantPassword, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Status.Should().Be(ResultStatus.NoContent);
+        result.ValidationErrors.Should().BeEmpty();
+        result.Errors.Should().BeEmpty();
+        await _userManager.DidNotReceive().CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task RegisterUserAsync_EmailBelongsToAnotherTenant_LeaksNoAccountExistence()
+    {
+        // Arrange
+        _userManager.SupportsUserEmail.Returns(true);
+        _userManager.FindByEmailAsync(TenantEmail).Returns(new AppUser { Id = 42, TenantId = 5, EmailConfirmed = true });
+
+        // Act
+        var result = await _sut.RegisterUserAsync(TenantEmail, TenantPassword, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NoContent);
+        result.ValidationErrors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RegisterInvitedUserAsync_EmailAlreadyRegistered_StillReportsTheConflict()
+    {
+        // Arrange
+        _userManager.SupportsUserEmail.Returns(true);
+        _userManager.FindByEmailAsync(TenantEmail).Returns(new AppUser { Id = 42, TenantId = TenantId, EmailConfirmed = true });
+
+        // Act
+        var result = await _sut.RegisterInvitedUserAsync(TenantEmail, TenantId, CancellationToken.None);
+
+        // Assert
+        result.IsInvalid().Should().BeTrue();
+    }
+
+    #endregion
+
+    private const string TenantEmail = "member@example.com";
+    private const string TenantPassword = "P@ssw0rd";
+    private const string TenantRole = "Respondent";
+    private const long TenantId = 99;
+    private const long TenantUserId = 7;
+
+    private void ArrangeTenantRegistration()
+    {
+        _userManager.SupportsUserEmail.Returns(true);
+        _userManager.FindByEmailAsync(TenantEmail).Returns((AppUser?)null);
+        _userManager.CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>())
+            .Returns(callInfo =>
+            {
+                callInfo.Arg<AppUser>().Id = TenantUserId;
+                return Task.FromResult(IdentityResult.Success);
+            });
+        _userStore.SetUserNameAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                callInfo.Arg<AppUser>().UserName = callInfo.Arg<string>();
+                return Task.CompletedTask;
+            });
+        _emailStore.SetEmailAsync(Arg.Any<AppUser>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                callInfo.Arg<AppUser>().Email = callInfo.Arg<string>();
+                return Task.CompletedTask;
+            });
+        _emailVerificationService.CreateVerificationTokenAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new EmailVerificationToken(1, "raw-token", DateTime.UtcNow.AddHours(24))));
+        _emailTemplateService.CreateVerificationEmail(TenantEmail, "raw-token").Returns(new EmailWithTemplate
+        {
+            To = TenantEmail,
+            From = "noreply@example.com",
+            Subject = "Verify Your Email Address",
+            TemplateId = "email-verification"
+        });
+    }
+
+    #endregion
 }

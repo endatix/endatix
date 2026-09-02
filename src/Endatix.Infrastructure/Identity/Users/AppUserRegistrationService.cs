@@ -4,7 +4,9 @@ using Endatix.Core.Entities.Identity;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Abstractions.Data;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Users;
@@ -18,6 +20,8 @@ public sealed class AppUserRegistrationService(
     IEmailVerificationService emailVerificationService,
     IEmailSender emailSender,
     IEmailTemplateService emailTemplateService,
+    IRoleManagementService roleManagementService,
+    [FromKeyedServices("identity")] IUnitOfWork unitOfWork,
     ILogger<AppUserRegistrationService> logger) : IUserRegistrationService
 {
     private const string EmailAlreadyRegisteredMessage = "The email is already registered.";
@@ -59,7 +63,14 @@ public sealed class AppUserRegistrationService(
     /// <inheritdoc />
     public async Task<Result<User>> RegisterUserAsync(string email, string password, CancellationToken cancellationToken)
     {
-        return await RegisterUserAsync(email, password, tenantId: 0, isEmailConfirmed: false, cancellationToken);
+        return await RegisterUserAsync(
+            email,
+            password,
+            tenantId: 0,
+            isEmailConfirmed: false,
+            sendInvitationEmail: false,
+            isAnonymous: true,
+            cancellationToken);
     }
 
     /// <inheritdoc />
@@ -71,6 +82,7 @@ public sealed class AppUserRegistrationService(
             tenantId,
             isEmailConfirmed,
             sendInvitationEmail: false,
+            isAnonymous: false,
             cancellationToken);
     }
 
@@ -83,7 +95,84 @@ public sealed class AppUserRegistrationService(
             tenantId,
             isEmailConfirmed: false,
             sendInvitationEmail: true,
+            isAnonymous: false,
             cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<User>> RegisterTenantUserAsync(
+        string email,
+        string password,
+        long tenantId,
+        string roleName,
+        CancellationToken cancellationToken)
+    {
+        var emailGuard = ValidateRegistrationEmail(email);
+        if (!emailGuard.IsSuccess)
+        {
+            return emailGuard.ToErrorResult<User>();
+        }
+
+        var normalizedEmail = email.Trim();
+
+        // Self-registration is anonymous, so it must never attach or re-role an account that already
+        // exists - unlike the invite path, which deliberately adopts an unattached user.
+        if (await userManager.FindByEmailAsync(normalizedEmail) is not null)
+        {
+            return ExistingAccountSuppressed(normalizedEmail);
+        }
+
+        AppUser newUser = new()
+        {
+            TenantId = tenantId,
+            EmailConfirmed = false
+        };
+
+        var emailStore = (IUserEmailStore<AppUser>)userStore;
+        await userStore.SetUserNameAsync(newUser, normalizedEmail, cancellationToken);
+        await emailStore.SetEmailAsync(newUser, normalizedEmail, cancellationToken);
+
+        // The user row and the role grant live in the same identity DbContext, so one transaction is
+        // enough - no compensation or saga. Both UserManager calls enlist in it.
+        try
+        {
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            var createUserResult = await userManager.CreateAsync(newUser, password);
+            if (!createUserResult.Succeeded)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return createUserResult.Errors.Any(error => error.Code == "DuplicateUserName")
+                    ? ExistingAccountSuppressed(normalizedEmail)
+                    : ToIdentityErrorResult(createUserResult);
+            }
+
+            var assignRoleResult = await roleManagementService.AssignRoleToUserAsync(
+                newUser.Id,
+                roleName,
+                cancellationToken);
+            if (!assignRoleResult.IsSuccess)
+            {
+                await unitOfWork.RollbackTransactionAsync(cancellationToken);
+                logger.LogError(
+                    "Rolled back self-registration for {Email}: role {RoleName} could not be granted.",
+                    PiiRedactor.RedactEmail(normalizedEmail),
+                    roleName);
+                return assignRoleResult.ToErrorResult<User>();
+            }
+
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+        }
+        catch
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            throw;
+        }
+
+        // After the commit: an email cannot be unsent, so it must not precede the write it announces.
+        await SendAccountEmailAsync(newUser.Id, normalizedEmail, sendInvitationEmail: false, cancellationToken);
+
+        return Result.Success(newUser.ToUserEntity());
     }
 
     private async Task<Result<User>> RegisterUserAsync(
@@ -92,6 +181,7 @@ public sealed class AppUserRegistrationService(
         long tenantId,
         bool isEmailConfirmed,
         bool sendInvitationEmail,
+        bool isAnonymous,
         CancellationToken cancellationToken)
     {
         if (!userManager.SupportsUserEmail)
@@ -109,7 +199,7 @@ public sealed class AppUserRegistrationService(
         var existingUser = await userManager.FindByEmailAsync(normalizedEmail);
         if (existingUser is not null)
         {
-            return await HandleExistingUserAsync(existingUser, normalizedEmail, tenantId, sendInvitationEmail, cancellationToken);
+            return await HandleExistingUserAsync(existingUser, normalizedEmail, tenantId, sendInvitationEmail, isAnonymous, cancellationToken);
         }
 
         var newUser = new AppUser
@@ -140,7 +230,7 @@ public sealed class AppUserRegistrationService(
         }
         else
         {
-            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", RedactEmail(normalizedEmail));
+            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", PiiRedactor.RedactEmail(normalizedEmail));
         }
 
         // If token creation or email sending fails, we should still return success but log the error
@@ -148,16 +238,33 @@ public sealed class AppUserRegistrationService(
         return Result.Success(domainUser);
     }
 
+    /// <summary>
+    /// Anonymous registration answers the same way whether or not the address is taken, so the endpoint
+    /// cannot be used to enumerate accounts (OWASP WSTG-IDNT-04). <see cref="ResultStatus.NoContent"/>
+    /// tells the caller "nothing was created" without giving the client anything to distinguish.
+    /// </summary>
+    private Result<User> ExistingAccountSuppressed(string email)
+    {
+        logger.LogInformation(
+            "Registration attempt for an address that is already registered: {Email}. Answering with the neutral result.",
+            PiiRedactor.RedactEmail(email));
+
+        return Result<User>.NoContent();
+    }
+
     private async Task<Result<User>> HandleExistingUserAsync(
         AppUser existingUser,
         string email,
         long tenantId,
         bool sendInvitationEmail,
+        bool isAnonymous,
         CancellationToken cancellationToken)
     {
         if (existingUser.TenantId > 0 && existingUser.TenantId != tenantId)
         {
-            return Result.Invalid(new ValidationError(EmailAlreadyRegisteredMessage));
+            return isAnonymous
+                ? ExistingAccountSuppressed(email)
+                : Result.Invalid(new ValidationError(EmailAlreadyRegisteredMessage));
         }
 
         if (existingUser.TenantId != tenantId)
@@ -167,7 +274,9 @@ public sealed class AppUserRegistrationService(
 
         if (existingUser.EmailConfirmed)
         {
-            return Result.Invalid(new ValidationError(UserAlreadyBelongsToTenantMessage));
+            return isAnonymous
+                ? ExistingAccountSuppressed(email)
+                : Result.Invalid(new ValidationError(UserAlreadyBelongsToTenantMessage));
         }
 
         await SendAccountEmailAsync(existingUser.Id, email, sendInvitationEmail, cancellationToken);
@@ -212,7 +321,7 @@ public sealed class AppUserRegistrationService(
         var rawToken = tokenResult.Value?.RawToken;
         if (string.IsNullOrWhiteSpace(rawToken))
         {
-            logger.LogError("Failed to send account email to {Email} during registration because the verification token is missing.", RedactEmail(email));
+            logger.LogError("Failed to send account email to {Email} during registration because the verification token is missing.", PiiRedactor.RedactEmail(email));
             return;
         }
 
@@ -226,11 +335,11 @@ public sealed class AppUserRegistrationService(
 
             logger.LogInformation("{EmailKind} email sent successfully to {Email} during registration",
                 sendInvitationEmail ? "Invitation" : "Verification",
-                RedactEmail(email));
+                PiiRedactor.RedactEmail(email));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send account email to {Email} during registration", RedactEmail(email));
+            logger.LogError(ex, "Failed to send account email to {Email} during registration", PiiRedactor.RedactEmail(email));
         }
     }
 
@@ -305,11 +414,6 @@ public sealed class AppUserRegistrationService(
             : tokenResult.Errors;
 
         logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}",
-            RedactEmail(email), userId, string.Join(", ", errors));
-    }
-
-    private static string RedactEmail(string email)
-    {
-        return PiiRedactor.Redact(email, SensitivityType.Email);
+            PiiRedactor.RedactEmail(email), userId, string.Join(", ", errors));
     }
 }
