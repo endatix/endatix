@@ -6,6 +6,8 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.DependencyInjection;
 using UpdateTenantEndpoint = Endatix.Api.Endpoints.Admin.Tenants.Update;
 
 namespace Endatix.Api.Tests.Endpoints.Admin.Tenants;
@@ -97,7 +99,17 @@ public sealed class UpdateTests
     }
 
     private UpdateTenantEndpoint CreateEndpoint(bool multiTenancyEnabled) =>
-        Factory.Create<UpdateTenantEndpoint>(_mediator, MultiTenancyConfiguration.Create(multiTenancyEnabled));
+        Factory.Create<UpdateTenantEndpoint>(
+            _mediator,
+            MultiTenancyConfiguration.Create(multiTenancyEnabled),
+            CreateCache());
+
+    private static HybridCache CreateCache()
+    {
+        var services = new ServiceCollection();
+        services.AddHybridCache();
+        return services.BuildServiceProvider().GetRequiredService<HybridCache>();
+    }
 
     private static UpdateTenantRequest ValidRequest() => new()
     {

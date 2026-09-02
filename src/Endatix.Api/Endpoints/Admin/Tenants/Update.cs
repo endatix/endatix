@@ -1,6 +1,7 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Tenants.Update;
+using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Data.Config;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
@@ -8,6 +9,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
 
 namespace Endatix.Api.Endpoints.Admin.Tenants;
@@ -15,7 +17,7 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 /// <summary>
 /// Endpoint for partially updating a platform tenant.
 /// </summary>
-public sealed class Update(IMediator mediator, IConfiguration configuration)
+public sealed class Update(IMediator mediator, IConfiguration configuration, HybridCache cache)
     : Endpoint<UpdateTenantRequest, Results<Ok<TenantModel>, ProblemHttpResult>>
 {
     /// <summary>
@@ -68,6 +70,10 @@ public sealed class Update(IMediator mediator, IConfiguration configuration)
             request.AllowedAuthProviderKeys,
             request.DefaultRegistrationRoleName);
         var result = await mediator.Send(command, ct);
+        if (result.IsSuccess)
+        {
+            await cache.RemoveAsync(PublicTenantCacheKeys.Entry(result.Value.ShortUrl), ct);
+        }
 
         return TypedResultsBuilder
             .MapResult(result, TenantModel.Map)

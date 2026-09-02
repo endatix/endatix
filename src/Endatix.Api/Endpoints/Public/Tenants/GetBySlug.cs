@@ -1,23 +1,23 @@
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Tenants.GetPublicBySlug;
+using Endatix.Infrastructure.Caching;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Api.Endpoints.Public.Tenants;
 
 /// <summary>
 /// Unauthenticated tenant discovery by opaque public id. Rate-limited; 404s are not cached.
 /// </summary>
-public sealed class GetBySlug(IMediator mediator, IMemoryCache cache)
+public sealed class GetBySlug(IMediator mediator, HybridCache cache)
     : Endpoint<GetPublicTenantRequest, Results<Ok<PublicTenantModel>, ProblemHttpResult>>
 {
-    internal static readonly TimeSpan PublicTenantCacheDuration = TimeSpan.FromMinutes(3);
-
     public override void Configure()
     {
         Get("tenants/{slug}");
@@ -41,17 +41,24 @@ public sealed class GetBySlug(IMediator mediator, IMemoryCache cache)
         GetPublicTenantRequest request,
         CancellationToken ct)
     {
-        var cacheKey = $"tenant:public:{request.Slug}";
-        if (cache.TryGetValue(cacheKey, out PublicTenantModel? cached) && cached is not null)
+        var normalizedSlug = PublicTenantCacheKeys.TryNormalized(request.Slug);
+        if (normalizedSlug is null)
         {
-            return TypedResults.Ok(cached);
+            return TypedResultsBuilder
+                .FromResult(Result<PublicTenantModel>.NotFound(GetPublicTenantHandler.TenantNotFoundMessage))
+                .SetTypedResults<Ok<PublicTenantModel>, ProblemHttpResult>();
         }
 
-        var result = await mediator.Send(new GetPublicTenantQuery(request.Slug), ct);
-        if (result.IsSuccess)
-        {
-            cache.Set(cacheKey, PublicTenantModel.Map(result.Value), PublicTenantCacheDuration);
-        }
+        var result = await cache.GetOrCreateResultAsync(
+            PublicTenantCacheKeys.Entry(normalizedSlug),
+            token => mediator.Send(new GetPublicTenantQuery(normalizedSlug), token),
+            new HybridCacheEntryOptions
+            {
+                Expiration = PublicTenantCacheKeys.Ttl,
+                LocalCacheExpiration = PublicTenantCacheKeys.Ttl
+            },
+            PublicTenantCacheKeys.TagsFor(normalizedSlug),
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, PublicTenantModel.Map)
