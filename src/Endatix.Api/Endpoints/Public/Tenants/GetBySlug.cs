@@ -18,6 +18,7 @@ namespace Endatix.Api.Endpoints.Public.Tenants;
 public sealed class GetBySlug(IMediator mediator, HybridCache cache)
     : Endpoint<GetPublicTenantRequest, Results<Ok<PublicTenantModel>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Get("tenants/{slug}");
@@ -34,9 +35,11 @@ public sealed class GetBySlug(IMediator mediator, HybridCache cache)
         });
         Description(builder => builder
             .Produces<PublicTenantModel>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests));
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Ok<PublicTenantModel>, ProblemHttpResult>> ExecuteAsync(
         GetPublicTenantRequest request,
         CancellationToken ct)
@@ -66,6 +69,9 @@ public sealed class GetBySlug(IMediator mediator, HybridCache cache)
     }
 }
 
+/// <summary>
+/// Request for public tenant discovery.
+/// </summary>
 public sealed class GetPublicTenantRequest
 {
     /// <summary>Opaque 8-character public id (<c>Tenant.ShortUrl</c>).</summary>
@@ -73,7 +79,7 @@ public sealed class GetPublicTenantRequest
 }
 
 /// <summary>
-/// Empty-only. Invalid format is 404 in the handler so name-like values are not distinguishable from unknown ids.
+/// Empty-only. Invalid short URL format is 404 (same as unknown) so we do not leak structure.
 /// </summary>
 public sealed class GetPublicTenantValidator : Validator<GetPublicTenantRequest>
 {
@@ -83,6 +89,9 @@ public sealed class GetPublicTenantValidator : Validator<GetPublicTenantRequest>
     }
 }
 
+/// <summary>
+/// Public tenant discovery response. The numeric tenant id is omitted on purpose.
+/// </summary>
 public sealed record PublicTenantModel(
     string Slug,
     string Name,

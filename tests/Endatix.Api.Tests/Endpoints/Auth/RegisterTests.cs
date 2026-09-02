@@ -22,14 +22,17 @@ public class RegisterTests
     [Fact]
     public async Task ExecuteAsync_WithValidRequest_ReturnsOkResult()
     {
+        // Arrange
         var request = new RegisterRequest("user@example.com", "Password123!", "Password123!");
-        var successResult = Result.Success();
+        var successResult = Result<string>.Success(RegisterHandler.GENERAL_SUCCESS_MESSAGE);
 
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
             .Returns(successResult);
 
+        // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
+        // Assert
         var okResponse = response!.Result as Ok<RegisterResponse>;
 
         okResponse.Should().NotBeNull();
@@ -41,12 +44,14 @@ public class RegisterTests
     [Fact]
     public async Task ExecuteAsync_WithInvalidRequest_ReturnsProblem()
     {
+        // Arrange
         var request = new RegisterRequest("invalid@example.com", "WeakPass", "WeakPass");
-        var errorResult = Result.Invalid();
+        var errorResult = Result<string>.Invalid();
 
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
             .Returns(errorResult);
 
+        // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
         // Assert
@@ -61,12 +66,15 @@ public class RegisterTests
     [Fact]
     public async Task ExecuteAsync_SelfRegistrationDisabled_ReturnsForbidden()
     {
+        // Arrange
         var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR");
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Forbidden("Self-registration is not enabled for this tenant."));
+            .Returns(Result<string>.Forbidden("Self-registration is not enabled for this tenant."));
 
+        // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
+        // Assert
         var problem = response!.Result as ProblemHttpResult;
         problem.Should().NotBeNull();
         problem!.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
@@ -75,12 +83,15 @@ public class RegisterTests
     [Fact]
     public async Task ExecuteAsync_UnknownTenantSlug_ReturnsNotFound()
     {
+        // Arrange
         var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR");
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.NotFound("Tenant not found."));
+            .Returns(Result<string>.NotFound("Tenant not found."));
 
+        // Act
         var response = await _endpoint.ExecuteAsync(request, default);
 
+        // Assert
         var problem = response!.Result as ProblemHttpResult;
         problem.Should().NotBeNull();
         problem!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
@@ -89,12 +100,15 @@ public class RegisterTests
     [Fact]
     public async Task ExecuteAsync_WithTenantSlug_SendsSlugOnCommand()
     {
+        // Arrange
         var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR");
         _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
+            .Returns(Result<string>.Success(RegisterHandler.GENERAL_SUCCESS_MESSAGE));
 
+        // Act
         await _endpoint.ExecuteAsync(request, default);
 
+        // Assert
         await _mediator.Received(1).Send(
             Arg.Is<RegisterCommand>(command => command.TenantSlug == "xK9mP2qR"),
             Arg.Any<CancellationToken>());

@@ -20,11 +20,6 @@ public interface IRoleManagementService
     Task<Result> AssignRoleToUserAsync(long userId, string roleName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Assigns a role to a user as a tenant-scoped copy when <paramref name="tenantId"/> is greater than zero.
-    /// </summary>
-    Task<Result> AssignRoleToUserAsync(long userId, string roleName, long tenantId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Removes a role from a user.
     /// </summary>
     /// <param name="userId">The ID of the user.</param>
@@ -101,6 +96,15 @@ public interface IRoleManagementService
     /// </summary>
     Task<Result<IReadOnlyList<string>>> GetMissingAssignableRoleNamesAsync(
         IReadOnlyList<string> roleNames,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns requested role names that are not assignable in <paramref name="tenantId"/>.
+    /// Use when there is no ambient tenant context, such as anonymous self-registration.
+    /// </summary>
+    Task<Result<IReadOnlyList<string>>> GetMissingAssignableRoleNamesAsync(
+        IReadOnlyList<string> roleNames,
+        long tenantId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -62,12 +62,6 @@ public sealed class RoleManagementService : IRoleManagementService
     /// <inheritdoc/>
     public async Task<Result> AssignRoleToUserAsync(long userId, string roleName, CancellationToken cancellationToken = default)
     {
-        return await AssignRoleToUserAsync(userId, roleName, _tenantContext.TenantId, cancellationToken);
-    }
-
-    /// <inheritdoc/>
-    public async Task<Result> AssignRoleToUserAsync(long userId, string roleName, long tenantId, CancellationToken cancellationToken = default)
-    {
         var inputGuard = ValidateRoleMutationInput(userId, roleName);
         if (!inputGuard.IsSuccess)
         {
@@ -517,8 +511,15 @@ public sealed class RoleManagementService : IRoleManagementService
     }
 
     /// <inheritdoc/>
+    public Task<Result<IReadOnlyList<string>>> GetMissingAssignableRoleNamesAsync(
+        IReadOnlyList<string> roleNames,
+        CancellationToken cancellationToken = default) =>
+        GetMissingAssignableRoleNamesAsync(roleNames, _tenantContext.TenantId, cancellationToken);
+
+    /// <inheritdoc/>
     public async Task<Result<IReadOnlyList<string>>> GetMissingAssignableRoleNamesAsync(
         IReadOnlyList<string> roleNames,
+        long tenantId,
         CancellationToken cancellationToken = default)
     {
         if (roleNames.Count == 0)
@@ -530,7 +531,6 @@ public sealed class RoleManagementService : IRoleManagementService
         var requestedNormalizedRoleNames = requestedRoleNames
             .Select(NormalizeRoleName)
             .ToList();
-        var tenantId = _tenantContext.TenantId;
 
         var persistedNames = await _identityDbContext.Roles
             .AsNoTracking()

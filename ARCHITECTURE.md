@@ -5,7 +5,7 @@ This document describes how the Endatix API packages are organized today and the
 **Related**
 
 - [Ardalis Minimal Clean Architecture](https://ardalis.github.io/CleanArchitecture/minimal-clean-architecture/) — vertical slices, optional Mediator/CQRS, pragmatic DDD
-- SaaS module examples: [`src/Endatix.Modules.Agents`](../../src/Endatix.Modules.Agents) + [`Endatix.Modules.Agents.Contracts`](../../src/Endatix.Modules.Agents.Contracts); [`src/Endatix.SaaS.Management`](../../src/Endatix.SaaS.Management) + [`Endatix.SaaS.Management.Contracts`](../../src/Endatix.SaaS.Management.Contracts) (commercial waitlist / tenant signup); OSS [`Endatix.Modules.Reporting`](src/Endatix.Modules.Reporting/) + [`Endatix.Modules.Reporting.Contracts`](src/Endatix.Modules.Reporting.Contracts/)
+- SaaS module examples: [`src/Endatix.Modules.Agents`](../src/Endatix.Modules.Agents) + [`Endatix.Modules.Agents.Contracts`](../src/Endatix.Modules.Agents.Contracts); [`src/Endatix.SaaS.Management`](../src/Endatix.SaaS.Management) + [`Endatix.SaaS.Management.Contracts`](../src/Endatix.SaaS.Management.Contracts) (commercial waitlist / tenant signup); OSS [`Endatix.Modules.Reporting`](src/Endatix.Modules.Reporting/) + [`Endatix.Modules.Reporting.Contracts`](src/Endatix.Modules.Reporting.Contracts/)
 - Workspace product notes: repo-root [`ARCHITECTURE.md`](../ARCHITECTURE.md)
 
 ---
@@ -523,8 +523,8 @@ Overloading `act` so `sub` is the customer would break assume-authz (`act == sub
 
 **Self-registration**
 
-- Default **off**. `GET /api/public/tenants/{shortUrl}` returns `{ slug, name, selfRegistrationEnabled, allowedAuthProviders }` (no numeric id). Unknown, deleted, or name-like values → 404. Rate-limited. Successful lookups use **HybridCache** (`GetOrCreateResultAsync`, 3 min); 404s are not stored. `PATCH /admin/tenants/{id}` removes the entry. `allowedAuthProviders` is a UI hint — register does **not** enforce the list this ship.
-- `POST /api/auth/register` without `tenantSlug` still creates an unattached user (`TenantId = 0`) for global `/create-account`. With `tenantSlug`: unknown → 404; self-reg off → 403; email already registered → validation error; otherwise register into that tenant and assign `DefaultRegistrationRoleName` as the **shared** system role (not a cloned `AppRole`). PlatformAdmin and Public are not allowed as defaults. Raises `UserRegisteredEvent`.
+- Default **off**. `GET /api/public/tenants/{shortUrl}` returns `{ slug, name, selfRegistrationEnabled, allowedAuthProviders }` (no numeric id). Unknown, deleted, or invalid short URL format → 404. Rate-limited. Successful lookups use **HybridCache** (`GetOrCreateResultAsync`, 3 min); 404s are not stored. `PATCH /admin/tenants/{id}` removes the entry. `allowedAuthProviders` is a UI hint — register does **not** enforce the list this ship.
+- `POST /api/auth/register` without `tenantSlug` still creates an unattached user (`TenantId = 0`) for global `/create-account`. With `tenantSlug`: unknown → 404; self-reg off → 403; email already registered → validation error; otherwise register into that tenant and assign `DefaultRegistrationRoleName` as the **shared** system role (not a cloned `AppRole`). The role is resolved against the tenant with `GetMissingAssignableRoleNamesAsync` **before** the user is created (same pre-flight as `InviteUserHandler`), and `RegisterTenantUserAsync` then writes the user row and the role grant in **one `AppIdentityDbContext` transaction** — both live in that context, so this needs no saga or compensation. The verification email is sent only after the commit, because it cannot be unsent. Self-registration therefore never leaves an account without a role, which no retry could repair once the email is taken. PlatformAdmin and Public are not allowed as defaults. Raises `UserRegisteredEvent`.
 
 **Caching**
 

@@ -32,4 +32,21 @@ public interface IUserRegistrationService
     /// Registers or reattaches a pending invited user and sends a tenant invitation activation email when needed.
     /// </summary>
     Task<Result<User>> RegisterInvitedUserAsync(string email, long tenantId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Registers a tenant member and grants <paramref name="roleName"/> atomically: either both land or
+    /// neither does, so a failed grant cannot leave an account that no retry can repair. The verification
+    /// email is sent after the write commits, because it cannot be rolled back.
+    /// </summary>
+    /// <param name="email">The email of the user to register.</param>
+    /// <param name="password">The chosen password.</param>
+    /// <param name="tenantId">The tenant the user is created in.</param>
+    /// <param name="roleName">The role granted on registration. Must already be assignable.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    Task<Result<User>> RegisterTenantUserAsync(
+        string email,
+        string password,
+        long tenantId,
+        string roleName,
+        CancellationToken cancellationToken);
 }

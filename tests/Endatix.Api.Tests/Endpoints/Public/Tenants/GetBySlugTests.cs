@@ -19,24 +19,30 @@ public sealed class GetBySlugTests
     [Fact]
     public async Task ExecuteAsync_UnknownSlug_ReturnsNotFound()
     {
+        // Arrange
         var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
         _mediator.Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result<PublicTenantDto>.NotFound("Tenant not found."));
 
+        // Act
         var response = await endpoint.ExecuteAsync(
             new GetPublicTenantRequest { Slug = "xK9mP2qR" },
             TestContext.Current.CancellationToken);
 
+        // Assert
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
-    [Fact]
-    public async Task ExecuteAsync_NameLikeSlug_ReturnsNotFoundWithoutQuery()
+    [Theory]
+    [InlineData("acme")]
+    [InlineData("acme-regional-surveys")]
+    [InlineData("xk9mp2qr8")]
+    public async Task ExecuteAsync_InvalidShortUrl_ReturnsNotFoundWithoutQuery(string slug)
     {
         var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
 
         var response = await endpoint.ExecuteAsync(
-            new GetPublicTenantRequest { Slug = "acme" },
+            new GetPublicTenantRequest { Slug = slug },
             TestContext.Current.CancellationToken);
 
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status404NotFound);
@@ -46,6 +52,7 @@ public sealed class GetBySlugTests
     [Fact]
     public async Task ExecuteAsync_Success_ReturnsDtoWithoutNumericId()
     {
+        // Arrange
         var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
         _mediator.Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new PublicTenantDto(
@@ -54,10 +61,12 @@ public sealed class GetBySlugTests
                 true,
                 ["endatix"])));
 
+        // Act
         var response = await endpoint.ExecuteAsync(
             new GetPublicTenantRequest { Slug = "xK9mP2qR" },
             TestContext.Current.CancellationToken);
 
+        // Assert
         var ok = response.Result.As<Ok<PublicTenantModel>>();
         ok.Value!.Slug.Should().Be("xk9mp2qr");
         ok.Value.SelfRegistrationEnabled.Should().BeTrue();
@@ -67,24 +76,29 @@ public sealed class GetBySlugTests
     [Fact]
     public async Task ExecuteAsync_Success_CachesAndSkipsSecondLookup()
     {
+        // Arrange
         var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
         _mediator.Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new PublicTenantDto("xk9mp2qr", "Acme", true, ["endatix"])));
         var request = new GetPublicTenantRequest { Slug = "xk9mp2qr" };
 
+        // Act
         await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
         await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
+        // Assert
         await _mediator.Received(1).Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_Success_MixedCaseSlugSharesCacheKey()
     {
+        // Arrange
         var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
         _mediator.Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new PublicTenantDto("xk9mp2qr", "Acme", true, ["endatix"])));
 
+        // Act
         await endpoint.ExecuteAsync(
             new GetPublicTenantRequest { Slug = "xK9mP2qR" },
             TestContext.Current.CancellationToken);
@@ -92,20 +106,24 @@ public sealed class GetBySlugTests
             new GetPublicTenantRequest { Slug = "xk9mp2qr" },
             TestContext.Current.CancellationToken);
 
+        // Assert
         await _mediator.Received(1).Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_NotFound_DoesNotCache()
     {
+        // Arrange
         var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
         _mediator.Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result<PublicTenantDto>.NotFound("Tenant not found."));
         var request = new GetPublicTenantRequest { Slug = "xk9mp2qr" };
 
+        // Act
         await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
         await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
+        // Assert
         await _mediator.Received(2).Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>());
     }
 
