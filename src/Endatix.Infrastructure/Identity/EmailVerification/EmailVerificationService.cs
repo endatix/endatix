@@ -99,6 +99,27 @@ public class EmailVerificationService : IEmailVerificationService
             return Result.Invalid(new ValidationError(INVALID_VERIFICATION_TOKEN_MESSAGE));
         }
 
+        var user = await _userManager.FindByIdAsync(verificationToken.UserId.ToString());
+        if (user == null)
+        {
+            // Report the same failure as an unknown token. A dangling token must not tell the
+            // caller that the token itself was genuine but the account behind it is gone.
+            return Result.Invalid(new ValidationError(INVALID_VERIFICATION_TOKEN_MESSAGE));
+        }
+
+        // Re-clicks, Hub Strict-Mode double POST, and "already verified" must succeed. Hub maps
+        // "User is already verified" to a hard error; a used token after a race is not a failure.
+        if (user.EmailConfirmed)
+        {
+            if (!verificationToken.IsUsed)
+            {
+                verificationToken.MarkAsUsed();
+                await _tokenRepository.UpdateAsync(verificationToken, cancellationToken);
+            }
+
+            return Result.Success(user.ToUserEntity());
+        }
+
         if (verificationToken.IsExpired)
         {
             return Result.Invalid(new ValidationError("Verification token has expired"));
@@ -109,20 +130,6 @@ public class EmailVerificationService : IEmailVerificationService
             return Result.Invalid(new ValidationError("Verification token has already been used"));
         }
 
-        var user = await _userManager.FindByIdAsync(verificationToken.UserId.ToString());
-        if (user == null)
-        {
-            // Report the same failure as an unknown token. A dangling token must not tell the
-            // caller that the token itself was genuine but the account behind it is gone.
-            return Result.Invalid(new ValidationError(INVALID_VERIFICATION_TOKEN_MESSAGE));
-        }
-
-        if (user.EmailConfirmed)
-        {
-            return Result.Invalid(new ValidationError("User is already verified"));
-        }
-
-        // Mark user as verified
         user.EmailConfirmed = true;
         var updateResult = await _userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
@@ -130,7 +137,6 @@ public class EmailVerificationService : IEmailVerificationService
             return Result.Error("Failed to verify user");
         }
 
-        // Mark token as used
         verificationToken.MarkAsUsed();
         await _tokenRepository.UpdateAsync(verificationToken, cancellationToken);
 
