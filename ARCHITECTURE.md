@@ -496,6 +496,8 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 
 Overloading `act` so `sub` is the customer would break assume-authz (`act == sub`) and “exit assume before switch.” Support until then is assume-tenant (see the tenant as admin).
 
+`POST /auth/assume-tenant` mints the assumed session, `POST /auth/exit-assume` returns to the home tenant. Both require `AuthorizationPolicies.PlatformAdminAccess`, sit behind `MultiTenancyGate` (off → 404), and answer with `TenantSessionResponse`. Assumed access tokens expire after `AssumeTenantSession.AccessExpiryMinutes`; refresh keeps that shorter lifetime while `act` is present. Sessions do **not** nest — assuming from an assumed session is a 400; exit first. Neither handler writes membership; the audit trail is `tenant.context.changed` raised on the assumed tenant. Refresh persistence failure is returned as an infrastructure error (same as login), not a silent success.
+
 `Actions.Platform.AssumeTenants` is reserved and **not catalog-seeded** — add an AppIdentity migration before any policy requires it. `Actions.Platform.ImpersonateUsers` is catalog-seeded but unused.
 
 **Later:** public GET by short URL + tenant-scoped register. Forms can reuse `IShortUrlGenerator` with a `Form.ShortUrl` column; a polymorphic URLs table is deferred until vanity aliases or redirects are required.

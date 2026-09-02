@@ -39,10 +39,19 @@ public class RefreshTokenHandler(IAuthService authService, IUserTokenService tok
         var user = refreshTokenValidationResult.Value;
         var accessToken = tokenService.IssueAccessToken(
             user,
-            new AccessTokenIssueOptions(session.TenantId, session.ActorUserId));
+            new AccessTokenIssueOptions(
+                session.TenantId,
+                session.ActorUserId,
+                AccessExpiryMinutes: session.ActorUserId is not null
+                    ? AssumeTenantSession.AccessExpiryMinutes
+                    : null));
         var refreshToken = tokenService.IssueRefreshToken();
 
-        await authService.StoreRefreshToken(user.Id, refreshToken.Token, refreshToken.ExpireAt, cancellationToken);
+        var storeResult = await authService.StoreRefreshToken(user.Id, refreshToken.Token, refreshToken.ExpireAt, cancellationToken);
+        if (!storeResult.IsSuccess)
+        {
+            return storeResult.ToErrorResult<AuthTokensDto>();
+        }
 
         return Result.Success(new AuthTokensDto(accessToken, refreshToken));
     }
