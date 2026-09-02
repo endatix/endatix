@@ -4,7 +4,7 @@ namespace Endatix.Core.Infrastructure.Logging;
 /// Provides methods to redact sensitive data when logging.
 /// <example>
 /// <code>
-/// var redactedEmail = PiiRedactor.Redact("john.doe@example.com", SensitivityType.Email);
+/// var redactedEmail = PiiRedactor.RedactEmail("john.doe@example.com");
 /// Console.WriteLine(redactedEmail); // Output: [redacted-email]
 /// </code>
 /// </example>
@@ -40,7 +40,7 @@ public static class PiiRedactor
         switch (sensitivityType)
         {
             case SensitivityType.Email:
-                return RedactEmail();
+                return RedactEmail(input);
             case SensitivityType.Secret:
                 return RedactSecret();
             case SensitivityType.PhoneNumber:
@@ -53,11 +53,14 @@ public static class PiiRedactor
     }
 
     /// <summary>
-    /// Redacts an email without preserving any input-derived characters.
+    /// Constant marker for structured log arguments. Pass the address at the call site so
+    /// scanners see a redactor, not a raw email in a log template.
     /// </summary>
-    /// <returns>The redacted email.</returns>
-    internal static string RedactEmail()
+    /// <param name="email">Discarded. Not read, stored, or sent to any external system.</param>
+    /// <returns>Always <see cref="REDACTED_EMAIL"/>.</returns>
+    public static string RedactEmail(string? email)
     {
+        _ = email;
         return REDACTED_EMAIL;
     }
 

@@ -156,7 +156,7 @@ public sealed class AppUserRegistrationService(
                 await unitOfWork.RollbackTransactionAsync(cancellationToken);
                 logger.LogError(
                     "Rolled back self-registration for {Email}: role {RoleName} could not be granted.",
-                    RedactEmail(normalizedEmail),
+                    PiiRedactor.RedactEmail(normalizedEmail),
                     roleName);
                 return assignRoleResult.ToErrorResult<User>();
             }
@@ -230,7 +230,7 @@ public sealed class AppUserRegistrationService(
         }
         else
         {
-            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", RedactEmail(normalizedEmail));
+            logger.LogInformation("Skipping email verification for {Email} - email is already confirmed", PiiRedactor.RedactEmail(normalizedEmail));
         }
 
         // If token creation or email sending fails, we should still return success but log the error
@@ -247,7 +247,7 @@ public sealed class AppUserRegistrationService(
     {
         logger.LogInformation(
             "Registration attempt for an address that is already registered: {Email}. Answering with the neutral result.",
-            RedactEmail(email));
+            PiiRedactor.RedactEmail(email));
 
         return Result<User>.NoContent();
     }
@@ -321,7 +321,7 @@ public sealed class AppUserRegistrationService(
         var rawToken = tokenResult.Value?.RawToken;
         if (string.IsNullOrWhiteSpace(rawToken))
         {
-            logger.LogError("Failed to send account email to {Email} during registration because the verification token is missing.", RedactEmail(email));
+            logger.LogError("Failed to send account email to {Email} during registration because the verification token is missing.", PiiRedactor.RedactEmail(email));
             return;
         }
 
@@ -335,11 +335,11 @@ public sealed class AppUserRegistrationService(
 
             logger.LogInformation("{EmailKind} email sent successfully to {Email} during registration",
                 sendInvitationEmail ? "Invitation" : "Verification",
-                RedactEmail(email));
+                PiiRedactor.RedactEmail(email));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send account email to {Email} during registration", RedactEmail(email));
+            logger.LogError(ex, "Failed to send account email to {Email} during registration", PiiRedactor.RedactEmail(email));
         }
     }
 
@@ -414,11 +414,6 @@ public sealed class AppUserRegistrationService(
             : tokenResult.Errors;
 
         logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}",
-            RedactEmail(email), userId, string.Join(", ", errors));
-    }
-
-    private static string RedactEmail(string email)
-    {
-        return PiiRedactor.Redact(email, SensitivityType.Email);
+            PiiRedactor.RedactEmail(email), userId, string.Join(", ", errors));
     }
 }

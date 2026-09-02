@@ -38,7 +38,7 @@ public class RegisterTests
         okResponse.Should().NotBeNull();
         _endpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
         okResponse!.Value!.Success.Should().BeTrue();
-        okResponse!.Value!.Message.Should().Be("User has been successfully registered");
+        okResponse!.Value!.Message.Should().Be(RegisterHandler.GENERAL_SUCCESS_MESSAGE);
     }
 
     [Fact]

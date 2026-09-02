@@ -452,21 +452,35 @@ public class AppUserRegistrationServiceTests
     }
 
     [Fact]
-    public async Task RegisterTenantUserAsync_UserCreationFails_RollsBackWithoutAssigningRole()
+    public async Task RegisterTenantUserAsync_DuplicateUserNameOnCreate_ReturnsNoContentAndRollsBack()
     {
-        // Arrange
         ArrangeTenantRegistration();
         _userManager.CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>())
             .Returns(IdentityResult.Failed(new IdentityError { Code = "DuplicateUserName" }));
 
-        // Act
         var result = await _sut.RegisterTenantUserAsync(TenantEmail, TenantPassword, TenantId, TenantRole, CancellationToken.None);
 
-        // Assert
-        result.IsInvalid().Should().BeTrue();
+        result.Status.Should().Be(ResultStatus.NoContent);
         await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
         await _roleManagementService.DidNotReceive().AssignRoleToUserAsync(
             Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _emailSender.DidNotReceive().SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterTenantUserAsync_UserCreationFails_RollsBackWithoutAssigningRole()
+    {
+        ArrangeTenantRegistration();
+        _userManager.CreateAsync(Arg.Any<AppUser>(), Arg.Any<string>())
+            .Returns(IdentityResult.Failed(new IdentityError { Code = "PasswordTooShort", Description = "Too short." }));
+
+        var result = await _sut.RegisterTenantUserAsync(TenantEmail, TenantPassword, TenantId, TenantRole, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Error);
+        await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
+        await _roleManagementService.DidNotReceive().AssignRoleToUserAsync(
+            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _emailSender.DidNotReceive().SendEmailAsync(Arg.Any<EmailWithTemplate>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

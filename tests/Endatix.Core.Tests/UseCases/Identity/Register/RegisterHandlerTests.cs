@@ -261,7 +261,7 @@ public class RegisterHandlerTests
     public async Task Handle_Unattached_EmailAlreadyRegistered_IsIndistinguishableFromNewAccount()
     {
         // Arrange
-        var newAccount = new User(1, 0, "new@example.com", "new@example.com", false);
+        var newAccount = new User(1, "new@example.com", "new@example.com", false);
         _userRegistrationService.RegisterUserAsync("new@example.com", Password, Arg.Any<CancellationToken>())
             .Returns(Result<User>.Success(newAccount));
         _userRegistrationService.RegisterUserAsync("taken@example.com", Password, Arg.Any<CancellationToken>())
