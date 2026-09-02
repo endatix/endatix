@@ -85,4 +85,18 @@ public class RegisterTests
         problem.Should().NotBeNull();
         problem!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithTenantSlug_SendsSlugOnCommand()
+    {
+        var request = new RegisterRequest("user@example.com", "Password123!", "Password123!", "xK9mP2qR");
+        _mediator.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        await _endpoint.ExecuteAsync(request, default);
+
+        await _mediator.Received(1).Send(
+            Arg.Is<RegisterCommand>(command => command.TenantSlug == "xK9mP2qR"),
+            Arg.Any<CancellationToken>());
+    }
 }

@@ -523,8 +523,8 @@ Overloading `act` so `sub` is the customer would break assume-authz (`act == sub
 
 **Self-registration**
 
-- Default **off**. `GET /public/tenants/{shortUrl}` returns `{ shortUrl, name, selfRegistrationEnabled, allowedAuthProviders }` (no numeric id). Unknown, deleted, or name-like values → 404. Rate-limited; successful lookups may be cached briefly; 404s are not.
-- `POST /auth/register` without `tenantSlug` still creates an unattached user (`TenantId = 0`) for global `/create-account`. With `tenantSlug`: unknown → 404; self-reg off → 403; email already registered → validation error; otherwise register into that tenant and assign `DefaultRegistrationRoleName` as the shared system role (not a cloned copy). PlatformAdmin and Public are not allowed as defaults.
+- Default **off**. `GET /api/public/tenants/{shortUrl}` returns `{ slug, name, selfRegistrationEnabled, allowedAuthProviders }` (no numeric id). Unknown, deleted, or name-like values → 404. Rate-limited; successful lookups may be cached briefly; 404s are not. `allowedAuthProviders` is a UI hint — register does **not** enforce the list this ship.
+- `POST /api/auth/register` without `tenantSlug` still creates an unattached user (`TenantId = 0`) for global `/create-account`. With `tenantSlug`: unknown → 404; self-reg off → 403; email already registered → validation error; otherwise register into that tenant and assign `DefaultRegistrationRoleName` as the **shared** system role (not a cloned `AppRole`). PlatformAdmin and Public are not allowed as defaults. Raises `UserRegisteredEvent`.
 
 ---
 

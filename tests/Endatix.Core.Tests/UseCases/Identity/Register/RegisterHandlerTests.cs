@@ -209,7 +209,7 @@ public class RegisterHandlerTests
     }
 
     [Fact]
-    public async Task Handle_TenantSlugEnabled_RegistersAndAssignsTenantScopedRole()
+    public async Task Handle_TenantSlugEnabled_RegistersAndAssignsSharedSystemRole()
     {
         var email = "user@example.com";
         var password = "Password123!";

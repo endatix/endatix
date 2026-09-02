@@ -20,7 +20,7 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, Results<Ok
         Summary(s =>
         {
             s.Summary = "Register a new user";
-            s.Description = "Creates a new user account. When tenantSlug is omitted, the user is unattached (TenantId = 0). When present, the tenant must allow self-registration and the default role is assigned as a tenant-scoped copy.";
+            s.Description = "Creates a new user. Omit tenantSlug for an unattached account (TenantId = 0). When tenantSlug is set, the tenant must allow self-registration; the shared system DefaultRegistrationRoleName is assigned (not a cloned role).";
             s.Responses[200] = "User has been successfully registered.";
             s.Responses[400] = "Registration failed. Please check your input and try again.";
             s.Responses[403] = "Self-registration is not enabled for this tenant.";
@@ -31,14 +31,16 @@ public class Register(IMediator mediator) : Endpoint<RegisterRequest, Results<Ok
         });
         Description(builder => builder
             .Produces<RegisterResponse>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest));
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
-    public override async Task<Results<Ok<RegisterResponse>, ProblemHttpResult>> ExecuteAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public override async Task<Results<Ok<RegisterResponse>, ProblemHttpResult>> ExecuteAsync(RegisterRequest request, CancellationToken ct)
     {
         var registerUserCommand = new RegisterCommand(request.Email, request.Password, request.TenantSlug);
-        var userRegistrationResult = await mediator.Send(registerUserCommand, cancellationToken);
+        var userRegistrationResult = await mediator.Send(registerUserCommand, ct);
 
         var errorMessage = "Registration failed. ";
         if (userRegistrationResult.Status == Core.Infrastructure.Result.ResultStatus.Invalid && userRegistrationResult.ValidationErrors.Any())

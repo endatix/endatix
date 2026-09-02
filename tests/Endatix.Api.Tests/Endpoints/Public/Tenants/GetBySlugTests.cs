@@ -49,4 +49,32 @@ public sealed class GetBySlugTests
         ok.Value.SelfRegistrationEnabled.Should().BeTrue();
         ok.Value.GetType().GetProperty("Id").Should().BeNull();
     }
+
+    [Fact]
+    public async Task ExecuteAsync_Success_CachesAndSkipsSecondLookup()
+    {
+        var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
+        _mediator.Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new PublicTenantDto("xK9mP2qR", "Acme", true, ["endatix"])));
+        var request = new GetPublicTenantRequest { Slug = "xK9mP2qR" };
+
+        await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+        await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        await _mediator.Received(1).Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_NotFound_DoesNotCache()
+    {
+        var endpoint = Factory.Create<GetPublicTenantEndpoint>(_mediator, _cache);
+        _mediator.Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result<PublicTenantDto>.NotFound("Tenant not found."));
+        var request = new GetPublicTenantRequest { Slug = "xK9mP2qR" };
+
+        await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+        await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        await _mediator.Received(2).Send(Arg.Any<GetPublicTenantQuery>(), Arg.Any<CancellationToken>());
+    }
 }

@@ -67,11 +67,7 @@ public class RegisterHandler(
             return Result.Invalid(roleCheck.ValidationErrors);
         }
 
-        // Self-registration is anonymous, so it may only ever create a new account. Letting it fall
-        // through to RegisterUserAsync for an address that already exists would take the existing
-        // branches for an existing user: an unattached account would be silently moved into this
-        // tenant, and either way the account would then be granted the tenant's registration role
-        // below - a cross-tenant takeover driven purely by knowing someone's email address.
+        // Anonymous self-reg must not attach or re-role an existing account (email-oracle takeover).
         var existingUser = await userService.GetUserAsync(request.Email, cancellationToken);
         if (existingUser.IsSuccess)
         {

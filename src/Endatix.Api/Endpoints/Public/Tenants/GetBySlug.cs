@@ -32,11 +32,14 @@ public sealed class GetBySlug(IMediator mediator, IMemoryCache cache)
             s.Responses[404] = "Unknown or deleted public id.";
             s.Responses[429] = "Too many requests.";
         });
+        Description(builder => builder
+            .Produces<PublicTenantModel>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     public override async Task<Results<Ok<PublicTenantModel>, ProblemHttpResult>> ExecuteAsync(
         GetPublicTenantRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var cacheKey = $"tenant:public:{request.Slug}";
         if (cache.TryGetValue(cacheKey, out PublicTenantModel? cached) && cached is not null)
@@ -44,7 +47,7 @@ public sealed class GetBySlug(IMediator mediator, IMemoryCache cache)
             return TypedResults.Ok(cached);
         }
 
-        var result = await mediator.Send(new GetPublicTenantQuery(request.Slug), cancellationToken);
+        var result = await mediator.Send(new GetPublicTenantQuery(request.Slug), ct);
         if (result.IsSuccess)
         {
             cache.Set(cacheKey, PublicTenantModel.Map(result.Value), PublicTenantCacheDuration);
@@ -56,20 +59,14 @@ public sealed class GetBySlug(IMediator mediator, IMemoryCache cache)
     }
 }
 
-/// <summary>
-/// Request for unauthenticated tenant discovery.
-/// </summary>
 public sealed class GetPublicTenantRequest
 {
-    /// <summary>
-    /// Opaque 8-character alphanumeric public id stored on <c>Tenant.ShortUrl</c>.
-    /// </summary>
+    /// <summary>Opaque 8-character public id (<c>Tenant.ShortUrl</c>).</summary>
     public string Slug { get; set; } = string.Empty;
 }
 
 /// <summary>
-/// Validator for <see cref="GetPublicTenantRequest"/>. Format checks live in the handler so
-/// name-like values return 404 rather than 400.
+/// Empty-only. Invalid format is 404 in the handler so name-like values are not distinguishable from unknown ids.
 /// </summary>
 public sealed class GetPublicTenantValidator : Validator<GetPublicTenantRequest>
 {
@@ -79,9 +76,6 @@ public sealed class GetPublicTenantValidator : Validator<GetPublicTenantRequest>
     }
 }
 
-/// <summary>
-/// Public tenant DTO. Numeric id is intentionally absent.
-/// </summary>
 public sealed record PublicTenantModel(
     string Slug,
     string Name,
