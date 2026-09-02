@@ -1,6 +1,5 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Events;
@@ -17,12 +16,11 @@ public class AssumeTenantHandlerTests
     private const long ActorId = 7;
     private const long HomeTenantId = 1;
     private const long TargetTenantId = 99;
-    private const string ValidSlug = "xK9mP2qR";
+    private const string ValidSlug = "xk9mp2qr";
 
     private readonly IUserContext _userContext = Substitute.For<IUserContext>();
     private readonly IUserService _userService = Substitute.For<IUserService>();
     private readonly IRepository<Tenant> _tenantRepository = Substitute.For<IRepository<Tenant>>();
-    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly IUserTokenService _tokenService = Substitute.For<IUserTokenService>();
     private readonly IAuthService _authService = Substitute.For<IAuthService>();
     private readonly ICurrentUserAuthorizationService _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
@@ -36,7 +34,6 @@ public class AssumeTenantHandlerTests
             _userContext,
             _userService,
             _tenantRepository,
-            _unitOfWork,
             _tokenService,
             _authService,
             _authorizationService,
@@ -46,56 +43,86 @@ public class AssumeTenantHandlerTests
     [Fact]
     public async Task Handle_Anonymous_ReturnsUnauthorized()
     {
+        // Arrange
         _userContext.GetCurrentUser().Returns((User?)null);
 
+        // Act
         var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
 
+        // Assert
         result.Status.Should().Be(ResultStatus.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Handle_AlreadyAssumedSession_ReturnsInvalidWithoutIssuingTokens()
+    {
+        // Arrange
+        ArrangeActor();
+        _userContext.GetActorUserId().Returns(ActorId);
+
+        // Act
+        var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
+
+        // Assert
+        result.IsInvalid().Should().BeTrue();
+        _tokenService.DidNotReceive().IssueRefreshToken();
     }
 
     [Fact]
     public async Task Handle_TenantMissing_ReturnsNotFound()
     {
+        // Arrange
         ArrangeActor();
-        _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.ByIdSpec>(), Arg.Any<CancellationToken>())
-            .Returns((Tenant?)null);
+        ArrangeTenant(null);
 
+        // Act
         var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
 
+        // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
         _tokenService.DidNotReceive().IssueRefreshToken();
     }
 
     [Fact]
-    public async Task Handle_ValidTenant_IssuesAssumedTokensAndRaisesEvent()
+    public async Task Handle_RefreshTokenNotStored_ReturnsErrorWithoutRaisingEvent()
     {
+        // Arrange
         var user = ArrangeActor();
-        Tenant tenant = new("Acme", ValidSlug) { Id = TargetTenantId };
-        _tenantRepository
-            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.ByIdSpec>(), Arg.Any<CancellationToken>())
-            .Returns(tenant);
-        var access = new TokenDto("assumed-access", DateTime.UtcNow.AddMinutes(15));
-        var refresh = new TokenDto("refresh", DateTime.UtcNow.AddDays(7));
-        _tokenService.IssueAccessToken(user, Arg.Is<AccessTokenIssueOptions>(
-                options => options.TenantId == TargetTenantId
-                    && options.ActorUserId == ActorId
-                    && options.AccessExpiryMinutes == AssumeTenantSession.AccessExpiryMinutes))
-            .Returns(access);
-        _tokenService.IssueRefreshToken().Returns(refresh);
-        _authService.StoreRefreshToken(ActorId, refresh.Token, refresh.ExpireAt, Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
+        var tenant = ArrangeTenant(NewTargetTenant());
+        ArrangeTokens(user, tenant!);
+        _authService.StoreRefreshToken(ActorId, Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Error());
 
+        // Act
         var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
 
+        // Assert
+        result.Status.Should().Be(ResultStatus.Error);
+        tenant!.DomainEvents.Should().BeEmpty();
+        await _tenantRepository.DidNotReceive().UpdateAsync(Arg.Any<Tenant>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_ValidTenant_IssuesAssumedTokensAndRaisesEvent()
+    {
+        // Arrange
+        var user = ArrangeActor();
+        var tenant = ArrangeTenant(NewTargetTenant());
+        var (access, _) = ArrangeTokens(user, tenant!);
+
+        // Act
+        var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
+
+        // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.AccessToken.Should().Be(access);
-        tenant.DomainEvents.Should().ContainSingle()
-            .Which.Should().BeOfType<TenantContextChangedEvent>()
-            .Which.ChangeKind.Should().Be(TenantContextChangedEvent.Assumed);
-        await _authorizationService.Received().InvalidateAuthorizationDataCacheAsync(
-            ActorId.ToString(), HomeTenantId, Arg.Any<CancellationToken>());
-        await _authorizationService.Received().InvalidateAuthorizationDataCacheAsync(
+        var domainEvent = tenant!.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<TenantContextChangedEvent>().Subject;
+        domainEvent.ChangeKind.Should().Be(TenantContextChangedEvent.Assumed);
+        domainEvent.FromTenantId.Should().Be(HomeTenantId);
+        domainEvent.ToTenantId.Should().Be(TargetTenantId);
+        await _tenantRepository.Received(1).UpdateAsync(tenant, Arg.Any<CancellationToken>());
+        await _authorizationService.Received(1).InvalidateAuthorizationDataCacheAsync(
             ActorId.ToString(), TargetTenantId, Arg.Any<CancellationToken>());
     }
 
@@ -103,7 +130,33 @@ public class AssumeTenantHandlerTests
     {
         var user = new User(ActorId, HomeTenantId, "admin", "admin@example.com", true);
         _userContext.GetCurrentUser().Returns(user);
+        _userContext.GetActorUserId().Returns((long?)null);
         _userService.GetUserAsync(ActorId, Arg.Any<CancellationToken>()).Returns(Result.Success(user));
         return user;
+    }
+
+    private static Tenant NewTargetTenant() => new("Acme", ValidSlug) { Id = TargetTenantId };
+
+    private Tenant? ArrangeTenant(Tenant? tenant)
+    {
+        _tenantRepository
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.ByIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(tenant);
+        return tenant;
+    }
+
+    private (TokenDto Access, TokenDto Refresh) ArrangeTokens(User user, Tenant tenant)
+    {
+        var access = new TokenDto("assumed-access", DateTime.UtcNow.AddMinutes(15));
+        var refresh = new TokenDto("refresh", DateTime.UtcNow.AddDays(7));
+        _tokenService.IssueAccessToken(user, Arg.Is<AccessTokenIssueOptions>(
+                options => options.TenantId == tenant.Id
+                    && options.ActorUserId == ActorId
+                    && options.AccessExpiryMinutes == AssumeTenantSession.AccessExpiryMinutes))
+            .Returns(access);
+        _tokenService.IssueRefreshToken().Returns(refresh);
+        _authService.StoreRefreshToken(ActorId, refresh.Token, refresh.ExpireAt, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        return (access, refresh);
     }
 }

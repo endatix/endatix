@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 
@@ -16,8 +17,9 @@ namespace Endatix.Api.Endpoints.Auth;
 /// <c>act</c> marks the actor. No membership row is written.
 /// </summary>
 public sealed class AssumeTenant(IMediator mediator, IConfiguration configuration)
-    : Endpoint<AssumeTenantRequest, Results<Ok<AssumeTenantResponse>, ProblemHttpResult>>
+    : Endpoint<AssumeTenantRequest, Results<Ok<TenantSessionResponse>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Post("auth/assume-tenant");
@@ -26,40 +28,53 @@ public sealed class AssumeTenant(IMediator mediator, IConfiguration configuratio
         {
             s.Summary = "Assume tenant";
             s.Description = "Switches the current PlatformAdmin session into a target tenant without impersonating a user or creating membership.";
+            s.ExampleRequest = new AssumeTenantRequest { TenantId = 42 };
             s.Responses[200] = "Assumed session issued.";
-            s.Responses[400] = "Invalid tenant id.";
+            s.Responses[400] = "Invalid tenant id, or the session is already assumed.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Multi-tenancy is disabled, or the tenant was not found.";
         });
+        Description(builder => builder
+            .Produces<TenantSessionResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
-    public override async Task<Results<Ok<AssumeTenantResponse>, ProblemHttpResult>> ExecuteAsync(
+    /// <inheritdoc />
+    public override async Task<Results<Ok<TenantSessionResponse>, ProblemHttpResult>> ExecuteAsync(
         AssumeTenantRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         if (!MultiTenancyGate.IsEnabled(configuration))
         {
             return TypedResultsBuilder
-                .FromResult(Result<AssumeTenantResponse>.NotFound(MultiTenancyGate.DisabledMessage))
-                .SetTypedResults<Ok<AssumeTenantResponse>, ProblemHttpResult>();
+                .FromResult(Result<TenantSessionResponse>.NotFound(MultiTenancyGate.DisabledMessage))
+                .SetTypedResults<Ok<TenantSessionResponse>, ProblemHttpResult>();
         }
 
-        var result = await mediator.Send(new AssumeTenantCommand(request.TenantId), cancellationToken);
+        var result = await mediator.Send(new AssumeTenantCommand(request.TenantId), ct);
 
         return TypedResultsBuilder
-            .MapResult(result, Map)
-            .SetTypedResults<Ok<AssumeTenantResponse>, ProblemHttpResult>();
+            .MapResult(result, TenantSessionResponse.Map)
+            .SetTypedResults<Ok<TenantSessionResponse>, ProblemHttpResult>();
     }
-
-    private static AssumeTenantResponse Map(AuthTokensDto tokens) =>
-        new(tokens.AccessToken.Token, tokens.RefreshToken.Token);
 }
 
+/// <summary>
+/// Request for assuming a tenant session.
+/// </summary>
 public sealed class AssumeTenantRequest
 {
+    /// <summary>
+    /// The tenant to assume.
+    /// </summary>
     public long TenantId { get; set; }
 }
 
+/// <summary>
+/// Validator for <c>AssumeTenantRequest</c>.
+/// </summary>
 public sealed class AssumeTenantValidator : Validator<AssumeTenantRequest>
 {
     public AssumeTenantValidator()
@@ -68,4 +83,11 @@ public sealed class AssumeTenantValidator : Validator<AssumeTenantRequest>
     }
 }
 
-public sealed record AssumeTenantResponse(string AccessToken, string RefreshToken);
+/// <summary>
+/// Tokens for the tenant session issued by assume-tenant and exit-assume.
+/// </summary>
+public sealed record TenantSessionResponse(string AccessToken, string RefreshToken)
+{
+    internal static TenantSessionResponse Map(AuthTokensDto tokens) =>
+        new(tokens.AccessToken.Token, tokens.RefreshToken.Token);
+}

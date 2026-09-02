@@ -1,13 +1,11 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.UseCases.Identity;
 
 namespace Endatix.Core.UseCases.Identity.ExitAssume;
 
@@ -18,7 +16,6 @@ public sealed class ExitAssumeHandler(
     IUserContext userContext,
     IUserService userService,
     IRepository<Tenant> tenantRepository,
-    IUnitOfWork unitOfWork,
     IUserTokenService tokenService,
     IAuthService authService,
     ICurrentUserAuthorizationService authorizationService,
@@ -46,7 +43,7 @@ public sealed class ExitAssumeHandler(
         }
 
         var user = userResult.Value;
-        var fromTenantId = actor.TenantId;
+        var assumedTenantId = actor.TenantId;
         var accessToken = tokenService.IssueAccessToken(user);
         var refreshToken = tokenService.IssueRefreshToken();
         var storeResult = await authService.StoreRefreshToken(
@@ -59,25 +56,21 @@ public sealed class ExitAssumeHandler(
             return Result.Error();
         }
 
+        // The audit trail hangs off the tenant that was assumed; a deleted tenant leaves the exit unrecorded.
         var assumedTenant = await tenantRepository.SingleOrDefaultAsync(
-            new TenantSpecifications.ByIdSpec(fromTenantId),
+            new TenantSpecifications.ByIdSpec(assumedTenantId),
             cancellationToken);
         if (assumedTenant is not null)
         {
             assumedTenant.RaiseContextChanged(
                 user.Id,
-                fromTenantId,
+                assumedTenantId,
                 user.TenantId,
                 TenantContextChangedEvent.Exited,
                 dateTimeProvider.Now.UtcDateTime);
             await tenantRepository.UpdateAsync(assumedTenant, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        await authorizationService.InvalidateAuthorizationDataCacheAsync(
-            user.Id.ToString(),
-            fromTenantId,
-            cancellationToken);
         await authorizationService.InvalidateAuthorizationDataCacheAsync(
             user.Id.ToString(),
             user.TenantId,

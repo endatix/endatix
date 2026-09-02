@@ -68,14 +68,6 @@ public class DataSeedingService : IHostedService
                 _options,
                 _logger);
 
-            var identityDbContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-            var idGenerator = scope.ServiceProvider.GetRequiredService<IIdGenerator<long>>();
-            await IdentityCatalogSeed.EnsureAssumeTenantPermissionAsync(
-                identityDbContext,
-                idGenerator,
-                _logger,
-                cancellationToken);
-
             if (_options.SeedSampleForms)
             {
                 var dataSeeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();

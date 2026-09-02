@@ -1,10 +1,10 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.ExitAssume;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 
@@ -14,8 +14,9 @@ namespace Endatix.Api.Endpoints.Auth;
 /// Returns a PlatformAdmin from an assumed tenant to their home tenant.
 /// </summary>
 public sealed class ExitAssume(IMediator mediator, IConfiguration configuration)
-    : EndpointWithoutRequest<Results<Ok<AssumeTenantResponse>, ProblemHttpResult>>
+    : EndpointWithoutRequest<Results<Ok<TenantSessionResponse>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Post("auth/exit-assume");
@@ -29,22 +30,27 @@ public sealed class ExitAssume(IMediator mediator, IConfiguration configuration)
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Multi-tenancy is not enabled on this deployment.";
         });
+        Description(builder => builder
+            .Produces<TenantSessionResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
-    public override async Task<Results<Ok<AssumeTenantResponse>, ProblemHttpResult>> ExecuteAsync(
-        CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public override async Task<Results<Ok<TenantSessionResponse>, ProblemHttpResult>> ExecuteAsync(CancellationToken ct)
     {
         if (!MultiTenancyGate.IsEnabled(configuration))
         {
             return TypedResultsBuilder
-                .FromResult(Result<AssumeTenantResponse>.NotFound(MultiTenancyGate.DisabledMessage))
-                .SetTypedResults<Ok<AssumeTenantResponse>, ProblemHttpResult>();
+                .FromResult(Result<TenantSessionResponse>.NotFound(MultiTenancyGate.DisabledMessage))
+                .SetTypedResults<Ok<TenantSessionResponse>, ProblemHttpResult>();
         }
 
-        var result = await mediator.Send(new ExitAssumeCommand(), cancellationToken);
+        var result = await mediator.Send(new ExitAssumeCommand(), ct);
 
         return TypedResultsBuilder
-            .MapResult(result, tokens => new AssumeTenantResponse(tokens.AccessToken.Token, tokens.RefreshToken.Token))
-            .SetTypedResults<Ok<AssumeTenantResponse>, ProblemHttpResult>();
+            .MapResult(result, TenantSessionResponse.Map)
+            .SetTypedResults<Ok<TenantSessionResponse>, ProblemHttpResult>();
     }
 }
