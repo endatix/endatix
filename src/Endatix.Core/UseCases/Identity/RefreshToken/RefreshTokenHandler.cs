@@ -47,7 +47,11 @@ public class RefreshTokenHandler(IAuthService authService, IUserTokenService tok
                     : null));
         var refreshToken = tokenService.IssueRefreshToken();
 
-        await authService.StoreRefreshToken(user.Id, refreshToken.Token, refreshToken.ExpireAt, cancellationToken);
+        var storeResult = await authService.StoreRefreshToken(user.Id, refreshToken.Token, refreshToken.ExpireAt, cancellationToken);
+        if (!storeResult.IsSuccess)
+        {
+            return storeResult.ToErrorResult<AuthTokensDto>();
+        }
 
         return Result.Success(new AuthTokensDto(accessToken, refreshToken));
     }

@@ -113,6 +113,8 @@ public class RefreshTokenHandlerTests
                     options.TenantId == SampleData.TENANT_ID && options.ActorUserId == null))
             .Returns(newAccessToken);
         _tokenService.IssueRefreshToken().Returns(newRefreshToken);
+        _authService.StoreRefreshToken(user.Id, newRefreshToken.Token, newRefreshToken.ExpireAt, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -145,6 +147,8 @@ public class RefreshTokenHandlerTests
                     options.TenantId == sessionTenantId && options.ActorUserId == null))
             .Returns(newAccessToken);
         _tokenService.IssueRefreshToken().Returns(newRefreshToken);
+        _authService.StoreRefreshToken(user.Id, newRefreshToken.Token, newRefreshToken.ExpireAt, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -173,11 +177,40 @@ public class RefreshTokenHandlerTests
                     && options.AccessExpiryMinutes == AssumeTenantSession.AccessExpiryMinutes))
             .Returns(newAccessToken);
         _tokenService.IssueRefreshToken().Returns(newRefreshToken);
+        _authService.StoreRefreshToken(user.Id, newRefreshToken.Token, newRefreshToken.ExpireAt, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.AccessToken.Should().Be(newAccessToken);
         _tokenService.DidNotReceive().IssueAccessToken(user);
+    }
+
+    [Fact]
+    public async Task Handle_RefreshTokenNotStored_ReturnsError()
+    {
+        var command = new RefreshTokenCommand("access_token", "refresh_token");
+        var userId = 1L;
+        var user = new User(userId, SampleData.TENANT_ID, "testuser", "test@example.com", true);
+        var newAccessToken = new TokenDto("new_access_token", DateTime.UtcNow.AddMinutes(15));
+        var newRefreshToken = new TokenDto("new_refresh_token", DateTime.UtcNow.AddDays(7));
+
+        _tokenService.ReadAccessTokenSessionAsync(command.AccessToken, false)
+            .Returns(Task.FromResult(Result.Success(new AccessTokenSession(userId, SampleData.TENANT_ID, null))));
+        _authService.ValidateRefreshToken(userId, command.RefreshToken, Arg.Any<CancellationToken>())
+            .Returns(Result<User>.Success(user));
+        _tokenService.IssueAccessToken(
+                user,
+                Arg.Is<AccessTokenIssueOptions>(options =>
+                    options.TenantId == SampleData.TENANT_ID && options.ActorUserId == null))
+            .Returns(newAccessToken);
+        _tokenService.IssueRefreshToken().Returns(newRefreshToken);
+        _authService.StoreRefreshToken(user.Id, newRefreshToken.Token, newRefreshToken.ExpireAt, Arg.Any<CancellationToken>())
+            .Returns(Result.Error());
+
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.IsError().Should().BeTrue();
     }
 }

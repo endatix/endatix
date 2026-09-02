@@ -69,6 +69,42 @@ public class ExitAssumeHandlerTests
     }
 
     [Fact]
+    public async Task Handle_UserMissing_ReturnsUnauthorized()
+    {
+        // Arrange
+        _userContext.GetCurrentUser().Returns(new User(ActorId, AssumedTenantId, "admin", "admin@example.com", true));
+        _userContext.GetActorUserId().Returns(ActorId);
+        _userService.GetUserAsync(ActorId, Arg.Any<CancellationToken>()).Returns(Result<User>.NotFound());
+
+        // Act
+        var result = await _sut.Handle(new ExitAssumeCommand(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+        _tokenService.DidNotReceive().IssueRefreshToken();
+    }
+
+    [Fact]
+    public async Task Handle_RefreshTokenNotStored_ReturnsErrorWithoutRaisingEvent()
+    {
+        // Arrange
+        var homeUser = ArrangeAssumedSession();
+        var assumedTenant = ArrangeTenant(new Tenant("Acme", ValidSlug) { Id = AssumedTenantId });
+        _tokenService.IssueAccessToken(homeUser).Returns(new TokenDto("home-access", DateTime.UtcNow.AddMinutes(30)));
+        _tokenService.IssueRefreshToken().Returns(new TokenDto("refresh", DateTime.UtcNow.AddDays(7)));
+        _authService.StoreRefreshToken(ActorId, Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Error());
+
+        // Act
+        var result = await _sut.Handle(new ExitAssumeCommand(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Error);
+        assumedTenant!.DomainEvents.Should().BeEmpty();
+        await _tenantRepository.DidNotReceive().UpdateAsync(Arg.Any<Tenant>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_AssumedTenantDeleted_StillRemintsHomeSession()
     {
         // Arrange
@@ -104,6 +140,8 @@ public class ExitAssumeHandlerTests
         domainEvent.FromTenantId.Should().Be(AssumedTenantId);
         domainEvent.ToTenantId.Should().Be(HomeTenantId);
         _tokenService.DidNotReceive().IssueAccessToken(homeUser, Arg.Any<AccessTokenIssueOptions>());
+        await _authorizationService.Received(1).InvalidateAuthorizationDataCacheAsync(
+            ActorId.ToString(), AssumedTenantId, Arg.Any<CancellationToken>());
         await _authorizationService.Received(1).InvalidateAuthorizationDataCacheAsync(
             ActorId.ToString(), HomeTenantId, Arg.Any<CancellationToken>());
     }

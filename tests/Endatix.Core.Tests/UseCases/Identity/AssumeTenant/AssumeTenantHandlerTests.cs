@@ -69,6 +69,22 @@ public class AssumeTenantHandlerTests
     }
 
     [Fact]
+    public async Task Handle_UserMissing_ReturnsUnauthorized()
+    {
+        // Arrange
+        _userContext.GetCurrentUser().Returns(new User(ActorId, HomeTenantId, "admin", "admin@example.com", true));
+        _userContext.GetActorUserId().Returns((long?)null);
+        _userService.GetUserAsync(ActorId, Arg.Any<CancellationToken>()).Returns(Result<User>.NotFound());
+
+        // Act
+        var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+        _tokenService.DidNotReceive().IssueRefreshToken();
+    }
+
+    [Fact]
     public async Task Handle_TenantMissing_ReturnsNotFound()
     {
         // Arrange

@@ -31,11 +31,6 @@ public sealed class AssumeTenantHandler(
             return Result.Unauthorized();
         }
 
-        if (request.TenantId <= 0)
-        {
-            return Result.Invalid(new ValidationError("Tenant id is required."));
-        }
-
         // Assumed sessions do not nest: exit before switching, so `act` always names the home session.
         if (userContext.GetActorUserId() is not null)
         {
@@ -71,7 +66,7 @@ public sealed class AssumeTenantHandler(
             cancellationToken);
         if (!storeResult.IsSuccess)
         {
-            return Result.Error();
+            return storeResult.ToErrorResult<AuthTokensDto>();
         }
 
         tenant.RaiseContextChanged(

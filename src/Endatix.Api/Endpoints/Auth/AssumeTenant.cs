@@ -1,6 +1,5 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.AssumeTenant;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
@@ -33,12 +32,14 @@ public sealed class AssumeTenant(IMediator mediator, IConfiguration configuratio
             s.Responses[400] = "Invalid tenant id, or the session is already assumed.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Multi-tenancy is disabled, or the tenant was not found.";
+            s.Responses[500] = "The session could not be persisted.";
         });
         Description(builder => builder
             .Produces<TenantSessionResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError));
     }
 
     /// <inheritdoc />
@@ -61,33 +62,15 @@ public sealed class AssumeTenant(IMediator mediator, IConfiguration configuratio
     }
 }
 
-/// <summary>
-/// Request for assuming a tenant session.
-/// </summary>
 public sealed class AssumeTenantRequest
 {
-    /// <summary>
-    /// The tenant to assume.
-    /// </summary>
     public long TenantId { get; set; }
 }
 
-/// <summary>
-/// Validator for <c>AssumeTenantRequest</c>.
-/// </summary>
 public sealed class AssumeTenantValidator : Validator<AssumeTenantRequest>
 {
     public AssumeTenantValidator()
     {
         RuleFor(request => request.TenantId).GreaterThan(0);
     }
-}
-
-/// <summary>
-/// Tokens for the tenant session issued by assume-tenant and exit-assume.
-/// </summary>
-public sealed record TenantSessionResponse(string AccessToken, string RefreshToken)
-{
-    internal static TenantSessionResponse Map(AuthTokensDto tokens) =>
-        new(tokens.AccessToken.Token, tokens.RefreshToken.Token);
 }

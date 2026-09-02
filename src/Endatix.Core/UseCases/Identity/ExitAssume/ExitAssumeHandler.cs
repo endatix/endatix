@@ -10,7 +10,7 @@ using Endatix.Core.Specifications;
 namespace Endatix.Core.UseCases.Identity.ExitAssume;
 
 /// <summary>
-/// Remints a home-tenant session for the actor and records <c>tenant.context.changed</c> with kind exited.
+/// Issues a home-tenant session for the actor and records <c>tenant.context.changed</c> with kind exited.
 /// </summary>
 public sealed class ExitAssumeHandler(
     IUserContext userContext,
@@ -53,10 +53,10 @@ public sealed class ExitAssumeHandler(
             cancellationToken);
         if (!storeResult.IsSuccess)
         {
-            return Result.Error();
+            return storeResult.ToErrorResult<AuthTokensDto>();
         }
 
-        // The audit trail hangs off the tenant that was assumed; a deleted tenant leaves the exit unrecorded.
+        // Audit hangs off the assumed tenant; a deleted tenant leaves the exit unrecorded.
         var assumedTenant = await tenantRepository.SingleOrDefaultAsync(
             new TenantSpecifications.ByIdSpec(assumedTenantId),
             cancellationToken);
@@ -71,6 +71,10 @@ public sealed class ExitAssumeHandler(
             await tenantRepository.UpdateAsync(assumedTenant, cancellationToken);
         }
 
+        await authorizationService.InvalidateAuthorizationDataCacheAsync(
+            user.Id.ToString(),
+            assumedTenantId,
+            cancellationToken);
         await authorizationService.InvalidateAuthorizationDataCacheAsync(
             user.Id.ToString(),
             user.TenantId,
