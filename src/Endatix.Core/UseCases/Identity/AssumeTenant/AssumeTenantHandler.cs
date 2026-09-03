@@ -22,6 +22,8 @@ public sealed class AssumeTenantHandler(
     IDateTimeProvider dateTimeProvider)
     : ICommandHandler<AssumeTenantCommand, Result<AuthTokensDto>>
 {
+    public const string ALREADY_IN_TENANT_MESSAGE = "You cannot assume a tenant you are already in.";
+
     /// <inheritdoc />
     public async Task<Result<AuthTokensDto>> Handle(AssumeTenantCommand request, CancellationToken cancellationToken)
     {
@@ -29,6 +31,11 @@ public sealed class AssumeTenantHandler(
         if (actor is null)
         {
             return Result.Unauthorized();
+        }
+
+        if (actor.TenantId == request.TenantId)
+        {
+            return Result<AuthTokensDto>.Conflict(ALREADY_IN_TENANT_MESSAGE);
         }
 
         // Assumed sessions do not nest: exit before switching, so `act` always names the home session.

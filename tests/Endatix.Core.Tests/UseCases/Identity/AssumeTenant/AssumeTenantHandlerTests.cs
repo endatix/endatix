@@ -54,6 +54,53 @@ public class AssumeTenantHandlerTests
     }
 
     [Fact]
+    public async Task Handle_AlreadyInTargetTenant_ReturnsConflictWithoutIssuingTokens()
+    {
+        // Arrange
+        ArrangeActor(sessionTenantId: TargetTenantId, homeTenantId: HomeTenantId);
+
+        // Act
+        var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain(AssumeTenantHandler.ALREADY_IN_TENANT_MESSAGE);
+        await AssertDidNotIssueAssumeSession();
+    }
+
+    [Fact]
+    public async Task Handle_AlreadyAssumedIntoTargetTenant_ReturnsConflictNotInvalid()
+    {
+        // Arrange
+        ArrangeActor(sessionTenantId: TargetTenantId, homeTenantId: HomeTenantId);
+        _userContext.GetActorUserId().Returns(ActorId);
+
+        // Act
+        var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.IsInvalid().Should().BeFalse();
+        await AssertDidNotIssueAssumeSession();
+    }
+
+    [Fact]
+    public async Task Handle_HomeTenantEqualsTargetButSessionTidDiffers_DoesNotReturnConflict()
+    {
+        // Arrange — JWT tid is home; AppUser.TenantId is the target. Guard must use session tid.
+        ArrangeActor(sessionTenantId: HomeTenantId, homeTenantId: TargetTenantId);
+        ArrangeTenant(null);
+
+        // Act
+        var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        await _tenantRepository.Received(1)
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.ByIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_AlreadyAssumedSession_ReturnsInvalidWithoutIssuingTokens()
     {
         // Arrange
@@ -142,13 +189,25 @@ public class AssumeTenantHandlerTests
             ActorId.ToString(), TargetTenantId, Arg.Any<CancellationToken>());
     }
 
-    private User ArrangeActor()
+    private User ArrangeActor(long sessionTenantId = HomeTenantId, long homeTenantId = HomeTenantId)
     {
-        var user = new User(ActorId, HomeTenantId, "admin", "admin@example.com", true);
-        _userContext.GetCurrentUser().Returns(user);
+        var sessionUser = new User(ActorId, sessionTenantId, "admin", "admin@example.com", true);
+        var homeUser = new User(ActorId, homeTenantId, "admin", "admin@example.com", true);
+        _userContext.GetCurrentUser().Returns(sessionUser);
         _userContext.GetActorUserId().Returns((long?)null);
-        _userService.GetUserAsync(ActorId, Arg.Any<CancellationToken>()).Returns(Result.Success(user));
-        return user;
+        _userService.GetUserAsync(ActorId, Arg.Any<CancellationToken>()).Returns(Result.Success(homeUser));
+        return homeUser;
+    }
+
+    private async Task AssertDidNotIssueAssumeSession()
+    {
+        _tokenService.DidNotReceive().IssueAccessToken(Arg.Any<User>(), Arg.Any<AccessTokenIssueOptions>());
+        _tokenService.DidNotReceive().IssueRefreshToken();
+        await _tenantRepository.DidNotReceive()
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.ByIdSpec>(), Arg.Any<CancellationToken>());
+        await _tenantRepository.DidNotReceive().UpdateAsync(Arg.Any<Tenant>(), Arg.Any<CancellationToken>());
+        await _authorizationService.DidNotReceive()
+            .InvalidateAuthorizationDataCacheAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     private static Tenant NewTargetTenant() => new("Acme", ValidSlug) { Id = TargetTenantId };
