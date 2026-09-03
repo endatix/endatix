@@ -54,6 +54,39 @@ public class AssumeTenantHandlerTests
     }
 
     [Fact]
+    public async Task Handle_AlreadyInTargetTenant_ReturnsConflictWithoutIssuingTokens()
+    {
+        // Arrange
+        ArrangeActor(sessionTenantId: TargetTenantId);
+
+        // Act
+        var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.Errors.Should().Contain("You cannot assume a tenant you are already in.");
+        _tokenService.DidNotReceive().IssueRefreshToken();
+        await _tenantRepository.DidNotReceive()
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.ByIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_AlreadyAssumedIntoTargetTenant_ReturnsConflictNotInvalid()
+    {
+        // Arrange
+        ArrangeActor(sessionTenantId: TargetTenantId);
+        _userContext.GetActorUserId().Returns(ActorId);
+
+        // Act
+        var result = await _sut.Handle(new AssumeTenantCommand(TargetTenantId), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        result.IsInvalid().Should().BeFalse();
+        _tokenService.DidNotReceive().IssueRefreshToken();
+    }
+
+    [Fact]
     public async Task Handle_AlreadyAssumedSession_ReturnsInvalidWithoutIssuingTokens()
     {
         // Arrange
@@ -142,9 +175,9 @@ public class AssumeTenantHandlerTests
             ActorId.ToString(), TargetTenantId, Arg.Any<CancellationToken>());
     }
 
-    private User ArrangeActor()
+    private User ArrangeActor(long sessionTenantId = HomeTenantId)
     {
-        var user = new User(ActorId, HomeTenantId, "admin", "admin@example.com", true);
+        var user = new User(ActorId, sessionTenantId, "admin", "admin@example.com", true);
         _userContext.GetCurrentUser().Returns(user);
         _userContext.GetActorUserId().Returns((long?)null);
         _userService.GetUserAsync(ActorId, Arg.Any<CancellationToken>()).Returns(Result.Success(user));

@@ -29,9 +29,10 @@ public sealed class AssumeTenant(IMediator mediator, IConfiguration configuratio
             s.Description = "Switches the current PlatformAdmin session into a target tenant without impersonating a user or creating membership.";
             s.ExampleRequest = new AssumeTenantRequest { TenantId = 42 };
             s.Responses[200] = "Assumed session issued.";
-            s.Responses[400] = "Invalid tenant id, or the session is already assumed.";
+            s.Responses[400] = "Invalid tenant id, or the session is already assumed into a different tenant.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Multi-tenancy is disabled, or the tenant was not found.";
+            s.Responses[409] = "The session is already in the target tenant.";
             s.Responses[500] = "The session could not be persisted.";
         });
         Description(builder => builder
@@ -39,6 +40,7 @@ public sealed class AssumeTenant(IMediator mediator, IConfiguration configuratio
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError));
     }
 

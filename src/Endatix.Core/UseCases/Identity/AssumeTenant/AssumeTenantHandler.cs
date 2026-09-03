@@ -31,6 +31,11 @@ public sealed class AssumeTenantHandler(
             return Result.Unauthorized();
         }
 
+        if (actor.TenantId == request.TenantId)
+        {
+            return Result<AuthTokensDto>.Conflict("You cannot assume a tenant you are already in.");
+        }
+
         // Assumed sessions do not nest: exit before switching, so `act` always names the home session.
         if (userContext.GetActorUserId() is not null)
         {

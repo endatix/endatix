@@ -61,6 +61,21 @@ public sealed class AssumeTenantTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_AlreadyInTargetTenant_ReturnsConflict()
+    {
+        // Arrange
+        var endpoint = CreateEndpoint(multiTenancyEnabled: true);
+        _mediator.Send(Arg.Any<AssumeTenantCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<AuthTokensDto>.Conflict("You cannot assume a tenant you are already in."));
+
+        // Act
+        var response = await endpoint.ExecuteAsync(ValidRequest(), TestContext.Current.CancellationToken);
+
+        // Assert
+        response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status409Conflict);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_Success_ReturnsTokensAndSendsCommand()
     {
         // Arrange
