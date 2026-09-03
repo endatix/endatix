@@ -66,7 +66,7 @@ public sealed class AssumeTenantTests
         // Arrange
         var endpoint = CreateEndpoint(multiTenancyEnabled: true);
         _mediator.Send(Arg.Any<AssumeTenantCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result<AuthTokensDto>.Conflict("You cannot assume a tenant you are already in."));
+            .Returns(Result<AuthTokensDto>.Conflict(AssumeTenantHandler.ALREADY_IN_TENANT_MESSAGE));
 
         // Act
         var response = await endpoint.ExecuteAsync(ValidRequest(), TestContext.Current.CancellationToken);
