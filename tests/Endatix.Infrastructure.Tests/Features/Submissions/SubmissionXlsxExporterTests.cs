@@ -84,6 +84,56 @@ public sealed class SubmissionXlsxExporterTests
     }
 
     [Fact]
+    public async Task StreamExportAsync_WritesJsonBooleanAndIsoDateAsTypedCells()
+    {
+        var records = CreateTestRecords(
+            new SubmissionExportRow
+            {
+                Id = 1,
+                FormId = 100,
+                IsComplete = false,
+                CreatedAt = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                AnswersModel = """{"flag":true,"when":"2024-06-15T12:00:00Z"}"""
+            });
+
+        var cells = await ExportFirstDataRow(records);
+
+        Assert.Equal(CellValues.Boolean, cells["flag"].Type);
+        Assert.Equal("true", cells["flag"].Text, ignoreCase: true);
+        Assert.Equal(CellValues.Number, cells["when"].Type);
+        Assert.Equal(ExcelSheetStyles.DateTimeStyleIndex, cells["when"].StyleIndex);
+    }
+
+    [Fact]
+    public async Task StreamExportAsync_EmptyRecords_WritesWorkbookWithoutDataRows()
+    {
+        var pipe = new Pipe();
+        var result = await _sut.StreamExportAsync(CreateTestRecords(), null, CancellationToken.None, pipe.Writer);
+        await pipe.Writer.CompleteAsync();
+
+        Assert.True(result.IsSuccess);
+        var bytes = await ReadAllBytes(pipe.Reader);
+        using var stream = new MemoryStream(bytes);
+        using var document = SpreadsheetDocument.Open(stream, false);
+        var sheetData = document.WorkbookPart!.WorksheetParts.First().Worksheet.Elements<SheetData>().First();
+        Assert.Empty(sheetData.Elements<Row>());
+    }
+
+    private async Task<Dictionary<string, (string Text, CellValues? Type, uint? StyleIndex)>> ExportFirstDataRow(
+        IAsyncEnumerable<SubmissionExportRow> records)
+    {
+        var pipe = new Pipe();
+        var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
+        await pipe.Writer.CompleteAsync();
+        Assert.True(result.IsSuccess);
+        var bytes = await ReadAllBytes(pipe.Reader);
+        using var stream = new MemoryStream(bytes);
+        using var document = SpreadsheetDocument.Open(stream, false);
+        return ReadFirstDataRow(document);
+    }
+
+
+    [Fact]
     public async Task StreamExportAsync_LeavesMissingSubmitterIdAsNotAvailable()
     {
         var records = CreateTestRecords(

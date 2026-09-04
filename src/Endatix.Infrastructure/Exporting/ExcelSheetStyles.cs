@@ -8,10 +8,9 @@ namespace Endatix.Infrastructure.Exporting;
 /// </summary>
 internal static class ExcelSheetStyles
 {
-    public const uint DefaultStyleIndex = 0;
     public const uint DateTimeStyleIndex = 1;
     private const uint CustomDateTimeFormatId = 164;
-    internal const string DateTimeFormatCode = "yyyy-mm-dd hh:mm:ss";
+    private const string DateTimeFormatCode = "yyyy-mm-dd hh:mm:ss";
 
     public static void AddDefaultStyles(WorkbookPart workbookPart)
     {
