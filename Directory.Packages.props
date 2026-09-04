@@ -12,6 +12,7 @@
     <PackageVersion Include="Ardalis.Specification" Version="9.3.1" />
     <PackageVersion Include="Ardalis.Specification.EntityFrameworkCore" Version="9.3.1" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
+    <PackageVersion Include="DocumentFormat.OpenXml" Version="3.5.1" />
     <PackageVersion Include="Endatix.Api.Host" Version="0.4.2" />
     <PackageVersion Include="Endatix.Outbox.Engine" Version="1.0.0" />
     <PackageVersion Include="FastEndpoints" Version="7.1.1" />
