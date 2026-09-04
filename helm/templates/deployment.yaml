@@ -11,6 +11,10 @@ spec:
       {{- include "endatix-api.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "endatix-api.selectorLabels" . | nindent 8 }}
     spec:
@@ -102,7 +106,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: {{ .Values.auth.secretName }}
-              key: signing-key
+              key: {{ .Values.auth.secretKey }}
         - name: Endatix__Auth__Providers__EndatixJwt__AccessExpiryInMinutes
           value: {{ .Values.auth.accessExpiryInMinutes | quote }}
         - name: Endatix__Auth__Providers__EndatixJwt__RefreshExpiryInDays
@@ -113,6 +117,18 @@ spec:
         - name: Endatix__Auth__Providers__EndatixJwt__Audiences__{{ $i }}
           value: {{ $audience | quote }}
         {{- end }}
+        {{- if .Values.initialUser.enabled }}
+        {{- /*
+        Deliberately a template comment rather than a rendered one: with the
+        default initialUser.enabled: true this file must emit exactly what it
+        emitted when the block was unconditional, so a self-hosted upgrade with
+        no new values gets an unchanged pod spec. Keep it that way.
+
+        These are non-optional secretKeyRefs, so while the block renders the
+        named secret must exist or the pod never leaves
+        CreateContainerConfigError — whether or not data.seedSampleData, the
+        actual master switch for seeding, ever reads them.
+        */}}
 
         # Initial admin user (seeded on first startup)
         - name: Endatix__Data__InitialUser__Email
@@ -125,6 +141,7 @@ spec:
             secretKeyRef:
               name: {{ .Values.initialUser.secretName }}
               key: password
+        {{- end }}
 
         # Data
         - name: Endatix__Data__EnableAutoMigrations
@@ -159,6 +176,19 @@ spec:
         - name: OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY
           value: "in_memory"
         {{- end }}
+        {{- with .Values.extraEnv }}
+
+        # Consumer-supplied, and deliberately last: $(VAR) interpolation only
+        # sees names declared above, and a repeated name resolves to the final
+        # declaration. See values.yaml for what this still cannot do.
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.extraEnvFrom }}
+
+        # Bulk sources. An explicit `env` entry above outranks anything here.
+        envFrom:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
 
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
@@ -180,6 +210,19 @@ spec:
         volumeMounts:
         - name: tmp
           mountPath: /tmp
+        {{- with .Values.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       volumes:
       - name: tmp
+        {{- if .Values.tmp.sizeLimit }}
+        # Bounded, so a flood of spilled request bodies evicts this pod instead
+        # of filling the node's ephemeral storage under everything else on it.
+        emptyDir:
+          sizeLimit: {{ .Values.tmp.sizeLimit | quote }}
+        {{- else }}
         emptyDir: {}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}

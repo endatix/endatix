@@ -7,6 +7,16 @@ image:
 
 imagePullSecrets: []
 
+# Extra annotations on the POD template (not on the Deployment). None today.
+#
+# Two things need them. A checksum annotation over a mounted ConfigMap or
+# Secret is the only way to make `helm upgrade` actually roll pods when nothing
+# but that mounted content changed — the pod spec is otherwise byte-identical,
+# so the Deployment reports success and keeps serving the old config. And
+# sidecar injectors and metrics scrapers are steered from here, never from a
+# chart value, so without this knob they cannot be used at all.
+podAnnotations: {}
+
 db:
   # Name of an existing secret holding the database credentials.
   secretName: endatix-db-secret
@@ -32,8 +42,14 @@ db:
     dbname: dbname
 
 auth:
-  # Name of an existing secret with key: signing-key
+  # Name of an existing secret holding the JWT signing key.
   secretName: endatix-auth-secret
+  # The key within that secret. Configurable because the secret is usually
+  # written by something other than a human — an external-secrets operator, a
+  # Key Vault CSI sync, a platform team's own tooling — and those name the key
+  # after whatever the upstream store calls it. Renaming a key inside a shared
+  # secret is often not ours to do; pointing the chart at it always is.
+  secretKey: signing-key
   accessExpiryInMinutes: 90
   refreshExpiryInDays: 7
   issuer: endatix-api
@@ -46,6 +62,26 @@ auth:
     - endatix-client
 
 initialUser:
+  # Whether to inject Endatix__Data__InitialUser__Email / __Password at all.
+  #
+  # They are non-optional secretKeyRefs, so while this is on the secret named
+  # below MUST exist or the pod never starts — it sits in
+  # CreateContainerConfigError. That happens even though the app reads those
+  # two variables only when data.seedSampleData is true, which is NOT the
+  # default: a stock install is blocked by a secret it was never going to read.
+  # Deployments have shipped a placeholder secret purely to get past this.
+  #
+  # Turning this OFF does not turn seeding off — data.seedSampleData is the
+  # master switch for that. With seeding on and this off, an EMPTY database is
+  # seeded with the built-in fallback admin (admin@endatix.com / P@ssw0rd), so
+  # only disable it when data.seedSampleData is false or the database already
+  # has users.
+  #
+  # Modelled as `enabled` rather than "an empty secretName means off" to match
+  # otel.enabled elsewhere in this chart, to keep secretName meaning only which
+  # secret, and because `enabled: false` in a values file reads as a decision
+  # where an empty string reads as a value someone forgot to fill in.
+  enabled: true
   # Name of an existing secret with keys: email, password
   # Only used on first startup to seed the admin account
   secretName: endatix-initial-user-secret
@@ -79,4 +115,78 @@ resources:
   limits:
     memory: 512Mi
 
+# The chart's own writable path — readOnlyRootFilesystem is on, so /tmp is an
+# emptyDir. See the volume comment in deployment.yaml for what lands there.
+tmp:
+  # emptyDir sizeLimit, e.g. "256Mi". UNSET by default, which is exactly what
+  # this chart has always rendered: an existing install upgrading with no new
+  # values must get the pod spec it already runs.
+  #
+  # Worth setting anyway. An unbounded emptyDir draws on the node's ephemeral
+  # storage, so a run of oversized request bodies spilled by ASP.NET Core fills
+  # the node and evicts pods that have nothing to do with Endatix. With a limit
+  # the offending pod is the one evicted. Size it above the largest request
+  # body you accept — not the largest file you store, which goes elsewhere.
+  # This changes runtime behaviour, so it is opt-in rather than defaulted.
+  sizeLimit: ""
+
 nodeSelector: {}
+
+# ---------------------------------------------------------------------------
+# Passthrough
+#
+# Everything above is a setting this chart understands. The four values below
+# are how a consumer supplies one it does not — a downstream distribution, an
+# extra module, a provider integration — without this chart having to grow a
+# named value, and a release, for every such setting.
+# ---------------------------------------------------------------------------
+
+# Extra environment variables as raw EnvVar objects; both `value` and
+# `valueFrom` work. Appended AFTER every variable the chart renders, which
+# matters twice: $(VAR) interpolation only resolves variables declared earlier
+# in the list, so these can reference DB_HOST and friends; and where a name is
+# declared twice, the last declaration is the one the container ends up with.
+#
+# What this CANNOT do is shorten an array. .NET reads __-indexed variables as a
+# layer OVER the appsettings.json baked into the image rather than as a
+# replacement — the same trap documented on auth.audiences above. Passing two
+# Endatix__Cors__...__AllowedOrigins__N entries when the image ships three
+# leaves the third one live, so an origin you meant to remove stays allowed and
+# nothing reports it. Array and nested config that has to be authoritative
+# belongs in a mounted appsettings.{Environment}.json, not in an env var.
+extraEnv: []
+#  - name: Endatix__Storage__PublicHost
+#    value: "https://files.example.com"
+#  - name: Endatix__Integrations__Email__ApiKey
+#    valueFrom:
+#      secretKeyRef:
+#        name: endatix-integrations
+#        key: email-api-key
+
+# Extra envFrom sources — secretRef / configMapRef — for pulling in a whole
+# secret at once, which is the shape external-secret operators and Key Vault
+# syncs produce. Mind the precedence: Kubernetes lets an explicit `env` entry
+# win over anything envFrom supplies, so this can only ADD variables, never
+# override one the chart sets itself. Use extraEnv for that.
+extraEnvFrom: []
+#  - secretRef:
+#      name: endatix-app-secrets
+
+# Extra volumes and their mounts, appended after the chart's own /tmp pair.
+#
+# Mounted config is the obvious use, but CSI secret stores need this even when
+# the secret is only ever consumed as env vars: the Secrets Store CSI driver
+# materialises its synced Kubernetes Secret only while some pod actually MOUNTS
+# the volume, so extraEnvFrom on its own would reference a Secret that never
+# appears. Note readOnlyRootFilesystem: true — configMap and secret mounts are
+# read-only regardless, but anything the app must WRITE to has to be an
+# emptyDir or a PVC.
+extraVolumes: []
+#  - name: appsettings
+#    configMap:
+#      name: endatix-appsettings
+extraVolumeMounts: []
+#  - name: appsettings
+#    mountPath: /app/appsettings.Production.json
+#    subPath: appsettings.Production.json
+#    readOnly: true
