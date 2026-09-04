@@ -171,7 +171,7 @@ Persistence                ──► Domain
 
 **Terminology:** "Codebook" is an **export format** in Infrastructure (`CodebookJsonExporter`). Reporting module vocabulary uses **FormSchema**.
 
-**Submission export formats:** exporters live in `Infrastructure/Exporting/Exporters/` and register with `AddExporter`; `ExportValidator` accepts every registered wire key, so a new format needs no API change. `csv` stays raw interchange. `xlsx` (`SubmissionXlsxExporter`, DocumentFormat.OpenXml) is the Excel path — 16+ digit IDs as inline strings, dates as OADate + custom number format, booleans as `1`/`0` (Excel rejects `true` in a `t="b"` cell). Reporting's `ExportFormatId` picker lists seeded capabilities only, so `xlsx` is legacy-`ExportFormat` only for now.
+**Submission export formats:** exporters live in `Infrastructure/Exporting/Exporters/` and register with `AddExporter`; `ExportValidator` accepts every registered wire key, so a new format needs no API change. `csv` stays raw interchange. `xlsx` (`SubmissionXlsxExporter`, DocumentFormat.OpenXml) is the Excel path — 16+ digit IDs as inline strings, dates as OADate + custom number format, booleans as `1`/`0` (Excel rejects `true` in a `t="b"` cell). Reporting capabilities include `xlsx` (`ExportDeliveryFormat.Xlsx`). New tenants get an Excel format row from `DefaultExportFormatsSeeder`; existing tenants create it via Hub Create export format.
 
 **Tests mirror features:** golden JSON fixtures under `tests/.../Features/FormSchema/FlattenedFormDefinition/Fixtures/`; compiler tests in `Features/FormSchema/FormSchema/`; submission mapping in `Features/FlattenedSubmission/`.
 

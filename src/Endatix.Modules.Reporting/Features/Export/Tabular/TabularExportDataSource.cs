@@ -10,7 +10,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 
 /// <summary>
-/// Streams flattened submission rows from the reporting read model for CSV/JSON export.
+/// Streams flattened submission rows from the reporting read model for tabular export (CSV/JSON/XLSX).
 /// </summary>
 internal sealed class TabularExportDataSource(
     IFormSchemaRepository formSchemaRepository,
@@ -46,6 +46,15 @@ internal sealed class TabularExportDataSource(
             Label: "JSON",
             ItemTypeName: typeof(SubmissionExportRow).FullName!,
             Description: "Tabular JSON export with one object per submission.",
+            AllowedFilters: ExportRequestFilterSets.Submissions),
+        new(
+            ExportTarget.Submissions,
+            ExportDeliveryFormat.Xlsx,
+            ExportProfile.Native,
+            WireKey: "xlsx",
+            Label: "Excel (XLSX)",
+            ItemTypeName: typeof(SubmissionExportRow).FullName!,
+            Description: "Excel workbook; long IDs stored as text.",
             AllowedFilters: ExportRequestFilterSets.Submissions),
     ];
 
