@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Endatix.Modules.Jobs</PackageId>
+    <Title>Endatix - Background Jobs Module</Title>
+    <Description>
+      This package contains the Background Jobs module of the Endatix Platform. It provides a durable, generic job queue for long-running tenant operations: the BackgroundJobs table is the queue, a sweeper discovers eligible rows, and a bounded runner claims and executes them with retry and dead-lettering held on the job row. Persistence lives in its own "jobs" schema with its own migration history, so job migrations deploy independently of app-schema migrations.
+
+      $(EndatixPlatformDescription)
+    </Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RootNamespace>Endatix.Modules.Jobs</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+    <!-- GHSA-w3x6-4m5h-cxqf: pins transitive 9.0.0 from EF Design; design-time only (PrivateAssets). -->
+    <PackageReference Include="System.Security.Cryptography.Xml">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Endatix.Core\Endatix.Core.csproj" />
+    <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
+    <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Endatix.Modules.Jobs.Tests" />
+    <InternalsVisibleTo Include="Endatix.IntegrationTests" />
+  </ItemGroup>
+</Project>
