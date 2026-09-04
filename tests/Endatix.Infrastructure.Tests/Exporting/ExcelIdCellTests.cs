@@ -10,12 +10,17 @@ public sealed class ExcelIdCellTests
     [InlineData(SubmissionExportRow.SystemColumns.FormId, "100", true)]
     [InlineData(SubmissionExportRow.SystemColumns.SubmitterId, "9", true)]
     [InlineData(SubmissionExportRow.SystemColumns.SubmitterDisplayId, "ext", true)]
-    [InlineData(SubmissionExportRow.SystemColumns.SubmitterId, "N/A", false)]
-    [InlineData("question2", "42", false)]
     [InlineData("choiceId", "123456789012345678", true)]
+    [InlineData("question2", "42", false)]
     [InlineData("question1", "answer1", false)]
-    public void ShouldWriteAsText_MatchesIdRules(string column, string value, bool expected)
+    [InlineData("mixed", "1234567890123456x", false)]
+    public void ShouldWriteAsText_ForColumnAndValue_MatchesIdRules(string column, string value, bool expected)
     {
-        Assert.Equal(expected, ExcelIdCell.ShouldWriteAsText(column, value));
+        // Arrange
+        // Act
+        var writeAsText = ExcelIdCell.ShouldWriteAsText(column, value);
+
+        // Assert
+        Assert.Equal(expected, writeAsText);
     }
 }

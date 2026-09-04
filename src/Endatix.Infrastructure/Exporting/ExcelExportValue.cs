@@ -6,6 +6,7 @@ namespace Endatix.Infrastructure.Exporting;
 
 /// <summary>
 /// Unwraps JSON primitives so XLSX can emit typed cells (bool/date/number) instead of strings.
+/// Anything else is returned as-is and ends up an inline string.
 /// </summary>
 internal static class ExcelExportValue
 {
@@ -24,87 +25,43 @@ internal static class ExcelExportValue
         JsonValueKind.Null => null,
         JsonValueKind.True => true,
         JsonValueKind.False => false,
-        JsonValueKind.Number => UnwrapJsonNumber(value),
-        JsonValueKind.String => UnwrapJsonString(value),
+        JsonValueKind.Number => UnwrapNumber(value),
+        JsonValueKind.String => UnwrapText(value.TryGetValue<string>(out var text) ? text : value.ToString()),
         _ => value.ToString()
     };
-
-    private static object UnwrapJsonNumber(JsonValue value)
-    {
-        if (value.TryGetValue<decimal>(out var dec))
-        {
-            return dec;
-        }
-
-        if (value.TryGetValue<long>(out var lng))
-        {
-            return lng;
-        }
-
-        if (value.TryGetValue<double>(out var dbl))
-        {
-            return dbl;
-        }
-
-        return value.ToString() ?? string.Empty;
-    }
-
-    private static object UnwrapJsonString(JsonValue value)
-    {
-        if (value.TryGetValue<DateTime>(out var dateTime))
-        {
-            return dateTime;
-        }
-
-        if (value.TryGetValue<string>(out var str))
-        {
-            return TryParseIsoDate(str, out var parsed) ? parsed : str;
-        }
-
-        return value.ToString() ?? string.Empty;
-    }
 
     private static object? UnwrapJsonElement(JsonElement element) => element.ValueKind switch
     {
         JsonValueKind.Null => null,
         JsonValueKind.True => true,
         JsonValueKind.False => false,
-        JsonValueKind.Number => UnwrapJsonNumber(element),
-        JsonValueKind.String => UnwrapElementString(element),
+        JsonValueKind.Number => UnwrapNumber(element),
+        JsonValueKind.String => UnwrapText(element.GetString() ?? string.Empty),
         _ => element
     };
 
-    private static object UnwrapElementString(JsonElement element)
-    {
-        if (element.TryGetDateTime(out var dateTime))
-        {
-            return dateTime;
-        }
-
-        var text = element.GetString() ?? string.Empty;
-        return TryParseIsoDate(text, out var parsed) ? parsed : text;
-    }
-
-    private static bool TryParseIsoDate(string text, out DateTime parsed) =>
+    // A JsonValue built from a .NET string does not convert to DateTime on its own, so both
+    // paths go through the same explicit ISO parse.
+    private static object UnwrapText(string text) =>
         DateTime.TryParseExact(
             text,
             IsoDateFormats,
             CultureInfo.InvariantCulture,
             DateTimeStyles.RoundtripKind,
-            out parsed);
+            out var parsed)
+            ? parsed
+            : text;
 
-    private static object UnwrapJsonNumber(JsonElement element)
+    private static object UnwrapNumber(JsonValue value)
     {
-        if (element.TryGetDecimal(out var dec))
+        if (value.TryGetValue<decimal>(out var dec))
         {
             return dec;
         }
 
-        if (element.TryGetInt64(out var lng))
-        {
-            return lng;
-        }
-
-        return element.GetDouble();
+        return value.TryGetValue<double>(out var dbl) ? dbl : value.ToString();
     }
+
+    private static object UnwrapNumber(JsonElement element) =>
+        element.TryGetDecimal(out var dec) ? dec : element.GetDouble();
 }

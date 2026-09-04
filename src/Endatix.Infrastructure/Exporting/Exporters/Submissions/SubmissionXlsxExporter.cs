@@ -1,5 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO.Pipelines;
+using System.Text;
+using System.Text.Json;
 using System.Xml;
 using Ardalis.GuardClauses;
 using DocumentFormat.OpenXml;
@@ -21,6 +24,9 @@ public sealed class SubmissionXlsxExporter(
     ILogger<SubmissionXlsxExporter> logger,
     IEnumerable<IValueTransformer> globalTransformers) : SubmissionExporterBase(logger, globalTransformers)
 {
+    private const string SheetName = "Submissions";
+    private const int FileBufferSize = 64 * 1024;
+
     public override string Format => "xlsx";
     public override string ContentType =>
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -34,39 +40,30 @@ public sealed class SubmissionXlsxExporter(
     {
         Guard.Against.Null(writer);
 
+        // OpenXml needs a seekable stream and the response pipe is not one, so the package is
+        // built in a private temp directory (0700) and streamed out once complete.
+        var tempDirectory = Directory.CreateTempSubdirectory("endatix-xlsx-");
         try
         {
-            var tempPath = Path.Combine(Path.GetTempPath(), $"endatix-xlsx-{Guid.NewGuid():N}.xlsx");
-            try
+            SubmissionExportRow? firstRow;
+            await using (var file = new FileStream(
+                Path.Combine(tempDirectory.FullName, "workbook.xlsx"),
+                FileMode.CreateNew,
+                FileAccess.ReadWrite,
+                FileShare.None,
+                FileBufferSize,
+                FileOptions.DeleteOnClose))
             {
-                SubmissionExportRow? firstRow;
-                await using (var file = new FileStream(
-                    tempPath,
-                    FileMode.Create,
-                    FileAccess.ReadWrite,
-                    FileShare.None,
-                    bufferSize: 64 * 1024,
-                    options: FileOptions.Asynchronous | FileOptions.DeleteOnClose))
-                {
-                    firstRow = await WriteWorkbookAsync(file, records, options, cancellationToken);
-                    file.Position = 0;
-                    await using (var output = writer.AsStream(leaveOpen: true))
-                    {
-                        await file.CopyToAsync(output, cancellationToken);
-                    }
-                }
+                firstRow = await WriteWorkbookAsync(file, records, options, cancellationToken);
+                file.Position = 0;
 
-                await writer.FlushAsync(cancellationToken);
-                return Result<FileExport>.Success(
-                    new FileExport(ContentType, GetFileName(options, firstRow, FileExtension)));
+                await using var output = writer.AsStream(leaveOpen: true);
+                await file.CopyToAsync(output, cancellationToken);
             }
-            finally
-            {
-                if (File.Exists(tempPath))
-                {
-                    File.Delete(tempPath);
-                }
-            }
+
+            await writer.FlushAsync(cancellationToken);
+            return Result<FileExport>.Success(
+                new FileExport(ContentType, GetFileName(options, firstRow, FileExtension)));
         }
         catch (OperationCanceledException)
         {
@@ -77,8 +74,31 @@ public sealed class SubmissionXlsxExporter(
             _logger.LogError(ex, "Error exporting submissions to XLSX");
             return Result<FileExport>.Error("Failed to export submissions.");
         }
+        finally
+        {
+            TryDelete(tempDirectory);
+        }
     }
 
+    // Cleanup must never turn a finished export into a failed response.
+    private void TryDelete(DirectoryInfo directory)
+    {
+        try
+        {
+            directory.Delete(recursive: true);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "Could not delete XLSX scratch directory {Directory}", directory.FullName);
+        }
+    }
+
+    [SuppressMessage(
+        "Major Code Smell",
+        "S6966:Awaitable method should be used",
+        Justification = "OpenXmlWriter.Create builds its XmlWriter without XmlWriterSettings.Async, " +
+                        "so every Write*Async overload throws InvalidOperationException at runtime. " +
+                        "Writes target a local temp file; only the copy to the response pipe is async.")]
     private async Task<SubmissionExportRow?> WriteWorkbookAsync(
         Stream stream,
         IAsyncEnumerable<SubmissionExportRow> records,
@@ -90,7 +110,9 @@ public sealed class SubmissionXlsxExporter(
         workbookPart.Workbook = new Workbook();
         ExcelSheetStyles.AddDefaultStyles(workbookPart);
         var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
-        var formatter = ResolveFormatter(options);
+
+        var categoryIdBooleans = UsesCategoryIdBooleans(options);
+        var formatter = new DefaultCsvFormatter(categoryIdBooleans);
         SubmissionExportRow? firstRow = null;
 
         using (var xmlWriter = OpenXmlWriter.Create(worksheetPart))
@@ -112,7 +134,7 @@ public sealed class SubmissionXlsxExporter(
                         headerWritten = true;
                     }
 
-                    WriteDataRow(xmlWriter, row, doc, columns, formatter);
+                    WriteDataRow(xmlWriter, row, doc, columns, formatter, categoryIdBooleans);
                 }
             }
 
@@ -120,13 +142,14 @@ public sealed class SubmissionXlsxExporter(
             xmlWriter.WriteEndElement();
         }
 
-        var sheets = workbookPart.Workbook.AppendChild(new Sheets());
-        sheets.Append(new Sheet
-        {
-            Id = workbookPart.GetIdOfPart(worksheetPart),
-            SheetId = 1,
-            Name = "Submissions"
-        });
+        workbookPart.Workbook
+            .AppendChild(new Sheets())
+            .AppendChild(new Sheet
+            {
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1,
+                Name = SheetName
+            });
         workbookPart.Workbook.Save();
         return firstRow;
     }
@@ -147,9 +170,10 @@ public sealed class SubmissionXlsxExporter(
     private void WriteDataRow(
         OpenXmlWriter xmlWriter,
         SubmissionExportRow row,
-        System.Text.Json.JsonDocument? doc,
+        JsonDocument? doc,
         List<ColumnDefinition<SubmissionExportRow>> columns,
-        DefaultCsvFormatter formatter)
+        DefaultCsvFormatter formatter,
+        bool categoryIdBooleans)
     {
         var context = new TransformationContext<SubmissionExportRow>(row, doc, _logger);
         xmlWriter.WriteStartElement(new Row());
@@ -157,8 +181,8 @@ public sealed class SubmissionXlsxExporter(
         {
             try
             {
-                var raw = col.GetValue(context);
-                WriteCell(xmlWriter, col.Name, raw, formatter.Format(raw, context), formatter.EncodeBooleansAsCategoryIds);
+                var value = col.GetValue(context);
+                WriteCell(xmlWriter, col.Name, value, formatter.Format(value, context), categoryIdBooleans);
             }
             catch (Exception ex)
             {
@@ -170,153 +194,108 @@ public sealed class SubmissionXlsxExporter(
         xmlWriter.WriteEndElement();
     }
 
+    /// <summary>
+    /// Typed cells only where the unwrapped value carries a type Excel understands. Numeric-looking
+    /// text (<c>007</c>, <c>NaN</c>) stays a string — guessing loses leading zeros and can emit a
+    /// number cell Excel refuses to open.
+    /// </summary>
     private static void WriteCell(
         OpenXmlWriter xmlWriter,
         string columnName,
-        object? raw,
+        object? value,
         object? formatted,
-        bool encodeBooleansAsCategoryIds)
+        bool categoryIdBooleans)
     {
-        var display = formatted as string ?? formatted?.ToString() ?? string.Empty;
+        var display = formatted?.ToString() ?? string.Empty;
         if (ExcelIdCell.ShouldWriteAsText(columnName, display))
         {
             WriteInlineString(xmlWriter, display);
             return;
         }
 
-        if (TryWriteTypedValue(xmlWriter, ExcelExportValue.Unwrap(raw), encodeBooleansAsCategoryIds))
+        switch (ExcelExportValue.Unwrap(value))
         {
-            return;
-        }
-
-        WriteFallbackCell(xmlWriter, formatted, display);
-    }
-
-    private static bool TryWriteTypedValue(
-        OpenXmlWriter xmlWriter,
-        object? value,
-        bool encodeBooleansAsCategoryIds)
-    {
-        switch (value)
-        {
-            case null:
-                WriteInlineString(xmlWriter, string.Empty);
-                return true;
             case DateTime dateTime:
                 WriteDateTime(xmlWriter, dateTime);
-                return true;
+                break;
             case DateTimeOffset dateTimeOffset:
                 WriteDateTime(xmlWriter, dateTimeOffset.UtcDateTime);
-                return true;
+                break;
             case bool boolean:
-                WriteBoolean(xmlWriter, boolean, encodeBooleansAsCategoryIds);
-                return true;
+                WriteBoolean(xmlWriter, boolean, categoryIdBooleans);
+                break;
+            case IFormattable number when IsExcelNumber(number):
+                WriteValueCell(xmlWriter, CellValues.Number, number.ToString(null, CultureInfo.InvariantCulture));
+                break;
             default:
-                if (value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal)
-                {
-                    WriteNumber(xmlWriter, ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture));
-                    return true;
-                }
-
-                return false;
+                WriteInlineString(xmlWriter, display);
+                break;
         }
     }
 
-    private static void WriteBoolean(OpenXmlWriter xmlWriter, bool value, bool encodeAsCategoryIds)
-    {
-        if (encodeAsCategoryIds)
-        {
-            WriteNumber(xmlWriter, value ? "1" : "0");
-            return;
-        }
+    private static bool IsExcelNumber(object value) =>
+        value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
-        xmlWriter.WriteStartElement(new Cell { DataType = CellValues.Boolean });
+    // Excel accepts only 1/0 in a t="b" cell; "true"/"false" triggers the repair prompt.
+    private static void WriteBoolean(OpenXmlWriter xmlWriter, bool value, bool categoryIdBooleans) =>
+        WriteValueCell(
+            xmlWriter,
+            categoryIdBooleans ? CellValues.Number : CellValues.Boolean,
+            value ? "1" : "0");
+
+    private static void WriteDateTime(OpenXmlWriter xmlWriter, DateTime dateTime) =>
+        WriteValueCell(
+            xmlWriter,
+            CellValues.Number,
+            dateTime.ToOADate().ToString(CultureInfo.InvariantCulture),
+            ExcelSheetStyles.DateTimeStyleIndex);
+
+    private static void WriteValueCell(
+        OpenXmlWriter xmlWriter,
+        CellValues dataType,
+        string value,
+        uint? styleIndex = null)
+    {
+        xmlWriter.WriteStartElement(new Cell { DataType = dataType, StyleIndex = styleIndex });
         xmlWriter.WriteElement(new CellValue(value));
-        xmlWriter.WriteEndElement();
-    }
-
-    private static void WriteFallbackCell(OpenXmlWriter xmlWriter, object? formatted, string text)
-    {
-        if (formatted is null)
-        {
-            WriteInlineString(xmlWriter, string.Empty);
-            return;
-        }
-
-        if (formatted is not string and IFormattable formattable)
-        {
-            WriteNumber(xmlWriter, formattable.ToString(null, CultureInfo.InvariantCulture));
-            return;
-        }
-
-        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out _) &&
-            !text.Contains(' ', StringComparison.Ordinal))
-        {
-            WriteNumber(xmlWriter, text);
-            return;
-        }
-
-        WriteInlineString(xmlWriter, text);
-    }
-
-    private static void WriteDateTime(OpenXmlWriter xmlWriter, DateTime dateTime)
-    {
-        xmlWriter.WriteStartElement(new Cell
-        {
-            DataType = CellValues.Number,
-            StyleIndex = ExcelSheetStyles.DateTimeStyleIndex
-        });
-        xmlWriter.WriteElement(new CellValue(dateTime.ToOADate()));
         xmlWriter.WriteEndElement();
     }
 
     private static void WriteInlineString(OpenXmlWriter xmlWriter, string value)
     {
-        var safe = SanitizeXmlText(value);
         xmlWriter.WriteStartElement(new Cell { DataType = CellValues.InlineString });
         xmlWriter.WriteStartElement(new InlineString());
-        xmlWriter.WriteElement(new Text(safe) { Space = SpaceProcessingModeValues.Preserve });
+        xmlWriter.WriteElement(new Text(SanitizeXmlText(value)) { Space = SpaceProcessingModeValues.Preserve });
         xmlWriter.WriteEndElement();
         xmlWriter.WriteEndElement();
     }
 
-    private static void WriteNumber(OpenXmlWriter xmlWriter, string invariantNumber)
-    {
-        xmlWriter.WriteStartElement(new Cell { DataType = CellValues.Number });
-        xmlWriter.WriteElement(new CellValue(invariantNumber));
-        xmlWriter.WriteEndElement();
-    }
-
+    /// <summary>
+    /// Drops characters XML 1.0 forbids (control codes, lone surrogates). Answers routinely carry
+    /// emoji, so valid surrogate pairs must survive — <see cref="XmlConvert.IsXmlChar"/> rejects
+    /// each half on its own.
+    /// </summary>
     private static string SanitizeXmlText(string value)
     {
-        if (string.IsNullOrEmpty(value))
+        if (value.All(XmlConvert.IsXmlChar))
         {
-            return string.Empty;
+            return value;
         }
 
-        Span<char> buffer = value.Length <= 256 ? stackalloc char[value.Length] : new char[value.Length];
-        var n = 0;
-        foreach (var c in value)
+        var sanitized = new StringBuilder(value.Length);
+        for (var i = 0; i < value.Length; i++)
         {
-            if (XmlConvert.IsXmlChar(c))
+            if (char.IsSurrogatePair(value, i))
             {
-                buffer[n++] = c;
+                sanitized.Append(value[i]).Append(value[i + 1]);
+                i++;
+            }
+            else if (XmlConvert.IsXmlChar(value[i]))
+            {
+                sanitized.Append(value[i]);
             }
         }
 
-        return n == value.Length ? value : new string(buffer[..n]);
-    }
-
-    private DefaultCsvFormatter ResolveFormatter(ExportOptions? options)
-    {
-        if (options?.Metadata is not null &&
-            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
-            settingsObject is SubmissionExportExecutionSettings executionSettings &&
-            executionSettings.EncodeBooleansAsCategoryIds)
-        {
-            return new DefaultCsvFormatter(encodeBooleansAsCategoryIds: true);
-        }
-
-        return new DefaultCsvFormatter();
+        return sanitized.ToString();
     }
 }
