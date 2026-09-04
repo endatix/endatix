@@ -184,44 +184,78 @@ internal sealed class ExportFormatRepository(
     /// <inheritdoc />
     public async Task SeedDefaultsAsync(long tenantId, CancellationToken cancellationToken)
     {
-        var hasFormats = await dbContext.ExportFormats
+        var existing = await dbContext.ExportFormats
             .AsNoTracking()
-            .AnyAsync(format => format.TenantId == tenantId, cancellationToken);
+            .Where(format => format.TenantId == tenantId)
+            .Select(format => new { format.ExportTarget, format.DeliveryFormat, format.Profile })
+            .ToListAsync(cancellationToken);
 
-        if (hasFormats)
+        bool Has(ExportTarget target, ExportDeliveryFormat delivery, ExportProfile profile) =>
+            existing.Any(format =>
+                format.ExportTarget == target &&
+                format.DeliveryFormat == delivery &&
+                format.Profile == profile);
+
+        var toAdd = new List<ExportFormat>();
+        ExportFormat? csvFormat = null;
+
+        if (!Has(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native))
         {
-            return;
+            csvFormat = new ExportFormat(
+                tenantId,
+                "CSV",
+                ExportTarget.Submissions,
+                ExportDeliveryFormat.Csv,
+                ExportProfile.Native,
+                "Default CSV export for form submissions");
+            csvFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
+            toAdd.Add(csvFormat);
         }
 
-        ExportFormat csvFormat = new(
-            tenantId,
-            "CSV",
-            ExportTarget.Submissions,
-            ExportDeliveryFormat.Csv,
-            ExportProfile.Native,
-            "Default CSV export for form submissions");
-        csvFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
+        if (!Has(ExportTarget.Submissions, ExportDeliveryFormat.Json, ExportProfile.Native))
+        {
+            ExportFormat jsonFormat = new(
+                tenantId,
+                "JSON",
+                ExportTarget.Submissions,
+                ExportDeliveryFormat.Json,
+                ExportProfile.Native,
+                "Default JSON export for form submissions");
+            jsonFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
+            toAdd.Add(jsonFormat);
+        }
 
-        ExportFormat jsonFormat = new(
-            tenantId,
-            "JSON",
-            ExportTarget.Submissions,
-            ExportDeliveryFormat.Json,
-            ExportProfile.Native,
-            "Default JSON export for form submissions");
-        jsonFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
+        if (!Has(ExportTarget.Submissions, ExportDeliveryFormat.Xlsx, ExportProfile.Native))
+        {
+            ExportFormat xlsxFormat = new(
+                tenantId,
+                "Excel (XLSX)",
+                ExportTarget.Submissions,
+                ExportDeliveryFormat.Xlsx,
+                ExportProfile.Native,
+                "Default Excel export for form submissions");
+            xlsxFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
+            toAdd.Add(xlsxFormat);
+        }
 
-        ExportFormat codebookFormat = new(
-            tenantId,
-            "Codebook",
-            ExportTarget.Codebook,
-            ExportDeliveryFormat.Json,
-            ExportProfile.Native,
-            "Default form definition codebook export");
-        codebookFormat.UpdateSettingsJson(_defaultCodebookSettingsJson);
+        if (!Has(ExportTarget.Codebook, ExportDeliveryFormat.Json, ExportProfile.Native))
+        {
+            ExportFormat codebookFormat = new(
+                tenantId,
+                "Codebook",
+                ExportTarget.Codebook,
+                ExportDeliveryFormat.Json,
+                ExportProfile.Native,
+                "Default form definition codebook export");
+            codebookFormat.UpdateSettingsJson(_defaultCodebookSettingsJson);
+            toAdd.Add(codebookFormat);
+        }
 
-        await dbContext.ExportFormats.AddRangeAsync([csvFormat, jsonFormat, codebookFormat], cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (toAdd.Count > 0)
+        {
+            await dbContext.ExportFormats.AddRangeAsync(toAdd, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         var hasDefaultMapping = await dbContext.SurveyTypeExportMappings
             .AsNoTracking()
@@ -232,17 +266,38 @@ internal sealed class ExportFormatRepository(
                     mapping.SurveyTypeId == null,
                 cancellationToken);
 
-        if (!hasDefaultMapping)
+        if (hasDefaultMapping)
         {
-            SurveyTypeExportMapping defaultMapping = new(
-                tenantId,
-                csvFormat.Id,
-                surveyTypeId: null,
-                isDefault: true);
-
-            await dbContext.SurveyTypeExportMappings.AddAsync(defaultMapping, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return;
         }
+
+        long? csvFormatId = csvFormat?.Id;
+        if (csvFormatId is null)
+        {
+            csvFormatId = await dbContext.ExportFormats
+                .AsNoTracking()
+                .Where(format =>
+                    format.TenantId == tenantId &&
+                    format.ExportTarget == ExportTarget.Submissions &&
+                    format.DeliveryFormat == ExportDeliveryFormat.Csv &&
+                    format.Profile == ExportProfile.Native)
+                .Select(format => (long?)format.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (csvFormatId is null)
+        {
+            return;
+        }
+
+        SurveyTypeExportMapping defaultMapping = new(
+            tenantId,
+            csvFormatId.Value,
+            surveyTypeId: null,
+            isDefault: true);
+
+        await dbContext.SurveyTypeExportMappings.AddAsync(defaultMapping, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private ExportFormatDto MapDto(ExportFormat exportFormat)

@@ -10,4 +10,5 @@ public enum ExportDeliveryFormat
 {
     Csv = 0,
     Json = 1,
+    Xlsx = 2,
 }
