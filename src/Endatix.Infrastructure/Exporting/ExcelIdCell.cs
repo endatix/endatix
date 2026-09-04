@@ -17,37 +17,11 @@ internal static class ExcelIdCell
         SubmissionExportRow.SystemColumns.SubmitterDisplayId,
     };
 
-    public static bool ShouldWriteAsText(string columnName, string? formattedValue)
-    {
-        if (string.IsNullOrEmpty(formattedValue) ||
-            string.Equals(formattedValue, "N/A", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (SystemIdColumns.Contains(columnName))
-        {
-            return true;
-        }
-
-        return IsLongDigitString(formattedValue);
-    }
-
-    private static bool IsLongDigitString(string text)
-    {
-        if (text.Length < MinDigitLengthForAnswerIds)
-        {
-            return false;
-        }
-
-        foreach (var c in text)
-        {
-            if (!char.IsAsciiDigit(c))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    /// <summary>
+    /// System ID columns always; answers only when they are long enough to lose precision in
+    /// Excel's 15-significant-digit numeric type.
+    /// </summary>
+    public static bool ShouldWriteAsText(string columnName, string value) =>
+        SystemIdColumns.Contains(columnName) ||
+        (value.Length >= MinDigitLengthForAnswerIds && value.All(char.IsAsciiDigit));
 }

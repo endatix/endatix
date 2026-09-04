@@ -100,6 +100,17 @@ public abstract class SubmissionExporterBase(
     }
 
     /// <summary>
+    /// Booleans render as codebook category ids (<c>1</c>/<c>0</c>) for Shoji and for reporting
+    /// runs that ask for it; every other format renders them as <c>true</c>/<c>false</c>.
+    /// </summary>
+    protected bool UsesCategoryIdBooleans(ExportOptions? options) =>
+        string.Equals(Format, "csv-shoji", StringComparison.OrdinalIgnoreCase) ||
+        (options?.Metadata is not null &&
+         options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settings) &&
+         settings is SubmissionExportExecutionSettings executionSettings &&
+         executionSettings.EncodeBooleansAsCategoryIds);
+
+    /// <summary>
     /// Yields (row, answers doc, columns) for streaming export.
     /// </summary>
     protected async IAsyncEnumerable<(SubmissionExportRow Row, JsonDocument? Doc, List<ColumnDefinition<SubmissionExportRow>> Columns)>

@@ -122,8 +122,10 @@ public sealed class SubmissionCsvExporterTests
 
         var pipe = new Pipe();
 
+        // Act
         var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
 
+        // Assert
         Assert.True(result.IsSuccess);
         var content = await ReadPipeContent(pipe.Reader);
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -236,6 +238,7 @@ public sealed class SubmissionCsvExporterTests
     [Fact]
     public async Task StreamExportAsync_WritesRawNumericIds_ForCsvClients()
     {
+        // Arrange
         var records = CreateTestRecords(
             new SubmissionExportRow
             {
@@ -248,8 +251,10 @@ public sealed class SubmissionCsvExporterTests
         );
         var pipe = new Pipe();
 
+        // Act
         var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
 
+        // Assert
         Assert.True(result.IsSuccess);
         var content = await ReadPipeContent(pipe.Reader);
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -266,6 +271,7 @@ public sealed class SubmissionCsvExporterTests
     [Fact]
     public async Task StreamExportAsync_WritesLongDigitAnswersAsRawText()
     {
+        // Arrange
         var records = CreateTestRecords(
             new SubmissionExportRow
             {
@@ -276,8 +282,10 @@ public sealed class SubmissionCsvExporterTests
         );
         var pipe = new Pipe();
 
+        // Act
         var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
 
+        // Assert
         Assert.True(result.IsSuccess);
         var content = await ReadPipeContent(pipe.Reader);
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -292,6 +300,7 @@ public sealed class SubmissionCsvExporterTests
     [Fact]
     public async Task StreamExportAsync_LeavesSubmitterIdAsNotAvailable_WhenMissing()
     {
+        // Arrange
         var records = CreateTestRecords(
             new SubmissionExportRow
             {
@@ -303,8 +312,10 @@ public sealed class SubmissionCsvExporterTests
         );
         var pipe = new Pipe();
 
+        // Act
         var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
 
+        // Assert
         Assert.True(result.IsSuccess);
         var content = await ReadPipeContent(pipe.Reader);
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -362,6 +373,81 @@ public sealed class SubmissionCsvExporterTests
         // CsvHelper should handle escaping automatically
         var content = await ReadPipeContent(pipe.Reader);
         Assert.Contains("value,with,commas", content);
+    }
+
+    [Fact]
+    public async Task StreamExportAsync_WithEmptyAnswersModel_WritesHeaderAndRow()
+    {
+        // Arrange
+        var records = CreateTestRecords(
+            new SubmissionExportRow { Id = 1, FormId = 100, AnswersModel = string.Empty });
+        var pipe = new Pipe();
+
+        // Act
+        var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        var content = await ReadPipeContent(pipe.Reader);
+        Assert.True(content.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length >= 2);
+    }
+
+    [Fact]
+    public async Task StreamExportAsync_WithFormIdOnRow_NamesFileFromRow()
+    {
+        // Arrange
+        var records = CreateTestRecords(new SubmissionExportRow { Id = 1, FormId = 123 });
+        var pipe = new Pipe();
+
+        // Act
+        var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
+
+        // Assert
+        Assert.Equal("submissions-123.csv", result.Value.FileName);
+    }
+
+    [Fact]
+    public async Task StreamExportAsync_WithFormIdMetadata_NamesFileFromMetadata()
+    {
+        // Arrange
+        var records = CreateTestRecords(new SubmissionExportRow { Id = 1, FormId = 100 });
+        var options = new ExportOptions { Metadata = new Dictionary<string, object> { ["FormId"] = 456L } };
+        var pipe = new Pipe();
+
+        // Act
+        var result = await _sut.StreamExportAsync(records, options, CancellationToken.None, pipe.Writer);
+
+        // Assert
+        Assert.Equal("submissions-456.csv", result.Value.FileName);
+    }
+
+    [Fact]
+    public async Task StreamExportAsync_WhenWriterIsCompleted_ReturnsError()
+    {
+        // Arrange
+        var records = CreateTestRecords(new SubmissionExportRow { Id = 1, FormId = 100 });
+        var pipe = new Pipe();
+        await pipe.Writer.CompleteAsync();
+
+        // Act
+        var result = await _sut.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Failed to export", result.Errors.First());
+    }
+
+    [Fact]
+    public async Task StreamExportAsync_WithNullWriter_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var records = CreateTestRecords(new SubmissionExportRow { Id = 1 });
+
+        // Act
+        var act = () => _sut.StreamExportAsync(records, null, CancellationToken.None, null!);
+
+        // Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(act);
     }
 
     private static async IAsyncEnumerable<SubmissionExportRow> CreateTestRecords(params SubmissionExportRow[] rows)
