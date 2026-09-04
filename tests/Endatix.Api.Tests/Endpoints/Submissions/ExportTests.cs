@@ -446,6 +446,38 @@ public class ExportTests
     }
 
     [Fact]
+    public async Task HandleAsync_WithExportFormatXlsx_WhenReportingEnabled_UsesLegacyBuiltInExporter()
+    {
+        var formId = 1L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest { FormId = formId, ExportFormat = "xlsx" };
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
+        var exporter = CreateMockExporter("xlsx", typeof(SubmissionExportRow));
+        var fileExport = new FileExport(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "submissions-1.xlsx");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exporterFactory.GetExporter("xlsx", typeof(SubmissionExportRow)).Returns(exporter);
+        exporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+
+        await _reportingEndpoint.HandleAsync(request, CancellationToken.None);
+
+        _reportingEndpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        await _mediator.Received(1).Send(
+            Arg.Is<SubmissionsExportQuery>(q =>
+                q.Exporter == exporter &&
+                q.SqlFunctionName == null &&
+                !q.Options.Metadata!.ContainsKey(SubmissionExportMetadataKeys.ExecutionSettings)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task HandleAsync_WithExportFormatId_Success()
     {
         var formId = 1L;

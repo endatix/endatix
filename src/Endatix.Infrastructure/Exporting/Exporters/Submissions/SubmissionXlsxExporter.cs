@@ -36,7 +36,7 @@ public sealed class SubmissionXlsxExporter(
 
         try
         {
-            var tempPath = Path.GetTempFileName();
+            var tempPath = Path.Combine(Path.GetTempPath(), $"endatix-xlsx-{Guid.NewGuid():N}.xlsx");
             try
             {
                 SubmissionExportRow? firstRow;
@@ -68,6 +68,10 @@ public sealed class SubmissionXlsxExporter(
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting submissions to XLSX");
@@ -97,6 +101,7 @@ public sealed class SubmissionXlsxExporter(
             var headerWritten = false;
             await foreach ((var row, var doc, var columns) in GetStreamContextAsync(records, options, cancellationToken))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 using (doc)
                 {
                     firstRow ??= row;
@@ -153,7 +158,7 @@ public sealed class SubmissionXlsxExporter(
             try
             {
                 var raw = col.GetValue(context);
-                WriteCell(xmlWriter, col.Name, raw, formatter.Format(raw, context), formatter);
+                WriteCell(xmlWriter, col.Name, raw, formatter.Format(raw, context), formatter.EncodeBooleansAsCategoryIds);
             }
             catch (Exception ex)
             {
@@ -165,12 +170,12 @@ public sealed class SubmissionXlsxExporter(
         xmlWriter.WriteEndElement();
     }
 
-    private void WriteCell(
+    private static void WriteCell(
         OpenXmlWriter xmlWriter,
         string columnName,
         object? raw,
         object? formatted,
-        DefaultCsvFormatter formatter)
+        bool encodeBooleansAsCategoryIds)
     {
         var display = formatted as string ?? formatted?.ToString() ?? string.Empty;
         if (ExcelIdCell.ShouldWriteAsText(columnName, display))
@@ -179,7 +184,7 @@ public sealed class SubmissionXlsxExporter(
             return;
         }
 
-        if (TryWriteTypedValue(xmlWriter, ExcelExportValue.Unwrap(raw), formatter))
+        if (TryWriteTypedValue(xmlWriter, ExcelExportValue.Unwrap(raw), encodeBooleansAsCategoryIds))
         {
             return;
         }
@@ -190,7 +195,7 @@ public sealed class SubmissionXlsxExporter(
     private static bool TryWriteTypedValue(
         OpenXmlWriter xmlWriter,
         object? value,
-        DefaultCsvFormatter formatter)
+        bool encodeBooleansAsCategoryIds)
     {
         switch (value)
         {
@@ -204,7 +209,7 @@ public sealed class SubmissionXlsxExporter(
                 WriteDateTime(xmlWriter, dateTimeOffset.UtcDateTime);
                 return true;
             case bool boolean:
-                WriteBoolean(xmlWriter, boolean, formatter.EncodeBooleansAsCategoryIds);
+                WriteBoolean(xmlWriter, boolean, encodeBooleansAsCategoryIds);
                 return true;
             default:
                 if (value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal)

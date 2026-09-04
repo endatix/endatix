@@ -3,10 +3,9 @@ using Endatix.Core.Entities;
 namespace Endatix.Infrastructure.Exporting;
 
 /// <summary>
-/// Decides which export cells Excel must store as text (long IDs) so they are not
-/// coerced to numbers. Used by XLSX only — CSV stays a raw interchange format.
+/// XLSX-only: store long IDs as text so Excel does not coerce them to numbers. CSV stays raw.
 /// </summary>
-public static class ExcelIdCell
+internal static class ExcelIdCell
 {
     public const int MinDigitLengthForAnswerIds = 16;
 
