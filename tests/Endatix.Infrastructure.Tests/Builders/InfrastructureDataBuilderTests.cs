@@ -79,6 +79,7 @@ public class InfrastructureDataBuilderTests
         Assert.True(IsRegistered<IExporter<SubmissionExportRow>>(_services));
         Assert.True(IsRegistered<SubmissionJsonExporter>(_services));
         Assert.True(IsRegistered<SubmissionCsvExporter>(_services));
+        Assert.True(IsRegistered<SubmissionXlsxExporter>(_services));
         Assert.True(IsRegistered<IExporter<DynamicExportRow>>(_services));
     }
 

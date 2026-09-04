@@ -9,7 +9,7 @@ namespace Endatix.Core.Abstractions.Exporting;
 public interface IExporter
 {
     /// <summary>
-    /// Gets the format identifier for this exporter (e.g., "csv", "json", "excel").
+    /// Gets the format identifier for this exporter (e.g. "csv", "json", "xlsx").
     /// </summary>
     string Format { get; }
 

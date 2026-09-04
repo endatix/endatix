@@ -171,6 +171,8 @@ Persistence                ──► Domain
 
 **Terminology:** "Codebook" is an **export format** in Infrastructure (`CodebookJsonExporter`). Reporting module vocabulary uses **FormSchema**.
 
+**Submission export formats:** exporters live in `Infrastructure/Exporting/Exporters/` and register with `AddExporter`; `ExportValidator` accepts every registered wire key, so a new format needs no API change. `csv` stays raw interchange. `xlsx` (`SubmissionXlsxExporter`, DocumentFormat.OpenXml) is the Excel path — 16+ digit IDs as inline strings, dates as OADate + custom number format, booleans as `1`/`0` (Excel rejects `true` in a `t="b"` cell). Reporting capabilities include `xlsx` (`ExportDeliveryFormat.Xlsx`). New tenants get an Excel format row from `DefaultExportFormatsSeeder`; existing tenants create it via Hub Create export format.
+
 **Tests mirror features:** golden JSON fixtures under `tests/.../Features/FormSchema/FlattenedFormDefinition/Fixtures/`; compiler tests in `Features/FormSchema/FormSchema/`; submission mapping in `Features/FlattenedSubmission/`.
 
 ### Module registration (OSS)
@@ -531,3 +533,4 @@ Overloading `act` so `sub` is the customer would break assume-authz (`act == sub
 | 2026-08 | Tenant public id: keep `Tenant.ShortUrl` as a unique immutable `varchar(8)` column; generate with `IShortUrlGenerator` (CSPRNG, `a-z0-9` alphabet, letter-heavy). Do not derive from name. JWT `tid` remains the isolation boundary. See [Multi-tenancy (platform tenants)](#multi-tenancy-platform-tenants). |
 | 2026-08 | Tenant access: one home `AppUser.TenantId`. Assume-tenant uses JWT `act` and does not write membership. `platform.users.impersonate` stays reserved. Self-reg is opt-in per tenant via opaque public id. Multi-tenant membership is a later Identity table. |
 | 2026-09 | JWT session is `tid` + optional `act`. Refresh copies that session. `tenant.context.changed` covers assume and exit. Impersonation (`sub` = customer) is a later claim, not a second token service. See [JWT session](#multi-tenancy-platform-tenants). |
+| 2026-09 | Submissions Excel: a native XLSX exporter, not CSV `="id"` wrapping — CSV stays raw interchange. XLSX types a cell from the JSON value only; numeric-looking text (`007`, `NaN`) stays text. See [Module packaging](#module-packaging-contracts-vs-domain) (submission export formats). |

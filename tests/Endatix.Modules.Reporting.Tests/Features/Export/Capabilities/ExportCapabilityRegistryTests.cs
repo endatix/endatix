@@ -14,7 +14,7 @@ public sealed class ExportCapabilityRegistryTests
         IReadOnlyList<ExportCapability> capabilities = _sut.GetAll();
 
         capabilities.Select(capability => capability.WireKey).Should().BeEquivalentTo(
-            ["csv", "csv-shoji", "json", "codebook", "codebook-shoji"]);
+            ["csv", "csv-shoji", "json", "xlsx", "codebook", "codebook-shoji"]);
     }
 
     [Fact]
@@ -28,5 +28,9 @@ public sealed class ExportCapabilityRegistryTests
 
         _sut.TryGetByWireKey("csv", out ExportCapability csv).Should().BeTrue();
         csv.AllowedFilters.Should().Be(ExportRequestFilterSets.Submissions);
+
+        _sut.TryGetByWireKey("xlsx", out ExportCapability xlsx).Should().BeTrue();
+        xlsx.DeliveryFormat.Should().Be(ExportDeliveryFormat.Xlsx);
+        xlsx.AllowedFilters.Should().Be(ExportRequestFilterSets.Submissions);
     }
 }

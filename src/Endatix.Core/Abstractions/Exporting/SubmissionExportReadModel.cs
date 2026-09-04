@@ -25,8 +25,9 @@ public sealed record SubmissionExportExecutionSettings(
     string? Locale = null,
 
     /// <summary>
-    /// When true, CSV writers emit boolean values as category ids <c>0</c>/<c>1</c>
-    /// (Crunch/Shoji). When false, booleans stay lowercase <c>true</c>/<c>false</c>.
+    /// When true, export writers emit boolean values as category ids <c>0</c>/<c>1</c>
+    /// (Crunch/Shoji). When false, CSV writes lowercase <c>true</c>/<c>false</c> and XLSX
+    /// writes a native Excel boolean cell.
     /// </summary>
     bool EncodeBooleansAsCategoryIds = false,
     UtcDateTimeRange Created = default,

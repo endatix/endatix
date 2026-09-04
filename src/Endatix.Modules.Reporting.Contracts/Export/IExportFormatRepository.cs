@@ -110,11 +110,9 @@ public interface IExportFormatRepository
     Task<bool> IsReferencedByMappingAsync(long tenantId, long exportFormatId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Seeds the default export formats for a tenant.
+    /// Ensures default export formats exist for a tenant (idempotent; adds missing rows only).
+    /// Called when a tenant is provisioned. Existing tenants add formats via Create export format.
     /// </summary>
-    /// <param name="tenantId">The ID of the tenant.</param>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>True if the export formats were seeded, false if not.</returns>
     Task SeedDefaultsAsync(long tenantId, CancellationToken cancellationToken);
 }
 

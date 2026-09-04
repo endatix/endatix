@@ -97,6 +97,18 @@ public sealed class ExporterFactoryTests
     }
 
     [Fact]
+    public void GetExporter_ShouldReturnXlsxExporter_WhenFormatIsXlsx()
+    {
+        var xlsxLogger = Substitute.For<ILogger<SubmissionXlsxExporter>>();
+        var xlsxExporter = new SubmissionXlsxExporter(xlsxLogger, _globalTransformers);
+        var factory = new ExporterFactory([_csvExporter, xlsxExporter, _jsonExporter]);
+
+        var exporter = factory.GetExporter<SubmissionExportRow>("xlsx");
+
+        Assert.IsType<SubmissionXlsxExporter>(exporter);
+    }
+
+    [Fact]
     public void GetExporter_ShouldThrow_WhenFormatNotFound()
     {
         // Arrange
@@ -105,9 +117,9 @@ public sealed class ExporterFactoryTests
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(
-            () => factory.GetExporter<SubmissionExportRow>("xlsx"));
+            () => factory.GetExporter<SubmissionExportRow>("ods"));
         Assert.Contains("No exporter registered", exception.Message);
-        Assert.Contains("xlsx", exception.Message);
+        Assert.Contains("ods", exception.Message);
     }
 
     [Fact]
@@ -332,9 +344,9 @@ public sealed class ExporterFactoryTests
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(
-            () => factory.GetExporter("xlsx", typeof(SubmissionExportRow)));
+            () => factory.GetExporter("ods", typeof(SubmissionExportRow)));
         Assert.Contains("No exporter registered", exception.Message);
-        Assert.Contains("xlsx", exception.Message);
+        Assert.Contains("ods", exception.Message);
         Assert.Contains("SubmissionExportRow", exception.Message);
     }
 
