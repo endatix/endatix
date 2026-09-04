@@ -17,6 +17,8 @@ public class DefaultCsvFormatter : IValueFormatter
 
     private readonly bool _encodeBooleansAsCategoryIds;
 
+    public bool EncodeBooleansAsCategoryIds => _encodeBooleansAsCategoryIds;
+
     public DefaultCsvFormatter(bool encodeBooleansAsCategoryIds = false)
     {
         _encodeBooleansAsCategoryIds = encodeBooleansAsCategoryIds;
