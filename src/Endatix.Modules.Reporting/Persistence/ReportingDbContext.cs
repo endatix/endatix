@@ -14,15 +14,18 @@ public class ReportingDbContext : DbContext, ITenantDbContext
 {
     private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;
+    private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
 
     public ReportingDbContext(
         DbContextOptions<ReportingDbContext> options,
         IIdGenerator<long> idGenerator,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        EfCoreValueGeneratorFactory valueGeneratorFactory)
         : base(options)
     {
         _idGenerator = idGenerator;
         _tenantContext = tenantContext;
+        _valueGeneratorFactory = valueGeneratorFactory;
     }
 
     public DbSet<FormSchema> FormSchemas => Set<FormSchema>();
@@ -41,6 +44,12 @@ public class ReportingDbContext : DbContext, ITenantDbContext
         modelBuilder.HasDefaultSchema(ReportingPersistence.Schema);
 
         modelBuilder.ApplyEndatixQueryFilters(this);
+
+        // Ids are assigned by the value generator when an entity is tracked, not by ProcessEntities at
+        // SaveChanges. Fan-out depends on it: AddRange of N new rows would otherwise put N entities with
+        // Id 0 into the identity map and throw before SaveChanges ran. ProcessEntities keeps its Id
+        // branch as a no-op fallback for rows whose key some other path already set.
+        modelBuilder.ConfigureEntityIdValueGenerators(_valueGeneratorFactory);
         modelBuilder.ApplyConfigurationsFor<ReportingDbContext>(typeof(ReportingDbContext).Assembly);
         ApplyProviderSpecificConfigurations(modelBuilder);
 

@@ -46,6 +46,17 @@ public sealed class SurveyTypeExportMapping : BaseEntity, ITenantOwned, IAggrega
 
     public ExportFormat ExportFormat { get; private set; } = null!;
 
+    /// <summary>
+    /// Repoints this mapping at another export format. Used when the format it referenced has been
+    /// soft deleted, which would otherwise make the tenant default unresolvable.
+    /// </summary>
+    public void UpdateExportFormat(long exportFormatId)
+    {
+        Guard.Against.NegativeOrZero(exportFormatId);
+
+        ExportFormatId = exportFormatId;
+    }
+
     public void MarkAsDefault() => IsDefault = true;
 
     public void ClearDefault() => IsDefault = false;
