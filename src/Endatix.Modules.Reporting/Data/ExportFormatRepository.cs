@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Endatix.Core.Abstractions;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Export;
@@ -15,9 +14,10 @@ internal sealed class ExportFormatRepository(
     ReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork,
     ExportFormatSettingsParser settingsParser,
-    IExportCapabilityRegistry capabilityRegistry,
-    IIdGenerator<long> idGenerator) : IExportFormatRepository
+    IExportCapabilityRegistry capabilityRegistry) : IExportFormatRepository
 {
+    private const string CsvFormatName = "CSV";
+
     private static readonly string _defaultSubmissionsSettingsJson = JsonSerializer.Serialize(new
     {
         aliasProfile = "native",
@@ -184,20 +184,136 @@ internal sealed class ExportFormatRepository(
                 cancellationToken);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Every read here uses <c>IgnoreQueryFilters</c> with explicit <c>TenantId</c> and
+    /// <c>IsDeleted</c> predicates, the same shape <c>FlattenedSubmissionRepository</c> uses. This
+    /// method runs at tenant provisioning, where the ambient tenant is not the tenant being seeded;
+    /// under the tenant filter each guard would read "TenantId == ambient AND TenantId == target",
+    /// never match, and re-seed a tenant that already has its defaults.
+    /// </remarks>
     public async Task SeedDefaultsAsync(long tenantId, CancellationToken cancellationToken)
     {
-        var hasFormats = await dbContext.ExportFormats
-            .AsNoTracking()
-            .AnyAsync(format => format.TenantId == tenantId, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        if (hasFormats)
+        try
         {
-            return;
+            var seeded = await SeedDefaultsCoreAsync(tenantId, cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            if (!seeded)
+            {
+                return;
+            }
+        }
+        catch (DbUpdateException)
+        {
+            // Two provisioning flows can reach the guards before either writes. The loser hits the
+            // filtered unique index on (TenantId, Name) or on the tenant default mapping. Both wanted
+            // the same end state, so if the winner produced it this is success, not a 500.
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            dbContext.ChangeTracker.Clear();
+
+            if (await IsFullySeededAsync(tenantId, cancellationToken))
+            {
+                return;
+            }
+
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Creates whatever part of the tenant default set is missing. Returns false when nothing was
+    /// written, so the caller can skip work on the common already-seeded path.
+    /// </summary>
+    private async Task<bool> SeedDefaultsCoreAsync(long tenantId, CancellationToken cancellationToken)
+    {
+        var liveFormats = await dbContext.ExportFormats
+            .IgnoreQueryFilters()
+            .Where(format => format.TenantId == tenantId && !format.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        var wrote = false;
+
+        if (liveFormats.Count == 0)
+        {
+            liveFormats = BuildDefaultFormats(tenantId);
+            await dbContext.ExportFormats.AddRangeAsync(liveFormats, cancellationToken);
+            wrote = true;
         }
 
+        // The mapping must point at a format that still exists. GetTenantDefaultAsync resolves it via
+        // Include, which the soft-delete filter nulls out, so a mapping left pointing at a deleted
+        // format reports "no default" forever. Repoint it instead of skipping on mapping-exists.
+        var targetFormat =
+            liveFormats.FirstOrDefault(format => format.Name == CsvFormatName) ?? liveFormats[0];
+
+        var defaultMapping = await dbContext.SurveyTypeExportMappings
+            .IgnoreQueryFilters()
+            .Where(mapping =>
+                mapping.TenantId == tenantId &&
+                mapping.IsDefault &&
+                mapping.SurveyTypeId == null &&
+                !mapping.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (defaultMapping is null)
+        {
+            SurveyTypeExportMapping mapping = new(
+                tenantId,
+                targetFormat.Id,
+                surveyTypeId: null,
+                isDefault: true);
+
+            await dbContext.SurveyTypeExportMappings.AddAsync(mapping, cancellationToken);
+            wrote = true;
+        }
+        else if (!liveFormats.Exists(format => format.Id == defaultMapping.ExportFormatId))
+        {
+            defaultMapping.UpdateExportFormat(targetFormat.Id);
+            wrote = true;
+        }
+
+        if (wrote)
+        {
+            // One SaveChanges for formats and mapping together: the previous two-phase write could
+            // commit the formats and then fail, leaving a tenant whose formats exist — so the guard
+            // returns early — but whose default mapping never gets created on any retry.
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        return wrote;
+    }
+
+    private async Task<bool> IsFullySeededAsync(long tenantId, CancellationToken cancellationToken)
+    {
+        var hasFormats = await dbContext.ExportFormats
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(format => format.TenantId == tenantId && !format.IsDeleted, cancellationToken);
+
+        if (!hasFormats)
+        {
+            return false;
+        }
+
+        return await dbContext.SurveyTypeExportMappings
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(
+                mapping =>
+                    mapping.TenantId == tenantId &&
+                    mapping.IsDefault &&
+                    mapping.SurveyTypeId == null &&
+                    !mapping.IsDeleted,
+                cancellationToken);
+    }
+
+    private List<ExportFormat> BuildDefaultFormats(long tenantId)
+    {
         ExportFormat csvFormat = new(
             tenantId,
-            "CSV",
+            CsvFormatName,
             ExportTarget.Submissions,
             ExportDeliveryFormat.Csv,
             ExportProfile.Native,
@@ -222,40 +338,7 @@ internal sealed class ExportFormatRepository(
             "Default form definition codebook export");
         codebookFormat.UpdateSettingsJson(_defaultCodebookSettingsJson);
 
-        ExportFormat[] defaultFormats = [csvFormat, jsonFormat, codebookFormat];
-
-        // Ids must be assigned before the rows are tracked. BaseEntity.Id is DatabaseGeneratedOption.None,
-        // so the default 0 is a real key value rather than an EF temporary one, and the change tracker
-        // rejects the second row of the batch as a duplicate key. The SaveChanges-time stamping in
-        // ReportingDbContext.ProcessEntities only covers rows added one at a time.
-        foreach (var format in defaultFormats)
-        {
-            format.Id = idGenerator.CreateId();
-        }
-
-        await dbContext.ExportFormats.AddRangeAsync(defaultFormats, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var hasDefaultMapping = await dbContext.SurveyTypeExportMappings
-            .AsNoTracking()
-            .AnyAsync(
-                mapping =>
-                    mapping.TenantId == tenantId &&
-                    mapping.IsDefault &&
-                    mapping.SurveyTypeId == null,
-                cancellationToken);
-
-        if (!hasDefaultMapping)
-        {
-            SurveyTypeExportMapping defaultMapping = new(
-                tenantId,
-                csvFormat.Id,
-                surveyTypeId: null,
-                isDefault: true);
-
-            await dbContext.SurveyTypeExportMappings.AddAsync(defaultMapping, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
+        return [csvFormat, jsonFormat, codebookFormat];
     }
 
     private ExportFormatDto MapDto(ExportFormat exportFormat)

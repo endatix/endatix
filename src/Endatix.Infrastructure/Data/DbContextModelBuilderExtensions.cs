@@ -78,6 +78,47 @@ public static class DbContextModelBuilderExtensions
     }
 
     /// <summary>
+    /// Configures Snowflake Id generation for every <see cref="BaseEntity"/> in the model, so an Id is
+    /// assigned when the entity starts being tracked rather than at SaveChanges time.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="BaseEntity.Id"/> is <c>DatabaseGeneratedOption.None</c>, so the default value of 0 is a
+    /// real key value rather than an EF temporary one. Without an Add-time generator, adding more than
+    /// one new entity before saving puts several rows with Id 0 into the identity map and the change
+    /// tracker rejects the second as a duplicate key.
+    /// </para>
+    /// <para>
+    /// EF caches one model per context type, so the <paramref name="valueGeneratorFactory"/> passed by
+    /// the first context built in a process is captured for the lifetime of that model. Pass the
+    /// DI-registered singleton rather than constructing one per context, or every later context will
+    /// silently generate ids from the first one's generator.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The model builder to configure.</param>
+    /// <param name="valueGeneratorFactory">Factory producing the Snowflake-backed value generator.</param>
+    public static void ConfigureEntityIdValueGenerators(
+        this ModelBuilder builder,
+        EfCoreValueGeneratorFactory valueGeneratorFactory)
+    {
+        Guard.Against.Null(builder, nameof(builder));
+        Guard.Against.Null(valueGeneratorFactory, nameof(valueGeneratorFactory));
+
+        var entityTypes = builder.Model.GetEntityTypes()
+            .Where(entityType =>
+                !entityType.IsOwned() &&
+                typeof(BaseEntity).IsAssignableFrom(entityType.ClrType));
+
+        foreach (var entityType in entityTypes)
+        {
+            builder.Entity(entityType.ClrType)
+                .Property<long>(nameof(BaseEntity.Id))
+                .HasValueGenerator((property, _) => valueGeneratorFactory.Create<long>(property))
+                .ValueGeneratedNever();
+        }
+    }
+
+    /// <summary>
     /// Applies entity type configurations from the specified assembly, filtered by DbContext type using generic attributes.
     /// This allows isolating configurations for different DbContexts that share the same assembly.
     /// </summary>

@@ -20,10 +20,13 @@ internal static class ReportingTestSchema
 
         var optionsBuilder = ConfigureOptionsBuilder(connectionString);
 
+        SequentialIdGenerator idGenerator = new();
+
         await using ReportingDbContext context = new(
             optionsBuilder.Options,
-            new NoOpIdGenerator(),
-            new BypassTenantContext());
+            idGenerator,
+            new BypassTenantContext(),
+            new EfCoreValueGeneratorFactory(idGenerator));
 
         // Reporting integration tests reset data via Respawn but keep schema objects.
         // Drop the module schema so updated migrations (e.g. FormSchemas rename) apply cleanly.
@@ -60,9 +63,20 @@ internal static class ReportingTestSchema
             })
             .Build();
 
-    private sealed class NoOpIdGenerator : IIdGenerator<long>
+    /// <summary>
+    /// Ids for the context that migrates the schema. Must be real values, not 0.
+    /// </summary>
+    /// <remarks>
+    /// EF caches one model per context type, and the value generator configured in
+    /// <c>ReportingDbContext.OnModelCreating</c> closes over the factory of whichever context built
+    /// that model first — in this assembly, this one. A generator returning 0 here would hand every
+    /// later test an Id of 0 and resurrect the duplicate-key failure this seeding path was fixed for.
+    /// </remarks>
+    private sealed class SequentialIdGenerator : IIdGenerator<long>
     {
-        public long CreateId() => 0;
+        private long _current = 900_000;
+
+        public long CreateId() => Interlocked.Increment(ref _current);
     }
 
     private sealed class BypassTenantContext : ITenantContext

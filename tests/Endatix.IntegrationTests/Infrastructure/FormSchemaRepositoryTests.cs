@@ -10,6 +10,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Endatix.Infrastructure.Data;
 
 namespace Endatix.IntegrationTests;
 
@@ -135,7 +136,13 @@ public sealed class FormSchemaRepositoryTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
+        IncrementingIdGenerator idGenerator = new();
+
+        return new ReportingDbContext(
+            optionsBuilder.Options,
+            idGenerator,
+            tenantContext,
+            new EfCoreValueGeneratorFactory(idGenerator));
     }
 
     private static FormSchemaRepository CreateRepository(ReportingDbContext dbContext)

@@ -576,7 +576,13 @@ public sealed class ReportingExportRepositoryIntegrationTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
+        IncrementingIdGenerator idGenerator = new();
+
+        return new ReportingDbContext(
+            optionsBuilder.Options,
+            idGenerator,
+            tenantContext,
+            new EfCoreValueGeneratorFactory(idGenerator));
     }
 
     private static ReportingExportRepository CreateRepository(

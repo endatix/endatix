@@ -4,6 +4,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Endatix.Infrastructure.Data;
 
 namespace Endatix.IntegrationTests;
 
@@ -102,6 +103,6 @@ public sealed class ReportingQueryFilterTests
             DbContextOptions<ReportingDbContext> options,
             IIdGenerator<long> idGenerator,
             ITenantContext tenantContext)
-            : base(options, idGenerator, tenantContext) { }
+            : base(options, idGenerator, tenantContext, new EfCoreValueGeneratorFactory(idGenerator)) { }
     }
 }
