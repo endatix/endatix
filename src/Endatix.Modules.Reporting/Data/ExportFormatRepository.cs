@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Abstractions;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Export;
@@ -14,7 +15,8 @@ internal sealed class ExportFormatRepository(
     ReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork,
     ExportFormatSettingsParser settingsParser,
-    IExportCapabilityRegistry capabilityRegistry) : IExportFormatRepository
+    IExportCapabilityRegistry capabilityRegistry,
+    IIdGenerator<long> idGenerator) : IExportFormatRepository
 {
     private static readonly string _defaultSubmissionsSettingsJson = JsonSerializer.Serialize(new
     {
@@ -220,7 +222,18 @@ internal sealed class ExportFormatRepository(
             "Default form definition codebook export");
         codebookFormat.UpdateSettingsJson(_defaultCodebookSettingsJson);
 
-        await dbContext.ExportFormats.AddRangeAsync([csvFormat, jsonFormat, codebookFormat], cancellationToken);
+        ExportFormat[] defaultFormats = [csvFormat, jsonFormat, codebookFormat];
+
+        // Ids must be assigned before the rows are tracked. BaseEntity.Id is DatabaseGeneratedOption.None,
+        // so the default 0 is a real key value rather than an EF temporary one, and the change tracker
+        // rejects the second row of the batch as a duplicate key. The SaveChanges-time stamping in
+        // ReportingDbContext.ProcessEntities only covers rows added one at a time.
+        foreach (var format in defaultFormats)
+        {
+            format.Id = idGenerator.CreateId();
+        }
+
+        await dbContext.ExportFormats.AddRangeAsync(defaultFormats, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         var hasDefaultMapping = await dbContext.SurveyTypeExportMappings
