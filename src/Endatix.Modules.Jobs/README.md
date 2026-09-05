@@ -140,6 +140,13 @@ registers a queue that throws on use, rather than failing startup — nothing en
 so a SQL Server deployment loses nothing today. That stops being true once a feature depends
 on the queue, which is the point by which a second provider has to exist.
 
+> [!NOTE]
+> A side effect on those providers: the module still implements `IHasDbMigrations` but
+> registers no migration contributor, so startup logs the warning *"Module
+> Endatix.Modules.Jobs implements IHasDbMigrations but did not register a migration
+> contributor"*. That is expected here, not a wiring fault, and it goes away when a second
+> provider is added.
+
 Persistence is nonetheless **provider-split**: `JobsPostgreSqlDbContext` derives from
 `JobsDbContextBase` and owns its migrations and model snapshot under
 `Persistence/Migrations/PostgreSql`.
