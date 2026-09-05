@@ -35,22 +35,21 @@ public sealed class JobsModule : IEndatixModule, IHasDbMigrations
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        // Exactly one provider context is registered, and consumers see it only as IJobsDbContext —
-        // so nothing downstream branches on the provider.
-        if (DatabaseProviderResolver.IsPostgreSql(builder.Configuration))
+        // Only PostgreSQL has a queue implementation. Rather than fail startup — which would take
+        // down every SQL Server deployment, including those that never enqueue anything — the
+        // interface is still registered, by a stand-in that explains itself at the call site.
+        if (!DatabaseProviderResolver.IsPostgreSql(builder.Configuration))
         {
-            builder.AddDbContextWithMigrations<JobsPostgreSqlDbContext>(
-                JobsPersistence.ConfigureDbContextOptions);
-            builder.Services.AddScoped<IJobsDbContext>(sp =>
-                sp.GetRequiredService<JobsPostgreSqlDbContext>());
+            builder.Services.AddScoped<IBackgroundJobQueue, UnavailableBackgroundJobQueue>();
+            return;
         }
-        else
-        {
-            builder.AddDbContextWithMigrations<JobsSqlServerDbContext>(
-                JobsPersistence.ConfigureDbContextOptions);
-            builder.Services.AddScoped<IJobsDbContext>(sp =>
-                sp.GetRequiredService<JobsSqlServerDbContext>());
-        }
+
+        // Consumers see the context only as IJobsDbContext, so nothing downstream branches on the
+        // provider.
+        builder.AddDbContextWithMigrations<JobsPostgreSqlDbContext>(
+            JobsPersistence.ConfigureDbContextOptions);
+        builder.Services.AddScoped<IJobsDbContext>(sp =>
+            sp.GetRequiredService<JobsPostgreSqlDbContext>());
 
         builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
     }

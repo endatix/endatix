@@ -6,7 +6,7 @@ namespace Endatix.Modules.Jobs.Persistence.Config;
 
 /// <summary>
 /// Provider-agnostic mapping for <see cref="BackgroundJob"/>. The JSON column type and the two hot
-/// filtered indexes are provider-specific — see the PostgreSql and SqlServer configurations.
+/// filtered indexes are provider-specific — see the PostgreSql configuration.
 /// </summary>
 internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<BackgroundJob>
 {

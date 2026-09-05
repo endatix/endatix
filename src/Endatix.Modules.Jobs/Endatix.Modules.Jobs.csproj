@@ -19,7 +19,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
     <!-- GHSA-w3x6-4m5h-cxqf: pins transitive 9.0.0 from EF Design; design-time only (PrivateAssets). -->

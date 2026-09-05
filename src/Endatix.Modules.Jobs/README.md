@@ -135,15 +135,21 @@ same image.
 
 ## Migrations
 
-Persistence is **provider-split**: `JobsPostgreSqlDbContext` and `JobsSqlServerDbContext`
-derive from `JobsDbContextBase`, and each owns its own migrations and model snapshot under
-`Persistence/Migrations/`.
+**PostgreSQL is currently the only supported provider.** On any other provider the module
+registers a queue that throws on use, rather than failing startup — nothing enqueues jobs yet,
+so a SQL Server deployment loses nothing today. That stops being true once a feature depends
+on the queue, which is the point by which a second provider has to exist.
+
+Persistence is nonetheless **provider-split**: `JobsPostgreSqlDbContext` derives from
+`JobsDbContextBase` and owns its migrations and model snapshot under
+`Persistence/Migrations/PostgreSql`.
 
 This is not stylistic. EF Core keeps **one model snapshot per context type**, so generating
-both providers' migrations against a single shared context makes the second generation
+two providers' migrations against a single shared context makes the second generation
 overwrite the first's snapshot — after which the next migration for the first provider diffs
 against the wrong model and emits nonsense. Adding a provider therefore means adding a derived
-context, never reusing an existing one.
+context, its own design-time factory, its own `Config/<Provider>/` entity configuration and its
+own migrations folder — never reusing an existing one.
 
 Run the commands from the repository root.
 
@@ -160,16 +166,6 @@ dotnet ef migrations add <Name> \
   --project src/Endatix.Modules.Jobs \
   --context JobsPostgreSqlDbContext \
   --output-dir Persistence/Migrations/PostgreSql
-```
-
-### SQL Server
-
-```bash
-dotnet ef migrations add <Name> \
-  --startup-project src/Endatix.WebHost \
-  --project src/Endatix.Modules.Jobs \
-  --context JobsSqlServerDbContext \
-  --output-dir Persistence/Migrations/SqlServer
 ```
 
 Migrations apply automatically at startup when `Endatix:Data:EnableAutoMigrations` is enabled.
