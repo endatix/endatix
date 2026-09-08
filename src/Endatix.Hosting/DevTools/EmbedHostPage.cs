@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Hosting.DevTools;
 
@@ -71,8 +72,12 @@ internal static class EmbedHostPage
         string? prefill,
         string? token,
         string? requestedHubBaseUrl,
-        bool bare)
+        bool bare,
+        string pathBase = "")
     {
+        var path = string.IsNullOrEmpty(pathBase)
+            ? Path
+            : pathBase.TrimEnd('/') + Path;
         var parts = new List<string>(8);
         if (!string.IsNullOrEmpty(formId))
         {
@@ -104,8 +109,11 @@ internal static class EmbedHostPage
             parts.Add("view=bare");
         }
 
-        return parts.Count == 0 ? Path : Path + "?" + string.Join("&", parts);
+        return parts.Count == 0 ? path : path + "?" + string.Join("&", parts);
     }
+
+    public static bool IsMixedContent(bool pageIsHttps, Uri hubBaseUrl) =>
+        pageIsHttps && hubBaseUrl.Scheme == Uri.UriSchemeHttp;
 
     public static string RenderBuilderHtml(
         string? formId,
@@ -113,25 +121,68 @@ internal static class EmbedHostPage
         string? heightMode,
         string? prefill,
         string? token,
-        string? requestedHubBaseUrl)
+        string? requestedHubBaseUrl,
+        string pathBase = "",
+        string? error = null,
+        string? formIdField = null,
+        bool mixedContent = false,
+        string? httpPlaygroundHref = null)
     {
-        var stage = formId is null
-            ? EmptyStageHtml
-            : $"""<div class="{FrameClass(heightMode)}" id="endatix-embed-root">{BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token)}</div>""";
+        string stage;
+        if (formId is not null && !mixedContent)
+        {
+            stage = $"""<div class="{FrameClass(heightMode)}" id="endatix-embed-root">{BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token)}</div>""";
+        }
+        else if (mixedContent)
+        {
+            stage = MixedContentCard(httpPlaygroundHref);
+        }
+        else
+        {
+            stage = EmptyStageHtml;
+        }
+
+        var errorHtml = string.IsNullOrEmpty(error)
+            ? string.Empty
+            : $"<p class=\"banner\" role=\"alert\">{Encode(error)}</p>";
+
+        var forceOpen = formId is null || error is not null || mixedContent;
 
         return EmbedHostAssets.BuilderHtml
             .Replace("__STYLES__", EmbedHostAssets.Styles, StringComparison.Ordinal)
             .Replace("__SCRIPT__", EmbedHostAssets.Script, StringComparison.Ordinal)
             .Replace("__META__", BuildMeta(formId, hubBaseUrl, heightMode, prefill, token), StringComparison.Ordinal)
-            .Replace("__ACTIONS__", BuildActions(formId, hubBaseUrl, heightMode, prefill, token, requestedHubBaseUrl), StringComparison.Ordinal)
+            .Replace(
+                "__ACTIONS__",
+                BuildActions(formId, hubBaseUrl, heightMode, prefill, token, requestedHubBaseUrl, pathBase, mixedContent),
+                StringComparison.Ordinal)
+            .Replace("__ERROR__", errorHtml, StringComparison.Ordinal)
             .Replace("__STAGE__", stage, StringComparison.Ordinal)
-            .Replace("__CONFIG_FORCE_OPEN__", formId is null ? "true" : "false", StringComparison.Ordinal)
-            .Replace("__FORM_ID__", Encode(formId ?? string.Empty), StringComparison.Ordinal)
+            .Replace("__CONFIG_FORCE_OPEN__", forceOpen ? "true" : "false", StringComparison.Ordinal)
+            .Replace("__FORM_ID__", Encode(formIdField ?? formId ?? string.Empty), StringComparison.Ordinal)
             .Replace("__FILL_SELECTED__", heightMode is not null ? " selected" : string.Empty, StringComparison.Ordinal)
             .Replace("__TOKEN__", Encode(token ?? string.Empty), StringComparison.Ordinal)
             .Replace("__PREFILL__", Encode(prefill ?? string.Empty), StringComparison.Ordinal)
             .Replace("__HUB_FIELD__", Encode(requestedHubBaseUrl ?? string.Empty), StringComparison.Ordinal)
             .Replace("__HUB_PLACEHOLDER__", Encode(hubBaseUrl.GetLeftPart(UriPartial.Authority)), StringComparison.Ordinal);
+    }
+
+    public static string? LocalHttpPlaygroundUrl(HttpRequest request)
+    {
+        if (!request.IsHttps)
+        {
+            return null;
+        }
+
+        var host = request.Host.Host;
+        if (!string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var path = (request.PathBase.HasValue ? request.PathBase.Value : string.Empty) + request.Path.Value;
+        return "http://localhost:5000" + path + request.QueryString.Value;
     }
 
     public static string RenderBareHtml(
@@ -149,6 +200,30 @@ internal static class EmbedHostPage
             .Replace("__FILL_CSS__", fillCss, StringComparison.Ordinal)
             .Replace("__EMBED_SCRIPT__", BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token), StringComparison.Ordinal);
     }
+
+    private static string MixedContentCard(string? httpPlaygroundHref)
+    {
+        var httpLink = string.IsNullOrEmpty(httpPlaygroundHref)
+            ? "<code>http://localhost:5000/dev/embed-host</code> (same query)"
+            : $"""<a href="{Encode(httpPlaygroundHref)}">{Encode(httpPlaygroundHref)}</a>""";
+
+        var action = string.IsNullOrEmpty(httpPlaygroundHref)
+            ? string.Empty
+            : $"""<div class="empty-actions"><a class="btn btn--primary" href="{Encode(httpPlaygroundHref)}">Open HTTP playground</a></div>""";
+
+        return $"""
+            <div class="empty empty--error" role="alert">
+              <h2>Hub script blocked (mixed content)</h2>
+              <p>This page is <b>HTTPS</b>. Hub serves <code>embed.js</code> over <b>HTTP</b>. Browsers refuse that.</p>
+              <ol>
+                <li>Local default: open the HTTP playground {httpLink}.</li>
+                <li>Or set <code>hubBaseUrl</code> to an HTTPS Hub origin in Configure, then Apply.</li>
+              </ol>
+              {action}
+            </div>
+            """;
+    }
+
 
     private const string EmptyStageHtml = """
         <div class="empty">
@@ -187,14 +262,16 @@ internal static class EmbedHostPage
         string? heightMode,
         string? prefill,
         string? token,
-        string? requestedHubBaseUrl)
+        string? requestedHubBaseUrl,
+        string pathBase,
+        bool mixedContent)
     {
-        if (formId is null)
+        if (formId is null || mixedContent)
         {
             return string.Empty;
         }
 
-        var bareUrl = Encode(ToRelativeUrl(formId, heightMode, prefill, token, requestedHubBaseUrl, bare: true));
+        var bareUrl = Encode(ToRelativeUrl(formId, heightMode, prefill, token, requestedHubBaseUrl, bare: true, pathBase));
         var snippet = Encode(BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token));
 
         return $"""

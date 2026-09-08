@@ -77,6 +77,9 @@ public class EndatixMiddlewareBuilder
             UseAuthorization();
         }
 
+        // Terminal branch: HTTP /dev/embed-host must not 307 to HTTPS (mixed content vs Hub).
+        UseEmbedHost();
+
         if (options.UseHsts)
         {
             UseHsts();
@@ -86,8 +89,6 @@ public class EndatixMiddlewareBuilder
         {
             UseHttpsRedirection();
         }
-
-        UseEmbedHost();
 
         if (options.UseApi)
         {

@@ -35,6 +35,13 @@
     --shadow: none;
   }
 }
+.banner {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.5rem;
+  background: var(--warn-bg);
+  color: var(--warn);
+}
 html,
 body {
   height: 100%;
@@ -286,6 +293,32 @@ code {
   margin: 0 0 0.4rem;
   font-size: 1rem;
   color: var(--text);
+}
+.empty--error {
+  max-width: 34rem;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+}
+.empty--error p,
+.empty--error li {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.empty--error ol {
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+}
+.empty--error ol a {
+  color: var(--accent);
+}
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
 
 .drawer {

@@ -75,6 +75,20 @@ public sealed class EmbedHostPageTests
     }
 
     [Fact]
+    public void TryResolveHubBaseUrl_SameHostDifferentScheme_Fails()
+    {
+        var options = new EmbedHostOptions
+        {
+            HubBaseUrl = "https://hub.example",
+            AllowLoopback = false
+        };
+
+        var resolved = EmbedHostPage.TryResolveHubBaseUrl("http://hub.example", options, out _);
+
+        resolved.Should().BeFalse();
+    }
+
+    [Fact]
     public void TryResolveHubBaseUrl_SameHostDifferentPort_Fails()
     {
         var options = new EmbedHostOptions
@@ -126,11 +140,17 @@ public sealed class EmbedHostPageTests
     [Fact]
     public void ToRelativeUrl_BareIncludesViewAndFormId()
     {
-        // Act
         var url = EmbedHostPage.ToRelativeUrl("42", "fill", null, "tok", null, bare: true);
 
-        // Assert
         url.Should().Be("/dev/embed-host?formId=42&heightMode=fill&token=tok&view=bare");
+    }
+
+    [Fact]
+    public void ToRelativeUrl_PrefixesPathBase()
+    {
+        var url = EmbedHostPage.ToRelativeUrl("42", null, null, null, null, bare: true, pathBase: "/api");
+
+        url.Should().Be("/api/dev/embed-host?formId=42&view=bare");
     }
 
     [Fact]

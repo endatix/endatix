@@ -79,7 +79,7 @@ public sealed class EmbedHostEndpointTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidFormId_Returns400()
+    public async Task ExecuteAsync_InvalidFormId_ReturnsBuilderWithError()
     {
         var context = CreateContext(
             new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000" },
@@ -87,7 +87,79 @@ public sealed class EmbedHostEndpointTests
 
         await EmbedHostEndpoint.ExecuteAsync(context);
 
-        context.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        var html = await ReadBody(context);
+        html.Should().Contain("formId must be a positive integer.");
+        html.Should().Contain("value=\"abc\"");
+        html.Should().NotContain("/embed/v1/embed.js");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_HttpsPageHttpHub_DoesNotInjectScript()
+    {
+        var context = CreateContext(
+            new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = true },
+            path: "/dev/embed-host?formId=42",
+            isHttps: true);
+
+        await EmbedHostEndpoint.ExecuteAsync(context);
+
+        var html = await ReadBody(context);
+        html.Should().Contain("mixed content");
+        html.Should().Contain("Open HTTP playground");
+        html.Should().Contain("http://localhost:5000/dev/embed-host");
+        html.Should().NotContain("src=\"http://localhost:3000/embed/v1/embed.js\"");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PathBase_PrefixesBareLink()
+    {
+        var context = CreateContext(
+            new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000" },
+            path: "/dev/embed-host?formId=42",
+            pathBase: "/api");
+
+        await EmbedHostEndpoint.ExecuteAsync(context);
+
+        var html = await ReadBody(context);
+        html.Should().Contain("href=\"/api/dev/embed-host?formId=42&amp;view=bare\"");
+        html.Should().NotContain("action=\"/dev/embed-host\"");
+        context.Response.Headers["Referrer-Policy"].ToString().Should().Be("no-referrer");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DisallowedHub_ReturnsBuilderWithError()
+    {
+        var context = CreateContext(
+            new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = false },
+            path: "/dev/embed-host?formId=42&hubBaseUrl=https://evil.example");
+
+        await EmbedHostEndpoint.ExecuteAsync(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        var html = await ReadBody(context);
+        html.Should().Contain("hubBaseUrl is missing or not allowlisted.");
+        html.Should().Contain("value=\"https://evil.example\"");
+        html.Should().NotContain("src=\"https://evil.example");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_BareHttpsHttpHub_ReturnsBuilderMixedContentCard()
+    {
+        var context = CreateContext(
+            new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = true },
+            path: "/dev/embed-host?formId=42&view=bare",
+            isHttps: true);
+
+        await EmbedHostEndpoint.ExecuteAsync(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        var html = await ReadBody(context);
+        html.Should().Contain("empty--error");
+        html.Should().Contain("Open HTTP playground");
+        html.Should().Contain("id=\"toggle-config\"");
+        html.Should().Contain("http://localhost:5000/dev/embed-host");
+        html.Should().NotContain("/embed/v1/embed.js");
     }
 
     [Fact]
@@ -132,7 +204,11 @@ public sealed class EmbedHostEndpointTests
         return await reader.ReadToEndAsync(TestContext.Current.CancellationToken);
     }
 
-    private static DefaultHttpContext CreateContext(EmbedHostOptions options, string path = "/dev/embed-host")
+    private static DefaultHttpContext CreateContext(
+        EmbedHostOptions options,
+        string path = "/dev/embed-host",
+        string pathBase = "",
+        bool isHttps = false)
     {
         var services = new ServiceCollection();
         services.AddSingleton(MicrosoftOptions.Create(options));
@@ -140,6 +216,9 @@ public sealed class EmbedHostEndpointTests
         {
             RequestServices = services.BuildServiceProvider()
         };
+        http.Request.Scheme = isHttps ? "https" : "http";
+        http.Request.Host = new HostString(isHttps ? "localhost:5001" : "localhost");
+        http.Request.PathBase = pathBase;
         http.Request.Path = path.Split('?')[0];
         if (path.Contains('?', StringComparison.Ordinal))
         {

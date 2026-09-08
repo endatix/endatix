@@ -137,13 +137,13 @@ dotnet test tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj --filter "FullyQu
 
 | Query               | Meaning                                                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `formId`            | Required to emit `embed.js`. Omitted → builder shell (200). `view=bare` without it → 400.                                      |
+| `formId`            | Required to emit `embed.js`. Omitted → builder shell (200). Invalid on builder → 200 + banner. `view=bare` without a valid id → 400. |
 | `view`              | `builder` (default) or `bare` (iframe only; visual/e2e).                                                                       |
 | `heightMode`        | `fill` or omit (auto).                                                                                                         |
 | `token` / `prefill` | `data-token` wins over `data-prefill`.                                                                                         |
-| `hubBaseUrl`        | Override Hub origin. Must match configured origin (scheme+host+port), an `AllowedHubHosts` origin, or loopback in Development. |
+| `hubBaseUrl`        | Override Hub origin. Must match configured origin (scheme+host+port), an `AllowedHubHosts` origin, or loopback in Development. Invalid on builder → 200 + banner; `view=bare` → 400. |
 
-Builder chrome (topbar, log, width) is for humans; `localStorage` only remembers chrome, never iframe attrs. Force-open Configure (no `formId`) is not persisted. **Open in new tab** = same query + `view=bare`. Loopback Hub origins only when `AllowLoopback` (Development default). Production: exact origin match. Responses: `Cache-Control: no-store`. Not a product page. Hub e2e: `view=bare` + `E2E_EMBED_HOST_URL`. Markup: `DevTools/Assets/`. User doc: `docs/endatix-docs/docs/guides/embed-form-via-iframe.mdx`.
+HTTPS playground + HTTP Hub = mixed content: **builder UI** (200, no script), including `view=bare` — recovery card, not a blank/plain 400. Local: `http://localhost:5000/dev/embed-host`. MapWhen is registered **before** HTTPS redirection so HTTP is not 307'd to `:5001`. Apply has no `action` (keeps PathBase). Bare links prefix `Request.PathBase`. Headers: `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`. Anonymous when enabled (third-party host; Hub cookies do not apply). Force-open Configure is not persisted. **Open in new tab** = same query + `view=bare`. Loopback only when `AllowLoopback` (Development default; do not set true in Production). User doc: `docs/endatix-docs/docs/guides/embed-form-via-iframe.mdx`.
 
 ## Related
 

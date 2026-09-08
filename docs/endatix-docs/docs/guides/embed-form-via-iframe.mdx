@@ -67,9 +67,12 @@ taller than the container, make the container scroll.
 `/embed/{formId}` is the **iframe document**, not a host page. Opening it skips `embed.js`, resize,
 and host events. A real check needs a page on a **different origin** from Hub.
 
-Local Development already has one: **embed playground**, `GET /dev/embed-host` on the API
-(`https://localhost:5001` by default). Hub serves `embed.js` and the iframe; the API origin is the
-host — same split as a customer site.
+Local Development already has one: **embed playground**, `GET /dev/embed-host` on the API.
+Hub is `http://localhost:3000` by default, so open the **HTTP** API origin
+(`http://localhost:5000`) — the HTTPS profile (`https://localhost:5001`) cannot load HTTP
+`embed.js` (mixed content). The playground detects that and shows an in-page error instead of
+injecting the script. Hub serves `embed.js` and the iframe; the API origin is the host — same
+split as a customer site.
 
 On in Development; `404` in Production unless you set:
 
@@ -88,7 +91,9 @@ On in Development; `404` in Production unless you set:
 
 `HubBaseUrl` is the Hub origin for `embed.js` (falls back to `Endatix:Hub:HubBaseUrl`). Extra
 origins go in `Endatix:DevTools:EmbedHost:AllowedHubHosts` as absolute URLs (`https://hub.example`).
-In Development, loopback and host-only entries are also accepted. Unknown `hubBaseUrl` → `400`.
+In Development, loopback and host-only entries are also accepted. Unknown `hubBaseUrl` or a bad
+`formId` on the builder re-renders the shell with an inline error (`200`). `view=bare` still
+returns `400`.
 
 ### Query string is the contract
 
@@ -96,7 +101,7 @@ The URL fully describes the embed. **Configure** only GET-rewrites that query �
 type by hand. Agents and bookmarks should use the query, not the UI.
 
 ```
-https://localhost:5001/dev/embed-host?formId=1442869143157080064&heightMode=fill
+http://localhost:5000/dev/embed-host?formId=1442869143157080064&heightMode=fill
 ```
 
 <ThemedImage
@@ -143,7 +148,7 @@ badges unseen events, and opens on error. Payloads and how to listen:
 No toolbar, log, or configure — for e2e and screenshots:
 
 ```
-https://localhost:5001/dev/embed-host?formId=1442869143157080064&view=bare
+http://localhost:5000/dev/embed-host?formId=1442869143157080064&view=bare
 ```
 
 Invalid or missing `formId` → `400`.
@@ -154,8 +159,9 @@ DevTools only — not a production embed. Keep it disabled outside development.
 
 ## Troubleshooting
 
-**Nothing renders.** Console: blocked script or mixed content. HTTPS host cannot load HTTP
-`embed.js`. Confirm `data-form-id` is a published form.
+**Nothing renders / mixed-content banner.** HTTPS playground (`:5001`) cannot load HTTP Hub
+(`:3000`). Use `http://localhost:5000/dev/embed-host` (not `:5001`). Confirm `data-form-id` is a
+published form.
 
 **`fill` collapses.** Give the parent an explicit height. See Height modes above.
 
