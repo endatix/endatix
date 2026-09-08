@@ -200,16 +200,10 @@ public sealed class EmbedHostEndpointTests
         html.Should().NotContain("name=\"formId\"");
     }
 
-    private static async Task<string> ReadBody(DefaultHttpContext context)
-    {
-        context.Response.Body.Seek(0, SeekOrigin.Begin);
-        using var reader = new StreamReader(context.Response.Body);
-        return await reader.ReadToEndAsync(TestContext.Current.CancellationToken);
-    }
-
     [Fact]
     public async Task ExecuteAsync_HttpsPageNoHttpBinding_OffersNoDeadLink()
     {
+        // Arrange
         var context = CreateContext(
             new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = true },
             path: "/dev/embed-host?formId=42",
@@ -219,6 +213,7 @@ public sealed class EmbedHostEndpointTests
         // Act
         await EmbedHostEndpoint.ExecuteAsync(context);
 
+        // Assert
         var html = await ReadBody(context);
         html.Should().Contain("mixed content");
         html.Should().NotContain("Open HTTP playground");
@@ -228,6 +223,7 @@ public sealed class EmbedHostEndpointTests
     [Fact]
     public async Task ExecuteAsync_HttpsPage_LinksTheServersActualHttpPort()
     {
+        // Arrange
         var context = CreateContext(
             new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = true },
             path: "/dev/embed-host?formId=42",
@@ -241,6 +237,13 @@ public sealed class EmbedHostEndpointTests
         var html = await ReadBody(context);
         html.Should().Contain("http://localhost:57678/dev/embed-host?formId=42");
         html.Should().NotContain("localhost:5000");
+    }
+
+    private static async Task<string> ReadBody(DefaultHttpContext context)
+    {
+        context.Response.Body.Seek(0, SeekOrigin.Begin);
+        using var reader = new StreamReader(context.Response.Body);
+        return await reader.ReadToEndAsync(TestContext.Current.CancellationToken);
     }
 
     private static DefaultHttpContext CreateContext(

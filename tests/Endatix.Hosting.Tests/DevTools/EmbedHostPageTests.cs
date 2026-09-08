@@ -255,6 +255,7 @@ public sealed class EmbedHostPageTests
     [Fact]
     public void LocalHttpPlaygroundUrl_UsesTheServersOwnHttpPort()
     {
+        // Arrange
         var request = HttpsRequest("/dev/embed-host", "?formId=42");
 
         // Act
@@ -266,13 +267,19 @@ public sealed class EmbedHostPageTests
         url.Should().Be("http://localhost:57678/dev/embed-host?formId=42");
     }
 
-    [Fact]
-    public void LocalHttpPlaygroundUrl_ReadsPortFromWildcardBinding()
+    [Theory]
+    [InlineData("http://localhost:5000")]
+    [InlineData("http://[::]:5000")]
+    [InlineData("http://0.0.0.0:5000")]
+    [InlineData("http://*:5000")]
+    [InlineData("http://+:5000")]
+    public void LocalHttpPlaygroundUrl_ReadsPortFromEveryKestrelBindShape(string address)
     {
+        // Arrange - `*` and `+` are not valid URIs, so they exercise the port fallback.
         var request = HttpsRequest("/dev/embed-host", "?formId=42");
 
         // Act
-        var url = EmbedHostPage.LocalHttpPlaygroundUrl(request, ["http://[::]:5000"]);
+        var url = EmbedHostPage.LocalHttpPlaygroundUrl(request, [address]);
 
         // Assert
         url.Should().Be("http://localhost:5000/dev/embed-host?formId=42");
@@ -284,6 +291,7 @@ public sealed class EmbedHostPageTests
         // Arrange
         var request = HttpsRequest("/dev/embed-host", "?formId=42");
 
+        // Act - a guessed port would send the developer to a dead address.
         var url = EmbedHostPage.LocalHttpPlaygroundUrl(request, ["https://localhost:5001"]);
 
         // Assert
@@ -304,6 +312,7 @@ public sealed class EmbedHostPageTests
             context.Request,
             ["http://localhost:5000"]);
 
+        // Assert - nothing to recover from.
         url.Should().BeNull();
     }
 

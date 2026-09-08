@@ -25,6 +25,8 @@ internal static class EmbedHostPage
     internal static Uri FallbackHubOrigin { get; } =
         new UriBuilder(Uri.UriSchemeHttp, "localhost", 3000).Uri;
 
+    private const string HttpScheme = "http://";
+
     public const string Path = "/dev/embed-host";
 
     public static bool IsBareView(string? view) =>
@@ -202,36 +204,22 @@ internal static class EmbedHostPage
         return httpPlayground.Uri.ToString();
     }
 
-    private static int? FindHttpPort(IEnumerable<string>? serverAddresses)
+    private static int? FindHttpPort(IEnumerable<string>? serverAddresses) =>
+        serverAddresses?
+            .Where(address => address.StartsWith(HttpScheme, StringComparison.OrdinalIgnoreCase))
+            .Select(ParsePort)
+            .FirstOrDefault(port => port > 0);
+
+    private static int? ParsePort(string address)
     {
-        if (serverAddresses is null)
+        if (Uri.TryCreate(address, UriKind.Absolute, out var uri))
         {
-            return null;
+            return uri.Port;
         }
 
-        foreach (var address in serverAddresses)
-        {
-            if (string.IsNullOrWhiteSpace(address) ||
-                !address.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Port > 0)
-            {
-                return uri.Port;
-            }
-
-            var lastColon = address.LastIndexOf(':');
-            if (lastColon > 0 &&
-                int.TryParse(address[(lastColon + 1)..].TrimEnd('/'), out var port) &&
-                port > 0)
-            {
-                return port;
-            }
-        }
-
-        return null;
+        // Kestrel wildcard binds (`http://*:5000`, `http://+:5000`) are not valid URIs.
+        var portText = address[(address.LastIndexOf(':') + 1)..].TrimEnd('/');
+        return int.TryParse(portText, out var port) ? port : null;
     }
 
     public static string RenderBareHtml(
@@ -263,7 +251,7 @@ internal static class EmbedHostPage
     private static string MixedContentCard(string? httpPlaygroundHref)
     {
         var httpLink = string.IsNullOrEmpty(httpPlaygroundHref)
-            ? "this process's HTTP bind (same path and query), if it has one"
+            ? "this API's HTTP address, same path and query"
             : $"""<a href="{Encode(httpPlaygroundHref)}">{Encode(httpPlaygroundHref)}</a>""";
 
         var action = string.IsNullOrEmpty(httpPlaygroundHref)

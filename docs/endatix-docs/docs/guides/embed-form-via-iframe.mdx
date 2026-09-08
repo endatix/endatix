@@ -71,9 +71,9 @@ Local Development already has one: **embed playground**, `GET /dev/embed-host` o
 Hub is `http://localhost:3000` by default, so open the **HTTP** API origin
 (`http://localhost:5000`) — the HTTPS profile (`https://localhost:5001`) cannot load HTTP
 `embed.js` (mixed content). The playground detects that and shows an in-page error instead of
-injecting the script. **Open HTTP playground** uses this process's HTTP port from Kestrel
-(default launch profile: `:5000`). Hub serves `embed.js` and the iframe; the API origin is the host — same
-split as a customer site.
+injecting the script, with **Open HTTP playground** linking this process's own HTTP port
+(`:5000` on the default launch profile). Hub serves `embed.js` and the iframe; the API origin is the
+host — same split as a customer site.
 
 On in Development; `404` in Production unless you set:
 
@@ -161,8 +161,9 @@ DevTools only — not a production embed. Keep it disabled outside development.
 ## Troubleshooting
 
 **Nothing renders / mixed-content banner.** HTTPS playground (`:5001`) cannot load HTTP Hub
-(`:3000`). Use `http://localhost:5000/dev/embed-host` (not `:5001`). Confirm `data-form-id` is a
-published form.
+(`:3000`). Open the playground on the API's HTTP address instead — **Open HTTP playground** on the
+card links it, or use `http://localhost:5000/dev/embed-host` on the default launch profile. Confirm
+`data-form-id` is a published form.
 
 **`fill` collapses.** Give the parent an explicit height. See Height modes above.
 
