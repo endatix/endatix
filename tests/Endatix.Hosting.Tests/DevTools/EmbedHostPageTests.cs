@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Endatix.Hosting.DevTools;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Hosting.Tests.DevTools;
 
@@ -249,6 +250,80 @@ public sealed class EmbedHostPageTests
         // Assert
         fill.Should().Contain("class=\"frame frame--fill\"");
         auto.Should().Contain("class=\"frame\"");
+    }
+
+    [Fact]
+    public void LocalHttpPlaygroundUrl_UsesTheServersOwnHttpPort()
+    {
+        // Arrange
+        var request = HttpsRequest("/dev/embed-host", "?formId=42");
+
+        // Act
+        var url = EmbedHostPage.LocalHttpPlaygroundUrl(
+            request,
+            ["https://localhost:7001", "http://localhost:57678"]);
+
+        // Assert
+        url.Should().Be("http://localhost:57678/dev/embed-host?formId=42");
+    }
+
+    [Theory]
+    [InlineData("http://localhost:5000")]
+    [InlineData("http://[::]:5000")]
+    [InlineData("http://0.0.0.0:5000")]
+    [InlineData("http://*:5000")]
+    [InlineData("http://+:5000")]
+    public void LocalHttpPlaygroundUrl_ReadsPortFromEveryKestrelBindShape(string address)
+    {
+        // Arrange - `*` and `+` are not valid URIs, so they exercise the port fallback.
+        var request = HttpsRequest("/dev/embed-host", "?formId=42");
+
+        // Act
+        var url = EmbedHostPage.LocalHttpPlaygroundUrl(request, [address]);
+
+        // Assert
+        url.Should().Be("http://localhost:5000/dev/embed-host?formId=42");
+    }
+
+    [Fact]
+    public void LocalHttpPlaygroundUrl_NoHttpBinding_ReturnsNull()
+    {
+        // Arrange
+        var request = HttpsRequest("/dev/embed-host", "?formId=42");
+
+        // Act - a guessed port would send the developer to a dead address.
+        var url = EmbedHostPage.LocalHttpPlaygroundUrl(request, ["https://localhost:5001"]);
+
+        // Assert
+        url.Should().BeNull();
+    }
+
+    [Fact]
+    public void LocalHttpPlaygroundUrl_PlainHttpRequest_ReturnsNull()
+    {
+        // Arrange
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "http";
+        context.Request.Host = new HostString("localhost", 5000);
+        context.Request.Path = "/dev/embed-host";
+
+        // Act
+        var url = EmbedHostPage.LocalHttpPlaygroundUrl(
+            context.Request,
+            ["http://localhost:5000"]);
+
+        // Assert - nothing to recover from.
+        url.Should().BeNull();
+    }
+
+    private static HttpRequest HttpsRequest(string path, string queryString)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "https";
+        context.Request.Host = new HostString("localhost", 5001);
+        context.Request.Path = path;
+        context.Request.QueryString = new QueryString(queryString);
+        return context.Request;
     }
 
     [Fact]

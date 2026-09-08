@@ -10,6 +10,7 @@ public sealed class EmbedHostAssetsTests
         EmbedHostAssets.BuilderHtml.Should().StartWith("<!doctype html>");
         EmbedHostAssets.BareHtml.Should().StartWith("<!doctype html>");
         EmbedHostAssets.Styles.Should().Contain(".frame--fill");
+        EmbedHostAssets.Styles.Should().Contain("overflow-wrap: anywhere");
         EmbedHostAssets.Script.Should().Contain("endatix:form-loaded");
     }
 

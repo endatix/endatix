@@ -1,5 +1,8 @@
 using Endatix.Hosting.DevTools;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.Extensions.DependencyInjection;
 using MicrosoftOptions = Microsoft.Extensions.Options.Options;
 
@@ -197,6 +200,45 @@ public sealed class EmbedHostEndpointTests
         html.Should().NotContain("name=\"formId\"");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_HttpsPageNoHttpBinding_OffersNoDeadLink()
+    {
+        // Arrange
+        var context = CreateContext(
+            new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = true },
+            path: "/dev/embed-host?formId=42",
+            isHttps: true,
+            serverAddresses: ["https://localhost:5001"]);
+
+        // Act
+        await EmbedHostEndpoint.ExecuteAsync(context);
+
+        // Assert
+        var html = await ReadBody(context);
+        html.Should().Contain("mixed content");
+        html.Should().NotContain("Open HTTP playground");
+        html.Should().NotContain("localhost:5000");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_HttpsPage_LinksTheServersActualHttpPort()
+    {
+        // Arrange
+        var context = CreateContext(
+            new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = true },
+            path: "/dev/embed-host?formId=42",
+            isHttps: true,
+            serverAddresses: ["https://localhost:5001", "http://localhost:57678"]);
+
+        // Act
+        await EmbedHostEndpoint.ExecuteAsync(context);
+
+        // Assert
+        var html = await ReadBody(context);
+        html.Should().Contain("http://localhost:57678/dev/embed-host?formId=42");
+        html.Should().NotContain("localhost:5000");
+    }
+
     private static async Task<string> ReadBody(DefaultHttpContext context)
     {
         context.Response.Body.Seek(0, SeekOrigin.Begin);
@@ -208,10 +250,13 @@ public sealed class EmbedHostEndpointTests
         EmbedHostOptions options,
         string path = "/dev/embed-host",
         string pathBase = "",
-        bool isHttps = false)
+        bool isHttps = false,
+        string[]? serverAddresses = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(MicrosoftOptions.Create(options));
+        services.AddSingleton<IServer>(new FakeServer(serverAddresses
+            ?? ["https://localhost:5001", "http://localhost:5000"]));
         var http = new DefaultHttpContext
         {
             RequestServices = services.BuildServiceProvider()
@@ -227,5 +272,31 @@ public sealed class EmbedHostEndpointTests
 
         http.Response.Body = new MemoryStream();
         return http;
+    }
+
+    private sealed class FakeServer(string[] addresses) : IServer
+    {
+        public IFeatureCollection Features { get; } = Build(addresses);
+
+        public void Dispose() { }
+
+        public Task StartAsync<TContext>(
+            IHttpApplication<TContext> application,
+            CancellationToken cancellationToken) where TContext : notnull => Task.CompletedTask;
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        private static IFeatureCollection Build(string[] addresses)
+        {
+            var features = new FeatureCollection();
+            var addressFeature = new ServerAddressesFeature();
+            foreach (var address in addresses)
+            {
+                addressFeature.Addresses.Add(address);
+            }
+
+            features.Set<IServerAddressesFeature>(addressFeature);
+            return features;
+        }
     }
 }

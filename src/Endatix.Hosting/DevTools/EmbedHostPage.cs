@@ -25,6 +25,8 @@ internal static class EmbedHostPage
     internal static Uri FallbackHubOrigin { get; } =
         new UriBuilder(Uri.UriSchemeHttp, "localhost", 3000).Uri;
 
+    private const string HttpScheme = "http://";
+
     public const string Path = "/dev/embed-host";
 
     public static bool IsBareView(string? view) =>
@@ -171,7 +173,9 @@ internal static class EmbedHostPage
             .Replace("__HUB_PLACEHOLDER__", Encode(view.HubBaseUrl.GetLeftPart(UriPartial.Authority)), StringComparison.Ordinal);
     }
 
-    public static string? LocalHttpPlaygroundUrl(HttpRequest request)
+    public static string? LocalHttpPlaygroundUrl(
+        HttpRequest request,
+        IEnumerable<string>? serverAddresses)
     {
         if (!request.IsHttps)
         {
@@ -185,13 +189,37 @@ internal static class EmbedHostPage
             return null;
         }
 
+        var httpPort = FindHttpPort(serverAddresses);
+        if (httpPort is null)
+        {
+            return null;
+        }
+
         var path = (request.PathBase.HasValue ? request.PathBase.Value : string.Empty) + request.Path.Value;
-        var httpPlayground = new UriBuilder(Uri.UriSchemeHttp, "localhost", 5000)
+        var httpPlayground = new UriBuilder(Uri.UriSchemeHttp, host, httpPort.Value)
         {
             Path = string.IsNullOrEmpty(path) ? "/" : path,
             Query = request.QueryString.ToString().TrimStart('?')
         };
         return httpPlayground.Uri.ToString();
+    }
+
+    private static int? FindHttpPort(IEnumerable<string>? serverAddresses) =>
+        serverAddresses?
+            .Where(address => address.StartsWith(HttpScheme, StringComparison.OrdinalIgnoreCase))
+            .Select(ParsePort)
+            .FirstOrDefault(port => port > 0);
+
+    private static int? ParsePort(string address)
+    {
+        if (Uri.TryCreate(address, UriKind.Absolute, out var uri))
+        {
+            return uri.Port;
+        }
+
+        // Kestrel wildcard binds (`http://*:5000`, `http://+:5000`) are not valid URIs.
+        var portText = address[(address.LastIndexOf(':') + 1)..].TrimEnd('/');
+        return int.TryParse(portText, out var port) ? port : null;
     }
 
     public static string RenderBareHtml(
@@ -223,7 +251,7 @@ internal static class EmbedHostPage
     private static string MixedContentCard(string? httpPlaygroundHref)
     {
         var httpLink = string.IsNullOrEmpty(httpPlaygroundHref)
-            ? "<code>http://localhost:5000/dev/embed-host</code> (same query)"
+            ? "this API's HTTP address, same path and query"
             : $"""<a href="{Encode(httpPlaygroundHref)}">{Encode(httpPlaygroundHref)}</a>""";
 
         var action = string.IsNullOrEmpty(httpPlaygroundHref)
