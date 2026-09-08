@@ -5,9 +5,11 @@ description: Listen to Endatix Hub embedded form events and integrate them safel
 
 # Embedded form events
 
-Endatix Hub forms can be embedded in any page with the embed script. The script creates an iframe, resizes it automatically, and exposes lifecycle events on the host page so your application can react when a form loads, completes, or fails to submit.
+Host-page lifecycle for an Endatix embed: `endatix:form-loaded`, `endatix:form-complete`, and
+`endatix:form-error`. Snippet attributes, height modes (`auto` / `fill`), and the local
+cross-origin playground are in [Embed a Form via iframe](/docs/guides/embed-form-via-iframe).
 
-For prefilled forms and access-token workflows, see [Form Prefilling and Sharing](/docs/guides/form-prefilling).
+Tokens and prefilling: [Form Prefilling and Sharing](/docs/guides/form-prefilling).
 
 ## Basic embed
 
@@ -30,7 +32,7 @@ For access-token embeds, include `data-token`:
 ></script>
 ```
 
-The script inserts an iframe immediately after the script tag. Each embed receives a unique `embedId`, so multiple forms can live on the same page without cross-handling events.
+The script inserts an iframe immediately after the script tag. Each embed receives a unique `embedId`, so multiple forms can live on the same page without cross-handling events. Height modes (`auto` / `fill`) and the rest of the attributes: [Embed a Form via iframe](/docs/guides/embed-form-via-iframe).
 
 ## Listening to events
 
@@ -69,9 +71,12 @@ Only listen to raw `message` events if you are building your own embed wrapper. 
 
 ### Debugging locally
 
-During local development, it can be useful to log the validated public host events dispatched by the embed script. Use the [basic embed sample](https://github.com/endatix/endatix/tree/main/samples/form-embedding/basic-embed) for a complete plain HTML page with event logging.
+Use the API **embed playground** (`GET /dev/embed-host`) so you see validated `CustomEvent`s on a
+real cross-origin host — [Embed a Form via iframe](/docs/guides/embed-form-via-iframe#test-on-a-real-host).
+The [basic embed sample](https://github.com/endatix/endatix/tree/main/samples/form-embedding/basic-embed)
+is a static HTML fallback if WebHost is not running.
 
-Production integrations should prefer the validated `CustomEvent`s.
+Do not open `/embed/{formId}` alone; that is the iframe document, not a host.
 
 ## Event reference
 

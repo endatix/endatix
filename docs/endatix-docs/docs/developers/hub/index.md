@@ -17,7 +17,8 @@ Configure Hub with **environment variables**. The API uses `appsettings.json` �
 
 ## Hub developer pages
 
-- [Embed events](/docs/developers/hub/embed-events) — postMessage contract for embedded forms
+- [Embed a Form via iframe](/docs/guides/embed-form-via-iframe) — `embed.js` snippet, height modes, local playground
+- [Embed events](/docs/developers/hub/embed-events) — `CustomEvent` payloads and host-page listeners
 - [Azure Blob Storage](/docs/developers/hub/azure-storage) — configure Hub asset storage on Azure
 - [RustFS storage](/docs/developers/hub/rustfs-storage) — S3-compatible RustFS
 - [Asset storage overview](/docs/configuration/asset-storage) — public vs private mode
