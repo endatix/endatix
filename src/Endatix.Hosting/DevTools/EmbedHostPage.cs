@@ -171,7 +171,14 @@ internal static class EmbedHostPage
             .Replace("__HUB_PLACEHOLDER__", Encode(view.HubBaseUrl.GetLeftPart(UriPartial.Authority)), StringComparison.Ordinal);
     }
 
-    public static string? LocalHttpPlaygroundUrl(HttpRequest request)
+    /// <summary>
+    /// Same page on this server's HTTP binding, so a developer can escape the mixed-content
+    /// block in one click. Returns null when the server has no HTTP binding to point at -
+    /// a guessed port would send them to a dead address, which is worse than no link.
+    /// </summary>
+    public static string? LocalHttpPlaygroundUrl(
+        HttpRequest request,
+        IEnumerable<string>? serverAddresses)
     {
         if (!request.IsHttps)
         {
@@ -185,13 +192,56 @@ internal static class EmbedHostPage
             return null;
         }
 
+        var httpPort = FindHttpPort(serverAddresses);
+        if (httpPort is null)
+        {
+            return null;
+        }
+
         var path = (request.PathBase.HasValue ? request.PathBase.Value : string.Empty) + request.Path.Value;
-        var httpPlayground = new UriBuilder(Uri.UriSchemeHttp, "localhost", 5000)
+        var httpPlayground = new UriBuilder(Uri.UriSchemeHttp, host, httpPort.Value)
         {
             Path = string.IsNullOrEmpty(path) ? "/" : path,
             Query = request.QueryString.ToString().TrimStart('?')
         };
         return httpPlayground.Uri.ToString();
+    }
+
+    /// <summary>
+    /// Port of the first HTTP binding. Kestrel reports wildcard hosts (<c>http://[::]:5000</c>,
+    /// <c>http://*:5000</c>) that <see cref="Uri"/> cannot always parse, so fall back to the
+    /// trailing port segment.
+    /// </summary>
+    private static int? FindHttpPort(IEnumerable<string>? serverAddresses)
+    {
+        if (serverAddresses is null)
+        {
+            return null;
+        }
+
+        foreach (var address in serverAddresses)
+        {
+            if (string.IsNullOrWhiteSpace(address) ||
+                !address.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Port > 0)
+            {
+                return uri.Port;
+            }
+
+            var lastColon = address.LastIndexOf(':');
+            if (lastColon > 0 &&
+                int.TryParse(address[(lastColon + 1)..].TrimEnd('/'), out var port) &&
+                port > 0)
+            {
+                return port;
+            }
+        }
+
+        return null;
     }
 
     public static string RenderBareHtml(

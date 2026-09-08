@@ -306,6 +306,7 @@ code {
 .empty--error li {
   font-size: 0.9rem;
   line-height: 1.45;
+  overflow-wrap: break-word;
 }
 .empty--error ol {
   margin: 0.75rem 0 0;
@@ -313,6 +314,7 @@ code {
 }
 .empty--error ol a {
   color: var(--accent);
+  overflow-wrap: anywhere;
 }
 .empty-actions {
   display: flex;

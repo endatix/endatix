@@ -1,5 +1,7 @@
 using System.Net.Mime;
 using Endatix.Core.Common;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -111,7 +113,7 @@ internal static class EmbedHostEndpoint
                 RequestedHubBaseUrl = requestedHub,
                 PathBase = pathBase,
                 MixedContent = mixedContent,
-                HttpPlaygroundHref = EmbedHostPage.LocalHttpPlaygroundUrl(context.Request)
+                HttpPlaygroundHref = EmbedHostPage.LocalHttpPlaygroundUrl(context.Request, ServerAddresses(context))
             }));
     }
 
@@ -136,10 +138,17 @@ internal static class EmbedHostEndpoint
             Error = error,
             FormIdField = formIdField,
             MixedContent = EmbedHostPage.IsMixedContent(context.Request.IsHttps, hubBaseUrl),
-            HttpPlaygroundHref = EmbedHostPage.LocalHttpPlaygroundUrl(context.Request)
+            HttpPlaygroundHref = EmbedHostPage.LocalHttpPlaygroundUrl(context.Request, ServerAddresses(context))
         });
         await WriteHtmlAsync(context, html);
     }
+
+    /// <summary>Addresses this server is actually bound to, or null when unavailable.</summary>
+    private static IEnumerable<string>? ServerAddresses(HttpContext context) =>
+        context.RequestServices
+            .GetService<IServer>()?
+            .Features.Get<IServerAddressesFeature>()?
+            .Addresses;
 
     private static async Task WriteHtmlAsync(HttpContext context, string html)
     {
