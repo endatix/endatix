@@ -192,6 +192,22 @@ public class FeatureFlagCatalogueTests
     }
 
     [Fact]
+    public void Definitions_JobsModule_IsDeploymentScoped()
+    {
+        // Arrange
+        var jobsModule = FeatureFlagCatalogue.FindByConfigKey(
+            Endatix.Framework.FeatureFlags.FeatureFlags.JobsModule);
+
+        // Act
+        var scope = jobsModule?.Scope;
+
+        // Assert
+        scope.Should().Be(
+            FeatureFlagScope.Deployment,
+            "ShouldRegister reads it at startup, where no tenant or user exists");
+    }
+
+    [Fact]
     public void Definitions_MultiTenancy_IsDeploymentScoped()
     {
         // Arrange
