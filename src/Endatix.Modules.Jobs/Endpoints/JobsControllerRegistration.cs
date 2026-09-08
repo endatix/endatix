@@ -2,7 +2,9 @@ using Endatix.Api.Infrastructure;
 using Endatix.Framework.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using System.Text.Json.Serialization;
 
 namespace Endatix.Modules.Jobs.Endpoints;
@@ -21,7 +23,8 @@ internal static class JobsControllerRegistration
     public static IServiceCollection AddJobsControllers(this IServiceCollection services)
     {
         services
-            .AddControllers()
+            .AddControllers(options => options.Conventions.Add(
+                new HideFromApiExplorerConvention(typeof(JobsControllerRegistration).Assembly)))
             // Controllers ship in this assembly, not the entry assembly, so MVC will not find them
             // by its default scan.
             .AddApplicationPart(typeof(JobsControllerRegistration).Assembly)
@@ -69,5 +72,38 @@ internal static class JobsControllerRegistration
             });
 
         return services;
+    }
+}
+
+/// <summary>
+/// Keeps controllers generated from an OpenAPI contract out of the application's own OpenAPI
+/// document.
+/// </summary>
+/// <remarks>
+/// The specification these controllers were generated from is published separately, from the
+/// contracts repository that owns it. Letting the application re-derive a document from code that
+/// was itself generated from that specification would give the same API two descriptions, free to
+/// drift, with the generated one looking authoritative because it is closer to the running server.
+/// <para>
+/// Scoped to one assembly so that hand-written controllers, if any are ever added, still appear.
+/// </para>
+/// </remarks>
+internal sealed class HideFromApiExplorerConvention(Assembly contractAssembly) : IControllerModelConvention
+{
+    public void Apply(ControllerModel controller)
+    {
+        if (controller.ControllerType.Assembly != contractAssembly)
+        {
+            return;
+        }
+
+        controller.ApiExplorer.IsVisible = false;
+
+        // [ApiController] makes each action visible in its own right, and the action-level value
+        // wins over the controller's, so hiding the controller alone leaves every route in place.
+        foreach (var action in controller.Actions)
+        {
+            action.ApiExplorer.IsVisible = false;
+        }
     }
 }
