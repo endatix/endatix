@@ -46,14 +46,46 @@ public sealed class EmbedHostPageTests
     }
 
     [Fact]
-    public void TryResolveHubBaseUrl_Ipv6Loopback_Succeeds()
+    public void TryResolveHubBaseUrl_Ipv6Loopback_SucceedsWhenAllowed()
     {
-        var options = new EmbedHostOptions { HubBaseUrl = "http://localhost:3000" };
+        var options = new EmbedHostOptions
+        {
+            HubBaseUrl = "http://localhost:3000",
+            AllowLoopback = true
+        };
 
         var resolved = EmbedHostPage.TryResolveHubBaseUrl("http://[::1]:3000", options, out var uri);
 
         resolved.Should().BeTrue();
         uri.IsLoopback.Should().BeTrue();
+    }
+
+    [Fact]
+    public void TryResolveHubBaseUrl_LoopbackRejectedWhenNotAllowed()
+    {
+        var options = new EmbedHostOptions
+        {
+            HubBaseUrl = "https://hub.example",
+            AllowLoopback = false
+        };
+
+        var resolved = EmbedHostPage.TryResolveHubBaseUrl("http://127.0.0.1:3000", options, out _);
+
+        resolved.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryResolveHubBaseUrl_SameHostDifferentPort_Fails()
+    {
+        var options = new EmbedHostOptions
+        {
+            HubBaseUrl = "https://hub.example",
+            AllowLoopback = false
+        };
+
+        var resolved = EmbedHostPage.TryResolveHubBaseUrl("https://hub.example:8443", options, out _);
+
+        resolved.Should().BeFalse();
     }
 
     [Fact]
@@ -76,7 +108,8 @@ public sealed class EmbedHostPageTests
         var options = new EmbedHostOptions
         {
             HubBaseUrl = "http://localhost:3000",
-            AllowedHubHosts = ["hub.example"]
+            AllowedHubHosts = ["https://hub.example"],
+            AllowLoopback = false
         };
 
         // Act

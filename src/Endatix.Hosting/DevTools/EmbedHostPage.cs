@@ -252,20 +252,38 @@ internal static class EmbedHostPage
 
     private static bool IsAllowed(Uri uri, EmbedHostOptions options)
     {
-        if (uri.IsLoopback)
-        {
-            return true;
-        }
-
         if (Uri.TryCreate(options.HubBaseUrl, UriKind.Absolute, out var configured) &&
-            string.Equals(uri.Host, configured.Host, StringComparison.OrdinalIgnoreCase))
+            SameOrigin(uri, configured))
         {
             return true;
         }
 
-        return options.AllowedHubHosts.Any(allowed =>
-            string.Equals(uri.Host, allowed, StringComparison.OrdinalIgnoreCase));
+        if (options.AllowsLoopback && uri.IsLoopback)
+        {
+            return true;
+        }
+
+        foreach (var allowed in options.AllowedHubHosts)
+        {
+            if (Uri.TryCreate(allowed, UriKind.Absolute, out var origin) && SameOrigin(uri, origin))
+            {
+                return true;
+            }
+
+            if (options.AllowsLoopback &&
+                string.Equals(uri.Host, allowed, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
+
+    private static bool SameOrigin(Uri left, Uri right) =>
+        string.Equals(left.Scheme, right.Scheme, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.Host, right.Host, StringComparison.OrdinalIgnoreCase) &&
+        left.Port == right.Port;
 
     private static string Encode(string value) => WebUtility.HtmlEncode(value);
 }

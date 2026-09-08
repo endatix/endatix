@@ -86,8 +86,9 @@ On in Development; `404` in Production unless you set:
 }
 ```
 
-`HubBaseUrl` is the Hub origin for `embed.js` (falls back to `Endatix:Hub:HubBaseUrl`). Extra hosts
-go in `Endatix:DevTools:EmbedHost:AllowedHubHosts`. Unknown `hubBaseUrl` query values return `400`.
+`HubBaseUrl` is the Hub origin for `embed.js` (falls back to `Endatix:Hub:HubBaseUrl`). Extra
+origins go in `Endatix:DevTools:EmbedHost:AllowedHubHosts` as absolute URLs (`https://hub.example`).
+In Development, loopback and host-only entries are also accepted. Unknown `hubBaseUrl` → `400`.
 
 ### Query string is the contract
 
@@ -111,7 +112,7 @@ https://localhost:5001/dev/embed-host?formId=1442869143157080064&heightMode=fill
 | `formId` | Form to embed. Omit for the empty builder shell. Required for `view=bare`. |
 | `heightMode` | `fill`, or omit for `auto`. |
 | `token` / `prefill` | Map to `data-token` / `data-prefill`. Token wins. |
-| `hubBaseUrl` | Allowlisted Hub origin override. |
+| `hubBaseUrl` | Origin override (scheme+host+port). |
 | `view` | `builder` (default) or `bare` (no chrome). |
 
 Toolbar (builder): **Full / 768 / 375** preview width, **Reload**, **Copy snippet**, **Open in new

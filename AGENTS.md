@@ -135,15 +135,15 @@ dotnet test tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj --filter "FullyQu
 
 `GET /dev/embed-host` on WebHost (on in Development; 404 in Production unless `Endatix:DevTools:EmbedHost:Enabled=true`). **Query is the contract** (agents use this; UI only GET-rewrites it):
 
-| Query               | Meaning                                                                                   |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `formId`            | Required to emit `embed.js`. Omitted → builder shell (200). `view=bare` without it → 400. |
-| `view`              | `builder` (default) or `bare` (iframe only; visual/e2e).                                  |
-| `heightMode`        | `fill` or omit (auto).                                                                    |
-| `token` / `prefill` | `data-token` wins over `data-prefill`.                                                    |
-| `hubBaseUrl`        | Allowlisted Hub origin; default `Endatix:Hub:HubBaseUrl`.                                 |
+| Query               | Meaning                                                                                                                        |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `formId`            | Required to emit `embed.js`. Omitted → builder shell (200). `view=bare` without it → 400.                                      |
+| `view`              | `builder` (default) or `bare` (iframe only; visual/e2e).                                                                       |
+| `heightMode`        | `fill` or omit (auto).                                                                                                         |
+| `token` / `prefill` | `data-token` wins over `data-prefill`.                                                                                         |
+| `hubBaseUrl`        | Override Hub origin. Must match configured origin (scheme+host+port), an `AllowedHubHosts` origin, or loopback in Development. |
 
-Builder chrome (topbar, log, width) is for humans; `localStorage` only remembers chrome, never iframe attrs. **Open in new tab** = same query + `view=bare`. Loopback Hub origins (`Uri.IsLoopback`) are always allowed. Responses: `Cache-Control: no-store` (token may be in the query). Not a product page. Hub e2e: `view=bare` + `E2E_EMBED_HOST_URL`. Markup lives in `DevTools/Assets/` (embedded, not C# strings). User doc: `docs/endatix-docs/docs/guides/embed-form-via-iframe.mdx`.
+Builder chrome (topbar, log, width) is for humans; `localStorage` only remembers chrome, never iframe attrs. Force-open Configure (no `formId`) is not persisted. **Open in new tab** = same query + `view=bare`. Loopback Hub origins only when `AllowLoopback` (Development default). Production: exact origin match. Responses: `Cache-Control: no-store`. Not a product page. Hub e2e: `view=bare` + `E2E_EMBED_HOST_URL`. Markup: `DevTools/Assets/`. User doc: `docs/endatix-docs/docs/guides/embed-form-via-iframe.mdx`.
 
 ## Related
 

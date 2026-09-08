@@ -103,10 +103,12 @@
     }
   }
 
-  function setConfig(open) {
+  function setConfig(open, persist) {
     els.config.hidden = !open;
     els.configToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    store("edx.embedhost.config", open ? "1" : "0");
+    if (persist) {
+      store("edx.embedhost.config", open ? "1" : "0");
+    }
   }
 
   function setBadge(count, alert) {
@@ -188,7 +190,7 @@
     }
 
     els.configToggle.addEventListener("click", function () {
-      setConfig(els.config.hidden);
+      setConfig(els.config.hidden, true);
     });
     els.toggles.forEach(function (toggle) {
       toggle.addEventListener("click", function () {
@@ -228,6 +230,7 @@
     setConfig(
       els.config.dataset.forceOpen === "true" ||
         store("edx.embedhost.config") === "1",
+      false,
     );
     setDrawer(store("edx.embedhost.log") === "1");
     setWidth(store("edx.embedhost.width") || "full");

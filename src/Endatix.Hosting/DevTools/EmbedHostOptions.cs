@@ -19,9 +19,14 @@ internal sealed class EmbedHostOptions
     public string HubBaseUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// Extra hosts allowed in the <c>hubBaseUrl</c> query override (plus localhost and the configured Hub host).
+    /// Extra Hub origins (`https://hub.example`) for `hubBaseUrl` overrides. Host-only entries are Development-only.
     /// </summary>
     public string[] AllowedHubHosts { get; set; } = [];
 
+    /// <summary>When true (Development default), loopback and host-only allowlist entries are accepted.</summary>
+    public bool? AllowLoopback { get; set; }
+
     public bool IsEnabled => Enabled == true;
+
+    public bool AllowsLoopback => AllowLoopback == true;
 }

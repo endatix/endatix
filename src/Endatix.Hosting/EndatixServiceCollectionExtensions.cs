@@ -44,6 +44,7 @@ internal static class EndatixServiceCollectionExtensions
             .PostConfigure<IAppEnvironment>((opts, env) =>
             {
                 opts.Enabled ??= env.IsDevelopment();
+                opts.AllowLoopback ??= env.IsDevelopment();
                 if (string.IsNullOrWhiteSpace(opts.HubBaseUrl))
                 {
                     opts.HubBaseUrl = configuration["Endatix:Hub:HubBaseUrl"] ?? "http://localhost:3000";
