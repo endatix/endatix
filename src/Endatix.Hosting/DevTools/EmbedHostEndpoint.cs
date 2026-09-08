@@ -1,8 +1,8 @@
 using System.Net.Mime;
+using Endatix.Core.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
 
 namespace Endatix.Hosting.DevTools;
 
@@ -43,7 +43,7 @@ internal static class EmbedHostEndpoint
             }
 
             _ = EmbedHostPage.TryResolveHubBaseUrl(null, settings, out hubBaseUrl);
-            hubBaseUrl ??= new Uri("http://localhost:3000");
+            hubBaseUrl ??= EmbedHostPage.FallbackHubOrigin;
             await WriteBuilderAsync(
                 context,
                 formId: null,
@@ -67,24 +67,31 @@ internal static class EmbedHostEndpoint
         }
 
         var heightMode = EmbedHostPage.NormalizeHeightMode(query["heightMode"]);
-        var prefill = EmptyToNull(query["prefill"]);
-        var token = EmptyToNull(query["token"]);
-        var requestedHub = EmptyToNull(query["hubBaseUrl"]);
+        var prefill = query["prefill"].ToString().NullIfWhiteSpace();
+        var token = query["token"].ToString().NullIfWhiteSpace();
+        var requestedHub = query["hubBaseUrl"].ToString().NullIfWhiteSpace();
         var mixedContent = EmbedHostPage.IsMixedContent(context.Request.IsHttps, hubBaseUrl);
-        var httpPlaygroundHref = EmbedHostPage.LocalHttpPlaygroundUrl(context.Request);
 
-        var html = bare && !mixedContent
-            ? EmbedHostPage.RenderBareHtml(formId, hubBaseUrl, heightMode, prefill, token)
-            : EmbedHostPage.RenderBuilderHtml(
-                parsedFormId ? formId : null,
-                hubBaseUrl,
-                heightMode,
-                prefill,
-                token,
-                requestedHub,
-                pathBase,
-                mixedContent: mixedContent,
-                httpPlaygroundHref: httpPlaygroundHref);
+        string html;
+        if (bare && !mixedContent)
+        {
+            html = EmbedHostPage.RenderBareHtml(formId, hubBaseUrl, heightMode, prefill, token);
+        }
+        else
+        {
+            html = EmbedHostPage.RenderBuilderHtml(new EmbedHostViewModel
+            {
+                FormId = parsedFormId ? formId : null,
+                HubBaseUrl = hubBaseUrl,
+                HeightMode = heightMode,
+                Prefill = prefill,
+                Token = token,
+                RequestedHubBaseUrl = requestedHub,
+                PathBase = pathBase,
+                MixedContent = mixedContent,
+                HttpPlaygroundHref = EmbedHostPage.LocalHttpPlaygroundUrl(context.Request)
+            });
+        }
 
         await WriteHtmlAsync(context, html);
     }
@@ -98,18 +105,20 @@ internal static class EmbedHostEndpoint
         string pathBase)
     {
         var query = context.Request.Query;
-        var html = EmbedHostPage.RenderBuilderHtml(
-            formId,
-            hubBaseUrl,
-            EmbedHostPage.NormalizeHeightMode(query["heightMode"]),
-            EmptyToNull(query["prefill"]),
-            EmptyToNull(query["token"]),
-            EmptyToNull(query["hubBaseUrl"]),
-            pathBase,
-            error,
-            formIdField,
-            mixedContent: EmbedHostPage.IsMixedContent(context.Request.IsHttps, hubBaseUrl),
-            httpPlaygroundHref: EmbedHostPage.LocalHttpPlaygroundUrl(context.Request));
+        var html = EmbedHostPage.RenderBuilderHtml(new EmbedHostViewModel
+        {
+            FormId = formId,
+            HubBaseUrl = hubBaseUrl,
+            HeightMode = EmbedHostPage.NormalizeHeightMode(query["heightMode"]),
+            Prefill = query["prefill"].ToString().NullIfWhiteSpace(),
+            Token = query["token"].ToString().NullIfWhiteSpace(),
+            RequestedHubBaseUrl = query["hubBaseUrl"].ToString().NullIfWhiteSpace(),
+            PathBase = pathBase,
+            Error = error,
+            FormIdField = formIdField,
+            MixedContent = EmbedHostPage.IsMixedContent(context.Request.IsHttps, hubBaseUrl),
+            HttpPlaygroundHref = EmbedHostPage.LocalHttpPlaygroundUrl(context.Request)
+        });
         await WriteHtmlAsync(context, html);
     }
 
@@ -128,11 +137,5 @@ internal static class EmbedHostEndpoint
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = MediaTypeNames.Text.Plain + "; charset=utf-8";
         await context.Response.WriteAsync(message, context.RequestAborted);
-    }
-
-    private static string? EmptyToNull(StringValues value)
-    {
-        var text = value.ToString();
-        return string.IsNullOrWhiteSpace(text) ? null : text;
     }
 }

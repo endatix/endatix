@@ -5,8 +5,26 @@ using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Hosting.DevTools;
 
+internal sealed record EmbedHostViewModel
+{
+    public required Uri HubBaseUrl { get; init; }
+    public string? FormId { get; init; }
+    public string? HeightMode { get; init; }
+    public string? Prefill { get; init; }
+    public string? Token { get; init; }
+    public string? RequestedHubBaseUrl { get; init; }
+    public string PathBase { get; init; } = "";
+    public string? Error { get; init; }
+    public string? FormIdField { get; init; }
+    public bool MixedContent { get; init; }
+    public string? HttpPlaygroundHref { get; init; }
+}
+
 internal static class EmbedHostPage
 {
+    internal static Uri FallbackHubOrigin { get; } =
+        new UriBuilder(Uri.UriSchemeHttp, "localhost", 3000).Uri;
+
     public const string Path = "/dev/embed-host";
 
     public static bool IsBareView(string? view) =>
@@ -115,56 +133,42 @@ internal static class EmbedHostPage
     public static bool IsMixedContent(bool pageIsHttps, Uri hubBaseUrl) =>
         pageIsHttps && hubBaseUrl.Scheme == Uri.UriSchemeHttp;
 
-    public static string RenderBuilderHtml(
-        string? formId,
-        Uri hubBaseUrl,
-        string? heightMode,
-        string? prefill,
-        string? token,
-        string? requestedHubBaseUrl,
-        string pathBase = "",
-        string? error = null,
-        string? formIdField = null,
-        bool mixedContent = false,
-        string? httpPlaygroundHref = null)
+    public static string RenderBuilderHtml(EmbedHostViewModel view)
     {
         string stage;
-        if (formId is not null && !mixedContent)
+        if (view.FormId is not null && !view.MixedContent)
         {
-            stage = $"""<div class="{FrameClass(heightMode)}" id="endatix-embed-root">{BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token)}</div>""";
+            stage = $"""<div class="{FrameClass(view.HeightMode)}" id="endatix-embed-root">{BuildScriptTag(view)}</div>""";
         }
-        else if (mixedContent)
+        else if (view.MixedContent)
         {
-            stage = MixedContentCard(httpPlaygroundHref);
+            stage = MixedContentCard(view.HttpPlaygroundHref);
         }
         else
         {
             stage = EmptyStageHtml;
         }
 
-        var errorHtml = string.IsNullOrEmpty(error)
+        var errorHtml = string.IsNullOrEmpty(view.Error)
             ? string.Empty
-            : $"<p class=\"banner\" role=\"alert\">{Encode(error)}</p>";
+            : $"<p class=\"banner\" role=\"alert\">{Encode(view.Error)}</p>";
 
-        var forceOpen = formId is null || error is not null || mixedContent;
+        var forceOpen = view.FormId is null || view.Error is not null || view.MixedContent;
 
         return EmbedHostAssets.BuilderHtml
             .Replace("__STYLES__", EmbedHostAssets.Styles, StringComparison.Ordinal)
             .Replace("__SCRIPT__", EmbedHostAssets.Script, StringComparison.Ordinal)
-            .Replace("__META__", BuildMeta(formId, hubBaseUrl, heightMode, prefill, token), StringComparison.Ordinal)
-            .Replace(
-                "__ACTIONS__",
-                BuildActions(formId, hubBaseUrl, heightMode, prefill, token, requestedHubBaseUrl, pathBase, mixedContent),
-                StringComparison.Ordinal)
+            .Replace("__META__", BuildMeta(view), StringComparison.Ordinal)
+            .Replace("__ACTIONS__", BuildActions(view), StringComparison.Ordinal)
             .Replace("__ERROR__", errorHtml, StringComparison.Ordinal)
             .Replace("__STAGE__", stage, StringComparison.Ordinal)
             .Replace("__CONFIG_FORCE_OPEN__", forceOpen ? "true" : "false", StringComparison.Ordinal)
-            .Replace("__FORM_ID__", Encode(formIdField ?? formId ?? string.Empty), StringComparison.Ordinal)
-            .Replace("__FILL_SELECTED__", heightMode is not null ? " selected" : string.Empty, StringComparison.Ordinal)
-            .Replace("__TOKEN__", Encode(token ?? string.Empty), StringComparison.Ordinal)
-            .Replace("__PREFILL__", Encode(prefill ?? string.Empty), StringComparison.Ordinal)
-            .Replace("__HUB_FIELD__", Encode(requestedHubBaseUrl ?? string.Empty), StringComparison.Ordinal)
-            .Replace("__HUB_PLACEHOLDER__", Encode(hubBaseUrl.GetLeftPart(UriPartial.Authority)), StringComparison.Ordinal);
+            .Replace("__FORM_ID__", Encode(view.FormIdField ?? view.FormId ?? string.Empty), StringComparison.Ordinal)
+            .Replace("__FILL_SELECTED__", view.HeightMode is not null ? " selected" : string.Empty, StringComparison.Ordinal)
+            .Replace("__TOKEN__", Encode(view.Token ?? string.Empty), StringComparison.Ordinal)
+            .Replace("__PREFILL__", Encode(view.Prefill ?? string.Empty), StringComparison.Ordinal)
+            .Replace("__HUB_FIELD__", Encode(view.RequestedHubBaseUrl ?? string.Empty), StringComparison.Ordinal)
+            .Replace("__HUB_PLACEHOLDER__", Encode(view.HubBaseUrl.GetLeftPart(UriPartial.Authority)), StringComparison.Ordinal);
     }
 
     public static string? LocalHttpPlaygroundUrl(HttpRequest request)
@@ -182,7 +186,14 @@ internal static class EmbedHostPage
         }
 
         var path = (request.PathBase.HasValue ? request.PathBase.Value : string.Empty) + request.Path.Value;
-        return "http://localhost:5000" + path + request.QueryString.Value;
+        var httpPlayground = new UriBuilder(Uri.UriSchemeHttp, "localhost", 5000)
+        {
+            Path = string.IsNullOrEmpty(path) ? "/" : path,
+            Query = request.QueryString.HasValue
+                ? request.QueryString.Value!.TrimStart('?')
+                : string.Empty
+        };
+        return httpPlayground.Uri.ToString();
     }
 
     public static string RenderBareHtml(
@@ -198,7 +209,17 @@ internal static class EmbedHostPage
 
         return EmbedHostAssets.BareHtml
             .Replace("__FILL_CSS__", fillCss, StringComparison.Ordinal)
-            .Replace("__EMBED_SCRIPT__", BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token), StringComparison.Ordinal);
+            .Replace(
+                "__EMBED_SCRIPT__",
+                BuildScriptTag(new EmbedHostViewModel
+                {
+                    FormId = formId,
+                    HubBaseUrl = hubBaseUrl,
+                    HeightMode = heightMode,
+                    Prefill = prefill,
+                    Token = token
+                }),
+                StringComparison.Ordinal);
     }
 
     private static string MixedContentCard(string? httpPlaygroundHref)
@@ -232,47 +253,41 @@ internal static class EmbedHostPage
         </div>
         """;
 
-    private static string BuildMeta(
-        string? formId,
-        Uri hubBaseUrl,
-        string? heightMode,
-        string? prefill,
-        string? token)
+    private static string BuildMeta(EmbedHostViewModel view)
     {
         var meta = new StringBuilder();
-        meta.Append(Pill("formId", formId ?? "not set", warn: formId is null));
-        meta.Append(Pill("height", heightMode ?? "auto", warn: false));
-        meta.Append(Pill("hub", hubBaseUrl.Authority, warn: false));
+        meta.Append(Pill("formId", view.FormId ?? "not set", warn: view.FormId is null));
+        meta.Append(Pill("height", view.HeightMode ?? "auto", warn: false));
+        meta.Append(Pill("hub", view.HubBaseUrl.Authority, warn: false));
 
-        if (!string.IsNullOrEmpty(token))
+        if (!string.IsNullOrEmpty(view.Token))
         {
             meta.Append(Pill("token", "set", warn: false));
         }
-        else if (!string.IsNullOrEmpty(prefill))
+        else if (!string.IsNullOrEmpty(view.Prefill))
         {
-            meta.Append(Pill("prefill", prefill, warn: false));
+            meta.Append(Pill("prefill", view.Prefill, warn: false));
         }
 
         return meta.ToString();
     }
 
-    private static string BuildActions(
-        string? formId,
-        Uri hubBaseUrl,
-        string? heightMode,
-        string? prefill,
-        string? token,
-        string? requestedHubBaseUrl,
-        string pathBase,
-        bool mixedContent)
+    private static string BuildActions(EmbedHostViewModel view)
     {
-        if (formId is null || mixedContent)
+        if (view.FormId is null || view.MixedContent)
         {
             return string.Empty;
         }
 
-        var bareUrl = Encode(ToRelativeUrl(formId, heightMode, prefill, token, requestedHubBaseUrl, bare: true, pathBase));
-        var snippet = Encode(BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token));
+        var bareUrl = Encode(ToRelativeUrl(
+            view.FormId,
+            view.HeightMode,
+            view.Prefill,
+            view.Token,
+            view.RequestedHubBaseUrl,
+            bare: true,
+            view.PathBase));
+        var snippet = Encode(BuildScriptTag(view));
 
         return $"""
             <div class="seg" role="group" aria-label="Preview width">
@@ -295,30 +310,26 @@ internal static class EmbedHostPage
     private static string Pill(string label, string value, bool warn) =>
         $"<span class=\"pill{(warn ? " pill--warn" : string.Empty)}\" title=\"{Encode(value)}\"><b>{Encode(label)}</b>{Encode(value)}</span>";
 
-    private static string BuildScriptTag(
-        string formId,
-        Uri hubBaseUrl,
-        string? heightMode,
-        string? prefill,
-        string? token)
+    private static string BuildScriptTag(EmbedHostViewModel view)
     {
-        var scriptSrc = $"{hubBaseUrl.GetLeftPart(UriPartial.Authority)}/embed/v1/embed.js";
+        var formId = view.FormId ?? string.Empty;
+        var scriptSrc = $"{view.HubBaseUrl.GetLeftPart(UriPartial.Authority)}/embed/v1/embed.js";
         var attributes = new StringBuilder();
         attributes.Append(" src=\"").Append(Encode(scriptSrc)).Append('"');
         attributes.Append(" data-form-id=\"").Append(Encode(formId)).Append('"');
 
-        if (heightMode is not null)
+        if (view.HeightMode is not null)
         {
-            attributes.Append(" data-height-mode=\"").Append(Encode(heightMode)).Append('"');
+            attributes.Append(" data-height-mode=\"").Append(Encode(view.HeightMode)).Append('"');
         }
 
-        if (!string.IsNullOrEmpty(token))
+        if (!string.IsNullOrEmpty(view.Token))
         {
-            attributes.Append(" data-token=\"").Append(Encode(token)).Append('"');
+            attributes.Append(" data-token=\"").Append(Encode(view.Token)).Append('"');
         }
-        else if (!string.IsNullOrEmpty(prefill))
+        else if (!string.IsNullOrEmpty(view.Prefill))
         {
-            attributes.Append(" data-prefill=\"").Append(Encode(prefill)).Append('"');
+            attributes.Append(" data-prefill=\"").Append(Encode(view.Prefill)).Append('"');
         }
 
         return $"<script{attributes}></script>";

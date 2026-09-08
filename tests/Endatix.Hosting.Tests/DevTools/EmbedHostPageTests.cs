@@ -5,6 +5,20 @@ namespace Endatix.Hosting.Tests.DevTools;
 
 public sealed class EmbedHostPageTests
 {
+    private static readonly Uri LocalHub = new("http://localhost:3000");
+
+    private static EmbedHostViewModel BuilderView(
+        string? formId = "42",
+        string? heightMode = null,
+        string? prefill = null) =>
+        new()
+        {
+            FormId = formId,
+            HubBaseUrl = LocalHub,
+            HeightMode = heightMode,
+            Prefill = prefill
+        };
+
     [Fact]
     public void TryParseFormId_PositiveInteger_Normalizes()
     {
@@ -160,7 +174,13 @@ public sealed class EmbedHostPageTests
         var hub = new Uri("http://localhost:3000");
 
         // Act
-        var html = EmbedHostPage.RenderBuilderHtml("42", hub, "fill", "campaign=spring", null, null);
+        var html = EmbedHostPage.RenderBuilderHtml(new EmbedHostViewModel
+        {
+            FormId = "42",
+            HubBaseUrl = hub,
+            HeightMode = "fill",
+            Prefill = "campaign=spring"
+        });
 
         // Assert
         html.Should().Contain("data-form-id=\"42\"");
@@ -175,13 +195,7 @@ public sealed class EmbedHostPageTests
     public void RenderBuilderHtml_EncodesAngleBracketsInPrefill()
     {
         // Act
-        var html = EmbedHostPage.RenderBuilderHtml(
-            "42",
-            new Uri("http://localhost:3000"),
-            null,
-            "x=\"><script>",
-            null,
-            null);
+        var html = EmbedHostPage.RenderBuilderHtml(BuilderView(prefill: "x=\"><script>"));
 
         // Assert
         html.Should().Contain("&lt;script&gt;");
@@ -192,7 +206,7 @@ public sealed class EmbedHostPageTests
     public void RenderBuilderHtml_HasCollapsibleConfigAndLog()
     {
         // Act
-        var html = EmbedHostPage.RenderBuilderHtml("42", new Uri("http://localhost:3000"), null, null, null, null);
+        var html = EmbedHostPage.RenderBuilderHtml(BuilderView());
 
         // Assert
         html.Should().Contain("id=\"toggle-config\"");
@@ -205,7 +219,7 @@ public sealed class EmbedHostPageTests
     public void RenderBuilderHtml_WithoutFormId_ForcesConfigOpenAndHidesPreviewTools()
     {
         // Act
-        var html = EmbedHostPage.RenderBuilderHtml(null, new Uri("http://localhost:3000"), null, null, null, null);
+        var html = EmbedHostPage.RenderBuilderHtml(BuilderView(formId: null));
 
         // Assert
         html.Should().Contain("data-force-open=\"true\"");
@@ -218,7 +232,7 @@ public sealed class EmbedHostPageTests
     public void RenderBuilderHtml_CopySnippetCarriesEncodedScriptTag()
     {
         // Act
-        var html = EmbedHostPage.RenderBuilderHtml("42", new Uri("http://localhost:3000"), "fill", null, null, null);
+        var html = EmbedHostPage.RenderBuilderHtml(BuilderView(heightMode: "fill"));
 
         // Assert
         html.Should().Contain("data-snippet=\"&lt;script src=");
@@ -229,8 +243,8 @@ public sealed class EmbedHostPageTests
     public void RenderBuilderHtml_FillModeMarksStageFrame()
     {
         // Act
-        var fill = EmbedHostPage.RenderBuilderHtml("42", new Uri("http://localhost:3000"), "fill", null, null, null);
-        var auto = EmbedHostPage.RenderBuilderHtml("42", new Uri("http://localhost:3000"), null, null, null, null);
+        var fill = EmbedHostPage.RenderBuilderHtml(BuilderView(heightMode: "fill"));
+        var auto = EmbedHostPage.RenderBuilderHtml(BuilderView());
 
         // Assert
         fill.Should().Contain("class=\"frame frame--fill\"");

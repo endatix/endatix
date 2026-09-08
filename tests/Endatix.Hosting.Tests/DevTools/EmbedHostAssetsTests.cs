@@ -17,7 +17,12 @@ public sealed class EmbedHostAssetsTests
     public void BuilderHtml_PlaceholdersAreAllSubstituted()
     {
         // Act
-        var html = EmbedHostPage.RenderBuilderHtml("42", new Uri("http://localhost:3000"), "fill", null, null, null);
+        var html = EmbedHostPage.RenderBuilderHtml(new EmbedHostViewModel
+        {
+            FormId = "42",
+            HubBaseUrl = new Uri("http://localhost:3000"),
+            HeightMode = "fill"
+        });
 
         html.Should().NotContain("__");
     }
