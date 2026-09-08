@@ -71,7 +71,8 @@ Local Development already has one: **embed playground**, `GET /dev/embed-host` o
 Hub is `http://localhost:3000` by default, so open the **HTTP** API origin
 (`http://localhost:5000`) — the HTTPS profile (`https://localhost:5001`) cannot load HTTP
 `embed.js` (mixed content). The playground detects that and shows an in-page error instead of
-injecting the script. Hub serves `embed.js` and the iframe; the API origin is the host — same
+injecting the script. **Open HTTP playground** uses this process's HTTP port from Kestrel
+(default launch profile: `:5000`). Hub serves `embed.js` and the iframe; the API origin is the host — same
 split as a customer site.
 
 On in Development; `404` in Production unless you set:

@@ -210,7 +210,6 @@ public sealed class EmbedHostEndpointTests
     [Fact]
     public async Task ExecuteAsync_HttpsPageNoHttpBinding_OffersNoDeadLink()
     {
-        // Arrange - HTTPS only, so there is no HTTP playground to send anyone to.
         var context = CreateContext(
             new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = true },
             path: "/dev/embed-host?formId=42",
@@ -220,16 +219,15 @@ public sealed class EmbedHostEndpointTests
         // Act
         await EmbedHostEndpoint.ExecuteAsync(context);
 
-        // Assert - still explain the block, but do not link a port nothing listens on.
         var html = await ReadBody(context);
         html.Should().Contain("mixed content");
         html.Should().NotContain("Open HTTP playground");
+        html.Should().NotContain("localhost:5000");
     }
 
     [Fact]
     public async Task ExecuteAsync_HttpsPage_LinksTheServersActualHttpPort()
     {
-        // Arrange - a non-default HTTP binding, e.g. the IIS Express profile.
         var context = CreateContext(
             new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000", AllowLoopback = true },
             path: "/dev/embed-host?formId=42",
@@ -254,8 +252,6 @@ public sealed class EmbedHostEndpointTests
     {
         var services = new ServiceCollection();
         services.AddSingleton(MicrosoftOptions.Create(options));
-        // The HTTP playground link is built from the server's real bindings, so the
-        // harness has to expose them like the `https` launch profile does.
         services.AddSingleton<IServer>(new FakeServer(serverAddresses
             ?? ["https://localhost:5001", "http://localhost:5000"]));
         var http = new DefaultHttpContext

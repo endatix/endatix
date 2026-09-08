@@ -255,8 +255,6 @@ public sealed class EmbedHostPageTests
     [Fact]
     public void LocalHttpPlaygroundUrl_UsesTheServersOwnHttpPort()
     {
-        // Arrange - the https profile binds both; the link must follow the real binding,
-        // not a guessed 5000.
         var request = HttpsRequest("/dev/embed-host", "?formId=42");
 
         // Act
@@ -271,7 +269,6 @@ public sealed class EmbedHostPageTests
     [Fact]
     public void LocalHttpPlaygroundUrl_ReadsPortFromWildcardBinding()
     {
-        // Arrange - Kestrel reports wildcard hosts that Uri cannot always parse.
         var request = HttpsRequest("/dev/embed-host", "?formId=42");
 
         // Act
@@ -287,7 +284,6 @@ public sealed class EmbedHostPageTests
         // Arrange
         var request = HttpsRequest("/dev/embed-host", "?formId=42");
 
-        // Act - offering a guessed port would send the developer to a dead address.
         var url = EmbedHostPage.LocalHttpPlaygroundUrl(request, ["https://localhost:5001"]);
 
         // Assert
@@ -308,7 +304,6 @@ public sealed class EmbedHostPageTests
             context.Request,
             ["http://localhost:5000"]);
 
-        // Assert - there is nothing to escape from.
         url.Should().BeNull();
     }
 

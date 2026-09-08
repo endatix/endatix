@@ -171,11 +171,6 @@ internal static class EmbedHostPage
             .Replace("__HUB_PLACEHOLDER__", Encode(view.HubBaseUrl.GetLeftPart(UriPartial.Authority)), StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// Same page on this server's HTTP binding, so a developer can escape the mixed-content
-    /// block in one click. Returns null when the server has no HTTP binding to point at -
-    /// a guessed port would send them to a dead address, which is worse than no link.
-    /// </summary>
     public static string? LocalHttpPlaygroundUrl(
         HttpRequest request,
         IEnumerable<string>? serverAddresses)
@@ -207,11 +202,6 @@ internal static class EmbedHostPage
         return httpPlayground.Uri.ToString();
     }
 
-    /// <summary>
-    /// Port of the first HTTP binding. Kestrel reports wildcard hosts (<c>http://[::]:5000</c>,
-    /// <c>http://*:5000</c>) that <see cref="Uri"/> cannot always parse, so fall back to the
-    /// trailing port segment.
-    /// </summary>
     private static int? FindHttpPort(IEnumerable<string>? serverAddresses)
     {
         if (serverAddresses is null)
@@ -273,7 +263,7 @@ internal static class EmbedHostPage
     private static string MixedContentCard(string? httpPlaygroundHref)
     {
         var httpLink = string.IsNullOrEmpty(httpPlaygroundHref)
-            ? "<code>http://localhost:5000/dev/embed-host</code> (same query)"
+            ? "this process's HTTP bind (same path and query), if it has one"
             : $"""<a href="{Encode(httpPlaygroundHref)}">{Encode(httpPlaygroundHref)}</a>""";
 
         var action = string.IsNullOrEmpty(httpPlaygroundHref)

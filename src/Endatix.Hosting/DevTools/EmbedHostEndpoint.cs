@@ -143,7 +143,6 @@ internal static class EmbedHostEndpoint
         await WriteHtmlAsync(context, html);
     }
 
-    /// <summary>Addresses this server is actually bound to, or null when unavailable.</summary>
     private static IEnumerable<string>? ServerAddresses(HttpContext context) =>
         context.RequestServices
             .GetService<IServer>()?
