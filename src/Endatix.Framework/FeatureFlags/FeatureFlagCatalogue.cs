@@ -65,6 +65,17 @@ public static class FeatureFlagCatalogue
             flagClass: FeatureFlagClass.Rollout,
             scope: FeatureFlagScope.Deployment),
 
+        // Deployment-scoped, and off until a feature actually enqueues: the module owns a DbContext
+        // and migrations, so registering it on hosts with no consumer would create a schema nothing
+        // writes to. Must be flipped on in the same release that moves webhook delivery onto the
+        // queue, or upgrading hosts lose fan-out silently.
+        FeatureFlagDefinition.Boolean(
+            key: "jobs-module",
+            configKey: FeatureFlags.JobsModule,
+            defaultValue: false,
+            flagClass: FeatureFlagClass.Rollout,
+            scope: FeatureFlagScope.Deployment),
+
         // Deployment-scoped: PlatformAdmin create/assume runs before a target-tenant context exists.
         FeatureFlagDefinition.Boolean(
             key: "multi-tenancy",

@@ -25,9 +25,7 @@ public static class ModuleDbContextExtensions
         var moduleOptions = new ModuleDbContextOptions();
         configure(moduleOptions);
 
-        Guard.Against.NullOrEmpty(moduleOptions.MigrationsAssembly);
-        Guard.Against.NullOrEmpty(moduleOptions.PostgreSqlMigrationsNamespace);
-        Guard.Against.NullOrEmpty(moduleOptions.SqlServerMigrationsNamespace);
+        GuardActiveProviderMigrationsNamespace(moduleOptions, configuration);
 
         ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
@@ -54,10 +52,13 @@ public static class ModuleDbContextExtensions
         var migrationsNamespace = usePostgreSql
             ? moduleOptions.PostgreSqlMigrationsNamespace
             : moduleOptions.SqlServerMigrationsNamespace;
-        var useProviderNamespaceFiltering = !string.Equals(
-            moduleOptions.PostgreSqlMigrationsNamespace,
-            moduleOptions.SqlServerMigrationsNamespace,
-            StringComparison.Ordinal);
+        var useProviderNamespaceFiltering =
+            !string.IsNullOrEmpty(moduleOptions.PostgreSqlMigrationsNamespace)
+            && !string.IsNullOrEmpty(moduleOptions.SqlServerMigrationsNamespace)
+            && !string.Equals(
+                moduleOptions.PostgreSqlMigrationsNamespace,
+                moduleOptions.SqlServerMigrationsNamespace,
+                StringComparison.Ordinal);
 
         if (usePostgreSql)
         {
@@ -95,11 +96,34 @@ public static class ModuleDbContextExtensions
         var moduleOptions = new ModuleDbContextOptions();
         configure(moduleOptions);
 
-        Guard.Against.NullOrEmpty(moduleOptions.MigrationsAssembly);
-        Guard.Against.NullOrEmpty(moduleOptions.PostgreSqlMigrationsNamespace);
-        Guard.Against.NullOrEmpty(moduleOptions.SqlServerMigrationsNamespace);
+        GuardActiveProviderMigrationsNamespace(moduleOptions, configuration);
 
         optionsBuilder.ConfigureModuleDbContext(configuration, moduleOptions);
+    }
+
+    /// <summary>
+    /// Requires a migrations namespace for the provider actually in use, and leaves the other
+    /// optional.
+    /// </summary>
+    /// <remarks>
+    /// A module may support one provider without supporting both — Background Jobs is PostgreSQL-only
+    /// — and requiring a namespace for a provider it has no context for would force a value that
+    /// names nothing.
+    /// </remarks>
+    private static void GuardActiveProviderMigrationsNamespace(
+        ModuleDbContextOptions moduleOptions,
+        IConfiguration configuration)
+    {
+        Guard.Against.NullOrEmpty(moduleOptions.MigrationsAssembly);
+
+        if (DatabaseProviderResolver.IsPostgreSql(configuration))
+        {
+            Guard.Against.NullOrEmpty(moduleOptions.PostgreSqlMigrationsNamespace);
+        }
+        else
+        {
+            Guard.Against.NullOrEmpty(moduleOptions.SqlServerMigrationsNamespace);
+        }
     }
 
     /// <summary>

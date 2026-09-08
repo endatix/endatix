@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Infrastructure.Data;
@@ -44,7 +43,7 @@ public class ReportingDbContext : DbContext, ITenantDbContext
         modelBuilder.ApplyConfigurationsFor<ReportingDbContext>(typeof(ReportingDbContext).Assembly);
         ApplyProviderSpecificConfigurations(modelBuilder);
 
-        PrefixTableNames(modelBuilder);
+        modelBuilder.ApplyModuleTableNames();
     }
 
     private void ApplyProviderSpecificConfigurations(ModelBuilder builder)
@@ -72,60 +71,16 @@ public class ReportingDbContext : DbContext, ITenantDbContext
 
     public override int SaveChanges()
     {
-        ProcessEntities();
+        ApplyEntityDefaults();
         return base.SaveChanges();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        ProcessEntities();
+        ApplyEntityDefaults();
         return await base.SaveChangesAsync(true, cancellationToken);
     }
 
-    private void ProcessEntities()
-    {
-        var entries = ChangeTracker.Entries()
-            .Where(entry => entry.State is EntityState.Added or EntityState.Modified);
-
-        foreach (var entry in entries)
-        {
-            switch (entry.State)
-            {
-                case EntityState.Added:
-                    if (entry.CurrentValues.Properties.Any(property => property.Name == "Id") &&
-                        entry.CurrentValues["Id"] is long longId && longId == default)
-                    {
-                        entry.CurrentValues["Id"] = _idGenerator.CreateId();
-                    }
-
-                    if (entry.CurrentValues.Properties.Any(property => property.Name == "CreatedAt"))
-                    {
-                        var createdAt = entry.CurrentValues["CreatedAt"];
-                        if (createdAt is DateTime dateTime && dateTime == default)
-                        {
-                            entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
-                        }
-                    }
-
-                    break;
-                case EntityState.Modified:
-                    if (entry.CurrentValues.Properties.Any(property => property.Name == "ModifiedAt"))
-                    {
-                        entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
-                    }
-
-                    break;
-            }
-        }
-    }
-
-    private static void PrefixTableNames(ModelBuilder builder)
-    {
-        Guard.Against.Null(builder);
-
-        foreach (var entity in builder.Model.GetEntityTypes().Where(entity => !entity.IsOwned()))
-        {
-            builder.Entity(entity.Name).ToTable(entity.GetTableName());
-        }
-    }
+    private void ApplyEntityDefaults() =>
+        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow, _idGenerator);
 }

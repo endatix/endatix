@@ -5,6 +5,7 @@ using Endatix.Framework.Hosting;
 using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders.Logging;
 using Endatix.Infrastructure.Identity;
+using Endatix.Modules.Jobs;
 using Endatix.Modules.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -156,6 +157,7 @@ public class EndatixBuilder : IBuilderRoot
         // UseModule honours the module's feature flag, and wires its endpoints and FastEndpoints
         // configuration (Reporting serializers and endpoint metadata) via IHasFastEndpoints only
         // when the module actually registers.
+        UseModule(JobsModule.Instance);
         UseModule(ReportingModule.Instance);
 
         _logger.LogConfigurationCompleted();

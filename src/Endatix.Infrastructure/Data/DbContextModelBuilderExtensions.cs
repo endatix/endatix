@@ -78,6 +78,24 @@ public static class DbContextModelBuilderExtensions
     }
 
     /// <summary>
+    /// Re-applies each entity's table name so it resolves against the context's default schema.
+    /// </summary>
+    /// <remarks>
+    /// Needed by module contexts that call <see cref="ModelBuilder.HasDefaultSchema"/>: entities
+    /// mapped with an explicit <c>ToTable(name)</c> keep the schema they were configured with, so
+    /// without this pass a module's tables can land outside its own schema.
+    /// </remarks>
+    public static void ApplyModuleTableNames(this ModelBuilder builder)
+    {
+        Guard.Against.Null(builder);
+
+        foreach (var entity in builder.Model.GetEntityTypes().Where(entity => !entity.IsOwned()))
+        {
+            builder.Entity(entity.Name).ToTable(entity.GetTableName());
+        }
+    }
+
+    /// <summary>
     /// Applies entity type configurations from the specified assembly, filtered by DbContext type using generic attributes.
     /// This allows isolating configurations for different DbContexts that share the same assembly.
     /// </summary>
