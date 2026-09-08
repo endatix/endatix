@@ -38,7 +38,7 @@ jobs:
       name: Production
     steps:
       - name: 🔐 Fetch secrets (Infisical, OIDC)
-        uses: Infisical/secrets-action@03d3fa38607956c493f53c6633f94006a13c47ae # v1.0.7
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
         with:
           method: "oidc"
           env-slug: "prod"
@@ -56,7 +56,7 @@ jobs:
       # granted, never widen it.
       - name: 🔑 Endatix Automations APP token (scoped to endatix-infra)
         id: app-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ env.ENDATIX_PROJECT_AUTOMATIONS_APP_ID }}
           private-key: ${{ env.ENDATIX_PROJECT_AUTOMATIONS_PRIVATE_KEY }}
