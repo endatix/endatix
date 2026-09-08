@@ -1,5 +1,6 @@
 using Endatix.Api.Builders;
 using Endatix.Api.Setup;
+using Endatix.Hosting.DevTools;
 using Endatix.Hosting.Options;
 using Endatix.Infrastructure.Multitenancy;
 using FastEndpoints;
@@ -75,6 +76,9 @@ public class EndatixMiddlewareBuilder
         {
             UseAuthorization();
         }
+
+        // Terminal branch: HTTP /dev/embed-host must not 307 to HTTPS (mixed content vs Hub).
+        UseEmbedHost();
 
         if (options.UseHsts)
         {
@@ -308,5 +312,13 @@ public class EndatixMiddlewareBuilder
         healthChecksBuilder.Apply(App);
 
         return this;
+    }
+
+    private void UseEmbedHost()
+    {
+        _logger?.LogInformation("Adding DevTools embed host at {Path}", EmbedHostPage.Path);
+        App.MapWhen(
+            context => context.Request.Path.Equals(EmbedHostPage.Path, StringComparison.OrdinalIgnoreCase),
+            branch => branch.Run(EmbedHostEndpoint.ExecuteAsync));
     }
 }

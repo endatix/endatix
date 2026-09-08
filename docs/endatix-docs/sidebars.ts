@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
       link: { type: "generated-index", slug: "guides", title: "Guides" },
       items: [
         "guides/webhooks",
+        "guides/embed-form-via-iframe",
         "guides/session-bridge",
         "guides/customize-exports",
         "guides/collecting-submitters-data",
