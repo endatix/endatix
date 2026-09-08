@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -26,13 +27,8 @@ public sealed record JobDto(
     JobStatus Status,
     int ProgressPercentage,
     string? StatusMessage,
-    JobResultDto? Result,
+    JsonNode? Result,
     string? ErrorMessage);
-
-/// <summary>
-/// Where to collect what a completed job produced.
-/// </summary>
-public sealed record JobResultDto(string? DownloadUrl, string? FileName, string? ContentType);
 
 /// <remarks>
 /// No tenant argument: the jobs context filters every query to the current tenant, so a job
@@ -42,9 +38,6 @@ public sealed record JobResultDto(string? DownloadUrl, string? FileName, string?
 internal sealed class GetJobHandler(IJobsDbContext dbContext)
     : IQueryHandler<GetJobQuery, Result<JobDto>>
 {
-    private static readonly JsonSerializerOptions ResultJsonOptions =
-        new(JsonSerializerDefaults.Web);
-
     public async Task<Result<JobDto>> Handle(GetJobQuery request, CancellationToken cancellationToken)
     {
         var job = await dbContext.BackgroundJobs
@@ -81,11 +74,16 @@ internal sealed class GetJobHandler(IJobsDbContext dbContext)
     }
 
     /// <remarks>
-    /// The column is written by whichever handler ran the job, so its contents are not guaranteed to
-    /// match this shape. A payload that does not parse is reported as no result rather than failing
-    /// the read — the caller still needs the status.
+    /// Passed through as written rather than mapped onto a fixed shape. Job types produce different
+    /// things — an export produces a file, a webhook delivery produces a response code — so the only
+    /// shape this endpoint can describe for every type is the one the handler chose. Each job type
+    /// documents its own; a caller already knows which type it asked about.
+    /// <para>
+    /// A payload that is not valid JSON is reported as no result rather than failing the read: the
+    /// column belongs to whichever handler ran the job, and the caller still needs the status.
+    /// </para>
     /// </remarks>
-    private static JobResultDto? ParseResult(string? resultJson)
+    private static JsonNode? ParseResult(string? resultJson)
     {
         if (string.IsNullOrWhiteSpace(resultJson))
         {
@@ -94,7 +92,7 @@ internal sealed class GetJobHandler(IJobsDbContext dbContext)
 
         try
         {
-            return JsonSerializer.Deserialize<JobResultDto>(resultJson, ResultJsonOptions);
+            return JsonNode.Parse(resultJson);
         }
         catch (JsonException)
         {

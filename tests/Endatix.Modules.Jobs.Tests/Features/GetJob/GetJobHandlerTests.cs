@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Features.GetJob;
 using Endatix.Modules.Jobs.Tests.Shared;
@@ -33,8 +34,7 @@ public sealed class GetJobHandlerTests : IDisposable
 
     private BackgroundJob AddJob(long tenantId = CallerTenantId, string? resultJson = null)
     {
-        var job = new BackgroundJob(
-            "SubmissionExport", """{"formId":"1"}""", tenantId, DateTime.UtcNow);
+        var job = new BackgroundJob("SubmissionExport", @"{""formId"":""1""}", tenantId, DateTime.UtcNow);
         _dbContext.BackgroundJobs.Add(job);
         _dbContext.SaveChanges();
 
@@ -72,7 +72,7 @@ public sealed class GetJobHandlerTests : IDisposable
         var result = await _handler.Handle(new GetJobQuery(404), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.NotFound);
+        result.Status.Should().Be(ResultStatus.NotFound);
     }
 
     [Fact]
@@ -87,28 +87,39 @@ public sealed class GetJobHandlerTests : IDisposable
 
         // Assert — not Forbidden: a 403 would confirm the id exists, which is enough to enumerate
         // another tenant's jobs.
-        result.Status.Should().Be(Core.Infrastructure.Result.ResultStatus.NotFound);
+        result.Status.Should().Be(ResultStatus.NotFound);
     }
 
     [Fact]
-    public async Task Handle_CompletedJob_ReportsWhereToCollectTheArtifact()
+    public async Task Handle_CompletedExport_ReportsTheFileItProduced()
     {
         // Arrange
-        var job = AddJob(resultJson: """
-            {"downloadUrl":"/api/jobs/1/download","fileName":"submissions-100.csv","contentType":"text/csv"}
-            """);
+        var job = AddJob(resultJson: @"{""fileName"":""submissions-100.csv"",""contentType"":""text/csv""}");
 
         // Act
         var result = await _handler.Handle(new GetJobQuery(job.Id), TestContext.Current.CancellationToken);
 
         // Assert
         result.Value.Result.Should().NotBeNull();
-        result.Value.Result!.FileName.Should().Be("submissions-100.csv");
-        result.Value.Result.ContentType.Should().Be("text/csv");
+        result.Value.Result!["fileName"]!.GetValue<string>().Should().Be("submissions-100.csv");
     }
 
     [Fact]
-    public async Task Handle_UnfinishedJob_ReportsNoArtifact()
+    public async Task Handle_CompletedJobWithNoFileOutput_PassesItsResultThrough()
+    {
+        // Arrange — a webhook delivery reports a response code, not a file. Both are legitimate
+        // outputs, which is why this endpoint imposes no shape on them.
+        var job = AddJob(resultJson: @"{""statusCode"":200,""attempt"":1}");
+
+        // Act
+        var result = await _handler.Handle(new GetJobQuery(job.Id), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Value.Result!["statusCode"]!.GetValue<int>().Should().Be(200);
+    }
+
+    [Fact]
+    public async Task Handle_UnfinishedJob_ReportsNoResult()
     {
         // Arrange
         var job = AddJob();
@@ -121,11 +132,11 @@ public sealed class GetJobHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_CompletedJobWithAnUnexpectedResultShape_StillReportsTheStatus()
+    public async Task Handle_CompletedJobWithAnUnreadableResult_StillReportsTheStatus()
     {
-        // Arrange — the column is written by whichever handler ran the job, so its contents are not
+        // Arrange — the column belongs to whichever handler ran the job, so its contents are not
         // this endpoint's to guarantee.
-        var job = AddJob(resultJson: """{"rowsExported":10000}""");
+        var job = AddJob(resultJson: "not json at all");
 
         // Act
         var result = await _handler.Handle(new GetJobQuery(job.Id), TestContext.Current.CancellationToken);
@@ -133,7 +144,6 @@ public sealed class GetJobHandlerTests : IDisposable
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be(JobStatus.Completed);
-        result.Value.Result.Should().NotBeNull();
-        result.Value.Result!.FileName.Should().BeNull();
+        result.Value.Result.Should().BeNull();
     }
 }

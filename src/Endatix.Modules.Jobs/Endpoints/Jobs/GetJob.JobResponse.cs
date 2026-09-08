@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Features.GetJob;
 
@@ -36,10 +37,16 @@ public sealed class JobResponse
     public string? StatusMessage { get; init; }
 
     /// <summary>
-    /// Where to collect what the job produced. Null until the job completes, and for job types that
-    /// produce no artifact.
+    /// What the job produced, in the shape its handler wrote. Null until the job completes, and for
+    /// job types that produce nothing.
     /// </summary>
-    public JobResultResponse? Result { get; init; }
+    /// <remarks>
+    /// Deliberately untyped. One queue serves every job type, and they produce different things — an
+    /// export produces a file, a webhook delivery produces a response code — so there is no single
+    /// shape this endpoint could promise. Each job type documents its own, and a caller already knows
+    /// which type it asked about from <see cref="Type"/>.
+    /// </remarks>
+    public JsonNode? Result { get; init; }
 
     /// <summary>
     /// Why the job failed. Set only once it has failed or been dead-lettered.
@@ -53,26 +60,7 @@ public sealed class JobResponse
         Status = job.Status,
         ProgressPercentage = job.ProgressPercentage,
         StatusMessage = job.StatusMessage,
-        Result = job.Result is null
-            ? null
-            : new JobResultResponse
-            {
-                DownloadUrl = job.Result.DownloadUrl,
-                FileName = job.Result.FileName,
-                ContentType = job.Result.ContentType,
-            },
+        Result = job.Result,
         ErrorMessage = job.ErrorMessage,
     };
-}
-
-/// <summary>
-/// Where to collect what a completed job produced.
-/// </summary>
-public sealed class JobResultResponse
-{
-    public string? DownloadUrl { get; init; }
-
-    public string? FileName { get; init; }
-
-    public string? ContentType { get; init; }
 }
