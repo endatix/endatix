@@ -24,9 +24,7 @@ internal static class EmbedHostEndpoint
         var hasFormId = !string.IsNullOrWhiteSpace(formIdRaw);
         var parsedFormId = EmbedHostPage.TryParseFormId(formIdRaw, out var formId);
         var bare = EmbedHostPage.IsBareView(query["view"]);
-        var pathBase = context.Request.PathBase.HasValue
-            ? context.Request.PathBase.Value
-            : string.Empty;
+        var pathBase = context.Request.PathBase.ToString();
 
         if (bare && !parsedFormId)
         {
@@ -36,21 +34,7 @@ internal static class EmbedHostEndpoint
 
         if (!EmbedHostPage.TryResolveHubBaseUrl(query["hubBaseUrl"], settings, out var hubBaseUrl))
         {
-            if (bare)
-            {
-                await WritePlainAsync(context, StatusCodes.Status400BadRequest, "hubBaseUrl is missing or not allowlisted.");
-                return;
-            }
-
-            _ = EmbedHostPage.TryResolveHubBaseUrl(null, settings, out hubBaseUrl);
-            hubBaseUrl ??= EmbedHostPage.FallbackHubOrigin;
-            await WriteBuilderAsync(
-                context,
-                formId: null,
-                hubBaseUrl,
-                error: "hubBaseUrl is missing or not allowlisted.",
-                formIdField: hasFormId ? formIdRaw : null,
-                pathBase);
+            await WriteUnresolvedHubAsync(context, settings, bare, hasFormId, formIdRaw, pathBase);
             return;
         }
 
@@ -66,20 +50,58 @@ internal static class EmbedHostEndpoint
             return;
         }
 
+        await WritePlaygroundAsync(context, formId, parsedFormId, hubBaseUrl, query, pathBase, bare);
+    }
+
+    private static async Task WriteUnresolvedHubAsync(
+        HttpContext context,
+        EmbedHostOptions settings,
+        bool bare,
+        bool hasFormId,
+        string formIdRaw,
+        string pathBase)
+    {
+        if (bare)
+        {
+            await WritePlainAsync(context, StatusCodes.Status400BadRequest, "hubBaseUrl is missing or not allowlisted.");
+            return;
+        }
+
+        _ = EmbedHostPage.TryResolveHubBaseUrl(null, settings, out var hubBaseUrl);
+        await WriteBuilderAsync(
+            context,
+            formId: null,
+            hubBaseUrl ?? EmbedHostPage.FallbackHubOrigin,
+            error: "hubBaseUrl is missing or not allowlisted.",
+            formIdField: hasFormId ? formIdRaw : null,
+            pathBase);
+    }
+
+    private static Task WritePlaygroundAsync(
+        HttpContext context,
+        string formId,
+        bool parsedFormId,
+        Uri hubBaseUrl,
+        IQueryCollection query,
+        string pathBase,
+        bool bare)
+    {
         var heightMode = EmbedHostPage.NormalizeHeightMode(query["heightMode"]);
         var prefill = query["prefill"].ToString().NullIfWhiteSpace();
         var token = query["token"].ToString().NullIfWhiteSpace();
         var requestedHub = query["hubBaseUrl"].ToString().NullIfWhiteSpace();
         var mixedContent = EmbedHostPage.IsMixedContent(context.Request.IsHttps, hubBaseUrl);
 
-        string html;
         if (bare && !mixedContent)
         {
-            html = EmbedHostPage.RenderBareHtml(formId, hubBaseUrl, heightMode, prefill, token);
+            return WriteHtmlAsync(
+                context,
+                EmbedHostPage.RenderBareHtml(formId, hubBaseUrl, heightMode, prefill, token));
         }
-        else
-        {
-            html = EmbedHostPage.RenderBuilderHtml(new EmbedHostViewModel
+
+        return WriteHtmlAsync(
+            context,
+            EmbedHostPage.RenderBuilderHtml(new EmbedHostViewModel
             {
                 FormId = parsedFormId ? formId : null,
                 HubBaseUrl = hubBaseUrl,
@@ -90,10 +112,7 @@ internal static class EmbedHostEndpoint
                 PathBase = pathBase,
                 MixedContent = mixedContent,
                 HttpPlaygroundHref = EmbedHostPage.LocalHttpPlaygroundUrl(context.Request)
-            });
-        }
-
-        await WriteHtmlAsync(context, html);
+            }));
     }
 
     private static async Task WriteBuilderAsync(

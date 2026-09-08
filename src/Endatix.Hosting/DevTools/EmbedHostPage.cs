@@ -189,9 +189,7 @@ internal static class EmbedHostPage
         var httpPlayground = new UriBuilder(Uri.UriSchemeHttp, "localhost", 5000)
         {
             Path = string.IsNullOrEmpty(path) ? "/" : path,
-            Query = request.QueryString.HasValue
-                ? request.QueryString.Value!.TrimStart('?')
-                : string.Empty
+            Query = request.QueryString.ToString().TrimStart('?')
         };
         return httpPlayground.Uri.ToString();
     }
