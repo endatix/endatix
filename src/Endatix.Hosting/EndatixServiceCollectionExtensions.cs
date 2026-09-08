@@ -1,9 +1,11 @@
 using Ardalis.GuardClauses;
 using Endatix.Framework.Configuration;
 using Endatix.Framework.FeatureFlags;
+using Endatix.Framework.Hosting;
 using Endatix.Framework.Setup;
 using Endatix.Infrastructure.FeatureFlags;
 using Endatix.Hosting.Builders;
+using Endatix.Hosting.DevTools;
 using Endatix.Hosting.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +39,16 @@ internal static class EndatixServiceCollectionExtensions
         services.AddEndatixReverseProxy();
         services.AddEndatixFeatureFlags(configuration)
             .WithEndatixTargeting();
+        services.AddOptions<EmbedHostOptions>()
+            .Bind(configuration.GetSection(EmbedHostOptions.SectionName))
+            .PostConfigure<IAppEnvironment>((opts, env) =>
+            {
+                opts.Enabled ??= env.IsDevelopment();
+                if (string.IsNullOrWhiteSpace(opts.HubBaseUrl))
+                {
+                    opts.HubBaseUrl = configuration["Endatix:Hub:HubBaseUrl"] ?? "http://localhost:3000";
+                }
+            });
 
         // Now create the logging builder which will get environment from services
         var loggingBuilder = new EndatixLoggingBuilder(services, configuration);

@@ -1,5 +1,6 @@
 using Endatix.Api.Builders;
 using Endatix.Api.Setup;
+using Endatix.Hosting.DevTools;
 using Endatix.Hosting.Options;
 using Endatix.Infrastructure.Multitenancy;
 using FastEndpoints;
@@ -85,6 +86,8 @@ public class EndatixMiddlewareBuilder
         {
             UseHttpsRedirection();
         }
+
+        UseEmbedHost();
 
         if (options.UseApi)
         {
@@ -307,6 +310,15 @@ public class EndatixMiddlewareBuilder
         healthChecksBuilder.WithPath(path);
         healthChecksBuilder.Apply(App);
 
+        return this;
+    }
+
+    private EndatixMiddlewareBuilder UseEmbedHost()
+    {
+        _logger?.LogInformation("Adding DevTools embed host at {Path}", EmbedHostPage.Path);
+        App.MapWhen(
+            context => context.Request.Path.Equals(EmbedHostPage.Path, StringComparison.OrdinalIgnoreCase),
+            branch => branch.Run(EmbedHostEndpoint.ExecuteAsync));
         return this;
     }
 }

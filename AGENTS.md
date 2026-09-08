@@ -131,6 +131,20 @@ dotnet test tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj --filter "FullyQu
 # Integration: see tests/README.md
 ```
 
+## Embed playground (DevTools)
+
+`GET /dev/embed-host` on WebHost (on in Development; 404 in Production unless `Endatix:DevTools:EmbedHost:Enabled=true`). **Query is the contract** (agents use this; UI only GET-rewrites it):
+
+| Query               | Meaning                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `formId`            | Required to emit `embed.js`. Omitted → builder shell (200). `view=bare` without it → 400. |
+| `view`              | `builder` (default) or `bare` (iframe only; visual/e2e).                                  |
+| `heightMode`        | `fill` or omit (auto).                                                                    |
+| `token` / `prefill` | `data-token` wins over `data-prefill`.                                                    |
+| `hubBaseUrl`        | Allowlisted Hub origin; default `Endatix:Hub:HubBaseUrl`.                                 |
+
+Builder chrome is one topbar: **Open in new tab** is `target=_blank` to the same query with `view=bare`, **Configure** and **Event log** are collapsible (state in `localStorage`, so the preview keeps the viewport), and the width presets are CSS-only. Do not treat this as a product page. Hub e2e: `view=bare` + `E2E_EMBED_HOST_URL`.
+
 ## Related
 
 - SaaS / Hub agent rules: [`../.cursor/AGENTS.md`](../.cursor/AGENTS.md)
