@@ -27,6 +27,15 @@ internal sealed class BackgroundJobConfigurationPostgreSql : IEntityTypeConfigur
         builder.Property(job => job.ResultJson)
             .HasColumnType("jsonb");
 
+        var tenantId = $"\"{nameof(BackgroundJob.TenantId)}\"";
+
+        // The entity refuses a job without a tenant, but the entity is not the only way a row can
+        // arrive: a migration, a seeder or a hand-written statement all bypass it. A row with tenant
+        // zero would be hidden from every tenant and visible to every background service, so the
+        // rule belongs to the data as well as the code.
+        builder.ToTable(table => table.HasCheckConstraint(
+            "CK_BackgroundJobs_TenantId", $"{tenantId} > 0"));
+
         var status = $"\"{nameof(BackgroundJob.Status)}\"";
 
         // Serves the sweeper's "which jobs are due?" scan — the hottest query here, run on every
