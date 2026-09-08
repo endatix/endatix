@@ -46,6 +46,17 @@ public sealed class EmbedHostPageTests
     }
 
     [Fact]
+    public void TryResolveHubBaseUrl_Ipv6Loopback_Succeeds()
+    {
+        var options = new EmbedHostOptions { HubBaseUrl = "http://localhost:3000" };
+
+        var resolved = EmbedHostPage.TryResolveHubBaseUrl("http://[::1]:3000", options, out var uri);
+
+        resolved.Should().BeTrue();
+        uri.IsLoopback.Should().BeTrue();
+    }
+
+    [Fact]
     public void TryResolveHubBaseUrl_DisallowedHost_Fails()
     {
         // Arrange
@@ -133,8 +144,6 @@ public sealed class EmbedHostPageTests
         // Assert
         html.Should().Contain("id=\"toggle-config\"");
         html.Should().Contain("id=\"config\" hidden");
-
-        // One toggle in the topbar, one in the drawer bar: the drawer stays reachable once dismissed.
         Regex.Matches(html, "data-log-toggle aria-expanded").Should().HaveCount(2);
         Regex.Matches(html, "data-log-count>").Should().HaveCount(2);
     }
@@ -149,8 +158,6 @@ public sealed class EmbedHostPageTests
         html.Should().Contain("data-force-open=\"true\"");
         html.Should().NotContain("id=\"copy-snippet\"");
         html.Should().NotContain("data-width=");
-
-        // Preview tools go away with no form, but the log toggle must not.
         Regex.Matches(html, "data-log-toggle aria-expanded").Should().HaveCount(2);
     }
 

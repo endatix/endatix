@@ -75,6 +75,33 @@ public sealed class EmbedHostEndpointTests
         html.Should().Contain("id=\"embed-event-log\"");
         html.Should().Contain("view=bare");
         html.Should().Contain("Open in new tab");
+        context.Response.Headers.CacheControl.ToString().Should().Contain("no-store");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_InvalidFormId_Returns400()
+    {
+        var context = CreateContext(
+            new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000" },
+            path: "/dev/embed-host?formId=abc");
+
+        await EmbedHostEndpoint.ExecuteAsync(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_HeightModeFillIsCaseInsensitive()
+    {
+        var context = CreateContext(
+            new EmbedHostOptions { Enabled = true, HubBaseUrl = "http://localhost:3000" },
+            path: "/dev/embed-host?formId=42&heightMode=FILL");
+
+        await EmbedHostEndpoint.ExecuteAsync(context);
+
+        var html = await ReadBody(context);
+        html.Should().Contain("data-height-mode=\"fill\"");
+        html.Should().Contain("class=\"frame frame--fill\"");
     }
 
     [Fact]

@@ -24,14 +24,7 @@ internal static class EmbedHostEndpoint
         var parsedFormId = EmbedHostPage.TryParseFormId(formIdRaw, out var formId);
         var bare = EmbedHostPage.IsBareView(query["view"]);
 
-        if (bare && !parsedFormId)
-        {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsync("formId must be a positive integer.", context.RequestAborted);
-            return;
-        }
-
-        if (!bare && hasFormId && !parsedFormId)
+        if (!parsedFormId && (bare || hasFormId))
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             await context.Response.WriteAsync("formId must be a positive integer.", context.RequestAborted);
@@ -62,6 +55,8 @@ internal static class EmbedHostEndpoint
                 requestedHub);
 
         context.Response.ContentType = "text/html; charset=utf-8";
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers.XContentTypeOptions = "nosniff";
         await context.Response.WriteAsync(html, context.RequestAborted);
     }
 

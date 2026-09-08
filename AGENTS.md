@@ -143,7 +143,7 @@ dotnet test tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj --filter "FullyQu
 | `token` / `prefill` | `data-token` wins over `data-prefill`.                                                    |
 | `hubBaseUrl`        | Allowlisted Hub origin; default `Endatix:Hub:HubBaseUrl`.                                 |
 
-Builder chrome is one topbar: **Open in new tab** is `target=_blank` to the same query with `view=bare`, **Configure** and **Event log** are collapsible (state in `localStorage`, so the preview keeps the viewport), and the width presets are CSS-only. Do not treat this as a product page. Hub e2e: `view=bare` + `E2E_EMBED_HOST_URL`.
+Builder chrome (topbar, log, width) is for humans; `localStorage` only remembers chrome, never iframe attrs. **Open in new tab** = same query + `view=bare`. Loopback Hub origins (`Uri.IsLoopback`) are always allowed. Responses: `Cache-Control: no-store` (token may be in the query). Not a product page. Hub e2e: `view=bare` + `E2E_EMBED_HOST_URL`. Markup lives in `DevTools/Assets/` (embedded, not C# strings). User doc: `docs/endatix-docs/docs/guides/embed-form-via-iframe.mdx`.
 
 ## Related
 

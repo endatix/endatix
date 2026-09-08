@@ -313,12 +313,11 @@ public class EndatixMiddlewareBuilder
         return this;
     }
 
-    private EndatixMiddlewareBuilder UseEmbedHost()
+    private void UseEmbedHost()
     {
         _logger?.LogInformation("Adding DevTools embed host at {Path}", EmbedHostPage.Path);
         App.MapWhen(
             context => context.Request.Path.Equals(EmbedHostPage.Path, StringComparison.OrdinalIgnoreCase),
             branch => branch.Run(EmbedHostEndpoint.ExecuteAsync));
-        return this;
     }
 }

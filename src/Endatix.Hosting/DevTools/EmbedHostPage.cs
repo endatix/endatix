@@ -46,7 +46,7 @@ internal static class EmbedHostPage
             return false;
         }
 
-        if (!IsAllowedHost(uri.Host, options))
+        if (!IsAllowed(uri, options))
         {
             return false;
         }
@@ -57,7 +57,7 @@ internal static class EmbedHostPage
 
     public static string? NormalizeHeightMode(string? heightMode)
     {
-        if (string.Equals(heightMode, "fill", StringComparison.Ordinal))
+        if (string.Equals(heightMode, "fill", StringComparison.OrdinalIgnoreCase))
         {
             return "fill";
         }
@@ -117,7 +117,7 @@ internal static class EmbedHostPage
     {
         var stage = formId is null
             ? EmptyStageHtml
-            : $"""<div class="frame{(heightMode is null ? string.Empty : " frame--fill")}" id="endatix-embed-root">{BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token)}</div>""";
+            : $"""<div class="{FrameClass(heightMode)}" id="endatix-embed-root">{BuildScriptTag(formId, hubBaseUrl, heightMode, prefill, token)}</div>""";
 
         return EmbedHostAssets.BuilderHtml
             .Replace("__STYLES__", EmbedHostAssets.Styles, StringComparison.Ordinal)
@@ -247,29 +247,24 @@ internal static class EmbedHostPage
         return $"<script{attributes}></script>";
     }
 
-    private static bool IsAllowedHost(string host, EmbedHostOptions options)
+    private static string FrameClass(string? heightMode) =>
+        heightMode is null ? "frame" : "frame frame--fill";
+
+    private static bool IsAllowed(Uri uri, EmbedHostOptions options)
     {
-        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase))
+        if (uri.IsLoopback)
         {
             return true;
         }
 
         if (Uri.TryCreate(options.HubBaseUrl, UriKind.Absolute, out var configured) &&
-            string.Equals(host, configured.Host, StringComparison.OrdinalIgnoreCase))
+            string.Equals(uri.Host, configured.Host, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        foreach (var allowed in options.AllowedHubHosts)
-        {
-            if (string.Equals(host, allowed, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return options.AllowedHubHosts.Any(allowed =>
+            string.Equals(uri.Host, allowed, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string Encode(string value) => WebUtility.HtmlEncode(value);

@@ -2,10 +2,6 @@ using System.Reflection;
 
 namespace Endatix.Hosting.DevTools;
 
-/// <summary>
-/// Embedded markup, styles and script for the embed host page. Read once, inlined into the
-/// response so the page stays a single request with no static-file route.
-/// </summary>
 internal static class EmbedHostAssets
 {
     private const string Prefix = "Endatix.Hosting.DevTools.Assets.";

@@ -9,6 +9,10 @@
   var els = null;
   var unseen = 0;
 
+  function pad(value, width) {
+    return String(value).padStart(width, "0");
+  }
+
   EVENTS.forEach(function (type) {
     window.addEventListener(type, function (event) {
       var item = { time: new Date(), type: type, detail: event.detail };
@@ -33,9 +37,6 @@
   }
 
   function stamp(date) {
-    function pad(value, width) {
-      return String(value).padStart(width, "0");
-    }
     return (
       pad(date.getHours(), 2) +
       ":" +
@@ -87,7 +88,7 @@
       els.log.scrollHeight - els.log.scrollTop - els.log.clientHeight < 24;
     els.log.appendChild(entry);
     while (els.log.childElementCount > MAX_ENTRIES) {
-      els.log.removeChild(els.log.firstElementChild);
+      els.log.firstElementChild.remove();
     }
     if (atBottom) {
       els.log.scrollTop = els.log.scrollHeight;
@@ -151,36 +152,18 @@
         label.textContent = original;
       }, 1400);
     }
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(
-        function () {
-          done(true);
-        },
-        function () {
-          legacyCopy(text, done);
-        },
-      );
+    if (!navigator.clipboard) {
+      done(false);
       return;
     }
-    legacyCopy(text, done);
-  }
-
-  function legacyCopy(text, done) {
-    var area = document.createElement("textarea");
-    area.value = text;
-    area.setAttribute("readonly", "");
-    area.style.position = "fixed";
-    area.style.opacity = "0";
-    document.body.appendChild(area);
-    area.select();
-    var ok = false;
-    try {
-      ok = document.execCommand("copy");
-    } catch (err) {
-      ok = false;
-    }
-    document.body.removeChild(area);
-    done(ok);
+    navigator.clipboard.writeText(text).then(
+      function () {
+        done(true);
+      },
+      function () {
+        done(false);
+      },
+    );
   }
 
   function init() {
@@ -200,6 +183,10 @@
       ),
     };
 
+    if (!els.config || !els.configToggle || !els.drawer || !els.log) {
+      return;
+    }
+
     els.configToggle.addEventListener("click", function () {
       setConfig(els.config.hidden);
     });
@@ -215,12 +202,14 @@
     });
 
     var clear = document.getElementById("log-clear");
-    clear.addEventListener("click", function () {
-      els.log.textContent = "";
-      els.log.appendChild(emptyNote());
-      unseen = 0;
-      setBadge(0, false);
-    });
+    if (clear) {
+      clear.addEventListener("click", function () {
+        els.log.textContent = "";
+        els.log.appendChild(emptyNote());
+        unseen = 0;
+        setBadge(0, false);
+      });
+    }
 
     var reload = document.getElementById("reload-embed");
     if (reload) {
