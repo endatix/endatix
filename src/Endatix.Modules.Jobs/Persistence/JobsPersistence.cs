@@ -20,22 +20,17 @@ public static class JobsPersistence
     /// Shared module DbContext options for runtime and design-time registration.
     /// </summary>
     /// <remarks>
-    /// Every provider namespace is deliberately set to the same root, which disables the
-    /// namespace-filtering migrations assembly. This module uses provider-split DbContext types
-    /// instead (see <see cref="JobsDbContextBase"/>), so a provider's migrations are already scoped
-    /// by the context they were generated against — EF discovers them by their <c>[DbContext]</c>
-    /// attribute, leaving nothing to filter. Namespace filtering is only needed by modules that share
-    /// one context across providers.
-    /// <para>
-    /// The SQL Server namespace is set even though no SQL Server context exists yet, because
-    /// <c>AddModuleDbContext</c> requires every provider namespace regardless of which one is active.
-    /// </para>
+    /// Only the PostgreSQL namespace is set, because that is the only provider with a context. The
+    /// namespace-filtering migrations assembly stays off either way: this module uses provider-split
+    /// DbContext types (see <see cref="JobsDbContextBase"/>), so a provider's migrations are already
+    /// scoped by the context they were generated against — EF discovers them by their
+    /// <c>[DbContext]</c> attribute, leaving nothing to filter. Namespace filtering is only needed by
+    /// modules that share one context across providers.
     /// </remarks>
     public static void ConfigureDbContextOptions(ModuleDbContextOptions options)
     {
         options.Schema = Schema;
         options.MigrationsAssembly = typeof(JobsDbContextBase).Assembly.GetName().Name!;
         options.PostgreSqlMigrationsNamespace = MigrationsRootNamespace;
-        options.SqlServerMigrationsNamespace = MigrationsRootNamespace;
     }
 }

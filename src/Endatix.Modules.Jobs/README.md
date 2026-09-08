@@ -127,25 +127,25 @@ Four obligations, each invisible until it hurts in production:
 Registered via `EndatixBuilder.UseDefaults()` → `UseModule(JobsModule.Instance)`. The module
 implements `IEndatixModule` and `IHasDbMigrations`.
 
-Unlike the Reporting module there is **no feature flag**. The queue is shared infrastructure
-that user-visible features depend on, so a switch able to turn it off would silently turn
-those features off too. Whether a given process *executes* jobs is a separate, configuration
--level question — which is what allows API and worker roles to be deployed separately from the
-same image.
+Gated by `Endatix:FeatureFlags:JobsModule`, **off by default**. The module owns a DbContext
+and its own migrations, so registering it where nothing enqueues would create a schema no code
+writes to.
+
+> [!IMPORTANT]
+> The flag has to be turned on in the same release that moves webhook delivery onto the queue.
+> Left off, upgrading hosts lose fan-out with no error to explain it.
+
+Whether a given process *executes* jobs is a separate, configuration-level question — which is
+what allows API and worker roles to be deployed separately from the same image.
 
 ## Migrations
 
-**PostgreSQL is currently the only supported provider.** On any other provider the module
-registers a queue that throws on use, rather than failing startup — nothing enqueues jobs yet,
-so a SQL Server deployment loses nothing today. That stops being true once a feature depends
-on the queue, which is the point by which a second provider has to exist.
+**PostgreSQL is currently the only supported provider.** With the flag off — the default —
+nothing is registered and other providers are unaffected. With the flag on and a different
+provider configured, the host fails at startup naming the constraint, rather than deferring the
+failure to whichever call site enqueues first.
 
-> [!NOTE]
-> A side effect on those providers: the module still implements `IHasDbMigrations` but
-> registers no migration contributor, so startup logs the warning *"Module
-> Endatix.Modules.Jobs implements IHasDbMigrations but did not register a migration
-> contributor"*. That is expected here, not a wiring fault, and it goes away when a second
-> provider is added.
+A second provider therefore has to exist by the time a feature depends on the queue.
 
 Persistence is nonetheless **provider-split**: `JobsPostgreSqlDbContext` derives from
 `JobsDbContextBase` and owns its migrations and model snapshot under

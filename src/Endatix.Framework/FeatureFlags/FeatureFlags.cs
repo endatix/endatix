@@ -46,6 +46,11 @@ public static class FeatureFlags
     public const string ReportingModule = "ReportingModule";
 
     /// <summary>
+    /// Feature flag key for enabling the Background Jobs module (queue persistence, migrations).
+    /// </summary>
+    public const string JobsModule = "JobsModule";
+
+    /// <summary>
     /// Feature flag key for enabling multi-tenancy management (create/edit tenants, assume, switch, self-reg).
     /// Deployment-scoped: PlatformAdmin flows run without a target-tenant evaluation context.
     /// </summary>
