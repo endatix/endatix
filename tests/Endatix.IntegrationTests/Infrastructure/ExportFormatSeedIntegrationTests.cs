@@ -203,20 +203,15 @@ public sealed class ExportFormatSeedIntegrationTests
         mapping.ExportFormatId.Should().Be(reseededCsvId);
     }
 
-    /// <summary>
-    /// Concurrent provisioning loses the race on the unique <c>(TenantId, Name)</c> index. A tenant
-    /// format already holding the name reproduces it deterministically: the insert is conceded, not
-    /// surfaced as an unhandled <c>DbUpdateException</c>.
-    /// </summary>
     [Fact]
-    public async Task SeedDefaultsAsync_WhenFormatNameAlreadyTaken_ConcedesWithoutThrowing()
+    public async Task SeedDefaultsAsync_WhenNameTakenByMatchingNativeCsv_SeedsRemainingAndKeepsMapping()
     {
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9108;
         await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         db.ExportFormats.Add(new ExportFormat(
-            tenantId, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Shoji));
+            tenantId, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native));
         await db.SaveChangesAsync(cancellationToken);
         db.ChangeTracker.Clear();
 
@@ -226,8 +221,40 @@ public sealed class ExportFormatSeedIntegrationTests
         // Assert
         List<ExportFormat> formats = await LoadFormatsAsync(db, tenantId, cancellationToken);
         formats.Should().HaveCount(4);
+        ExportFormat csv = formats.Should().ContainSingle(format => format.Name == "CSV").Subject;
+        csv.Profile.Should().Be(ExportProfile.Native);
+        SurveyTypeExportMapping mapping = await LoadDefaultMappingAsync(db, tenantId, cancellationToken);
+        mapping.ExportFormatId.Should().Be(csv.Id);
+    }
+
+    [Fact]
+    public async Task SeedDefaultsAsync_WhenNameTakenByNonNativeCsv_ThrowsAndDoesNotCreateDefaultMapping()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        const long tenantId = 9109;
+        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        db.ExportFormats.Add(new ExportFormat(
+            tenantId, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Shoji));
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+
+        // Act
+        Func<Task> act = () => CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+
+        // Assert
+        await act.Should().ThrowAsync<DbUpdateException>();
+        List<ExportFormat> formats = await LoadFormatsAsync(db, tenantId, cancellationToken);
         formats.Should().ContainSingle(format => format.Name == "CSV")
             .Which.Profile.Should().Be(ExportProfile.Shoji);
+        formats.Should().NotContain(format =>
+            format.DeliveryFormat == ExportDeliveryFormat.Csv && format.Profile == ExportProfile.Native);
+        SurveyTypeExportMapping? mapping = await db.SurveyTypeExportMappings
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.TenantId == tenantId && candidate.IsDefault,
+                cancellationToken);
+        mapping.Should().BeNull();
     }
 
     /// <summary>

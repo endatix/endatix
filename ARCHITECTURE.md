@@ -352,11 +352,11 @@ Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsB
 
 ### Classification
 
-| Kind                  | Interface                                                            | Dispatch                                         | Example                                                    |
-| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
-| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                  | Internal notifications                                     |
-| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated`          |
-| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP                              | `form.updated`, `submission.completed`                     |
+| Kind                  | Interface                                                            | Dispatch                                         | Example                                                                                               |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                  | Internal notifications                                                                                |
+| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated`                                                     |
+| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP                              | `form.updated`, `submission.completed`                                                                |
 | Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler                | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
 
 Plain `DomainEventBase` events that are **not** `IIntegrationEvent` are ignored by the outbox dispatcher and stay in-process.
@@ -488,10 +488,10 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 
 `ApplyEndatixQueryFilters` registers two **named** EF 10 filters on every entity of `AppDbContext` and `ReportingDbContext`:
 
-| Name | Applies to | Predicate |
-|------|------------|-----------|
-| `EndatixQueryFilterNames.SoftDelete` | anything with `IsDeleted` | `!IsDeleted` |
-| `EndatixQueryFilterNames.Tenant` | `ITenantOwned` | `ambient == 0 \|\| TenantId == ambient` |
+| Name                                 | Applies to                | Predicate                               |
+| ------------------------------------ | ------------------------- | --------------------------------------- |
+| `EndatixQueryFilterNames.SoftDelete` | anything with `IsDeleted` | `!IsDeleted`                            |
+| `EndatixQueryFilterNames.Tenant`     | `ITenantOwned`            | `ambient == 0 \|\| TenantId == ambient` |
 
 Ambient tenant is `ITenantContext.TenantId`, set only by `TenantMiddleware`. **Tenant `0` is bypass, not isolation** — background work (outbox relay, hosted services, provisioning) runs unscoped and therefore sees every tenant.
 
@@ -505,7 +505,8 @@ Ambient tenant is `ITenantContext.TenantId`, set only by `TenantMiddleware`. **T
   ```
 
   Bare `IgnoreQueryFilters()` also drops soft delete and forces a hand-copied `!IsDeleted` that drifts. Keep it only where a purge must include soft-deleted rows (`FlattenedSubmissionRepository.DeleteByFormIdAsync`).
-- Work that targets a tenant other than the ambient one takes `tenantId` as a parameter and filters on it explicitly — `ExportFormatRepository.SeedDefaultsAsync` (outbox `tenant.created`).
+
+- Work that targets a tenant other than the ambient one takes `tenantId` as a parameter and filters on it explicitly — `ExportFormatRepository.SeedDefaultsAsync` (outbox `tenant.created`). A unique-index collision on seed is a race only when the live row is the same default (name + target + delivery + profile); otherwise rethrow.
 - **Never use tenant `0` as the "other" tenant in a test.** It bypasses the filter, so the test passes with or without the code under test. Use a second non-zero tenant (`ReportingQueryFilterTests`, `ExportFormatSeedIntegrationTests`).
 
 **Create/edit**

@@ -213,8 +213,7 @@ internal sealed class ExportFormatRepository(
             format.ExportTarget == definition.Target &&
             format.DeliveryFormat == definition.Delivery));
 
-        // One save per row: BaseEntity.Id is DatabaseGeneratedOption.None and ReportingDbContext
-        // stamps it on save, so two unsaved rows would collide on Id = 0 in the change tracker.
+        // One save per row: BaseEntity.Id is DatabaseGeneratedOption.None; two unsaved rows collide on Id = 0.
         foreach (var definition in missing)
         {
             var entry = dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
@@ -242,10 +241,8 @@ internal sealed class ExportFormatRepository(
     }
 
     /// <summary>
-    /// The tenant default export is CSV. The row is either one we just inserted or one that
-    /// already existed, so it is resolved by lookup rather than carried through the seed loop.
-    /// An existing mapping is repointed when its format was soft deleted — <see cref="GetTenantDefaultAsync"/>
-    /// resolves through a filtered <c>Include</c>, so a stale pointer reads as "no default" forever.
+    /// Tenant default is Native CSV. Repoint when the mapped format was soft-deleted
+    /// (<see cref="GetTenantDefaultAsync"/> uses a filtered <c>Include</c>).
     /// </summary>
     private async Task EnsureDefaultMappingAsync(long tenantId, CancellationToken cancellationToken)
     {
@@ -273,7 +270,14 @@ internal sealed class ExportFormatRepository(
             var entry = dbContext.SurveyTypeExportMappings.Add(
                 new(tenantId, csvFormatId.Value, surveyTypeId: null, isDefault: true));
             await SaveOrConcedeAsync(entry, cancellationToken);
-            return;
+            defaultMapping = await MappingsForTenant(tenantId)
+                .FirstOrDefaultAsync(
+                    mapping => mapping.IsDefault && mapping.SurveyTypeId == null,
+                    cancellationToken);
+            if (defaultMapping is null)
+            {
+                return;
+            }
         }
 
         var pointsAtLiveFormat = await FormatsForTenant(tenantId)
@@ -290,8 +294,8 @@ internal sealed class ExportFormatRepository(
     }
 
     /// <summary>
-    /// Concurrent provisioning of the same tenant races on the unique indexes. Losing is benign —
-    /// the row the loser wanted now exists — so the insert is dropped rather than surfaced as a 500.
+    /// Concurrent seed of the same tenant races on unique indexes. Concede only when the live row
+    /// is the default we meant to insert — a different profile reusing the name is not a race.
     /// </summary>
     private async Task SaveOrConcedeAsync(EntityEntry entry, CancellationToken cancellationToken)
     {
@@ -303,13 +307,38 @@ internal sealed class ExportFormatRepository(
             when (uniqueViolationChecker.AnalyzeUniqueConstraint(exception).IsUniqueConstraintViolation)
         {
             entry.State = EntityState.Detached;
+            if (!await IsSameDefaultAsync(entry.Entity, cancellationToken))
+            {
+                throw;
+            }
+        }
+    }
+
+    private async Task<bool> IsSameDefaultAsync(object entity, CancellationToken cancellationToken)
+    {
+        switch (entity)
+        {
+            case ExportFormat format:
+                var existing = await FormatsForTenant(format.TenantId)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(row => row.Name == format.Name, cancellationToken);
+                return existing is not null
+                    && existing.ExportTarget == format.ExportTarget
+                    && existing.DeliveryFormat == format.DeliveryFormat
+                    && existing.Profile == format.Profile;
+            case SurveyTypeExportMapping mapping:
+                return await MappingsForTenant(mapping.TenantId)
+                    .AsNoTracking()
+                    .AnyAsync(
+                        row => row.IsDefault && row.SurveyTypeId == mapping.SurveyTypeId,
+                        cancellationToken);
+            default:
+                return false;
         }
     }
 
     /// <summary>
-    /// Seeding provisions a tenant other than the ambient one (outbox <c>tenant.created</c> runs
-    /// app-level), so the tenant filter is traded for an explicit <paramref name="tenantId"/>.
-    /// Soft delete stays on.
+    /// Outbox <c>tenant.created</c> is app-level; drop only the tenant filter, keep soft-delete.
     /// </summary>
     private IQueryable<ExportFormat> FormatsForTenant(long tenantId) =>
         dbContext.ExportFormats
