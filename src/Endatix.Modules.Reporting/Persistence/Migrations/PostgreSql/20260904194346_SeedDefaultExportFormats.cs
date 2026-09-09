@@ -1,4 +1,3 @@
-using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -8,22 +7,20 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
     /// <summary>
     /// Backfills Native CSV, JSON, Excel, and Codebook (plus CSV default mapping) for every tenant.
-    /// SQL comes from <see cref="DefaultExportFormats"/>. Ids follow the <c>InitialReporting</c>
-    /// <c>hashtextextended</c> convention.
+    /// SQL is a frozen literal — see <see cref="SeedDefaultExportFormatsSql"/>.
     /// </summary>
     public partial class SeedDefaultExportFormats : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(DefaultExportFormatsPostgresBackfill.UpSql);
+            migrationBuilder.Sql(SeedDefaultExportFormatsSql.Up);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // CSV/JSON/Codebook also exist from InitialReporting — only reverse Excel (not in that seed).
-            migrationBuilder.Sql(DefaultExportFormatsPostgresBackfill.DownXlsxSql);
+            migrationBuilder.Sql(SeedDefaultExportFormatsSql.DownXlsx);
         }
     }
 }

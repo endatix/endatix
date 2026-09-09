@@ -4,9 +4,9 @@ using Endatix.Modules.Reporting.Contracts.Export;
 namespace Endatix.Modules.Reporting.Features.ExportFormats;
 
 /// <summary>
-/// Native defaults every tenant should have. Shared by <c>SeedDefaultsAsync</c>
-/// (outbox <c>tenant.created</c>) and PostgreSQL data migrations.
-/// <c>IdSuffix</c> is the <c>hashtextextended</c> salt — keep stable.
+/// Native defaults every tenant should have. Used by <c>SeedDefaultsAsync</c> / outbox
+/// <c>tenant.created</c>. Applied PG migrations stay frozen literals — a new default needs a
+/// new data migration.
 /// </summary>
 public sealed record DefaultExportFormat(
     string Name,

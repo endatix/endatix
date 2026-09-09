@@ -229,7 +229,7 @@ public sealed class ExportFormatSeedIntegrationTests
     }
 
     [Fact]
-    public async Task SeedDefaultsAsync_WhenNameTakenByNonNativeCsv_ThrowsAndDoesNotCreateDefaultMapping()
+    public async Task SeedDefaultsAsync_WhenNameTakenByNonNativeCsv_SeedsRemainingFormatsWithoutNativeCsvMapping()
     {
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
@@ -241,21 +241,50 @@ public sealed class ExportFormatSeedIntegrationTests
         db.ChangeTracker.Clear();
 
         // Act
-        Func<Task> act = () => CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+        await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
 
         // Assert
-        await act.Should().ThrowAsync<DbUpdateException>();
         List<ExportFormat> formats = await LoadFormatsAsync(db, tenantId, cancellationToken);
         formats.Should().ContainSingle(format => format.Name == "CSV")
             .Which.Profile.Should().Be(ExportProfile.Shoji);
         formats.Should().NotContain(format =>
             format.DeliveryFormat == ExportDeliveryFormat.Csv && format.Profile == ExportProfile.Native);
+        formats.Should().Contain(format => format.DeliveryFormat == ExportDeliveryFormat.Json && format.Profile == ExportProfile.Native);
+        formats.Should().Contain(format => format.DeliveryFormat == ExportDeliveryFormat.Xlsx);
+        formats.Should().Contain(format => format.ExportTarget == ExportTarget.Codebook);
         SurveyTypeExportMapping? mapping = await db.SurveyTypeExportMappings
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 candidate => candidate.TenantId == tenantId && candidate.IsDefault,
                 cancellationToken);
         mapping.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SeedDefaultsAsync_WhenTenantScopeMappingCleared_DoesNotInsertASecondRow()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        const long tenantId = 9110;
+        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        ExportFormatRepository repository = CreateRepository(db);
+        await repository.SeedDefaultsAsync(tenantId, cancellationToken);
+
+        SurveyTypeExportMapping mapping = await db.SurveyTypeExportMappings
+            .SingleAsync(
+                candidate => candidate.TenantId == tenantId && candidate.SurveyTypeId == null,
+                cancellationToken);
+        mapping.ClearDefault();
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+
+        await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+
+        List<SurveyTypeExportMapping> mappings = await db.SurveyTypeExportMappings
+            .AsNoTracking()
+            .Where(candidate => candidate.TenantId == tenantId && candidate.SurveyTypeId == null)
+            .ToListAsync(cancellationToken);
+        mappings.Should().ContainSingle();
+        mappings[0].IsDefault.Should().BeFalse();
     }
 
     [Fact]
@@ -271,7 +300,7 @@ public sealed class ExportFormatSeedIntegrationTests
         await using ReportingDbContext db = CreateContext(tenantId);
 
         // Act — tenants created after InitialReporting still get the catalog rows
-        string sql = DefaultExportFormatsPostgresBackfill.UpSql.Replace("{", "{{").Replace("}", "}}");
+        string sql = SeedDefaultExportFormatsSql.Up.Replace("{", "{{").Replace("}", "}}");
         await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
 
         // Assert

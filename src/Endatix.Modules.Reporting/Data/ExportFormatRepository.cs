@@ -230,23 +230,19 @@ internal sealed class ExportFormatRepository(
         }
 
         var defaultMapping = await MappingsForTenant(tenantId)
-            .FirstOrDefaultAsync(
-                mapping => mapping.IsDefault && mapping.SurveyTypeId == null,
-                cancellationToken);
+            .FirstOrDefaultAsync(mapping => mapping.SurveyTypeId == null, cancellationToken);
 
         if (defaultMapping is null)
         {
             var entry = dbContext.SurveyTypeExportMappings.Add(
                 new(tenantId, csvFormatId.Value, surveyTypeId: null, isDefault: true));
             await SaveOrConcedeAsync(entry, cancellationToken);
-            defaultMapping = await MappingsForTenant(tenantId)
-                .FirstOrDefaultAsync(
-                    mapping => mapping.IsDefault && mapping.SurveyTypeId == null,
-                    cancellationToken);
-            if (defaultMapping is null)
-            {
-                return;
-            }
+            return;
+        }
+
+        if (!defaultMapping.IsDefault)
+        {
+            return;
         }
 
         var pointsAtLiveFormat = await FormatsForTenant(tenantId)
@@ -263,8 +259,8 @@ internal sealed class ExportFormatRepository(
     }
 
     /// <summary>
-    /// Concurrent seed of the same tenant races on unique indexes. Concede only when the live row
-    /// is the default we meant to insert — a different profile reusing the name is not a race.
+    /// Concurrent seed of the same tenant races on unique indexes. Concede a matching default
+    /// row; skip a name clash with a different profile and keep seeding the rest.
     /// </summary>
     private async Task SaveOrConcedeAsync(EntityEntry entry, CancellationToken cancellationToken)
     {
@@ -278,7 +274,7 @@ internal sealed class ExportFormatRepository(
             entry.State = EntityState.Detached;
             if (!await IsSameDefaultAsync(entry.Entity, cancellationToken))
             {
-                throw;
+                return;
             }
         }
     }
@@ -298,9 +294,7 @@ internal sealed class ExportFormatRepository(
             case SurveyTypeExportMapping mapping:
                 return await MappingsForTenant(mapping.TenantId)
                     .AsNoTracking()
-                    .AnyAsync(
-                        row => row.IsDefault && row.SurveyTypeId == mapping.SurveyTypeId,
-                        cancellationToken);
+                    .AnyAsync(row => row.SurveyTypeId == mapping.SurveyTypeId, cancellationToken);
             default:
                 return false;
         }

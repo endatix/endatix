@@ -21,15 +21,12 @@ public sealed class DefaultExportFormatsTests
     }
 
     [Fact]
-    public void PostgresBackfill_UsesCatalogNamesAndStableIdSuffixes()
+    public void FrozenMigrationSql_IsLiteralNotCatalogGenerated()
     {
-        string sql = DefaultExportFormatsPostgresBackfill.UpSql;
-        sql.Should().Contain("'CSV'");
-        sql.Should().Contain("'JSON'");
-        sql.Should().Contain("'Excel (XLSX)'");
-        sql.Should().Contain("'Codebook'");
-        sql.Should().Contain("':csv'");
-        sql.Should().Contain("':xlsx'");
-        sql.Should().Contain("':default-map'");
+        SeedDefaultExportFormatsSql.Up.Should().Contain("'CSV'");
+        SeedDefaultExportFormatsSql.Up.Should().Contain("'Excel (XLSX)'");
+        SeedDefaultExportFormatsSql.Up.Should().Contain("':xlsx'");
+        SeedDefaultExportFormatsSql.Up.Should().Contain("AND mapping.\"SurveyTypeId\" IS NULL");
+        SeedDefaultExportFormatsSql.Up.Should().NotContain("mapping.\"IsDefault\" = TRUE");
     }
 }
