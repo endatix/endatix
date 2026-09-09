@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -143,8 +142,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
 
     private ReportingDbContext CreateContext(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(tenantId);
+        IntegrationTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);

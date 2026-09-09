@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.IntegrationTests.Shared;
@@ -132,8 +131,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
 
     private ReportingDbContext CreateContext(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(tenantId);
+        IntegrationTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);

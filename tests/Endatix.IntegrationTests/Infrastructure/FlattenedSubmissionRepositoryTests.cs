@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
@@ -245,8 +244,7 @@ public sealed class FlattenedSubmissionRepositoryTests
 
     private ReportingDbContext CreateContext(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(tenantId);
+        IntegrationTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);

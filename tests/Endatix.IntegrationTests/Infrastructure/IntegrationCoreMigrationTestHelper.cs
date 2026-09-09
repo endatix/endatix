@@ -56,7 +56,7 @@ internal static class IntegrationCoreMigrationTestHelper
     private static void RegisterCoreContextDependencies(IServiceCollection services)
     {
         services.AddSingleton<IIdGenerator<long>, NoOpIdGenerator>();
-        services.AddSingleton<ITenantContext, BypassTenantContext>();
+        services.AddSingleton<ITenantContext>(IntegrationTenantContext.Bypass);
         services.AddSingleton(sp => new EfCoreValueGeneratorFactory(sp.GetRequiredService<IIdGenerator<long>>()));
         services.AddSingleton<OutboxIntegrationEventDispatcher>();
     }
@@ -64,10 +64,5 @@ internal static class IntegrationCoreMigrationTestHelper
     private sealed class NoOpIdGenerator : IIdGenerator<long>
     {
         public long CreateId() => 0;
-    }
-
-    private sealed class BypassTenantContext : ITenantContext
-    {
-        public long TenantId => 0;
     }
 }

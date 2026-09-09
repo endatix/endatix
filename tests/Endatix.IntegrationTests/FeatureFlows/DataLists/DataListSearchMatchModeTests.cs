@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
@@ -476,8 +475,7 @@ public sealed class DataListSearchMatchModeTests
 
     private AppDbContext CreateAppDbContext(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(tenantId);
+        IntegrationTenantContext tenantContext = new(tenantId);
 
         IncrementingIdGenerator idGenerator = new(NextId());
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();

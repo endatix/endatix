@@ -52,6 +52,7 @@ EndatixTestcontainers → DatabaseInfrastructureFixture → DbIntegrationFixture
 
 - One DB container per process (`EndatixTestcontainers`).
 - Provider from `ENDATIX_TEST_DB_PROVIDER`.
-- Module helpers (e.g. `ReportingTestSchema`) live in **IntegrationTests**, not Shared.
+- Module helpers (e.g. `ReportingTestSchema`, `IntegrationTenantContext`) live in **IntegrationTests**, not Shared: Shared ships as the **`Endatix.IntegrationTesting`** package, so anything added there becomes public API, and its NSubstitute is `PrivateAssets="all"` — Shared helpers are plain classes, never `Substitute.For<>` factories.
+- Tenant for a hand-built DbContext: `new IntegrationTenantContext(id)`, which rejects 0 so isolation tests use two real tenants. `IntegrationTenantContext.Bypass` (tenant 0) turns the query filter off for DbContext reads only — Core handlers reject it. Substitute an `ITenantContext` only where `TenantId` changes mid-test (`OutboxCaptureTests`).
 - DB schema assertions: `IntegrationDbAssert` in Shared.
 - After Shared changes, build `Endatix.IntegrationTests` and `Endatix.SaaS.IntegrationTests` in the monorepo.

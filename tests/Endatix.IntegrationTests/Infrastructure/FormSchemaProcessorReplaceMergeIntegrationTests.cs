@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
@@ -316,8 +315,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
 
     private AppDbContext CreateAppDbContext()
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(TenantId);
+        IntegrationTenantContext tenantContext = new(TenantId);
 
         IncrementingIdGenerator idGenerator = new();
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
@@ -333,8 +331,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
 
     private ReportingDbContext CreateReportingDbContext()
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(TenantId);
+        IntegrationTenantContext tenantContext = new(TenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
