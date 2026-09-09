@@ -214,11 +214,11 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 
                     b.HasIndex("TenantId")
                         .IsUnique()
-                        .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NULL");
+                        .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NULL AND \"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "SurveyTypeId")
                         .IsUnique()
-                        .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL");
+                        .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL AND \"IsDeleted\" = false");
 
                     b.ToTable("SurveyTypeExportMappings", "reporting");
                 });

@@ -171,6 +171,41 @@ public sealed class ExportFormatSeedIntegrationTests
     }
 
     /// <summary>
+    /// Unique mapping indexes exclude soft-deleted rows (same as ExportFormats). Otherwise a
+    /// deleted tenant default still occupies IX_SurveyTypeExportMappings_TenantId, seed insert
+    /// 23505s, and IsSameDefaultAsync cannot see the tombstone — GetTenantDefaultAsync stays null.
+    /// </summary>
+    [Fact]
+    public async Task SeedDefaultsAsync_WhenDefaultMappingSoftDeleted_ReseedsIt()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        const long tenantId = 9111;
+        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        ExportFormatRepository repository = CreateRepository(db);
+        await repository.SeedDefaultsAsync(tenantId, cancellationToken);
+
+        SurveyTypeExportMapping mapping = await db.SurveyTypeExportMappings.SingleAsync(
+            candidate => candidate.TenantId == tenantId && candidate.SurveyTypeId == null,
+            cancellationToken);
+        long deletedMappingId = mapping.Id;
+        mapping.Delete();
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+
+        await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+
+        db.ChangeTracker.Clear();
+        SurveyTypeExportMapping reseeded = await LoadDefaultMappingAsync(db, tenantId, cancellationToken);
+        reseeded.Id.Should().NotBe(deletedMappingId);
+
+        ExportFormatRecord? tenantDefault = await CreateRepository(db)
+            .GetTenantDefaultAsync(tenantId, cancellationToken);
+        tenantDefault.Should().NotBeNull();
+        tenantDefault!.DeliveryFormat.Should().Be(ExportDeliveryFormat.Csv);
+        tenantDefault.Profile.Should().Be(ExportProfile.Native);
+    }
+
+    /// <summary>
     /// A default mapping whose format was soft deleted reads as "no default" through
     /// <c>GetTenantDefaultAsync</c>'s filtered <c>Include</c>. Re-seeding repairs it rather than
     /// returning early on the mapping's mere existence.
