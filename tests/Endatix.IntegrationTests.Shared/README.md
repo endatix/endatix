@@ -20,7 +20,6 @@ This is a test-only package — reference it from a test project, not from produ
 - **`IIntegrationTestHostFixture`** — a host fixture over `WebApplicationFactory` with authentication wired up.
 - **`TestPersona`** / **`IntegrationAuthClients`** — authenticated callers for permission and tenant-isolation tests.
 - **`DatabaseCheckpoint`** — Respawn-based reset so each test starts from a known state.
-- **`TestTenantContext`** — a fixed-tenant `ITenantContext` for tests that build a DbContext directly, with `TestTenantContext.Bypass` for app-level access that sees every tenant.
 
 Docker must be available on the machine running the tests: the fixtures start real PostgreSQL, SQL Server and Keycloak containers rather than using in-memory substitutes.
 

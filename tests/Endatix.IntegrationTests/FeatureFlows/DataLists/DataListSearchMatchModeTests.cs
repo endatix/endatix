@@ -476,7 +476,7 @@ public sealed class DataListSearchMatchModeTests
 
     private AppDbContext CreateAppDbContext(long tenantId)
     {
-        TestTenantContext tenantContext = new(tenantId);
+        Endatix.IntegrationTests.TestTenantContext tenantContext = new(tenantId);
 
         IncrementingIdGenerator idGenerator = new(NextId());
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
