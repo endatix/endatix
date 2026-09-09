@@ -506,7 +506,7 @@ Ambient tenant is `ITenantContext.TenantId`, set only by `TenantMiddleware`. **T
 
   Bare `IgnoreQueryFilters()` also drops soft delete and forces a hand-copied `!IsDeleted` that drifts. Keep it only where a purge must include soft-deleted rows (`FlattenedSubmissionRepository.DeleteByFormIdAsync`).
 
-- Work that targets a tenant other than the ambient one takes `tenantId` as a parameter and filters on it explicitly — `ExportFormatRepository.SeedDefaultsAsync` (outbox `tenant.created`). A unique-index collision on seed is a race when the live row is the same default (name + target + delivery + profile); a different profile reusing the name is skipped so the rest of the catalog still seeds. Tenant-scope mapping is looked up regardless of `IsDefault` so a cleared default is not duplicated.
+- Work that targets a tenant other than the ambient one takes `tenantId` as a parameter and filters on it explicitly — `ExportFormatRepository.SeedDefaultsAsync` (outbox `tenant.created`). A unique-index collision on seed is a race when the live row is the same default (name + target + delivery + profile); a different profile reusing the name is skipped so the rest of the catalog still seeds. Tenant-scope mapping is looked up regardless of `IsDefault` so a cleared default is not duplicated. Filtered unique indexes on `SurveyTypeExportMapping` include `IsDeleted = false` so a soft-deleted default does not block a live replacement (`ReportingDbContextTests.Model_SurveyTypeExportMapping_UsesFilteredUniqueIndexes`).
 - **Never use tenant `0` as the "other" tenant in a test.** It bypasses the filter, so the test passes with or without the code under test. Use a second non-zero tenant (`ReportingQueryFilterTests`, `ExportFormatSeedIntegrationTests`).
 
 **Create/edit**

@@ -185,7 +185,7 @@ internal sealed class ExportFormatRepository(
             format.ExportTarget == definition.Target &&
             format.DeliveryFormat == definition.Delivery));
 
-        // One save per row: BaseEntity.Id is DatabaseGeneratedOption.None; two unsaved rows collide on Id = 0.
+        // BaseEntity.Id is None-generated; two unsaved rows would both be Id = 0.
         foreach (var definition in missing)
         {
             var entry = dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
@@ -208,10 +208,6 @@ internal sealed class ExportFormatRepository(
         return format;
     }
 
-    /// <summary>
-    /// Tenant default is Native CSV. Repoint when the mapped format was soft-deleted
-    /// (<see cref="GetTenantDefaultAsync"/> uses a filtered <c>Include</c>).
-    /// </summary>
     private async Task EnsureDefaultMappingAsync(long tenantId, CancellationToken cancellationToken)
     {
         DefaultExportFormat tenantDefault = DefaultExportFormats.TenantDefault;
@@ -258,10 +254,6 @@ internal sealed class ExportFormatRepository(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// Concurrent seed of the same tenant races on unique indexes. Concede a matching default
-    /// row; skip a name clash with a different profile and keep seeding the rest.
-    /// </summary>
     private async Task SaveOrConcedeAsync(EntityEntry entry, CancellationToken cancellationToken)
     {
         try
@@ -275,15 +267,11 @@ internal sealed class ExportFormatRepository(
         }
     }
 
-    /// <summary>
-    /// Outbox <c>tenant.created</c> is app-level; drop only the tenant filter, keep soft-delete.
-    /// </summary>
     private IQueryable<ExportFormat> FormatsForTenant(long tenantId) =>
         dbContext.ExportFormats
             .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
             .Where(format => format.TenantId == tenantId);
 
-    /// <inheritdoc cref="FormatsForTenant" />
     private IQueryable<SurveyTypeExportMapping> MappingsForTenant(long tenantId) =>
         dbContext.SurveyTypeExportMappings
             .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
