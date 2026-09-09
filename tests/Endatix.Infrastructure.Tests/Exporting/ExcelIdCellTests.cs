@@ -18,11 +18,7 @@ public sealed class ExcelIdCellTests
     [InlineData("mixed", "1234567890123456x", false)]
     public void ShouldWriteAsText_ForColumnAndValue_MatchesIdRules(string column, string value, bool expected)
     {
-        // Arrange
-        // Act
         var writeAsText = ExcelIdCell.ShouldWriteAsText(column, value);
-
-        // Assert
         Assert.Equal(expected, writeAsText);
     }
 }

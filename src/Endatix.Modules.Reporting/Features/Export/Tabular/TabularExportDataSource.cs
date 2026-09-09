@@ -18,7 +18,8 @@ internal sealed class TabularExportDataSource(
     ExportFormatSettingsParser exportFormatSettingsParser,
     IColumnAliasTransformerRegistry aliasTransformerRegistry) : IExportDataSource
 {
-    private static readonly string SubmissionRowTypeName = typeof(SubmissionExportRow).FullName!;
+    private static readonly string SubmissionRowTypeName =
+        typeof(SubmissionExportRow).FullName ?? typeof(SubmissionExportRow).Name;
 
     internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
     [
