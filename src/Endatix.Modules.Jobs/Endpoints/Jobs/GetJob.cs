@@ -1,5 +1,6 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Modules.Jobs.Features.GetJob;
 using FastEndpoints;
 using FluentValidation;
@@ -14,9 +15,10 @@ namespace Endatix.Modules.Jobs.Endpoints.Jobs;
 /// Reports the state of a single background job.
 /// </summary>
 /// <remarks>
-/// Open to any authenticated member of the tenant that owns the job, with no further permission.
-/// A job carries no data of its own beyond its progress — the work it did is reached through
-/// whatever endpoint owns that work, which applies its own permissions there.
+/// Requires <see cref="Actions.Jobs.View"/> and membership of the tenant that owns the job. The
+/// permission is deliberately coarse: reporting on a job says only how far the work got, and the
+/// work itself is reached through whatever endpoint owns it, which applies its own permission
+/// there. A per-job-type check belongs with the job types that need one.
 /// </remarks>
 public sealed class GetJob(IMediator mediator, ITenantContext tenantContext)
     : Endpoint<GetJobRequest, Results<Ok<JobResponse>, ProblemHttpResult>>
@@ -25,6 +27,7 @@ public sealed class GetJob(IMediator mediator, ITenantContext tenantContext)
     public override void Configure()
     {
         Get("jobs/{jobId}");
+        Permissions(Actions.Jobs.View);
         Summary(summary =>
         {
             summary.Summary = "Get a background job";

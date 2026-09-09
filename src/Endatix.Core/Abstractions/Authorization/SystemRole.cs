@@ -64,6 +64,7 @@ public sealed record SystemRole
             Actions.Submissions.Edit,
             Actions.Submissions.Export,
             Actions.Submissions.DeleteOwned,
+            Actions.Jobs.View,
         ]);
 
     public static readonly SystemRole Authenticated = new(

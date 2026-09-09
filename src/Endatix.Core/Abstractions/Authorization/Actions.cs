@@ -133,6 +133,19 @@ public static class Actions
     }
 
     /// <summary>
+    /// Background job permissions
+    /// </summary>
+    public static class Jobs
+    {
+        /// <summary>
+        /// Read the state of a background job belonging to the tenant. Reporting on a job says only
+        /// how far the work got; whatever the job produced is reached through the endpoint that owns
+        /// that output and carries its own permission.
+        /// </summary>
+        public const string View = "jobs.view";
+    }
+
+    /// <summary>
     /// Question management permissions
     /// </summary>
     public static class Questions
