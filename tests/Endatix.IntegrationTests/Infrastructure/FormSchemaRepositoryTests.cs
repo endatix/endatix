@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.IntegrationTests.Shared;
@@ -129,7 +128,7 @@ public sealed class FormSchemaRepositoryTests
 
     private ReportingDbContext CreateContext(long tenantId)
     {
-        TestTenantContext tenantContext = new(tenantId);
+        IntegrationTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);

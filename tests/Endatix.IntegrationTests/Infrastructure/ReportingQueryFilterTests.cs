@@ -30,7 +30,7 @@ public sealed class ReportingQueryFilterTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
         IncrementingIdGenerator idGenerator = new();
-        TestTenantContext bypassTenant = TestTenantContext.Bypass;
+        IntegrationTenantContext bypassTenant = IntegrationTenantContext.Bypass;
 
         // High, unseeded ids: InitialReporting / SeedDefaultExportFormats seed export formats
         // for every row in "Tenants", so low ids collide with real tenants.
@@ -59,7 +59,7 @@ public sealed class ReportingQueryFilterTests
         }
 
         // Act & Assert — Tenant 1 isolation
-        TestTenantContext tenant1Ctx = new(tenant1);
+        IntegrationTenantContext tenant1Ctx = new(tenant1);
         using (var ctx = CreateContext(idGenerator, tenant1Ctx))
         {
             (await ctx.ExportFormats.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant1);
@@ -69,7 +69,7 @@ public sealed class ReportingQueryFilterTests
         }
 
         // Act & Assert — Tenant 2 isolation
-        TestTenantContext tenant2Ctx = new(tenant2);
+        IntegrationTenantContext tenant2Ctx = new(tenant2);
         using (var ctx = CreateContext(idGenerator, tenant2Ctx))
         {
             (await ctx.ExportFormats.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant2);

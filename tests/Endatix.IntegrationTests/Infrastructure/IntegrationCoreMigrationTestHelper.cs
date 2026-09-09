@@ -56,7 +56,7 @@ internal static class IntegrationCoreMigrationTestHelper
     private static void RegisterCoreContextDependencies(IServiceCollection services)
     {
         services.AddSingleton<IIdGenerator<long>, NoOpIdGenerator>();
-        services.AddSingleton<ITenantContext>(TestTenantContext.Bypass);
+        services.AddSingleton<ITenantContext>(IntegrationTenantContext.Bypass);
         services.AddSingleton(sp => new EfCoreValueGeneratorFactory(sp.GetRequiredService<IIdGenerator<long>>()));
         services.AddSingleton<OutboxIntegrationEventDispatcher>();
     }

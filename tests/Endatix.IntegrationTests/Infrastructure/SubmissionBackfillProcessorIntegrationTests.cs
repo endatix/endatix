@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
@@ -250,7 +249,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
 
     private ReportingDbContext CreateContext(long tenantId)
     {
-        TestTenantContext tenantContext = new(tenantId);
+        IntegrationTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);

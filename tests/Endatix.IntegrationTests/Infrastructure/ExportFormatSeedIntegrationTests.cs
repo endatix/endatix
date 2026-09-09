@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
@@ -357,7 +356,7 @@ public sealed class ExportFormatSeedIntegrationTests
 
     private async Task<long> InsertTenantAsync(CancellationToken cancellationToken)
     {
-        TestTenantContext tenantContext = TestTenantContext.Bypass;
+        IntegrationTenantContext tenantContext = IntegrationTenantContext.Bypass;
         IncrementingIdGenerator idGenerator = new(Random.Shared.NextInt64(100_000, 900_000));
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
@@ -413,7 +412,7 @@ public sealed class ExportFormatSeedIntegrationTests
 
     private ReportingDbContext CreateContext(long tenantId)
     {
-        TestTenantContext tenantContext = new(tenantId);
+        IntegrationTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
