@@ -1,6 +1,7 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Features.GetJob;
 using FastEndpoints;
 using FluentValidation;
@@ -37,11 +38,13 @@ public sealed class GetJob(IMediator mediator, ITenantContext tenantContext)
             summary.ExampleRequest = new GetJobRequest { JobId = 987654321 };
             summary.Responses[200] = "Job state retrieved.";
             summary.Responses[400] = "The job ID is not valid.";
+            summary.Responses[401] = "The request carries no tenant.";
             summary.Responses[404] = "Job not found.";
         });
         Description(builder => builder
             .Produces<JobResponse>(200, "application/json")
             .ProducesProblem(400)
+            .ProducesProblem(401)
             .ProducesProblem(404));
     }
 
@@ -78,4 +81,55 @@ public sealed class GetJobRequest
     /// The ID of the job.
     /// </summary>
     public long JobId { get; init; }
+}
+
+/// <summary>
+/// The state of a background job.
+/// </summary>
+public sealed class JobResponse
+{
+    /// <summary>
+    /// The job identifier. Serialized as a string, like every other Endatix identifier, because the
+    /// values exceed what a JSON number represents exactly.
+    /// </summary>
+    public long Id { get; init; }
+
+    /// <summary>
+    /// The job type, which decides the handler that runs it — for example <c>SubmissionExport</c>.
+    /// </summary>
+    public string Type { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The authoritative lifecycle state.
+    /// </summary>
+    public JobStatus Status { get; init; }
+
+    /// <summary>
+    /// Completion estimate for display. Advisory: a handler that reports nothing stays at zero while
+    /// running normally, so this is never a liveness signal.
+    /// </summary>
+    public int ProgressPercentage { get; init; }
+
+    /// <summary>
+    /// Human-readable phase, when the handler reports one.
+    /// </summary>
+    public string? StatusMessage { get; init; }
+
+    /// <summary>
+    /// The most recent failure recorded against the job. Present on <c>Failed</c> and
+    /// <c>DeadLettered</c>, and also on <c>Retrying</c> — a job between attempts carries the reason
+    /// the last one failed, so this being set does not mean the job has stopped. Read
+    /// <see cref="Status"/> for that.
+    /// </summary>
+    public string? ErrorMessage { get; init; }
+
+    internal static JobResponse FromDto(JobDto job) => new()
+    {
+        Id = job.Id,
+        Type = job.Type,
+        Status = job.Status,
+        ProgressPercentage = job.ProgressPercentage,
+        StatusMessage = job.StatusMessage,
+        ErrorMessage = job.ErrorMessage,
+    };
 }

@@ -94,6 +94,22 @@ public sealed class GetJobEndpointTests
         problem!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_RequestWithNoTenant_Returns401()
+    {
+        // Arrange — the handler refuses a request whose principal left the tenant context at zero.
+        Returns(Result.Unauthorized("Tenant context is required."));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(
+            new GetJobRequest { JobId = JobId }, TestContext.Current.CancellationToken);
+
+        // Assert — an application 401 with a problem body, not the auth scheme's empty challenge.
+        var problem = response.Result as ProblemHttpResult;
+        problem.Should().NotBeNull();
+        problem!.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

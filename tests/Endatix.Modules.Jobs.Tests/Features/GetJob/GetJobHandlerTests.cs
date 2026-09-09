@@ -8,8 +8,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Endatix.Modules.Jobs.Tests.Features.GetJob;
 
 /// <summary>
-/// Runs against a real (in-memory) context so the tenant query filter is exercised rather than
-/// assumed — it is the only thing standing between one tenant and another's job rows.
+/// Covers the handler's own tenant guard — the explicit refusal of a request with no tenant, and the
+/// explicit predicate on <c>TenantId</c>. The ambient query filter is not what isolates tenants here
+/// and is not exercised by these tests: an in-memory context is not <c>TenantMiddleware</c> and
+/// PostgreSQL, so the HTTP path is covered separately.
 /// </summary>
 public sealed class GetJobHandlerTests : IDisposable
 {

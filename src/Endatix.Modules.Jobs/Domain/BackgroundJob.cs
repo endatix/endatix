@@ -89,11 +89,8 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// describes the attempt just ended rather than the job.
     /// </summary>
     /// <remarks>
-    /// <b>Must be author-written text that is safe to show an end user.</b> The job status endpoint
-    /// returns this column verbatim, so an exception message assigned here is published to the
-    /// caller — and exception text from EF Core, Npgsql and the BCL carries connection strings, SQL
-    /// and file paths. Log the exception and correlate by <see cref="TraceId"/>; put a sentence the
-    /// requester can act on here.
+    /// Must be author-written text that is safe to show an end user: the job status endpoint returns
+    /// this column verbatim, so an exception message assigned here reaches the caller.
     /// </remarks>
     public string? ErrorMessage { get; private set; }
 
@@ -208,10 +205,6 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// Ends the job on a <b>deterministic</b> failure — one that retrying cannot fix. Terminal, and
     /// distinct from <see cref="DeadLetter"/>, which means the opposite: retryable, but out of budget.
     /// </summary>
-    /// <remarks>
-    /// <paramref name="errorMessage"/> is published to the caller by the job status
-    /// endpoint — see <see cref="ErrorMessage"/> for what may be put in it.
-    /// </remarks>
     public void Fail(string errorMessage, DateTime utcNow)
     {
         EnsureStatus(nameof(Fail), JobStatus.Processing);
@@ -226,10 +219,6 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// Schedules another attempt after a retryable failure. Does not consume an attempt — the attempt
     /// was consumed by the <see cref="Claim"/> that started it.
     /// </summary>
-    /// <remarks>
-    /// <paramref name="errorMessage"/> is published to the caller by the job status
-    /// endpoint — see <see cref="ErrorMessage"/> for what may be put in it.
-    /// </remarks>
     public void Reschedule(DateTime nextAttemptAt, string? errorMessage = null)
     {
         EnsureStatus(nameof(Reschedule), JobStatus.Processing);
@@ -243,10 +232,6 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// <summary>
     /// Ends the job after a retryable failure exhausted its attempt budget.
     /// </summary>
-    /// <remarks>
-    /// <paramref name="errorMessage"/> is published to the caller by the job status
-    /// endpoint — see <see cref="ErrorMessage"/> for what may be put in it.
-    /// </remarks>
     public void DeadLetter(string errorMessage, DateTime utcNow)
     {
         EnsureStatus(nameof(DeadLetter), JobStatus.Processing);

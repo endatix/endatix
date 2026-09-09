@@ -42,6 +42,7 @@
     <ProjectReference Include="..\..\src\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />
     <ProjectReference Include="..\..\src\Endatix.Modules.Reporting\Endatix.Modules.Reporting.csproj" />
+    <ProjectReference Include="..\..\src\Endatix.Modules.Jobs\Endatix.Modules.Jobs.csproj" />
   </ItemGroup>
 
 </Project>
