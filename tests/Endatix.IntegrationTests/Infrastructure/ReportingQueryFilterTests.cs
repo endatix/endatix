@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Endatix.Core.Abstractions;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -32,8 +33,10 @@ public sealed class ReportingQueryFilterTests
         var bypassTenant = Substitute.For<ITenantContext>();
         bypassTenant.TenantId.Returns(0L);
 
-        const long tenant1 = 1;
-        const long tenant2 = 2;
+        // High, unseeded ids: the InitialReporting / SeedXlsxExportFormat data migrations seed
+        // export formats for every row in "Tenants", so low ids collide with real tenants.
+        const long tenant1 = 9201;
+        const long tenant2 = 9202;
 
         using (var seedContext = CreateContext(idGenerator, bypassTenant))
         {
@@ -81,10 +84,13 @@ public sealed class ReportingQueryFilterTests
         // Act & Assert — Bypass (no isolation)
         using (var ctx = CreateContext(idGenerator, bypassTenant))
         {
-            (await ctx.ExportFormats.CountAsync(cancellationToken)).Should().Be(2);
-            (await ctx.FormSchemas.CountAsync(cancellationToken)).Should().Be(2);
-            (await ctx.FlattenedSubmissions.CountAsync(cancellationToken)).Should().Be(2);
-            (await ctx.SurveyTypeExportMappings.CountAsync(cancellationToken)).Should().Be(2);
+            (await ctx.ExportFormats.CountAsync(InTestTenants<ExportFormat>(), cancellationToken)).Should().Be(2);
+            (await ctx.FormSchemas.CountAsync(InTestTenants<FormSchema>(), cancellationToken)).Should().Be(2);
+            (await ctx.FlattenedSubmissions.CountAsync(InTestTenants<FlattenedSubmission>(), cancellationToken)).Should().Be(2);
+            (await ctx.SurveyTypeExportMappings.CountAsync(InTestTenants<SurveyTypeExportMapping>(), cancellationToken)).Should().Be(2);
+
+            static Expression<Func<T, bool>> InTestTenants<T>() where T : ITenantOwned =>
+                row => row.TenantId == tenant1 || row.TenantId == tenant2;
         }
     }
 

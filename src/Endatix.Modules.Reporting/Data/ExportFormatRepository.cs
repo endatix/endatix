@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Export;
@@ -209,9 +210,8 @@ internal sealed class ExportFormatRepository(
             format.ExportTarget == definition.Target &&
             format.DeliveryFormat == definition.Delivery));
 
-        // One save per row: BaseEntity.Id is DatabaseGeneratedOption.None, so EF assigns no
-        // temporary keys and ReportingDbContext stamps the id on save. Adding several unsaved
-        // rows at once would put two Id = 0 entities in the change tracker and throw.
+        // One save per row: BaseEntity.Id is DatabaseGeneratedOption.None and ReportingDbContext
+        // stamps it on save, so two unsaved rows would collide on Id = 0 in the change tracker.
         foreach (var definition in missing)
         {
             dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
@@ -280,18 +280,20 @@ internal sealed class ExportFormatRepository(
     }
 
     /// <summary>
-    /// Outbox <c>tenant.created</c> is app-level (<c>ITenantContext</c> is not the new tenant).
-    /// Query filters would hide that tenant's rows.
+    /// Seeding provisions a tenant other than the ambient one (outbox <c>tenant.created</c> runs
+    /// app-level), so the tenant filter is traded for an explicit <paramref name="tenantId"/>.
+    /// Soft delete stays on.
     /// </summary>
     private IQueryable<ExportFormat> FormatsForTenant(long tenantId) =>
         dbContext.ExportFormats
-            .IgnoreQueryFilters()
-            .Where(format => format.TenantId == tenantId && !format.IsDeleted);
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(format => format.TenantId == tenantId);
 
+    /// <inheritdoc cref="FormatsForTenant" />
     private IQueryable<SurveyTypeExportMapping> MappingsForTenant(long tenantId) =>
         dbContext.SurveyTypeExportMappings
-            .IgnoreQueryFilters()
-            .Where(mapping => mapping.TenantId == tenantId && !mapping.IsDeleted);
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(mapping => mapping.TenantId == tenantId);
 
     private ExportFormatDto MapDto(ExportFormat exportFormat)
     {

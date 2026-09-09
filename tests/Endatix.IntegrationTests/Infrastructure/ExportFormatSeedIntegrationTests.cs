@@ -110,13 +110,19 @@ public sealed class ExportFormatSeedIntegrationTests
         mappingCount.Should().Be(1);
     }
 
+    /// <summary>
+    /// The idempotence guards must key off the target tenant, not the ambient one. Under the tenant
+    /// query filter the second run reads nothing and re-inserts, violating the unique indexes on
+    /// <c>(TenantId, Name)</c> and the tenant's single default mapping. Tenant 0 would not catch
+    /// this — it bypasses the filter (see <see cref="ReportingQueryFilterTests"/>).
+    /// </summary>
     [Fact]
     public async Task SeedDefaultsAsync_WhenAmbientTenantDiffers_SeedsAndDoesNotDuplicate()
     {
-        // Arrange — outbox tenant.created runs with app-level ITenantContext (0), not the new tenant
+        // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long targetTenantId = 9104;
-        const long ambientTenantId = 0;
+        const long ambientTenantId = 9105;
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
         await using ReportingDbContext first = CreateContext(ambientTenantId);
@@ -131,6 +137,36 @@ public sealed class ExportFormatSeedIntegrationTests
         await using ReportingDbContext verify = CreateContext(targetTenantId);
         List<ExportFormat> formats = await LoadFormatsAsync(verify, targetTenantId, cancellationToken);
         formats.Should().HaveCount(4);
+
+        SurveyTypeExportMapping mapping = await LoadDefaultMappingAsync(verify, targetTenantId, cancellationToken);
+        mapping.ExportFormatId.Should().Be(
+            formats.Single(format => format.DeliveryFormat == ExportDeliveryFormat.Csv).Id);
+    }
+
+    /// <summary>Soft-deleted rows stay hidden: the seed backfills the format the tenant no longer has.</summary>
+    [Fact]
+    public async Task SeedDefaultsAsync_WhenFormatSoftDeleted_ReseedsIt()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        const long tenantId = 9106;
+        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+
+        ExportFormat xlsx = await db.ExportFormats.SingleAsync(
+            format => format.TenantId == tenantId && format.DeliveryFormat == ExportDeliveryFormat.Xlsx,
+            cancellationToken);
+        xlsx.Delete();
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+
+        // Act
+        await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+
+        // Assert
+        List<ExportFormat> formats = await LoadFormatsAsync(db, tenantId, cancellationToken);
+        formats.Should().ContainSingle(format => format.DeliveryFormat == ExportDeliveryFormat.Xlsx)
+            .Which.Id.Should().NotBe(xlsx.Id);
     }
 
     /// <summary>
