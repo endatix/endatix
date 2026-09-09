@@ -11,6 +11,7 @@ public sealed class ExportCapabilityRegistryTests
     [InlineData(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native, "csv")]
     [InlineData(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Shoji, "csv-shoji")]
     [InlineData(ExportTarget.Submissions, ExportDeliveryFormat.Json, ExportProfile.Native, "json")]
+    [InlineData(ExportTarget.Submissions, ExportDeliveryFormat.Xlsx, ExportProfile.Native, "xlsx")]
     [InlineData(ExportTarget.Codebook, ExportDeliveryFormat.Json, ExportProfile.Native, "codebook")]
     [InlineData(ExportTarget.Codebook, ExportDeliveryFormat.Json, ExportProfile.Shoji, "codebook-shoji")]
     public void ToWireKey_ReturnsExpectedWireKey(

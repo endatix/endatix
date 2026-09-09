@@ -6,10 +6,7 @@ using Endatix.Core.Abstractions.Exporting;
 namespace Endatix.Infrastructure.Exporting.Formatters;
 
 /// <summary>
-/// Applies default formatting to certain value types.
-/// </summary>
-/// <summary>
-/// Applies default formatting to flatten complex JSON structures for CSV/Text export.
+/// Flattens complex JSON structures into the scalar text CSV and XLSX cells expect.
 /// </summary>
 public class DefaultCsvFormatter : IValueFormatter
 {

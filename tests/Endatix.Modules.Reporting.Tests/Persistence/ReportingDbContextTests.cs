@@ -46,12 +46,12 @@ public class ReportingDbContextTests
     [Theory]
     [InlineData(
         "Npgsql.EntityFrameworkCore.PostgreSQL",
-        "\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL",
-        "\"IsDefault\" = true AND \"SurveyTypeId\" IS NULL")]
+        "\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL AND \"IsDeleted\" = false",
+        "\"IsDefault\" = true AND \"SurveyTypeId\" IS NULL AND \"IsDeleted\" = false")]
     [InlineData(
         "Microsoft.EntityFrameworkCore.SqlServer",
-        "[IsDefault] = 1 AND [SurveyTypeId] IS NOT NULL",
-        "[IsDefault] = 1 AND [SurveyTypeId] IS NULL")]
+        "[IsDefault] = 1 AND [SurveyTypeId] IS NOT NULL AND [IsDeleted] = 0",
+        "[IsDefault] = 1 AND [SurveyTypeId] IS NULL AND [IsDeleted] = 0")]
     public void Model_SurveyTypeExportMapping_UsesFilteredUniqueIndexes(
         string providerName,
         string typedDefaultFilter,

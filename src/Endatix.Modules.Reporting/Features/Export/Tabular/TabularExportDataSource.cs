@@ -10,7 +10,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 
 /// <summary>
-/// Streams flattened submission rows from the reporting read model for CSV/JSON export.
+/// Streams flattened submission rows from the reporting read model for tabular export (CSV/JSON/XLSX).
 /// </summary>
 internal sealed class TabularExportDataSource(
     IFormSchemaRepository formSchemaRepository,
@@ -18,6 +18,9 @@ internal sealed class TabularExportDataSource(
     ExportFormatSettingsParser exportFormatSettingsParser,
     IColumnAliasTransformerRegistry aliasTransformerRegistry) : IExportDataSource
 {
+    private static readonly string SubmissionRowTypeName =
+        typeof(SubmissionExportRow).FullName ?? typeof(SubmissionExportRow).Name;
+
     internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
     [
         new(
@@ -26,7 +29,7 @@ internal sealed class TabularExportDataSource(
             ExportProfile.Native,
             WireKey: "csv",
             Label: "CSV",
-            ItemTypeName: typeof(SubmissionExportRow).FullName!,
+            ItemTypeName: SubmissionRowTypeName,
             Description: "Tabular CSV export with one row per submission.",
             AllowedFilters: ExportRequestFilterSets.Submissions),
         new(
@@ -35,7 +38,7 @@ internal sealed class TabularExportDataSource(
             ExportProfile.Shoji,
             WireKey: "csv-shoji",
             Label: "CSV (Shoji / Crunch)",
-            ItemTypeName: typeof(SubmissionExportRow).FullName!,
+            ItemTypeName: SubmissionRowTypeName,
             Description: "Crunch-compatible CSV: -- key separators and boolean category ids 0/1.",
             AllowedFilters: ExportRequestFilterSets.Submissions),
         new(
@@ -44,8 +47,17 @@ internal sealed class TabularExportDataSource(
             ExportProfile.Native,
             WireKey: "json",
             Label: "JSON",
-            ItemTypeName: typeof(SubmissionExportRow).FullName!,
+            ItemTypeName: SubmissionRowTypeName,
             Description: "Tabular JSON export with one object per submission.",
+            AllowedFilters: ExportRequestFilterSets.Submissions),
+        new(
+            ExportTarget.Submissions,
+            ExportDeliveryFormat.Xlsx,
+            ExportProfile.Native,
+            WireKey: "xlsx",
+            Label: "Excel (XLSX)",
+            ItemTypeName: SubmissionRowTypeName,
+            Description: "Excel workbook; long IDs stored as text.",
             AllowedFilters: ExportRequestFilterSets.Submissions),
     ];
 

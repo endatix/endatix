@@ -12,10 +12,10 @@ internal sealed class SurveyTypeExportMappingConfigurationSqlServer : IEntityTyp
     {
         builder.HasIndex(x => new { x.TenantId, x.SurveyTypeId })
             .IsUnique()
-            .HasFilter("[IsDefault] = 1 AND [SurveyTypeId] IS NOT NULL");
+            .HasFilter($"[IsDefault] = 1 AND [SurveyTypeId] IS NOT NULL AND [{nameof(SurveyTypeExportMapping.IsDeleted)}] = 0");
 
         builder.HasIndex(x => x.TenantId)
             .IsUnique()
-            .HasFilter("[IsDefault] = 1 AND [SurveyTypeId] IS NULL");
+            .HasFilter($"[IsDefault] = 1 AND [SurveyTypeId] IS NULL AND [{nameof(SurveyTypeExportMapping.IsDeleted)}] = 0");
     }
 }

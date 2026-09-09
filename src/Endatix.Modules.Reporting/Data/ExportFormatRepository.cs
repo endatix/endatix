@@ -1,9 +1,12 @@
-using System.Text.Json;
+using Endatix.Core.Abstractions.Data;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Export;
+using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Endatix.Modules.Reporting.Data;
 
@@ -14,21 +17,9 @@ internal sealed class ExportFormatRepository(
     ReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork,
     ExportFormatSettingsParser settingsParser,
-    IExportCapabilityRegistry capabilityRegistry) : IExportFormatRepository
+    IExportCapabilityRegistry capabilityRegistry,
+    IUniqueConstraintViolationChecker uniqueViolationChecker) : IExportFormatRepository
 {
-    private static readonly string _defaultSubmissionsSettingsJson = JsonSerializer.Serialize(new
-    {
-        aliasProfile = "native",
-        keySeparator = "__",
-        includeTestSubmissions = false,
-    });
-
-    private static readonly string _defaultCodebookSettingsJson = JsonSerializer.Serialize(new
-    {
-        aliasProfile = "native",
-        keySeparator = "__",
-    });
-
     /// <inheritdoc />
     public async Task<ExportFormatRecord?> GetByIdAsync(
         long tenantId,
@@ -184,66 +175,107 @@ internal sealed class ExportFormatRepository(
     /// <inheritdoc />
     public async Task SeedDefaultsAsync(long tenantId, CancellationToken cancellationToken)
     {
-        var hasFormats = await dbContext.ExportFormats
+        var existing = await FormatsForTenant(tenantId)
             .AsNoTracking()
-            .AnyAsync(format => format.TenantId == tenantId, cancellationToken);
+            .Where(format => format.Profile == ExportProfile.Native)
+            .Select(format => new { format.ExportTarget, format.DeliveryFormat })
+            .ToListAsync(cancellationToken);
 
-        if (hasFormats)
+        var missing = DefaultExportFormats.All.Where(definition => !existing.Any(format =>
+            format.ExportTarget == definition.Target &&
+            format.DeliveryFormat == definition.Delivery));
+
+        // BaseEntity.Id is None-generated; two unsaved rows would both be Id = 0.
+        foreach (var definition in missing)
+        {
+            var entry = dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
+            await SaveOrConcedeAsync(entry, cancellationToken);
+        }
+
+        await EnsureDefaultMappingAsync(tenantId, cancellationToken);
+    }
+
+    private static ExportFormat CreateDefault(long tenantId, DefaultExportFormat definition)
+    {
+        ExportFormat format = new(
+            tenantId,
+            definition.Name,
+            definition.Target,
+            definition.Delivery,
+            ExportProfile.Native,
+            definition.Description);
+        format.UpdateSettingsJson(definition.SettingsJson);
+        return format;
+    }
+
+    private async Task EnsureDefaultMappingAsync(long tenantId, CancellationToken cancellationToken)
+    {
+        DefaultExportFormat tenantDefault = DefaultExportFormats.TenantDefault;
+        var csvFormatId = await FormatsForTenant(tenantId)
+            .AsNoTracking()
+            .Where(format =>
+                format.ExportTarget == tenantDefault.Target &&
+                format.DeliveryFormat == tenantDefault.Delivery &&
+                format.Profile == ExportProfile.Native)
+            .Select(format => (long?)format.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (csvFormatId is null)
         {
             return;
         }
 
-        ExportFormat csvFormat = new(
-            tenantId,
-            "CSV",
-            ExportTarget.Submissions,
-            ExportDeliveryFormat.Csv,
-            ExportProfile.Native,
-            "Default CSV export for form submissions");
-        csvFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
+        var defaultMapping = await MappingsForTenant(tenantId)
+            .FirstOrDefaultAsync(mapping => mapping.SurveyTypeId == null, cancellationToken);
 
-        ExportFormat jsonFormat = new(
-            tenantId,
-            "JSON",
-            ExportTarget.Submissions,
-            ExportDeliveryFormat.Json,
-            ExportProfile.Native,
-            "Default JSON export for form submissions");
-        jsonFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
-
-        ExportFormat codebookFormat = new(
-            tenantId,
-            "Codebook",
-            ExportTarget.Codebook,
-            ExportDeliveryFormat.Json,
-            ExportProfile.Native,
-            "Default form definition codebook export");
-        codebookFormat.UpdateSettingsJson(_defaultCodebookSettingsJson);
-
-        await dbContext.ExportFormats.AddRangeAsync([csvFormat, jsonFormat, codebookFormat], cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var hasDefaultMapping = await dbContext.SurveyTypeExportMappings
-            .AsNoTracking()
-            .AnyAsync(
-                mapping =>
-                    mapping.TenantId == tenantId &&
-                    mapping.IsDefault &&
-                    mapping.SurveyTypeId == null,
-                cancellationToken);
-
-        if (!hasDefaultMapping)
+        if (defaultMapping is null)
         {
-            SurveyTypeExportMapping defaultMapping = new(
-                tenantId,
-                csvFormat.Id,
-                surveyTypeId: null,
-                isDefault: true);
+            var entry = dbContext.SurveyTypeExportMappings.Add(
+                new(tenantId, csvFormatId.Value, surveyTypeId: null, isDefault: true));
+            await SaveOrConcedeAsync(entry, cancellationToken);
+            return;
+        }
 
-            await dbContext.SurveyTypeExportMappings.AddAsync(defaultMapping, cancellationToken);
+        if (!defaultMapping.IsDefault)
+        {
+            return;
+        }
+
+        var pointsAtLiveFormat = await FormatsForTenant(tenantId)
+            .AsNoTracking()
+            .AnyAsync(format => format.Id == defaultMapping.ExportFormatId, cancellationToken);
+
+        if (pointsAtLiveFormat)
+        {
+            return;
+        }
+
+        defaultMapping.PointTo(csvFormatId.Value);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SaveOrConcedeAsync(EntityEntry entry, CancellationToken cancellationToken)
+    {
+        try
+        {
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
+        catch (DbUpdateException exception)
+            when (uniqueViolationChecker.AnalyzeUniqueConstraint(exception).IsUniqueConstraintViolation)
+        {
+            entry.State = EntityState.Detached;
+        }
     }
+
+    private IQueryable<ExportFormat> FormatsForTenant(long tenantId) =>
+        dbContext.ExportFormats
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(format => format.TenantId == tenantId);
+
+    private IQueryable<SurveyTypeExportMapping> MappingsForTenant(long tenantId) =>
+        dbContext.SurveyTypeExportMappings
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(mapping => mapping.TenantId == tenantId);
 
     private ExportFormatDto MapDto(ExportFormat exportFormat)
     {

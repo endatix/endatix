@@ -8,13 +8,15 @@ namespace Endatix.Core.Events;
 /// </summary>
 public sealed class TenantCreatedEvent(Tenant tenant) : DomainEventBase, IIntegrationEvent
 {
+    public const string EventTypeName = "tenant.created";
+
     /// <summary>
     /// The tenant that was created.
     /// </summary>
     public Tenant Tenant { get; init; } = tenant;
 
     /// <inheritdoc />
-    public string EventType => "tenant.created";
+    public string EventType => EventTypeName;
 
     /// <inheritdoc />
     public object GetPayload() => new

@@ -38,7 +38,7 @@ public class SubmissionCsvExporter(
 
             SubmissionExportRow? firstRow = null;
             var headerWritten = false;
-            var formatter = ResolveFormatter(options);
+            var formatter = new DefaultCsvFormatter(UsesCategoryIdBooleans(options));
 
             await foreach ((var row, var doc, var columns) in GetStreamContextAsync(records, options, cancellationToken))
             {
@@ -85,28 +85,5 @@ public class SubmissionCsvExporter(
             _logger.LogError(ex, "Error exporting submissions to CSV");
             return Result<FileExport>.Error("Failed to export submissions.");
         }
-    }
-
-    private DefaultCsvFormatter ResolveFormatter(ExportOptions? options)
-    {
-        if (UsesCategoryIdBooleans(options))
-        {
-            return new DefaultCsvFormatter(encodeBooleansAsCategoryIds: true);
-        }
-
-        return new DefaultCsvFormatter();
-    }
-
-    private bool UsesCategoryIdBooleans(ExportOptions? options)
-    {
-        if (string.Equals(Format, "csv-shoji", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return options?.Metadata is not null &&
-            options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settingsObject) &&
-            settingsObject is SubmissionExportExecutionSettings executionSettings &&
-            executionSettings.EncodeBooleansAsCategoryIds;
     }
 }

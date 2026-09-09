@@ -7,6 +7,10 @@ public class ExportRequest : ICreatedRange, IModifiedRange, IStartedRange, IComp
 {
     public long FormId { get; set; }
 
+    /// <summary>
+    /// Legacy built-in format when <see cref="ExportFormatId"/> and <see cref="ExportId"/> are omitted.
+    /// Wire: <c>csv</c> (default) | <c>json</c> | <c>xlsx</c>. Also <c>csv-shoji</c> when registered.
+    /// </summary>
     public string? ExportFormat { get; set; }
 
     public long? ExportId { get; set; }

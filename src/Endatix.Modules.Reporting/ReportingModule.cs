@@ -81,6 +81,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, FlattenSubmissionOutboxHandler>();
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, SyncSubmissionDeletionOutboxHandler>();
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, SyncFormDeletionOutboxHandler>();
+        builder.Services.AddScoped<IOutboxIntegrationEventHandler, SeedDefaultExportFormatsOutboxHandler>();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
     }
 }

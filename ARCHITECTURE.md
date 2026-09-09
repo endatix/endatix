@@ -171,6 +171,8 @@ Persistence                ──► Domain
 
 **Terminology:** "Codebook" is an **export format** in Infrastructure (`CodebookJsonExporter`). Reporting module vocabulary uses **FormSchema**.
 
+**Submission export formats:** exporters live in `Infrastructure/Exporting/Exporters/` and register with `AddExporter`; `ExportValidator` accepts every registered wire key, so a new format needs no API change. `csv` stays raw interchange. `xlsx` (`SubmissionXlsxExporter`, DocumentFormat.OpenXml) is the Excel path — 16+ digit IDs as inline strings, dates as OADate + custom number format, JSON booleans as Excel boolean cells (codebook still `1`/`0`). **Picker lists `reporting.ExportFormats` rows, not registered capabilities.** Runtime catalog: `DefaultExportFormats.All` (`tenant.created` seeder). Existing tenants: frozen `SeedDefaultExportFormats` SQL (same `hashtextextended` ids as `InitialReporting`) — a new default is a new migration, not a catalog change to an applied one. SqlServer Reporting migrations are still [#813](https://github.com/endatix/endatix/issues/813) — no SS seed SQL until then.
+
 **Tests mirror features:** golden JSON fixtures under `tests/.../Features/FormSchema/FlattenedFormDefinition/Fixtures/`; compiler tests in `Features/FormSchema/FormSchema/`; submission mapping in `Features/FlattenedSubmission/`.
 
 ### Module registration (OSS)
@@ -350,12 +352,12 @@ Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsB
 
 ### Classification
 
-| Kind                  | Interface                                                            | Dispatch                                         | Example                                                    |
-| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
-| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                  | Internal notifications                                     |
-| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated`          |
-| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP                              | `form.updated`, `submission.completed`                     |
-| Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler                | Reporting: `form.definition.updated`, `submission.updated` |
+| Kind                  | Interface                                                            | Dispatch                                         | Example                                                                                               |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                  | Internal notifications                                                                                |
+| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated`                                                     |
+| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP                              | `form.updated`, `submission.completed`                                                                |
+| Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler                | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
 
 Plain `DomainEventBase` events that are **not** `IIntegrationEvent` are ignored by the outbox dispatcher and stay in-process.
 
@@ -482,6 +484,31 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 - Numeric `Tenant.Id` stays internal (JWT, FKs, admin APIs). `GET /public/tenants/{shortUrl}` must not return it.
 - Forms can reuse `IShortUrlGenerator` later with a per-entity `Form.ShortUrl` column. A polymorphic URLs table is deferred until vanity aliases or redirects are required.
 
+**Data isolation (EF query filters)**
+
+`ApplyEndatixQueryFilters` registers two **named** EF 10 filters on every entity of `AppDbContext` and `ReportingDbContext`:
+
+| Name                                 | Applies to                | Predicate                               |
+| ------------------------------------ | ------------------------- | --------------------------------------- |
+| `EndatixQueryFilterNames.SoftDelete` | anything with `IsDeleted` | `!IsDeleted`                            |
+| `EndatixQueryFilterNames.Tenant`     | `ITenantOwned`            | `ambient == 0 \|\| TenantId == ambient` |
+
+Ambient tenant is `ITenantContext.TenantId`, set only by `TenantMiddleware`. **Tenant `0` is bypass, not isolation** — background work (outbox relay, hosted services, provisioning) runs unscoped and therefore sees every tenant.
+
+- **Declare every global filter as a named filter, keyed in [`EndatixQueryFilterNames`](src/Endatix.Infrastructure/Data/EndatixQueryFilterNames.cs).** A new cross-cutting filter adds a constant there plus its own `HasQueryFilter(name, ...)` call. Never register an anonymous filter and never `&&` a new condition onto an existing one — a combined filter can only be dropped whole, which is what forces the blanket opt-out below.
+- Opt out **by name** so the other filter keeps applying:
+
+  ```csharp
+  dbContext.ExportFormats
+      .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+      .Where(format => format.TenantId == tenantId);
+  ```
+
+  Bare `IgnoreQueryFilters()` also drops soft delete and forces a hand-copied `!IsDeleted` that drifts. Keep it only where a purge must include soft-deleted rows (`FlattenedSubmissionRepository.DeleteByFormIdAsync`).
+
+- Work that targets a tenant other than the ambient one takes `tenantId` as a parameter and filters on it explicitly — `ExportFormatRepository.SeedDefaultsAsync` (outbox `tenant.created`). A unique-index collision on seed is a race when the live row is the same default (name + target + delivery + profile); a different profile reusing the name is skipped so the rest of the catalog still seeds. Tenant-scope mapping is looked up regardless of `IsDefault` so a cleared default is not duplicated. Filtered unique indexes on `SurveyTypeExportMapping` include `IsDeleted = false` so a soft-deleted default does not block a live replacement (`ReportingDbContextTests.Model_SurveyTypeExportMapping_UsesFilteredUniqueIndexes`).
+- **Never use tenant `0` as the "other" tenant in a test.** It bypasses the filter, so the test passes with or without the code under test. Use a second non-zero tenant (`ReportingQueryFilterTests`, `ExportFormatSeedIntegrationTests`).
+
 **Create/edit**
 
 - PlatformAdmin `POST /admin/tenants` provisions `Tenant` + `TenantSettings` in one transaction and assigns the public id server-side (unique-index retry).
@@ -530,3 +557,4 @@ Overloading `act` so `sub` is the customer would break assume-authz (`act == sub
 | 2026-08 | Tenant public id: keep `Tenant.ShortUrl` as a unique immutable `varchar(8)` column; generate with `IShortUrlGenerator` (CSPRNG, `a-z0-9` alphabet, letter-heavy). Do not derive from name. JWT `tid` remains the isolation boundary. See [Multi-tenancy (platform tenants)](#multi-tenancy-platform-tenants).                                                                                                                                                       |
 | 2026-08 | Tenant access: one home `AppUser.TenantId`. Assume-tenant uses JWT `act` and does not write membership. `platform.users.impersonate` stays reserved. Self-reg is opt-in per tenant via opaque public id. Multi-tenant membership is a later Identity table.                                                                                                                                                                                                         |
 | 2026-09 | JWT session is `tid` + optional `act`. Refresh copies that session. `tenant.context.changed` covers assume and exit. Impersonation (`sub` = customer) is a later claim, not a second token service. See [JWT session](#multi-tenancy-platform-tenants).                                                                                                                                                                                                             |
+| 2026-09 | Submissions Excel: a native XLSX exporter, not CSV `="id"` wrapping — CSV stays raw interchange. XLSX types a cell from the JSON value only; numeric-looking text (`007`, `NaN`) stays text. See [Module packaging](#module-packaging-contracts-vs-domain) (submission export formats).                                                                                                                                                                             |
