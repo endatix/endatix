@@ -4,7 +4,6 @@ using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Features.GetJob;
 using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Modules.Jobs.Tests.Features.GetJob;
 
@@ -28,24 +27,16 @@ public sealed class GetJobHandlerTests : IDisposable
 
         _dbContext = new TestJobsDbContext(
             options, new SequentialIdGenerator(), new FixedTenantContext(CallerTenantId));
-        _handler = new GetJobHandler(_dbContext, NullLogger<GetJobHandler>.Instance);
+        _handler = new GetJobHandler(_dbContext);
     }
 
     public void Dispose() => _dbContext.Dispose();
 
-    private BackgroundJob AddJob(long tenantId = CallerTenantId, string? resultJson = null)
+    private BackgroundJob AddJob(long tenantId = CallerTenantId)
     {
         var job = new BackgroundJob("SubmissionExport", @"{""formId"":""1""}", tenantId, DateTime.UtcNow);
         _dbContext.BackgroundJobs.Add(job);
         _dbContext.SaveChanges();
-
-        if (resultJson is not null)
-        {
-            job.Claim(DateTime.UtcNow);
-            job.Complete(DateTime.UtcNow, resultJson);
-            _dbContext.SaveChanges();
-        }
-
         return job;
     }
 
@@ -92,47 +83,6 @@ public sealed class GetJobHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task Handle_CompletedExport_ReportsTheFileItProduced()
-    {
-        // Arrange
-        var job = AddJob(resultJson: @"{""fileName"":""submissions-100.csv"",""contentType"":""text/csv""}");
-
-        // Act
-        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
-
-        // Assert
-        result.Value.Result.Should().NotBeNull();
-        result.Value.Result!.Value.GetProperty("fileName").GetString().Should().Be("submissions-100.csv");
-    }
-
-    [Fact]
-    public async Task Handle_CompletedJobWithNoFileOutput_PassesItsResultThrough()
-    {
-        // Arrange — a webhook delivery reports a response code, not a file. Both are legitimate
-        // outputs, which is why this endpoint imposes no shape on them.
-        var job = AddJob(resultJson: @"{""statusCode"":200,""attempt"":1}");
-
-        // Act
-        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
-
-        // Assert
-        result.Value.Result!.Value.GetProperty("statusCode").GetInt32().Should().Be(200);
-    }
-
-    [Fact]
-    public async Task Handle_UnfinishedJob_ReportsNoResult()
-    {
-        // Arrange
-        var job = AddJob();
-
-        // Act
-        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
-
-        // Assert
-        result.Value.Result.Should().BeNull();
-    }
-
-    [Fact]
     public async Task Handle_NoTenantOnTheRequest_IsRefusedRatherThanServedEveryTenant()
     {
         // Arrange — a principal with no usable `tid` claim leaves the tenant context at zero, which
@@ -147,19 +97,4 @@ public sealed class GetJobHandlerTests : IDisposable
         result.Status.Should().Be(ResultStatus.Unauthorized);
     }
 
-    [Fact]
-    public async Task Handle_CompletedJobWithAnUnreadableResult_StillReportsTheStatus()
-    {
-        // Arrange — the column belongs to whichever handler ran the job, so its contents are not
-        // this endpoint's to guarantee.
-        var job = AddJob(resultJson: "not json at all");
-
-        // Act
-        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
-
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Status.Should().Be(JobStatus.Completed);
-        result.Value.Result.Should().BeNull();
-    }
 }

@@ -30,9 +30,7 @@ public sealed class GetJob(IMediator mediator, ITenantContext tenantContext)
             summary.Summary = "Get a background job";
             summary.Description =
                 "Retrieves the current state of a background job. Progress and status message are " +
-                "advisory and may lag the work itself; status is authoritative. The result is " +
-                "whatever the job's handler produced, in the shape that handler wrote, and appears " +
-                "only once the job has completed successfully.";
+                "advisory and may lag the work itself; status is authoritative.";
             summary.ExampleRequest = new GetJobRequest { JobId = 987654321 };
             summary.Responses[200] = "Job state retrieved.";
             summary.Responses[400] = "The job ID is not valid.";

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Result;
@@ -27,13 +26,10 @@ public sealed class GetJobEndpointTests
         _endpoint = Factory.Create<GetJob>(_mediator, _tenantContext);
     }
 
-    private static JsonElement Json(string json) => JsonSerializer.Deserialize<JsonElement>(json);
-
     private static JobDto Job(
         JobStatus status = JobStatus.Processing,
-        JsonElement? result = null,
         string? errorMessage = null) =>
-        new(JobId, "SubmissionExport", status, 45, "Processing 4,500 of 10,000 rows", result, errorMessage);
+        new(JobId, "SubmissionExport", status, 45, "Processing 4,500 of 10,000 rows", errorMessage);
 
     private async Task<JobResponse> ExecuteAsync(long jobId = JobId)
     {
@@ -65,36 +61,6 @@ public sealed class GetJobEndpointTests
         await _mediator.Received(1).Send(
             Arg.Is<GetJobQuery>(query => query.JobId == JobId && query.TenantId == TenantId),
             Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_CompletedExport_CarriesTheFileItProduced()
-    {
-        // Arrange
-        var result = Json(@"{""fileName"":""submissions-100.csv"",""contentType"":""text/csv""}");
-        Returns(Result.Success(Job(JobStatus.Completed, result)));
-
-        // Act
-        var job = await ExecuteAsync();
-
-        // Assert
-        job.Result.Should().NotBeNull();
-        job.Result!.Value.GetProperty("fileName").GetString().Should().Be("submissions-100.csv");
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_CompletedJobWithNoFileOutput_CarriesItsResultAnyway()
-    {
-        // Arrange — a webhook delivery reports a response code, not a file. Both are legitimate
-        // outputs, which is why this endpoint imposes no shape on them.
-        var result = Json(@"{""statusCode"":200,""attempt"":1}");
-        Returns(Result.Success(Job(JobStatus.Completed, result)));
-
-        // Act
-        var job = await ExecuteAsync();
-
-        // Assert
-        job.Result!.Value.GetProperty("statusCode").GetInt32().Should().Be(200);
     }
 
     [Fact]

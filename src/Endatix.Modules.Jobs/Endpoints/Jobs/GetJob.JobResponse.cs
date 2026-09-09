@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Features.GetJob;
 
@@ -37,18 +36,6 @@ public sealed class JobResponse
     public string? StatusMessage { get; init; }
 
     /// <summary>
-    /// What the job produced, in the shape its handler wrote. Null until the job completes, and for
-    /// job types that produce nothing.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately untyped. One queue serves every job type, and they produce different things — an
-    /// export produces a file, a webhook delivery produces a response code — so there is no single
-    /// shape this endpoint could promise. Each job type documents its own, and a caller already knows
-    /// which type it asked about from <see cref="Type"/>.
-    /// </remarks>
-    public JsonElement? Result { get; init; }
-
-    /// <summary>
     /// The most recent failure recorded against the job. Present on <c>Failed</c> and
     /// <c>DeadLettered</c>, and also on <c>Retrying</c> — a job between attempts carries the reason
     /// the last one failed, so this being set does not mean the job has stopped. Read
@@ -63,7 +50,6 @@ public sealed class JobResponse
         Status = job.Status,
         ProgressPercentage = job.ProgressPercentage,
         StatusMessage = job.StatusMessage,
-        Result = job.Result,
         ErrorMessage = job.ErrorMessage,
     };
 }

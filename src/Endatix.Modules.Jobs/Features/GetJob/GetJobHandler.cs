@@ -1,10 +1,8 @@
-using System.Text.Json;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Jobs.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Jobs.Features.GetJob;
 
@@ -17,9 +15,18 @@ public sealed record GetJobQuery(long TenantId, long JobId) : IQuery<Result<JobD
 /// A job's state as reported to a caller.
 /// </summary>
 /// <remarks>
+/// <para>
 /// <c>ProgressPercentage</c> and <c>StatusMessage</c> are advisory: a handler that reports nothing
 /// stays at zero while running perfectly well, so neither is a liveness signal and neither should be
 /// used to decide a job has stalled. <c>Status</c> is the authoritative value.
+/// </para>
+/// <para>
+/// Whatever a job produced is deliberately absent. The job row records it in <c>ResultJson</c>, but
+/// that column is written by whichever handler ran the job, so the only shape this contract could
+/// promise across every job type is a free-form object — which tells a client nothing it can rely
+/// on. A job type whose output a caller genuinely needs should expose it through the endpoint that
+/// owns that output, where it can be typed.
+/// </para>
 /// </remarks>
 public sealed record JobDto(
     long Id,
@@ -27,10 +34,9 @@ public sealed record JobDto(
     JobStatus Status,
     int ProgressPercentage,
     string? StatusMessage,
-    JsonElement? Result,
     string? ErrorMessage);
 
-internal sealed class GetJobHandler(IJobsDbContext dbContext, ILogger<GetJobHandler> logger)
+internal sealed class GetJobHandler(IJobsDbContext dbContext)
     : IQueryHandler<GetJobQuery, Result<JobDto>>
 {
     public async Task<Result<JobDto>> Handle(GetJobQuery request, CancellationToken cancellationToken)
@@ -47,61 +53,17 @@ internal sealed class GetJobHandler(IJobsDbContext dbContext, ILogger<GetJobHand
 
         var job = await dbContext.BackgroundJobs
             .Where(candidate => candidate.Id == request.JobId && candidate.TenantId == request.TenantId)
-            .Select(candidate => new
-            {
+            .Select(candidate => new JobDto(
                 candidate.Id,
                 candidate.JobType,
                 candidate.Status,
                 candidate.ProgressPercentage,
                 candidate.StatusMessage,
-                candidate.ResultJson,
-                candidate.ErrorMessage,
-            })
+                candidate.ErrorMessage))
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (job is null)
-        {
-            return Result.NotFound($"Job with ID {request.JobId} was not found.");
-        }
-
-        return Result.Success(new JobDto(
-            job.Id,
-            job.JobType,
-            job.Status,
-            job.ProgressPercentage,
-            job.StatusMessage,
-            // Only Complete writes ResultJson, and it is terminal, so no other status can carry one.
-            // The gate is defence against a future writer rather than a state reachable today.
-            job.Status == JobStatus.Completed ? ParseResult(job.Id, job.ResultJson) : null,
-            job.ErrorMessage));
-    }
-
-    /// <remarks>
-    /// Passed through as written rather than mapped onto a fixed shape. Job types produce different
-    /// things — an export produces a file, a webhook delivery produces a response code — so the only
-    /// shape this endpoint could describe for every type is the one the handler chose. Each job type
-    /// documents its own; a caller already knows which type it asked about.
-    /// </remarks>
-    private JsonElement? ParseResult(long jobId, string? resultJson)
-    {
-        if (string.IsNullOrWhiteSpace(resultJson))
-        {
-            return null;
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<JsonElement>(resultJson);
-        }
-        catch (JsonException exception)
-        {
-            // Reporting no result keeps the status readable, but silence would leave a completed job
-            // claiming to have produced nothing, on every poll, with nowhere to look for the reason.
-            logger.LogWarning(
-                exception,
-                "Background job {JobId} completed with a result payload that is not valid JSON; reporting no result.",
-                jobId);
-            return null;
-        }
+        return job is null
+            ? Result.NotFound($"Job with ID {request.JobId} was not found.")
+            : Result.Success(job);
     }
 }
