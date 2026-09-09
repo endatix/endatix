@@ -272,31 +272,6 @@ internal sealed class ExportFormatRepository(
             when (uniqueViolationChecker.AnalyzeUniqueConstraint(exception).IsUniqueConstraintViolation)
         {
             entry.State = EntityState.Detached;
-            if (!await IsSameDefaultAsync(entry.Entity, cancellationToken))
-            {
-                return;
-            }
-        }
-    }
-
-    private async Task<bool> IsSameDefaultAsync(object entity, CancellationToken cancellationToken)
-    {
-        switch (entity)
-        {
-            case ExportFormat format:
-                var existing = await FormatsForTenant(format.TenantId)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(row => row.Name == format.Name, cancellationToken);
-                return existing is not null
-                    && existing.ExportTarget == format.ExportTarget
-                    && existing.DeliveryFormat == format.DeliveryFormat
-                    && existing.Profile == format.Profile;
-            case SurveyTypeExportMapping mapping:
-                return await MappingsForTenant(mapping.TenantId)
-                    .AsNoTracking()
-                    .AnyAsync(row => row.SurveyTypeId == mapping.SurveyTypeId, cancellationToken);
-            default:
-                return false;
         }
     }
 
