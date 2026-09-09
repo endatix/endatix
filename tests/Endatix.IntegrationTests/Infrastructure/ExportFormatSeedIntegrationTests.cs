@@ -170,6 +170,67 @@ public sealed class ExportFormatSeedIntegrationTests
     }
 
     /// <summary>
+    /// A default mapping whose format was soft deleted reads as "no default" through
+    /// <c>GetTenantDefaultAsync</c>'s filtered <c>Include</c>. Re-seeding repairs it rather than
+    /// returning early on the mapping's mere existence.
+    /// </summary>
+    [Fact]
+    public async Task SeedDefaultsAsync_WhenDefaultFormatSoftDeleted_RepointsMapping()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        const long tenantId = 9107;
+        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+
+        ExportFormat csv = await db.ExportFormats.SingleAsync(
+            format => format.TenantId == tenantId && format.DeliveryFormat == ExportDeliveryFormat.Csv,
+            cancellationToken);
+        csv.Delete();
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+
+        // Act
+        await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+
+        // Assert
+        db.ChangeTracker.Clear();
+        List<ExportFormat> formats = await LoadFormatsAsync(db, tenantId, cancellationToken);
+        long reseededCsvId = formats.Single(format => format.DeliveryFormat == ExportDeliveryFormat.Csv).Id;
+        reseededCsvId.Should().NotBe(csv.Id);
+
+        SurveyTypeExportMapping mapping = await LoadDefaultMappingAsync(db, tenantId, cancellationToken);
+        mapping.ExportFormatId.Should().Be(reseededCsvId);
+    }
+
+    /// <summary>
+    /// Concurrent provisioning loses the race on the unique <c>(TenantId, Name)</c> index. A tenant
+    /// format already holding the name reproduces it deterministically: the insert is conceded, not
+    /// surfaced as an unhandled <c>DbUpdateException</c>.
+    /// </summary>
+    [Fact]
+    public async Task SeedDefaultsAsync_WhenFormatNameAlreadyTaken_ConcedesWithoutThrowing()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        const long tenantId = 9108;
+        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        db.ExportFormats.Add(new ExportFormat(
+            tenantId, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Shoji));
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+
+        // Act
+        await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
+
+        // Assert
+        List<ExportFormat> formats = await LoadFormatsAsync(db, tenantId, cancellationToken);
+        formats.Should().HaveCount(4);
+        formats.Should().ContainSingle(format => format.Name == "CSV")
+            .Which.Profile.Should().Be(ExportProfile.Shoji);
+    }
+
+    /// <summary>
     /// Reporting lists rows, not capabilities, so a new delivery format only reaches existing
     /// tenants through the <c>SeedXlsxExportFormat</c> data migration.
     /// </summary>
@@ -271,5 +332,6 @@ public sealed class ExportFormatSeedIntegrationTests
             db,
             new ReportingUnitOfWork(db),
             new ExportFormatSettingsParser(NullLogger<ExportFormatSettingsParser>.Instance),
-            new ExportCapabilityRegistry());
+            new ExportCapabilityRegistry(),
+            new UniqueConstraintViolationChecker());
 }

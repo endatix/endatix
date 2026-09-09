@@ -1,10 +1,12 @@
 using System.Text.Json;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Endatix.Modules.Reporting.Data;
 
@@ -15,7 +17,8 @@ internal sealed class ExportFormatRepository(
     ReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork,
     ExportFormatSettingsParser settingsParser,
-    IExportCapabilityRegistry capabilityRegistry) : IExportFormatRepository
+    IExportCapabilityRegistry capabilityRegistry,
+    IUniqueConstraintViolationChecker uniqueViolationChecker) : IExportFormatRepository
 {
     private static readonly string _defaultSubmissionsSettingsJson = JsonSerializer.Serialize(new
     {
@@ -214,8 +217,8 @@ internal sealed class ExportFormatRepository(
         // stamps it on save, so two unsaved rows would collide on Id = 0 in the change tracker.
         foreach (var definition in missing)
         {
-            dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            var entry = dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
+            await SaveOrConcedeAsync(entry, cancellationToken);
         }
 
         await EnsureDefaultMappingAsync(tenantId, cancellationToken);
@@ -241,20 +244,11 @@ internal sealed class ExportFormatRepository(
     /// <summary>
     /// The tenant default export is CSV. The row is either one we just inserted or one that
     /// already existed, so it is resolved by lookup rather than carried through the seed loop.
+    /// An existing mapping is repointed when its format was soft deleted — <see cref="GetTenantDefaultAsync"/>
+    /// resolves through a filtered <c>Include</c>, so a stale pointer reads as "no default" forever.
     /// </summary>
     private async Task EnsureDefaultMappingAsync(long tenantId, CancellationToken cancellationToken)
     {
-        var hasDefaultMapping = await MappingsForTenant(tenantId)
-            .AsNoTracking()
-            .AnyAsync(
-                mapping => mapping.IsDefault && mapping.SurveyTypeId == null,
-                cancellationToken);
-
-        if (hasDefaultMapping)
-        {
-            return;
-        }
-
         var csvFormatId = await FormatsForTenant(tenantId)
             .AsNoTracking()
             .Where(format =>
@@ -269,14 +263,47 @@ internal sealed class ExportFormatRepository(
             return;
         }
 
-        SurveyTypeExportMapping defaultMapping = new(
-            tenantId,
-            csvFormatId.Value,
-            surveyTypeId: null,
-            isDefault: true);
+        var defaultMapping = await MappingsForTenant(tenantId)
+            .FirstOrDefaultAsync(
+                mapping => mapping.IsDefault && mapping.SurveyTypeId == null,
+                cancellationToken);
 
-        await dbContext.SurveyTypeExportMappings.AddAsync(defaultMapping, cancellationToken);
+        if (defaultMapping is null)
+        {
+            var entry = dbContext.SurveyTypeExportMappings.Add(
+                new(tenantId, csvFormatId.Value, surveyTypeId: null, isDefault: true));
+            await SaveOrConcedeAsync(entry, cancellationToken);
+            return;
+        }
+
+        var pointsAtLiveFormat = await FormatsForTenant(tenantId)
+            .AsNoTracking()
+            .AnyAsync(format => format.Id == defaultMapping.ExportFormatId, cancellationToken);
+
+        if (pointsAtLiveFormat)
+        {
+            return;
+        }
+
+        defaultMapping.PointTo(csvFormatId.Value);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Concurrent provisioning of the same tenant races on the unique indexes. Losing is benign —
+    /// the row the loser wanted now exists — so the insert is dropped rather than surfaced as a 500.
+    /// </summary>
+    private async Task SaveOrConcedeAsync(EntityEntry entry, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception)
+            when (uniqueViolationChecker.AnalyzeUniqueConstraint(exception).IsUniqueConstraintViolation)
+        {
+            entry.State = EntityState.Detached;
+        }
     }
 
     /// <summary>
