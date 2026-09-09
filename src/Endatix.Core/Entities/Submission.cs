@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Common;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 
@@ -232,12 +233,9 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     private readonly record struct SubmitterIdentity(long? Id, string? DisplayId, string? ProfileSnapshot)
     {
         public static SubmitterIdentity From(long? id, string? displayId, string? profileSnapshot) =>
-            new(id, EmptyToNull(displayId), EmptyToNull(profileSnapshot));
+            new(id, displayId.NullIfWhiteSpace(), profileSnapshot.NullIfWhiteSpace());
 
         public string? SubmittedBy => Id?.ToString() ?? DisplayId;
-
-        private static string? EmptyToNull(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
     private void SetCompletionStatus(bool newIsCompleteValue)

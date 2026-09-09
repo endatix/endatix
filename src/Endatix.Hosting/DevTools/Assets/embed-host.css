@@ -1,0 +1,429 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+:root {
+  color-scheme: light dark;
+  --bg: #eef2f7;
+  --panel: #fff;
+  --border: #d7dfea;
+  --text: #17202f;
+  --muted: #64748b;
+  --accent: #2563eb;
+  --accent-fg: #fff;
+  --warn: #b45309;
+  --warn-bg: #fef3c7;
+  --log-bg: #0f172a;
+  --log-fg: #cbd5e1;
+  --shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 26px rgba(15, 23, 42, 0.07);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a1018;
+    --panel: #111a26;
+    --border: #243346;
+    --text: #e6edf7;
+    --muted: #8ea0b8;
+    --accent: #60a5fa;
+    --accent-fg: #0a1018;
+    --warn: #fbbf24;
+    --warn-bg: #3a2f10;
+    --log-bg: #060b12;
+    --log-fg: #c7d5e6;
+    --shadow: none;
+  }
+}
+.banner {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.5rem;
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px/1.5 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+}
+
+.topbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.55rem 0.9rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.tag {
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  max-width: 15rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--bg);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pill b {
+  color: var(--muted);
+  font-weight: 600;
+}
+.pill--warn {
+  background: var(--warn-bg);
+  border-color: transparent;
+  color: var(--warn);
+}
+.pill--warn b {
+  color: inherit;
+}
+.spacer {
+  flex: 1 1 auto;
+}
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.btn[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+.btn--primary:hover {
+  color: var(--accent-fg);
+  filter: brightness(1.1);
+}
+.icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  opacity: 0.75;
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  overflow: hidden;
+}
+.seg-btn {
+  padding: 0.3rem 0.5rem;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.seg-btn:first-child {
+  border-left: 0;
+}
+.seg-btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+#config {
+  flex: none;
+  padding: 0.9rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem;
+  max-width: 76rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.field input,
+.field select {
+  padding: 0.35rem 0.5rem;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.field input:focus,
+.field select:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.config-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.stage {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1rem;
+}
+.frame {
+  width: 100%;
+  max-width: var(--frame-w, none);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+/* Fill keeps a definite height so embed.js's height:100% container resolves against it. A form
+   taller than the stage still has to be reachable, so the frame scrolls rather than clipping. */
+.frame--fill {
+  align-self: stretch;
+  height: 100%;
+  overflow: auto;
+}
+.empty {
+  align-self: center;
+  max-width: 28rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+.empty h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  color: var(--text);
+}
+.empty--error {
+  max-width: 34rem;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+}
+.empty--error p,
+.empty--error li {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+.empty--error ol {
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+}
+.empty--error ol a {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.drawer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+.drawer-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.9rem;
+}
+.drawer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.25rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.caret {
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+.drawer.open .caret {
+  transform: rotate(90deg);
+}
+.badge {
+  min-width: 1.3rem;
+  padding: 0 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: center;
+}
+.badge--alert {
+  background: var(--warn-bg);
+  border-color: transparent;
+  color: var(--warn);
+}
+.drawer:not(.open) .log,
+.drawer:not(.open) .drawer-actions {
+  display: none;
+}
+.log {
+  height: 13rem;
+  margin: 0 0.9rem 0.9rem;
+  padding: 0.55rem;
+  overflow: auto;
+  border-radius: 0.45rem;
+  background: var(--log-bg);
+  color: var(--log-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+}
+.log-empty {
+  color: #64748b;
+}
+.entry {
+  margin-bottom: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-left: 3px solid #38bdf8;
+  border-radius: 0 0.3rem 0.3rem 0;
+  background: rgba(148, 163, 184, 0.08);
+}
+.entry--complete {
+  border-left-color: #34d399;
+}
+.entry--error {
+  border-left-color: #f87171;
+}
+.entry-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: #93c5fd;
+  font-weight: 600;
+}
+.entry--complete .entry-head {
+  color: #6ee7b7;
+}
+.entry--error .entry-head {
+  color: #fca5a5;
+}
+.entry-head time {
+  margin-left: auto;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 400;
+}
+.entry pre {
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}

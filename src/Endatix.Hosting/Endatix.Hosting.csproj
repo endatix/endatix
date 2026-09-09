@@ -15,6 +15,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Inlined by EmbedHostAssets into the /dev/embed-host response. -->
+    <EmbeddedResource Include="DevTools/Assets/embed-host.html" />
+    <EmbeddedResource Include="DevTools/Assets/embed-host-bare.html" />
+    <EmbeddedResource Include="DevTools/Assets/embed-host.css" />
+    <EmbeddedResource Include="DevTools/Assets/embed-host.js" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Ardalis.GuardClauses" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" />
     <PackageReference Include="AspNetCore.HealthChecks.System" />
@@ -29,6 +37,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Endatix.Core\Endatix.Core.csproj" />
     <ProjectReference Include="..\Endatix.Persistence.SqlServer\Endatix.Persistence.SqlServer.csproj" />
     <ProjectReference Include="..\Endatix.Persistence.PostgreSql\Endatix.Persistence.PostgreSql.csproj" />
     <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />

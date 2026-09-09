@@ -46,8 +46,11 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     {
         Guard.Against.NullOrWhiteSpace(jobType);
         Guard.Against.NullOrWhiteSpace(payloadJson);
-        // 0 == AuthConstants.DEFAULT_TENANT_ID (app-level work) is valid; only negatives are not.
-        Guard.Against.Negative(tenantId);
+        // Every job belongs to a tenant. Zero is the value the tenant context reports when there is
+        // no ambient tenant at all, so a row carrying it belongs to nobody rather than to everybody
+        // — and the tenant filter would hide it from every tenant while showing it to every
+        // background service. Platform-wide work needs its own design, not this sentinel.
+        Guard.Against.NegativeOrZero(tenantId);
 
         JobType = jobType;
         PayloadJson = payloadJson;
