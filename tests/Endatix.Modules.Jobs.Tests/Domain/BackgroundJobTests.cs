@@ -61,14 +61,15 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void Constructor_DefaultTenantId_IsAllowed()
+    public void Constructor_TenantIdZero_Throws()
     {
         // Arrange
-        // Act — tenant 0 is the app-level tenant, valid for cross-tenant system work.
-        var job = new BackgroundJob("SubmissionExport", "{}", tenantId: 0, nextAttemptAt: Now);
+        // Act
+        var act = () => new BackgroundJob("SubmissionExport", "{}", tenantId: 0, nextAttemptAt: Now);
 
-        // Assert
-        job.TenantId.Should().Be(0);
+        // Assert — zero is what the tenant context reports when no tenant is ambient, so a job
+        // carrying it would be hidden from every tenant and visible to every background service.
+        act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
