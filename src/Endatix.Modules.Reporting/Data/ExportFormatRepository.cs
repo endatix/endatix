@@ -1,9 +1,12 @@
-using System.Text.Json;
+using Endatix.Core.Abstractions.Data;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Export;
+using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Endatix.Modules.Reporting.Data;
 
@@ -14,36 +17,9 @@ internal sealed class ExportFormatRepository(
     ReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork,
     ExportFormatSettingsParser settingsParser,
-    IExportCapabilityRegistry capabilityRegistry) : IExportFormatRepository
+    IExportCapabilityRegistry capabilityRegistry,
+    IUniqueConstraintViolationChecker uniqueViolationChecker) : IExportFormatRepository
 {
-    private static readonly string _defaultSubmissionsSettingsJson = JsonSerializer.Serialize(new
-    {
-        aliasProfile = "native",
-        keySeparator = "__",
-        includeTestSubmissions = false,
-    });
-
-    private static readonly string _defaultCodebookSettingsJson = JsonSerializer.Serialize(new
-    {
-        aliasProfile = "native",
-        keySeparator = "__",
-    });
-
-    private sealed record DefaultFormat(
-        string Name,
-        ExportTarget Target,
-        ExportDeliveryFormat Delivery,
-        string Description);
-
-    /// <summary>Every tenant default is <see cref="ExportProfile.Native"/>; settings follow the target.</summary>
-    private static readonly DefaultFormat[] DefaultFormats =
-    [
-        new("CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, "Default CSV export for form submissions"),
-        new("JSON", ExportTarget.Submissions, ExportDeliveryFormat.Json, "Default JSON export for form submissions"),
-        new("Excel (XLSX)", ExportTarget.Submissions, ExportDeliveryFormat.Xlsx, "Default Excel export for form submissions"),
-        new("Codebook", ExportTarget.Codebook, ExportDeliveryFormat.Json, "Default form definition codebook export"),
-    ];
-
     /// <inheritdoc />
     public async Task<ExportFormatRecord?> GetByIdAsync(
         long tenantId,
@@ -199,29 +175,27 @@ internal sealed class ExportFormatRepository(
     /// <inheritdoc />
     public async Task SeedDefaultsAsync(long tenantId, CancellationToken cancellationToken)
     {
-        var existing = await dbContext.ExportFormats
+        var existing = await FormatsForTenant(tenantId)
             .AsNoTracking()
-            .Where(format => format.TenantId == tenantId && format.Profile == ExportProfile.Native)
+            .Where(format => format.Profile == ExportProfile.Native)
             .Select(format => new { format.ExportTarget, format.DeliveryFormat })
             .ToListAsync(cancellationToken);
 
-        var missing = DefaultFormats.Where(definition => !existing.Any(format =>
+        var missing = DefaultExportFormats.All.Where(definition => !existing.Any(format =>
             format.ExportTarget == definition.Target &&
             format.DeliveryFormat == definition.Delivery));
 
-        // One save per row: BaseEntity.Id is DatabaseGeneratedOption.None, so EF assigns no
-        // temporary keys and ReportingDbContext stamps the id on save. Adding several unsaved
-        // rows at once would put two Id = 0 entities in the change tracker and throw.
+        // One save per row: BaseEntity.Id is DatabaseGeneratedOption.None; two unsaved rows collide on Id = 0.
         foreach (var definition in missing)
         {
-            dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            var entry = dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
+            await SaveOrConcedeAsync(entry, cancellationToken);
         }
 
         await EnsureDefaultMappingAsync(tenantId, cancellationToken);
     }
 
-    private static ExportFormat CreateDefault(long tenantId, DefaultFormat definition)
+    private static ExportFormat CreateDefault(long tenantId, DefaultExportFormat definition)
     {
         ExportFormat format = new(
             tenantId,
@@ -230,40 +204,22 @@ internal sealed class ExportFormatRepository(
             definition.Delivery,
             ExportProfile.Native,
             definition.Description);
-
-        format.UpdateSettingsJson(definition.Target == ExportTarget.Codebook
-            ? _defaultCodebookSettingsJson
-            : _defaultSubmissionsSettingsJson);
-
+        format.UpdateSettingsJson(definition.SettingsJson);
         return format;
     }
 
     /// <summary>
-    /// The tenant default export is CSV. The row is either one we just inserted or one that
-    /// already existed, so it is resolved by lookup rather than carried through the seed loop.
+    /// Tenant default is Native CSV. Repoint when the mapped format was soft-deleted
+    /// (<see cref="GetTenantDefaultAsync"/> uses a filtered <c>Include</c>).
     /// </summary>
     private async Task EnsureDefaultMappingAsync(long tenantId, CancellationToken cancellationToken)
     {
-        var hasDefaultMapping = await dbContext.SurveyTypeExportMappings
-            .AsNoTracking()
-            .AnyAsync(
-                mapping =>
-                    mapping.TenantId == tenantId &&
-                    mapping.IsDefault &&
-                    mapping.SurveyTypeId == null,
-                cancellationToken);
-
-        if (hasDefaultMapping)
-        {
-            return;
-        }
-
-        var csvFormatId = await dbContext.ExportFormats
+        DefaultExportFormat tenantDefault = DefaultExportFormats.TenantDefault;
+        var csvFormatId = await FormatsForTenant(tenantId)
             .AsNoTracking()
             .Where(format =>
-                format.TenantId == tenantId &&
-                format.ExportTarget == ExportTarget.Submissions &&
-                format.DeliveryFormat == ExportDeliveryFormat.Csv &&
+                format.ExportTarget == tenantDefault.Target &&
+                format.DeliveryFormat == tenantDefault.Delivery &&
                 format.Profile == ExportProfile.Native)
             .Select(format => (long?)format.Id)
             .FirstOrDefaultAsync(cancellationToken);
@@ -273,15 +229,65 @@ internal sealed class ExportFormatRepository(
             return;
         }
 
-        SurveyTypeExportMapping defaultMapping = new(
-            tenantId,
-            csvFormatId.Value,
-            surveyTypeId: null,
-            isDefault: true);
+        var defaultMapping = await MappingsForTenant(tenantId)
+            .FirstOrDefaultAsync(mapping => mapping.SurveyTypeId == null, cancellationToken);
 
-        await dbContext.SurveyTypeExportMappings.AddAsync(defaultMapping, cancellationToken);
+        if (defaultMapping is null)
+        {
+            var entry = dbContext.SurveyTypeExportMappings.Add(
+                new(tenantId, csvFormatId.Value, surveyTypeId: null, isDefault: true));
+            await SaveOrConcedeAsync(entry, cancellationToken);
+            return;
+        }
+
+        if (!defaultMapping.IsDefault)
+        {
+            return;
+        }
+
+        var pointsAtLiveFormat = await FormatsForTenant(tenantId)
+            .AsNoTracking()
+            .AnyAsync(format => format.Id == defaultMapping.ExportFormatId, cancellationToken);
+
+        if (pointsAtLiveFormat)
+        {
+            return;
+        }
+
+        defaultMapping.PointTo(csvFormatId.Value);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// Concurrent seed of the same tenant races on unique indexes. Concede a matching default
+    /// row; skip a name clash with a different profile and keep seeding the rest.
+    /// </summary>
+    private async Task SaveOrConcedeAsync(EntityEntry entry, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception)
+            when (uniqueViolationChecker.AnalyzeUniqueConstraint(exception).IsUniqueConstraintViolation)
+        {
+            entry.State = EntityState.Detached;
+        }
+    }
+
+    /// <summary>
+    /// Outbox <c>tenant.created</c> is app-level; drop only the tenant filter, keep soft-delete.
+    /// </summary>
+    private IQueryable<ExportFormat> FormatsForTenant(long tenantId) =>
+        dbContext.ExportFormats
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(format => format.TenantId == tenantId);
+
+    /// <inheritdoc cref="FormatsForTenant" />
+    private IQueryable<SurveyTypeExportMapping> MappingsForTenant(long tenantId) =>
+        dbContext.SurveyTypeExportMappings
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(mapping => mapping.TenantId == tenantId);
 
     private ExportFormatDto MapDto(ExportFormat exportFormat)
     {

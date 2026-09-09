@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(ReportingDbContext))]
-    [Migration("20260904194346_SeedXlsxExportFormat")]
-    partial class SeedXlsxExportFormat
+    [Migration("20260904194346_SeedDefaultExportFormats")]
+    partial class SeedDefaultExportFormats
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -217,11 +217,11 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 
                     b.HasIndex("TenantId")
                         .IsUnique()
-                        .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NULL");
+                        .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NULL AND \"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "SurveyTypeId")
                         .IsUnique()
-                        .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL");
+                        .HasFilter("\"IsDefault\" = true AND \"SurveyTypeId\" IS NOT NULL AND \"IsDeleted\" = false");
 
                     b.ToTable("SurveyTypeExportMappings", "reporting");
                 });

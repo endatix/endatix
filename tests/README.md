@@ -20,40 +20,40 @@ ENDATIX_TEST_DB_PROVIDER=SqlServer \
   --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
 ```
 
-Filter constants: `Endatix.IntegrationTests.Shared/IntegrationTestFilters.cs`. CI runs both legs via `.github/workflows/build-ci.yml` (provider matrix).
+Filter constants: `Endatix.IntegrationTests.Shared/IntegrationTestFilters.cs`. CI runs both legs via `.github/workflows/ci.yml` (provider matrix).
 
 ### Provider matrix
 
-| | PostgreSQL | SQL Server |
-| --- | --- | --- |
-| Env | `ENDATIX_TEST_DB_PROVIDER=PostgreSql` (default) | `ENDATIX_TEST_DB_PROVIDER=SqlServer` |
-| Filter | `IntegrationTestFilters.Default` | `IntegrationTestFilters.SqlServer` |
-| Runs | Provider-agnostic + `DbSpecific=PostgreSql` | Provider-agnostic + `DbSpecific=SqlServer` |
+|        | PostgreSQL                                      | SQL Server                                 |
+| ------ | ----------------------------------------------- | ------------------------------------------ |
+| Env    | `ENDATIX_TEST_DB_PROVIDER=PostgreSql` (default) | `ENDATIX_TEST_DB_PROVIDER=SqlServer`       |
+| Filter | `IntegrationTestFilters.Default`                | `IntegrationTestFilters.SqlServer`         |
+| Runs   | Provider-agnostic + `DbSpecific=PostgreSql`     | Provider-agnostic + `DbSpecific=SqlServer` |
 
 Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-specific tests.
 
 ### Collections
 
-| Collection | Fixture | Use for |
-| --- | --- | --- |
-| `EndatixIntegrationTestCollection` | `EndatixIntegrationWebHostFixture` | HTTP / API tests |
-| `DbIntegrationTestCollection` | `DbIntegrationFixture` | Migrations, EF, query filters without full host |
-| (none) | `KeycloakTestContainerFixture` | Keycloak smoke — `Category=Keycloak`, `Priority=P2` |
+| Collection                         | Fixture                            | Use for                                             |
+| ---------------------------------- | ---------------------------------- | --------------------------------------------------- |
+| `EndatixIntegrationTestCollection` | `EndatixIntegrationWebHostFixture` | HTTP / API tests                                    |
+| `DbIntegrationTestCollection`      | `DbIntegrationFixture`             | Migrations, EF, query filters without full host     |
+| (none)                             | `KeycloakTestContainerFixture`     | Keycloak smoke — `Category=Keycloak`, `Priority=P2` |
 
 ### Traits
 
-| Trait | Values | Purpose |
-| --- | --- | --- |
-| `Category` | `CriticalPath`, `FeatureFlow`, `Infrastructure`, `Keycloak` | Suite grouping / CI |
-| `Priority` | `P0`, `P1`, `P2` | PR gate excludes `P2` |
-| `DbSpecific` | `PostgreSql`, `SqlServer` | Only when the test cannot run on the other provider |
+| Trait        | Values                                                      | Purpose                                             |
+| ------------ | ----------------------------------------------------------- | --------------------------------------------------- |
+| `Category`   | `CriticalPath`, `FeatureFlow`, `Infrastructure`, `Keycloak` | Suite grouping / CI                                 |
+| `Priority`   | `P0`, `P1`, `P2`                                            | PR gate excludes `P2`                               |
+| `DbSpecific` | `PostgreSql`, `SqlServer`                                   | Only when the test cannot run on the other provider |
 
 ### Environment
 
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `ENDATIX_TEST_DB_PROVIDER` | `PostgreSql` | `SqlServer` for SQL Server leg |
-| `ENDATIX_TEST_REUSE_CONTAINERS` | off | Local dev only |
+| Variable                        | Default      | Notes                          |
+| ------------------------------- | ------------ | ------------------------------ |
+| `ENDATIX_TEST_DB_PROVIDER`      | `PostgreSql` | `SqlServer` for SQL Server leg |
+| `ENDATIX_TEST_REUSE_CONTAINERS` | off          | Local dev only                 |
 
 `xunit.runner.json` disables parallelism — collections share one DB per process; tests reset via Respawn.
 
@@ -78,6 +78,7 @@ This repository includes a standardized prompt for generating unit tests using C
 9. Play with the prompt to see if you can get better tests, update it and share insights with the team. Have fun with AI tests generation!
 
 ### The Prompt
+
 ```
 Please create unit tests for class [CLASS_PLACEHOLDER] using Xunit, NSubstitute and FluentAssertions, following the rules below.
 - Prepare the test code ready to be stored in a file with all the neccesary using directives.

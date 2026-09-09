@@ -39,6 +39,7 @@ public sealed class MyFlowTests(EndatixIntegrationWebHostFixture fixture)
 | `StartupMigrationTests`               | DB-only, provider-agnostic migrations                          |
 | `SqlServerMigrationArtifactTests`     | `DbSpecific=SqlServer` stored proc / seed checks               |
 | `ReportingQueryFilterTests`           | `DbSpecific=PostgreSql` module schema                          |
+| `ExportFormatSeedIntegrationTests`    | Db-only PG, `SeedDefaultsAsync` (named tenant filter, unique name, mapping repair) |
 
 ## Shared infrastructure (`Endatix.IntegrationTests.Shared`)
 
