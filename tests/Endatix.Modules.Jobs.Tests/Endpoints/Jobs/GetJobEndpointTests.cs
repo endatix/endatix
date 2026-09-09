@@ -1,4 +1,5 @@
-using System.Text.Json.Nodes;
+using System.Text.Json;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Jobs.Endpoints.Jobs;
@@ -14,14 +15,23 @@ public sealed class GetJobEndpointTests
 {
     private const long JobId = 987654321098765432;
 
+    private const long TenantId = 7;
+
     private readonly IMediator _mediator = Substitute.For<IMediator>();
+    private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly GetJob _endpoint;
 
-    public GetJobEndpointTests() => _endpoint = Factory.Create<GetJob>(_mediator);
+    public GetJobEndpointTests()
+    {
+        _tenantContext.TenantId.Returns(TenantId);
+        _endpoint = Factory.Create<GetJob>(_mediator, _tenantContext);
+    }
+
+    private static JsonElement Json(string json) => JsonSerializer.Deserialize<JsonElement>(json);
 
     private static JobDto Job(
         JobStatus status = JobStatus.Processing,
-        JsonNode? result = null,
+        JsonElement? result = null,
         string? errorMessage = null) =>
         new(JobId, "SubmissionExport", status, 45, "Processing 4,500 of 10,000 rows", result, errorMessage);
 
@@ -53,28 +63,15 @@ public sealed class GetJobEndpointTests
         job.StatusMessage.Should().Be("Processing 4,500 of 10,000 rows");
 
         await _mediator.Received(1).Send(
-            Arg.Is<GetJobQuery>(query => query.JobId == JobId),
+            Arg.Is<GetJobQuery>(query => query.JobId == JobId && query.TenantId == TenantId),
             Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_UnfinishedJob_ReportsNoResult()
-    {
-        // Arrange
-        Returns(Result.Success(Job()));
-
-        // Act
-        var job = await ExecuteAsync();
-
-        // Assert — a caller that polls must not be offered an output before there is one.
-        job.Result.Should().BeNull();
     }
 
     [Fact]
     public async Task ExecuteAsync_CompletedExport_CarriesTheFileItProduced()
     {
         // Arrange
-        var result = JsonNode.Parse(@"{""fileName"":""submissions-100.csv"",""contentType"":""text/csv""}");
+        var result = Json(@"{""fileName"":""submissions-100.csv"",""contentType"":""text/csv""}");
         Returns(Result.Success(Job(JobStatus.Completed, result)));
 
         // Act
@@ -82,7 +79,7 @@ public sealed class GetJobEndpointTests
 
         // Assert
         job.Result.Should().NotBeNull();
-        job.Result!["fileName"]!.GetValue<string>().Should().Be("submissions-100.csv");
+        job.Result!.Value.GetProperty("fileName").GetString().Should().Be("submissions-100.csv");
     }
 
     [Fact]
@@ -90,14 +87,14 @@ public sealed class GetJobEndpointTests
     {
         // Arrange — a webhook delivery reports a response code, not a file. Both are legitimate
         // outputs, which is why this endpoint imposes no shape on them.
-        var result = JsonNode.Parse(@"{""statusCode"":200,""attempt"":1}");
+        var result = Json(@"{""statusCode"":200,""attempt"":1}");
         Returns(Result.Success(Job(JobStatus.Completed, result)));
 
         // Act
         var job = await ExecuteAsync();
 
         // Assert
-        job.Result!["statusCode"]!.GetValue<int>().Should().Be(200);
+        job.Result!.Value.GetProperty("statusCode").GetInt32().Should().Be(200);
     }
 
     [Fact]

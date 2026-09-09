@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+using System.Text.Json;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Features.GetJob;
 
@@ -46,10 +46,13 @@ public sealed class JobResponse
     /// shape this endpoint could promise. Each job type documents its own, and a caller already knows
     /// which type it asked about from <see cref="Type"/>.
     /// </remarks>
-    public JsonNode? Result { get; init; }
+    public JsonElement? Result { get; init; }
 
     /// <summary>
-    /// Why the job failed. Set only once it has failed or been dead-lettered.
+    /// The most recent failure recorded against the job. Present on <c>Failed</c> and
+    /// <c>DeadLettered</c>, and also on <c>Retrying</c> — a job between attempts carries the reason
+    /// the last one failed, so this being set does not mean the job has stopped. Read
+    /// <see cref="Status"/> for that.
     /// </summary>
     public string? ErrorMessage { get; init; }
 

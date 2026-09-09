@@ -4,6 +4,7 @@ using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Features.GetJob;
 using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Modules.Jobs.Tests.Features.GetJob;
 
@@ -27,7 +28,7 @@ public sealed class GetJobHandlerTests : IDisposable
 
         _dbContext = new TestJobsDbContext(
             options, new SequentialIdGenerator(), new FixedTenantContext(CallerTenantId));
-        _handler = new GetJobHandler(_dbContext);
+        _handler = new GetJobHandler(_dbContext, NullLogger<GetJobHandler>.Instance);
     }
 
     public void Dispose() => _dbContext.Dispose();
@@ -55,7 +56,7 @@ public sealed class GetJobHandlerTests : IDisposable
         var job = AddJob();
 
         // Act
-        var result = await _handler.Handle(new GetJobQuery(job.Id), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -69,7 +70,7 @@ public sealed class GetJobHandlerTests : IDisposable
     {
         // Arrange
         // Act
-        var result = await _handler.Handle(new GetJobQuery(404), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, 404), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
@@ -83,7 +84,7 @@ public sealed class GetJobHandlerTests : IDisposable
 
         // Act
         var result = await _handler.Handle(
-            new GetJobQuery(foreignJob.Id), TestContext.Current.CancellationToken);
+            new GetJobQuery(CallerTenantId, foreignJob.Id), TestContext.Current.CancellationToken);
 
         // Assert — not Forbidden: a 403 would confirm the id exists, which is enough to enumerate
         // another tenant's jobs.
@@ -97,11 +98,11 @@ public sealed class GetJobHandlerTests : IDisposable
         var job = AddJob(resultJson: @"{""fileName"":""submissions-100.csv"",""contentType"":""text/csv""}");
 
         // Act
-        var result = await _handler.Handle(new GetJobQuery(job.Id), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
 
         // Assert
         result.Value.Result.Should().NotBeNull();
-        result.Value.Result!["fileName"]!.GetValue<string>().Should().Be("submissions-100.csv");
+        result.Value.Result!.Value.GetProperty("fileName").GetString().Should().Be("submissions-100.csv");
     }
 
     [Fact]
@@ -112,10 +113,10 @@ public sealed class GetJobHandlerTests : IDisposable
         var job = AddJob(resultJson: @"{""statusCode"":200,""attempt"":1}");
 
         // Act
-        var result = await _handler.Handle(new GetJobQuery(job.Id), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Value.Result!["statusCode"]!.GetValue<int>().Should().Be(200);
+        result.Value.Result!.Value.GetProperty("statusCode").GetInt32().Should().Be(200);
     }
 
     [Fact]
@@ -125,10 +126,25 @@ public sealed class GetJobHandlerTests : IDisposable
         var job = AddJob();
 
         // Act
-        var result = await _handler.Handle(new GetJobQuery(job.Id), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
 
         // Assert
         result.Value.Result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_NoTenantOnTheRequest_IsRefusedRatherThanServedEveryTenant()
+    {
+        // Arrange — a principal with no usable `tid` claim leaves the tenant context at zero, which
+        // the ambient filter reads as "no tenant, show everything".
+        var foreignJob = AddJob(OtherTenantId);
+
+        // Act
+        var result = await _handler.Handle(
+            new GetJobQuery(TenantId: 0, foreignJob.Id), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unauthorized);
     }
 
     [Fact]
@@ -139,7 +155,7 @@ public sealed class GetJobHandlerTests : IDisposable
         var job = AddJob(resultJson: "not json at all");
 
         // Act
-        var result = await _handler.Handle(new GetJobQuery(job.Id), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();

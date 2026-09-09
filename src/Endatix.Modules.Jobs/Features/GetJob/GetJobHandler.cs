@@ -1,17 +1,17 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Jobs.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Jobs.Features.GetJob;
 
 /// <summary>
-/// Reads the current state of one background job.
+/// Reads the current state of one background job for a tenant.
 /// </summary>
-public sealed record GetJobQuery(long JobId) : IQuery<Result<JobDto>>;
+public sealed record GetJobQuery(long TenantId, long JobId) : IQuery<Result<JobDto>>;
 
 /// <summary>
 /// A job's state as reported to a caller.
@@ -27,22 +27,26 @@ public sealed record JobDto(
     JobStatus Status,
     int ProgressPercentage,
     string? StatusMessage,
-    JsonNode? Result,
+    JsonElement? Result,
     string? ErrorMessage);
 
-/// <remarks>
-/// No tenant argument: the jobs context filters every query to the current tenant, so a job
-/// belonging to another one is simply not found. Passing a tenant id here as well would add a
-/// second, weaker guard that could disagree with the first.
-/// </remarks>
-internal sealed class GetJobHandler(IJobsDbContext dbContext)
+internal sealed class GetJobHandler(IJobsDbContext dbContext, ILogger<GetJobHandler> logger)
     : IQueryHandler<GetJobQuery, Result<JobDto>>
 {
     public async Task<Result<JobDto>> Handle(GetJobQuery request, CancellationToken cancellationToken)
     {
+        // The ambient tenant filter cannot carry this on its own. It reads a tenant id of zero as
+        // "no tenant, show everything" so that background services can sweep across tenants — and a
+        // request whose principal has no usable `tid` claim also leaves the tenant context at zero,
+        // because TenantMiddleware returns early rather than failing. Scoping such a request by the
+        // filter alone would serve it every tenant's jobs.
+        if (request.TenantId <= 0)
+        {
+            return Result.Unauthorized("Tenant context is required.");
+        }
+
         var job = await dbContext.BackgroundJobs
-            .AsNoTracking()
-            .Where(candidate => candidate.Id == request.JobId)
+            .Where(candidate => candidate.Id == request.JobId && candidate.TenantId == request.TenantId)
             .Select(candidate => new
             {
                 candidate.Id,
@@ -53,7 +57,7 @@ internal sealed class GetJobHandler(IJobsDbContext dbContext)
                 candidate.ResultJson,
                 candidate.ErrorMessage,
             })
-            .SingleOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (job is null)
         {
@@ -66,24 +70,19 @@ internal sealed class GetJobHandler(IJobsDbContext dbContext)
             job.Status,
             job.ProgressPercentage,
             job.StatusMessage,
-            // Only a completed job has produced anything. A failed one may still carry the result of
-            // an earlier successful attempt, and offering that as this job's output would hand the
-            // caller a stale artifact under a job that did not finish.
-            job.Status == JobStatus.Completed ? ParseResult(job.ResultJson) : null,
+            // Only Complete writes ResultJson, and it is terminal, so no other status can carry one.
+            // The gate is defence against a future writer rather than a state reachable today.
+            job.Status == JobStatus.Completed ? ParseResult(job.Id, job.ResultJson) : null,
             job.ErrorMessage));
     }
 
     /// <remarks>
     /// Passed through as written rather than mapped onto a fixed shape. Job types produce different
     /// things — an export produces a file, a webhook delivery produces a response code — so the only
-    /// shape this endpoint can describe for every type is the one the handler chose. Each job type
+    /// shape this endpoint could describe for every type is the one the handler chose. Each job type
     /// documents its own; a caller already knows which type it asked about.
-    /// <para>
-    /// A payload that is not valid JSON is reported as no result rather than failing the read: the
-    /// column belongs to whichever handler ran the job, and the caller still needs the status.
-    /// </para>
     /// </remarks>
-    private static JsonNode? ParseResult(string? resultJson)
+    private JsonElement? ParseResult(long jobId, string? resultJson)
     {
         if (string.IsNullOrWhiteSpace(resultJson))
         {
@@ -92,10 +91,16 @@ internal sealed class GetJobHandler(IJobsDbContext dbContext)
 
         try
         {
-            return JsonNode.Parse(resultJson);
+            return JsonSerializer.Deserialize<JsonElement>(resultJson);
         }
-        catch (JsonException)
+        catch (JsonException exception)
         {
+            // Reporting no result keeps the status readable, but silence would leave a completed job
+            // claiming to have produced nothing, on every poll, with nowhere to look for the reason.
+            logger.LogWarning(
+                exception,
+                "Background job {JobId} completed with a result payload that is not valid JSON; reporting no result.",
+                jobId);
             return null;
         }
     }

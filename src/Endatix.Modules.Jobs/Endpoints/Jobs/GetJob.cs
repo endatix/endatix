@@ -1,4 +1,5 @@
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions;
 using Endatix.Modules.Jobs.Features.GetJob;
 using FastEndpoints;
 using FluentValidation;
@@ -17,7 +18,7 @@ namespace Endatix.Modules.Jobs.Endpoints.Jobs;
 /// A job carries no data of its own beyond its progress — the work it did is reached through
 /// whatever endpoint owns that work, which applies its own permissions there.
 /// </remarks>
-public sealed class GetJob(IMediator mediator)
+public sealed class GetJob(IMediator mediator, ITenantContext tenantContext)
     : Endpoint<GetJobRequest, Results<Ok<JobResponse>, ProblemHttpResult>>
 {
     /// <inheritdoc />
@@ -29,14 +30,17 @@ public sealed class GetJob(IMediator mediator)
             summary.Summary = "Get a background job";
             summary.Description =
                 "Retrieves the current state of a background job. Progress and status message are " +
-                "advisory and may lag the work itself; status is authoritative. Download metadata " +
-                "appears only once the job has completed successfully.";
+                "advisory and may lag the work itself; status is authoritative. The result is " +
+                "whatever the job's handler produced, in the shape that handler wrote, and appears " +
+                "only once the job has completed successfully.";
             summary.ExampleRequest = new GetJobRequest { JobId = 987654321 };
             summary.Responses[200] = "Job state retrieved.";
+            summary.Responses[400] = "The job ID is not valid.";
             summary.Responses[404] = "Job not found.";
         });
         Description(builder => builder
             .Produces<JobResponse>(200, "application/json")
+            .ProducesProblem(400)
             .ProducesProblem(404));
     }
 
@@ -45,7 +49,7 @@ public sealed class GetJob(IMediator mediator)
         GetJobRequest request,
         CancellationToken ct)
     {
-        var result = await mediator.Send(new GetJobQuery(request.JobId), ct);
+        var result = await mediator.Send(new GetJobQuery(tenantContext.TenantId, request.JobId), ct);
 
         return TypedResultsBuilder
             .MapResult(result, JobResponse.FromDto)
