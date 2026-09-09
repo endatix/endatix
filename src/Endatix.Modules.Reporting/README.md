@@ -74,11 +74,11 @@ Run the commands from the `oss` folder.
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`, `SeedXlsxExportFormat`, `SeedMissingDefaultExportFormats`)
+- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`, `SeedDefaultExportFormats`)
 
   Tenant export formats are rows, not code. Catalog: `DefaultExportFormats.All` (CSV, JSON, Excel, Codebook) —
   used by `SeedDefaultsAsync` / outbox `tenant.created` and by PG backfill SQL.
-  **Existing tenants:** `SeedMissingDefaultExportFormats` (`hashtextextended` ids, `NOT EXISTS`).
+  **Existing tenants:** `SeedDefaultExportFormats` (`hashtextextended` ids, `NOT EXISTS`).
   **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder` (not a migration replay).
 - `Persistence/Migrations/SqlServer/` — **not yet available**. SQL Server support is coming soon
   ([endatix/endatix#813](https://github.com/endatix/endatix/issues/813)). Use PostgreSQL for Reporting until then.

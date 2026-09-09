@@ -4,7 +4,7 @@ namespace Endatix.Modules.Reporting.Persistence;
 
 /// <summary>
 /// Idempotent PG script: insert any missing Native defaults for live tenants.
-/// Same <c>hashtextextended</c> ids as <c>InitialReporting</c> / <c>SeedXlsxExportFormat</c>.
+/// Same <c>hashtextextended</c> ids as <c>InitialReporting</c>.
 /// </summary>
 internal static class DefaultExportFormatsPostgresBackfill
 {
@@ -14,6 +14,26 @@ internal static class DefaultExportFormatsPostgresBackfill
         {
             IEnumerable<string> formatInserts = DefaultExportFormats.All.Select(BuildFormatInsert);
             return string.Join("\n\n", formatInserts) + "\n\n" + BuildDefaultMappingInsert();
+        }
+    }
+
+    /// <summary>Excel is the only catalog row <c>InitialReporting</c> does not insert.</summary>
+    public static string DownXlsxSql
+    {
+        get
+        {
+            string xlsxId = HashId(DefaultExportFormats.Xlsx.IdSuffix);
+            return $"""
+                DELETE FROM reporting."SurveyTypeExportMappings" mapping
+                USING "Tenants" t
+                WHERE mapping."TenantId" = t."Id"
+                  AND mapping."ExportFormatId" = {xlsxId};
+
+                DELETE FROM reporting."ExportFormats" format
+                USING "Tenants" t
+                WHERE format."TenantId" = t."Id"
+                  AND format."Id" = {xlsxId};
+                """;
         }
     }
 

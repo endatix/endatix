@@ -259,7 +259,7 @@ public sealed class ExportFormatSeedIntegrationTests
     }
 
     [Fact]
-    public async Task SeedMissingDefaultExportFormats_ForExistingTenant_CreatesEveryNativeDefaultAndCsvMapping()
+    public async Task SeedDefaultExportFormats_ForExistingTenant_CreatesEveryNativeDefaultAndCsvMapping()
     {
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;

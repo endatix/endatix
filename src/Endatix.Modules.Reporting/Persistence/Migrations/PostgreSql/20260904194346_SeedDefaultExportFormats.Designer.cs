@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(ReportingDbContext))]
-    [Migration("20260909121500_SeedMissingDefaultExportFormats")]
-    partial class SeedMissingDefaultExportFormats
+    [Migration("20260904194346_SeedDefaultExportFormats")]
+    partial class SeedDefaultExportFormats
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

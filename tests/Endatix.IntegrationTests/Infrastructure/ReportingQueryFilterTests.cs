@@ -33,8 +33,8 @@ public sealed class ReportingQueryFilterTests
         var bypassTenant = Substitute.For<ITenantContext>();
         bypassTenant.TenantId.Returns(0L);
 
-        // High, unseeded ids: the InitialReporting / SeedXlsxExportFormat data migrations seed
-        // export formats for every row in "Tenants", so low ids collide with real tenants.
+        // High, unseeded ids: InitialReporting / SeedDefaultExportFormats seed export formats
+        // for every row in "Tenants", so low ids collide with real tenants.
         const long tenant1 = 9201;
         const long tenant2 = 9202;
 

@@ -7,11 +7,11 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
     /// <summary>
-    /// Backfills Native CSV, JSON, Excel, and Codebook (plus CSV default mapping) for tenants
-    /// that missed <c>InitialReporting</c> seed or outbox <c>tenant.created</c>.
-    /// SQL is generated from <see cref="DefaultExportFormats"/>.
+    /// Backfills Native CSV, JSON, Excel, and Codebook (plus CSV default mapping) for every tenant.
+    /// SQL comes from <see cref="DefaultExportFormats"/>. Ids follow the <c>InitialReporting</c>
+    /// <c>hashtextextended</c> convention.
     /// </summary>
-    public partial class SeedMissingDefaultExportFormats : Migration
+    public partial class SeedDefaultExportFormats : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -22,7 +22,8 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Idempotent backfill of the same ids as InitialReporting — do not drop those rows.
+            // CSV/JSON/Codebook also exist from InitialReporting — only reverse Excel (not in that seed).
+            migrationBuilder.Sql(DefaultExportFormatsPostgresBackfill.DownXlsxSql);
         }
     }
 }
