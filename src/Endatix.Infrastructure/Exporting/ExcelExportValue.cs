@@ -11,7 +11,13 @@ namespace Endatix.Infrastructure.Exporting;
 internal static class ExcelExportValue
 {
     private static readonly string[] IsoDateFormats =
-        ["yyyy-MM-ddTHH:mm:ssK", "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-dd"];
+    [
+        "yyyy-MM-ddTHH:mm:ss.FFFFFFFK",
+        "yyyy-MM-ddTHH:mm:ss.FFFFFF",
+        "yyyy-MM-ddTHH:mm:ssK",
+        "yyyy-MM-ddTHH:mm:ss",
+        "yyyy-MM-dd",
+    ];
 
     public static object? Unwrap(object? value) => value switch
     {
@@ -40,8 +46,6 @@ internal static class ExcelExportValue
         _ => element
     };
 
-    // A JsonValue built from a .NET string does not convert to DateTime on its own, so both
-    // paths go through the same explicit ISO parse.
     private static object UnwrapText(string text) =>
         DateTime.TryParseExact(
             text,
@@ -54,6 +58,16 @@ internal static class ExcelExportValue
 
     private static object UnwrapNumber(JsonValue value)
     {
+        if (value.TryGetValue<int>(out var i))
+        {
+            return i;
+        }
+
+        if (value.TryGetValue<long>(out var l))
+        {
+            return l;
+        }
+
         if (value.TryGetValue<decimal>(out var dec))
         {
             return dec;

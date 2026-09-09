@@ -11,6 +11,8 @@ public sealed class ExcelIdCellTests
     [InlineData(SubmissionExportRow.SystemColumns.SubmitterId, "9", true)]
     [InlineData(SubmissionExportRow.SystemColumns.SubmitterDisplayId, "ext", true)]
     [InlineData("choiceId", "123456789012345678", true)]
+    [InlineData("choiceId", "1234567890123456", true)]
+    [InlineData("choiceId", "123456789012345", false)]
     [InlineData("question2", "42", false)]
     [InlineData("question1", "answer1", false)]
     [InlineData("mixed", "1234567890123456x", false)]

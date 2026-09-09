@@ -38,7 +38,7 @@ Database schema: `reporting`
 |-------|---------|
 | `FormSchemas` | Compiled form schema (`FlatteningMap` + `Codebook`) per tenant + form |
 | `FlattenedSubmissions` | Flat submission answers aligned to form schema |
-| `ExportFormats` | Export delivery configuration (CSV, JSON, codebook) |
+| `ExportFormats` | Tenant export rows (CSV, JSON, Excel/XLSX, codebook) |
 | `SurveyTypeExportMappings` | Allowed export formats per survey type (with optional default and tenant fallback) |
 
 ### FormSchema compile modes
@@ -68,7 +68,11 @@ Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Ins
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`)
+- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`, `SeedXlsxExportFormat`)
+
+  Tenant export formats are rows, not code. **Existing tenants:** data migration (`SeedXlsxExportFormat` —
+  `hashtextextended` ids, `NOT EXISTS`, `Down` drops mappings first — FK is `RESTRICT`). **New tenants:**
+  outbox `tenant.created` → `IDefaultExportFormatsSeeder` (not a migration replay).
 - `Persistence/Migrations/SqlServer/` — **not yet available** ([endatix/endatix#813](https://github.com/endatix/endatix/issues/813))
 
 Set `ConnectionStrings:DefaultConnection_DbProvider` to match the provider you are generating for.

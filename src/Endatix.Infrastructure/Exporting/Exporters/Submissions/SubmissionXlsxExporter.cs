@@ -283,16 +283,11 @@ public sealed class SubmissionXlsxExporter(
         }
 
         var sanitized = new StringBuilder(value.Length);
-        for (var i = 0; i < value.Length; i++)
+        foreach (var rune in value.EnumerateRunes())
         {
-            if (char.IsSurrogatePair(value, i))
+            if (!rune.IsBmp || XmlConvert.IsXmlChar((char)rune.Value))
             {
-                sanitized.Append(value[i]).Append(value[i + 1]);
-                i++;
-            }
-            else if (XmlConvert.IsXmlChar(value[i]))
-            {
-                sanitized.Append(value[i]);
+                sanitized.Append(rune);
             }
         }
 

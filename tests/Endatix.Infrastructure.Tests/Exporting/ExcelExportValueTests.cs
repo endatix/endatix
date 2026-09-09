@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Endatix.Infrastructure.Exporting;
@@ -27,12 +26,13 @@ public sealed class ExcelExportValueTests
         var unwrapped = ExcelExportValue.Unwrap(JsonValue.Create(42));
 
         // Assert
-        Assert.Equal(42m, Convert.ToDecimal(unwrapped, CultureInfo.InvariantCulture));
+        Assert.Equal(42, Assert.IsType<int>(unwrapped));
     }
 
     /// <summary>Both node shapes reach the exporter: JsonElement from the parsed answers, JsonValue from transformers.</summary>
     [Theory]
     [InlineData("2024-06-15T12:00:00Z")]
+    [InlineData("2024-06-15T12:00:00.123Z")]
     [InlineData("2024-06-15T12:00:00")]
     [InlineData("2024-06-15")]
     public void Unwrap_JsonIsoDateString_ReturnsDateTime(string isoDate)

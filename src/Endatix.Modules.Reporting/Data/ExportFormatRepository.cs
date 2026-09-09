@@ -29,6 +29,21 @@ internal sealed class ExportFormatRepository(
         keySeparator = "__",
     });
 
+    private sealed record DefaultFormat(
+        string Name,
+        ExportTarget Target,
+        ExportDeliveryFormat Delivery,
+        string Description);
+
+    /// <summary>Every tenant default is <see cref="ExportProfile.Native"/>; settings follow the target.</summary>
+    private static readonly DefaultFormat[] DefaultFormats =
+    [
+        new("CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, "Default CSV export for form submissions"),
+        new("JSON", ExportTarget.Submissions, ExportDeliveryFormat.Json, "Default JSON export for form submissions"),
+        new("Excel (XLSX)", ExportTarget.Submissions, ExportDeliveryFormat.Xlsx, "Default Excel export for form submissions"),
+        new("Codebook", ExportTarget.Codebook, ExportDeliveryFormat.Json, "Default form definition codebook export"),
+    ];
+
     /// <inheritdoc />
     public async Task<ExportFormatRecord?> GetByIdAsync(
         long tenantId,
@@ -186,77 +201,49 @@ internal sealed class ExportFormatRepository(
     {
         var existing = await dbContext.ExportFormats
             .AsNoTracking()
-            .Where(format => format.TenantId == tenantId)
-            .Select(format => new { format.ExportTarget, format.DeliveryFormat, format.Profile })
+            .Where(format => format.TenantId == tenantId && format.Profile == ExportProfile.Native)
+            .Select(format => new { format.ExportTarget, format.DeliveryFormat })
             .ToListAsync(cancellationToken);
 
-        bool Has(ExportTarget target, ExportDeliveryFormat delivery, ExportProfile profile) =>
-            existing.Any(format =>
-                format.ExportTarget == target &&
-                format.DeliveryFormat == delivery &&
-                format.Profile == profile);
+        var missing = DefaultFormats.Where(definition => !existing.Any(format =>
+            format.ExportTarget == definition.Target &&
+            format.DeliveryFormat == definition.Delivery));
 
-        var toAdd = new List<ExportFormat>();
-        ExportFormat? csvFormat = null;
-
-        if (!Has(ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native))
+        // One save per row: BaseEntity.Id is DatabaseGeneratedOption.None, so EF assigns no
+        // temporary keys and ReportingDbContext stamps the id on save. Adding several unsaved
+        // rows at once would put two Id = 0 entities in the change tracker and throw.
+        foreach (var definition in missing)
         {
-            csvFormat = new ExportFormat(
-                tenantId,
-                "CSV",
-                ExportTarget.Submissions,
-                ExportDeliveryFormat.Csv,
-                ExportProfile.Native,
-                "Default CSV export for form submissions");
-            csvFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
-            toAdd.Add(csvFormat);
-        }
-
-        if (!Has(ExportTarget.Submissions, ExportDeliveryFormat.Json, ExportProfile.Native))
-        {
-            ExportFormat jsonFormat = new(
-                tenantId,
-                "JSON",
-                ExportTarget.Submissions,
-                ExportDeliveryFormat.Json,
-                ExportProfile.Native,
-                "Default JSON export for form submissions");
-            jsonFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
-            toAdd.Add(jsonFormat);
-        }
-
-        if (!Has(ExportTarget.Submissions, ExportDeliveryFormat.Xlsx, ExportProfile.Native))
-        {
-            ExportFormat xlsxFormat = new(
-                tenantId,
-                "Excel (XLSX)",
-                ExportTarget.Submissions,
-                ExportDeliveryFormat.Xlsx,
-                ExportProfile.Native,
-                "Default Excel export for form submissions");
-            xlsxFormat.UpdateSettingsJson(_defaultSubmissionsSettingsJson);
-            toAdd.Add(xlsxFormat);
-        }
-
-        if (!Has(ExportTarget.Codebook, ExportDeliveryFormat.Json, ExportProfile.Native))
-        {
-            ExportFormat codebookFormat = new(
-                tenantId,
-                "Codebook",
-                ExportTarget.Codebook,
-                ExportDeliveryFormat.Json,
-                ExportProfile.Native,
-                "Default form definition codebook export");
-            codebookFormat.UpdateSettingsJson(_defaultCodebookSettingsJson);
-            toAdd.Add(codebookFormat);
-        }
-
-        if (toAdd.Count > 0)
-        {
-            await dbContext.ExportFormats.AddRangeAsync(toAdd, cancellationToken);
+            dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
+        await EnsureDefaultMappingAsync(tenantId, cancellationToken);
+    }
+
+    private static ExportFormat CreateDefault(long tenantId, DefaultFormat definition)
+    {
+        ExportFormat format = new(
+            tenantId,
+            definition.Name,
+            definition.Target,
+            definition.Delivery,
+            ExportProfile.Native,
+            definition.Description);
+
+        format.UpdateSettingsJson(definition.Target == ExportTarget.Codebook
+            ? _defaultCodebookSettingsJson
+            : _defaultSubmissionsSettingsJson);
+
+        return format;
+    }
+
+    /// <summary>
+    /// The tenant default export is CSV. The row is either one we just inserted or one that
+    /// already existed, so it is resolved by lookup rather than carried through the seed loop.
+    /// </summary>
+    private async Task EnsureDefaultMappingAsync(long tenantId, CancellationToken cancellationToken)
+    {
         var hasDefaultMapping = await dbContext.SurveyTypeExportMappings
             .AsNoTracking()
             .AnyAsync(
@@ -271,19 +258,15 @@ internal sealed class ExportFormatRepository(
             return;
         }
 
-        long? csvFormatId = csvFormat?.Id;
-        if (csvFormatId is null)
-        {
-            csvFormatId = await dbContext.ExportFormats
-                .AsNoTracking()
-                .Where(format =>
-                    format.TenantId == tenantId &&
-                    format.ExportTarget == ExportTarget.Submissions &&
-                    format.DeliveryFormat == ExportDeliveryFormat.Csv &&
-                    format.Profile == ExportProfile.Native)
-                .Select(format => (long?)format.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
+        var csvFormatId = await dbContext.ExportFormats
+            .AsNoTracking()
+            .Where(format =>
+                format.TenantId == tenantId &&
+                format.ExportTarget == ExportTarget.Submissions &&
+                format.DeliveryFormat == ExportDeliveryFormat.Csv &&
+                format.Profile == ExportProfile.Native)
+            .Select(format => (long?)format.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (csvFormatId is null)
         {

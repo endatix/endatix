@@ -1,64 +1,37 @@
-using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace Endatix.Infrastructure.Exporting;
 
 /// <summary>
-/// Minimal stylesheet so Excel shows date serials as date-times (built-in formats are locale-dependent).
-/// Children are passed as explicit arrays: the single-element <c>params</c> form is ambiguous with the
-/// <c>IEnumerable&lt;OpenXmlElement&gt;</c> overload.
+/// Date serials as <c>yyyy-mm-dd hh:mm:ss</c> (built-in Excel formats are locale-dependent).
 /// </summary>
 internal static class ExcelSheetStyles
 {
+    /// <summary>Index into <c>cellXfs</c> of the date-time format below.</summary>
     public const uint DateTimeStyleIndex = 1;
-    private const uint CustomDateTimeFormatId = 164;
-    private const string DateTimeFormatCode = "yyyy-mm-dd hh:mm:ss";
+
+    private const string StylesheetXml = """
+        <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+          <numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd hh:mm:ss"/></numFmts>
+          <fonts count="1"><font/></fonts>
+          <fills count="2">
+            <fill><patternFill patternType="none"/></fill>
+            <fill><patternFill patternType="gray125"/></fill>
+          </fills>
+          <borders count="1"><border/></borders>
+          <cellStyleXfs count="1"><xf/></cellStyleXfs>
+          <cellXfs count="2">
+            <xf fontId="0" fillId="0" borderId="0" xfId="0"/>
+            <xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+          </cellXfs>
+        </styleSheet>
+        """;
 
     public static void AddDefaultStyles(WorkbookPart workbookPart)
     {
         var stylesPart = workbookPart.AddNewPart<WorkbookStylesPart>();
-        stylesPart.Stylesheet = new Stylesheet
-        {
-            NumberingFormats = new NumberingFormats(new OpenXmlElement[]
-            {
-                new NumberingFormat
-                {
-                    NumberFormatId = CustomDateTimeFormatId,
-                    FormatCode = DateTimeFormatCode
-                }
-            })
-            { Count = 1 },
-            Fonts = new Fonts(new OpenXmlElement[] { new Font() }) { Count = 1 },
-            Fills = new Fills(new OpenXmlElement[]
-            {
-                new Fill(new OpenXmlElement[] { new PatternFill { PatternType = PatternValues.None } }),
-                new Fill(new OpenXmlElement[] { new PatternFill { PatternType = PatternValues.Gray125 } })
-            })
-            { Count = 2 },
-            Borders = new Borders(new OpenXmlElement[] { new Border() }) { Count = 1 },
-            CellStyleFormats = new CellStyleFormats(new OpenXmlElement[] { new CellFormat() }) { Count = 1 },
-            CellFormats = new CellFormats(new OpenXmlElement[]
-            {
-                new CellFormat
-                {
-                    FontId = 0,
-                    FillId = 0,
-                    BorderId = 0,
-                    FormatId = 0
-                },
-                new CellFormat
-                {
-                    NumberFormatId = CustomDateTimeFormatId,
-                    FontId = 0,
-                    FillId = 0,
-                    BorderId = 0,
-                    FormatId = 0,
-                    ApplyNumberFormat = true
-                }
-            })
-            { Count = 2 }
-        };
+        stylesPart.Stylesheet = new Stylesheet(StylesheetXml);
         stylesPart.Stylesheet.Save();
     }
 }
