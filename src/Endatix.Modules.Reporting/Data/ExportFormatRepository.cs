@@ -199,9 +199,9 @@ internal sealed class ExportFormatRepository(
     /// <inheritdoc />
     public async Task SeedDefaultsAsync(long tenantId, CancellationToken cancellationToken)
     {
-        var existing = await dbContext.ExportFormats
+        var existing = await FormatsForTenant(tenantId)
             .AsNoTracking()
-            .Where(format => format.TenantId == tenantId && format.Profile == ExportProfile.Native)
+            .Where(format => format.Profile == ExportProfile.Native)
             .Select(format => new { format.ExportTarget, format.DeliveryFormat })
             .ToListAsync(cancellationToken);
 
@@ -244,13 +244,10 @@ internal sealed class ExportFormatRepository(
     /// </summary>
     private async Task EnsureDefaultMappingAsync(long tenantId, CancellationToken cancellationToken)
     {
-        var hasDefaultMapping = await dbContext.SurveyTypeExportMappings
+        var hasDefaultMapping = await MappingsForTenant(tenantId)
             .AsNoTracking()
             .AnyAsync(
-                mapping =>
-                    mapping.TenantId == tenantId &&
-                    mapping.IsDefault &&
-                    mapping.SurveyTypeId == null,
+                mapping => mapping.IsDefault && mapping.SurveyTypeId == null,
                 cancellationToken);
 
         if (hasDefaultMapping)
@@ -258,10 +255,9 @@ internal sealed class ExportFormatRepository(
             return;
         }
 
-        var csvFormatId = await dbContext.ExportFormats
+        var csvFormatId = await FormatsForTenant(tenantId)
             .AsNoTracking()
             .Where(format =>
-                format.TenantId == tenantId &&
                 format.ExportTarget == ExportTarget.Submissions &&
                 format.DeliveryFormat == ExportDeliveryFormat.Csv &&
                 format.Profile == ExportProfile.Native)
@@ -282,6 +278,20 @@ internal sealed class ExportFormatRepository(
         await dbContext.SurveyTypeExportMappings.AddAsync(defaultMapping, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// Outbox <c>tenant.created</c> is app-level (<c>ITenantContext</c> is not the new tenant).
+    /// Query filters would hide that tenant's rows.
+    /// </summary>
+    private IQueryable<ExportFormat> FormatsForTenant(long tenantId) =>
+        dbContext.ExportFormats
+            .IgnoreQueryFilters()
+            .Where(format => format.TenantId == tenantId && !format.IsDeleted);
+
+    private IQueryable<SurveyTypeExportMapping> MappingsForTenant(long tenantId) =>
+        dbContext.SurveyTypeExportMappings
+            .IgnoreQueryFilters()
+            .Where(mapping => mapping.TenantId == tenantId && !mapping.IsDeleted);
 
     private ExportFormatDto MapDto(ExportFormat exportFormat)
     {

@@ -110,6 +110,29 @@ public sealed class ExportFormatSeedIntegrationTests
         mappingCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task SeedDefaultsAsync_WhenAmbientTenantDiffers_SeedsAndDoesNotDuplicate()
+    {
+        // Arrange — outbox tenant.created runs with app-level ITenantContext (0), not the new tenant
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        const long targetTenantId = 9104;
+        const long ambientTenantId = 0;
+        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
+
+        await using ReportingDbContext first = CreateContext(ambientTenantId);
+        await CreateRepository(first).SeedDefaultsAsync(targetTenantId, cancellationToken);
+
+        await using ReportingDbContext second = CreateContext(ambientTenantId);
+
+        // Act
+        await CreateRepository(second).SeedDefaultsAsync(targetTenantId, cancellationToken);
+
+        // Assert
+        await using ReportingDbContext verify = CreateContext(targetTenantId);
+        List<ExportFormat> formats = await LoadFormatsAsync(verify, targetTenantId, cancellationToken);
+        formats.Should().HaveCount(4);
+    }
+
     /// <summary>
     /// Reporting lists rows, not capabilities, so a new delivery format only reaches existing
     /// tenants through the <c>SeedXlsxExportFormat</c> data migration.
