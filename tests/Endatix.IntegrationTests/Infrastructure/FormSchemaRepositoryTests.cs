@@ -129,8 +129,7 @@ public sealed class FormSchemaRepositoryTests
 
     private ReportingDbContext CreateContext(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(tenantId);
+        TestTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);

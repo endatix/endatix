@@ -553,8 +553,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
 
     private AppDbContext CreateAppDbContext()
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(TenantId);
+        TestTenantContext tenantContext = new(TenantId);
 
         IncrementingIdGenerator idGenerator = new();
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
@@ -570,8 +569,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
 
     private ReportingDbContext CreateReportingDbContext()
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(TenantId);
+        TestTenantContext tenantContext = new(TenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);

@@ -357,7 +357,7 @@ public sealed class ExportFormatSeedIntegrationTests
 
     private async Task<long> InsertTenantAsync(CancellationToken cancellationToken)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        TestTenantContext tenantContext = TestTenantContext.Bypass;
         IncrementingIdGenerator idGenerator = new(Random.Shared.NextInt64(100_000, 900_000));
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
@@ -413,8 +413,7 @@ public sealed class ExportFormatSeedIntegrationTests
 
     private ReportingDbContext CreateContext(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(tenantId);
+        TestTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);

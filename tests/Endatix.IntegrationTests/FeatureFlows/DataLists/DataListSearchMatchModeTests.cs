@@ -476,8 +476,7 @@ public sealed class DataListSearchMatchModeTests
 
     private AppDbContext CreateAppDbContext(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(tenantId);
+        TestTenantContext tenantContext = new(tenantId);
 
         IncrementingIdGenerator idGenerator = new(NextId());
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();

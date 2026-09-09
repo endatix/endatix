@@ -23,7 +23,7 @@ internal static class ReportingTestSchema
         await using ReportingDbContext context = new(
             optionsBuilder.Options,
             new NoOpIdGenerator(),
-            new BypassTenantContext());
+            TestTenantContext.Bypass);
 
         // Reporting integration tests reset data via Respawn but keep schema objects.
         // Drop the module schema so updated migrations (e.g. FormSchemas rename) apply cleanly.
@@ -63,10 +63,5 @@ internal static class ReportingTestSchema
     private sealed class NoOpIdGenerator : IIdGenerator<long>
     {
         public long CreateId() => 0;
-    }
-
-    private sealed class BypassTenantContext : ITenantContext
-    {
-        public long TenantId => 0;
     }
 }

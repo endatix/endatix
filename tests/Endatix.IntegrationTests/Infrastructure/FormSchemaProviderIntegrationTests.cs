@@ -106,8 +106,7 @@ public sealed class FormSchemaProviderIntegrationTests
 
     private ReportingDbContext CreateReportingContext(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(tenantId);
+        TestTenantContext tenantContext = new(tenantId);
 
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
@@ -117,8 +116,7 @@ public sealed class FormSchemaProviderIntegrationTests
 
     private AppDbContext CreateAppDbContext()
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
-        tenantContext.TenantId.Returns(TenantId);
+        TestTenantContext tenantContext = new(TenantId);
 
         IncrementingIdGenerator idGenerator = new();
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
