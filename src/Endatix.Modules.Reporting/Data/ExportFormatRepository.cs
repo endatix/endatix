@@ -1,9 +1,9 @@
-using System.Text.Json;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Export;
+using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -20,34 +20,6 @@ internal sealed class ExportFormatRepository(
     IExportCapabilityRegistry capabilityRegistry,
     IUniqueConstraintViolationChecker uniqueViolationChecker) : IExportFormatRepository
 {
-    private static readonly string _defaultSubmissionsSettingsJson = JsonSerializer.Serialize(new
-    {
-        aliasProfile = "native",
-        keySeparator = "__",
-        includeTestSubmissions = false,
-    });
-
-    private static readonly string _defaultCodebookSettingsJson = JsonSerializer.Serialize(new
-    {
-        aliasProfile = "native",
-        keySeparator = "__",
-    });
-
-    private sealed record DefaultFormat(
-        string Name,
-        ExportTarget Target,
-        ExportDeliveryFormat Delivery,
-        string Description);
-
-    /// <summary>Every tenant default is <see cref="ExportProfile.Native"/>; settings follow the target.</summary>
-    private static readonly DefaultFormat[] DefaultFormats =
-    [
-        new("CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, "Default CSV export for form submissions"),
-        new("JSON", ExportTarget.Submissions, ExportDeliveryFormat.Json, "Default JSON export for form submissions"),
-        new("Excel (XLSX)", ExportTarget.Submissions, ExportDeliveryFormat.Xlsx, "Default Excel export for form submissions"),
-        new("Codebook", ExportTarget.Codebook, ExportDeliveryFormat.Json, "Default form definition codebook export"),
-    ];
-
     /// <inheritdoc />
     public async Task<ExportFormatRecord?> GetByIdAsync(
         long tenantId,
@@ -209,7 +181,7 @@ internal sealed class ExportFormatRepository(
             .Select(format => new { format.ExportTarget, format.DeliveryFormat })
             .ToListAsync(cancellationToken);
 
-        var missing = DefaultFormats.Where(definition => !existing.Any(format =>
+        var missing = DefaultExportFormats.All.Where(definition => !existing.Any(format =>
             format.ExportTarget == definition.Target &&
             format.DeliveryFormat == definition.Delivery));
 
@@ -223,7 +195,7 @@ internal sealed class ExportFormatRepository(
         await EnsureDefaultMappingAsync(tenantId, cancellationToken);
     }
 
-    private static ExportFormat CreateDefault(long tenantId, DefaultFormat definition)
+    private static ExportFormat CreateDefault(long tenantId, DefaultExportFormat definition)
     {
         ExportFormat format = new(
             tenantId,
@@ -232,11 +204,7 @@ internal sealed class ExportFormatRepository(
             definition.Delivery,
             ExportProfile.Native,
             definition.Description);
-
-        format.UpdateSettingsJson(definition.Target == ExportTarget.Codebook
-            ? _defaultCodebookSettingsJson
-            : _defaultSubmissionsSettingsJson);
-
+        format.UpdateSettingsJson(definition.SettingsJson);
         return format;
     }
 
@@ -246,11 +214,12 @@ internal sealed class ExportFormatRepository(
     /// </summary>
     private async Task EnsureDefaultMappingAsync(long tenantId, CancellationToken cancellationToken)
     {
+        DefaultExportFormat tenantDefault = DefaultExportFormats.TenantDefault;
         var csvFormatId = await FormatsForTenant(tenantId)
             .AsNoTracking()
             .Where(format =>
-                format.ExportTarget == ExportTarget.Submissions &&
-                format.DeliveryFormat == ExportDeliveryFormat.Csv &&
+                format.ExportTarget == tenantDefault.Target &&
+                format.DeliveryFormat == tenantDefault.Delivery &&
                 format.Profile == ExportProfile.Native)
             .Select(format => (long?)format.Id)
             .FirstOrDefaultAsync(cancellationToken);

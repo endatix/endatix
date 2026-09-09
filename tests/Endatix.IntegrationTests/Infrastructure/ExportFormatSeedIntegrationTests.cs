@@ -8,6 +8,7 @@ using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Capabilities;
+using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -257,34 +258,37 @@ public sealed class ExportFormatSeedIntegrationTests
         mapping.Should().BeNull();
     }
 
-    /// <summary>
-    /// Reporting lists rows, not capabilities, so a new delivery format only reaches existing
-    /// tenants through the <c>SeedXlsxExportFormat</c> data migration.
-    /// </summary>
     [Fact]
-    public async Task SeedXlsxExportFormatMigration_ForExistingTenant_CreatesExcelFormatRow()
+    public async Task SeedMissingDefaultExportFormats_ForExistingTenant_CreatesEveryNativeDefaultAndCsvMapping()
     {
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         long tenantId = await InsertTenantAsync(cancellationToken);
-
-        // Act
         await ReportingTestSchema.EnsureMigratedAsync(
             _fixture.ConnectionString,
             _fixture.Provider,
             cancellationToken);
+        await using ReportingDbContext db = CreateContext(tenantId);
+
+        // Act — tenants created after InitialReporting still get the catalog rows
+        string sql = DefaultExportFormatsPostgresBackfill.UpSql.Replace("{", "{{").Replace("}", "}}");
+        await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
 
         // Assert
-        await using ReportingDbContext db = CreateContext(tenantId);
         List<ExportFormat> formats = await LoadFormatsAsync(db, tenantId, cancellationToken);
-        ExportFormat? xlsx = formats.SingleOrDefault(
-            format => format.DeliveryFormat == ExportDeliveryFormat.Xlsx);
+        formats.Should().HaveCount(DefaultExportFormats.All.Count);
+        foreach (DefaultExportFormat definition in DefaultExportFormats.All)
+        {
+            formats.Should().ContainSingle(format =>
+                format.Name == definition.Name &&
+                format.ExportTarget == definition.Target &&
+                format.DeliveryFormat == definition.Delivery &&
+                format.Profile == ExportProfile.Native);
+        }
 
-        xlsx.Should().NotBeNull();
-        xlsx!.ExportTarget.Should().Be(ExportTarget.Submissions);
-        xlsx.Profile.Should().Be(ExportProfile.Native);
-        xlsx.Name.Should().Be("Excel (XLSX)");
-        xlsx.SettingsJson.Should().NotContain("locale");
+        SurveyTypeExportMapping mapping = await LoadDefaultMappingAsync(db, tenantId, cancellationToken);
+        ExportFormat csv = formats.Should().ContainSingle(format => format.Name == DefaultExportFormats.Csv.Name).Subject;
+        mapping.ExportFormatId.Should().Be(csv.Id);
     }
 
     private async Task<long> InsertTenantAsync(CancellationToken cancellationToken)

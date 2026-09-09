@@ -66,40 +66,76 @@ Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Ins
 
 ## Migrations
 
+Run the commands from the `oss` folder.
+
+> [!NOTE]
+> Always use `Endatix.WebHost` as startup project, and this module as the migrations project (`ReportingDbContext`).
+> Set `ConnectionStrings:DefaultConnection_DbProvider` to the provider you are generating for.
+
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`, `SeedXlsxExportFormat`)
+- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`, `SeedXlsxExportFormat`, `SeedMissingDefaultExportFormats`)
 
-  Tenant export formats are rows, not code. **Existing tenants:** data migration (`SeedXlsxExportFormat` —
-  `hashtextextended` ids, `NOT EXISTS`, `Down` drops mappings first — FK is `RESTRICT`). **New tenants:**
-  outbox `tenant.created` → `IDefaultExportFormatsSeeder` (not a migration replay).
-- `Persistence/Migrations/SqlServer/` — **not yet available** ([endatix/endatix#813](https://github.com/endatix/endatix/issues/813))
+  Tenant export formats are rows, not code. Catalog: `DefaultExportFormats.All` (CSV, JSON, Excel, Codebook) —
+  used by `SeedDefaultsAsync` / outbox `tenant.created` and by PG backfill SQL.
+  **Existing tenants:** `SeedMissingDefaultExportFormats` (`hashtextextended` ids, `NOT EXISTS`).
+  **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder` (not a migration replay).
+- `Persistence/Migrations/SqlServer/` — **not yet available**. SQL Server support is coming soon
+  ([endatix/endatix#813](https://github.com/endatix/endatix/issues/813)). Use PostgreSQL for Reporting until then.
 
-Set `ConnectionStrings:DefaultConnection_DbProvider` to match the provider you are generating for.
+> **SQL Server hosts:** Do not enable `ReportingModule` with `Endatix:Data:EnableAutoMigrations` until SQL Server
+> migrations land in #813. The module DbContext and migration contributor register on SQL Server, but startup
+> auto-migration finds no migrations for the active provider and logs an error (the `reporting` schema is not created).
 
-> **SQL Server hosts:** Do not enable `ReportingModule` with `Endatix:Data:EnableAutoMigrations` until SQL Server migrations land in #813. The module DbContext and migration contributor register on SQL Server, but startup auto-migration finds no migrations for the active provider and logs an error (the `reporting` schema is not created).
+Startup also applies Reporting migrations when `Customizations:Reporting:ApplyMigrationsAtStartup` is true (default)
+and `Endatix:Data:EnableAutoMigrations` is enabled.
 
-### PostgreSQL
+### Add migration
+
+PostgreSQL only (SQL Server: wait for #813).
 
 ```bash
-dotnet ef migrations add <Name> \
+dotnet ef migrations add <MigrationName> \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
   --context ReportingDbContext \
   --output-dir Persistence/Migrations/PostgreSql
 ```
 
-### SQL Server
+### Remove last migration
 
-> Blocked until [#813](https://github.com/endatix/endatix/issues/813). Use PostgreSQL for Reporting until SQL Server migrations are added.
+1. List migrations and check whether the last one is already applied locally:
 
 ```bash
-ConnectionStrings__DefaultConnection_DbProvider=SqlServer \
-dotnet ef migrations add <Name> \
+dotnet ef migrations list \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
-  --context ReportingDbContext \
-  --output-dir Persistence/Migrations/SqlServer
+  --context ReportingDbContext
 ```
 
-Migrations apply automatically at startup when `Customizations:Reporting:ApplyMigrationsAtStartup` is true (default) and `Endatix:Data:EnableAutoMigrations` is enabled.
+2. If it is applied, roll the database back to the previous migration:
+
+```bash
+dotnet ef database update <PreviousMigrationName> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.Reporting \
+  --context ReportingDbContext
+```
+
+3. Remove the last migration:
+
+```bash
+dotnet ef migrations remove \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.Reporting \
+  --context ReportingDbContext
+```
+
+### Apply migrations
+
+```bash
+dotnet ef database update \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.Reporting \
+  --context ReportingDbContext
+```
