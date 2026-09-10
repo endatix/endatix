@@ -18,8 +18,8 @@ public static class ChangeTrackerExtensions
     private const string ModifiedAtPropertyName = "ModifiedAt";
 
     /// <summary>
-    /// Applies <c>CreatedAt</c> on insert and <c>ModifiedAt</c> on update. Ids are assigned at
-    /// aggregate <c>Create</c> or by <see cref="DbContextModelBuilderExtensions.ApplySnowflakeIdValueGenerators"/> on <c>Add</c>.
+    /// Applies <c>CreatedAt</c> on insert and <c>ModifiedAt</c> on update.
+    /// Ids come from the OnAdd snowflake generator (or explicit <c>Create(id, …)</c>).
     /// </summary>
     public static void ApplyEndatixEntityDefaults(
         this ChangeTracker changeTracker,

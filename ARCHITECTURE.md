@@ -377,18 +377,13 @@ Apply these rules in **Core entities** (`Submission`, `Form`, …). Application 
 The `Id` is a client-assigned snowflake `long`, never a database `IDENTITY`/serial. `BaseEntity.Id`
 carries **no** data annotation — `ApplySnowflakeIdValueGenerators` is the single source of truth.
 
-- **Core:** `Form.Create(args)` is the normal path and leaves `Id == 0`; the EF value generator assigns it on `Add`. `Form.Create(long id, args)` (same shape on `Submission`; `FormDefinition.Create(long id, tenantId, …)` and its constructor) is the explicit-Id path for **tests, imports, seeding and data migrations** — it guards `Guard.Against.NegativeOrZero(id)` inline at the factory. Domain factories, application handlers **and** infrastructure services take **no** `IIdGenerator` — id allocation is not their concern (only `DataSeeder` and design-time still hold one).
-- **Infrastructure:** `ApplySnowflakeIdValueGenerators` wires every `long Id` PK as `ValueGeneratedOnAdd` + client `SnowflakeValueGenerator` + store strategy `None`. `OnAdd` (not `Never`) so EF runs the generator the moment an entity is added — before the change tracker can collide two unsaved rows on `Id == 0`, and before `AddRange` fan-out. **Every** context MUST call it (App, Identity, Reporting, Jobs — Jobs is the reference); `ApplySnowflakeIdValueGeneratorsTests` fails CI if a `long Id` PK is missing the generator or carries a store `IDENTITY`/serial strategy.
-- **Not Framework.** `ProcessEntities` / `ApplyEndatixEntityDefaults` stamp `CreatedAt` / `ModifiedAt` only — **not** `Id`.
-- **Tests:** every context of a given type shares one `EfCoreValueGeneratorFactory` (`IntegrationAppDbContextFactory.ValueGeneratorFactory`, `ReportingTestSchema.ValueGeneratorFactory`, the private holder in `AppDbContextModelInspectionFactory`) — EF caches one model per context type per process and the model closes over the first factory it sees.
-- **Seeding:** tenant catalogs use runtime `Add` per missing default and concede unique-constraint races one row at a time (a batch save would drop the rest of the catalog on the first conflict); `HasData` is not used for those; shipped SQL backfills stay frozen.
+- **Core:** `Form.Create(args)` leaves `Id == 0`; EF stamps it on `Add`. `Form.Create(long id, args)` (same on `Submission`; `FormDefinition.Create(long id, …)`) is for tests, imports, seeding. Handlers and infrastructure services take **no** `IIdGenerator` (only `DataSeeder` / design-time still hold one).
+- **Infrastructure:** `ApplySnowflakeIdValueGenerators` sets every `long Id` PK to `ValueGeneratedOnAdd` + client `SnowflakeValueGenerator` + store strategy `None`. `OnAdd` (not `Never`) so EF stamps at `.Add()` / `AddRange` — before two unsaved rows collide on `Id == 0`, and before outbox `GetPayload()`. **Every** context must call it (App, Identity, Reporting, Jobs). `ApplySnowflakeIdValueGeneratorsTests` fails CI if a `long Id` PK is missing the generator or still IDENTITY/serial.
+- **Not Framework.** `ProcessEntities` / `ApplyEndatixEntityDefaults` stamp `CreatedAt` / `ModifiedAt` only.
+- **Tests:** one `EfCoreValueGeneratorFactory` per context type for the process (`IntegrationAppDbContextFactory.ValueGeneratorFactory`, `ReportingTestSchema.ValueGeneratorFactory`, `AppDbContextModelInspectionFactory`) — EF caches one model per type and closes over the first factory.
+- **Seeding:** tenant catalogs `Add` per missing default and concede unique races one row at a time (a batch save would drop the rest of the catalog). No `HasData` for those.
 
-**Known limitations / next steps.** `BaseEntity.Id` still has a `public set` — no assign-once
-invariant; enforcing it (`internal set` + `InternalsVisibleTo` + `Permission`/`RolePermission`
-`Create(long id, …)` factories) is a follow-up. The snowflake is also the externally exposed id and
-is roughly enumerable; non-enumerable external ids would need a separate `PublicId` (UUIDv7 / opaque).
-The legacy positional entity constructors (`new Form(tenantId, name, …)`) remain `[Obsolete]` pending
-a mechanical test sweep.
+**Known limitations.** `Id` still has a public setter (assign-once is a follow-up). Snowflake is the public id and is roughly enumerable. Legacy positional constructors stay `[Obsolete]` until a test sweep.
 
 ### Outbox capture flow
 

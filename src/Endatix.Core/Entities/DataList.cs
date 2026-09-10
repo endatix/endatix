@@ -196,8 +196,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// <summary>
     /// Replaces the items of the data list.
     /// Validates and materializes all incoming items before mutating the existing collection.
-    /// New rows keep <see cref="BaseEntity.Id"/> <c>0</c>; the EF <c>OnAdd</c> snowflake value
-    /// generator stamps each one as the aggregate graph is saved.
+    /// New rows keep Id 0; EF OnAdd stamps them.
     /// </summary>
     /// <param name="items">Replacement rows.</param>
     /// <exception cref="InvalidOperationException">Thrown when more than <see cref="MAX_ITEMS"/> items are provided.</exception>

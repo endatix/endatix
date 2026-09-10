@@ -10,16 +10,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Infrastructure.Tests.Data;
 
 /// <summary>
-/// Proves the <c>Id</c> contract on the built EF model for every context that wires
-/// <c>ApplySnowflakeIdValueGenerators</c> (App, Identity — Reporting/Jobs have their own suites):
-/// <list type="bullet">
-///   <item>no <c>long</c> key property is store-generated — no provider scaffolds an
-///     <c>IDENTITY</c> / <c>serial</c> column (the anti-regression guarantee);</item>
-///   <item>every primary key named <c>Id</c> is a client snowflake stamped <c>OnAdd</c> — so a new
-///     context that forgets to call <c>ApplySnowflakeIdValueGenerators</c> fails here.</item>
-/// </list>
-/// Shared 1:1 dependent keys (e.g. <c>TenantSettings.TenantId</c>) take the principal's Id and are
-/// correctly left <c>Never</c>. Model inspection only — no database connection.
+/// App + Identity models: every <c>long Id</c> PK is OnAdd + client generator, never IDENTITY/serial.
+/// Shared 1:1 keys (e.g. TenantSettings.TenantId) stay Never. Reporting/Jobs have their own suites.
 /// </summary>
 public class ApplySnowflakeIdValueGeneratorsTests
 {

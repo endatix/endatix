@@ -15,12 +15,8 @@ namespace Endatix.Infrastructure.Data;
 public static class DbContextModelBuilderExtensions
 {
     /// <summary>
-    /// Wires a client-side snowflake generator onto every <c>long Id</c> primary key: <c>OnAdd</c> so
-    /// EF runs it the moment an entity is added (single or <c>AddRange</c>) — before the change tracker
-    /// can collide two unsaved rows on <c>Id == 0</c>, and before <c>SaveChanges</c> materializes outbox
-    /// payloads — and store strategy <c>None</c> so no provider scaffolds an <c>IDENTITY</c>/serial column.
-    /// This is the analog of SQL Server's client-generated <c>Guid</c> keys. Wire it on every context
-    /// (App, Identity, Reporting, Jobs); it is the safety net for entities added without an explicit Id.
+    /// Client snowflake on every <c>long Id</c> PK: <c>OnAdd</c> + store strategy <c>None</c>
+    /// (no IDENTITY/serial). Call from every context (App, Identity, Reporting, Jobs).
     /// </summary>
     public static void ApplySnowflakeIdValueGenerators(
         this ModelBuilder builder,

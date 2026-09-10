@@ -86,8 +86,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
             TenantId: 1,
             Name: name,
             IsEnabled: true);
-        // Seeding builds an in-memory graph and reads Ids (form.Id, ActiveDefinition.Id) while
-        // wiring it up, so fix the identity here rather than waiting for the OnAdd generator.
+        // Seed graph reads form.Id / ActiveDefinition.Id before SaveChanges, so stamp Ids here.
         var form = Form.Create(id ?? idGenerator.CreateId(), args);
         return form;
     }

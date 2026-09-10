@@ -47,20 +47,14 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         return args;
     }
 
-    /// <summary>
-    /// Creates a form from named create arguments. <see cref="BaseEntity.Id"/> stays 0 until the
-    /// entity is added to a context, where the EF <c>OnAdd</c> snowflake value generator assigns it.
-    /// </summary>
+    /// <summary>Normal path. Id stays 0 until EF OnAdd stamps the snowflake.</summary>
     public static Form Create(FormCreateArgs args)
     {
         Guard.Against.Null(args);
         return new Form(args);
     }
 
-    /// <summary>
-    /// Creates a form with an explicit Id — for tests, imports, seeding and data migrations that
-    /// need the identity fixed up front. <paramref name="id"/> must be positive.
-    /// </summary>
+    /// <summary>Explicit Id for tests, imports, seeding. Must be positive.</summary>
     public static Form Create(long id, FormCreateArgs args)
     {
         Guard.Against.Null(args);
