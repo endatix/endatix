@@ -20,7 +20,7 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     private const string SeedPassword = "Password123!";
 
     [Fact]
-    public async Task Creator_reads_a_job_in_their_own_tenant_and_not_one_in_another()
+    public async Task Tenant_admin_reads_a_job_in_their_own_tenant_and_not_one_in_another()
     {
         // Arrange — the module is PostgreSQL-only, so the flag is off on a SQL Server run.
         Assert.SkipWhen(
@@ -36,7 +36,9 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
         var ownJobId = await SeedJobAsync(world, tenantIds[0], cancellationToken);
         var foreignJobId = await SeedJobAsync(world, tenantIds[1], cancellationToken);
 
-        using var client = await world.AsAsync(TestPersona.Creator, cancellationToken: cancellationToken);
+        // jobs.view is seeded but granted to no role, so only Admin and PlatformAdmin pass —
+        // they satisfy any permission check without a grant.
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
 
         // Act
         using var own = await client.GetAsync(JobUri(ownJobId), cancellationToken);

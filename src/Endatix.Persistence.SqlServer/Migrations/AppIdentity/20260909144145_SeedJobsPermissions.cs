@@ -10,9 +10,14 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Admin and PlatformAdmin satisfy every permission check without a grant
-            // (AuthorizationDataExtensions.HasPermission short-circuits on IsAdmin), so only Creator
-            // needs one — it is the role that starts the work these jobs carry out.
+            // Granted to the two roles IsAdmin covers — Admin and PlatformAdmin. Widening to
+            // Creator, the role that starts the work these jobs carry out, is a grant rather than a
+            // new permission.
+            //
+            // The grant is not optional for an admin. AuthorizedIdentity emits one permission claim
+            // per granted permission and puts IsAdmin in a claim of its own, and the FastEndpoints
+            // permission gate reads only the former — so the IsAdmin short-circuit in
+            // AuthorizationDataExtensions does not reach an endpoint's Permissions(...) call.
             migrationBuilder.Sql(@"
                 INSERT INTO [identity].[Permissions] (
                     [Id], [Name], [Description], [Category],
@@ -36,12 +41,14 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
                 SELECT
                     seed.[Id], r.[Id], p.[Id], GETUTCDATE(), 1, GETUTCDATE(), 0
                 FROM (VALUES
-                    (1439907347219611830, N'jobs.view'),
-                    (1439907347219611831, N'jobs.cancel')
-                ) AS seed([Id], [Name])
+                    (1439907347219611830, N'ADMIN', N'jobs.view'),
+                    (1439907347219611831, N'ADMIN', N'jobs.cancel'),
+                    (1439907347219611832, N'PLATFORMADMIN', N'jobs.view'),
+                    (1439907347219611833, N'PLATFORMADMIN', N'jobs.cancel')
+                ) AS seed([Id], [Role], [Name])
                 INNER JOIN [identity].[Permissions] p ON p.[Name] = seed.[Name]
                 INNER JOIN [identity].[Roles] r
-                    ON r.[TenantId] = 0 AND r.[NormalizedName] = N'CREATOR'
+                    ON r.[TenantId] = 0 AND r.[NormalizedName] = seed.[Role]
                 WHERE NOT EXISTS (
                     SELECT 1
                     FROM [identity].[RolePermissions] rp
@@ -56,7 +63,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
         {
             migrationBuilder.Sql(@"
                 DELETE FROM [identity].[RolePermissions]
-                WHERE [Id] IN (1439907347219611830, 1439907347219611831);
+                WHERE [Id] BETWEEN 1439907347219611830 AND 1439907347219611833;
             ");
 
             migrationBuilder.Sql(@"
