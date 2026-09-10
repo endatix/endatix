@@ -10,11 +10,13 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Infrastructure.Tests.Data;
 
 /// <summary>
-/// Proves the <c>Id</c> contract on the built EF model:
+/// Proves the <c>Id</c> contract on the built EF model for every context that wires
+/// <c>ApplySnowflakeIdValueGenerators</c> (App, Identity — Reporting/Jobs have their own suites):
 /// <list type="bullet">
 ///   <item>no <c>long</c> key property is store-generated — no provider scaffolds an
 ///     <c>IDENTITY</c> / <c>serial</c> column (the anti-regression guarantee);</item>
-///   <item>every primary key named <c>Id</c> is a client snowflake stamped <c>OnAdd</c>.</item>
+///   <item>every primary key named <c>Id</c> is a client snowflake stamped <c>OnAdd</c> — so a new
+///     context that forgets to call <c>ApplySnowflakeIdValueGenerators</c> fails here.</item>
 /// </list>
 /// Shared 1:1 dependent keys (e.g. <c>TenantSettings.TenantId</c>) take the principal's Id and are
 /// correctly left <c>Never</c>. Model inspection only — no database connection.
@@ -22,7 +24,7 @@ namespace Endatix.Infrastructure.Tests.Data;
 public class ApplySnowflakeIdValueGeneratorsTests
 {
     [Fact]
-    public void PostgreSql_LongKeys_AreClientSnowflakes_WithNoSerialIdentity()
+    public void PostgreSql_App_LongKeys_AreClientSnowflakes_WithNoSerialIdentity()
     {
         using AppDbContext context = AppDbContextModelInspectionFactory.CreatePostgreSqlAppDbContext();
 
@@ -30,9 +32,25 @@ public class ApplySnowflakeIdValueGeneratorsTests
     }
 
     [Fact]
-    public void SqlServer_LongKeys_AreClientSnowflakes_WithNoIdentity()
+    public void SqlServer_App_LongKeys_AreClientSnowflakes_WithNoIdentity()
     {
         using AppDbContext context = AppDbContextModelInspectionFactory.CreateSqlServerAppDbContext();
+
+        AssertLongKeyContract(context);
+    }
+
+    [Fact]
+    public void PostgreSql_Identity_LongKeys_AreClientSnowflakes_WithNoSerialIdentity()
+    {
+        using var context = AppDbContextModelInspectionFactory.CreatePostgreSqlAppIdentityDbContext();
+
+        AssertLongKeyContract(context);
+    }
+
+    [Fact]
+    public void SqlServer_Identity_LongKeys_AreClientSnowflakes_WithNoIdentity()
+    {
+        using var context = AppDbContextModelInspectionFactory.CreateSqlServerAppIdentityDbContext();
 
         AssertLongKeyContract(context);
     }
@@ -48,7 +66,7 @@ public class ApplySnowflakeIdValueGeneratorsTests
         exportRow!.FindPrimaryKey().Should().BeNull();
     }
 
-    private static void AssertLongKeyContract(AppDbContext context)
+    private static void AssertLongKeyContract(DbContext context)
     {
         var longKeyProperties = context.Model.GetEntityTypes()
             .Where(entityType => !entityType.IsOwned())

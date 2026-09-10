@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations.Schema;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -9,7 +8,13 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public abstract class BaseEntity : HasDomainEventsBase
 {
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    /// <summary>
+    /// Client-assigned snowflake, never a database <c>IDENTITY</c>/serial. Value generation is
+    /// configured once per context by
+    /// <c>DbContextModelBuilderExtensions.ApplySnowflakeIdValueGenerators</c> (EF <c>OnAdd</c> client
+    /// generator); the explicit-Id <c>Create(long id, …)</c> factories set it for tests, imports,
+    /// seeding and data migrations.
+    /// </summary>
     public virtual long Id { get; set; }
     public DateTime CreatedAt { get; protected set; }
     public DateTime? ModifiedAt { get; protected set; }

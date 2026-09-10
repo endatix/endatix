@@ -16,7 +16,6 @@ public sealed class CreateTenantHandler(
     IRepository<Entities.Tenant> tenantRepository,
     IRepository<Entities.TenantSettings> tenantSettingsRepository,
     IUnitOfWork unitOfWork,
-    IIdGenerator<long> idGenerator,
     IShortUrlGenerator shortUrlGenerator,
     IUniqueConstraintViolationChecker uniqueConstraintViolationChecker)
     : ICommandHandler<CreateTenantCommand, Result<TenantDto>>
@@ -70,10 +69,7 @@ public sealed class CreateTenantHandler(
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            Entities.Tenant tenant = new(name, shortUrl, request.Description?.Trim())
-            {
-                Id = idGenerator.CreateId()
-            };
+            Entities.Tenant tenant = new(name, shortUrl, request.Description?.Trim());
 
             tenant.RaiseCreated();
             await tenantRepository.AddAsync(tenant, cancellationToken);

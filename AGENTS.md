@@ -48,6 +48,10 @@ Do **not** assert empty-body `BadRequest` / `NotFound`. References: `FormDefinit
 
 Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · happy path + persist · domain `Invalid` (no persist) · event reason/payload. Prefer real aggregates. Thin command-ctor tests when `Guard.Against.*` matters.
 
+## Entity Ids (snowflake)
+
+`BaseEntity.Id` is a client snowflake assigned by the EF `OnAdd` value generator wired once per context in `ApplySnowflakeIdValueGenerators`. **Do not** inject `IIdGenerator<long>` into a handler, factory, repository or service, and do not pre-stamp `Id` before `Add` — the generator runs at `.Add()`/`AddAsync()`, so `entity.Id` is populated for the rest of the method and for outbox payloads. Use `Entity.Create(args)` (Id `0` until `Add`); use `Entity.Create(long id, args)` only for tests, seeding, imports and data migrations. A unit test with a substituted repository must simulate the generator itself (`repo.AddAsync(...).Returns(ci => { ci.Arg<T>().Id = SomeId; return ...; })`). Full rules: [`ARCHITECTURE.md` → Entity Ids](ARCHITECTURE.md).
+
 ## Error HTTP contract (API)
 
 Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, unhandled exceptions, export stream errors):

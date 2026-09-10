@@ -90,16 +90,22 @@ public class ReportingDbContextTests
         indexFilters.Should().HaveCount(2);
     }
 
+    // EF caches one ReportingDbContext model per process, closing over the first factory it sees;
+    // every build here shares this one so the OnAdd generator is deterministic.
+    private static readonly EfCoreValueGeneratorFactory ValueGeneratorFactory =
+        new(new MonotonicIdGenerator());
+
     private static ReportingDbContext CreateContext(
         DbContextOptions<ReportingDbContext> options,
-        ITenantContext? tenantContext = null)
-    {
-        var idGenerator = Substitute.For<IIdGenerator<long>>();
-        idGenerator.CreateId().Returns(1001, 1002);
-
-        return new ReportingDbContext(
+        ITenantContext? tenantContext = null) =>
+        new(
             options,
-            new EfCoreValueGeneratorFactory(idGenerator),
+            ValueGeneratorFactory,
             tenantContext ?? Substitute.For<ITenantContext>());
+
+    private sealed class MonotonicIdGenerator : IIdGenerator<long>
+    {
+        private long _current = 1000;
+        public long CreateId() => Interlocked.Increment(ref _current);
     }
 }

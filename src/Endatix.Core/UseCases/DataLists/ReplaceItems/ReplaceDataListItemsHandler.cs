@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -18,7 +17,6 @@ namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 public sealed class ReplaceDataListItemsHandler(
     IRepository<DataList> repository,
     IMediator mediator,
-    IIdGenerator<long> idGenerator,
     ILogger<ReplaceDataListItemsHandler> logger)
     : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
 {
@@ -44,7 +42,7 @@ public sealed class ReplaceDataListItemsHandler(
             return Result.Invalid(errors);
         }
 
-        var replaceFailure = TryReplaceItems(dataList, resolvedItems, idGenerator);
+        var replaceFailure = TryReplaceItems(dataList, resolvedItems);
         if (replaceFailure is not null)
         {
             return replaceFailure;
@@ -207,12 +205,11 @@ public sealed class ReplaceDataListItemsHandler(
 
     private Result<DataListDto>? TryReplaceItems(
         DataList dataList,
-        IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems,
-        IIdGenerator<long> idGenerator)
+        IReadOnlyList<(IReadOnlyDictionary<string, string> Labels, string Value)> resolvedItems)
     {
         try
         {
-            dataList.ReplaceItems(resolvedItems, idGenerator.CreateId);
+            dataList.ReplaceItems(resolvedItems);
             return null;
         }
         catch (ArgumentException ex)

@@ -32,7 +32,6 @@ public sealed class RoleManagementService : IRoleManagementService
     private readonly AppIdentityDbContext _identityDbContext;
     private readonly ITenantContext _tenantContext;
     private readonly IRolesRepository _rolesRepository;
-    private readonly IIdGenerator<long> _idGenerator;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ICurrentUserAuthorizationService _currentUserAuthorizationService;
     private readonly IAuthorizationCache _authorizationCache;
@@ -43,7 +42,6 @@ public sealed class RoleManagementService : IRoleManagementService
         AppIdentityDbContext identityDbContext,
         ITenantContext tenantContext,
         IRolesRepository rolesRepository,
-        IIdGenerator<long> idGenerator,
         IHttpContextAccessor httpContextAccessor,
         ICurrentUserAuthorizationService currentUserAuthorizationService,
         IAuthorizationCache authorizationCache,
@@ -53,7 +51,6 @@ public sealed class RoleManagementService : IRoleManagementService
         _identityDbContext = identityDbContext;
         _tenantContext = tenantContext;
         _rolesRepository = rolesRepository;
-        _idGenerator = idGenerator;
         _httpContextAccessor = httpContextAccessor;
         _currentUserAuthorizationService = currentUserAuthorizationService;
         _authorizationCache = authorizationCache;
@@ -831,10 +828,7 @@ public sealed class RoleManagementService : IRoleManagementService
 
         foreach (var permission in permissions)
         {
-            _identityDbContext.RolePermissions.Add(new RolePermission(role.Id, permission.Id)
-            {
-                Id = _idGenerator.CreateId()
-            });
+            _identityDbContext.RolePermissions.Add(new RolePermission(role.Id, permission.Id));
         }
 
         await _identityDbContext.SaveChangesAsync(cancellationToken);
