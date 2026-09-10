@@ -17,7 +17,7 @@ public sealed class ReportingDbContextFactory : IDesignTimeDbContextFactory<Repo
 
         return new ReportingDbContext(
             optionsBuilder.Options,
-            DesignTimeDbContextDependencies.IdGenerator,
+            new EfCoreValueGeneratorFactory(DesignTimeDbContextDependencies.IdGenerator),
             DesignTimeDbContextDependencies.TenantContext);
     }
 }

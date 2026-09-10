@@ -35,6 +35,11 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         FolderId = args.FolderId;
     }
 
+    private Form(long id, FormCreateArgs args) : this(args)
+    {
+        AssignId(id);
+    }
+
     private static FormCreateArgs RequireArgs(FormCreateArgs args)
     {
         Guard.Against.Null(args);
@@ -42,8 +47,30 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     }
 
     /// <summary>
-    /// Creates a form from named create arguments.
+    /// Creates a form and assigns a snowflake Id before the instance is returned.
     /// </summary>
+    public static Form Create(IIdGenerator<long> idGenerator, FormCreateArgs args)
+    {
+        Guard.Against.Null(idGenerator);
+        Guard.Against.Null(args);
+        return new Form(idGenerator.CreateId(), args);
+    }
+
+    /// <summary>
+    /// Creates a form with an explicit Id (tests, imports). <paramref name="id"/> must be positive.
+    /// </summary>
+    public static Form Create(long id, FormCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        return new Form(id, args);
+    }
+
+    /// <summary>
+    /// Creates a form with <see cref="BaseEntity.Id"/> still 0. Prefer
+    /// <see cref="Create(IIdGenerator{long}, FormCreateArgs)"/> or <see cref="Create(long, FormCreateArgs)"/>.
+    /// </summary>
+    [Obsolete("Pass IIdGenerator<long> or an explicit id so the form is identified before EF tracking.")]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static Form Create(FormCreateArgs args)
     {
         Guard.Against.Null(args);
@@ -55,7 +82,8 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     /// <paramref name="submissionTokenExpiryHours"/> is last so existing positional/named
     /// call sites for metadata / webhooks / folder stay binary-compatible.
     /// </summary>
-    [Obsolete("Use Form.Create(FormCreateArgs).")]
+    [Obsolete("Use Form.Create(IIdGenerator<long>, FormCreateArgs) or Form.Create(long, FormCreateArgs).")]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public Form(
         long tenantId,
         string name,

@@ -11,16 +11,16 @@ namespace Endatix.Modules.Reporting.Persistence;
 /// </summary>
 public class ReportingDbContext : DbContext, ITenantDbContext
 {
-    private readonly IIdGenerator<long> _idGenerator;
+    private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
     private readonly ITenantContext _tenantContext;
 
     public ReportingDbContext(
         DbContextOptions<ReportingDbContext> options,
-        IIdGenerator<long> idGenerator,
+        EfCoreValueGeneratorFactory valueGeneratorFactory,
         ITenantContext tenantContext)
         : base(options)
     {
-        _idGenerator = idGenerator;
+        _valueGeneratorFactory = valueGeneratorFactory;
         _tenantContext = tenantContext;
     }
 
@@ -40,6 +40,7 @@ public class ReportingDbContext : DbContext, ITenantDbContext
         modelBuilder.HasDefaultSchema(ReportingPersistence.Schema);
 
         modelBuilder.ApplyEndatixQueryFilters(this);
+        modelBuilder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
         modelBuilder.ApplyConfigurationsFor<ReportingDbContext>(typeof(ReportingDbContext).Assembly);
         ApplyProviderSpecificConfigurations(modelBuilder);
 
@@ -82,5 +83,5 @@ public class ReportingDbContext : DbContext, ITenantDbContext
     }
 
     private void ApplyEntityDefaults() =>
-        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow, _idGenerator);
+        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
 }

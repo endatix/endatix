@@ -9,6 +9,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Exceptions;
@@ -22,7 +23,8 @@ public class CreateSubmissionHandler(
     IReCaptchaPolicyService recaptchaService,
     IMediator mediator,
     ICurrentUserAuthorizationService authorizationService,
-    ISubmitterResolver submitterResolver
+    ISubmitterResolver submitterResolver,
+    IIdGenerator<long> idGenerator
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
@@ -102,7 +104,7 @@ public class CreateSubmissionHandler(
             submitterId is not null &&
             !canBypassSingleSubmissionLimit;
 
-        var submission = Submission.Create(new SubmissionCreateArgs(
+        var submission = Submission.Create(idGenerator, new SubmissionCreateArgs(
             TenantId: activeDefinition!.TenantId,
             FormId: request.FormId,
             FormDefinitionId: activeDefinition.Id,

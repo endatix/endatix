@@ -13,13 +13,16 @@ public class CreateFormHandlerTests
 {
     private readonly IFormsRepository _repository;
     private readonly ITenantContext _tenantContext;
+    private readonly IIdGenerator<long> _idGenerator;
     private readonly CreateFormHandler _handler;
 
     public CreateFormHandlerTests()
     {
         _repository = Substitute.For<IFormsRepository>();
         _tenantContext = Substitute.For<ITenantContext>();
-        _handler = new CreateFormHandler(_repository, _tenantContext, FolderAssignmentPolicyStub.Relaxed(_tenantContext));
+        _idGenerator = Substitute.For<IIdGenerator<long>>();
+        _idGenerator.CreateId().Returns(123L);
+        _handler = new CreateFormHandler(_repository, _tenantContext, FolderAssignmentPolicyStub.Relaxed(_tenantContext), _idGenerator);
     }
 
     [Fact]
@@ -28,8 +31,7 @@ public class CreateFormHandlerTests
         // Arrange
         var request = new CreateFormCommand("Form Name", "Description", true, SampleData.FORM_DEFINITION_JSON_DATA_1);
 
-        var createdForm = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Form Name", Description: request.Description, IsEnabled: request.IsEnabled));
-        createdForm.Id = 123;
+        var createdForm = Form.Create(123, new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Form Name", Description: request.Description, IsEnabled: request.IsEnabled));
         var createdFormDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1)
         {
             Id = 456
@@ -136,7 +138,7 @@ public class CreateFormHandlerTests
             .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
             .Returns(settings);
         var strictHelper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, _tenantContext);
-        var handler = new CreateFormHandler(_repository, _tenantContext, strictHelper);
+        var handler = new CreateFormHandler(_repository, _tenantContext, strictHelper, _idGenerator);
 
         // Act
         var result = await handler.Handle(request, CancellationToken.None);

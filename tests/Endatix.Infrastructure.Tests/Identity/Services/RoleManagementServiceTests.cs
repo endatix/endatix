@@ -36,9 +36,8 @@ public class RoleManagementServiceTests
         var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>()
             .Options;
         var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<IIdGenerator<long>>());
-        var idGenerator = Substitute.For<IIdGenerator<long>>();
 
-        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory, idGenerator);
+        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory);
 
         _tenantContext = Substitute.For<ITenantContext>();
 

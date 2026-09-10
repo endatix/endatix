@@ -417,7 +417,7 @@ public sealed class ExportFormatSeedIntegrationTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
     }
 
     private static ExportFormatRepository CreateRepository(ReportingDbContext db) =>
