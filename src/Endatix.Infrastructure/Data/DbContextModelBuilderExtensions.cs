@@ -16,7 +16,10 @@ public static class DbContextModelBuilderExtensions
 {
     /// <summary>
     /// Client snowflake on every <c>long Id</c> PK: <c>OnAdd</c> + store strategy <c>None</c>
-    /// (no IDENTITY/serial). Call from every context (App, Identity, Reporting, Jobs).
+    /// (no IDENTITY/serial). Call after all entity configurations so types discovered by
+    /// <c>ApplyConfigurationsFor</c> / assembly scans are included. OSS: App, Identity,
+    /// Reporting, Jobs. SaaS <c>AgentsDbContext</c> must call it the same way (last in
+    /// <c>OnModelCreating</c>); that type is not in this repository.
     /// </summary>
     public static void ApplySnowflakeIdValueGenerators(
         this ModelBuilder builder,
