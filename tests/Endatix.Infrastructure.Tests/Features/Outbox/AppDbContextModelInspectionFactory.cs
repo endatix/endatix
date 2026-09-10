@@ -41,7 +41,6 @@ internal static class AppDbContextModelInspectionFactory
 
         return new AppDbContext(
             optionsBuilder.Options,
-            resolvedIdGenerator,
             resolvedTenantContext,
             new EfCoreValueGeneratorFactory(resolvedIdGenerator),
             new OutboxIntegrationEventDispatcher());
@@ -69,7 +68,6 @@ internal static class AppDbContextModelInspectionFactory
 
         return new AppDbContext(
             optionsBuilder.Options,
-            resolvedIdGenerator,
             resolvedTenantContext,
             new EfCoreValueGeneratorFactory(resolvedIdGenerator),
             new OutboxIntegrationEventDispatcher());

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -15,6 +16,16 @@ public abstract class BaseEntity : HasDomainEventsBase
     public DateTime? ModifiedAt { get; protected set; }
     public DateTime? DeletedAt { get; private set; }
     public bool IsDeleted { get; private set; }
+
+    /// <summary>
+    /// Sets a client snowflake before the entity is tracked. EF's empty constructor leaves
+    /// <see cref="Id"/> at 0 until materialization or a value generator runs on <c>Add</c>.
+    /// </summary>
+    protected void AssignId(long id)
+    {
+        Guard.Against.NegativeOrZero(id);
+        Id = id;
+    }
 
     public virtual void Delete()
     {

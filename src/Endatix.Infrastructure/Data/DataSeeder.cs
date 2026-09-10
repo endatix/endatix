@@ -86,17 +86,17 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
             TenantId: 1,
             Name: name,
             IsEnabled: true);
-        var form = Form.Create(args);
-        form.Id = id ?? idGenerator.CreateId();
+        var form = id is { } explicitId
+            ? Form.Create(explicitId, args)
+            : Form.Create(idGenerator, args);
         return form;
     }
 
     private FormDefinition CreateDefinition(Form form, string jsonData, long? id = null, bool isActive = true)
     {
-        var formDefinition = new FormDefinition(tenantId: 1, jsonData: jsonData)
-        {
-            Id = id ?? idGenerator.CreateId()
-        };
+        var formDefinition = id is { } explicitId
+            ? FormDefinition.Create(explicitId, tenantId: 1, jsonData: jsonData)
+            : FormDefinition.Create(idGenerator, tenantId: 1, jsonData: jsonData);
 
         form.AddFormDefinition(formDefinition, isActive);
         return formDefinition;
@@ -104,13 +104,12 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
     private Submission CreateSubmission(SubmissionInfo submissionInfo, Form form, long? formDefinitionId = default)
     {
-        var submission = Submission.Create(new SubmissionCreateArgs(
+        var submission = Submission.Create(idGenerator, new SubmissionCreateArgs(
             TenantId: 1,
             FormId: form.Id,
             FormDefinitionId: formDefinitionId ?? form.ActiveDefinition!.Id,
             JsonData: submissionInfo.JsonData.GetRawText(),
             IsComplete: submissionInfo.IsComplete));
-        submission.Id = idGenerator.CreateId();
 
         submission.UpdateStatus(SubmissionStatus.FromCode(submissionInfo.Status));
 

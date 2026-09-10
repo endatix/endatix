@@ -483,7 +483,6 @@ public sealed class DataListSearchMatchModeTests
 
         return new AppDbContext(
             optionsBuilder.Options,
-            idGenerator,
             tenantContext,
             new EfCoreValueGeneratorFactory(idGenerator),
             new OutboxIntegrationEventDispatcher());

@@ -37,7 +37,13 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         }
     }
 
-    [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
+    private Submission(long id, SubmissionCreateArgs args) : this(args)
+    {
+        AssignId(id);
+    }
+
+    [Obsolete("Use Submission.Create(IIdGenerator<long>, SubmissionCreateArgs) or Submission.Create(long, SubmissionCreateArgs).")]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public Submission(
         long tenantId,
         string jsonData,
@@ -68,6 +74,21 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     {
     }
 
+    public static Submission Create(IIdGenerator<long> idGenerator, SubmissionCreateArgs args)
+    {
+        Guard.Against.Null(idGenerator);
+        Guard.Against.Null(args);
+        return new Submission(idGenerator.CreateId(), args);
+    }
+
+    public static Submission Create(long id, SubmissionCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        return new Submission(id, args);
+    }
+
+    [Obsolete("Pass IIdGenerator<long> or an explicit id so the submission is identified before EF tracking.")]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static Submission Create(SubmissionCreateArgs args)
     {
         Guard.Against.Null(args);

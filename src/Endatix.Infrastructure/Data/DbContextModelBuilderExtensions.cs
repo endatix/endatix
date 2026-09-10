@@ -6,11 +6,49 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data.Config;
 using Ardalis.GuardClauses;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.SqlServer.Metadata;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Endatix.Infrastructure.Data;
 
 public static class DbContextModelBuilderExtensions
 {
+    /// <summary>
+    /// Client snowflake Ids on Add (SQL Server Guid-PK analog). Store strategy None so
+    /// providers do not scaffold IDENTITY/serial.
+    /// </summary>
+    public static void ApplySnowflakeIdValueGenerators(
+        this ModelBuilder builder,
+        EfCoreValueGeneratorFactory valueGeneratorFactory)
+    {
+        Guard.Against.Null(builder);
+        Guard.Against.Null(valueGeneratorFactory);
+
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            if (entityType.IsOwned() || entityType.FindPrimaryKey() is null)
+            {
+                continue;
+            }
+
+            var idProperty = entityType.FindProperty("Id");
+            if (idProperty is null || idProperty.ClrType != typeof(long))
+            {
+                continue;
+            }
+
+            var propertyBuilder = builder.Entity(entityType.ClrType)
+                .Property<long>("Id")
+                .HasValueGenerator((property, _) => valueGeneratorFactory.Create<long>(property))
+                .ValueGeneratedOnAdd();
+
+            IMutableProperty metadata = propertyBuilder.Metadata;
+            metadata.SetAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+            metadata.SetAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+        }
+    }
+
     /// <summary>
     /// Applies named Endatix query filters for soft deletion and tenant isolation.
     /// </summary>

@@ -1,3 +1,5 @@
+using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Configuration;
 using Endatix.Core.Infrastructure.Domain;
 
@@ -15,6 +17,31 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
         jsonData ??= EndatixConfig.Configuration.DefaultFormDefinitionJson;
         IsDraft = isDraft;
         JsonData = jsonData;
+    }
+
+    /// <summary>
+    /// Creates a definition and assigns a snowflake Id before the instance is returned.
+    /// </summary>
+    public static FormDefinition Create(
+        IIdGenerator<long> idGenerator,
+        long tenantId,
+        bool isDraft = false,
+        string? jsonData = null)
+    {
+        Guard.Against.Null(idGenerator);
+        FormDefinition definition = new(tenantId, isDraft, jsonData);
+        definition.AssignId(idGenerator.CreateId());
+        return definition;
+    }
+
+    /// <summary>
+    /// Creates a definition with an explicit Id (tests, imports). <paramref name="id"/> must be positive.
+    /// </summary>
+    public static FormDefinition Create(long id, long tenantId, bool isDraft = false, string? jsonData = null)
+    {
+        FormDefinition definition = new(tenantId, isDraft, jsonData);
+        definition.AssignId(id);
+        return definition;
     }
 
     public IReadOnlyList<Submission> Submissions => _submissions.AsReadOnly();

@@ -110,7 +110,7 @@ public sealed class FormSchemaProviderIntegrationTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
     }
 
     private AppDbContext CreateAppDbContext()
@@ -123,7 +123,6 @@ public sealed class FormSchemaProviderIntegrationTests
 
         return new AppDbContext(
             optionsBuilder.Options,
-            idGenerator,
             tenantContext,
             new EfCoreValueGeneratorFactory(idGenerator),
             new OutboxIntegrationEventDispatcher());

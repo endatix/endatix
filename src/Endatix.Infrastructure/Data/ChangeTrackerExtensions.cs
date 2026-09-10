@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -15,25 +14,16 @@ namespace Endatix.Infrastructure.Data;
 /// </remarks>
 public static class ChangeTrackerExtensions
 {
-    private const string IdPropertyName = "Id";
     private const string CreatedAtPropertyName = "CreatedAt";
     private const string ModifiedAtPropertyName = "ModifiedAt";
 
     /// <summary>
-    /// Applies the entity defaults Endatix expects on every write: an id for new entities,
-    /// <c>CreatedAt</c> on insert, and <c>ModifiedAt</c> on update.
+    /// Applies <c>CreatedAt</c> on insert and <c>ModifiedAt</c> on update. Ids are assigned at
+    /// aggregate <c>Create</c> or by <see cref="DbContextModelBuilderExtensions.ApplySnowflakeIdValueGenerators"/> on <c>Add</c>.
     /// </summary>
-    /// <param name="changeTracker">The tracker whose pending entries are stamped.</param>
-    /// <param name="utcNow">Timestamp applied to the affected entries.</param>
-    /// <param name="idGenerator">
-    /// Assigns ids to new entities whose key is still unset. Pass <see langword="null"/> when the
-    /// context assigns keys another way — a context using an EF value generator already has its ids
-    /// by the time an entity is tracked, and stamping again here would be a no-op at best.
-    /// </param>
     public static void ApplyEndatixEntityDefaults(
         this ChangeTracker changeTracker,
-        DateTime utcNow,
-        IIdGenerator<long>? idGenerator = null)
+        DateTime utcNow)
     {
         var entries = changeTracker.Entries()
             .Where(entry => entry.State is EntityState.Added or EntityState.Modified);
@@ -45,15 +35,6 @@ public static class ChangeTrackerExtensions
             switch (entry.State)
             {
                 case EntityState.Added:
-                    if (idGenerator is not null &&
-                        properties.Any(property => property.Name == IdPropertyName) &&
-                        entry.CurrentValues[IdPropertyName] is long id && id == default)
-                    {
-                        entry.CurrentValues[IdPropertyName] = idGenerator.CreateId();
-                    }
-
-                    // Only when unset: a caller that supplied CreatedAt explicitly (seeding, an
-                    // import preserving original timestamps) must not have it overwritten.
                     if (properties.Any(property => property.Name == CreatedAtPropertyName) &&
                         entry.CurrentValues[CreatedAtPropertyName] is DateTime createdAt &&
                         createdAt == default)

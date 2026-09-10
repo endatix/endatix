@@ -1,5 +1,6 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
@@ -136,7 +137,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
     }
 
     private static IOutboxMessage CreateMessage()

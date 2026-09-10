@@ -99,7 +99,7 @@ public class ReportingDbContextTests
 
         return new ReportingDbContext(
             options,
-            idGenerator,
+            new EfCoreValueGeneratorFactory(idGenerator),
             tenantContext ?? Substitute.For<ITenantContext>());
     }
 }

@@ -14,7 +14,8 @@ namespace Endatix.Core.UseCases.Forms.Create;
 public class CreateFormHandler(
     IFormsRepository formsRepository,
     ITenantContext tenantContext,
-    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<CreateFormCommand, Result<Form>>
+    FolderAssignmentPolicy folderAssignmentPolicy,
+    IIdGenerator<long> idGenerator) : ICommandHandler<CreateFormCommand, Result<Form>>
 {
     /// <inheritdoc/>
     public async Task<Result<Form>> Handle(CreateFormCommand request, CancellationToken cancellationToken)
@@ -38,8 +39,12 @@ public class CreateFormHandler(
             WebHookSettingsJson: request.WebHookSettingsJson,
             FolderId: request.FolderId,
             SubmissionTokenExpiryHours: request.SubmissionTokenExpiryHours);
-        var newForm = Form.Create(createArgs);
-        var newFormDefinition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
+        var newForm = Form.Create(idGenerator, createArgs);
+        var newFormDefinition = FormDefinition.Create(
+            idGenerator,
+            tenantContext.TenantId,
+            isDraft: true,
+            jsonData: request.FormDefinitionJsonData);
 
         // form.created is captured to the outbox (→ webhook) inside CreateFormWithDefinitionAsync via
         // form.RaiseCreated(); there are no in-process MediatR subscribers for it, so nothing is published here.
