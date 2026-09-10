@@ -47,17 +47,18 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     }
 
     /// <summary>
-    /// Creates a form and assigns a snowflake Id before the instance is returned.
+    /// Creates a form from named create arguments. <see cref="BaseEntity.Id"/> stays 0 until the
+    /// entity is added to a context, where the EF <c>OnAdd</c> snowflake value generator assigns it.
     /// </summary>
-    public static Form Create(IIdGenerator<long> idGenerator, FormCreateArgs args)
+    public static Form Create(FormCreateArgs args)
     {
-        Guard.Against.Null(idGenerator);
         Guard.Against.Null(args);
-        return new Form(idGenerator.CreateId(), args);
+        return new Form(args);
     }
 
     /// <summary>
-    /// Creates a form with an explicit Id (tests, imports). <paramref name="id"/> must be positive.
+    /// Creates a form with an explicit Id — for tests, imports, seeding and data migrations that
+    /// need the identity fixed up front. <paramref name="id"/> must be positive.
     /// </summary>
     public static Form Create(long id, FormCreateArgs args)
     {
@@ -66,24 +67,11 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     }
 
     /// <summary>
-    /// Creates a form with <see cref="BaseEntity.Id"/> still 0. Prefer
-    /// <see cref="Create(IIdGenerator{long}, FormCreateArgs)"/> or <see cref="Create(long, FormCreateArgs)"/>.
-    /// </summary>
-    [Obsolete("Pass IIdGenerator<long> or an explicit id so the form is identified before EF tracking.")]
-    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
-    public static Form Create(FormCreateArgs args)
-    {
-        Guard.Against.Null(args);
-        return new Form(args);
-    }
-
-    /// <summary>
     /// Legacy constructor. Prefer <see cref="Create(FormCreateArgs)"/>.
     /// <paramref name="submissionTokenExpiryHours"/> is last so existing positional/named
     /// call sites for metadata / webhooks / folder stay binary-compatible.
     /// </summary>
-    [Obsolete("Use Form.Create(IIdGenerator<long>, FormCreateArgs) or Form.Create(long, FormCreateArgs).")]
-    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Use Form.Create(FormCreateArgs).")]
     public Form(
         long tenantId,
         string name,

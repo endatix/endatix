@@ -1,5 +1,3 @@
-using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Configuration;
 using Endatix.Core.Infrastructure.Domain;
 
@@ -20,22 +18,9 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     }
 
     /// <summary>
-    /// Creates a definition and assigns a snowflake Id before the instance is returned.
-    /// </summary>
-    public static FormDefinition Create(
-        IIdGenerator<long> idGenerator,
-        long tenantId,
-        bool isDraft = false,
-        string? jsonData = null)
-    {
-        Guard.Against.Null(idGenerator);
-        FormDefinition definition = new(tenantId, isDraft, jsonData);
-        definition.AssignId(idGenerator.CreateId());
-        return definition;
-    }
-
-    /// <summary>
-    /// Creates a definition with an explicit Id (tests, imports). <paramref name="id"/> must be positive.
+    /// Creates a definition with an explicit Id — for tests, imports, seeding and data migrations
+    /// that need the identity fixed up front. <paramref name="id"/> must be positive. The normal path
+    /// is the constructor; the EF <c>OnAdd</c> snowflake value generator assigns the Id on add.
     /// </summary>
     public static FormDefinition Create(long id, long tenantId, bool isDraft = false, string? jsonData = null)
     {

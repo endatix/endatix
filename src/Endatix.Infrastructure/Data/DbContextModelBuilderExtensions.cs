@@ -15,8 +15,12 @@ namespace Endatix.Infrastructure.Data;
 public static class DbContextModelBuilderExtensions
 {
     /// <summary>
-    /// Client snowflake Ids on Add (SQL Server Guid-PK analog). Store strategy None so
-    /// providers do not scaffold IDENTITY/serial.
+    /// Wires a client-side snowflake generator onto every <c>long Id</c> primary key: <c>OnAdd</c> so
+    /// EF runs it the moment an entity is added (single or <c>AddRange</c>) — before the change tracker
+    /// can collide two unsaved rows on <c>Id == 0</c>, and before <c>SaveChanges</c> materializes outbox
+    /// payloads — and store strategy <c>None</c> so no provider scaffolds an <c>IDENTITY</c>/serial column.
+    /// This is the analog of SQL Server's client-generated <c>Guid</c> keys. Wire it on every context
+    /// (App, Identity, Reporting, Jobs); it is the safety net for entities added without an explicit Id.
     /// </summary>
     public static void ApplySnowflakeIdValueGenerators(
         this ModelBuilder builder,
@@ -38,14 +42,14 @@ public static class DbContextModelBuilderExtensions
                 continue;
             }
 
-            var propertyBuilder = builder.Entity(entityType.ClrType)
+            IMutableProperty metadata = builder.Entity(entityType.ClrType)
                 .Property<long>("Id")
                 .HasValueGenerator((property, _) => valueGeneratorFactory.Create<long>(property))
-                .ValueGeneratedOnAdd();
+                .ValueGeneratedOnAdd()
+                .Metadata;
 
-            IMutableProperty metadata = propertyBuilder.Metadata;
-            metadata.SetAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
-            metadata.SetAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+            metadata.SetValueGenerationStrategy(NpgsqlValueGenerationStrategy.None);
+            metadata.SetValueGenerationStrategy(SqlServerValueGenerationStrategy.None);
         }
     }
 

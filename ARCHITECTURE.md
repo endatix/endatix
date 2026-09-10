@@ -370,24 +370,28 @@ Apply these rules in **Core entities** (`Submission`, `Form`, …). Application 
 3. **Pair revision + event** — use a private `RegisterRevisedDomainEvent(...)` helper that calls `IncrementRevision()` then `RegisterDomainEvent(...)`. Do **not** override `RegisterDomainEvent` globally — some events intentionally skip the bump (e.g. `form.created` at revision 1, `submission.deleted`).
 4. **Encapsulate reporting triggers on the aggregate** — e.g. `Form.UpdateActiveDefinitionSchema` and `Form.SetActiveFormDefinition` raise `FormDefinitionUpdatedEvent`; handlers call those methods instead of separate notify methods. Keep the split explicit: `SetActiveFormDefinition` changes which definition row is active (pointer swap); `UpdateActiveDefinitionSchema` mutates the current active row's JSON/draft status. Do not pass constructed clones to `SetActiveFormDefinition` to effect schema edits.
 5. **Use `[Flags]` enums for multi-field changes** — accumulate `SubmissionChangeKinds` inline when several fields can change in one operation; subscribers filter with domain masks (`SubmissionChangeKindsMasks.SubmissionData`, `AffectsSubmissionData()`).
-6. **Capture payload values deliberately** — integration event constructors should capture **revision at raise time** (`private readonly long _revision = aggregate.Revision`) so multiple events in one transaction keep distinct revisions. Prefer reading **live aggregate state in `GetPayload()`** for IDs. Aggregates get snowflake Ids at `Create(IIdGenerator, args)` (before EF tracking); leftover `Id == 0` rows are filled by the EF OnAdd client generator on `Add`. Do not freeze `Id` in an event constructor at `new Entity()` time.
+6. **Capture payload values deliberately** — integration event constructors should capture **revision at raise time** (`private readonly long _revision = aggregate.Revision`) so multiple events in one transaction keep distinct revisions. Prefer reading **live aggregate state in `GetPayload()`** for IDs: by the time capture runs (inside `SaveChanges`) the EF `OnAdd` generator has already stamped a real `Id`. Do not freeze `Id` in an event constructor at `new Entity()` / `Create(args)` time — it is still `0` there.
 
 ### Entity Ids (snowflake)
 
-- **Core:** `Form.Create(idGenerator, args)` / `Create(long id, args)` (same shape on `Submission` and `FormDefinition`). Id-less `Create(args)` and positional constructors are `[Obsolete]`.
-- **Infrastructure:** `ApplySnowflakeIdValueGenerators` — `ValueGeneratedOnAdd` + client `SnowflakeValueGenerator` + store strategy `None` (not IDENTITY). Safety net for `Add`/`AddRange` of unconverted types.
-- **Not Framework.** `ProcessEntities` does **not** assign Ids.
-- **Seeding:** tenant catalogs use runtime `Add` (per missing default, concede unique-name races); `HasData` is not used for those; shipped SQL backfills stay frozen.
+The `Id` is a client-assigned snowflake `long`, never a database `IDENTITY`/serial.
+
+- **Core:** `Form.Create(args)` is the normal path and leaves `Id == 0`; the EF value generator assigns it on `Add`. `Form.Create(long id, args)` (same shape on `Submission`; `FormDefinition.Create(long id, tenantId, …)` and its constructor) is the explicit-Id path for **tests, imports, seeding and data migrations**. Domain factories and application handlers take **no** `IIdGenerator` — id allocation is an infrastructure concern.
+- **Infrastructure:** `ApplySnowflakeIdValueGenerators` wires every `long Id` PK as `ValueGeneratedOnAdd` + client `SnowflakeValueGenerator` + store strategy `None`. `OnAdd` (not `Never`) so EF runs the generator the moment an entity is added — before the change tracker can collide two unsaved rows on `Id == 0`, and before `AddRange` fan-out. Wired on App, Identity, Reporting, Jobs (Jobs is the reference).
+- **Not Framework.** `ProcessEntities` / `ApplyEndatixEntityDefaults` stamp `CreatedAt` / `ModifiedAt` only — **not** `Id`.
+- **Tests:** share one `EfCoreValueGeneratorFactory` per context type — EF caches one model per context type per process and the model closes over the first factory it sees.
+- **Seeding:** tenant catalogs use runtime `Add` per missing default and concede unique-constraint races one row at a time (a batch save would drop the rest of the catalog on the first conflict); `HasData` is not used for those; shipped SQL backfills stay frozen.
 
 ### Outbox capture flow
 
 ```mermaid
-Handler → Form.Create(idGenerator, args) / mutation (RegisterDomainEvent)
+Handler → Form.Create(args) / mutation (RegisterDomainEvent)
+       → repository.AddAsync            (EF OnAdd generator stamps Id here)
        → repository.SaveChangesAsync
        → AppDbContext.ProcessEntities
             1. Stamp CreatedAt / ModifiedAt
-            2. OutboxIntegrationEventDispatcher.Capture → GetPayload() + serialize
-            3. Add OutboxMessage rows (Ids from OnAdd generator)
+            2. OutboxIntegrationEventDispatcher.Capture → GetPayload() reads live aggregate Id + serialize
+            3. Add OutboxMessage rows (Ids from the same OnAdd generator)
 ```
 
 ```csharp

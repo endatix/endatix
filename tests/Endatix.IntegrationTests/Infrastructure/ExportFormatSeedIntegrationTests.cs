@@ -363,7 +363,6 @@ public sealed class ExportFormatSeedIntegrationTests
 
         await using AppDbContext appDb = new(
             optionsBuilder.Options,
-            idGenerator,
             tenantContext,
             new EfCoreValueGeneratorFactory(idGenerator),
             new OutboxIntegrationEventDispatcher());
