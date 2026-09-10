@@ -37,7 +37,8 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
 
     private Form(long id, FormCreateArgs args) : this(args)
     {
-        AssignId(id);
+        Guard.Against.NegativeOrZero(id);
+        Id = id;
     }
 
     private static FormCreateArgs RequireArgs(FormCreateArgs args)
