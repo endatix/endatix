@@ -37,8 +37,6 @@ public class CreateSubmissionHandlerTests
         _submitterResolver = Substitute.For<ISubmitterResolver>();
         _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(null, null, null));
-        IIdGenerator<long> idGenerator = Substitute.For<IIdGenerator<long>>();
-        idGenerator.CreateId().Returns(9001L);
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,
@@ -46,8 +44,7 @@ public class CreateSubmissionHandlerTests
             _recaptchaService,
             _mediator,
             _authorizationService,
-            _submitterResolver,
-            idGenerator);
+            _submitterResolver);
     }
 
     [Fact]

@@ -86,17 +86,16 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
             TenantId: 1,
             Name: name,
             IsEnabled: true);
-        var form = id is { } explicitId
-            ? Form.Create(explicitId, args)
-            : Form.Create(idGenerator, args);
+        // Seeding builds an in-memory graph and reads Ids (form.Id, ActiveDefinition.Id) while
+        // wiring it up, so fix the identity here rather than waiting for the OnAdd generator.
+        var form = Form.Create(id ?? idGenerator.CreateId(), args);
         return form;
     }
 
     private FormDefinition CreateDefinition(Form form, string jsonData, long? id = null, bool isActive = true)
     {
-        var formDefinition = id is { } explicitId
-            ? FormDefinition.Create(explicitId, tenantId: 1, jsonData: jsonData)
-            : FormDefinition.Create(idGenerator, tenantId: 1, jsonData: jsonData);
+        var definitionId = id ?? idGenerator.CreateId();
+        var formDefinition = FormDefinition.Create(definitionId, tenantId: 1, jsonData: jsonData);
 
         form.AddFormDefinition(formDefinition, isActive);
         return formDefinition;
@@ -104,7 +103,7 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
     private Submission CreateSubmission(SubmissionInfo submissionInfo, Form form, long? formDefinitionId = default)
     {
-        var submission = Submission.Create(idGenerator, new SubmissionCreateArgs(
+        var submission = Submission.Create(idGenerator.CreateId(), new SubmissionCreateArgs(
             TenantId: 1,
             FormId: form.Id,
             FormDefinitionId: formDefinitionId ?? form.ActiveDefinition!.Id,

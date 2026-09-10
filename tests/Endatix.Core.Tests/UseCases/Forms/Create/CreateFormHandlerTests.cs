@@ -13,16 +13,13 @@ public class CreateFormHandlerTests
 {
     private readonly IFormsRepository _repository;
     private readonly ITenantContext _tenantContext;
-    private readonly IIdGenerator<long> _idGenerator;
     private readonly CreateFormHandler _handler;
 
     public CreateFormHandlerTests()
     {
         _repository = Substitute.For<IFormsRepository>();
         _tenantContext = Substitute.For<ITenantContext>();
-        _idGenerator = Substitute.For<IIdGenerator<long>>();
-        _idGenerator.CreateId().Returns(123L);
-        _handler = new CreateFormHandler(_repository, _tenantContext, FolderAssignmentPolicyStub.Relaxed(_tenantContext), _idGenerator);
+        _handler = new CreateFormHandler(_repository, _tenantContext, FolderAssignmentPolicyStub.Relaxed(_tenantContext));
     }
 
     [Fact]
@@ -138,7 +135,7 @@ public class CreateFormHandlerTests
             .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
             .Returns(settings);
         var strictHelper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, _tenantContext);
-        var handler = new CreateFormHandler(_repository, _tenantContext, strictHelper, _idGenerator);
+        var handler = new CreateFormHandler(_repository, _tenantContext, strictHelper);
 
         // Act
         var result = await handler.Handle(request, CancellationToken.None);

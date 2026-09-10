@@ -42,8 +42,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         AssignId(id);
     }
 
-    [Obsolete("Use Submission.Create(IIdGenerator<long>, SubmissionCreateArgs) or Submission.Create(long, SubmissionCreateArgs).")]
-    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
     public Submission(
         long tenantId,
         string jsonData,
@@ -74,25 +73,24 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     {
     }
 
-    public static Submission Create(IIdGenerator<long> idGenerator, SubmissionCreateArgs args)
-    {
-        Guard.Against.Null(idGenerator);
-        Guard.Against.Null(args);
-        return new Submission(idGenerator.CreateId(), args);
-    }
-
-    public static Submission Create(long id, SubmissionCreateArgs args)
-    {
-        Guard.Against.Null(args);
-        return new Submission(id, args);
-    }
-
-    [Obsolete("Pass IIdGenerator<long> or an explicit id so the submission is identified before EF tracking.")]
-    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    /// <summary>
+    /// Creates a submission from named create arguments. <see cref="BaseEntity.Id"/> stays 0 until the
+    /// entity is added to a context, where the EF <c>OnAdd</c> snowflake value generator assigns it.
+    /// </summary>
     public static Submission Create(SubmissionCreateArgs args)
     {
         Guard.Against.Null(args);
         return new Submission(args);
+    }
+
+    /// <summary>
+    /// Creates a submission with an explicit Id — for tests, imports and seeding that need the
+    /// identity fixed up front. <paramref name="id"/> must be positive.
+    /// </summary>
+    public static Submission Create(long id, SubmissionCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        return new Submission(id, args);
     }
 
     public bool IsComplete { get; private set; }
