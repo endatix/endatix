@@ -85,7 +85,6 @@ public class AppDbContext : DbContext, ITenantDbContext
         builder.Ignore<DomainEventBase>();
 
         builder.ApplyEndatixQueryFilters(this);
-        builder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
 
         // Apply base configurations from Infrastructure assembly
         builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
@@ -104,6 +103,8 @@ public class AppDbContext : DbContext, ITenantDbContext
         builder.Entity<DynamicExportRow>()
             .HasNoKey()
             .ToTable(t => t.ExcludeFromMigrations());
+
+        builder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
 
         PrefixTableNames(builder);
     }

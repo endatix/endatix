@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Tests.Features.Outbox;
@@ -56,6 +57,29 @@ public class ApplySnowflakeIdValueGeneratorsTests
 
         exportRow.Should().NotBeNull();
         exportRow!.FindPrimaryKey().Should().BeNull();
+    }
+
+    [Fact]
+    public void Add_StampsDistinctSnowflakeIds_BeforeSaveChanges()
+    {
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(1L);
+        using AppDbContext context = AppDbContextModelInspectionFactory.CreatePostgreSqlAppDbContext(tenantContext);
+
+        Form added = Form.Create(new FormCreateArgs(TenantId: 1, Name: "A"));
+        Form rangeFirst = Form.Create(new FormCreateArgs(TenantId: 1, Name: "B"));
+        Form rangeSecond = Form.Create(new FormCreateArgs(TenantId: 1, Name: "C"));
+        added.Id.Should().Be(0);
+        rangeFirst.Id.Should().Be(0);
+        rangeSecond.Id.Should().Be(0);
+
+        context.Forms.Add(added);
+        context.Forms.AddRange(rangeFirst, rangeSecond);
+
+        added.Id.Should().BeGreaterThan(0);
+        rangeFirst.Id.Should().BeGreaterThan(0);
+        rangeSecond.Id.Should().BeGreaterThan(0);
+        new[] { added.Id, rangeFirst.Id, rangeSecond.Id }.Should().OnlyHaveUniqueItems();
     }
 
     private static void AssertLongKeyContract(DbContext context)

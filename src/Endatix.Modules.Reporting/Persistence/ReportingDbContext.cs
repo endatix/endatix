@@ -40,9 +40,9 @@ public class ReportingDbContext : DbContext, ITenantDbContext
         modelBuilder.HasDefaultSchema(ReportingPersistence.Schema);
 
         modelBuilder.ApplyEndatixQueryFilters(this);
-        modelBuilder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
         modelBuilder.ApplyConfigurationsFor<ReportingDbContext>(typeof(ReportingDbContext).Assembly);
         ApplyProviderSpecificConfigurations(modelBuilder);
+        modelBuilder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
 
         modelBuilder.ApplyModuleTableNames();
     }
