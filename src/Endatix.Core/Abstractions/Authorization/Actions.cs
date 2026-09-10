@@ -143,6 +143,17 @@ public static class Actions
         /// that output and carries its own permission.
         /// </summary>
         public const string View = "jobs.view";
+
+        /// <summary>
+        /// Stop a job that has not finished.
+        /// </summary>
+        /// <remarks>
+        /// Cancelling is the only transition a user drives: every other one — claim, heartbeat,
+        /// progress, completion, failure, retry, expiry — belongs to the runner or the sweeper, and
+        /// the payload is immutable once written. That is why the category has no edit or delete
+        /// action to go with these two: a job is a queue entry the system owns, not a document.
+        /// </remarks>
+        public const string Cancel = "jobs.cancel";
     }
 
     /// <summary>
