@@ -80,6 +80,19 @@ public class EndatixMiddlewareBuilder
         // Terminal branch: HTTP /dev/embed-host must not 307 to HTTPS (mixed content vs Hub).
         UseEmbedHost();
 
+        // Same reason, and it matters more here: Kubernetes treats any 2xx-3xx as probe Success, so
+        // an HTTP probe answered with a 307 to HTTPS greens both probes permanently — readiness
+        // would never drop a pod whose database is gone. Register the probe branches before the
+        // redirect so they answer on plain HTTP regardless of the HTTPS configuration.
+        if (options.UseHealthChecks)
+        {
+            UseHealthChecks(
+                options.HealthCheckPath,
+                health => health
+                    .WithLivenessPath(options.LivenessPath)
+                    .WithReadinessPath(options.ReadinessPath));
+        }
+
         if (options.UseHsts)
         {
             UseHsts();
@@ -93,11 +106,6 @@ public class EndatixMiddlewareBuilder
         if (options.UseApi)
         {
             UseApi(options.ApiOptions);
-        }
-
-        if (options.UseHealthChecks)
-        {
-            UseHealthChecks(options.HealthCheckPath);
         }
 
         options.ConfigureAdditionalMiddleware?.Invoke(App);

@@ -61,3 +61,6 @@ Thumbs.db
 .coverage/
 .secrets
 .coverage-test/
+
+# Rider/ReSharper per-developer editor state
+*.DotSettings.user

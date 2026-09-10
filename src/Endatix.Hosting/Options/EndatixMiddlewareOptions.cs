@@ -54,6 +54,16 @@ public class EndatixMiddlewareOptions
     public string HealthCheckPath { get; set; } = "/health";
 
     /// <summary>
+    /// Path for the liveness probe. Runs only process-level checks, never the database.
+    /// </summary>
+    public string LivenessPath { get; set; } = "/alive";
+
+    /// <summary>
+    /// Path for the readiness probe. Runs only checks tagged <c>ready</c>.
+    /// </summary>
+    public string ReadinessPath { get; set; } = "/ready";
+
+    /// <summary>
     /// Gets or sets the API options for configuring API middleware.
     /// </summary>
     /// <remarks>

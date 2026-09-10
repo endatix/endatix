@@ -194,16 +194,23 @@ spec:
           {{- toYaml .Values.resources | nindent 10 }}
         readinessProbe:
           httpGet:
-            path: /health
+            path: {{ .Values.probes.readiness.path }}
             port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 10
+          initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+          failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          successThreshold: {{ .Values.probes.readiness.successThreshold }}
+        # Deliberately NOT the readiness path: liveness must not fail on a database
+        # outage, or a blip restarts every pod. See values.yaml -> probes.
         livenessProbe:
           httpGet:
-            path: /health
+            path: {{ .Values.probes.liveness.path }}
             port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 30
+          initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+          timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+          failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
         # The only writable path. Startup and /health do not need it, but
         # ASP.NET Core spills oversized request bodies to Path.GetTempPath()
         # and the runtime puts its diagnostic socket there.

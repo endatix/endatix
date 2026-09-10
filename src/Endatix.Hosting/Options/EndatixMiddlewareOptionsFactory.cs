@@ -25,6 +25,11 @@ internal static class EndatixMiddlewareOptionsFactory
             UseForwardedHeaders = useForwardedHeaders,
             UseHsts = options.UseHsts ?? !useForwardedHeaders,
             UseHttpsRedirection = options.UseHttpsRedirection ?? !useForwardedHeaders,
+            // Bound, not defaulted: UseDefaults() routes through this factory, so a path left out
+            // here can never be changed from configuration no matter what the options object says.
+            HealthCheckPath = options.HealthCheckPath,
+            LivenessPath = options.LivenessPath,
+            ReadinessPath = options.ReadinessPath,
             ApiOptions = apiOptions ?? new ApiOptions()
         };
     }

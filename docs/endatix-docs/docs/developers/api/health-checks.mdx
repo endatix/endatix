@@ -16,15 +16,35 @@ When health checks middleware is enabled (default with `app.UseEndatix()`), the 
 
 | Path | Description |
 |------|-------------|
-| `{Path}` | Overall status: `Healthy`, `Degraded`, or `Unhealthy`. Default path is `/health`. |
+| `{Path}` | Overall status across **every** registered check: `Healthy`, `Degraded`, or `Unhealthy`. Default path is `/health`. |
 | `{Path}/detail` | JSON report with status, per-check results, and total duration. |
 | `{Path}/ui` | HTML page listing each check with status and duration. |
+| `{LivenessPath}` | **Liveness.** Only checks tagged `self` or `live` — never the database. Default `/alive`. |
+| `{ReadinessPath}` | **Readiness.** Only checks tagged `ready` — the database checks. Default `/ready`. |
 
-Example with default path:
+Example with default paths:
 
-- **`/health`** — Liveness/overall status
+- **`/health`** — Overall status, all checks (humans and dashboards)
 - **`/health/detail`** — Full JSON (for CI/monitoring)
 - **`/health/ui`** — Human-readable UI
+- **`/alive`** — Liveness probe
+- **`/ready`** — Readiness probe
+
+:::warning Point your orchestrator at `/alive` and `/ready`, not `/health`
+
+`/health` includes the database. A `livenessProbe` pointed at it restarts **every** pod when the
+database blips — removing capacity exactly when the system is already degraded, and restarting a
+process cannot fix a database that is down. Liveness answers "is this process running?" and belongs
+on `/alive`; readiness answers "can this pod serve traffic?" and belongs on `/ready`.
+
+`/ready` is also narrower than `/health` on purpose: it runs only `ready`-tagged checks, so a custom
+check you add does not silently start evicting pods from the Service endpoints.
+
+The bundled Helm chart is already configured this way — see `probes` in its `values.yaml`.
+:::
+
+Paths are configurable via `Endatix:Hosting:HealthCheckPath`, `Endatix:Hosting:LivenessPath` and
+`Endatix:Hosting:ReadinessPath`.
 
 ## Default checks
 
@@ -34,7 +54,8 @@ With `builder.Host.ConfigureEndatix()` and `app.UseEndatix()`:
 - **database** — EF Core health check for the main `AppDbContext` when persistence is configured.
 - **identity-database** — EF Core health check for `AppIdentityDbContext` when identity persistence is configured.
 
-Database checks use tags `db` and `ready`, so you can add a dedicated readiness endpoint that only runs DB checks if needed.
+Database checks use tags `db` and `ready`; the `self` check is tagged `self`. Those tags are what
+`/ready` and `/alive` filter on, so a custom check joins a probe only if you tag it accordingly.
 
 ## JSON detail shape
 

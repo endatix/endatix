@@ -21,9 +21,29 @@ When you use `builder.Host.ConfigureEndatix()`, the following health checks are 
 
 These health checks are exposed through the following endpoints:
 
-- **`/health`**: Basic health status (healthy, degraded, or unhealthy)
+- **`/health`**: Status across **all** registered checks (healthy, degraded, or unhealthy)
 - **`/health/detail`**: Detailed JSON report of all health checks
 - **`/health/ui`**: HTML UI showing health check results in a more readable format
+- **`/alive`**: **Liveness probe** — only `self`/`live` checks, never the database
+- **`/ready`**: **Readiness probe** — only `ready`-tagged checks (the databases)
+
+Point a container orchestrator's `livenessProbe` at `/alive` and its `readinessProbe` at `/ready`.
+Using `/health` for liveness means a database blip restarts every pod at once, which removes
+capacity while the system is already degraded and cannot fix the database.
+
+Paths are configurable:
+
+```json
+{
+  "Endatix": {
+    "Hosting": {
+      "HealthCheckPath": "/health",
+      "LivenessPath": "/alive",
+      "ReadinessPath": "/ready"
+    }
+  }
+}
+```
 
 ## Customizing Health Checks
 

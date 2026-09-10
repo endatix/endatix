@@ -108,6 +108,42 @@ otel:
   protocol: grpc
   serviceName: endatix-api
 
+# Kubernetes probes. The three paths differ on purpose.
+#
+# readinessProbe -> /ready runs only checks tagged "ready" (the database checks). A pod that cannot
+# reach its database cannot serve traffic, so it should leave the Service endpoints — but nothing
+# else should be able to evict it, which is why this is not /health: /health runs EVERY registered
+# check, so any extra check a consumer adds would silently join the readiness path.
+# livenessProbe -> /alive runs only process-level checks and never touches the database. Pointing
+# liveness at a database-backed path means one blip restarts every pod at once, removing capacity
+# exactly when the system is already degraded — and restarting a process cannot fix a database.
+# /health is still served, unfiltered, for humans and dashboards.
+#
+# failureThreshold x periodSeconds is how long a blip must last before it counts. The readiness
+# defaults below tolerate ~30s; raise failureThreshold if your database fails over more slowly than
+# that and you would rather keep serving from cache than drop every pod out of the Service.
+#
+# UPGRADING: /alive and /ready do not exist in appVersion 0.7.6 or earlier — they 404 there, and a
+# 404 on livenessProbe is a restart loop. Normally this cannot bite you: release-prepare.sh stamps
+# chart version and appVersion with the same release version, and the template falls back to
+# .Chart.Version for image.tag, so an upgraded release always runs a matching image. The one case
+# that needs action is an explicitly PINNED image.tag older than the chart — set both paths back to
+# /health until the pin catches up.
+probes:
+  readiness:
+    path: /ready
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 1
+    failureThreshold: 3
+    successThreshold: 1
+  liveness:
+    path: /alive
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 1
+    failureThreshold: 3
+
 resources:
   requests:
     cpu: 100m

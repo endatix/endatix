@@ -27,6 +27,45 @@ internal static class HealthCheckOptionsFactory
     }
 
     /// <summary>
+    /// Creates options for the liveness endpoint: only checks tagged <c>self</c> or <c>live</c>.
+    /// </summary>
+    /// <remarks>
+    /// Both tags are accepted because the host may register either. Endatix's own defaults tag the
+    /// process check <c>self</c>; Aspire ServiceDefaults, when present, contributes <c>live</c>
+    /// instead and Endatix skips its own to avoid duplicating it. A predicate matching no checks
+    /// yields an empty report, which reports Healthy — the correct answer for liveness, since
+    /// reaching the endpoint at all proves the process is up.
+    /// </remarks>
+    /// <returns>Health check options filtered to liveness checks.</returns>
+    public static HealthCheckOptions CreateLivenessOptions()
+    {
+        return new HealthCheckOptions { Predicate = IsLivenessCheck };
+    }
+
+    /// <summary>
+    /// Selects the checks that answer "is this process alive?". Exposed so the same rule can be used
+    /// to warn when nothing matches, rather than duplicating the tag names at the call site.
+    /// </summary>
+    public static bool IsLivenessCheck(HealthCheckRegistration registration) =>
+        registration.Tags.Contains("self") || registration.Tags.Contains("live");
+
+    /// <summary>
+    /// Creates options for the readiness endpoint: only checks tagged <c>ready</c>.
+    /// </summary>
+    /// <returns>Health check options filtered to readiness checks.</returns>
+    public static HealthCheckOptions CreateReadinessOptions()
+    {
+        return new HealthCheckOptions { Predicate = IsReadinessCheck };
+    }
+
+    /// <summary>
+    /// Selects the checks that answer "can this instance serve traffic?" — the dependencies Endatix
+    /// tags <c>ready</c>, not every registration.
+    /// </summary>
+    public static bool IsReadinessCheck(HealthCheckRegistration registration) =>
+        registration.Tags.Contains("ready");
+
+    /// <summary>
     /// Creates health check options for JSON output.
     /// </summary>
     /// <returns>Health check options configured for JSON output.</returns>

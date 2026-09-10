@@ -1,3 +1,4 @@
+using Endatix.Hosting.HealthChecks;
 using Endatix.Infrastructure.Builders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -146,6 +147,75 @@ public sealed class EndatixHealthChecksBuilderTests
         // Assert
         report.Entries.Should().ContainKey("self");
         report.Entries["self"].Status.Should().Be(HealthStatus.Healthy);
+    }
+
+    /// <summary>
+    /// The predicate is the whole safety property of the liveness probe, and the end-to-end test
+    /// cannot catch a regression that still leaves /alive green. Assert the filtering directly.
+    /// </summary>
+    [Fact]
+    public async Task CheckHealth_WithLivenessPredicate_ExcludesDatabaseChecks()
+    {
+        // Arrange
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(_minimalConfig)
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=EndatixHealthCheckTest;Trusted_Connection=True;TrustServerCertificate=True" })
+            .Build();
+
+        using var host = Host.CreateDefaultBuilder()
+            .ConfigureAppConfiguration((_, c) => c.AddConfiguration(config))
+            .ConfigureServices((context, services) =>
+            {
+                var builder = services.AddEndatix(context.Configuration);
+                builder.UseDefaults();
+                builder.FinalizeConfiguration();
+            })
+            .Build();
+        var healthCheckService = host.Services.GetRequiredService<HealthCheckService>();
+
+        // Act
+        var report = await healthCheckService.CheckHealthAsync(
+            HealthCheckOptionsFactory.IsLivenessCheck,
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        report.Entries.Should().ContainKey("self");
+        report.Entries.Should().NotContainKey("database", "liveness must not depend on the database");
+        report.Entries.Should().NotContainKey("identity-database");
+    }
+
+    [Fact]
+    public async Task CheckHealth_WithReadinessPredicate_ContainsOnlyDatabaseChecks()
+    {
+        // Arrange
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(_minimalConfig)
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=EndatixHealthCheckTest;Trusted_Connection=True;TrustServerCertificate=True" })
+            .Build();
+
+        using var host = Host.CreateDefaultBuilder()
+            .ConfigureAppConfiguration((_, c) => c.AddConfiguration(config))
+            .ConfigureServices((context, services) =>
+            {
+                var builder = services.AddEndatix(context.Configuration);
+                builder.UseDefaults();
+                // An untagged check, as a consumer would add: it must not reach the readiness probe,
+                // or an unrelated dependency starts evicting pods from the Service endpoints.
+                builder.HealthChecks.AddCheck("consumer-check", () => HealthCheckResult.Healthy());
+                builder.FinalizeConfiguration();
+            })
+            .Build();
+        var healthCheckService = host.Services.GetRequiredService<HealthCheckService>();
+
+        // Act
+        var report = await healthCheckService.CheckHealthAsync(
+            HealthCheckOptionsFactory.IsReadinessCheck,
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        report.Entries.Should().ContainKey("database");
+        report.Entries.Should().NotContainKey("self");
+        report.Entries.Should().NotContainKey("consumer-check", "only checks tagged 'ready' gate traffic");
     }
 
     [Fact]
