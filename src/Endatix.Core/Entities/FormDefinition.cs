@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Endatix.Core.Configuration;
 using Endatix.Core.Infrastructure.Domain;
 
@@ -24,8 +25,9 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     /// </summary>
     public static FormDefinition Create(long id, long tenantId, bool isDraft = false, string? jsonData = null)
     {
+        Guard.Against.NegativeOrZero(id);
         FormDefinition definition = new(tenantId, isDraft, jsonData);
-        definition.AssignId(id);
+        definition.Id = id;
         return definition;
     }
 

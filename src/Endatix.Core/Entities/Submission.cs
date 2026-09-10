@@ -39,7 +39,8 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
     private Submission(long id, SubmissionCreateArgs args) : this(args)
     {
-        AssignId(id);
+        Guard.Against.NegativeOrZero(id);
+        Id = id;
     }
 
     [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
