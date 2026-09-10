@@ -6,6 +6,8 @@ using Endatix.Infrastructure.Identity;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -121,6 +123,15 @@ public static class ApiApplicationBuilderExtensions
             // Apply any custom configuration
             options.ConfigureFastEndpoints?.Invoke(c);
         });
+
+        // Map MVC controllers when a module has registered any. Controllers and FastEndpoints keep
+        // separate route tables, so the two coexist; this is a no-op for a host where no module
+        // brought controllers with it, which is every host that has no OpenAPI-generated contract.
+        if (app is IEndpointRouteBuilder endpointRouteBuilder
+            && app.ApplicationServices.GetService<IActionDescriptorCollectionProvider>() is not null)
+        {
+            endpointRouteBuilder.MapControllers();
+        }
 
         // Apply Swagger middleware if enabled
         if (options.UseSwagger)
