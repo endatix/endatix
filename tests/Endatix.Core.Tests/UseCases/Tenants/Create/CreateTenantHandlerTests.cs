@@ -19,7 +19,6 @@ public class CreateTenantHandlerTests
     private readonly IRepository<CoreEntities.Tenant> _tenantRepository;
     private readonly IRepository<CoreEntities.TenantSettings> _tenantSettingsRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IIdGenerator<long> _idGenerator;
     private readonly IShortUrlGenerator _shortUrlGenerator;
     private readonly IUniqueConstraintViolationChecker _uniqueConstraintViolationChecker;
     private readonly CreateTenantHandler _sut;
@@ -27,10 +26,16 @@ public class CreateTenantHandlerTests
     public CreateTenantHandlerTests()
     {
         _tenantRepository = Substitute.For<IRepository<CoreEntities.Tenant>>();
+        // Stand in for the EF OnAdd snowflake generator, which assigns Tenant.Id on AddAsync.
+        _tenantRepository.AddAsync(Arg.Any<CoreEntities.Tenant>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                var tenant = call.Arg<CoreEntities.Tenant>();
+                tenant.Id = NEW_TENANT_ID;
+                return tenant;
+            });
         _tenantSettingsRepository = Substitute.For<IRepository<CoreEntities.TenantSettings>>();
         _unitOfWork = Substitute.For<IUnitOfWork>();
-        _idGenerator = Substitute.For<IIdGenerator<long>>();
-        _idGenerator.CreateId().Returns(NEW_TENANT_ID);
         _shortUrlGenerator = Substitute.For<IShortUrlGenerator>();
         _shortUrlGenerator.Create(ShortUrlKind.Standard).Returns(GeneratedShortUrl);
         _uniqueConstraintViolationChecker = Substitute.For<IUniqueConstraintViolationChecker>();
@@ -40,7 +45,6 @@ public class CreateTenantHandlerTests
             _tenantRepository,
             _tenantSettingsRepository,
             _unitOfWork,
-            _idGenerator,
             _shortUrlGenerator,
             _uniqueConstraintViolationChecker);
     }
@@ -103,6 +107,7 @@ public class CreateTenantHandlerTests
             .Returns(call =>
             {
                 addedTenant = call.Arg<CoreEntities.Tenant>();
+                addedTenant.Id = NEW_TENANT_ID;
                 return addedTenant;
             });
 

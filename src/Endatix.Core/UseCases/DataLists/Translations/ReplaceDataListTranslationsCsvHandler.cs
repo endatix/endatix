@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -17,7 +16,6 @@ namespace Endatix.Core.UseCases.DataLists.Translations;
 public sealed class ReplaceDataListTranslationsCsvHandler(
     IRepository<DataList> repository,
     IMediator mediator,
-    IIdGenerator<long> idGenerator,
     ILogger<ReplaceDataListTranslationsCsvHandler> logger)
     : ICommandHandler<ReplaceDataListTranslationsCsvCommand, Result<DataListDto>>
 {
@@ -68,7 +66,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
 
         try
         {
-            dataList.ReplaceItems(items, idGenerator.CreateId);
+            dataList.ReplaceItems(items);
         }
         catch (ArgumentException ex)
         {

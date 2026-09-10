@@ -554,14 +554,13 @@ public sealed class ReportingExportRepositoryIntegrationTests
     {
         IntegrationTenantContext tenantContext = new(TenantId);
 
-        IncrementingIdGenerator idGenerator = new();
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
 
         return new AppDbContext(
             optionsBuilder.Options,
             tenantContext,
-            new EfCoreValueGeneratorFactory(idGenerator),
+            IntegrationAppDbContextFactory.ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher());
     }
 

@@ -196,17 +196,13 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
     /// <summary>
     /// Replaces the items of the data list.
     /// Validates and materializes all incoming items before mutating the existing collection.
+    /// New rows keep <see cref="BaseEntity.Id"/> <c>0</c>; the EF <c>OnAdd</c> snowflake value
+    /// generator stamps each one as the aggregate graph is saved.
     /// </summary>
     /// <param name="items">Replacement rows.</param>
-    /// <param name="createId">
-    /// Optional id factory for new items. When provided, each new row with unset id <c>0</c>
-    /// is stamped before attach so EF Core does not collide on temporary keys while the
-    /// aggregate is tracked (before SaveChanges).
-    /// </param>
     /// <exception cref="InvalidOperationException">Thrown when more than <see cref="MAX_ITEMS"/> items are provided.</exception>
     public void ReplaceItems(
-        IEnumerable<(IReadOnlyDictionary<string, string> Labels, string Value)> items,
-        Func<long>? createId = null)
+        IEnumerable<(IReadOnlyDictionary<string, string> Labels, string Value)> items)
     {
         Guard.Against.Null(items);
 
@@ -223,9 +219,7 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
         List<DataListItem> prepared = new(source.Count);
         foreach (var (labels, value) in source)
         {
-            var item = CreateItem(labels, value);
-            AssignNewItemId(item, createId);
-            prepared.Add(item);
+            prepared.Add(CreateItem(labels, value));
         }
 
         _items.Clear();
@@ -234,16 +228,6 @@ public class DataList : TenantEntity, IAggregateRoot, IHasTranslations
             item.AttachToDataList(this);
             _items.Add(item);
         }
-    }
-
-    private static void AssignNewItemId(DataListItem item, Func<long>? createId)
-    {
-        if (createId is null || item.Id != 0)
-        {
-            return;
-        }
-
-        item.Id = createId();
     }
 
     /// <summary>

@@ -357,14 +357,13 @@ public sealed class ExportFormatSeedIntegrationTests
     private async Task<long> InsertTenantAsync(CancellationToken cancellationToken)
     {
         IntegrationTenantContext tenantContext = IntegrationTenantContext.Bypass;
-        IncrementingIdGenerator idGenerator = new(Random.Shared.NextInt64(100_000, 900_000));
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
 
         await using AppDbContext appDb = new(
             optionsBuilder.Options,
             tenantContext,
-            new EfCoreValueGeneratorFactory(idGenerator),
+            IntegrationAppDbContextFactory.ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher());
 
         Tenant tenant = new($"xlsx-seed-{Guid.NewGuid():N}"[..32], Guid.NewGuid().ToString("N")[..8]);

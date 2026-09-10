@@ -26,7 +26,6 @@ public sealed class OutboxCaptureTests
     private const string ProbeTable = "OutboxCaptureProbes";
     private readonly EndatixIntegrationWebHostFixture _fixture;
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
-    private readonly IncrementingIdGenerator _idGenerator = new();
 
     public OutboxCaptureTests(EndatixIntegrationWebHostFixture fixture)
     {
@@ -295,7 +294,7 @@ public sealed class OutboxCaptureTests
         return new TestAppDbContext(
             optionsBuilder.Options,
             _tenantContext,
-            new EfCoreValueGeneratorFactory(_idGenerator),
+            IntegrationAppDbContextFactory.ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher(),
             ProbeSchema,
             ProbeTable);
@@ -321,11 +320,6 @@ public sealed class OutboxCaptureTests
             cancellationToken);
     }
 
-    private sealed class IncrementingIdGenerator : IIdGenerator<long>
-    {
-        private long _current = 1_000;
-        public long CreateId() => Interlocked.Increment(ref _current);
-    }
 }
 
 internal sealed class TestAppDbContext : AppDbContext
