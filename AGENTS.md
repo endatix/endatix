@@ -50,7 +50,7 @@ Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · h
 
 ## Entity Ids (snowflake)
 
-`BaseEntity.Id` is a client snowflake assigned by the EF `OnAdd` value generator wired once per context in `ApplySnowflakeIdValueGenerators`. **Do not** inject `IIdGenerator<long>` into a handler, factory, repository or service, and do not pre-stamp `Id` before `Add` — the generator runs at `.Add()`/`AddAsync()`, so `entity.Id` is populated for the rest of the method and for outbox payloads. Use `Entity.Create(args)` (Id `0` until `Add`); use `Entity.Create(long id, args)` only for tests, seeding, imports and data migrations. A unit test with a substituted repository must simulate the generator itself (`repo.AddAsync(...).Returns(ci => { ci.Arg<T>().Id = SomeId; return ...; })`). Full rules: [`ARCHITECTURE.md` → Entity Ids](ARCHITECTURE.md).
+Client snowflake stamped on `Add` by `ApplySnowflakeIdValueGenerators` — not IDENTITY, not `IIdGenerator` in handlers/repos. `Create(args)` leaves `Id == 0`; `Create(long id, args)` only for tests/seed/import. NSubstitute `AddAsync` must stamp `Id` itself (`ci.Arg<T>().Id = SomeId`). Details: [`ARCHITECTURE.md` → Entity Ids](ARCHITECTURE.md).
 
 ## Error HTTP contract (API)
 

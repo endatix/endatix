@@ -9,11 +9,8 @@ namespace Endatix.Core.Entities;
 public abstract class BaseEntity : HasDomainEventsBase
 {
     /// <summary>
-    /// Client-assigned snowflake, never a database <c>IDENTITY</c>/serial. Value generation is
-    /// configured once per context by
-    /// <c>DbContextModelBuilderExtensions.ApplySnowflakeIdValueGenerators</c> (EF <c>OnAdd</c> client
-    /// generator); the explicit-Id <c>Create(long id, …)</c> factories set it for tests, imports,
-    /// seeding and data migrations.
+    /// Client snowflake, never IDENTITY/serial. EF OnAdd generator
+    /// (<c>ApplySnowflakeIdValueGenerators</c>) stamps it; <c>Create(long id, …)</c> sets it for tests/seed/import.
     /// </summary>
     public virtual long Id { get; set; }
     public DateTime CreatedAt { get; protected set; }

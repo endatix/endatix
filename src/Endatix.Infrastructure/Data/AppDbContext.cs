@@ -198,9 +198,8 @@ public class AppDbContext : DbContext, ITenantDbContext
     }
 
     /// <summary>
-    /// Captures <see cref="IIntegrationEvent"/>s raised on tracked aggregates into <see cref="OutboxMessage"/>
-    /// rows in this same context. Ids exist from aggregate Create or the OnAdd snowflake generator;
-    /// <see cref="GetPayload"/> reads live aggregate Ids. Outbox rows get Ids from the same generator on Add.
+    /// Captures <see cref="IIntegrationEvent"/>s into <see cref="OutboxMessage"/> rows in this context.
+    /// Runs after Add, so payloads read live Ids. Outbox rows get Ids from the same OnAdd generator.
     /// </summary>
     private void CaptureIntegrationEvents()
     {

@@ -31,11 +31,9 @@ public class RolesRepository : IRolesRepository
         {
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            // Save role first; its snowflake Id is assigned by the EF OnAdd value generator here.
             _identityDbContext.Roles.Add(role);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Add permissions now that role.Id is populated.
             foreach (var permissionId in permissionIds)
             {
                 var rolePermission = new RolePermission(role.Id, permissionId);

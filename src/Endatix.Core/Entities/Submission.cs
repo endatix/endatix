@@ -74,20 +74,14 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     {
     }
 
-    /// <summary>
-    /// Creates a submission from named create arguments. <see cref="BaseEntity.Id"/> stays 0 until the
-    /// entity is added to a context, where the EF <c>OnAdd</c> snowflake value generator assigns it.
-    /// </summary>
+    /// <summary>Normal path. Id stays 0 until EF OnAdd stamps the snowflake.</summary>
     public static Submission Create(SubmissionCreateArgs args)
     {
         Guard.Against.Null(args);
         return new Submission(args);
     }
 
-    /// <summary>
-    /// Creates a submission with an explicit Id — for tests, imports and seeding that need the
-    /// identity fixed up front. <paramref name="id"/> must be positive.
-    /// </summary>
+    /// <summary>Explicit Id for tests, imports, seeding. Must be positive.</summary>
     public static Submission Create(long id, SubmissionCreateArgs args)
     {
         Guard.Against.Null(args);

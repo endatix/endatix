@@ -19,9 +19,7 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     }
 
     /// <summary>
-    /// Creates a definition with an explicit Id — for tests, imports, seeding and data migrations
-    /// that need the identity fixed up front. <paramref name="id"/> must be positive. The normal path
-    /// is the constructor; the EF <c>OnAdd</c> snowflake value generator assigns the Id on add.
+    /// Explicit Id for tests, imports, seeding. Must be positive. Normal path is the constructor (Id 0 until OnAdd).
     /// </summary>
     public static FormDefinition Create(long id, long tenantId, bool isDraft = false, string? jsonData = null)
     {

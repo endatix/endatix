@@ -3,11 +3,9 @@ using Endatix.Core.Entities;
 namespace Endatix.Core.Tests.Entities;
 
 /// <summary>
-/// The domain factories do not allocate Ids. <c>Create(args)</c> leaves <see cref="BaseEntity.Id"/>
-/// at 0 (the EF <c>OnAdd</c> snowflake generator fills it on add); <c>Create(long id, args)</c> is the
-/// explicit-Id path for tests, imports, seeding and data migrations.
+/// <c>Create(args)</c> leaves Id 0; <c>Create(long id, args)</c> is the explicit-Id path.
 /// </summary>
-public class FormCreateAssignsIdTests
+public class EntityCreateIdTests
 {
     [Fact]
     public void Create_WithArgsOnly_LeavesIdUnset()
