@@ -36,6 +36,21 @@ public class HostingOptions : EndatixOptionsBase
     public bool? UseHttpsRedirection { get; set; }
 
     /// <summary>
+    /// Gets or sets the path serving the full health report (every registered check).
+    /// </summary>
+    public string HealthCheckPath { get; set; } = "/health";
+
+    /// <summary>
+    /// Gets or sets the path serving the liveness probe — process-level checks only, never the database.
+    /// </summary>
+    public string LivenessPath { get; set; } = "/alive";
+
+    /// <summary>
+    /// Gets or sets the path serving the readiness probe — checks tagged <c>ready</c>.
+    /// </summary>
+    public string ReadinessPath { get; set; } = "/ready";
+
+    /// <summary>
     /// Gets or sets reverse proxy hosting options.
     /// </summary>
     public ReverseProxyOptions ReverseProxy { get; set; } = new();

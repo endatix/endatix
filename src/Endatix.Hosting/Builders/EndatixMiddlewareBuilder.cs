@@ -80,6 +80,21 @@ public class EndatixMiddlewareBuilder
         // Terminal branch: HTTP /dev/embed-host must not 307 to HTTPS (mixed content vs Hub).
         UseEmbedHost();
 
+        // Probes ONLY, and only these, ahead of the redirect. Kubernetes treats any 2xx-3xx as probe
+        // Success, so an HTTP probe answered with a 307 to HTTPS greens both probes permanently and
+        // readiness would never drop a pod whose database is gone. The unfiltered report and its
+        // detail/UI views deliberately stay behind HSTS and the redirect further down: they expose
+        // check names, descriptions and durations, which must not be served in cleartext.
+        EndatixHealthChecksMiddlewareBuilder? healthChecks = null;
+        if (options.UseHealthChecks)
+        {
+            healthChecks = new EndatixHealthChecksMiddlewareBuilder(this, _logger);
+            healthChecks.WithPath(options.HealthCheckPath)
+                .WithLivenessPath(options.LivenessPath)
+                .WithReadinessPath(options.ReadinessPath);
+            healthChecks.ApplyProbes(App);
+        }
+
         if (options.UseHsts)
         {
             UseHsts();
@@ -95,10 +110,10 @@ public class EndatixMiddlewareBuilder
             UseApi(options.ApiOptions);
         }
 
-        if (options.UseHealthChecks)
-        {
-            UseHealthChecks(options.HealthCheckPath);
-        }
+        // After UseApi on purpose: UseCors lives inside it, so a dashboard on another origin fetching
+        // /health/detail keeps its Access-Control-Allow-Origin header. The probes above need no CORS
+        // — kubelet sends no Origin — which is why only these move.
+        healthChecks?.ApplyDiagnostics(App);
 
         options.ConfigureAdditionalMiddleware?.Invoke(App);
 
@@ -301,14 +316,15 @@ public class EndatixMiddlewareBuilder
         // Use the dedicated health checks middleware builder to avoid code duplication
         EndatixHealthChecksMiddlewareBuilder healthChecksBuilder = new(this, _logger);
 
-        // Apply custom configuration if provided
+        // Path first, THEN the delegate: applying it afterwards silently overwrote a caller's own
+        // WithPath("/internal/health"), so the call compiled, ran and did nothing.
+        healthChecksBuilder.WithPath(path);
+
         if (configureHealthChecks is { })
         {
             configureHealthChecks(healthChecksBuilder);
         }
 
-        // Configure the health checks middleware
-        healthChecksBuilder.WithPath(path);
         healthChecksBuilder.Apply(App);
 
         return this;

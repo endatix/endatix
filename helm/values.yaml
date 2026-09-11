@@ -108,6 +108,58 @@ otel:
   protocol: grpc
   serviceName: endatix-api
 
+# Kubernetes probes. The three paths differ on purpose.
+#
+# readinessProbe -> /ready runs only checks tagged "ready" (the database checks). A pod that cannot
+# reach its database cannot serve traffic, so it should leave the Service endpoints — but nothing
+# else should be able to evict it, which is why this is not /health: /health runs EVERY registered
+# check, so any extra check a consumer adds would silently join the readiness path.
+# livenessProbe -> /alive runs only process-level checks and never touches the database. Pointing
+# liveness at a database-backed path means one blip restarts every pod at once, removing capacity
+# exactly when the system is already degraded — and restarting a process cannot fix a database.
+# /health is still served, unfiltered, for humans and dashboards.
+#
+# failureThreshold x periodSeconds is how long a blip must last before it counts.
+#
+# A DELIBERATE TRADE-OFF worth understanding before you tune it: every replica points at the same
+# database, so readiness is a shared fate rather than a per-pod one. When it trips it trips
+# everywhere, Kubernetes empties the Service endpoints, and the ingress returns 502/503 for
+# EVERYTHING — routes that need no database, cached reads, and /health itself for the dashboard you
+# are using to diagnose the incident. Readiness normally expresses per-pod ability to serve; a
+# dependency shared by all pods is the case it handles worst.
+#
+# The default is 6 x 10s = 60s rather than the more usual 30s for exactly that reason: a failover or
+# a brief connection-limit spike should not empty the Service, while an outage lasting minutes still
+# should, because a pod that cannot reach its database genuinely cannot serve most requests. If your
+# database fails over more slowly than 60s, raise failureThreshold further. The better long-term
+# answer is a circuit breaker and a degraded-mode response rather than eviction, which is tracked
+# separately — this default is the conservative choice available today.
+#
+# UPGRADING: /alive and /ready do not exist in appVersion 0.7.6 or earlier — they 404 there, and a
+# 404 on livenessProbe is a restart loop. Normally this cannot bite you: release-prepare.sh stamps
+# chart version and appVersion with the same release version, and the template falls back to
+# .Chart.Version for image.tag, so an upgraded release always runs a matching image. The one case
+# that needs action is an explicitly PINNED image.tag older than the chart — set both paths back to
+# /health until the pin catches up.
+probes:
+  # Also rendered into Endatix__Hosting__*Path so the app serves exactly what kubelet requests.
+  health:
+    path: /health
+  readiness:
+    path: /ready
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 1
+    # 6 x 10s = 60s before a shared-database blip empties the Service. See the note above.
+    failureThreshold: 6
+    successThreshold: 1
+  liveness:
+    path: /alive
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 1
+    failureThreshold: 3
+
 resources:
   requests:
     cpu: 100m
