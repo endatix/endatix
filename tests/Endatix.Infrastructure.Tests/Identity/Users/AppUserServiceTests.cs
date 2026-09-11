@@ -32,8 +32,7 @@ public class AppUserServiceTests
         _tenantContext = Substitute.For<ITenantContext>();
         var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>().Options;
         var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<IIdGenerator<long>>());
-        var idGenerator = Substitute.For<IIdGenerator<long>>();
-        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory, idGenerator);
+        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory);
         _emailVerificationService = Substitute.For<IEmailVerificationService>();
         _userContext = Substitute.For<IUserContext>();
         _substringLikeFilter = Substitute.For<IRelationalSubstringLikeFilter>();

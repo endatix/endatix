@@ -48,6 +48,10 @@ Do **not** assert empty-body `BadRequest` / `NotFound`. References: `FormDefinit
 
 Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · happy path + persist · domain `Invalid` (no persist) · event reason/payload. Prefer real aggregates. Thin command-ctor tests when `Guard.Against.*` matters.
 
+## Entity Ids (snowflake)
+
+Client snowflake stamped on `Add` by `ApplySnowflakeIdValueGenerators` — not IDENTITY, not `IIdGenerator` in handlers/repos. `Create(args)` leaves `Id == 0`; `Create(long id, args)` only for tests/seed/import. NSubstitute `AddAsync` must stamp `Id` itself (`ci.Arg<T>().Id = SomeId`). Details: [`ARCHITECTURE.md` → Entity Ids](ARCHITECTURE.md).
+
 ## Error HTTP contract (API)
 
 Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, unhandled exceptions, export stream errors):

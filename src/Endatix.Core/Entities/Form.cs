@@ -35,19 +35,30 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         FolderId = args.FolderId;
     }
 
+    private Form(long id, FormCreateArgs args) : this(args)
+    {
+        Guard.Against.NegativeOrZero(id);
+        Id = id;
+    }
+
     private static FormCreateArgs RequireArgs(FormCreateArgs args)
     {
         Guard.Against.Null(args);
         return args;
     }
 
-    /// <summary>
-    /// Creates a form from named create arguments.
-    /// </summary>
+    /// <summary>Normal path. Id stays 0 until EF OnAdd stamps the snowflake.</summary>
     public static Form Create(FormCreateArgs args)
     {
         Guard.Against.Null(args);
         return new Form(args);
+    }
+
+    /// <summary>Explicit Id for tests, imports, seeding. Must be positive.</summary>
+    public static Form Create(long id, FormCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        return new Form(id, args);
     }
 
     /// <summary>

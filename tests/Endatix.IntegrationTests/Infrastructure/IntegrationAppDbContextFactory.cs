@@ -13,6 +13,15 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 internal static class IntegrationAppDbContextFactory
 {
+    /// <summary>
+    /// One factory per context type: EF caches a single model per <see cref="AppDbContext"/> per
+    /// process and the model closes over the first <see cref="EfCoreValueGeneratorFactory"/> it sees.
+    /// Every <see cref="AppDbContext"/> built by these tests must pass this instance so the OnAdd
+    /// generator is deterministic. Mirrors <see cref="ReportingTestSchema.ValueGeneratorFactory"/>.
+    /// </summary>
+    internal static readonly EfCoreValueGeneratorFactory ValueGeneratorFactory =
+        new(new IncrementingIdGenerator());
+
     private const string PostgresMigrationsAssembly = "Endatix.Persistence.PostgreSql";
     private const string SqlServerMigrationsAssembly = "Endatix.Persistence.SqlServer";
     private const string PostgresAppMigrationsNamespace = "Endatix.Persistence.PostgreSql.Migrations.AppEntities";

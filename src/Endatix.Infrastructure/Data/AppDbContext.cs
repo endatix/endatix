@@ -20,7 +20,6 @@ public class AppDbContext : DbContext, ITenantDbContext
 {
     private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
 
-    private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;
     private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
     private readonly OutboxIntegrationEventDispatcher _outboxDispatcher;
@@ -28,12 +27,10 @@ public class AppDbContext : DbContext, ITenantDbContext
     protected AppDbContext() { }
     public AppDbContext(
         DbContextOptions<AppDbContext> options,
-        IIdGenerator<long> idGenerator,
         ITenantContext tenantContext,
         EfCoreValueGeneratorFactory valueGeneratorFactory,
         OutboxIntegrationEventDispatcher outboxDispatcher) : base(options)
     {
-        _idGenerator = idGenerator;
         _tenantContext = tenantContext;
         _valueGeneratorFactory = valueGeneratorFactory;
         _outboxDispatcher = outboxDispatcher;
@@ -88,7 +85,6 @@ public class AppDbContext : DbContext, ITenantDbContext
         builder.Ignore<DomainEventBase>();
 
         builder.ApplyEndatixQueryFilters(this);
-        ConfigureEntityIdValueGenerators(builder);
 
         // Apply base configurations from Infrastructure assembly
         builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
@@ -108,23 +104,9 @@ public class AppDbContext : DbContext, ITenantDbContext
             .HasNoKey()
             .ToTable(t => t.ExcludeFromMigrations());
 
+        builder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
+
         PrefixTableNames(builder);
-    }
-
-    private void ConfigureEntityIdValueGenerators(ModelBuilder builder)
-    {
-        var entityTypes = builder.Model.GetEntityTypes()
-            .Where(entityType =>
-                !entityType.IsOwned() &&
-                typeof(BaseEntity).IsAssignableFrom(entityType.ClrType));
-
-        foreach (var entityType in entityTypes)
-        {
-            builder.Entity(entityType.ClrType)
-                .Property<long>(nameof(BaseEntity.Id))
-                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
-                .ValueGeneratedNever();
-        }
     }
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
@@ -212,51 +194,13 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     private void ProcessEntities()
     {
-        var entries = ChangeTracker.Entries()
-            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
-
-        foreach (var entry in entries)
-        {
-            switch (entry.State)
-            {
-                case EntityState.Added:
-                    // Generate an id if necessary
-                    if (entry.CurrentValues.Properties.Any(p => p.Name == "Id") &&
-                        entry.CurrentValues["Id"] is default(long))
-                    {
-                        entry.CurrentValues["Id"] = _idGenerator.CreateId();
-                    }
-
-                    // Set the CreatedAt value when not already provided
-                    if (entry.CurrentValues.Properties.Any(p => p.Name == "CreatedAt"))
-                    {
-                        var createdAtObj = entry.CurrentValues["CreatedAt"];
-                        if (createdAtObj is DateTime createdAt && createdAt == default)
-                        {
-                            entry.CurrentValues["CreatedAt"] = DateTime.UtcNow;
-                        }
-                    }
-
-                    break;
-                case EntityState.Modified:
-                    // Set the ModifiedAt value
-                    if (entry.CurrentValues.Properties.Any(p => p.Name == "ModifiedAt"))
-                    {
-                        entry.CurrentValues["ModifiedAt"] = DateTime.UtcNow;
-                    }
-
-                    break;
-            }
-        }
-
+        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
         CaptureIntegrationEvents();
     }
 
     /// <summary>
-    /// Captures <see cref="IIntegrationEvent"/>s raised on tracked aggregates into <see cref="OutboxMessage"/>
-    /// rows in this same context, so they commit atomically with the aggregate. Runs after Id/timestamp
-    /// stamping (so the aggregates' Ids are set before payloads are materialized); the new outbox rows are
-    /// added afterwards, so their Id/CreatedAt are stamped explicitly here.
+    /// Captures <see cref="IIntegrationEvent"/>s into <see cref="OutboxMessage"/> rows in this context.
+    /// Runs after Add, so payloads read live Ids. Outbox rows get Ids from the same OnAdd generator.
     /// </summary>
     private void CaptureIntegrationEvents()
     {
@@ -279,7 +223,6 @@ public class AppDbContext : DbContext, ITenantDbContext
         foreach (var message in outboxMessages)
         {
             var entry = OutboxMessages.Add(message);
-            entry.CurrentValues[nameof(BaseEntity.Id)] = _idGenerator.CreateId();
             entry.CurrentValues[nameof(BaseEntity.CreatedAt)] = DateTime.UtcNow;
         }
     }

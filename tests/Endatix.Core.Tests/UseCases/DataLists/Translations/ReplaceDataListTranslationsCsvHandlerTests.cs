@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -15,20 +14,15 @@ public class ReplaceDataListTranslationsCsvHandlerTests
 {
     private readonly IRepository<DataList> _repository;
     private readonly IMediator _mediator;
-    private readonly IIdGenerator<long> _idGenerator;
     private readonly ReplaceDataListTranslationsCsvHandler _sut;
-    private long _nextId = 100;
 
     public ReplaceDataListTranslationsCsvHandlerTests()
     {
         _repository = Substitute.For<IRepository<DataList>>();
         _mediator = Substitute.For<IMediator>();
-        _idGenerator = Substitute.For<IIdGenerator<long>>();
-        _idGenerator.CreateId().Returns(_ => Interlocked.Increment(ref _nextId));
         _sut = new ReplaceDataListTranslationsCsvHandler(
             _repository,
             _mediator,
-            _idGenerator,
             NullLogger<ReplaceDataListTranslationsCsvHandler>.Instance);
     }
 

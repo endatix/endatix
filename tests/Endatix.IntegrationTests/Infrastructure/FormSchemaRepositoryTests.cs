@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
@@ -133,7 +134,7 @@ public sealed class FormSchemaRepositoryTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
     }
 
     private static FormSchemaRepository CreateRepository(ReportingDbContext dbContext)

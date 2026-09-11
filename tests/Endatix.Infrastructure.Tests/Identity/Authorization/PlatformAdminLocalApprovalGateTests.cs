@@ -16,8 +16,7 @@ public sealed class PlatformAdminLocalApprovalGateTests
         // Arrange
         var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>().Options;
         var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<Core.Abstractions.IIdGenerator<long>>());
-        var idGenerator = Substitute.For<Core.Abstractions.IIdGenerator<long>>();
-        var db = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory, idGenerator);
+        var db = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory);
         var gate = new PlatformAdminLocalApprovalGate(db, new UpperInvariantLookupNormalizer());
 
         // Act

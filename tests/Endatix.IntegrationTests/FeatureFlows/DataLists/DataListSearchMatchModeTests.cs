@@ -477,15 +477,13 @@ public sealed class DataListSearchMatchModeTests
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        IncrementingIdGenerator idGenerator = new(NextId());
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, _fixture.ConnectionString, _fixture.Provider);
 
         return new AppDbContext(
             optionsBuilder.Options,
-            idGenerator,
             tenantContext,
-            new EfCoreValueGeneratorFactory(idGenerator),
+            IntegrationAppDbContextFactory.ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher());
     }
 

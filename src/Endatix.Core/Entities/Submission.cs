@@ -37,6 +37,12 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         }
     }
 
+    private Submission(long id, SubmissionCreateArgs args) : this(args)
+    {
+        Guard.Against.NegativeOrZero(id);
+        Id = id;
+    }
+
     [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
     public Submission(
         long tenantId,
@@ -68,10 +74,18 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     {
     }
 
+    /// <summary>Normal path. Id stays 0 until EF OnAdd stamps the snowflake.</summary>
     public static Submission Create(SubmissionCreateArgs args)
     {
         Guard.Against.Null(args);
         return new Submission(args);
+    }
+
+    /// <summary>Explicit Id for tests, imports, seeding. Must be positive.</summary>
+    public static Submission Create(long id, SubmissionCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        return new Submission(id, args);
     }
 
     public bool IsComplete { get; private set; }
