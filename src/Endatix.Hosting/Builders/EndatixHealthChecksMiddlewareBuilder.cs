@@ -222,16 +222,31 @@ public class EndatixHealthChecksMiddlewareBuilder
     /// silently ignored because the first registration wins — which would quietly give the liveness
     /// probe the unfiltered report, the exact bug this split exists to fix.
     /// </summary>
+    /// <remarks>
+    /// Checks the routes actually mapped, not the options as written. A disabled probe's path is
+    /// never registered, so it cannot collide with anything and must not fail startup. The
+    /// detail/UI views are derived from <see cref="HealthChecksOptions.Path"/> rather than
+    /// configured, but they occupy routes all the same — and because probes are mapped first, a
+    /// liveness path of "{Path}/detail" would shadow the JSON view rather than conflict visibly.
+    /// </remarks>
     private void ValidatePaths()
     {
-        var paths = new (string Option, string Value)[]
+        var configured = new List<(string Option, string Value)>
         {
-            ("Endatix:Hosting:HealthCheckPath", _options.Path),
-            ("Endatix:Hosting:LivenessPath", _options.LivenessPath),
-            ("Endatix:Hosting:ReadinessPath", _options.ReadinessPath)
+            ("Endatix:Hosting:HealthCheckPath", _options.Path)
         };
 
-        foreach (var (option, value) in paths)
+        if (_options.EnableLivenessEndpoint)
+        {
+            configured.Add(("Endatix:Hosting:LivenessPath", _options.LivenessPath));
+        }
+
+        if (_options.EnableReadinessEndpoint)
+        {
+            configured.Add(("Endatix:Hosting:ReadinessPath", _options.ReadinessPath));
+        }
+
+        foreach (var (option, value) in configured)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -247,7 +262,19 @@ public class EndatixHealthChecksMiddlewareBuilder
             }
         }
 
-        var duplicate = paths
+        var mapped = new List<(string Option, string Value)>(configured);
+
+        if (_options.EnableJsonView)
+        {
+            mapped.Add(($"{_options.Path}/detail (the JSON view)", $"{_options.Path}/detail"));
+        }
+
+        if (_options.EnableWebUI)
+        {
+            mapped.Add(($"{_options.Path}/ui (the HTML view)", $"{_options.Path}/ui"));
+        }
+
+        var duplicate = mapped
             .GroupBy(entry => entry.Value, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault(group => group.Count() > 1);
 

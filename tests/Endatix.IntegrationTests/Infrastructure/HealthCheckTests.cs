@@ -184,6 +184,31 @@ public sealed class HealthCheckTests
             "liveness is unaffected — failing it closed would restart-loop the container");
     }
 
+    /// <summary>
+    /// Probes are mapped before the diagnostic views and the first registration wins, so a liveness
+    /// path equal to a derived view shadows it silently rather than colliding visibly.
+    /// </summary>
+    [Fact]
+    public async Task Startup_fails_when_a_probe_path_shadows_a_diagnostic_view()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new EndatixWebApplicationFactory(
+                _fixture.Database.ConnectionString,
+                _fixture.Database.Provider)
+            .WithWebHostBuilder(builder => builder.UseSetting("Endatix:Hosting:LivenessPath", "/health/detail"));
+
+        // Act
+        var act = async () =>
+        {
+            var client = factory.CreateClient();
+            await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
+        };
+
+        // Assert
+        await act.Should().ThrowAsync<Exception>("the JSON view would be shadowed by the liveness probe");
+    }
+
     [Theory]
     [InlineData("Endatix:Hosting:HealthCheckPath", "", "empty path matches every request")]
     [InlineData("Endatix:Hosting:LivenessPath", "alive", "a path without a leading slash throws from inside Map")]

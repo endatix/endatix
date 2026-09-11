@@ -30,11 +30,11 @@ internal static class HealthCheckOptionsFactory
     /// Creates options for the liveness endpoint: only checks tagged <c>self</c> or <c>live</c>.
     /// </summary>
     /// <remarks>
-    /// Both tags are accepted because the host may register either. Endatix's own defaults tag the
-    /// process check <c>self</c>; Aspire ServiceDefaults, when present, contributes <c>live</c>
-    /// instead and Endatix skips its own to avoid duplicating it. A predicate matching no checks
-    /// yields an empty report, which reports Healthy — the correct answer for liveness, since
-    /// reaching the endpoint at all proves the process is up.
+    /// Both tags are accepted because the host may register either. Endatix always registers its own
+    /// process check tagged <c>self</c>; Aspire ServiceDefaults, when present, contributes a
+    /// <c>live</c>-tagged one alongside it. A predicate matching no checks yields an empty report,
+    /// which reports Healthy — the correct answer for liveness, since reaching the endpoint at all
+    /// proves the process is up.
     /// </remarks>
     /// <returns>Health check options filtered to liveness checks.</returns>
     public static HealthCheckOptions CreateLivenessOptions()

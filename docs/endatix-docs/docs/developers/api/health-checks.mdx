@@ -66,7 +66,7 @@ Use it to properly configure your health monitoring tool. When you request the h
   "status": "Healthy",
   "checks": [
     {
-      "name": "self",
+      "name": "endatix-self",
       "status": "Healthy",
       "description": null,
       "data": {}
@@ -120,4 +120,4 @@ app.UseEndatix(middleware => middleware
 - Use **tags** (e.g. `db`, `ready`) to group checks and, if needed, add a separate readiness route that only runs a subset.
 - Rely on **`/health/detail`** in CI or monitoring for a stable JSON shape.
 - Add custom checks for critical dependencies via `AddCheck` or `Builder.Add...` on the health checks builder.
-- When you adopt Aspire, the existing DB and custom checks will compose with Aspire’s defaults; the self-check is already skipped when Aspire ServiceDefaults are present.
+- When you adopt Aspire, the existing DB and custom checks compose with Aspire's defaults. Endatix's own process check is named `endatix-self` so it sits alongside Aspire's `self` check rather than colliding with it.
