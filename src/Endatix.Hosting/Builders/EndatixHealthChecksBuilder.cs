@@ -1,3 +1,4 @@
+using Endatix.Hosting.HealthChecks;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +11,12 @@ namespace Endatix.Hosting.Builders;
 /// </summary>
 public class EndatixHealthChecksBuilder
 {
+    /// <summary>
+    /// Name of the process-level check Endatix registers. Distinct from Aspire ServiceDefaults'
+    /// own "self" check so both can coexist without a duplicate-name registration error.
+    /// </summary>
+    public const string SelfCheckName = "endatix-self";
+
     private readonly EndatixBuilder _parent;
     private bool _defaultsApplied;
 
@@ -35,12 +42,14 @@ public class EndatixHealthChecksBuilder
             return this;
         }
 
-        // Skip adding Endatix own health check if Aspire ServiceDefaults are being used
-        // Aspire already adds a "self" health check, and it should not be duplicated
-        if (!IsAspireServiceDefaultsPresent())
-        {
-            AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" });
-        }
+        // Registered unconditionally, under a name Endatix owns. Previously this was skipped when
+        // Aspire ServiceDefaults looked present, detected by a substring match on "ServiceDiscovery"
+        // in any registered service type — which any transitive Microsoft.Extensions.ServiceDiscovery
+        // reference satisfies. A false positive there left no check tagged self or live at all, and
+        // an empty liveness predicate reports Healthy: a hung process would have stayed green
+        // forever. Owning the name removes both the duplicate-name risk and the guesswork, and
+        // guarantees the liveness probe always has something to evaluate.
+        AddCheck(SelfCheckName, () => HealthCheckResult.Healthy(), tags: new[] { HealthCheckTags.Self });
 
         AddDbContextHealthChecks();
 
@@ -86,28 +95,13 @@ public class EndatixHealthChecksBuilder
     {
         if (_parent.Services.Any(s => s.ServiceType == typeof(AppDbContext)))
         {
-            Builder.AddDbContextCheck<AppDbContext>("database", failureStatus: HealthStatus.Unhealthy, tags: new[] { "db", "ready" });
+            Builder.AddDbContextCheck<AppDbContext>("database", failureStatus: HealthStatus.Unhealthy, tags: new[] { HealthCheckTags.Db, HealthCheckTags.Ready });
         }
 
         if (_parent.Services.Any(s => s.ServiceType == typeof(AppIdentityDbContext)))
         {
-            Builder.AddDbContextCheck<AppIdentityDbContext>("identity-database", failureStatus: HealthStatus.Unhealthy, tags: new[] { "db", "identity", "ready" });
+            Builder.AddDbContextCheck<AppIdentityDbContext>("identity-database", failureStatus: HealthStatus.Unhealthy, tags: new[] { HealthCheckTags.Db, HealthCheckTags.Identity, HealthCheckTags.Ready });
         }
-    }
-
-    /// <summary>
-    /// Checks if Aspire ServiceDefaults are being used by looking for telemetry services.
-    /// This helps avoid conflicts with Aspire's default health checks.
-    /// </summary>
-    /// <returns>True if Aspire ServiceDefaults appear to be present, false otherwise.</returns>
-    private bool IsAspireServiceDefaultsPresent()
-    {
-        // Probe for ServiceDiscovery only. Matching "OpenTelemetry" as well used to be the tell,
-        // but Endatix now registers the OTel SDK itself (EndatixTelemetryBuilder) — so that check
-        // would treat our own telemetry as Aspire and silently drop the "self" health check.
-        // Aspire's ServiceDefaults always adds service discovery; the OTel SDK never does.
-        return _parent.Services.Any(s =>
-            s.ServiceType.FullName?.Contains("ServiceDiscovery") == true);
     }
 
     /// <summary>

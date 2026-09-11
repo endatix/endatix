@@ -4,6 +4,7 @@ using Endatix.Hosting.Options;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Framework.Configuration;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
@@ -100,11 +101,11 @@ public class EndatixTelemetryBuilder
             [OtlpTracesProtocol, OtlpMetricsProtocol, OtlpLogsProtocol, OtlpProtocol];
     }
 
-    private static readonly string[] _defaultExcludedPaths = ["/health", "/alive", "/ready"];
+    private static readonly string[] _fallbackExcludedPaths = ["/health", "/alive", "/ready"];
 
     private readonly EndatixBuilder _parent;
     private readonly ILogger _logger;
-    private readonly List<string> _excludedPaths = [.. _defaultExcludedPaths];
+    private readonly List<string> _excludedPaths;
 
     private TelemetryOptions _options = new();
     private Instrumentations _instrumentation = Instrumentations.All;
@@ -119,6 +120,31 @@ public class EndatixTelemetryBuilder
     {
         _parent = parent;
         _logger = parent.LoggerFactory.CreateLogger<EndatixTelemetryBuilder>();
+        _excludedPaths = [.. ResolveExcludedPaths(parent)];
+    }
+
+    /// <summary>
+    /// Seeds the exclusion list from the configured probe paths rather than from literals, so a host
+    /// that moves a probe does not start shipping a span for every kubelet request — one per pod
+    /// every few seconds — while the exclusion list still protects a path nothing serves.
+    /// </summary>
+    private static string[] ResolveExcludedPaths(EndatixBuilder parent)
+    {
+        var hosting = parent.Configuration
+            .GetSection($"Endatix:{new HostingOptions().SectionPath}")
+            .Get<HostingOptions>();
+
+        if (hosting is null)
+        {
+            return _fallbackExcludedPaths;
+        }
+
+        return
+        [
+            hosting.HealthCheckPath,
+            hosting.LivenessPath,
+            hosting.ReadinessPath
+        ];
     }
 
     /// <summary>

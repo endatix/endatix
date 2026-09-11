@@ -101,6 +101,16 @@ spec:
         - name: ConnectionStrings__DefaultConnection_DbProvider
           value: {{ .Values.db.provider | quote }}
 
+        # Probe paths, from the SAME values the probes below use. Rendering only httpGet would let
+        # the two diverge: --set probes.liveness.path=/healthz would change what kubelet requests
+        # while the app still served /alive, so every probe 404s and the container restart-loops.
+        - name: Endatix__Hosting__HealthCheckPath
+          value: {{ .Values.probes.health.path | quote }}
+        - name: Endatix__Hosting__LivenessPath
+          value: {{ .Values.probes.liveness.path | quote }}
+        - name: Endatix__Hosting__ReadinessPath
+          value: {{ .Values.probes.readiness.path | quote }}
+
         # Auth
         - name: Endatix__Auth__Providers__EndatixJwt__SigningKey
           valueFrom:

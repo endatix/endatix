@@ -1,5 +1,6 @@
 using Endatix.Hosting.HealthChecks;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -122,15 +123,26 @@ public class EndatixHealthChecksMiddlewareBuilder
     }
 
     /// <summary>
-    /// Applies the configuration to the application builder.
+    /// Applies every endpoint. Kept for callers that map health checks directly; <c>UseDefaults</c>
+    /// uses <see cref="ApplyProbes"/> and <see cref="ApplyDiagnostics"/> so the two groups can sit
+    /// on opposite sides of HTTPS redirection.
     /// </summary>
     /// <param name="app">The application builder.</param>
     internal void Apply(IApplicationBuilder app)
     {
-        _logger?.LogInformation("Configuring health checks middleware with path: {Path}", _options.Path);
+        ApplyProbes(app);
+        ApplyDiagnostics(app);
+    }
 
-        var healthCheckOptions = HealthCheckOptionsFactory.CreateDefaultOptions(_options.ResponseWriter);
-        app.UseHealthChecks(_options.Path, healthCheckOptions);
+    /// <summary>
+    /// Maps the liveness and readiness probes. Register these BEFORE HSTS and HTTPS redirection:
+    /// Kubernetes counts any 2xx-3xx as probe Success, so an HTTP probe answered with a 307 greens
+    /// both probes permanently and readiness would never drop a pod whose database is gone.
+    /// </summary>
+    /// <param name="app">The application builder.</param>
+    internal void ApplyProbes(IApplicationBuilder app)
+    {
+        ValidatePaths();
 
         if (_options.EnableLivenessEndpoint)
         {
@@ -142,8 +154,22 @@ public class EndatixHealthChecksMiddlewareBuilder
         if (_options.EnableReadinessEndpoint)
         {
             _logger?.LogInformation("Configuring readiness endpoint with path: {Path}", _options.ReadinessPath);
-            app.UseHealthChecks(_options.ReadinessPath, HealthCheckOptionsFactory.CreateReadinessOptions());
+            MapReadiness(app);
         }
+    }
+
+    /// <summary>
+    /// Maps the unfiltered report and its detail/UI views. These stay BEHIND HTTPS redirection and
+    /// HSTS — they expose check names, descriptions and durations, which must not be served in
+    /// cleartext — and behind the API middleware so they inherit its CORS policy.
+    /// </summary>
+    /// <param name="app">The application builder.</param>
+    internal void ApplyDiagnostics(IApplicationBuilder app)
+    {
+        _logger?.LogInformation("Configuring health checks middleware with path: {Path}", _options.Path);
+
+        var healthCheckOptions = HealthCheckOptionsFactory.CreateDefaultOptions(_options.ResponseWriter);
+        app.UseHealthChecks(_options.Path, healthCheckOptions);
 
         if (_options.EnableJsonView)
         {
@@ -157,24 +183,109 @@ public class EndatixHealthChecksMiddlewareBuilder
     }
 
     /// <summary>
-    /// An empty predicate result reports Healthy, so a liveness endpoint with no matching
-    /// registration answers 200 forever while proving only that Kestrel is listening. That is a
-    /// silent downgrade — it looks identical to a passing check — so say so at startup.
+    /// Readiness must fail closed. An empty predicate reports Healthy, so a readiness endpoint with
+    /// no matching registration would answer 200 forever — Kubernetes would keep every pod in the
+    /// Service endpoints while the database is unreachable and every request 500s. That state is
+    /// reachable: the database checks are registered only when a DbContext is already in Services,
+    /// so a host calling HealthChecks.UseDefaults() before or without persistence has none.
     /// </summary>
-    private void WarnIfNoLivenessChecksRegistered(IApplicationBuilder app)
+    private void MapReadiness(IApplicationBuilder app)
+    {
+        if (HasRegistrationMatching(app, HealthCheckOptionsFactory.IsReadinessCheck))
+        {
+            app.UseHealthChecks(_options.ReadinessPath, HealthCheckOptionsFactory.CreateReadinessOptions());
+            return;
+        }
+
+        _logger?.LogError(
+            "Readiness endpoint {Path} has no health check tagged '{Tag}', so it cannot tell whether " +
+            "this instance can serve traffic. It will report Unhealthy rather than pass by default. " +
+            "Register a '{TagAgain}'-tagged check (persistence registers one) or call " +
+            "WithoutReadinessEndpoint() if this host is deliberately dependency-free.",
+            _options.ReadinessPath,
+            HealthCheckTags.Ready,
+            HealthCheckTags.Ready);
+
+        app.Map(_options.ReadinessPath, branch => branch.Run(async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.ContentType = "text/plain";
+            await context.Response.WriteAsync(
+                $"Unhealthy: no health check is tagged '{HealthCheckTags.Ready}'.");
+        }));
+    }
+
+    /// <summary>
+    /// Rejects path configuration that fails in ways the runtime reports badly or not at all: an
+    /// empty path matches EVERY request and replaces the application with the health report, a path
+    /// without a leading slash throws from inside Map naming no option, and a duplicate path is
+    /// silently ignored because the first registration wins — which would quietly give the liveness
+    /// probe the unfiltered report, the exact bug this split exists to fix.
+    /// </summary>
+    private void ValidatePaths()
+    {
+        var paths = new (string Option, string Value)[]
+        {
+            ("Endatix:Hosting:HealthCheckPath", _options.Path),
+            ("Endatix:Hosting:LivenessPath", _options.LivenessPath),
+            ("Endatix:Hosting:ReadinessPath", _options.ReadinessPath)
+        };
+
+        foreach (var (option, value) in paths)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException(
+                    $"{option} is empty. An empty health check path matches every request and would " +
+                    "replace the entire application with the health report.");
+            }
+
+            if (!value.StartsWith('/'))
+            {
+                throw new InvalidOperationException(
+                    $"{option} is '{value}' but must start with '/'.");
+            }
+        }
+
+        var duplicate = paths
+            .GroupBy(entry => entry.Value, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException(
+                $"Health check paths must be distinct, but {string.Join(" and ", duplicate.Select(entry => entry.Option))} " +
+                $"are both '{duplicate.Key}'. The first registration wins, so the others would be dead code.");
+        }
+    }
+
+    private static bool HasRegistrationMatching(IApplicationBuilder app, Func<HealthCheckRegistration, bool> predicate)
     {
         var registrations = app.ApplicationServices
             .GetService<IOptions<HealthCheckServiceOptions>>()?.Value.Registrations;
 
-        if (registrations is null || registrations.Any(HealthCheckOptionsFactory.IsLivenessCheck))
+        return registrations is not null && registrations.Any(predicate);
+    }
+
+    /// <summary>
+    /// An empty predicate result reports Healthy, so a liveness endpoint with no matching
+    /// registration answers 200 forever while proving only that Kestrel is listening. Unlike
+    /// readiness this is not failed closed — a liveness probe that fails closed restart-loops the
+    /// container — but it must not pass silently either.
+    /// </summary>
+    private void WarnIfNoLivenessChecksRegistered(IApplicationBuilder app)
+    {
+        if (HasRegistrationMatching(app, HealthCheckOptionsFactory.IsLivenessCheck))
         {
             return;
         }
 
         _logger?.LogWarning(
-            "Liveness endpoint {Path} is mapped but no health check is tagged 'self' or 'live'. It " +
-            "will report Healthy unconditionally and cannot detect an unhealthy process.",
-            _options.LivenessPath);
+            "Liveness endpoint {Path} is mapped but no health check is tagged '{Self}' or '{Live}'. " +
+            "It will report Healthy unconditionally and cannot detect an unhealthy process.",
+            _options.LivenessPath,
+            HealthCheckTags.Self,
+            HealthCheckTags.Live);
     }
 
     /// <summary>

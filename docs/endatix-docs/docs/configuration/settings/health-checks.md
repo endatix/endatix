@@ -15,7 +15,7 @@ This page focuses on **configuration and settings** (defaults, endpoint path, fi
 
 When you use `builder.Host.ConfigureEndatix()`, the following health checks are automatically configured:
 
-- **Self**: Basic application health check (skipped when Aspire ServiceDefaults are present)
+- **endatix-self**: Process-alive check, tagged `self`. Always registered; the name cannot collide with Aspire ServiceDefaults' own `self` check
 - **Database**: EF Core health check for the main app database when persistence is configured
 - **Identity-database**: EF Core health check for the identity database when identity persistence is configured
 

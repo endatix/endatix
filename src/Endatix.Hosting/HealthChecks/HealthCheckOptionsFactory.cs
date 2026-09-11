@@ -47,7 +47,7 @@ internal static class HealthCheckOptionsFactory
     /// to warn when nothing matches, rather than duplicating the tag names at the call site.
     /// </summary>
     public static bool IsLivenessCheck(HealthCheckRegistration registration) =>
-        registration.Tags.Contains("self") || registration.Tags.Contains("live");
+        registration.Tags.Contains(HealthCheckTags.Self) || registration.Tags.Contains(HealthCheckTags.Live);
 
     /// <summary>
     /// Creates options for the readiness endpoint: only checks tagged <c>ready</c>.
@@ -63,7 +63,7 @@ internal static class HealthCheckOptionsFactory
     /// tags <c>ready</c>, not every registration.
     /// </summary>
     public static bool IsReadinessCheck(HealthCheckRegistration registration) =>
-        registration.Tags.Contains("ready");
+        registration.Tags.Contains(HealthCheckTags.Ready);
 
     /// <summary>
     /// Creates health check options for JSON output.

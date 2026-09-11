@@ -50,7 +50,7 @@ Paths are configurable via `Endatix:Hosting:HealthCheckPath`, `Endatix:Hosting:L
 
 With `builder.Host.ConfigureEndatix()` and `app.UseEndatix()`:
 
-- **self** — Basic process-alive check (skipped when Aspire ServiceDefaults are present).
+- **endatix-self** — Process-alive check, tagged `self`. Registered unconditionally; the name is Endatix-owned so it cannot collide with Aspire ServiceDefaults' own `self` check.
 - **database** — EF Core health check for the main `AppDbContext` when persistence is configured.
 - **identity-database** — EF Core health check for `AppIdentityDbContext` when identity persistence is configured.
 

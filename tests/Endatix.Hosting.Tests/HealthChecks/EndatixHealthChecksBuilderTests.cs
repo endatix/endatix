@@ -1,3 +1,4 @@
+using Endatix.Hosting.Builders;
 using Endatix.Hosting.HealthChecks;
 using Endatix.Infrastructure.Builders;
 using Microsoft.Extensions.Configuration;
@@ -15,7 +16,7 @@ internal sealed class ServiceDiscoveryMarker;
 
 /// <summary>
 /// Dummy type standing in for Endatix's own OpenTelemetry registration. It must NOT be mistaken for
-/// Aspire — that misdetection would silently drop the "self" health check.
+/// Aspire. The detection is gone now; the process check is always registered.
 /// </summary>
 internal sealed class OpenTelemetryMarker;
 
@@ -64,7 +65,7 @@ public sealed class EndatixHealthChecksBuilderTests
 
         // Assert
         report.Status.Should().Be(HealthStatus.Healthy);
-        report.Entries.Should().ContainKey("self");
+        report.Entries.Should().ContainKey(EndatixHealthChecksBuilder.SelfCheckName);
         report.Entries.Should().ContainKey("my-service");
         report.Entries["my-service"].Status.Should().Be(HealthStatus.Healthy);
         report.Entries["my-service"].Description.Should().Be("My service is healthy");
@@ -92,12 +93,12 @@ public sealed class EndatixHealthChecksBuilderTests
         var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        report.Entries.Should().ContainKey("self");
-        report.Entries["self"].Status.Should().Be(HealthStatus.Healthy);
+        report.Entries.Should().ContainKey(EndatixHealthChecksBuilder.SelfCheckName);
+        report.Entries[EndatixHealthChecksBuilder.SelfCheckName].Status.Should().Be(HealthStatus.Healthy);
     }
 
     [Fact]
-    public async Task ConfigureEndatix_WhenAspireServiceDefaultsPresent_SelfCheckIsNotAdded()
+    public async Task ConfigureEndatix_WhenServiceDiscoveryRegistered_SelfCheckIsStillAdded()
     {
         // Arrange
         var config = CreateMinimalConfig();
@@ -105,7 +106,7 @@ public sealed class EndatixHealthChecksBuilderTests
             .ConfigureAppConfiguration((_, c) => c.AddConfiguration(config))
             .ConfigureServices((context, services) =>
             {
-                // Simulate Aspire presence so UseDefaults() skips the "self" check
+                // A service-discovery registration used to suppress the process check via a substring match
                 services.AddSingleton<ServiceDiscoveryMarker>();
                 var builder = services.AddEndatix(context.Configuration);
                 builder.HealthChecks.UseDefaults();
@@ -119,7 +120,8 @@ public sealed class EndatixHealthChecksBuilderTests
         var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        report.Entries.Should().NotContainKey("self");
+        report.Entries.Should().ContainKey(EndatixHealthChecksBuilder.SelfCheckName,
+            "the process check is registered unconditionally now — Aspire detection was a substring match that could false-positive and leave liveness with nothing to evaluate");
     }
 
     [Fact]
@@ -145,8 +147,8 @@ public sealed class EndatixHealthChecksBuilderTests
         var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        report.Entries.Should().ContainKey("self");
-        report.Entries["self"].Status.Should().Be(HealthStatus.Healthy);
+        report.Entries.Should().ContainKey(EndatixHealthChecksBuilder.SelfCheckName);
+        report.Entries[EndatixHealthChecksBuilder.SelfCheckName].Status.Should().Be(HealthStatus.Healthy);
     }
 
     /// <summary>
@@ -179,7 +181,7 @@ public sealed class EndatixHealthChecksBuilderTests
             TestContext.Current.CancellationToken);
 
         // Assert
-        report.Entries.Should().ContainKey("self");
+        report.Entries.Should().ContainKey(EndatixHealthChecksBuilder.SelfCheckName);
         report.Entries.Should().NotContainKey("database", "liveness must not depend on the database");
         report.Entries.Should().NotContainKey("identity-database");
     }
@@ -214,7 +216,8 @@ public sealed class EndatixHealthChecksBuilderTests
 
         // Assert
         report.Entries.Should().ContainKey("database");
-        report.Entries.Should().NotContainKey("self");
+        report.Entries.Should().NotContainKey(EndatixHealthChecksBuilder.SelfCheckName,
+            "the process check does not gate traffic");
         report.Entries.Should().NotContainKey("consumer-check", "only checks tagged 'ready' gate traffic");
     }
 

@@ -119,9 +119,21 @@ otel:
 # exactly when the system is already degraded — and restarting a process cannot fix a database.
 # /health is still served, unfiltered, for humans and dashboards.
 #
-# failureThreshold x periodSeconds is how long a blip must last before it counts. The readiness
-# defaults below tolerate ~30s; raise failureThreshold if your database fails over more slowly than
-# that and you would rather keep serving from cache than drop every pod out of the Service.
+# failureThreshold x periodSeconds is how long a blip must last before it counts.
+#
+# A DELIBERATE TRADE-OFF worth understanding before you tune it: every replica points at the same
+# database, so readiness is a shared fate rather than a per-pod one. When it trips it trips
+# everywhere, Kubernetes empties the Service endpoints, and the ingress returns 502/503 for
+# EVERYTHING — routes that need no database, cached reads, and /health itself for the dashboard you
+# are using to diagnose the incident. Readiness normally expresses per-pod ability to serve; a
+# dependency shared by all pods is the case it handles worst.
+#
+# The default is 6 x 10s = 60s rather than the more usual 30s for exactly that reason: a failover or
+# a brief connection-limit spike should not empty the Service, while an outage lasting minutes still
+# should, because a pod that cannot reach its database genuinely cannot serve most requests. If your
+# database fails over more slowly than 60s, raise failureThreshold further. The better long-term
+# answer is a circuit breaker and a degraded-mode response rather than eviction, which is tracked
+# separately — this default is the conservative choice available today.
 #
 # UPGRADING: /alive and /ready do not exist in appVersion 0.7.6 or earlier — they 404 there, and a
 # 404 on livenessProbe is a restart loop. Normally this cannot bite you: release-prepare.sh stamps
@@ -130,12 +142,16 @@ otel:
 # that needs action is an explicitly PINNED image.tag older than the chart — set both paths back to
 # /health until the pin catches up.
 probes:
+  # Also rendered into Endatix__Hosting__*Path so the app serves exactly what kubelet requests.
+  health:
+    path: /health
   readiness:
     path: /ready
     initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 1
-    failureThreshold: 3
+    # 6 x 10s = 60s before a shared-database blip empties the Service. See the note above.
+    failureThreshold: 6
     successThreshold: 1
   liveness:
     path: /alive
