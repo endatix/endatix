@@ -1,0 +1,102 @@
+using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Modules.Jobs.Domain;
+using Endatix.Modules.Jobs.Features.GetJob;
+using Endatix.Modules.Jobs.Tests.Shared;
+using Microsoft.EntityFrameworkCore;
+
+namespace Endatix.Modules.Jobs.Tests.Features.GetJob;
+
+/// <summary>
+/// Covers the handler's own tenant guard — the explicit refusal of a request with no tenant, and the
+/// explicit predicate on <c>TenantId</c>. The ambient query filter is not what isolates tenants here
+/// and is not exercised by these tests: an in-memory context is not <c>TenantMiddleware</c> and
+/// PostgreSQL, so the HTTP path is covered separately.
+/// </summary>
+public sealed class GetJobHandlerTests : IDisposable
+{
+    private const long CallerTenantId = 7;
+    private const long OtherTenantId = 8;
+
+    private readonly TestJobsDbContext _dbContext;
+    private readonly GetJobHandler _handler;
+
+    public GetJobHandlerTests()
+    {
+        var options = new DbContextOptionsBuilder<TestJobsDbContext>()
+            .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
+            .Options;
+
+        _dbContext = new TestJobsDbContext(
+            options, new SequentialIdGenerator(), new FixedTenantContext(CallerTenantId));
+        _handler = new GetJobHandler(_dbContext);
+    }
+
+    public void Dispose() => _dbContext.Dispose();
+
+    private BackgroundJob AddJob(long tenantId = CallerTenantId)
+    {
+        var job = new BackgroundJob("SubmissionExport", @"{""formId"":""1""}", tenantId, DateTime.UtcNow);
+        _dbContext.BackgroundJobs.Add(job);
+        _dbContext.SaveChanges();
+        return job;
+    }
+
+    [Fact]
+    public async Task Handle_JobInTheCallersTenant_ReturnsItsState()
+    {
+        // Arrange
+        var job = AddJob();
+
+        // Act
+        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, job.Id), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Id.Should().Be(job.Id);
+        result.Value.Type.Should().Be("SubmissionExport");
+        result.Value.Status.Should().Be(JobStatus.Pending);
+    }
+
+    [Fact]
+    public async Task Handle_UnknownJob_ReturnsNotFound()
+    {
+        // Arrange
+        // Act
+        var result = await _handler.Handle(new GetJobQuery(CallerTenantId, 404), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
+    public async Task Handle_JobOwnedByAnotherTenant_ReturnsNotFound()
+    {
+        // Arrange
+        var foreignJob = AddJob(OtherTenantId);
+
+        // Act
+        var result = await _handler.Handle(
+            new GetJobQuery(CallerTenantId, foreignJob.Id), TestContext.Current.CancellationToken);
+
+        // Assert — not Forbidden: a 403 would confirm the id exists, which is enough to enumerate
+        // another tenant's jobs.
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
+    public async Task Handle_NoTenantOnTheRequest_IsRefusedRatherThanServedEveryTenant()
+    {
+        // Arrange — a principal with no usable `tid` claim leaves the tenant context at zero, which
+        // the ambient filter reads as "no tenant, show everything".
+        var foreignJob = AddJob(OtherTenantId);
+
+        // Act
+        var result = await _handler.Handle(
+            new GetJobQuery(TenantId: 0, foreignJob.Id), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+    }
+
+}

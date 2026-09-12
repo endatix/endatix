@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Endatix.Core.Abstractions.BackgroundJobs;
 
 /// <summary>
@@ -15,6 +17,7 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// NextAttemptAt</em>, so one query dispatches either.
 /// </para>
 /// </remarks>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum JobStatus
 {
     /// <summary>Enqueued, never started.</summary>
