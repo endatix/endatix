@@ -24,7 +24,7 @@ This page does not take Hub `.env` keys. SMTP credentials stay on the API. To ch
 The page title is **Email Settings**. Tenant admins do not see this page; it is platform-wide, not per organization.
 
 <ThemedImage
-  alt="Email Settings showing provider status, templates, and Send Test Email"
+  alt="Email Settings showing provider status, templates, and Send Test Email" className="legacy-screenshot"
   sources={{ light: OverviewLight, dark: OverviewDark }}
 />
 
@@ -42,7 +42,7 @@ The **Email Provider** card shows the active sender (for example SMTP, SendGrid,
 The **Available Email Templates** list is the seeded identity templates the API can send. Each row shows the template name, subject, and the **effective from-address** that list and send both use (config override if set, otherwise the seeded database value).
 
 <img
-  src={require('./email-settings-templates.webp').default}
+  src={require('./email-settings-templates.webp').default} className="legacy-screenshot"
   alt="Available Email Templates list showing template names, subjects, and sender addresses"
   width="640"
 />
