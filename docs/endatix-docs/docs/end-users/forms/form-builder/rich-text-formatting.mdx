@@ -1,0 +1,424 @@
+---
+title: Rich Text Formatting
+description: Emphasize key words in form titles, descriptions, and choices with bold, italic, underline, strikethrough, and color — from the Form Builder or directly in the form JSON.
+sidebar_label: Rich Text Formatting
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import toolbarLight from "./rich-text-toolbar_light.png";
+import toolbarDark from "./rich-text-toolbar_dark.png";
+import choiceColorLight from "./rich-text-choice-color_light.png";
+import choiceColorDark from "./rich-text-choice-color_dark.png";
+import respondentView from "./rich-text-respondent-view.png";
+
+# Rich Text Formatting
+
+## What Is Rich Text Formatting?
+
+**Rich text formatting** lets you style individual words, sentences, or entire paragraphs in the text respondents read - a question title, a description, or a choice - instead of the whole element. Bolding the words that matter ("How satisfied are you with your **most recent** delivery?"), highlighting a warning in red, or color-coding the two ends of a scale helps respondents notice the detail that changes their answer.
+
+In Endatix Hub, you format text the way you would in a word processor: select the words in the **Property Grid**, then pick a format from the toolbar that appears. Formatting is saved as part of the form, so it shows up in the **Preview** tab and in the published form.
+
+## What You Can Format
+
+Formatting is available in the text fields respondents see:
+
+<table style={{ display: 'table', width: '100%', tableLayout: 'fixed', backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th style={{ width: '50%' }}>Element</th>
+<th style={{ width: '50%' }}>Where to format it in the Property Grid</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Survey</td>
+<td><strong>General</strong> → <strong>Survey title</strong>, <strong>Survey description</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Page</td>
+<td><strong>General</strong> → <strong>Page title</strong>, <strong>Page description</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Panel, Dynamic Panel</td>
+<td><strong>General</strong> → <strong>Panel title</strong>, <strong>Panel description</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Any question</td>
+<td><strong>General</strong> → <strong>Question title</strong>, <strong>Question description</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Radio Button Group, Checkboxes, Dropdown, Multi-Select Dropdown, Ranking, and other choice questions</td>
+<td><strong>Choice Options</strong> → <strong>Choices</strong> table, <strong>Text</strong> column</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Rating Scale</td>
+<td><strong>Rating Values</strong> → <strong>Text</strong> column</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Single-Select Matrix</td>
+<td><strong>Columns</strong> and <strong>Rows</strong> → <strong>Text</strong> column</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Multi-Select Matrix, Dynamic Matrix</td>
+<td><strong>Columns</strong> → <strong>Column title</strong> column</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Multiple Textboxes</td>
+<td><strong>Items</strong> → <strong>Title</strong> column</td>
+</tr>
+</tbody>
+</table>
+
+Other text fields, such as placeholders, are plain text and ignore formatting.
+
+## Formatting Options
+
+Selecting text in a formattable field opens a toolbar with these options:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Toolbar button</th>
+<th>What it does</th>
+<th>Shortcut</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>B</strong></td>
+<td><strong>Bold</strong></td>
+<td><kbd>Ctrl</kbd>+<kbd>B</kbd></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong><em>I</em></strong></td>
+<td><em>Italic</em></td>
+<td><kbd>Ctrl</kbd>+<kbd>I</kbd></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>U</strong></td>
+<td>Underline</td>
+<td><kbd>Ctrl</kbd>+<kbd>U</kbd></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>S</strong> (struck through)</td>
+<td><del>Strikethrough</del></td>
+<td>—</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>A</strong> (with a color bar)</td>
+<td>Text color, chosen from a palette of 35 colors</td>
+<td>—</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Shaded <strong>A</strong></td>
+<td>Background (highlight) color, chosen from the same palette</td>
+<td>—</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Picture</td>
+<td>Insert image — replaces the selected text with an image file from your computer</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+
+On a Mac, use <kbd>⌘</kbd> instead of <kbd>Ctrl</kbd>.
+
+:::tip[Links]
+The toolbar has no link button, but a full web address that starts with `https://` — typed into any of the fields above — becomes a clickable link in the form automatically. To link your own words instead of the address, add the link in JSON (see [Formatting in JSON](#formatting-in-json)).
+:::
+
+## Example: Emphasizing Key Words in a Delivery Survey
+
+A delivery feedback survey has two questions. Formatting draws attention to the time frame respondents should think about, the two ends of the satisfaction scale, and a privacy warning.
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>#</th>
+<th>Question type</th>
+<th>Question name</th>
+<th>Formatting</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>1</td>
+<td>Radio Button Group</td>
+<td><code>delivery_satisfaction</code></td>
+<td>"most recent" in bold in the title, "this week" in italics in the description, "Very satisfied" in green and "Very dissatisfied" in red</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>2</td>
+<td>Long Text</td>
+<td><code>delivery_comments</code></td>
+<td>"don't include payment card details" in bold red in the description</td>
+</tr>
+</tbody>
+</table>
+
+### 1. Select the Words to Format
+
+Select the question on the design surface. The **Property Grid** opens its **General** category. Click into **Question title** and select the words to format — drag across them, or double-click a single word. The formatting toolbar appears above the selection.
+
+<ThemedImage
+  alt="Property Grid General category with 'most recent' selected in the Question title field and the formatting toolbar shown above it"
+  sources={{
+    light: useBaseUrl(toolbarLight),
+    dark: useBaseUrl(toolbarDark),
+  }}
+/>
+
+### 2. Apply a Format
+
+Click **B** to make "most recent" bold. Repeat the same steps in **Question description** to put "this week" in italics.
+
+Formats can be combined. For the Long Text question's description, select "don't include payment card details", click **B**, then open the text color palette and pick red.
+
+### 3. Color a Choice
+
+Choice text is formatted in the same way. With the Radio Button Group question selected, open the **Choice Options** category. In the **Choices** table, select the text in the **Text** column — for example, "Very satisfied" — then click **A** (text color) and pick a color from the palette.
+
+<ThemedImage
+  alt="Property Grid Choice Options category with 'Very satisfied' selected in the Choices table and the text color palette open"
+  sources={{
+    light: useBaseUrl(choiceColorLight),
+    dark: useBaseUrl(choiceColorDark),
+  }}
+/>
+
+### 4. Preview the Result
+
+Formatting appears on the design surface as soon as you apply it. Open the **Preview** tab to see the form as respondents will, then click **Save**.
+
+<img src={respondentView} width="600" alt="Preview showing the title with 'most recent' in bold, the description with 'this week' in italics, 'Very satisfied' in green, 'Very dissatisfied' in red, and a red bold privacy warning" />
+
+### Removing Formatting
+
+Select the formatted words, then:
+
+* **Bold, italic, underline, strikethrough** — click the highlighted button again, or press its shortcut.
+* **Text color** — pick the black swatch in the top-left corner of the palette. The text returns to the form theme's own color.
+* **Background color** — pick the white swatch at the start of the palette's second row.
+
+## Formatting in JSON
+
+Formatting has no separate setting: it's stored as HTML tags inside the text itself. Applying bold to "most recent" in the Property Grid changes the question's `title` in the form JSON to:
+
+```json
+"title": "How satisfied are you with your <strong>most recent</strong> delivery?"
+```
+
+You can add the same tags yourself in the **JSON Editor** tab — useful for formatting many texts at once, copying formatting between forms, or using formats the toolbar doesn't offer, such as links, subscript, and superscript. The example survey above looks like this:
+
+```json
+{
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "delivery_satisfaction",
+          "title": "How satisfied are you with your <strong>most recent</strong> delivery?",
+          "description": "Think only about the order you received <em>this week</em>.",
+          "isRequired": true,
+          "choices": [
+            {
+              "value": "very_satisfied",
+              "text": "<span style=\"color: #008a00\">Very satisfied</span>"
+            },
+            { "value": "satisfied", "text": "Satisfied" },
+            { "value": "neutral", "text": "Neutral" },
+            { "value": "dissatisfied", "text": "Dissatisfied" },
+            {
+              "value": "very_dissatisfied",
+              "text": "<span style=\"color: #e60000\">Very dissatisfied</span>"
+            }
+          ]
+        },
+        {
+          "type": "comment",
+          "name": "delivery_comments",
+          "title": "What could we have done better?",
+          "description": "Please <strong style=\"color: #e60000\">don't include payment card details</strong> in your answer."
+        }
+      ]
+    }
+  ]
+}
+```
+
+Keep these rules in mind when editing JSON by hand:
+
+* **Escape the quotes** inside a tag's attributes as `\"`, as in `style=\"color: #e60000\"`.
+* **Use `<strong>` and `<em>`, not `<b>` and `<i>`.** Tags that aren't on the supported list — including `<b>`, `<i>`, `<br>`, and `<font>` — are removed when the form is displayed, leaving plain text.
+* **Colors accept any CSS color value.** The toolbar writes colors as `rgb(230, 0, 0)`; hex values such as `#e60000` work just as well.
+* **Links must start with `https://`, `mailto:`, or `tel:`.** Web links open in a new tab. A link to any other address, such as `http://`, is displayed as plain text.
+* **Markdown shorthand also works** — `**bold**`, `*italic*`, `~~strikethrough~~`, and `[text](https://example.com)`. The Property Grid shows Markdown characters exactly as typed; only the form renders them as formatting.
+
+See the [Technical Reference](#technical-reference-json-schema) for the full list of tags and the properties that accept them.
+
+## Important Considerations
+
+* **Edit formatted text in the Property Grid.** Clicking formatted text on the design surface to edit it in place reveals its HTML tags — for example, `How satisfied are you with your <strong>most recent</strong> delivery?`. You can still change the words there, but leave the tags intact.
+* **Don't rely on color alone.** Screen readers don't announce text color, and some respondents can't tell red from green. Pair color with wording or bold so the meaning survives without it.
+* **Check colors against your form theme.** Text and background colors are fixed values that don't change with the form's theme — a dark red that reads well on a light background can disappear on a dark one.
+* **Combine at most two text styles on the same words.** In the Property Grid, words can be, for example, bold *and* italic. Adding underline or strikethrough on top removes the third style when the change is saved.
+* **Formatted fields stay on one line.** Pressing <kbd>Enter</kbd> doesn't start a new line.
+* **Keep inserted images small.** An image added from the toolbar is stored inside the form itself, so large pictures make the form slower to load. Icons and small logos work best.
+* **Keep tags when translating.** The **Translations** tab shows formatting as HTML tags. Translate only the words between the tags — for example, `Wie zufrieden sind Sie mit Ihrer <strong>letzten</strong> Lieferung?` — so each language keeps its formatting.
+* **Submission PDFs show titles as plain text.** When a submission is exported to PDF, question titles appear without their formatting.
+
+## Related Documentation
+
+* [Text Piping](text-piping) — insert earlier answers into question titles, descriptions, and choices.
+* [Form Translation](/docs/end-users/forms/translation-and-localization/form-translation) — translate your form's text, including formatted text, into other languages.
+
+## Technical Reference (JSON Schema)
+
+Formatting is HTML (or Markdown) inside a text property. Before the text is displayed, unsupported markup — such as `<b>`, `<i>`, `<br>`, and `<font>` — is removed and only its text is kept.
+
+### Supported Formatting
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Format</th>
+<th>HTML</th>
+<th>Markdown</th>
+<th>Toolbar</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Bold</td>
+<td><code>{'<strong>text</strong>'}</code></td>
+<td><code>{'**text**'}</code></td>
+<td>Yes</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Italic</td>
+<td><code>{'<em>text</em>'}</code></td>
+<td><code>{'*text*'}</code></td>
+<td>Yes</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Underline</td>
+<td><code>{'<u>text</u>'}</code></td>
+<td>—</td>
+<td>Yes</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Strikethrough</td>
+<td><code>{'<s>text</s>'}</code></td>
+<td><code>{'~~text~~'}</code></td>
+<td>Yes</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Text color</td>
+<td><code>{'<span style="color: #e60000">text</span>'}</code></td>
+<td>—</td>
+<td>Yes</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Background color</td>
+<td><code>{'<span style="background-color: #ffff00">text</span>'}</code></td>
+<td>—</td>
+<td>Yes</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Image</td>
+<td><code>{'<img src="https://example.com/icon.png" alt="Icon">'}</code></td>
+<td>—</td>
+<td>Yes (embedded as a <code>data:</code> image)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Link</td>
+<td><code>{'<a href="https://example.com">text</a>'}</code></td>
+<td><code>{'[text](https://example.com)'}</code></td>
+<td>No</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Subscript, superscript</td>
+<td><code>{'CO<sub>2</sub>'}</code>, <code>{'m<sup>2</sup>'}</code></td>
+<td>—</td>
+<td>No</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Inline code</td>
+<td><code>{'<code>text</code>'}</code></td>
+<td><code>{'`text`'}</code></td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+
+### Properties That Accept Formatting
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Applies to</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>title</code>, <code>description</code></td>
+<td>The survey, pages, panels, and questions</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>choices[].text</code></td>
+<td>Choice-based questions, such as <code>radiogroup</code>, <code>checkbox</code>, <code>dropdown</code>, <code>tagbox</code>, and <code>ranking</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>rateValues[].text</code></td>
+<td>Rating Scale (<code>rating</code>)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>columns[].text</code>, <code>rows[].text</code></td>
+<td>Single-Select Matrix (<code>matrix</code>); <code>rows[].text</code> also applies to Multi-Select Matrix (<code>matrixdropdown</code>)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>columns[].title</code></td>
+<td>Multi-Select Matrix (<code>matrixdropdown</code>) and Dynamic Matrix (<code>matrixdynamic</code>)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>items[].title</code></td>
+<td>Multiple Textboxes (<code>multipletext</code>)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>labelTrue</code>, <code>labelFalse</code></td>
+<td>Yes/No (Boolean) labels — JSON only; the Property Grid edits them as plain text</td>
+</tr>
+</tbody>
+</table>
+
+### Example — Formatting in a Localized Title
+
+In a multilingual form, each language holds its own copy of the tags:
+
+```json
+{
+  "type": "radiogroup",
+  "name": "delivery_satisfaction",
+  "title": {
+    "default": "How satisfied are you with your <strong>most recent</strong> delivery?",
+    "de": "Wie zufrieden sind Sie mit Ihrer <strong>letzten</strong> Lieferung?"
+  }
+}
+```
+
+### Example — Links, Subscript, and Markdown
+
+```json
+{
+  "type": "comment",
+  "name": "emissions_feedback",
+  "title": "How could we reduce the CO<sub>2</sub> footprint of our deliveries?",
+  "description": "Read our **sustainability report** first: [example.com/sustainability](https://example.com/sustainability)"
+}
+```

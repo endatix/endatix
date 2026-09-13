@@ -183,6 +183,7 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/form-builder/blind-search",
             "end-users/forms/form-builder/carry-forward",
             "end-users/forms/form-builder/text-piping",
+            "end-users/forms/form-builder/rich-text-formatting",
           ],
         },
         {
