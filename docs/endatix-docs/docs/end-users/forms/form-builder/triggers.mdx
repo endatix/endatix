@@ -1,0 +1,375 @@
+---
+title: Triggers
+description: Make an Endatix form act on a respondent's answers — end it early, skip ahead, fill in or copy answers, and calculate values — with triggers in the Logic tab.
+sidebar_label: Triggers
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import completeRuleLight from "./triggers-complete-rule_light.png";
+import completeRuleDark from "./triggers-complete-rule_dark.png";
+import skipRuleLight from "./triggers-skip-rule_light.png";
+import skipRuleDark from "./triggers-skip-rule_dark.png";
+import copyRuleLight from "./triggers-copy-rule_light.png";
+import copyRuleDark from "./triggers-copy-rule_dark.png";
+import propertyGridLight from "./triggers-property-grid_light.png";
+import propertyGridDark from "./triggers-property-grid_dark.png";
+import respondentComplete from "./triggers-respondent-complete.png";
+
+# Triggers
+
+## What Are Triggers?
+
+A **trigger** is a rule that makes the form do something when a condition becomes true: end the form, jump ahead to a later question, fill in an answer, copy one answer into another question, or calculate a value.
+
+Conditions that show or hide questions change what the form looks like. Triggers change what the form *does*. They save respondents from typing the same details twice, move them past sections that don't apply to them, and stop a form as soon as it's clear the rest isn't relevant — for example, when a screening question shows that the respondent isn't in the target group.
+
+In Endatix Hub, you create triggers in the Form Builder's **Logic** tab, as the action of a rule, or in the survey's **Conditions** settings in the **Property Grid**.
+
+## Trigger Types
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>What it does</th>
+<th>When it happens</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Complete survey</strong></td>
+<td>Ends the form. The rest of the pages are skipped, and the respondent sees the <a href="thank-you-page">Thank You page</a>.</td>
+<td>While the condition is true, the <strong>Next</strong> button on the current page becomes <strong>Complete</strong>. The form ends when the respondent clicks it.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Skip to question</strong></td>
+<td>Moves the respondent to the page of the <strong>Question to skip to</strong> and focuses that question.</td>
+<td>Immediately, as soon as an answer makes the condition true.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Set answer</strong></td>
+<td>Puts a fixed <strong>Answer</strong> into the <strong>Target question</strong>.</td>
+<td>Each time an answer in the condition changes and the condition is true.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Copy answer</strong></td>
+<td>Copies the answer of the <strong>Question to copy answer from</strong> into the <strong>Target question</strong>.</td>
+<td>Each time the source answer or an answer in the condition changes and the condition is true.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Run expression</strong></td>
+<td>Calculates an expression and, if a <strong>Target question</strong> is selected, puts the result into it.</td>
+<td>Each time an answer in the condition changes and the condition is true.</td>
+</tr>
+</tbody>
+</table>
+
+Answers filled in by **Set answer**, **Copy answer**, and **Run expression** are ordinary answers: the respondent can still change them.
+
+## Example: Streamlining a Summit Registration Form
+
+An events team registers attendees for a two-day customer summit. The form has five pages:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Page</th>
+<th>Questions (question name)</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>About you</strong></td>
+<td>Full name (<code>full_name</code>), Email address (<code>email</code>), I'm registering as (<code>role</code>): <strong>An attendee</strong>, <strong>A speaker</strong>, or <strong>An exhibitor</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Attendance</strong></td>
+<td>How will you attend? (<code>attendance</code>): <strong>In person</strong> or <strong>Online</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Travel and accommodation</strong></td>
+<td>Do you need a hotel room? (<code>needs_hotel</code>), Arrival date (<code>arrival_date</code>), Departure date (<code>departure_date</code>), Number of nights (<code>hotel_nights</code>)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Pass and sessions</strong></td>
+<td>Pass type (<code>pass_type</code>): <strong>Full pass</strong>, <strong>Day pass</strong>, or <strong>Virtual pass</strong>; Which sessions do you plan to attend? (<code>sessions</code>)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Billing</strong></td>
+<td>Is the billing contact the same as the attendee? (<code>billing_same</code>), Billing contact name (<code>billing_name</code>), Billing email address (<code>billing_email</code>)</td>
+</tr>
+</tbody>
+</table>
+
+Four sets of triggers make the form shorter for everyone:
+
+* Exhibitors are handled by another team, so their registration ends after the first page.
+* Online attendees don't need travel questions, and always get a virtual pass.
+* When the billing contact is the attendee, their name and email address are filled in for them.
+* The number of hotel nights is calculated from the arrival and departure dates.
+
+### 1. End the Form for Exhibitors
+
+Open the form's **Logic** tab and click **Add New Rule**. Then:
+
+1. In the **If** row, select the `role` question with the **Equals** operator, and select **An exhibitor**.
+2. In the **then** row, open **Select action...** and choose **Complete survey**.
+3. Click **Add Action**, choose **Set "Thank You" page markup**, and enter a message for exhibitors:
+
+   ```html
+   <h3>Thank you, {full_name}!</h3>
+   <p>Exhibitor registrations are handled by our partnerships team. They'll contact you at {email} within two business days.</p>
+   ```
+
+4. Click **Done**.
+
+<ThemedImage
+  alt="Logic tab rule If 'role' == 'exhibitor' with the Complete survey action and a Set &quot;Thank You&quot; page markup action followed by the exhibitor message. An arrow points at the Complete survey action."
+  sources={{
+    light: useBaseUrl(completeRuleLight),
+    dark: useBaseUrl(completeRuleDark),
+  }}
+/>
+
+When a respondent selects **An exhibitor**, the **Next** button changes to **Complete**:
+
+<img src={respondentComplete} width="600" alt="Published form: I'm registering as question with An exhibitor selected, and an arrow pointing at the Complete button below it" />
+
+Clicking **Complete** checks the questions on the current page, as **Next** would, and then submits the form with the exhibitor's Thank You message. If the respondent changes their answer to **An attendee**, the button goes back to **Next**. See [Thank You Page](thank-you-page) for more about the message.
+
+### 2. Skip Travel Questions for Online Attendees
+
+Click **Add New Rule** again:
+
+1. In the **If** row, select `attendance` with **Equals** and select **Online**.
+2. In the **then** row, choose **Skip to question** and select `pass_type` as the question to skip to.
+3. Click **Add Action**, choose **Set answer**, select `pass_type` as the **Target question**, and select **Virtual pass — live stream only** in the question that appears.
+4. Click **Done**.
+
+<ThemedImage
+  alt="Logic tab rule If 'attendance' == 'online' with the Skip to question action targeting pass_type and a Set answer action that sets pass_type to Virtual pass. An arrow points at the pass_type question to skip to."
+  sources={{
+    light: useBaseUrl(skipRuleLight),
+    dark: useBaseUrl(skipRuleDark),
+  }}
+/>
+
+As soon as a respondent selects **Online**, the form moves to the **Pass and sessions** page with **Virtual pass** already selected, skipping **Travel and accommodation**. **Previous** takes the respondent back to the **Attendance** page.
+
+:::warning[Skipping ahead doesn't check the current page]
+**Skip to question** moves the respondent on without checking the other questions on the page, so required questions there can be left empty. That's why `attendance` is on a page of its own in this example: by the time respondents reach it, the questions before it have been checked by the **Next** button.
+:::
+
+### 3. Copy the Attendee's Details to Billing
+
+Add a third rule:
+
+1. In the **If** row, select `billing_same` with **Equals** and select **Yes**.
+2. In the **then** row, choose **Copy answer**. Select `full_name` as the **Question to copy answer from** and `billing_name` as the **Target question**.
+3. Click **Add Action**, choose **Copy answer** again, and copy `email` into `billing_email`.
+4. Click **Done**.
+
+<ThemedImage
+  alt="Logic tab rule If 'billing_same' == true with two Copy answer actions: full_name into billing_name, and email into billing_email. An arrow points at the first Copy answer action."
+  sources={{
+    light: useBaseUrl(copyRuleLight),
+    dark: useBaseUrl(copyRuleDark),
+  }}
+/>
+
+When the respondent answers **Yes**, both billing fields are filled in. They can still edit them — for example, to use their company's accounts address — and switching the answer back to **No** leaves the copied details in place.
+
+### 4. Calculate the Number of Hotel Nights
+
+Add a fourth rule:
+
+1. In the **If** row, select `arrival_date` with **Not empty**.
+2. Click **Add Condition**, and select `departure_date` with **Not empty** in the new **and** row.
+3. In the **then** row, choose **Run expression**, select `hotel_nights` as the **Target question**, and enter the expression:
+
+   ```
+   dateDiff({arrival_date}, {departure_date}, 'days')
+   ```
+
+4. Click **Done**.
+
+Once both dates are entered, **Number of nights** shows the difference in days — for example, `3` for arrival on October 14 and departure on October 17. The respondent can change the number, but changing either date calculates it again.
+
+The condition names both dates on purpose. A **Run expression** trigger runs when an answer in its *condition* changes, not when a value used only in its expression changes. With just `{arrival_date} notempty`, changing the departure date wouldn't recalculate the nights.
+
+### 5. Review the Triggers in the Property Grid
+
+All triggers are also listed in the survey's settings: switch to the **Designer** tab, click an empty area of the design surface, and click the **Conditions** icon in the category bar on the right of the Property Grid. Under **Triggers**, each row shows a trigger's type. Click **Show Details** (pencil icon) to see its **Expression** — the condition written in the logic expression syntax — and its other settings.
+
+<ThemedImage
+  alt="Property Grid Conditions category for the survey with the Triggers list: Complete survey, Skip to question, Set answer, two Copy answer triggers, and Run expression. The Run expression trigger is expanded, showing its Expression, Target question hotel_nights, and Run expression. An arrow points at the Conditions icon."
+  sources={{
+    light: useBaseUrl(propertyGridLight),
+    dark: useBaseUrl(propertyGridDark),
+  }}
+/>
+
+You can add triggers here too: click the **+** icon next to **Triggers**, choose the trigger type, and fill in its settings. Drag a trigger by its handle to change the order in which triggers are checked.
+
+:::info[The Logic tab groups triggers by condition]
+In the Logic tab, triggers that share a condition appear as one rule with several actions — together with other actions that use the same condition, such as **Set "Thank You" page markup**. In the Property Grid, every trigger is listed separately.
+:::
+
+### 6. Test the Form
+
+Open the **Preview** tab and try each path: select **An exhibitor** to see the **Complete** button, choose **Online** attendance to jump to **Pass and sessions**, enter hotel dates to see the number of nights, and answer **Yes** to the billing question. Click **Preview Survey Again** to start over.
+
+## Choosing Between Triggers and Other Logic
+
+Some goals can be reached with a trigger or with a question's own conditions. Use this table to pick the right tool:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Show a question, panel, or page only to some respondents</td>
+<td><strong>Make the question visible if</strong> (or the page's or panel's own visibility condition). Hidden pages are skipped automatically, and required questions on visible pages are still checked.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Jump past several pages in one step</td>
+<td><strong>Skip to question</strong>, with the deciding question on its own page</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>End the form early</td>
+<td><strong>Complete survey</strong>, with a <a href="thank-you-page">custom Thank You message</a> for that case</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Suggest an answer the respondent can change</td>
+<td><strong>Set answer</strong>, <strong>Copy answer</strong>, or <strong>Run expression</strong> — or the question's <strong>Default value expression</strong> if the suggestion is only needed when the question first appears</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Keep a value always in sync with other answers</td>
+<td>A <a href="custom-variables">custom variable</a>, an <strong>Expression</strong> question, or the question's <strong>Set value expression</strong></td>
+</tr>
+</tbody>
+</table>
+
+## Important Considerations
+
+* **Triggers don't undo their actions.** When the condition stops being true, answers that were set, copied, or calculated stay as they are, and the respondent stays on the page they skipped to. In the example, an attendee who switches from **Online** to **In person** keeps the **Virtual pass** until they change it.
+* **Filled-in answers can be overwritten.** **Set answer**, **Copy answer**, and **Run expression** replace the target's answer every time they run — including an answer the respondent typed in themselves.
+* **Complete survey skips required questions.** Questions on later pages are never shown, so they stay unanswered even if they're required. Make sure the submission contains everything you need from respondents who end early.
+* **Skip to question needs a visible target.** If the question to skip to is hidden by its own condition, the respondent isn't moved.
+* **Triggers are checked in order.** When several triggers run on the same change, they run in the order of the **Triggers** list in the Property Grid.
+* **Renaming a target question clears a Set answer trigger's answer.** Triggers follow a renamed question automatically, but a **Set answer** trigger loses its **Answer** when its target question is renamed. Set the answer again after renaming.
+
+## Related Documentation
+
+* [Logic Expressions](logic-expressions) — the operators and functions available in trigger conditions and in **Run expression**.
+* [Custom Variables](custom-variables) — calculate values that stay in sync with the answers.
+* [Thank You Page](thank-you-page) — show a different message for respondents who end the form early.
+* [Validation](validation) — check answers before respondents move on.
+
+## Technical Reference (JSON Schema)
+
+Triggers are stored in the survey's `triggers` array, in the order they're checked. The example form's triggers look like this in the **JSON Editor**:
+
+```json
+{
+  "title": "Customer Summit Registration",
+  "triggers": [
+    { "type": "complete", "expression": "{role} = 'exhibitor'" },
+    { "type": "skip", "expression": "{attendance} = 'online'", "gotoName": "pass_type" },
+    {
+      "type": "setvalue",
+      "expression": "{attendance} = 'online'",
+      "setToName": "pass_type",
+      "setValue": "virtual"
+    },
+    {
+      "type": "copyvalue",
+      "expression": "{billing_same} = true",
+      "setToName": "billing_name",
+      "fromName": "full_name"
+    },
+    {
+      "type": "copyvalue",
+      "expression": "{billing_same} = true",
+      "setToName": "billing_email",
+      "fromName": "email"
+    },
+    {
+      "type": "runexpression",
+      "expression": "{arrival_date} notempty and {departure_date} notempty",
+      "setToName": "hotel_nights",
+      "runExpression": "dateDiff({arrival_date}, {departure_date}, 'days')"
+    }
+  ],
+  "completedHtmlOnCondition": [
+    {
+      "expression": "{role} = 'exhibitor'",
+      "html": "<h3>Thank you, {full_name}!</h3>\n<p>Exhibitor registrations are handled by our partnerships team. They'll contact you at {email} within two business days.</p>"
+    }
+  ]
+}
+```
+
+### Trigger Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Used by</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>type</code></td>
+<td>All</td>
+<td>The trigger type: <code>"complete"</code> (<strong>Complete survey</strong>), <code>"skip"</code> (<strong>Skip to question</strong>), <code>"setvalue"</code> (<strong>Set answer</strong>), <code>"copyvalue"</code> (<strong>Copy answer</strong>), or <code>"runexpression"</code> (<strong>Run expression</strong>).</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>expression</code></td>
+<td>All</td>
+<td>The condition. The trigger runs when it evaluates to <code>true</code>. A <code>copyvalue</code> trigger without an expression copies the answer every time the source answer changes.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>gotoName</code></td>
+<td><code>skip</code></td>
+<td><strong>Question to skip to</strong>: the name of the target question.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>setToName</code></td>
+<td><code>setvalue</code>, <code>copyvalue</code>, <code>runexpression</code></td>
+<td><strong>Target question</strong>: the name of the question that receives the answer. Optional for <code>runexpression</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>setValue</code></td>
+<td><code>setvalue</code></td>
+<td><strong>Answer</strong>: the value to set, in the target question's format — for example, a choice value or an array of values for a checkbox question. Leave it out to clear the answer.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>isVariable</code></td>
+<td><code>setvalue</code></td>
+<td>JSON only. When <code>true</code>, <code>setToName</code> names a variable instead of a question.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>fromName</code></td>
+<td><code>copyvalue</code></td>
+<td><strong>Question to copy answer from</strong>: the name of the source question.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>copyDisplayValue</code></td>
+<td><code>copyvalue</code></td>
+<td>JSON only. When <code>true</code>, copies the text the respondent sees, such as a choice's text, instead of the stored value.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>runExpression</code></td>
+<td><code>runexpression</code></td>
+<td><strong>Run expression</strong>: the expression to calculate.</td>
+</tr>
+</tbody>
+</table>

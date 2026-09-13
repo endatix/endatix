@@ -177,7 +177,12 @@ const sidebars: SidebarsConfig = {
           items: [
             "end-users/forms/form-builder/form-display-modes",
             "end-users/forms/form-builder/form-navigation",
+            "end-users/forms/form-builder/survey-logo",
+            "end-users/forms/form-builder/question-settings",
+            "end-users/forms/form-builder/thank-you-page",
             "end-users/forms/form-builder/logic-expressions",
+            "end-users/forms/form-builder/custom-variables",
+            "end-users/forms/form-builder/triggers",
             "end-users/forms/form-builder/validation",
             "end-users/forms/form-builder/question-loops",
             "end-users/forms/form-builder/randomization-of-choices",
