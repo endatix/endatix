@@ -211,6 +211,7 @@ const sidebars: SidebarsConfig = {
           },
           items: ["end-users/forms/submission-expiration"],
         },
+        "end-users/forms/prefilling-and-personalization",
       ],
     },
     {

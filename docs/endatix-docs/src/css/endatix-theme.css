@@ -42,6 +42,8 @@
   --ifm-global-border-width: 1px;
   --ifm-toc-border-color: oklch(91% 0.01 260 / 0.7);
   --ifm-hr-border-color: oklch(91% 0.01 260 / 0.7);
+  --screenshot-border-radius: 12px;
+  --screenshot-border-color: oklch(88% 0.015 260 / 0.6);
 
   /* --- Navbar --- */
   --ifm-navbar-background-color: #ffffff;
@@ -88,6 +90,7 @@
   /* --- Borders --- */
   --ifm-toc-border-color: oklch(21% 0.012 260);
   --ifm-hr-border-color: oklch(21% 0.012 260);
+  --screenshot-border-color: oklch(21% 0.012 260);
 
   /* --- Navbar --- */
   --ifm-navbar-background-color: oklch(12% 0.015 260);
@@ -270,6 +273,23 @@ pre,
 [data-theme='dark'] .card:hover {
   border-color: oklch(28% 0.018 260);
   box-shadow: 0 4px 12px oklch(9% 0.03 260 / 0.45), 0 0 1px oklch(50% 0.18 260 / 0.07);
+}
+
+/* ============================================================
+   SCREENSHOTS
+   ============================================================ */
+.markdown img {
+  border-radius: var(--screenshot-border-radius);
+  border: 1px solid var(--screenshot-border-color);
+}
+
+/* Opt-out for screenshots that already have this framing baked into the
+   image itself (pre-dates this rule). Not applied anywhere yet — add it
+   to an <img>/<ThemedImage> manually where the baked-in frame would
+   otherwise double up with the one above. */
+.markdown img.legacy-screenshot {
+  border: none;
+  border-radius: 0;
 }
 
 /* ============================================================

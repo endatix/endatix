@@ -1,0 +1,245 @@
+---
+title: Pre-filling and Personalization
+description: Create SurveyJS variables, pass their values through query string parameters, and use them to prefill questions, drive logic, and personalize text throughout a form.
+sidebar_label: Pre-filling and Personalization
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import customVariablesLight from "./prefill-custom-variables_light.png";
+import customVariablesDark from "./prefill-custom-variables_dark.png";
+import defaultValueLight from "./prefill-default-value-expression_light.png";
+import defaultValueDark from "./prefill-default-value-expression_dark.png";
+import respondentResult from "./prefill-respondent-result.png";
+import textPipingRating from "./prefill-text-piping-rating.png";
+
+# Pre-filling and Personalization
+
+## What Is Pre-filling?
+
+Pre-filling means a form arrives with some of its values already supplied, based on information you already have about the respondent — a name, an account ID, a plan tier — so they see fewer blank fields and the form feels tailored to them rather than generic.
+
+Endatix supports two ways to pre-fill a form:
+
+* **Query string variables** (this guide) — values are read directly in the respondent's browser from the link they open, with no backend involved. It's the simplest option and well suited to personalized links in an email campaign or CRM outreach — append the data to the URL, and the form does the rest.
+* **Access-token pre-filling** — your backend creates a submission with data it already holds and issues a scoped, expiring access token for it. This relies on the Endatix API and is aimed at developers integrating Endatix server-side; see [Form Prefilling and Sharing](/docs/guides/form-prefilling) for details.
+
+The rest of this guide covers query string variables. Beyond pre-filling a question, the same variables can:
+
+* **Drive logic** — show, hide, or branch based on where the respondent came from.
+* **Personalize text** — pipe the value into a question's title or description.
+
+## Creating a Variable
+
+Variables are declared in the Form Builder, not on any single question — they belong to the survey as a whole.
+
+1. Open your form in the Form Builder and click the **Survey settings** icon (the sliders icon above the Property Grid) to open **Survey Settings**.
+2. Select the **Conditions** category.
+3. Under **Custom variables**, click **+ Add new variable**.
+4. Give it a short, descriptive **Name** — letters, numbers, and underscores, unique across the survey. This is the name you'll use in expressions as `{variableName}` and match against a query string parameter of the same name.
+5. Leave **Expression** empty. An empty expression means the variable's value comes entirely from outside the form (the query string) — Endatix Hub never overwrites it with a computed value.
+
+<ThemedImage
+  alt="Custom variables panel in the Form Builder's Conditions category, showing a first_name variable with a blank expression"
+  sources={{
+    light: useBaseUrl(customVariablesLight),
+    dark: useBaseUrl(customVariablesDark),
+  }}
+/>
+
+:::tip[Saving the value with the submission]
+The **Add to the survey results** checkbox controls whether the variable's current value is written into the submission data (`survey.data`) alongside the question answers. Enable it if you want to keep a record of, for example, which campaign a respondent arrived from.
+:::
+
+## Passing Values Through the URL
+
+Once your form is [public](/docs/end-users/forms/submission-expiration), its fill-out link looks like:
+
+```
+https://app.endatix.com/share/{formId}
+```
+
+Append query string parameters to that link, and any parameter whose name isn't reserved (see below) becomes a variable in the survey automatically — no code required. Chain multiple values with `&`:
+
+<pre style={{ padding: 'var(--ifm-pre-padding)', borderRadius: 'var(--ifm-code-border-radius)', background: 'var(--ifm-pre-background)', overflowX: 'auto' }}>
+<code style={{ fontFamily: 'var(--ifm-font-family-monospace)', fontSize: 'var(--ifm-code-font-size)', background: 'none', color: 'var(--ifm-font-color-base)' }}>
+https://app.endatix.com/share/1442869143157080064<mark style={{ color: 'var(--ifm-color-primary)', fontWeight: 'bold', backgroundColor: '#ffe066', padding: '0.05em 0.0em', borderRadius: '0.25em' }}>?first_name=Jordan&campaign=spring_launch</mark>
+</code>
+</pre>
+
+This link sets two variables: `first_name` to `Jordan` and `campaign` to `spring_launch`.
+
+A few names are reserved for other platform features and are never turned into variables, even if present in the URL: **`token`**, **`theme`**, **`language`**, and **`lang`**. Avoid naming your own variables after these.
+
+:::info[Values are always text]
+Query string values arrive as plain strings. SurveyJS automatically converts a numeric- or boolean-looking value before an expression uses it — the same conversion (and the same edge cases with leading zeros or a leading `+`) described in [Type Conversion in Expressions](/docs/end-users/forms/form-builder/logic-expressions#type-conversion-in-expressions-the--prefix). Use the `{#variableName}` form if you need the exact, unconverted text.
+:::
+
+The parameters stay in the address bar after the page loads — Endatix Hub doesn't strip them, so the link stays shareable and bookmarkable with the same pre-fill data.
+
+## Pre-filling a Question
+
+With the variable in place, point a question at it using **Default value expression** — a standard SurveyJS property available on every question type.
+
+Using a **Single-Line Input** question as an example:
+
+1. Select the question in the Designer (for example, a "First Name" question).
+2. In the Property Grid, search for **default value** to jump straight to the field, or find it under the question's **Conditions** category.
+3. Set **Default value expression** to `{first_name}`.
+
+<ThemedImage
+  alt="Default value expression field on a Single-Line Input question set to the first_name variable"
+  sources={{
+    light: useBaseUrl(defaultValueLight),
+    dark: useBaseUrl(defaultValueDark),
+  }}
+/>
+
+:::tip[Default value expression, not Set value expression]
+**Default value expression** only seeds the question's *starting* value — the respondent can still review and change it. **Set value expression** keeps recalculating and would silently overwrite anything the respondent types, so avoid it for pre-filling. If the query parameter is missing from the URL, the variable is simply empty and the question starts blank — no error.
+:::
+
+### Respondent Experience
+
+When a respondent opens `.../share/{formId}?first_name=Jordan`, the First Name field arrives pre-filled and ready to review, edit, or accept as-is:
+
+<img src={respondentResult} width="700" alt="Public form showing the First Name field pre-filled with Jordan from the first_name query string parameter" />
+
+## Using Variables in Logic
+
+A variable behaves exactly like a question or [calculated value](/docs/end-users/forms/form-builder/logic-expressions#1-calculated-values-background-computations) inside an expression, so it works in any condition Endatix Hub accepts — not just in **Default value expression**.
+
+For example, show a question only for respondents who arrived through a specific campaign link:
+
+```json
+{
+  "type": "comment",
+  "name": "campaign_feedback",
+  "title": "What made you click through from our spring email?",
+  "visibleIf": "{campaign} = 'spring_launch'"
+}
+```
+
+See [Logic Expressions](/docs/end-users/forms/form-builder/logic-expressions) for the full set of operators and functions you can combine a variable with.
+
+## Using Variables in Text Piping
+
+A variable can also be piped directly into a question's title or description, personalizing the form's own wording — not just its logic. Reference it the same way, in curly braces.
+
+Say a personalized link tells you which brand a respondent is being asked about:
+
+<pre style={{ padding: 'var(--ifm-pre-padding)', borderRadius: 'var(--ifm-code-border-radius)', background: 'var(--ifm-pre-background)', overflowX: 'auto' }}>
+<code style={{ fontFamily: 'var(--ifm-font-family-monospace)', fontSize: 'var(--ifm-code-font-size)', background: 'none', color: 'var(--ifm-font-color-base)' }}>
+https://app.endatix.com/share/1442869143157080064<mark style={{ color: 'var(--ifm-color-primary)', fontWeight: 'bold', backgroundColor: '#ffe066', padding: '0.05em 0.0em', borderRadius: '0.25em' }}>?brand_name=Spotify</mark>
+</code>
+</pre>
+
+A Rating question can pipe `{brand_name}` straight into its title:
+
+```json
+{
+  "type": "rating",
+  "name": "brand_rating",
+  "title": "How would you rate {brand_name}?"
+}
+```
+
+When that respondent opens the link, the title renders with the value already filled in:
+
+<img src={textPipingRating} width="700" alt="Rating question rendered with the title 'How would you rate Spotify?' from the brand_name query string parameter" />
+
+## Important Considerations
+
+* Reserved names (`token`, `theme`, `language`, `lang`) are never captured as variables, regardless of what's in the URL.
+* A variable with a blank expression stores nothing until a value is set — either by a matching query string parameter or, later, by your own logic (a trigger, another expression). It is not part of the form's respondent-facing UI.
+* Query string values are strings first; numeric-looking values are converted the same way question answers are (see [Type Conversion in Expressions](/docs/end-users/forms/form-builder/logic-expressions#type-conversion-in-expressions-the--prefix)).
+* Variable names must be unique across variables, calculated values, and questions in the same survey.
+
+## Related Documentation
+
+* [Logic Expressions](/docs/end-users/forms/form-builder/logic-expressions) — the full expression syntax variables participate in.
+* [Form Prefilling and Sharing](/docs/guides/form-prefilling) — pre-populate an entire submission from your backend using access tokens, instead of query string variables.
+* [Carry Forward](/docs/end-users/forms/form-builder/carry-forward) — another way to drive a question's choices from earlier answers.
+
+## Technical Reference (JSON Schema)
+
+A variable created through **Custom variables** is stored on the survey as a [`calculatedValues`](/docs/end-users/forms/form-builder/logic-expressions#1-calculated-values-background-computations) entry with no `expression` — declaring the name without computing a value. **Default value expression** is a standard SurveyJS question property.
+
+```json
+{
+  "calculatedValues": [
+    { "name": "first_name" },
+    { "name": "campaign" }
+  ],
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "text",
+          "name": "attendee_name",
+          "title": "First Name",
+          "defaultValueExpression": "{first_name}"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Custom Variable Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Required, unique identifier. Reference it in expressions as <code>{'{name}'}</code>, and supply it from the URL as <code>?name=value</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>expression</code></td>
+<td><code>string</code></td>
+<td>omitted</td>
+<td>Omit it (as shown above) to declare a passthrough variable whose value comes only from outside the form. Provide one to compute the value instead — Endatix Hub then recalculates and overwrites it on every value change, the same as any other calculated value.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>includeIntoResult</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Set to <code>true</code> (the Property Grid's <strong>Add to the survey results</strong> checkbox) to save the variable's current value into <code>survey.data</code> with the submission.</td>
+</tr>
+</tbody>
+</table>
+
+### Relevant Question Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>defaultValueExpression</code></td>
+<td><code>expression</code></td>
+<td>Seeds the question's starting value from an expression, such as a variable reference. The respondent can still edit the result.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>setValueExpression</code></td>
+<td><code>expression</code></td>
+<td>Continuously recalculates the question's value. Avoid for pre-filling — it overwrites respondent edits.</td>
+</tr>
+</tbody>
+</table>
