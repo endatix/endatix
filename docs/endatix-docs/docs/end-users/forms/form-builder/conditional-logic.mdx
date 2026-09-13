@@ -1,0 +1,579 @@
+---
+title: Conditional Logic
+description: Adapt an Endatix form to each respondent — show or hide questions, pages, and choices, make answers required or read-only, and set values based on earlier answers.
+sidebar_label: Conditional Logic
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import logicTabLight from "./conditional-logic-logic-tab_light.png";
+import logicTabDark from "./conditional-logic-logic-tab_dark.png";
+import ruleEditorLight from "./conditional-logic-rule-editor_light.png";
+import ruleEditorDark from "./conditional-logic-rule-editor_dark.png";
+import questionConditionsLight from "./conditional-logic-question-conditions_light.png";
+import questionConditionsDark from "./conditional-logic-question-conditions_dark.png";
+import conditionEditorLight from "./conditional-logic-condition-editor_light.png";
+import conditionEditorDark from "./conditional-logic-condition-editor_dark.png";
+import choiceConditionLight from "./conditional-logic-choice-condition_light.png";
+import choiceConditionDark from "./conditional-logic-choice-condition_dark.png";
+import clearHiddenValuesLight from "./conditional-logic-clear-hidden-values_light.png";
+import clearHiddenValuesDark from "./conditional-logic-clear-hidden-values_dark.png";
+import respondentView from "./conditional-logic-respondent-view.png";
+
+# Conditional Logic
+
+## What Is Conditional Logic?
+
+**Conditional logic** makes a form respond to the answers it receives. A follow-up question appears only after the answer that makes it relevant, a page of approval questions is shown only for expensive requests, a field becomes required only in the situation that calls for it, and a choice list offers only the options that apply to the respondent.
+
+Every respondent gets a form that fits their situation: they don't scroll past questions that don't concern them, they aren't asked for details that don't apply, and they're less likely to give up halfway. You get cleaner data — no "N/A" answers to filter out — and you can serve several scenarios with one form instead of maintaining a separate form for each.
+
+In Endatix Hub, you add conditional logic in the **Form Builder**, without writing code: create rules in the **Logic** tab, or set conditions on a question, panel, page, or choice in the **Property Grid**.
+
+## How It Works
+
+* **A condition is a yes-or-no question about the answers.** It refers to questions by name, such as `{request_type} = 'new_hire'` — "is the answer to `request_type` equal to `new_hire`?"
+* **Each condition controls one setting.** For example, **Make the question visible if** shows the question while its condition is true and hides it while the condition is false.
+* **The form updates as the respondent answers.** Conditions are re-checked the moment an answer they refer to changes, and their effect is reversed as soon as the condition stops being true.
+* **The Logic tab and the Property Grid show the same settings.** A rule you create in the Logic tab is saved as the element's condition, and a condition you type in the Property Grid appears as a rule in the Logic tab.
+* **Conditions compare stored values.** A choice is compared by its value (`new_hire`), not the text respondents see, and a Yes/No question by `true` or `false`. Text comparisons ignore capitalization.
+
+## What You Can Control
+
+### Questions
+
+Select a question and open the **Conditions** category in the Property Grid.
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Setting</th>
+<th>What happens while the condition is true</th>
+<th>Logic tab action</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Make the question visible if</strong></td>
+<td>The question is shown. While it's hidden, it isn't validated, so a hidden required question doesn't block the respondent.</td>
+<td><strong>Show/hide question</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Disable the read-only mode if</strong></td>
+<td>The question can be edited. Until then, it's shown read-only, and any default answer it has is still saved.</td>
+<td><strong>Enable/disable question</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Make the question required if</strong></td>
+<td>The question must be answered before the respondent can continue.</td>
+<td><strong>Make question required</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Reset value if</strong></td>
+<td>When the condition becomes true, the answer is cleared, or returned to the question's default value if it has one.</td>
+<td><strong>Reset question value</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Set value if</strong> and <strong>Set value expression</strong></td>
+<td>When the condition becomes true, the answer is set to the result of <strong>Set value expression</strong>. Without a <strong>Set value if</strong> condition, the expression recalculates the answer whenever a value it uses changes.</td>
+<td><strong>Set question value</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Default value expression</strong></td>
+<td>Not a condition: calculates the answer the question starts with. The respondent can change it.</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+
+### Choices
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Where</th>
+<th>What happens while the condition is true</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Make the option visible if</strong></td>
+<td><strong>Choice Options</strong> → a choice's <strong>Show Details</strong></td>
+<td>The choice is offered.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Make the option selectable if</strong></td>
+<td><strong>Choice Options</strong> → a choice's <strong>Show Details</strong></td>
+<td>The choice can be selected. Until then, it's shown but disabled.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Make choices visible if</strong>, <strong>Make choices selectable if</strong></td>
+<td>The question's <strong>Conditions</strong> category</td>
+<td>One condition checked for every choice, where <code>{'{item}'}</code> stands for the choice's value — for example, <code>{"{item} != 'phone' or {department} = 'sales'"}</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Hide the question if it has no choices</strong></td>
+<td>The question's <strong>Conditions</strong> category</td>
+<td>Hides the question when conditions leave it without any choice to offer.</td>
+</tr>
+</tbody>
+</table>
+
+If a choice the respondent has already selected is hidden, it's removed from their answer. Choice conditions aren't listed in the Logic tab. To build a choice list from earlier answers instead, see [Carry Forward](carry-forward).
+
+### Panels and Pages
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Setting</th>
+<th>What happens while the condition is true</th>
+<th>Logic tab action</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Make the panel visible if</strong>, <strong>Make the page visible if</strong></td>
+<td>The panel or page is shown. Hidden pages are skipped when the respondent clicks <strong>Next</strong>, and their questions aren't validated.</td>
+<td><strong>Show/hide panel</strong>, <strong>Show/hide page</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Disable the read-only mode if</strong></td>
+<td>The questions in the panel or page can be edited. Until then, they're all read-only.</td>
+<td><strong>Enable/disable panel</strong>, <strong>Enable/disable page</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Make the panel required if</strong>, <strong>Make the page required if</strong></td>
+<td>At least one question in the panel or page must be answered.</td>
+<td><strong>Make panel required</strong>, <strong>Make page required</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Make an individual entry visible if</strong></td>
+<td>For a <strong>Dynamic Panel</strong>: shows only the entries that match, using <code>{'{panel.question_name}'}</code>. See <a href="question-loops">Question Loops</a>.</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+
+### Matrices
+
+* **Make rows visible if** and **Make columns visible if** — in a matrix question's **Conditions** category, one condition checked for every row or column, with `{item}` standing for its value.
+* **Make the row visible if** and **Make the row editable if** — on an individual row.
+* **Make the column visible if**, **Disable the read-only mode if**, and **Make the column required if** — on a column of a **Multi-Select Matrix** or **Dynamic Matrix**. In the Logic tab, these are the **Show/hide column**, **Enable/disable column**, **Make column required**, **Reset column value**, and **Set column value** actions. Use `{row.column_name}` to refer to another cell in the same row.
+
+### Form Flow and Results
+
+Conditions also drive the features described in their own articles:
+
+* [Triggers](triggers) — end the form, skip ahead, or fill in answers when a condition is met.
+* [Thank You Page](thank-you-page) — show a different message or redirect to a different page depending on the answers.
+* [Validation](validation) — accept an answer only when an expression is true.
+* [Custom Variables](custom-variables) — calculate values, such as totals or scores, to use in other conditions.
+
+## Example: An IT Equipment Request Form
+
+An IT team uses one form for three kinds of requests: equipment for a new hire, a replacement, or a repair. Conditional logic makes each respondent see only the questions for their request:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>What should happen</th>
+<th>Setting</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Ask for the new hire's name only for new hires</td>
+<td><code>new_hire_name</code> → <strong>Make the question visible if</strong></td>
+<td><code>{"{request_type} = 'new_hire'"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Ask which devices are needed, except for repairs</td>
+<td><code>devices</code> → <strong>Make the question visible if</strong></td>
+<td><code>{"{request_type} anyof ['new_hire', 'replacement']"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Ask for a description of the problem only for repairs</td>
+<td><code>issue_description</code> → <strong>Make the question visible if</strong></td>
+<td><code>{"{request_type} = 'repair'"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Offer a mobile phone only to the Sales department</td>
+<td><code>devices</code> → <strong>Mobile phone</strong> → <strong>Make the option visible if</strong></td>
+<td><code>{"{department} = 'sales'"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Require a reason for urgent requests</td>
+<td><code>urgency_reason</code> → <strong>Make the question required if</strong></td>
+<td><code>{"{is_urgent} = true"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Keep the head office as the delivery address unless the respondent chooses another one</td>
+<td><code>delivery_address</code> → <strong>Disable the read-only mode if</strong></td>
+<td><code>{"{ship_elsewhere} = true"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Ask for manager approval for laptops and phones</td>
+<td><strong>Manager approval</strong> page → <strong>Make the page visible if</strong></td>
+<td><code>{"{devices} anyof ['laptop', 'phone']"}</code></td>
+</tr>
+</tbody>
+</table>
+
+### 1. Show a Question for New Hires in the Logic Tab
+
+Open the form's **Logic** tab and click **Add New Rule**. Then:
+
+1. In the **If** row, select the `request_type` question with the **Equals** operator, and select **Equipment for a new hire**.
+2. In the **then** row, open **Select action...**, choose **Show/hide question**, and select `new_hire_name`.
+3. Click **Done**.
+
+<ThemedImage
+  alt="Logic tab rule If 'request_type' == 'new_hire' with the condition request_type Equals Equipment for a new hire and the Show/hide question action for new_hire_name. An arrow points at the new_hire_name target."
+  sources={{
+    light: useBaseUrl(ruleEditorLight),
+    dark: useBaseUrl(ruleEditorDark),
+  }}
+/>
+
+To combine conditions, click **Add Condition** and choose **and** or **or** for the new row. To type the condition instead, click **Manual Entry** at the top of the tab while the rule is open. **Add Action** attaches more actions to the same condition.
+
+Add the other rules from the table the same way. The Logic tab lists them all, each summarized in a sentence:
+
+<ThemedImage
+  alt="Logic tab listing six rules: make page approval_page visible, make questions new_hire_name, devices, and issue_description visible, make question urgency_reason required, and make question delivery_address enable, followed by the Add New Rule button."
+  sources={{
+    light: useBaseUrl(logicTabLight),
+    dark: useBaseUrl(logicTabDark),
+  }}
+/>
+
+Click a rule to edit it. On a form with many rules, use **All Questions** and **All Action Types** at the top of the tab to show only the rules for one question or one kind of action.
+
+### 2. Review a Question's Conditions in the Property Grid
+
+Switch to the **Designer** tab, select the **New hire's full name** question, and click the **Conditions** icon in the category bar on the right of the Property Grid. The rule from step 1 is shown in **Make the question visible if**:
+
+<ThemedImage
+  alt="Property Grid Conditions category for the new_hire_name question, with Make the question visible if set to {request_type} = 'new_hire', followed by the empty Disable the read-only mode if, Make the question required if, Default value expression, Reset value if, Set value if, and Set value expression fields. An arrow points at the Conditions icon."
+  sources={{
+    light: useBaseUrl(questionConditionsLight),
+    dark: useBaseUrl(questionConditionsDark),
+  }}
+/>
+
+You can type a condition directly into any of these fields, or click the magic wand icon to build it with the condition editor — the same **If** row as in the Logic tab. Click the eraser icon to remove a condition.
+
+<ThemedImage
+  alt="Condition editor for Make the question visible if, with request_type Equals and Equipment for a new hire selected, an Add Condition button, and Cancel and Apply buttons."
+  sources={{
+    light: useBaseUrl(conditionEditorLight),
+    dark: useBaseUrl(conditionEditorDark),
+  }}
+/>
+
+### 3. Offer an Option Only to One Department
+
+Choice conditions are set on the choice itself. Select the **Which devices do you need?** question, open the **Choice Options** category, and click **Show Details** (pencil icon) next to **Mobile phone**. Set **Make the option visible if** to `{department} = 'sales'`:
+
+<ThemedImage
+  alt="Property Grid Choice Options category for the devices question, with the phone choice expanded and Make the option visible if set to {department} = 'sales'. An arrow points at the Choice Options icon."
+  sources={{
+    light: useBaseUrl(choiceConditionLight),
+    dark: useBaseUrl(choiceConditionDark),
+  }}
+/>
+
+### 4. Test the Logic
+
+Open the **Preview** tab and answer the questions in different ways. To check your conditions without filling out the form, click **Show invisible elements** (eye icon) in the Preview toolbar: hidden questions are then shown too, so you can see what's there.
+
+In the published form, a respondent from Sales who requests equipment for a new hire sees the name question and the **Mobile phone** option — and none of the repair questions:
+
+<img src={respondentView} width="600" alt="Published IT Equipment Request form with Equipment for a new hire selected, the New hire's full name question shown with an arrow pointing at it, Sales selected as the department, and Mobile phone offered among the devices" />
+
+## Writing Conditions
+
+The condition editor offers the operators that fit the selected question. When you type a condition, use the operator in the right column:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Operator in the editor</th>
+<th>In a typed condition</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Equals</strong>, <strong>Does not equal</strong></td>
+<td><code>=</code>, <code>{'<>'}</code></td>
+<td><code>{"{request_type} = 'repair'"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Greater than</strong>, <strong>Less than</strong>, <strong>Greater than or equal to</strong>, <strong>Less than or equal to</strong></td>
+<td><code>{'>'}</code>, <code>{'<'}</code>, <code>{'>='}</code>, <code>{'<='}</code></td>
+<td><code>{"{quantity} >= 5"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Empty</strong>, <strong>Not empty</strong></td>
+<td><code>empty</code>, <code>notempty</code></td>
+<td><code>{"{issue_description} notempty"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Contains</strong>, <strong>Does not contain</strong></td>
+<td><code>contains</code>, <code>notcontains</code></td>
+<td><code>{"{devices} contains 'laptop'"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Any of</strong>, <strong>None of</strong>, <strong>All of</strong></td>
+<td><code>anyof</code>, <code>noneof</code>, <code>allof</code></td>
+<td><code>{"{devices} anyof ['laptop', 'phone']"}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>and</strong>, <strong>or</strong></td>
+<td><code>and</code>, <code>or</code>, and parentheses for grouping</td>
+<td><code>{"{is_urgent} = true and ({devices} contains 'laptop')"}</code></td>
+</tr>
+</tbody>
+</table>
+
+Typed conditions can also use functions, such as `today()` and `age()`, and custom variables. See [Logic Expressions](logic-expressions) for the full reference.
+
+## Hidden Questions and Their Answers
+
+When a question is hidden after it's been answered — for example, the respondent types a new hire's name and then switches to **A repair** — the answer is kept while the form is being filled out, so it comes back if the question is shown again. When the form is completed, answers to hidden questions are removed from the submission.
+
+To change when that happens, click an empty area of the design surface, open the survey's **Data** category, and set **Clear hidden question values**:
+
+<ThemedImage
+  alt="Property Grid Data category for the survey with Clear hidden question values set to Upon survey completion. An arrow points at the Data icon."
+  sources={{
+    light: useBaseUrl(clearHiddenValuesLight),
+    dark: useBaseUrl(clearHiddenValuesDark),
+  }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Option</th>
+<th>Answers to hidden questions are removed</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Upon survey completion</strong> (default)</td>
+<td>When the form is completed.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>When question gets hidden</strong></td>
+<td>As soon as the question is hidden by its own condition.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>When question or its panel/page gets hidden</strong></td>
+<td>As soon as the question, or the panel or page it's on, is hidden.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Never</strong></td>
+<td>Never — they're saved with the submission.</td>
+</tr>
+</tbody>
+</table>
+
+A question can override this setting with its own **Clear hidden question values** in its **Data** category. Its default, **Inherit**, uses the survey's setting.
+
+:::info[Incomplete submissions keep hidden answers]
+Hub saves a respondent's progress while they fill out the form. With the default setting, an incomplete submission can still contain answers to questions that are currently hidden; they're removed when the respondent completes the form.
+:::
+
+## Important Considerations
+
+* **Refer to questions that come earlier.** A condition that depends on a question the respondent hasn't answered yet is evaluated with an empty answer, so base the logic for a page on the pages before it.
+* **A misspelled name doesn't produce an error.** A condition that refers to a name no question uses is simply false, so a question it shows never appears. The Logic tab lists such a rule without a warning, and the **Diagnostics** tab doesn't flag it — check the names if something never appears.
+* **Renaming updates conditions.** Conditions follow a question when you change its **Question name**, and a choice when you change its **Value** in the Property Grid. Changing a choice's text doesn't affect conditions, because they compare values.
+* **Hidden and read-only aren't the same.** A read-only question is still visible and its answer is saved; a hidden question's answer is removed when the form is completed.
+* **Design mode shows everything.** The Designer tab always shows all questions, whatever their conditions. Use the **Preview** tab to see the logic in action.
+
+## Related Documentation
+
+* [Logic Expressions](logic-expressions) — operators and functions for writing conditions.
+* [Triggers](triggers) — make the form act when a condition is met.
+* [Custom Variables](custom-variables) — calculate values to use in conditions.
+* [Validation](validation) — required questions and validation rules.
+* [Carry Forward](carry-forward) — build a choice list from earlier answers.
+* [Question Loops](question-loops) — repeat questions, with conditions for each entry.
+
+## Technical Reference (JSON Schema)
+
+Conditions are stored as properties of the element they control. The example form looks like this in the **JSON Editor**:
+
+```json
+{
+  "title": "IT Equipment Request",
+  "pages": [
+    {
+      "name": "request_page",
+      "title": "Request details",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "request_type",
+          "title": "What do you need?",
+          "isRequired": true,
+          "choices": [
+            { "value": "new_hire", "text": "Equipment for a new hire" },
+            { "value": "replacement", "text": "A replacement for my equipment" },
+            { "value": "repair", "text": "A repair" }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "new_hire_name",
+          "visibleIf": "{request_type} = 'new_hire'",
+          "title": "New hire's full name",
+          "isRequired": true
+        },
+        {
+          "type": "dropdown",
+          "name": "department",
+          "title": "Department",
+          "isRequired": true,
+          "choices": [
+            { "value": "sales", "text": "Sales" },
+            { "value": "engineering", "text": "Engineering" },
+            { "value": "finance", "text": "Finance" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "devices",
+          "visibleIf": "{request_type} anyof ['new_hire', 'replacement']",
+          "title": "Which devices do you need?",
+          "isRequired": true,
+          "choices": [
+            { "value": "laptop", "text": "Laptop" },
+            { "value": "monitor", "text": "Monitor" },
+            { "value": "headset", "text": "Headset" },
+            { "value": "phone", "text": "Mobile phone", "visibleIf": "{department} = 'sales'" }
+          ]
+        },
+        {
+          "type": "comment",
+          "name": "issue_description",
+          "visibleIf": "{request_type} = 'repair'",
+          "title": "Describe the problem",
+          "isRequired": true
+        },
+        { "type": "boolean", "name": "is_urgent", "title": "Is this request urgent?" },
+        {
+          "type": "comment",
+          "name": "urgency_reason",
+          "title": "Why is it urgent?",
+          "description": "Required for urgent requests.",
+          "requiredIf": "{is_urgent} = true"
+        },
+        {
+          "type": "panel",
+          "name": "delivery",
+          "title": "Delivery",
+          "elements": [
+            { "type": "boolean", "name": "ship_elsewhere", "title": "Ship to an address other than the head office?" },
+            {
+              "type": "text",
+              "name": "delivery_address",
+              "title": "Delivery address",
+              "defaultValue": "Head office, 12 Harbor Street",
+              "enableIf": "{ship_elsewhere} = true"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "approval_page",
+      "title": "Manager approval",
+      "visibleIf": "{devices} anyof ['laptop', 'phone']",
+      "elements": [
+        { "type": "text", "name": "manager_email", "title": "Manager's email address", "inputType": "email", "isRequired": true }
+      ]
+    }
+  ]
+}
+```
+
+### Condition Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Available on</th>
+<th>Property Grid setting</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>visibleIf</code></td>
+<td>Questions, panels, pages, choices, matrix rows and columns</td>
+<td><strong>Make the question / panel / page / option / row / column visible if</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>enableIf</code></td>
+<td>Questions, panels, pages, choices, matrix rows and columns</td>
+<td><strong>Disable the read-only mode if</strong>, <strong>Make the option selectable if</strong>, <strong>Make the row editable if</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>requiredIf</code></td>
+<td>Questions, panels, pages, matrix columns</td>
+<td><strong>Make the question / panel / page / column required if</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>resetValueIf</code></td>
+<td>Questions</td>
+<td><strong>Reset value if</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>setValueIf</code>, <code>setValueExpression</code></td>
+<td>Questions</td>
+<td><strong>Set value if</strong>, <strong>Set value expression</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>defaultValueExpression</code></td>
+<td>Questions</td>
+<td><strong>Default value expression</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>choicesVisibleIf</code>, <code>choicesEnableIf</code></td>
+<td>Choice questions</td>
+<td><strong>Make choices visible if</strong>, <strong>Make choices selectable if</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>hideIfChoicesEmpty</code></td>
+<td>Choice questions</td>
+<td><strong>Hide the question if it has no choices</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>rowsVisibleIf</code>, <code>columnsVisibleIf</code></td>
+<td>Matrix questions</td>
+<td><strong>Make rows visible if</strong>, <strong>Make columns visible if</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>templateVisibleIf</code></td>
+<td>Dynamic Panels</td>
+<td><strong>Make an individual entry visible if</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>clearInvisibleValues</code></td>
+<td>Survey</td>
+<td><strong>Clear hidden question values</strong>: <code>"onComplete"</code> (default), <code>"onHidden"</code>, <code>"onHiddenContainer"</code>, or <code>"none"</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>clearIfInvisible</code></td>
+<td>Questions</td>
+<td>The question's own <strong>Clear hidden question values</strong>: <code>"default"</code> (<strong>Inherit</strong>) uses the survey setting</td>
+</tr>
+</tbody>
+</table>

@@ -180,6 +180,7 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/form-builder/survey-logo",
             "end-users/forms/form-builder/question-settings",
             "end-users/forms/form-builder/thank-you-page",
+            "end-users/forms/form-builder/conditional-logic",
             "end-users/forms/form-builder/logic-expressions",
             "end-users/forms/form-builder/custom-variables",
             "end-users/forms/form-builder/triggers",
