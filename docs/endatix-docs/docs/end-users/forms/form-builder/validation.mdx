@@ -1,0 +1,912 @@
+---
+title: Validation
+description: Make sure respondents give complete, correctly formatted answers in an Endatix form — required questions, custom error messages, regular expressions, number and date ranges, and rules that compare answers.
+sidebar_label: Validation
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import requiredMessageLight from "./validation-required-error-message_light.png";
+import requiredMessageDark from "./validation-required-error-message_dark.png";
+import regexRuleLight from "./validation-regex-rule_light.png";
+import regexRuleDark from "./validation-regex-rule_dark.png";
+import minMaxMessagesLight from "./validation-min-max-error-messages_light.png";
+import minMaxMessagesDark from "./validation-min-max-error-messages_dark.png";
+import expressionRuleLight from "./validation-expression-rule_light.png";
+import expressionRuleDark from "./validation-expression-rule_dark.png";
+import surveySettingsLight from "./validation-survey-settings_light.png";
+import surveySettingsDark from "./validation-survey-settings_dark.png";
+import respondentErrors from "./validation-respondent-errors.png";
+import respondentRangeAndDates from "./validation-respondent-range-and-dates.png";
+import respondentWarning from "./validation-respondent-warning.png";
+
+# Validation
+
+## What Is Validation?
+
+**Validation** checks a respondent's answers before they can move on. A required question left blank, an email address without a domain, a booking reference in the wrong format, or a departure date that comes before the arrival date is flagged with a message on the question, and the respondent can't go to the next page or complete the form until it's fixed.
+
+Catching mistakes while the respondent is still filling out the form is far cheaper than cleaning up the data afterwards: you receive answers you can use, and respondents get a clear explanation of what to correct instead of a rejected submission or a follow-up email.
+
+In Endatix Hub, you set up validation in the **Form Builder** without writing code. Mark questions as required, add **validation rules** — a regular expression, a length or number range, or an expression that compares answers — and write the message respondents see when an answer doesn't pass.
+
+## How It Works
+
+* **Validation runs when the respondent moves on.** By default, answers on a page are checked when the respondent clicks **Next** or **Complete**. You can check answers as soon as they're entered instead — see [Choosing When Validation Runs](#choosing-when-validation-runs).
+* **A failed check blocks progress.** The message appears on the question, the question is highlighted, and the cursor moves to the first invalid answer. The respondent stays on the page until every error is fixed.
+* **Only "Required" checks empty answers.** Every other check — a regular expression, a length, a number range — skips a question that has no answer. An optional question with a format rule accepts a blank answer but rejects a wrong one. The exception is the **Expression** rule, which runs even when its question is empty.
+* **Built-in checks run before validation rules.** A question's rules are evaluated only after its built-in checks pass: the **Required** check, the question's minimum and maximum values, an incomplete input mask, and the email format check on an **Email** input.
+* **Hidden and read-only questions aren't validated.** A question hidden by a condition, or made read-only, never blocks the respondent.
+* **Not every message is an error.** A rule can show a **Warning** or an **Informational** note instead — the message is displayed, but the respondent can still continue. See [Notification Types](#notification-types).
+
+## Example: Validating a Conference Registration Form
+
+A conference registration form collects the attendee's details, a booking reference, travel dates, and workshop choices. Each question uses a different kind of validation.
+
+| # | Question type | Question name | Validation |
+| --- | --- | --- | --- |
+| 1 | Single-Line Input | `full_name` | Required, with a custom error message |
+| 2 | Single-Line Input (Input type: **Email**) | `email` | Required; email format checked automatically |
+| 3 | Single-Line Input | `booking_reference` | Required; **Regex** rule for the format `ABC-1234` |
+| 4 | Single-Line Input (Input type: **Number**) | `attendees` | Between 1 and 10, with a custom message above the maximum |
+| 5 | Single-Line Input (Input type: **Date**) | `arrival_date` | Required |
+| 6 | Single-Line Input (Input type: **Date**) | `departure_date` | Required; **Expression** rule: must be after the arrival date |
+| 7 | Checkboxes | `workshops` | No more than two choices |
+| 8 | Long Text | `accessibility_needs` | **Text** rule: at least 20 characters, shown as a **Warning** |
+
+### 1. Make a Question Required
+
+Select the **Full name** question on the design surface, then click **Required** (the asterisk icon) on the question's toolbar. You can also select **Required** in the Property Grid's **General** category. A required question shows an asterisk (`*`) after its title.
+
+Without a custom message, respondents see "Response required." To say what's needed and why, open the **Validation** category and type your own text in **Error message for required questions**:
+
+```
+Please enter your full name so we can print your badge.
+```
+
+<ThemedImage
+  alt="Property Grid Validation category for the Full name question, with Error message for required questions set to 'Please enter your full name so we can print your badge.'"
+  sources={{
+    light: useBaseUrl(requiredMessageLight),
+    dark: useBaseUrl(requiredMessageDark),
+  }}
+/>
+
+To require an answer only in certain situations — for example, a company name only when the respondent registers as a business — leave **Required** cleared and set **Make the question required if** in the **Conditions** category instead. See [Logic Expressions](logic-expressions).
+
+:::tip[Email inputs check the format for you]
+When a Single-Line Input's **Input type** (in the **General** category) is **Email**, the question rejects anything that isn't a valid email address, such as `jordan.lee@example`. You don't need to add a rule for it.
+:::
+
+### 2. Check a Format with a Regular Expression
+
+Booking references always look like `ABC-1234`: three letters, a hyphen, and four digits. A **Regex** rule rejects anything else.
+
+1. Select the **Booking reference** question and open the **Validation** category.
+2. Under **Validation rules**, click **Add new rule** (or the **+** icon). A new **Expression** rule is added with its settings expanded.
+3. Change the rule type from **Expression** to **Regex** in the rule's dropdown.
+4. In **Regular expression**, enter `^[A-Z]{3}-\d{4}$`.
+5. Select **Case insensitive** so `abc-1234` is accepted too.
+6. In **Notification message for invalid input**, explain the expected format:
+
+```
+Enter the reference as three letters, a hyphen, and four digits, for example ABC-1234.
+```
+
+<ThemedImage
+  alt="Property Grid Validation category for the Booking reference question, showing an expanded Regex rule with the regular expression ^[A-Z]{3}-\d{4}$, Case insensitive selected, a notification message, and Notification type set to Error"
+  sources={{
+    light: useBaseUrl(regexRuleLight),
+    dark: useBaseUrl(regexRuleDark),
+  }}
+/>
+
+:::warning[Always write a message for Regex rules]
+A Regex rule has no default message. Without one, an invalid answer is highlighted in red, but respondents aren't told what's wrong.
+:::
+
+See [Regular Expressions](#regular-expressions) for pattern syntax and ready-to-use examples.
+
+### 3. Set a Number Range
+
+A single booking covers between 1 and 10 attendees.
+
+1. Select the **Number of attendees** question. In the **General** category, set **Input type** to **Number**, **Min** to `1`, and **Max** to `10`.
+2. Open the **Validation** category and replace the text in **"Value exceeds maximum" error message** with:
+
+```
+Group bookings are limited to {0} attendees.
+```
+
+`{0}` is replaced with the limit, so respondents who enter `12` read "Group bookings are limited to 10 attendees." The message stays correct if you change **Max** later.
+
+<ThemedImage
+  alt="Property Grid Validation category for the Number of attendees question, with the 'Value exceeds maximum' error message set to 'Group bookings are limited to {0} attendees.'"
+  sources={{
+    light: useBaseUrl(minMaxMessagesLight),
+    dark: useBaseUrl(minMaxMessagesDark),
+  }}
+/>
+
+The same **Min** and **Max** settings work for dates and times. Set **Max** on a Date input to a fixed date, or use **Max value expression** in the **Conditions** category — for example, `today()` — to reject dates in the future.
+
+### 4. Compare Two Answers with an Expression Rule
+
+The departure date must come after the arrival date. Only an **Expression** rule can check one answer against another.
+
+1. Select the **Departure date** question and open the **Validation** category.
+2. Click **Add new rule**. New rules are **Expression** rules, so there's no type to change.
+3. In **Valid when**, enter the condition the answer must meet. Type it directly or click the magic wand icon to build it in the condition editor:
+
+```
+{arrival_date} empty or {departure_date} > {arrival_date}
+```
+
+4. In **Notification message for invalid input**, enter `Your departure date must be after your arrival date.`
+
+<ThemedImage
+  alt="Property Grid Validation category for the Departure date question, showing an expanded Expression rule with Valid when set to '{arrival_date} empty or {departure_date} > {arrival_date}' and a notification message"
+  sources={{
+    light: useBaseUrl(expressionRuleLight),
+    dark: useBaseUrl(expressionRuleDark),
+  }}
+/>
+
+The answer is valid when the expression is `true`. The `{arrival_date} empty or` part avoids a misleading message while the arrival date is still blank. See [Expression Rules](#expression-rules) for more examples.
+
+### 5. Limit the Number of Choices
+
+Attendees can join at most two workshops. Select the **Checkboxes** question, open **Choice Options**, and set **Maximum choices to select** to `2`. Once two choices are selected, the remaining ones are disabled until the respondent clears one.
+
+**Minimum choices to select** works the other way around: selecting too few shows "Please select at least 2 option(s)." when the respondent moves on.
+
+### 6. Add a Warning Instead of an Error
+
+Short accessibility or dietary notes are often too vague for the venue team, but they shouldn't stop anyone from registering. Select the **Long Text** question, add a **Text** rule with **Minimum length (in characters)** set to `20`, write a friendly message, and set **Notification type** to **Warning**.
+
+### 7. Preview the Result
+
+Open the **Preview** tab, enter some invalid answers, and click **Complete**. Each question that fails shows its message, and the respondent stays on the page:
+
+<img src={respondentErrors} width="600" alt="Preview showing three error messages: the custom required message on Full name, 'Please enter a valid e-mail address.' on Email address, and the Regex rule's message on Booking reference" />
+
+<img src={respondentRangeAndDates} width="600" alt="Preview showing 'Group bookings are limited to 10 attendees.' on Number of attendees and 'Your departure date must be after your arrival date.' on Departure date" />
+
+When everything looks right, click **Save**.
+
+## Custom Error Messages
+
+Every check has a default message, but a message written for your form tells respondents exactly how to fix their answer. Messages are set in these places:
+
+| Check | Where to set the message |
+| --- | --- |
+| Required question | **Validation** → **Error message for required questions** |
+| Validation rule | The rule's **Notification message for invalid input** |
+| Min and Max (Single-Line Input) | **Validation** → **"Value is below minimum" error message** and **"Value exceeds maximum" error message** |
+| Step (Number input) | **Validation** → **"Value does not match step size" error message** |
+| **Other** option left empty | **Validation** → **"Empty comment" error message** |
+| Duplicate entries (Dynamic Matrix, Dynamic Panel) | **Validation** → **Error message for duplicate responses** |
+
+A few things to keep in mind when writing messages:
+
+* **Say how to fix the answer, not only that it's wrong.** "Enter the reference as three letters, a hyphen, and four digits, for example ABC-1234." beats "Invalid format."
+* **Use `{0}` for limits.** In the min, max, and step messages, `{0}` is replaced with the limit that was exceeded.
+* **Messages can use earlier answers.** Placeholders such as `{full_name}` work in messages the same way they do in titles — see [Text Piping](text-piping).
+* **Messages are translated with the rest of the form.** Custom messages appear in the **Translations** tab next to the question's title and description. See [Form Translation](/docs/end-users/forms/translation-and-localization/form-translation).
+
+### Default Messages
+
+Without a custom message, respondents see the default text in the form's language:
+
+| Check | Default message (English) |
+| --- | --- |
+| Required | Response required. |
+| Required panel (no question answered) | Response required: answer at least one question. |
+| Email input type, **Email** rule | Please enter a valid e-mail address. |
+| Min / Max | The value should not be less than `{0}` / The value should not be greater than `{0}` |
+| **Text** rule | Please enter at least `{0}` character(s). / Please enter no more than `{0}` character(s). |
+| **Text** rule with **Allow digits** cleared | Numbers are not allowed. |
+| **Number** rule | The 'value' should be at least `{0}` and at most `{1}` |
+| **Answer count** rule, **Minimum choices to select** | Please select at least `{0}` option(s). |
+| **Expression** rule | The expression: `{0}` should return 'true'. (with the raw expression as `{0}`) |
+| **Regex** rule | *No message* |
+| Incomplete input mask | Please complete the value to match the required format. |
+| **Other** option left empty | Response required: enter another value. |
+| Duplicate entry | This value should be unique. |
+
+The **Number** default doesn't say which value is meant, the **Expression** default shows respondents the raw expression, and the **Regex** rule says nothing at all — write your own message for those rules.
+
+## Validation Rules
+
+Rules are added in the **Validation rules** list of a question's **Validation** category. A question can have several rules; each one that fails shows its own message. A new rule opens with its settings expanded; to edit an existing rule later, click its pencil icon (**Show Details**). The trash icon removes a rule.
+
+The rule types offered depend on the question type:
+
+<table style={{ display: 'table', width: '100%', backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Fails when</th>
+<th>Settings</th>
+<th>Available for</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Expression</strong></td>
+<td>The expression in <strong>Valid when</strong> isn't <code>true</code></td>
+<td><strong>Valid when</strong></td>
+<td>Every question type</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Text</strong></td>
+<td>The answer is shorter or longer than allowed, or contains digits when they aren't allowed</td>
+<td><strong>Minimum length (in characters)</strong>, <strong>Maximum length (in characters)</strong> (<code>0</code> = no limit), <strong>Allow digits</strong></td>
+<td>Long Text; Single-Line Input with <strong>Input type</strong> Text, Email, Phone Number, Password, or URL</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Regex</strong></td>
+<td>The answer doesn't match the regular expression</td>
+<td><strong>Regular expression</strong>, <strong>Case insensitive</strong></td>
+<td>Same as <strong>Text</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Email</strong></td>
+<td>The answer isn't a valid email address</td>
+<td>—</td>
+<td>Single-Line Input with <strong>Input type</strong> Email</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Number</strong></td>
+<td>The answer isn't a number, or is outside the range</td>
+<td><strong>Minimum value</strong>, <strong>Maximum value</strong></td>
+<td>Single-Line Input with <strong>Input type</strong> Number or Range</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Answer count</strong></td>
+<td>Too few or too many choices are selected</td>
+<td><strong>Minimum count</strong>, <strong>Maximum count</strong></td>
+<td>Checkboxes, Multi-Select Dropdown, Ranking, Image Picker</td>
+</tr>
+</tbody>
+</table>
+
+Every rule also has **Notification message for invalid input** and **Notification type**.
+
+:::tip[Built-in settings or rules?]
+Several rules overlap with simpler built-in settings: **Min** and **Max** instead of a **Number** rule, the **Email** input type instead of an **Email** rule, and **Minimum/Maximum choices to select** instead of an **Answer count** rule. Prefer the built-in settings — they also guide the respondent while they answer (for example, by disabling extra choices). Use a rule when you need a **Warning** or **Informational** note, or several different messages on the same question.
+:::
+
+### Notification Types
+
+A rule's **Notification type** controls how strongly its message is presented:
+
+| Notification type | Appearance | Blocks the respondent? | Use it for |
+| --- | --- | --- | --- |
+| **Error** (default) | Red | Yes | Answers you can't accept |
+| **Warning** | Orange | No | Answers that are probably a mistake but might be right — an unusually short comment, a very large number |
+| **Informational** | Blue | No | Neutral guidance — for example, "We'll send your badge to this address." |
+
+<img src={respondentWarning} width="600" alt="Preview showing an orange warning above the Accessibility or dietary requirements question: 'Could you tell us a bit more? A few details help our venue team prepare.'" />
+
+If a question has messages of several types, only the strongest is shown: warnings appear once all errors are fixed, and informational notes once there are no errors or warnings.
+
+:::info[Show warnings as soon as the answer is entered]
+Because warnings don't block the respondent, a page without errors moves on as soon as **Next** or **Complete** is clicked — before the warning can be read. Set the survey's **Run validation** option to **After an answer is changed** (see [Choosing When Validation Runs](#choosing-when-validation-runs)) so warnings and notes appear the moment the respondent leaves the field.
+:::
+
+## Regular Expressions
+
+A **Regex** rule compares the answer with a regular expression — a pattern that describes which text is allowed. Endatix forms use standard JavaScript regular expression syntax.
+
+### Writing a Pattern
+
+* **Anchor the pattern with `^` and `$`.** `^` marks the start of the answer and `$` the end. Without them, the pattern only has to match *somewhere* in the answer: `\d{4}` accepts `abc12345xyz` because it contains four digits in a row, while `^\d{4}$` accepts exactly four digits.
+* **Select Case insensitive instead of listing both cases.** With it selected, `^[A-Z]{3}$` also accepts `abc`.
+* **Type backslashes once in the Property Grid.** Enter `\d` in **Regular expression**. Only in the **JSON Editor** is each backslash doubled: `"regex": "^\\d{4}$"`.
+* **Keep empty answers in mind.** A Regex rule doesn't check a blank answer. Select **Required** as well if the answer is mandatory.
+
+### Common Patterns
+
+<table style={{ display: 'table', width: '100%', backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Allow</th>
+<th>Regular expression</th>
+<th>Accepts</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Exactly six digits (a verification code)</td>
+<td><code>{'^\\d{6}$'}</code></td>
+<td><code>048213</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>US ZIP code, with optional ZIP+4</td>
+<td><code>{'^\\d{5}(-\\d{4})?$'}</code></td>
+<td><code>94103</code>, <code>94103-1208</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>UK postcode (select <strong>Case insensitive</strong>)</td>
+<td><code>{'^[A-Z]{1,2}\\d[A-Z\\d]? ?\\d[A-Z]{2}$'}</code></td>
+<td><code>SW1A 1AA</code>, <code>m1 1ae</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>International phone number with country code</td>
+<td><code>{'^\\+[1-9]\\d{6,14}$'}</code></td>
+<td><code>+442071838750</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Letters, spaces, hyphens, and apostrophes only</td>
+<td><code>{"^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$"}</code></td>
+<td><code>Anne-Marie O'Neil</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>No digits anywhere</td>
+<td><code>{'^\\D*$'}</code></td>
+<td><code>Studio B</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>A web address that starts with <code>https://</code></td>
+<td><code>{'^https://\\S+$'}</code></td>
+<td><code>https://endatix.com</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>One of a fixed set of codes</td>
+<td><code>{'^(EU|US|APAC)$'}</code></td>
+<td><code>EU</code>, <code>APAC</code></td>
+</tr>
+</tbody>
+</table>
+
+Test every pattern in the **Preview** tab with answers that should pass *and* answers that should fail before you publish the form.
+
+### Regex Rules, Input Masks, and `regexMatch`
+
+* An **input mask** (**Input Mask Settings** → **Input mask type**) shapes the answer *while* the respondent types — for example, a phone number pattern that inserts the brackets and hyphens. It suits values with a fixed shape. A Regex rule checks the answer *afterwards* and suits formats with optional or variable parts.
+* The [`regexMatch`](logic-expressions#regexmatch) function tests a pattern inside an expression. Use it in an **Expression** rule when the pattern should apply only in some cases — see the conditional phone number example below.
+
+## Expression Rules
+
+An **Expression** rule accepts the answer when its **Valid when** expression is `true`. Because it can reference any question, variable, or function, it covers checks that no other rule can. The expression syntax is the same one used for conditions — see [Logic Expressions](logic-expressions) for every operator and function.
+
+<table style={{ display: 'table', width: '100%', backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Check</th>
+<th>Question the rule is on</th>
+<th>Valid when</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>The departure date is after the arrival date</td>
+<td><code>departure_date</code></td>
+<td><code>{'{arrival_date} empty or {departure_date} > {arrival_date}'}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Both email addresses match</td>
+<td><code>email_confirm</code></td>
+<td><code>{'{email_confirm} = {email}'}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>The respondent is at least 18</td>
+<td><code>date_of_birth</code></td>
+<td><code>{'age({date_of_birth}) >= 18'}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Three percentages add up to 100</td>
+<td><code>budget</code> (Multiple Textboxes)</td>
+<td><code>{'{budget.marketing} + {budget.sales} + {budget.research} = 100'}</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>A UK mobile number format applies only to UK residents</td>
+<td><code>phone</code></td>
+<td><code>{"{country} != 'uk' or regexMatch({#phone}, '^(\\+44|0)7\\d{9}$')"}</code></td>
+</tr>
+</tbody>
+</table>
+
+Keep these points in mind:
+
+* **Expression rules run even when the question is empty.** Write the expression so that a blank answer passes — or select **Required** — to avoid an error before the respondent has had a chance to answer.
+* **Put the rule on the question the respondent should fix.** The message appears on the question that owns the rule, and that question is the one the cursor moves to.
+* **Always write a message.** The default message shows the raw expression.
+
+## Built-in Checks and Limits
+
+Besides required questions and rules, many question types have validation settings of their own.
+
+### Single-Line Input and Long Text
+
+| Setting | Category | What it does |
+| --- | --- | --- |
+| **Input type** → Email | General | Rejects values that aren't valid email addresses. |
+| **Min**, **Max** | General | Reject values outside the range. Available when **Input type** is Number, Range, Date, Date and Time, Month, Time, or Week. |
+| **Step** | General | For Number inputs, rejects values that aren't a multiple of the step — for example, `0.5` with a step of `1`. |
+| **Min value expression**, **Max value expression** | Conditions | Calculate the limit instead of fixing it — for example, `today()` to reject future dates. |
+| **Input mask type** | Input Mask Settings | Formats the answer while typing (Pattern, Numeric, Date and Time, Currency) and rejects an incomplete pattern. |
+| **Maximum character limit** | Validation | Stops the respondent from typing beyond the limit and shows a character counter. `-1` (the default) uses the survey-level **Restrict answer length** setting in **Question Settings**; `0` removes the limit. |
+
+### Choice Questions
+
+| Setting | Question types | What it does |
+| --- | --- | --- |
+| **Minimum choices to select** | Checkboxes, Multi-Select Dropdown | Shows an error when too few choices are selected. |
+| **Maximum choices to select** | Checkboxes, Multi-Select Dropdown | Disables the remaining choices once the maximum is reached. |
+| **"Empty comment" error message** | Questions with an **Other** option | The message shown when **Other** is selected but its text box is empty — the text box is always required. |
+
+### Matrices, Panels, and Repeating Questions
+
+| Setting | Question types | What it does |
+| --- | --- | --- |
+| **Require an answer in each row** | Single-Select Matrix | Every row must be answered, not only one. |
+| **Prevent duplicate responses in rows** | Single-Select Matrix | No two rows can have the same answer. |
+| **Required**, **Prevent duplicate responses**, validation rules | Columns of Multi-Select Matrix and Dynamic Matrix | Each column has its own settings, applied to every cell in the column. **Cell error message alignment** (Layout) sets where cell messages appear. |
+| **Minimum row count**, **Maximum row count** | Dynamic Matrix | Limit how many rows the respondent can have. |
+| **Prevent duplicate responses in the following column** | Dynamic Matrix | Rejects two rows with the same value in the chosen column. |
+| **Minimum number of entries**, **Maximum number of entries** | Dynamic Panel | Limit how many entries the respondent can add. |
+| **Prevent duplicate responses in the following question** | Dynamic Panel | Rejects two entries with the same answer to the chosen question. |
+| **Required** on a panel | Panel, Dynamic Panel | At least one question inside must be answered. |
+
+### File Upload
+
+In the **General** category, **Maximum file size (in bytes)** rejects larger files — `5242880` allows up to 5 MB — and **Accepted file categories** limits which kinds of files can be selected.
+
+## Choosing When Validation Runs
+
+Survey-wide validation settings are in the survey's own **Validation** category. Click an empty area of the design surface to show the survey's settings, then open **Validation**:
+
+<ThemedImage
+  alt="Property Grid Validation category for the survey, showing Set focus on the first invalid answer selected, Run validation set to After an answer is changed, and Validate empty fields on lost focus"
+  sources={{
+    light: useBaseUrl(surveySettingsLight),
+    dark: useBaseUrl(surveySettingsDark),
+  }}
+/>
+
+| Setting | Options |
+| --- | --- |
+| **Run validation** | **When switching to the next page** (default) — answers on a page are checked when the respondent clicks **Next** or **Complete**. <br/> **After an answer is changed** — each answer is checked as soon as it's entered; for text inputs, when the respondent leaves the field. The respondent sees problems immediately. <br/> **Upon survey completion** — the respondent can move freely between pages; everything is checked when they click **Complete**, and they are taken back to the first page with an error. |
+| **Validate empty fields on lost focus** | Available with **After an answer is changed**. When selected, leaving a required question empty shows its message right away instead of waiting for **Next** or **Complete**. |
+| **Set focus on the first invalid answer** | Selected by default. When validation fails, the cursor moves to the first question with an error. |
+
+Related settings in other categories:
+
+* **Data** → **Update input field values** — with **While typing**, text answers are checked as the respondent types rather than when they leave the field (used together with **After an answer is changed**).
+* **Question Settings** → **Error message alignment** — shows messages at the **Top** (default) or **Bottom** of each question. Override it for a single question in its **Layout** category, or for all questions in a panel in the panel's **Question Settings**.
+* **Question Settings** → **Required symbol(s)** — the marker after required question titles (`*` by default).
+
+## Important Considerations
+
+* **Validation runs in the respondent's browser.** It guides respondents filling out the form; answers sent directly to the Endatix API aren't checked against the form's validation settings.
+* **Editing a submission skips validation.** Changes made to a submission from its **Submission Details** page aren't blocked by the form's rules, so incomplete or out-of-range data can be corrected or kept as needed.
+* **Hidden questions don't block the respondent.** If a question is hidden by a condition, its **Required** setting and rules are ignored. Use this to require an answer only when a question is relevant.
+* **Allow digits only rejects answers that end with a digit.** With **Allow digits** cleared, a Text rule rejects `Room 12` but accepts `4th floor`. To reject digits anywhere, use a Regex rule with `^\D*$`.
+* **Keep regular expressions simple.** Patterns with nested repetition, such as `(a+)+`, can make the form slow to respond on long answers. Anchored patterns with fixed lengths — `\d{4}` rather than `\d+` — are both safer and stricter.
+* **Choice questions don't offer Text or Regex rules.** Those rules check typed answers; to restrict selections, use the limits described in [Choice Questions](#choice-questions).
+
+## Related Documentation
+
+* [Logic Expressions](logic-expressions) — the operators and functions available in **Valid when**, **Make the question required if**, and `regexMatch`.
+* [Text Piping](text-piping) — insert earlier answers into messages and titles.
+* [Question Loops](question-loops) — repeat a set of questions for each selected item using Dynamic Panels.
+* [Form Translation](/docs/end-users/forms/translation-and-localization/form-translation) — translate custom error messages with the rest of the form.
+
+## Technical Reference (JSON Schema)
+
+The example form looks like this in the **JSON Editor**:
+
+```json
+{
+  "title": "Conference Registration",
+  "pages": [
+    {
+      "name": "registration",
+      "elements": [
+        {
+          "type": "text",
+          "name": "full_name",
+          "title": "Full name",
+          "isRequired": true,
+          "requiredErrorText": "Please enter your full name so we can print your badge."
+        },
+        {
+          "type": "text",
+          "name": "email",
+          "title": "Email address",
+          "isRequired": true,
+          "inputType": "email"
+        },
+        {
+          "type": "text",
+          "name": "booking_reference",
+          "title": "Booking reference",
+          "description": "You'll find it in your confirmation email.",
+          "isRequired": true,
+          "validators": [
+            {
+              "type": "regex",
+              "text": "Enter the reference as three letters, a hyphen, and four digits, for example ABC-1234.",
+              "regex": "^[A-Z]{3}-\\d{4}$",
+              "caseInsensitive": true
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "attendees",
+          "title": "Number of attendees",
+          "inputType": "number",
+          "min": 1,
+          "max": 10,
+          "maxErrorText": "Group bookings are limited to {0} attendees."
+        },
+        {
+          "type": "text",
+          "name": "arrival_date",
+          "title": "Arrival date",
+          "isRequired": true,
+          "inputType": "date"
+        },
+        {
+          "type": "text",
+          "name": "departure_date",
+          "startWithNewLine": false,
+          "title": "Departure date",
+          "isRequired": true,
+          "inputType": "date",
+          "validators": [
+            {
+              "type": "expression",
+              "text": "Your departure date must be after your arrival date.",
+              "expression": "{arrival_date} empty or {departure_date} > {arrival_date}"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "workshops",
+          "title": "Which workshops will you attend?",
+          "description": "Choose up to two.",
+          "choices": [
+            { "value": "forms_101", "text": "Form design fundamentals" },
+            { "value": "logic", "text": "Logic and expressions" },
+            { "value": "analytics", "text": "Analytics dashboards" },
+            { "value": "integrations", "text": "Webhooks and integrations" }
+          ],
+          "maxSelectedChoices": 2
+        },
+        {
+          "type": "comment",
+          "name": "accessibility_needs",
+          "title": "Accessibility or dietary requirements",
+          "validators": [
+            {
+              "type": "text",
+              "notificationType": "warning",
+              "text": "Could you tell us a bit more? A few details help our venue team prepare.",
+              "minLength": 20
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Question Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Applies to</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>isRequired</code></td>
+<td><code>boolean</code></td>
+<td>Questions, panels</td>
+<td><strong>Required</strong>. Default <code>false</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>requiredIf</code></td>
+<td><code>string</code> (expression)</td>
+<td>Questions, panels</td>
+<td><strong>Make the question required if</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>requiredErrorText</code></td>
+<td><code>string</code> (localizable)</td>
+<td>Questions, panels</td>
+<td><strong>Error message for required questions</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>validators</code></td>
+<td><code>array</code></td>
+<td>Questions</td>
+<td><strong>Validation rules</strong>. See <a href="#validation-rule-objects">Validation Rule Objects</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>errorLocation</code></td>
+<td><code>"default"</code> | <code>"top"</code> | <code>"bottom"</code></td>
+<td>Questions</td>
+<td><strong>Error message alignment</strong> (Layout). <code>"default"</code> inherits the survey setting.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>inputType</code></td>
+<td><code>string</code></td>
+<td>Single-Line Input (<code>text</code>)</td>
+<td><code>"email"</code> adds the email format check. <code>"number"</code>, <code>"range"</code>, <code>"date"</code>, <code>"datetime-local"</code>, <code>"month"</code>, <code>"time"</code>, and <code>"week"</code> support <code>min</code> and <code>max</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>min</code>, <code>max</code></td>
+<td><code>number</code> | <code>string</code></td>
+<td>Single-Line Input</td>
+<td><strong>Min</strong> and <strong>Max</strong>. Dates use the <code>yyyy-mm-dd</code> format.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>minValueExpression</code>, <code>maxValueExpression</code></td>
+<td><code>string</code> (expression)</td>
+<td>Single-Line Input</td>
+<td><strong>Min value expression</strong> and <strong>Max value expression</strong>, such as <code>today()</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>minErrorText</code>, <code>maxErrorText</code>, <code>stepErrorText</code></td>
+<td><code>string</code> (localizable)</td>
+<td>Single-Line Input</td>
+<td>Messages for values below <code>min</code>, above <code>max</code>, or off <code>step</code>. <code>{'{0}'}</code> is replaced with the limit.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>step</code></td>
+<td><code>number</code></td>
+<td>Single-Line Input (<code>inputType: "number"</code>)</td>
+<td><strong>Step</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>maxLength</code></td>
+<td><code>number</code></td>
+<td>Single-Line Input, Long Text (<code>comment</code>)</td>
+<td><strong>Maximum character limit</strong>. <code>-1</code> (default) uses the survey's <code>maxTextLength</code>; <code>0</code> means no limit.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>minSelectedChoices</code>, <code>maxSelectedChoices</code></td>
+<td><code>number</code></td>
+<td>Checkboxes (<code>checkbox</code>), Multi-Select Dropdown (<code>tagbox</code>)</td>
+<td><strong>Minimum choices to select</strong> and <strong>Maximum choices to select</strong>. <code>0</code> means no limit.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>otherErrorText</code></td>
+<td><code>string</code> (localizable)</td>
+<td>Choice questions</td>
+<td><strong>"Empty comment" error message</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>eachRowRequired</code>, <code>eachRowUnique</code></td>
+<td><code>boolean</code></td>
+<td>Single-Select Matrix (<code>matrix</code>)</td>
+<td><strong>Require an answer in each row</strong> and <strong>Prevent duplicate responses in rows</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>keyName</code></td>
+<td><code>string</code></td>
+<td>Dynamic Matrix (<code>matrixdynamic</code>), Dynamic Panel (<code>paneldynamic</code>)</td>
+<td>The column or question whose value must be unique across rows or entries.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>keyDuplicationError</code></td>
+<td><code>string</code> (localizable)</td>
+<td>Dynamic Matrix, Dynamic Panel</td>
+<td><strong>Error message for duplicate responses</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>columns[].isRequired</code>, <code>columns[].isUnique</code>, <code>columns[].validators</code></td>
+<td><code>boolean</code>, <code>boolean</code>, <code>array</code></td>
+<td>Multi-Select Matrix (<code>matrixdropdown</code>), Dynamic Matrix</td>
+<td>Required, unique-value, and rule settings for every cell in a column.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>items[].isRequired</code>, <code>items[].validators</code></td>
+<td><code>boolean</code>, <code>array</code></td>
+<td>Multiple Textboxes (<code>multipletext</code>)</td>
+<td>Required and rule settings for an individual textbox.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>minRowCount</code>, <code>maxRowCount</code></td>
+<td><code>number</code></td>
+<td>Dynamic Matrix</td>
+<td><strong>Minimum row count</strong> and <strong>Maximum row count</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>minPanelCount</code>, <code>maxPanelCount</code></td>
+<td><code>number</code></td>
+<td>Dynamic Panel</td>
+<td><strong>Minimum number of entries</strong> and <strong>Maximum number of entries</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>maxSize</code></td>
+<td><code>number</code></td>
+<td>File Upload (<code>file</code>)</td>
+<td><strong>Maximum file size (in bytes)</strong>. <code>0</code> means no limit.</td>
+</tr>
+</tbody>
+</table>
+
+### Validation Rule Objects
+
+Each entry in `validators` has a `type` and the properties for that type. All rules share `text` and `notificationType`.
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th><code>type</code></th>
+<th>Property Grid name</th>
+<th>Properties</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><em>(all)</em></td>
+<td>—</td>
+<td><code>text</code> (<code>string</code>, localizable) — <strong>Notification message for invalid input</strong>. <br/> <code>notificationType</code> (<code>"error"</code> | <code>"warning"</code> | <code>"info"</code>, default <code>"error"</code>) — <strong>Notification type</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>"expression"</code></td>
+<td>Expression</td>
+<td><code>expression</code> (<code>string</code>) — <strong>Valid when</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>"text"</code></td>
+<td>Text</td>
+<td><code>minLength</code>, <code>maxLength</code> (<code>number</code>, default <code>0</code> = no limit); <code>allowDigits</code> (<code>boolean</code>, default <code>true</code>).</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>"regex"</code></td>
+<td>Regex</td>
+<td><code>regex</code> (<code>string</code>) — escape each backslash in JSON: <code>{'"^\\\\d{4}$"'}</code>; <code>caseInsensitive</code> (<code>boolean</code>, default <code>false</code>).</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>"email"</code></td>
+<td>Email</td>
+<td>—</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>"numeric"</code></td>
+<td>Number</td>
+<td><code>minValue</code>, <code>maxValue</code> (<code>number</code>).</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>"answercount"</code></td>
+<td>Answer count</td>
+<td><code>minCount</code>, <code>maxCount</code> (<code>number</code>).</td>
+</tr>
+</tbody>
+</table>
+
+### Survey Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>checkErrorsMode</code></td>
+<td><code>"onNextPage"</code> | <code>"onValueChanged"</code> | <code>"onComplete"</code></td>
+<td><code>"onNextPage"</code></td>
+<td><strong>Run validation</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>validateVisitedEmptyFields</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td><strong>Validate empty fields on lost focus</strong>. Applies when <code>checkErrorsMode</code> is <code>"onValueChanged"</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>autoFocusFirstError</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td><strong>Set focus on the first invalid answer</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>textUpdateMode</code></td>
+<td><code>"onBlur"</code> | <code>"onTyping"</code></td>
+<td><code>"onBlur"</code></td>
+<td><strong>Update input field values</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionErrorLocation</code></td>
+<td><code>"top"</code> | <code>"bottom"</code></td>
+<td><code>"top"</code></td>
+<td><strong>Error message alignment</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>requiredMark</code></td>
+<td><code>string</code></td>
+<td><code>"*"</code></td>
+<td><strong>Required symbol(s)</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>maxTextLength</code>, <code>maxCommentLength</code></td>
+<td><code>number</code></td>
+<td><code>0</code></td>
+<td><strong>Restrict answer length</strong> — the default <code>maxLength</code> for Single-Line Input and Long Text questions — and <strong>Restrict comment length</strong> — the limit for comment boxes and <strong>Other</strong> text boxes. <code>0</code> means no limit.</td>
+</tr>
+</tbody>
+</table>
+
+### Example — Warning and Informational Notes with Immediate Validation
+
+```json
+{
+  "checkErrorsMode": "onValueChanged",
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "text",
+          "name": "attendees",
+          "title": "Number of attendees",
+          "inputType": "number",
+          "min": 1,
+          "validators": [
+            {
+              "type": "numeric",
+              "maxValue": 50,
+              "notificationType": "warning",
+              "text": "That's a large group. Please double-check the number before you continue."
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "email",
+          "title": "Email address",
+          "inputType": "email",
+          "isRequired": true,
+          "validators": [
+            {
+              "type": "expression",
+              "expression": "{email} notempty",
+              "notificationType": "info",
+              "text": "We'll send your badge and invoice to this address."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Example — Conditional Pattern with `regexMatch`
+
+A UK mobile number is required to match its format only when the respondent lives in the UK:
+
+```json
+{
+  "type": "text",
+  "name": "phone",
+  "title": "Mobile number",
+  "inputType": "tel",
+  "validators": [
+    {
+      "type": "expression",
+      "expression": "{country} != 'uk' or regexMatch({#phone}, '^(\\+44|0)7\\d{9}$')",
+      "text": "Enter a UK mobile number without spaces, for example 07700900123."
+    }
+  ]
+}
+```

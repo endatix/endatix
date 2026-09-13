@@ -98,7 +98,7 @@ If you use `anyAnsweredByPrefix` inside a **Dynamic Matrix** (`matrixdynamic`) o
 
 ### `regexMatch`
 
-The `regexMatch` function tests whether a question value matches a regular expression pattern. Use it in `visibleIf`, `enableIf`, and other conditional expressions when you need regex-based show/hide or enable/disable logic beyond native question validators.
+The `regexMatch` function tests whether a question value matches a regular expression pattern. Use it in `visibleIf`, `enableIf`, and other conditional expressions when you need regex-based show/hide or enable/disable logic beyond native question validators. To check an answer's format, use a [Regex validation rule](validation#regular-expressions) instead.
 
 `regexMatch` is intended for **single-value text or numeric questions**. For checkbox, matrix, or other multi-value question types, match against individual answers (for example, a specific row or choice) rather than the whole question value.
 
