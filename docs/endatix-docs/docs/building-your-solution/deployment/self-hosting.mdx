@@ -32,6 +32,8 @@ Download from: [https://docs.docker.com/get-docker/](https://docs.docker.com/get
 
 Tested with Docker version 28.3.2 and Docker Compose v2.38.2.
 
+Full API, Hub, and database requirements (including PostgreSQL `pg_trgm`) are listed under [System Requirements](/docs/getting-started/system-requirements).
+
 ---
 
 ## Quick Start
@@ -203,6 +205,8 @@ Configuration is passed primarily via `appsettings.json` or Environment Override
 | `Endatix__Hub__HubBaseUrl` | Public Hub origin for email links — [API Hub URL](/docs/configuration/settings/hub-settings) | Optional |
 | `Endatix__Cors__CorsPolicies__0__AllowedOrigins` | Array of CORS URLs allowed | `["*"]` |
 | `Email__SendGridSettings__ApiKey` / `Email__MailgunSettings__ApiKey` | Keys for email delivery integrations | Optional |
+
+The sample Compose stack uses **SQL Server**. If you point the API at your own **PostgreSQL** instance instead, enable the `pg_trgm` extension first — see [System Requirements](/docs/getting-started/system-requirements#postgresql-pg_trgm-extension).
 
 ### Endatix Hub (Next.js) Configuration
 Configuration is passed via `.env` or container environment variables. See [Hub environment variables](/docs/developers/hub/environment) for runtime vs build, Helm, and the full catalog.

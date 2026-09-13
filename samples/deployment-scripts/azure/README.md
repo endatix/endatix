@@ -113,7 +113,7 @@ The Bicep template deploys into **your** resource group. Default settings target
 
 - **Application Insights** (and linked Log Analytics workspace where applicable)
 - **Storage account** plus containers and blob configuration (`storageIsPrivate` controls public vs private blob access)
-- **PostgreSQL Flexible Server** (API database)
+- **PostgreSQL Flexible Server** (API database). The Postgres module allowlists `PG_TRGM` via `azure.extensions` so Endatix can create trigram indexes for data-list label search ([System Requirements](https://docs.endatix.com/docs/getting-started/system-requirements#postgresql-pg_trgm-extension)).
 - **Endatix API** — Linux **App Service** on a shared **App Service plan**
 - **Endatix Hub** — **Azure Static Web Apps** (`static-site`) or a second **App Service** (`web-app`), per `hubDeploymentMode`
 - **Managed VNet (optional)** — when `enablePostgresqlPrivateNetwork = true` and `vnetResourceId` is empty: VNet with `snet-app`, `snet-db`, `GatewaySubnet`, NSGs, **VPN gateway** (`VpnGw2AZ`), and gateway public IP

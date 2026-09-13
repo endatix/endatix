@@ -10,6 +10,8 @@ Endatix is an open-source backend for SurveyJS projects that can be integrated i
 
 ## Prerequisites
 
+See [System Requirements](/docs/getting-started/system-requirements) for API, Hub, and database prerequisites.
+
 - **.NET 10.0 and above** (for NuGet & Git Repository options)
 - **Docker** (for Docker Container option)
 
