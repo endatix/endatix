@@ -18,75 +18,51 @@ Write for a developer who is mid-task and wants to leave the page as fast as pos
 - **Every version, port, env var, and file path is verified against the repo** — `global.json`, `Directory.Build.props`, `package.json` engines, `launchSettings.json`, migrations, Compose files. Never carry a number over from an older doc without re-checking it.
 - Sentence case for headings. American English. Bold for the thing a reader scans for, not for emphasis.
 
-## Cards over tables
+## Components (`src/components`)
 
-The theme ships a small `edx-` component set. Reach for it before you reach for a Markdown table — tables render heavily here, wrap badly on narrow content columns, and developers skim past them.
+Registered globally in [`src/theme/MDXComponents.tsx`](src/theme/MDXComponents.tsx) ([Docusaurus MDX scope](https://docusaurus.io/docs/markdown-features/react#mdx-component-scope)). PascalCase tags only — MDX v3 treats lowercase as HTML. **No import in the page.** Restart `pnpm start` after changing `src/theme/`.
 
-| Use a… | When |
-| --- | --- |
-| **Card grid** (`edx-grid` + `edx-card`) | Two or three parallel things a reader picks between: components, providers, deployment targets |
-| **Spec list** (`edx-specs`) | Labeled facts about one thing: versions, ports, required setup |
-| **Link card** (`edx-linkcard`) | "Next steps" and cross-page navigation, 2–4 destinations |
-| **Bullets or prose** | Anything with one dimension — a list of supported browsers is a list, not a table |
-| **Table** | Genuine two-dimensional lookup or comparison, and nothing above fits |
+| Tag | Path | Use |
+| --- | --- | --- |
+| `CardGrid` | `src/components/CardGrid` | Responsive grid. `compact` for next-step rows. |
+| `Card` | `src/components/Card` | Generic card: `eyebrow`, `title`, optional `icon` / `accent` / `lede` / `footer`. Children are free-form. |
+| `Specs` / `Spec` | `src/components/Specs`, `Spec` | Label/value rows inside a `Card`. `<Spec label="SDK">…</Spec>`. |
+| `LinkCard` | `src/components/LinkCard` | Next-step link: `to`, `title`, `description`, optional `icon`. |
+| `Pill` | `src/components/Pill` | Status chip. `required` for the brand tint. |
+| `Icon` | `src/components/Icon` | Tinted Lucide tile. Used by Card/LinkCard; also valid in MDX. |
 
-Table rules when you do use one: three columns maximum, short cells, no code blocks or multi-sentence paragraphs inside a cell, and never for sequential steps — those are an ordered list or a single code block.
+Homepage-only (not MDX): `HomepageFeatures` (feature row), `CallToAction` (landing CTA).
 
-### Card markup
-
-Copy this shape. `card` supplies the theme's border, radius, and hover; `edx-card` supplies the layout.
+Classes (`edx-grid`, `edx-card`, …) live in `src/css/endatix-theme.css` under `DOC CARDS & SPEC LISTS`. Prefer the tags above; do not paste the class markup into pages.
 
 ```mdx
-<div className="edx-grid">
-  <div className="card edx-card">
-    <div className="edx-card__head">
-      <Icon name="server" />
-      <div>
-        <p className="edx-card__eyebrow">Backend</p>
-        <h3 className="edx-card__title">Endatix API</h3>
-      </div>
-    </div>
-    <dl className="edx-specs">
-      <dt>SDK</dt>
-      <dd><a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10</a> — <code>10.0.100</code> or newer</dd>
-      <dt>Dev URL</dt>
-      <dd><code>{"https://localhost:5001"}</code></dd>
-    </dl>
-    <div className="edx-card__footer">One line of context that does not fit a spec row.</div>
-  </div>
-</div>
+<CardGrid>
+  <Card eyebrow="Backend" title="Endatix API" icon="server" footer="One line of context.">
+    <Specs>
+      <Spec label="SDK"><a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10</a></Spec>
+    </Specs>
+  </Card>
+</CardGrid>
 ```
 
-The icon is optional. Drop the `<Icon>` and the `edx-card__head` wrapper for an icon-less card — the eyebrow and title stack on their own.
+Reference page: `docs/getting-started/system-requirements.mdx`.
 
-Available classes, all defined under `DOC CARDS & SPEC LISTS` in `src/css/endatix-theme.css`:
-
-- `edx-grid` — responsive auto-fit grid. Add `edx-grid--compact` for narrower tracks (three link cards in one row).
-- `edx-card` — `edx-card__head` (icon + text row), `edx-card__eyebrow` (uppercase category label), `edx-card__title`, `edx-card__lede`, `edx-card__footer` (muted, bottom-aligned).
-- `edx-specs` — `<dl>` rendered as a two-column table with rules between rows. Keep `<dt>` to one or two words so the label column stays narrow.
-- `edx-pill` — small status chip. `edx-pill--required` for the brand-tinted "Required" variant.
-- `edx-linkcard` — anchor card with an animated arrow: an optional `<Icon>`, then `edx-linkcard__title` + `edx-linkcard__desc`.
-
-Add new classes to that same block with the `edx-` prefix rather than inlining `style={{...}}` in MDX. Page-local styles are the thing this set exists to replace.
+Prefer these tags over Markdown tables (tables wrap badly here). Browsers and one-dimension lists stay bullets. Real 2D lookup: a table, three columns max.
 
 ### Icons
 
-`<Icon name="server" />` renders the tinted tile in a card header. It is registered globally in `src/theme/MDXComponents.tsx`, so **no import in the page** — and it renders the tile, not a bare glyph, so never wrap it yourself.
+`<Icon name="server" />` (or `icon="server"` on Card/LinkCard) maps kebab names onto [Lucide](https://lucide.dev) in `src/components/Icon/index.tsx`. Add a **named** import + registry entry — never a wildcard or `lucide-react[name]` (pulls the whole set). Unknown names throw at build time.
 
-- **Names come from the registry** in `src/components/Icon/index.tsx`, which maps kebab names onto [Lucide](https://lucide.dev) icons. To add one, add a named import and a registry entry — never a wildcard import or a dynamic `lucide-react[name]` lookup, both of which pull the whole ~1,500-icon set into the bundle. An unknown name throws at build time.
-- **Default accent is brand blue.** `accent="violet" | "green" | "amber"` exists to separate peers that sit side by side (API vs Hub), not to decorate. Two cards that really are the same kind of thing — two database providers — keep the same icon and the same accent.
-- **Icons are decorative**, marked `aria-hidden`; the title carries the meaning. Never use one as the only signal.
-- Pick distinguishable glyphs. Two box-shaped icons next to each other read as one.
-
-Anything added under `src/theme/` needs a `pnpm start` restart — swizzled components are not hot-reloaded, and the running dev server renders `Expected component \`Icon\` to be defined` until it is restarted.
+- **Default accent is brand blue.** `accent="violet" | "green" | "amber"` separates peers (API vs Hub), not decoration. Two database providers share icon and accent.
+- Decorative (`aria-hidden`); the title carries meaning.
 
 ### MDX gotchas these rules avoid
 
-- **Keep each `<dt>`/`<dd>` on one line.** Multi-line JSX children are parsed as Markdown blocks and get wrapped in a `<p>`, which breaks `<p>` containers and adds stray margins.
-- **Use `<div>`, not `<p>`, for any JSX text container** that might hold more than a word — same reason.
-- **Wrap bare URLs in an expression**: `<code>{"https://localhost:5001"}</code>`. Plain text inside `<code>` still gets GFM autolinked, giving you a blue link inside a code span.
-- **Explicit heading IDs (`## Title {#my-id}`) do not compile here.** Let the slugger derive the anchor from the heading text — ``### PostgreSQL `pg_trgm` extension`` yields `#postgresql-pg_trgm-extension`.
-- **Headings are a public API.** Before renaming one, `grep -rn "#existing-anchor" docs` — other pages link to it and the build only warns on broken anchors.
+- **Spec rows:** use `<Spec>` — do not hand-write `<dt>`/`<dd>` in MDX (Markdown wraps them in `<p>`).
+- **Use `<div>`, not `<p>`, for any JSX text container** that might hold more than a word.
+- **Wrap bare URLs in an expression**: `<code>{"https://localhost:5001"}</code>`. Plain text inside `<code>` still gets GFM autolinked.
+- **Explicit heading IDs (`## Title {#my-id}`) do not compile here.** Slug from heading text — ``### PostgreSQL `pg_trgm` extension`` → `#postgresql-pg_trgm-extension`.
+- **Headings are a public API.** Before renaming one, `grep -rn "#existing-anchor" docs`.
 
 ## Page shape
 

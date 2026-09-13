@@ -27,11 +27,11 @@ const ICONS = {
 export type IconName = keyof typeof ICONS;
 export type IconAccent = "brand" | "violet" | "green" | "amber";
 
-type IconProps = {
+type IconProps = Readonly<{
   name: IconName;
   /** Tile tint. Defaults to the brand blue — vary it only to separate peers. */
   accent?: IconAccent;
-};
+}>;
 
 /**
  * Renders the tinted tile that sits in a card header, not a bare glyph.

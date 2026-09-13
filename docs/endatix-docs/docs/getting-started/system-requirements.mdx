@@ -10,48 +10,66 @@ import Link from "@docusaurus/Link";
 
 Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Endatix Hub** (Next.js). Run the API on its own for headless, API-only use — the Hub always needs a reachable API. Both run on **macOS, Windows (including WSL), and Linux**.
 
-<div className="edx-grid">
-  <div className="card edx-card">
-    <div className="edx-card__head">
-      <Icon name="server" />
-      <div>
-        <p className="edx-card__eyebrow">Backend</p>
-        <h3 className="edx-card__title">Endatix API</h3>
-      </div>
-    </div>
-    <dl className="edx-specs">
-      <dt>SDK</dt>
-      <dd><a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10</a> — <code>10.0.100</code> or newer</dd>
-      <dt>Runtime</dt>
-      <dd>ASP.NET Core 10 (<code>10.0.6</code>+) for published apps</dd>
-      <dt>Database</dt>
-      <dd>SQL Server or PostgreSQL — <a href="#databases">see below</a></dd>
-      <dt>Dev URL</dt>
-      <dd><code>{"https://localhost:5001"}</code></dd>
-    </dl>
-    <div className="edx-card__footer">Ships as NuGet packages you host inside your own .NET app, or as the <code>endatix-api</code> container image.</div>
-  </div>
-  <div className="card edx-card">
-    <div className="edx-card__head">
-      <Icon name="dashboard" accent="violet" />
-      <div>
-        <p className="edx-card__eyebrow">Frontend</p>
-        <h3 className="edx-card__title">Endatix Hub</h3>
-      </div>
-    </div>
-    <dl className="edx-specs">
-      <dt>Node.js</dt>
-      <dd><a href="https://nodejs.org/">20.9 or newer</a> (tested up to 25.0)</dd>
-      <dt>pnpm</dt>
-      <dd><a href="https://pnpm.io/installation">9 or newer</a> (tested up to 10.33)</dd>
-      <dt>API</dt>
-      <dd>A reachable Endatix API — <Link to="/docs/developers/hub/environment"><code>ENDATIX_BASE_URL</code></Link></dd>
-      <dt>Dev URL</dt>
-      <dd><code>{"http://localhost:3000"}</code></dd>
-    </dl>
-    <div className="edx-card__footer">Node and pnpm are for building from source. The prebuilt <code>endatix-hub</code> image needs Docker, not Node.</div>
-  </div>
-</div>
+<CardGrid>
+  <Card
+    eyebrow="Backend"
+    title="Endatix API"
+    icon="server"
+    footer={
+      <>
+        Ships as NuGet packages you host inside your own .NET app, or as the{" "}
+        <code>endatix-api</code> container image.
+      </>
+    }
+  >
+    <Specs>
+      <Spec label="SDK">
+        <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10</a>{" "}
+        — <code>10.0.100</code> or newer
+      </Spec>
+      <Spec label="Runtime">
+        ASP.NET Core 10 (<code>10.0.6</code>+) for published apps
+      </Spec>
+      <Spec label="Database">
+        SQL Server or PostgreSQL — <a href="#databases">see below</a>
+      </Spec>
+      <Spec label="Dev URL">
+        <code>{"https://localhost:5001"}</code>
+      </Spec>
+    </Specs>
+  </Card>
+  <Card
+    eyebrow="Frontend"
+    title="Endatix Hub"
+    icon="dashboard"
+    accent="violet"
+    footer={
+      <>
+        Node and pnpm are for building from source. The prebuilt{" "}
+        <code>endatix-hub</code> image needs Docker, not Node.
+      </>
+    }
+  >
+    <Specs>
+      <Spec label="Node.js">
+        <a href="https://nodejs.org/">20.9 or newer</a> (tested up to 25.0)
+      </Spec>
+      <Spec label="pnpm">
+        <a href="https://pnpm.io/installation">9 or newer</a> (tested up to
+        10.33)
+      </Spec>
+      <Spec label="API">
+        A reachable Endatix API —{" "}
+        <Link to="/docs/developers/hub/environment">
+          <code>ENDATIX_BASE_URL</code>
+        </Link>
+      </Spec>
+      <Spec label="Dev URL">
+        <code>{"http://localhost:3000"}</code>
+      </Spec>
+    </Specs>
+  </Card>
+</CardGrid>
 
 ## Check what you have
 
@@ -66,42 +84,34 @@ docker --version     # optional — for Compose self-hosting
 
 Pick **one** provider per deployment and set it in [Persistence Settings](/docs/configuration/settings/persistence-settings). Endatix stores form and submission payloads in **native JSON column types**, so the provider *version* matters — not just the vendor.
 
-<div className="edx-grid">
-  <div className="card edx-card">
-    <div className="edx-card__head">
-      <Icon name="database" />
-      <div>
-        <p className="edx-card__eyebrow">Provider</p>
-        <h3 className="edx-card__title">SQL Server</h3>
-      </div>
-    </div>
-    <dl className="edx-specs">
-      <dt>Version</dt>
-      <dd><strong>2025 or later</strong>, or Azure SQL Database</dd>
-      <dt>Setup</dt>
-      <dd>No extensions required</dd>
-      <dt>Watch out</dt>
-      <dd>Migrations use the native <code>json</code> type — <a href="#sql-server-2025-or-later">why</a></dd>
-    </dl>
-  </div>
-  <div className="card edx-card">
-    <div className="edx-card__head">
-      <Icon name="database" />
-      <div>
-        <p className="edx-card__eyebrow">Provider</p>
-        <h3 className="edx-card__title">PostgreSQL</h3>
-      </div>
-    </div>
-    <dl className="edx-specs">
-      <dt>Version</dt>
-      <dd>Any supported release — the sample stack runs 17.6</dd>
-      <dt>Setup</dt>
-      <dd><span className="edx-pill edx-pill--required">Required</span> <code>pg_trgm</code> extension</dd>
-      <dt>Watch out</dt>
-      <dd>Payloads are <code>jsonb</code> — <Link to="/docs/guides/json-to-jsonb-migration">migration guide</Link></dd>
-    </dl>
-  </div>
-</div>
+<CardGrid>
+  <Card eyebrow="Provider" title="SQL Server" icon="database">
+    <Specs>
+      <Spec label="Version">
+        <strong>2025 or later</strong>, or Azure SQL Database
+      </Spec>
+      <Spec label="Setup">No extensions required</Spec>
+      <Spec label="Watch out">
+        Migrations use the native <code>json</code> type —{" "}
+        <a href="#sql-server-2025-or-later">why</a>
+      </Spec>
+    </Specs>
+  </Card>
+  <Card eyebrow="Provider" title="PostgreSQL" icon="database">
+    <Specs>
+      <Spec label="Version">
+        Any supported release — the sample stack runs 17.6
+      </Spec>
+      <Spec label="Setup">
+        <Pill required>Required</Pill> <code>pg_trgm</code> extension
+      </Spec>
+      <Spec label="Watch out">
+        Payloads are <code>jsonb</code> —{" "}
+        <Link to="/docs/guides/json-to-jsonb-migration">migration guide</Link>
+      </Spec>
+    </Specs>
+  </Card>
+</CardGrid>
 
 ### SQL Server 2025 or later
 
@@ -140,20 +150,23 @@ Needed only for the path you take:
 
 ## Next steps
 
-<div className="edx-grid edx-grid--compact">
-  <Link className="card edx-linkcard" to="/docs/getting-started/quick-start">
-    <Icon name="rocket" />
-    <span className="edx-linkcard__title">Quick Start</span>
-    <span className="edx-linkcard__desc">Compare the install paths and pick one</span>
-  </Link>
-  <Link className="card edx-linkcard" to="/docs/getting-started/setup-nuget-package">
-    <Icon name="package" />
-    <span className="edx-linkcard__title">NuGet setup</span>
-    <span className="edx-linkcard__desc">Add Endatix to an existing .NET app</span>
-  </Link>
-  <Link className="card edx-linkcard" to="/docs/building-your-solution/deployment/self-hosting">
-    <Icon name="boxes" />
-    <span className="edx-linkcard__title">Self-hosting</span>
-    <span className="edx-linkcard__desc">Run API, Hub, and a database with Compose</span>
-  </Link>
-</div>
+<CardGrid compact>
+  <LinkCard
+    to="/docs/getting-started/quick-start"
+    icon="rocket"
+    title="Quick Start"
+    description="Compare the install paths and pick one"
+  />
+  <LinkCard
+    to="/docs/getting-started/setup-nuget-package"
+    icon="package"
+    title="NuGet setup"
+    description="Add Endatix to an existing .NET app"
+  />
+  <LinkCard
+    to="/docs/building-your-solution/deployment/self-hosting"
+    icon="boxes"
+    title="Self-hosting"
+    description="Run API, Hub, and a database with Compose"
+  />
+</CardGrid>
