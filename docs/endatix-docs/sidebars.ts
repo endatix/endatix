@@ -19,6 +19,7 @@ const sidebars: SidebarsConfig = {
       },
       items: [
         "getting-started/quick-start",
+        "getting-started/system-requirements",
         "getting-started/setup-nuget-package",
         "getting-started/setup-repository",
         "getting-started/what-is-endatix",

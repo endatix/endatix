@@ -1,0 +1,172 @@
+---
+sidebar_position: 2
+title: System Requirements
+description: What Endatix needs before you install — .NET 10 for the API, Node.js 20.9+ and pnpm 10.28+ for the Hub, SQL Server 2025+ or PostgreSQL with the pg_trgm extension, and supported browsers.
+---
+
+import Link from "@docusaurus/Link";
+
+# System Requirements
+
+Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Endatix Hub** (Next.js). Run the API on its own for headless, API-only use — the Hub always needs a reachable API. Both run on **macOS, Windows (including WSL), and Linux**.
+
+<CardGrid>
+  <Card
+    eyebrow="Backend"
+    title="Endatix API"
+    icon="server"
+    footer={
+      <>
+        Ships as NuGet packages you host inside your own .NET app, or as the{" "}
+        <code>endatix-api</code> container image.
+      </>
+    }
+  >
+    <Specs>
+      <Spec label="SDK">
+        <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10</a>{" "}
+        — <code>10.0.100</code> or newer
+      </Spec>
+      <Spec label="Runtime">
+        ASP.NET Core 10 (<code>10.0.6</code>+) for published apps
+      </Spec>
+      <Spec label="Database">
+        SQL Server or PostgreSQL — <a href="#databases">see below</a>
+      </Spec>
+      <Spec label="Dev URL">
+        <code>{"https://localhost:5001"}</code>
+      </Spec>
+    </Specs>
+  </Card>
+  <Card
+    eyebrow="Frontend"
+    title="Endatix Hub"
+    icon="dashboard"
+    accent="violet"
+    footer={
+      <>
+        Node and pnpm are for building from source. The prebuilt{" "}
+        <code>endatix-hub</code> image needs Docker, not Node.
+      </>
+    }
+  >
+    <Specs>
+      <Spec label="Node.js">
+        <a href="https://nodejs.org/">20.9 or newer</a> (tested up to 25.0)
+      </Spec>
+      <Spec label="pnpm">
+        <a href="https://pnpm.io/installation">10.28 or newer</a> (12
+        recommended)
+      </Spec>
+      <Spec label="API">
+        A reachable Endatix API —{" "}
+        <Link to="/docs/developers/hub/environment">
+          <code>ENDATIX_BASE_URL</code>
+        </Link>
+      </Spec>
+      <Spec label="Dev URL">
+        <code>{"http://localhost:3000"}</code>
+      </Spec>
+    </Specs>
+  </Card>
+</CardGrid>
+
+## Check what you have
+
+```bash
+dotnet --list-sdks   # need 10.0.100 or newer
+node --version       # need v20.9.0 or newer
+pnpm --version       # need 10.28.0 or newer; 12.x recommended
+docker --version     # optional — for Compose self-hosting
+```
+
+## Databases
+
+Pick **one** provider per deployment and set it in [Persistence Settings](/docs/configuration/settings/persistence-settings). Endatix stores form and submission payloads in **native JSON column types**, so the provider *version* matters — not just the vendor.
+
+<CardGrid>
+  <Card eyebrow="Provider" title="SQL Server" icon="database">
+    <Specs>
+      <Spec label="Version">
+        <strong>2025 or later</strong>, or Azure SQL Database
+      </Spec>
+      <Spec label="Setup">No extensions required</Spec>
+      <Spec label="Watch out">
+        Migrations use the native <code>json</code> type —{" "}
+        <a href="#sql-server-2025-or-later">why</a>
+      </Spec>
+    </Specs>
+  </Card>
+  <Card eyebrow="Provider" title="PostgreSQL" icon="database">
+    <Specs>
+      <Spec label="Version">
+        Any supported release — the sample stack runs 17.6
+      </Spec>
+      <Spec label="Setup">
+        <Pill required>Required</Pill> <code>pg_trgm</code> extension
+      </Spec>
+      <Spec label="Watch out">
+        Payloads are <code>jsonb</code> —{" "}
+        <Link to="/docs/guides/json-to-jsonb-migration">migration guide</Link>
+      </Spec>
+    </Specs>
+  </Card>
+</CardGrid>
+
+### SQL Server 2025 or later
+
+Migrations declare payload columns as `json`, a type added in SQL Server 2025. On 2022 and earlier they fail with `Cannot find data type json`. Azure SQL Database supports the type.
+
+### PostgreSQL `pg_trgm` extension
+
+Data-list label search uses trigram indexes, and the migration that creates them fails without `pg_trgm`. Create it before you migrate:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```
+
+Managed hosts may need the extension allowlisted first — on Azure Database for PostgreSQL that is the `azure.extensions` server parameter, which [Azure Deployment](/docs/building-your-solution/deployment/azure) covers and the sample Bicep sets for you.
+
+## Browsers
+
+The Hub — including public form-filling pages — targets the Next.js 16 baseline:
+
+- **Chrome** 111+
+- **Edge** 111+
+- **Firefox** 111+
+- **Safari** 16.4+
+
+Older browsers load the page but may fail on modern JavaScript syntax — see [Next.js supported browsers](https://nextjs.org/docs/architecture/supported-browsers).
+
+## Optional tooling
+
+Needed only for the path you take:
+
+- **Docker Desktop** (Compose v2) — [self-hosting with Compose](/docs/building-your-solution/deployment/self-hosting)
+- **Kubernetes + Helm 3** — cluster self-hosting, same images and database rules; Hub is configured with [request-time `ENDATIX_*` env](/docs/developers/hub/environment)
+- **Azure CLI / SWA CLI** — [Azure Deployment](/docs/building-your-solution/deployment/azure)
+- **`dotnet-ef`** — running migrations by hand instead of at startup ([Persistence Settings](/docs/configuration/settings/persistence-settings))
+- **Git** — [installing from the repository](/docs/getting-started/setup-repository)
+
+## Next steps
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/getting-started/quick-start"
+    icon="rocket"
+    title="Quick Start"
+    description="Compare the install paths and pick one"
+  />
+  <LinkCard
+    to="/docs/getting-started/setup-nuget-package"
+    icon="package"
+    title="NuGet setup"
+    description="Add Endatix to an existing .NET app"
+  />
+  <LinkCard
+    to="/docs/building-your-solution/deployment/self-hosting"
+    icon="boxes"
+    title="Self-hosting"
+    description="Run API, Hub, and a database with Compose"
+  />
+</CardGrid>

@@ -39,7 +39,7 @@ The Endatix Azure deployment utilizes a modern, scalable, and secure architectur
 
 - **Endatix API**: Deployed as an **App Service (Linux Web App)** running on a shared **App Service Plan**. It handles core business logic, form submissions, and data management.
 - **Endatix Hub**: The Next.js management frontend. Depending on your configuration (`hubDeploymentMode`), this is deployed either as an **Azure Static Web App** (default, highly cost-effective) or as a dedicated **App Service Web App** (Node.js runtime).
-- **Database (PostgreSQL or Azure SQL)**: Endatix supports both **Azure Database for PostgreSQL Flexible Server** and **Azure SQL Database (MS SQL Server)** for reliable, scalable relational data storage for the Endatix API.
+- **Database (PostgreSQL or Azure SQL)**: Endatix supports both **Azure Database for PostgreSQL Flexible Server** and **Azure SQL Database (MS SQL Server)**. For PostgreSQL, allowlist `pg_trgm` (`azure.extensions` must include `PG_TRGM`) before migrations — see [System Requirements](/docs/getting-started/system-requirements#postgresql-pg_trgm-extension). The sample Bicep Postgres module sets this parameter for you.
 - **Storage Account**: Manages form submission files and assets. Includes specific containers and blob configurations. Blobs can be configured as public or private by toggling the `storageIsPrivate` parameter.
 - **Application Insights**: Integrated with a Log Analytics workspace, this provides out-of-the-box distributed tracing, application performance monitoring, and OpenTelemetry (OTel) compatibility.
 - **Virtual Network (VNet) [Optional]**: For production-ready environments, you can set `enablePostgresqlPrivateNetwork` to `true`. This provisions a **managed VNet** (or integrates with your own), securing the PostgreSQL database by removing public internet access and ensuring traffic only flows securely from the Endatix API.
@@ -76,6 +76,7 @@ Use this path when you are preparing a stable, auditable deployment pipeline in 
 :::info[Security Considerations]
 For production or internet-facing environments, apply the following recommendations:
 
+- **Allowlist `pg_trgm` on PostgreSQL Flexible Server**: Required before API migrations when using PostgreSQL — see [System Requirements](/docs/getting-started/system-requirements#postgresql-pg_trgm-extension).
 - **Use private database networking**: Set `enablePostgresqlPrivateNetwork=true` so PostgreSQL is not exposed to public internet traffic. Use managed VNet or integrate with your existing VNet/subnets.
 - **Keep blob storage private by default**: Set `storageIsPrivate=true` unless your scenario explicitly requires public blob access. Grant access via SAS tokens, managed identities, or controlled backend endpoints.
 - **Encrypt data at rest and in transit**: Use Azure-managed encryption at rest for Storage and PostgreSQL (or Customer-Managed Keys via Key Vault if required by policy). Enforce TLS for all app, API, and database traffic.

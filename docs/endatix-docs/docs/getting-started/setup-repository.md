@@ -16,7 +16,7 @@ If you want to explore the source code, contribute to the project, or customize 
 Before getting started, make sure you have:
 
 - [Git](https://git-scm.com/downloads)
-- [.NET 10.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) or higher
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) or higher — see [System Requirements](/docs/getting-started/system-requirements)
 - IDE: [Visual Studio Code](https://code.visualstudio.com/), [Cursor](https://www.cursor.com/), [Rider](https://www.jetbrains.com/rider/) or [Visual Studio](https://visualstudio.microsoft.com/)
 
 ## Step 1: Clone the Repository
@@ -69,7 +69,7 @@ Cd into the src/Endatix.WebHost folder and open the appsettings.Development.json
 
 </details>
 
-By default, the sample application uses MS SQL Server. If you want to use a real database, ensure you update the database provider in the connection string configuration.
+By default, the sample application uses MS SQL Server. If you want to use a real database, ensure you update the database provider in the connection string configuration. PostgreSQL also requires the `pg_trgm` extension — see [System Requirements](/docs/getting-started/system-requirements#postgresql-pg_trgm-extension).
 
 ## Step 4: Run the Sample Application
 

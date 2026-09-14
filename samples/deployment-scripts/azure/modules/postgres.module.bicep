@@ -138,6 +138,16 @@ resource requireSecureTransport 'Microsoft.DBforPostgreSQL/flexibleServers/confi
   }
 }
 
+// Allow pg_trgm so Endatix migrations can create the data-list label search index
+resource azureExtensions 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2026-01-01-preview' = {
+  parent: postgresql
+  name: 'azure.extensions'
+  properties: {
+    value: 'PG_TRGM'
+    source: 'user-override'
+  }
+}
+
 // Create database
 resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2026-01-01-preview' = {
   parent: postgresql

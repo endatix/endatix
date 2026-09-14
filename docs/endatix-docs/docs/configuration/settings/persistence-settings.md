@@ -19,6 +19,8 @@ The easiest way to specify which database provider Endatix should use is through
 }
 ```
 
+Supported providers are **SQL Server** and **PostgreSQL**. On PostgreSQL, the `pg_trgm` extension is required for data-list label search — see [System Requirements](/docs/getting-started/system-requirements#postgresql-pg_trgm-extension).
+
 ## Usage Examples
 
 ### 1. Automatic Configuration with Defaults
