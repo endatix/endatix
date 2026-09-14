@@ -29,7 +29,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "22.6"
+          # Non-EOL LTS, at or above the 22.13 floor the docs advertise and the
+          # docs site's own engines.node. See https://nodejs.org/en/about/eol.
+          node-version: "22.23.2"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6

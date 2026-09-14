@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: System Requirements
-description: What Endatix needs before you install — .NET 10 for the API, Node.js 20.9+ and pnpm 10.34.5+ for the Hub, SQL Server 2025+ or PostgreSQL with the pg_trgm extension, and supported browsers.
+description: What Endatix needs before you install — .NET 10 for the API, Node.js 22.13+ (non-EOL) and pnpm 10.34.5+ for the Hub, SQL Server 2025+ or PostgreSQL with the pg_trgm extension, and supported browsers.
 ---
 
 import Link from "@docusaurus/Link";
@@ -52,11 +52,12 @@ Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Enda
   >
     <Specs>
       <Spec label="Node.js">
-        <a href="https://nodejs.org/">20.9 or newer</a> (tested up to 25.0)
+        <a href="https://nodejs.org/">22.13 or newer</a> (22 or 24 LTS —{" "}
+        <a href="https://nodejs.org/en/about/eol">non-EOL</a> majors only)
       </Spec>
       <Spec label="pnpm">
         <a href="https://pnpm.io/installation">10.34.5 or newer</a> (12
-        recommended) — <strong>not</strong> 11, and never via Corepack
+        recommended) — never via Corepack
       </Spec>
       <Spec label="API">
         A reachable Endatix API —{" "}
@@ -75,12 +76,14 @@ Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Enda
 
 ```bash
 dotnet --list-sdks   # need 10.0.100 or newer
-node --version       # need v20.9.0 or newer
+node --version       # need v22.13.0 or newer (not Node 20 — EOL)
 pnpm --version       # need 10.34.5 or newer; 12.x recommended
 docker --version     # optional — for Compose self-hosting
 ```
 
-pnpm 11 is not supported — it needs Node.js 22.13+, above the Hub's Node.js 20.9 floor. The 10.34.5 floor is a security patch ([GHSA-vx52-2968-3vc6](https://github.com/advisories/GHSA-vx52-2968-3vc6)). Corepack cannot run pnpm 12, so install pnpm standalone — the [Hub README](https://github.com/endatix/endatix-hub#prerequisites) has the commands for each platform.
+Hub follows the [Node.js EOL list](https://nodejs.org/en/about/eol): Node 20 is End-of-Life, so source builds need **22.13+** (22 or 24 LTS). Node 25 is also EOL — do not use it. The prebuilt `endatix-hub` image needs Docker, not Node.
+
+pnpm 10.34.5 is a security floor ([GHSA-vx52-2968-3vc6](https://github.com/advisories/GHSA-vx52-2968-3vc6)). Corepack cannot run pnpm 12, so install pnpm standalone — the [Hub README](https://github.com/endatix/endatix-hub#prerequisites) has the commands for each platform.
 
 ## Databases
 

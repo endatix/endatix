@@ -7,7 +7,7 @@ This website is built using [Docusaurus](https://docusaurus.io/), a modern stati
 
 ### Prerequisites
 
-* Node.js version v21.2.0
+* Node.js 22 (non-EOL LTS — see [Node.js EOL](https://nodejs.org/en/about/eol))
 * pnpm package manager
 
 ### Installation
