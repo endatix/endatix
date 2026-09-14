@@ -1,0 +1,361 @@
+---
+title: Custom Variables
+description: Calculate values such as prices, scores, and discounts from a respondent's answers in an Endatix form, then use them in conditions, question text, and the submission results.
+sidebar_label: Custom Variables
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import propertyGridLight from "./custom-variables-property-grid_light.png";
+import propertyGridDark from "./custom-variables-property-grid_dark.png";
+import visibleIfLight from "./custom-variables-visible-if_light.png";
+import visibleIfDark from "./custom-variables-visible-if_dark.png";
+import submissionDetailsLight from "./custom-variables-submission-details_light.png";
+import submissionDetailsDark from "./custom-variables-submission-details_dark.png";
+import respondentView from "./custom-variables-respondent-view.png";
+
+# Custom Variables
+
+## What Are Custom Variables?
+
+A **custom variable** is a named value that belongs to the form rather than to any question. Most custom variables are calculated from the respondent's answers with an expression — an order total, a discount, a risk score — and recalculated the moment an answer they depend on changes. Respondents never see a variable itself, only its effects.
+
+Without variables, the same calculation has to be repeated wherever you need it: in the condition that shows a question, in the title that mentions the amount, and again when you analyze the results. A variable does the calculation once, gives it a name, and lets you refer to it everywhere with `{variable_name}`. When the price changes, you update one expression instead of hunting for every copy.
+
+In Endatix Hub, you add custom variables in the **Form Builder**, in the survey's **Conditions** settings. A variable can also be saved with each submission, so the calculated value is kept alongside the answers.
+
+## How It Works
+
+* **Variables are referenced by name.** Use `{total_price}` wherever you can use a question name: in conditions, in other variables' expressions, in question titles and descriptions, and on the [Thank You page](thank-you-page).
+* **Values update automatically.** A variable is recalculated whenever an answer or another variable in its expression changes.
+* **Variables can build on each other.** One variable can use another, in any order in the list — Hub works out which one to calculate first.
+* **Unanswered questions count as zero** in calculations, so `{attendees} * 150` is `0` until the respondent enters a number.
+* **A variable without an expression** holds a value supplied from outside the form, such as a parameter in the form's link. See [Pre-filling and Personalization](/docs/end-users/forms/prefilling-and-personalization).
+
+## Settings at a Glance
+
+Custom variables are in the **Designer** tab: click an empty area of the design surface, then click the **Conditions** icon in the category bar on the right of the **Property Grid**. Click the **+** icon next to **Custom variables** (or **Add new variable** when the list is empty) to add one, and **Show Details** (pencil icon) to edit it.
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Setting</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Name</strong></td>
+<td>The name you use to refer to the variable, as <code>{'{name}'}</code>. It must be unique in the form: don't reuse the name of a question or another variable.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Expression</strong></td>
+<td>How the value is calculated. Leave it empty for a variable whose value comes from the form's link.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Add to the survey results</strong></td>
+<td>Saves the variable's value with the submission, next to the answers. See <a href="#saving-variables-with-the-submission">Saving Variables with the Submission</a>.</td>
+</tr>
+</tbody>
+</table>
+
+## Example: Calculating the Total for a Workshop Registration
+
+A training company takes group registrations for a workshop. Tickets cost $150 per person, or $120 with the early-bird rate, and nonprofit organizations get 20% off. The form should show the order total before the respondent submits, and ask for a purchase order number only for orders of $1,000 or more.
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>#</th>
+<th>Question type</th>
+<th>Question name</th>
+<th>Title</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>1</td>
+<td><strong>Radio Button Group</strong></td>
+<td><code>ticket_type</code></td>
+<td>Ticket type — <strong>Standard</strong> (value <code>standard</code>) or <strong>Early bird</strong> (value <code>early_bird</code>)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>2</td>
+<td><strong>Single-Line Input</strong> (number)</td>
+<td><code>attendees</code></td>
+<td>Number of attendees</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>3</td>
+<td><strong>Yes/No (Boolean)</strong></td>
+<td><code>is_nonprofit</code></td>
+<td>Are you registering for a nonprofit organization?</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>4</td>
+<td><strong>Single-Line Input</strong> (required)</td>
+<td><code>po_number</code></td>
+<td>Purchase order number</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>5</td>
+<td><strong>Yes/No (Boolean)</strong> (required)</td>
+<td><code>confirm_order</code></td>
+<td>Do you confirm the order total of <code>{'{total_price_text}'}</code>?</td>
+</tr>
+</tbody>
+</table>
+
+### 1. Add the Variables
+
+Open the form's **Designer** tab and click an empty area of the design surface. In the category bar on the right of the Property Grid, click the **Conditions** icon, and add four custom variables:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Name</th>
+<th>Expression</th>
+<th>Add to the survey results</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>ticket_price</code></td>
+<td><code>{"iif({ticket_type} = 'early_bird', 120, 150)"}</code></td>
+<td>Cleared</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>discount_rate</code></td>
+<td><code>{"iif({is_nonprofit} = true, 0.2, 0)"}</code></td>
+<td>Cleared</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>total_price</code></td>
+<td><code>{"{attendees} * {ticket_price} * (1 - {discount_rate})"}</code></td>
+<td>Selected</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>total_price_text</code></td>
+<td><code>{"formatCurrency({total_price})"}</code></td>
+<td>Cleared</td>
+</tr>
+</tbody>
+</table>
+
+<ThemedImage
+  alt="Property Grid Conditions category for the survey, listing the ticket_price, discount_rate, total_price, and total_price_text custom variables. The total_price variable is expanded, showing its Name, Expression, and the selected Add to the survey results checkbox. An arrow points at the Conditions icon."
+  sources={{
+    light: useBaseUrl(propertyGridLight),
+    dark: useBaseUrl(propertyGridDark),
+  }}
+/>
+
+Each variable does one job:
+
+* `ticket_price` picks the price per person for the chosen ticket type.
+* `discount_rate` is `0.2` for nonprofit organizations and `0` for everyone else.
+* `total_price` multiplies them into the order total. It's the value you'll want in your results, so **Add to the survey results** is selected.
+* `total_price_text` formats the total as an amount, such as `$1,200.00`, for display.
+
+:::tip[Keep numbers and display text in separate variables]
+`formatCurrency()` returns text, which can't be compared or used in further calculations. Keep the number in one variable (`total_price`) for conditions and math, and the formatted text in another (`total_price_text`) for question titles. See [Logic Expressions](logic-expressions) for `formatCurrency()`, `iif()`, and the other available functions.
+:::
+
+### 2. Ask for a Purchase Order Number on Large Orders
+
+Select the **Purchase order number** question, open the **Conditions** category, and set **Make the question visible if** to:
+
+```
+{total_price} >= 1000
+```
+
+<ThemedImage
+  alt="Property Grid Conditions category for the Purchase order number question, with Make the question visible if set to {total_price} >= 1000. An arrow points at the Conditions icon."
+  sources={{
+    light: useBaseUrl(visibleIfLight),
+    dark: useBaseUrl(visibleIfDark),
+  }}
+/>
+
+The question appears as soon as the total reaches $1,000 and disappears again if the respondent lowers the number of attendees. A hidden question isn't required, so smaller orders can be submitted without a purchase order number.
+
+### 3. Show the Total in a Question Title
+
+Set the title of the confirmation question to:
+
+```
+Do you confirm the order total of {total_price_text}?
+```
+
+The placeholder is replaced with the formatted total and updates as the respondent changes their answers. See [Text Piping](text-piping) for more about placeholders.
+
+### 4. Test the Form
+
+Open the **Preview** tab, or click **Save** and open the form with **Share Link** from the **Forms** list. A nonprofit organization that registers 10 attendees with standard tickets pays 10 × $150 × 0.8 = $1,200, so the purchase order number is requested and the total appears in the last question:
+
+<img src={respondentView} width="600" alt="Published Workshop Registration form with Standard tickets, 10 attendees, and Yes for nonprofit organization. The Purchase order number question is shown, and an arrow points at the title Do you confirm the order total of $1,200.00?" />
+
+### 5. Review the Saved Values
+
+When a submission comes in, open the form's **Submissions** page and click the submission. On the **Calculated Values** tab, every custom variable is listed with its value for that submission. **In result** marks the variables whose value is saved with the submission — here, `total_price`.
+
+<ThemedImage
+  alt="Submission Details page, Calculated Values tab, listing ticket_price 150, discount_rate 0.2, total_price 1.2K marked In result, and total_price_text $1,200.00. An arrow points at the Calculated Values tab."
+  sources={{
+    light: useBaseUrl(submissionDetailsLight),
+    dark: useBaseUrl(submissionDetailsDark),
+  }}
+/>
+
+The tab shortens large numbers — `1.2K` stands for `1200`. To see the exact values saved with the submission, click **Copy JSON** at the top of the page and look at the copied `jsonData` field.
+
+## Writing Variable Expressions
+
+A variable's expression uses the same syntax as every other condition and calculation in the Form Builder:
+
+* **Arithmetic:** `+`, `-`, `*`, `/`, and parentheses — `{quantity} * {unit_price}`.
+* **Conditions that choose a value:** `iif(condition, value if true, value if false)` — `iif({country} = 'US', 0.08, 0.2)`.
+* **Functions:** for example, `sum()`, `round()`, `age()`, `dateDiff()`, and the formatting functions `formatCurrency()`, `formatNumber()`, and `formatDate()`.
+* **Other variables:** `{total_price} - {deposit}`.
+
+Unlike **Make the question visible if** and other conditions, the **Expression** field of a custom variable has no condition builder: type the expression directly. [Logic Expressions](logic-expressions) lists every operator and function.
+
+## Variables Without an Expression
+
+A variable with an empty **Expression** isn't calculated. Its value comes from outside the form — most often a query string parameter in the link you send to respondents, such as `?campaign=spring_launch`. You can then use `{campaign}` in conditions and text like any other variable.
+
+See [Pre-filling and Personalization](/docs/end-users/forms/prefilling-and-personalization) to set this up. Values passed through the link are shown on the **Dynamic Variables** tab of the submission.
+
+## Saving Variables with the Submission
+
+By default, a variable exists only while the form is being filled out. Select **Add to the survey results** to save its value with each submission, next to the answers:
+
+```json
+{
+  "ticket_type": "standard",
+  "attendees": 10,
+  "is_nonprofit": true,
+  "po_number": "PO-20417",
+  "confirm_order": true,
+  "total_price": 1200
+}
+```
+
+Save the values you'll want to filter, report on, or pass to other systems — such as an order total or a score — and leave helper variables, like the formatted `total_price_text`, unsaved.
+
+## Important Considerations
+
+* **Choose names that no question uses.** If a variable and a question share a name, `{name}` can't tell them apart. Use letters, digits, and underscores, such as `total_price`.
+* **Variables are invisible to respondents.** To show a value, pipe it into a title, description, or the Thank You page, or add an **Expression** question.
+* **Check calculations with empty answers.** Unanswered questions count as zero, so a total can be `0` before the respondent reaches the relevant questions. Keep that in mind in conditions such as `{total_price} < 500`, which is already true while the form is empty.
+* **Formatted text isn't a number.** A condition such as `{total_price_text} >= 1000` doesn't work as expected; compare the numeric variable instead.
+* **The Calculated Values tab recalculates.** It shows each variable's value calculated from the submission's answers when you open the page. The values actually saved with the submission are in the `jsonData` field that **Copy JSON** copies.
+
+## Related Documentation
+
+* [Logic Expressions](logic-expressions) — the operators and functions you can use in a variable's expression.
+* [Pre-filling and Personalization](/docs/end-users/forms/prefilling-and-personalization) — fill variables from the form's link.
+* [Text Piping](text-piping) — insert variables and answers into titles, descriptions, and choices.
+* [Triggers](triggers) — set answers, end the form, or skip ahead when a condition is met.
+* [Thank You Page](thank-you-page) — show a variable, such as an order total, after the respondent submits.
+
+## Technical Reference (JSON Schema)
+
+Custom variables are stored in the survey's `calculatedValues` array. The example form's variables and the conditions that use them look like this in the **JSON Editor**:
+
+```json
+{
+  "title": "Workshop Registration",
+  "calculatedValues": [
+    { "name": "ticket_price", "expression": "iif({ticket_type} = 'early_bird', 120, 150)" },
+    { "name": "discount_rate", "expression": "iif({is_nonprofit} = true, 0.2, 0)" },
+    {
+      "name": "total_price",
+      "expression": "{attendees} * {ticket_price} * (1 - {discount_rate})",
+      "includeIntoResult": true
+    },
+    { "name": "total_price_text", "expression": "formatCurrency({total_price})" }
+  ],
+  "pages": [
+    {
+      "name": "registration",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "ticket_type",
+          "title": "Ticket type",
+          "isRequired": true,
+          "defaultValue": "standard",
+          "choices": [
+            { "value": "standard", "text": "Standard — $150 per person" },
+            { "value": "early_bird", "text": "Early bird — $120 per person" }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "attendees",
+          "title": "Number of attendees",
+          "inputType": "number",
+          "min": 1,
+          "max": 50,
+          "isRequired": true,
+          "defaultValue": 1
+        },
+        {
+          "type": "boolean",
+          "name": "is_nonprofit",
+          "title": "Are you registering for a nonprofit organization?",
+          "description": "Nonprofit organizations get 20% off."
+        },
+        {
+          "type": "text",
+          "name": "po_number",
+          "visibleIf": "{total_price} >= 1000",
+          "title": "Purchase order number",
+          "description": "Required for orders of $1,000 or more.",
+          "isRequired": true
+        },
+        {
+          "type": "boolean",
+          "name": "confirm_order",
+          "title": "Do you confirm the order total of {total_price_text}?",
+          "isRequired": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Custom Variable Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td><strong>Name</strong>. Required and unique. Referenced as <code>{'{name}'}</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>expression</code></td>
+<td><code>string</code> (expression)</td>
+<td>—</td>
+<td><strong>Expression</strong>. Recalculated whenever a value it uses changes. Omit it for a variable whose value is set from outside the form.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>includeIntoResult</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td><strong>Add to the survey results</strong>. When <code>true</code>, the value is saved in the submission data under the variable's name.</td>
+</tr>
+</tbody>
+</table>

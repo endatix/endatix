@@ -1,0 +1,392 @@
+---
+title: Viewing Submissions
+description: Open a form's Submissions page in Endatix Hub, then filter, sort, and choose the columns of the submissions grid to find the responses you need.
+sidebar_label: Viewing Submissions
+---
+
+import ThemedImage from "@theme/ThemedImage";
+import formCardLight from "./submissions-form-card_light.png";
+import formCardDark from "./submissions-form-card_dark.png";
+import formPanelLight from "./submissions-form-panel_light.png";
+import formPanelDark from "./submissions-form-panel_dark.png";
+import pageLight from "./submissions-page_light.png";
+import pageDark from "./submissions-page_dark.png";
+import statusFilterLight from "./submissions-status-filter_light.png";
+import statusFilterDark from "./submissions-status-filter_dark.png";
+import columnMenuLight from "./submissions-column-menu_light.png";
+import columnMenuDark from "./submissions-column-menu_dark.png";
+import sortedFilteredLight from "./submissions-sorted-filtered_light.png";
+import sortedFilteredDark from "./submissions-sorted-filtered_dark.png";
+import viewColumnsLight from "./submissions-view-columns_light.png";
+import viewColumnsDark from "./submissions-view-columns_dark.png";
+
+# Viewing Submissions
+
+## What Is the Submissions Page?
+
+Every time someone fills out one of your forms, Endatix saves their answers as a **submission**. A submission is saved as soon as the respondent's first answers are stored, not only when they complete the form, so you also see forms that were started but not finished.
+
+The **Submissions** page lists all submissions of one form in a grid. Use it to check how many responses have come in, follow up on incomplete ones, keep track of which submissions have been reviewed, and open a submission to read or edit its answers. Filters, sorting, and your choice of columns narrow a long list down to exactly what you need — for example, last week's completed submissions that nobody has reviewed yet.
+
+## Open a Form's Submissions
+
+Each form has its own Submissions page.
+
+### From the Forms List
+
+1. Click **Forms** in the Hub sidebar.
+2. Find the form. Forms that aren't in a folder are listed under **Unassigned**. For a form in a folder, click the folder under **Folders**, or pick the folder in the list at the top of the page.
+3. Hover over the form's card. **Design**, **Share Link**, and **Submissions** appear at the bottom of the card.
+4. Click **Submissions**.
+
+<ThemedImage
+  alt="Form card for Appointment Scheduling showing 15 submissions, with Design, Share Link, and Submissions links at the bottom. An arrow points at Submissions."
+  sources={{ light: formCardLight, dark: formCardDark }}
+/>
+
+The card also shows how many submissions the form has. While a form shows **No submissions yet**, its **Submissions** link is dimmed; open the page from the form's details instead.
+
+### From the Form Details
+
+Click a form's card anywhere except the links at the bottom. The form's details open in a panel on the right. Click **Submissions** at the top of the panel.
+
+<ThemedImage
+  alt="Form details panel for Appointment Scheduling with the Design, Share, and Submissions buttons above the Form details section. An arrow points at the Submissions button."
+  sources={{ light: formPanelLight, dark: formPanelDark }}
+/>
+
+The same **Submissions** button is at the top of the form's **Form Overview** page, which opens when you leave the Form Builder with its back arrow.
+
+### Return From a Submission
+
+Click a row in the grid to open that submission's **Submission Details** page. **Back to submissions** takes you back to the list with the filters, sorting, and page you left it on.
+
+The filters, sorting, page, and rows per page are also part of the page's web address. Bookmark a filtered list to come back to it later, or send the link to a colleague who has access to the form.
+
+## The Submissions Page at a Glance
+
+<ThemedImage
+  alt="Submissions for Appointment Scheduling: the Complete, Status, and Submission Type filters and the View and Export Submissions buttons above a grid of 10 submissions, with Rows per page and Page 1 of 2 at the bottom"
+  sources={{ light: pageLight, dark: pageDark }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Complete</strong>, <strong>Status</strong>, <strong>Submission Type</strong></td>
+<td>Filter the list. See <a href="#filter-by-complete-status-and-submission-type">Filter by Complete, Status, and Submission Type</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Column headers</td>
+<td>Sort the list, filter by a date or a submitter, and hide or move columns. See <a href="#sort-submissions">Sort Submissions</a> and <a href="#filter-by-date">Filter by Date</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Reset Filters</strong> / <strong>Reset Sorting</strong> / <strong>Reset</strong></td>
+<td>Appears next to the filters once a filter or sorting is applied. See <a href="#clear-filters-and-sorting">Clear Filters and Sorting</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>View</strong></td>
+<td>Chooses which columns the grid shows. See <a href="#choose-columns">Choose Columns</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Export Submissions</strong></td>
+<td>Downloads the form's submissions as a file. See <a href="#export-submissions">Export Submissions</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Rows per page</strong> and the page buttons</td>
+<td>Move through a long list. See <a href="#pages">Pages</a>.</td>
+</tr>
+</tbody>
+</table>
+
+Until you sort the list, the newest submissions are at the top. Completed submissions are shown in slightly bolder text than incomplete ones.
+
+### Columns
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Column</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>⋯</strong> (no title)</td>
+<td>The actions menu of the submission. See <a href="#submission-actions">Submission Actions</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Complete</strong> (check mark icon)</td>
+<td>A green check mark for a completed submission, an empty circle for one that was started but not completed. Hover over the icon to see <strong>Complete</strong> or <strong>Incomplete</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Last modified</strong></td>
+<td>When the submission was last changed. A dash means it hasn't changed since it was created.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Started</strong></td>
+<td>When the respondent started filling out the form.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Completed</strong></td>
+<td>When the respondent completed the form. A dash for incomplete submissions.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Created</strong></td>
+<td>When the submission was first saved. It's usually the same as <strong>Started</strong>, but it's earlier for a submission that was <a href="/docs/guides/form-prefilling">prefilled</a> before the respondent opened it.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Submitter</strong></td>
+<td>The ID of the identified respondent who filled out the form, or <strong>N/A</strong> for an anonymous submission. Long IDs are shortened; hover over one to see it in full and copy it. Your administrator can give this column a different name, such as <strong>Panelist ID</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Time</strong></td>
+<td>How long the respondent took, from <strong>Started</strong> to <strong>Completed</strong>. A dash for incomplete submissions.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Status</strong></td>
+<td>The review status: <strong>New</strong>, <strong>Read</strong>, or <strong>Approved</strong>. See <a href="#change-the-status">Change the Status</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Submitter details, such as <strong>Email</strong></td>
+<td>Details saved about the submitter. Shown only when your administrator has set them up — see <a href="/docs/guides/collecting-submitters-data">Collecting Submitters Data</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Question columns</td>
+<td>One column per question with the respondent's answer. Hidden until you turn them on — see <a href="#choose-columns">Choose Columns</a>.</td>
+</tr>
+</tbody>
+</table>
+
+## Filter Submissions
+
+Filters show only the submissions that match. Combine as many as you need: a submission is listed only when it matches every filter. The list goes back to its first page whenever you change a filter.
+
+### Filter by Complete, Status, and Submission Type
+
+Click a filter above the grid and select one or more options. When you select several options of the same filter, submissions that match any of them are listed — **New** and **Read** under **Status** lists the submissions that haven't been approved yet.
+
+<ThemedImage
+  alt="Complete filter set to Yes, and the Status filter open with New and Read selected. The Status button shows the selected New and Read badges, and a Reset Filters button appears next to the filters."
+  sources={{ light: statusFilterLight, dark: statusFilterDark }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Filter</th>
+<th>Options</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Complete</strong></td>
+<td><strong>Yes</strong> — completed submissions. <br/> <strong>No</strong> — submissions that were started but not completed.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Status</strong></td>
+<td><strong>New</strong>, <strong>Read</strong>, <strong>Approved</strong> — the review status set in the <strong>Status</strong> column.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Submission Type</strong></td>
+<td><strong>Production</strong> — real submissions. <br/> <strong>Test</strong> — submissions that a user with permission to test forms made on a form with <strong>Limit one per user</strong> turned on. Endatix marks them as tests so that testing doesn't use up that user's one response.</td>
+</tr>
+</tbody>
+</table>
+
+The filter button shows your selection — or, with more than two options selected or on a smaller screen, how many options are selected. To clear one filter, open it and click **Clear filters** at the bottom of its list.
+
+### Filter by Date
+
+**Last modified**, **Started**, **Completed**, and **Created** each have their own date filter:
+
+1. Hover over the column header and click its menu icon.
+2. Pick a **From** date, a **To** date, or both. The range includes both days.
+3. Click **Apply**.
+
+<ThemedImage
+  alt="Completed column menu with Asc, Desc, From and To date fields, Apply and Clear buttons, and Hide. An arrow points at the menu icon in the Completed column header."
+  sources={{ light: columnMenuLight, dark: columnMenuDark }}
+/>
+
+To remove the date filter, open the menu again and click **Clear**. Date filters on different columns combine — for example, submissions created in March and completed in April.
+
+### Filter by Submitter
+
+The **Submitter** column menu — and the **Email** column menu, when your workspace shows submitter emails — has a **Filter** box instead of dates. Type the respondent's full ID or email address and click **Apply**. The filter looks for an exact match, so part of an ID or address doesn't find anything.
+
+### Recognize Active Filters
+
+<ThemedImage
+  alt="Submissions filtered to Complete: Yes and sorted by Completed, newest first. The Completed column header shows a down arrow and a highlighted filter icon, which an arrow points at, and a Reset menu appears next to the filters."
+  sources={{ light: sortedFilteredLight, dark: sortedFilteredDark }}
+/>
+
+* The **Complete**, **Status**, and **Submission Type** buttons show the options you selected.
+* A column with an active date or submitter filter shows a highlighted filter icon in its header, even when you aren't hovering over it.
+* A **Reset Filters** button — or a **Reset** menu when the list is also sorted — appears next to the filters.
+
+When no submission matches your filters, the grid shows **No submissions match current filters.** with a **Reset Filters** button.
+
+## Sort Submissions
+
+Click a column title to sort by that column. Each click moves to the next step: ascending (arrow up), descending (arrow down), and back to the default order, newest first. You can also open a date or **Submitter** column's menu and click **Asc** or **Desc**, or **Clear sorting** to go back to the default order.
+
+The list is sorted by one column at a time; sorting by another column replaces the previous sort. On the **Complete** column, hover over the check mark icon to show its sort button. Question and submitter detail columns can't be sorted.
+
+:::info[Some columns sort only the current page]
+**Last modified**, **Started**, **Completed**, and **Created** sort all of the form's submissions. **Complete**, **Submitter**, **Time**, and **Status** reorder only the submissions on the page you're looking at — page 2 is sorted on its own. To sort by one of these columns across more submissions, show more rows per page first.
+:::
+
+### Clear Filters and Sorting
+
+The button next to the filters depends on what's applied:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Applied</th>
+<th>Button</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Filters only</td>
+<td><strong>Reset Filters</strong> — clears all filters.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Sorting only</td>
+<td><strong>Reset Sorting</strong> — returns to the default order, newest first.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Filters and sorting</td>
+<td><strong>Reset</strong> — a menu with <strong>Reset Filters</strong>, <strong>Reset Sorting</strong>, and <strong>Reset All</strong>, which clears both.</td>
+</tr>
+</tbody>
+</table>
+
+## Choose Columns
+
+### Show and Hide Columns
+
+Click **View** to open **Toggle Columns**, the list of every column the grid can show. A check mark means the column is shown; click a column to show or hide it. The menu closes after each click, so click **View** again to change another column.
+
+<ThemedImage
+  alt="Toggle Columns menu open under the View button. Complete, Last modified, Started, Completed, Created, Submitter, Time, Status, Full Name, and Appointment Type are checked; the other question columns, from Date Of Birth to Insurance Id, are not. A Reset Column Visibility button is next to View."
+  sources={{ light: viewColumnsLight, dark: viewColumnsDark }}
+/>
+
+Below the standard columns, the list has a column for each of the form's questions, named after the question's name — a question named `appointmentType` becomes **Appointment Type**. Question columns are hidden until you turn them on and are added at the right end of the grid; scroll the grid sideways if they're out of view. They're available for these question types: Single-Line Input, Long Text, Checkboxes, Radio Button Group, Dropdown, Multi-Select Dropdown, Yes/No (Boolean), Rating Scale, Slider, and Ranking. Open a submission to see answers to other questions, such as matrices, dynamic panels, file uploads, and signatures.
+
+To hide a date or **Submitter** column quickly, open its column menu and click **Hide**.
+
+### Reorder Columns
+
+Drag a column header to the left or right to move the column. The **⋯** column always stays first.
+
+### Reset the Column Layout
+
+Once you've changed the columns, a reset button appears next to **View**:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Changed</th>
+<th>Button</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Shown or hidden columns</td>
+<td><strong>Reset Column Visibility</strong> — shows the standard columns and hides the question columns again.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Column order</td>
+<td><strong>Reset Column Order</strong> — puts the columns back in their original order.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>Both</td>
+<td><strong>Reset</strong> — a menu with <strong>Reset Column Order</strong>, <strong>Reset Column Visibility</strong>, and <strong>Reset All</strong>. <strong>Reset All</strong> also clears the filters and sorting.</td>
+</tr>
+</tbody>
+</table>
+
+Your column choices are saved in your browser, separately for each form, and are there the next time you open the form's submissions.
+
+## Pages
+
+The bottom of the grid shows how many submissions match — for example, **0 of 15 row(s) selected.** means 15 submissions — and which page you're on.
+
+* **Rows per page** sets how many submissions a page shows: 10 (default), 20, 30, 40, or 50.
+* The arrow buttons go to the previous and next page. On wide screens, the double arrows go to the first and last page.
+
+## Work With a Submission
+
+### Open a Submission
+
+Click anywhere in a row to open the submission's **Submission Details** page, where you can read all of its answers.
+
+### Change the Status
+
+The **Status** column tracks your review progress. Click a submission's status and pick **New**, **Read**, or **Approved**. The change is saved immediately. Endatix doesn't change the status on its own — opening a submission leaves it **New** until you change it.
+
+### Submission Actions
+
+Click **⋯** at the start of a row for actions on that submission:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Action</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Edit</strong></td>
+<td>Opens the submission's answers for editing.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Share Links</strong></td>
+<td>Generates a short-lived link to the submission: <strong>Share</strong> to let someone continue and complete it, <strong>View</strong> for a read-only view, or <strong>Edit</strong> to change its answers.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>View Files</strong></td>
+<td>Lists the files uploaded with the submission.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Download Files</strong></td>
+<td>Downloads the files uploaded with the submission.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Delete</strong></td>
+<td>Deletes the submission after you confirm.</td>
+</tr>
+</tbody>
+</table>
+
+## Export Submissions
+
+**Export Submissions** downloads the form's submissions as a file — such as a CSV or Excel file — to analyze them in a spreadsheet or another tool. Your workspace's settings decide which export formats are available.
+
+## Important Considerations
+
+* **Column choices stay in one browser.** Shown, hidden, and reordered columns are saved in the browser you use, not in your Endatix account. They don't carry over to another browser or device, aren't shared with colleagues, and are lost if you clear your browser's data.
+* **Filters and sorting live in the web address.** They're kept when you go back from a submission or bookmark the page, but opening the Submissions page from the Forms list starts without them.
+* **Date filters use whole days in UTC.** Dates in the grid are shown in your own time zone, but **From** and **To** count full days in Coordinated Universal Time. If you're far from UTC, a submission made late in the evening or early in the morning can fall on the neighboring day.
+* **Some columns sort only the current page.** See [Sort Submissions](#sort-submissions).
+* **Smaller screens show fewer columns.** On a narrow screen, **Created**, **Completed**, and **Time** are hidden until you turn them on in **View** — unless you've already changed the columns for that form.
+* **Question columns follow the question's name, not its title.** Renaming a question in the Form Builder changes its column header. Give questions meaningful names, such as `appointmentType` rather than `question7`, so their columns are easy to recognize.
+
+## Related Documentation
+
+* [Submission Expiration](/docs/end-users/forms/submission-expiration) — how long respondents can resume an incomplete submission.
+* [Pre-filling and Personalization](/docs/end-users/forms/prefilling-and-personalization) — pass values into a form through its link.
+* [Custom Variables](/docs/end-users/forms/form-builder/custom-variables) — calculated values saved with each submission and shown on the Submission Details page.
+* [Collecting Submitters Data](/docs/guides/collecting-submitters-data) — identify respondents and add submitter detail columns such as **Email**.

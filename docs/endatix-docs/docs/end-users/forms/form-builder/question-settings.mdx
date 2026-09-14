@@ -1,0 +1,965 @@
+---
+title: Question Settings
+description: Set form-wide defaults for how questions look in an Endatix form — question numbering and numbering style, the required symbol, title, description, and error message alignment, question order, and text area behavior.
+sidebar_label: Question Settings
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import surveySettingsLight from "./question-settings-survey_light.png";
+import surveySettingsDark from "./question-settings-survey_dark.png";
+import panelNumberingLight from "./question-settings-panel-numbering_light.png";
+import panelNumberingDark from "./question-settings-panel-numbering_dark.png";
+import panelTitleAlignmentLight from "./question-settings-panel-title-alignment_light.png";
+import panelTitleAlignmentDark from "./question-settings-panel-title-alignment_dark.png";
+import recursiveNumberingLight from "./question-settings-recursive-numbering_light.png";
+import recursiveNumberingDark from "./question-settings-recursive-numbering_dark.png";
+import respondentView from "./question-settings-respondent-view.png";
+
+# Question Settings
+
+## What Are Question Settings?
+
+**Question Settings** are the form-wide defaults for how every question is presented: whether questions are numbered and in what style, which symbol marks a required question, where titles, descriptions, and error messages appear, whether questions are shuffled, and how text areas behave. Change a setting once and every question in the form follows it — a 40-question questionnaire stays consistent without editing each question.
+
+Numbered questions make long forms easier to navigate and talk about: a respondent can phone your helpdesk about "question 12", and a research team can map "Q7" straight to its codebook. A clear required symbol tells respondents up front which answers they can't skip, and left-aligned titles turn a list of short fields, such as contact details, into a compact block that's quick to fill out.
+
+In Endatix Hub, Question Settings are a category of the survey's settings in the **Form Builder**. Pages, panels, and individual questions can override most of them.
+
+## Where to Find Question Settings
+
+1. Open the form's **Designer** tab.
+2. Click an empty area of the design surface. The **Property Grid** shows the settings of the survey itself — the subtitle under the category name reads **Survey**.
+3. Click the **Question Settings** icon in the category bar on the right of the Property Grid.
+
+The screenshot in [step 1 of the example](#1-number-the-questions-and-change-the-required-symbol) shows the icon. To jump straight to a setting, type part of its name — for example, `numbering` — into **Type to search...** at the top of the Property Grid.
+
+## Settings at a Glance
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question order</strong></td>
+<td>Original</td>
+<td>Keeps questions in the order you designed them, or shuffles them for each respondent. See <a href="#question-order">Question Order</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question title alignment</strong></td>
+<td>Top</td>
+<td>Shows titles above (<strong>Top</strong>), below (<strong>Bottom</strong>), or to the left of (<strong>Left</strong>) the answer area. See <a href="#title-description-and-error-message-alignment">Title, Description, and Error Message Alignment</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question description alignment</strong></td>
+<td>Under the question title</td>
+<td>Shows descriptions under the title, under the input field, or not at all.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question numbering</strong></td>
+<td>No numbering</td>
+<td>Numbers the questions. See <a href="#question-numbering">Question Numbering</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question title pattern</strong></td>
+<td>1. Question Title *</td>
+<td>Sets the order of the number, the title, and the required symbol. See <a href="#required-symbol-and-title-pattern">Required Symbol and Title Pattern</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Required symbol(s)</strong></td>
+<td><code>*</code></td>
+<td>The text that marks required questions.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question indexing type</strong></td>
+<td><code>1.</code></td>
+<td>The first number or letter, and the characters around it. Shown once numbering is turned on. See <a href="#numbering-style">Numbering Style</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Error message alignment</strong></td>
+<td>Top</td>
+<td>Shows validation messages above or below the question.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Focus first question on a new page</strong></td>
+<td>Cleared</td>
+<td>Places the cursor in the first question whenever a page opens.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Restrict answer length</strong></td>
+<td><code>0</code> (no limit)</td>
+<td>The maximum number of characters for text answers. See <a href="#text-areas-and-answer-length">Text Areas and Answer Length</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Restrict comment length</strong></td>
+<td><code>0</code> (no limit)</td>
+<td>The maximum number of characters for comment boxes and <strong>Other</strong> text boxes.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Comment area height (in lines)</strong></td>
+<td>2 lines</td>
+<td>The visible height of comment boxes and <strong>Other</strong> text boxes.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Auto-expand text areas</strong></td>
+<td>Cleared</td>
+<td>Grows Long Text questions and comment boxes as the respondent types.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Allow users to resize text areas</strong></td>
+<td>Selected</td>
+<td>Shows a resize handle on Long Text questions and comment boxes.</td>
+</tr>
+</tbody>
+</table>
+
+## Example: Numbering and Aligning a Supplier Registration Form
+
+A supplier registration form has two pages. The first page collects the company's details and a **Primary contact** panel with three questions; the second asks about the supplier's products and services.
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>#</th>
+<th>Question type</th>
+<th>Question name</th>
+<th>Page</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>1</td>
+<td>Single-Line Input</td>
+<td><code>company_name</code></td>
+<td>Company details</td>
+<td>Required</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>2</td>
+<td>Single-Line Input</td>
+<td><code>registration_number</code></td>
+<td>Company details</td>
+<td>Required, with a description</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>3</td>
+<td>Single-Line Input (in the <strong>Primary contact</strong> panel)</td>
+<td><code>contact_name</code></td>
+<td>Company details</td>
+<td>Required</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>4</td>
+<td>Single-Line Input (Input type: <strong>Email</strong>, in the panel)</td>
+<td><code>contact_email</code></td>
+<td>Company details</td>
+<td>Required</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>5</td>
+<td>Single-Line Input (Input type: <strong>Phone Number</strong>, in the panel)</td>
+<td><code>contact_phone</code></td>
+<td>Company details</td>
+<td></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>6</td>
+<td>Checkboxes</td>
+<td><code>categories</code></td>
+<td>Products and services</td>
+<td>Required</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>7</td>
+<td>Long Text</td>
+<td><code>offering_description</code></td>
+<td>Products and services</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+The goal: number the main questions `Q1.`, `Q2.`, and so on, spell out "(required)" instead of an asterisk, give the contact questions their own `a)`, `b)`, `c)` sequence, and line the contact fields up in a compact two-column layout.
+
+### 1. Number the Questions and Change the Required Symbol
+
+Click an empty area of the design surface, then click the **Question Settings** icon. Set:
+
+1. **Question numbering** to **Auto-numbering**. Every question title now starts with a number.
+2. **Question indexing type** — which appears once numbering is on — to `Q1.`. The numbers become `Q1.`, `Q2.`, `Q3.`, …
+3. **Required symbol(s)** to `(required)`.
+
+<ThemedImage
+  alt="Property Grid Question Settings category for the survey, with Question numbering set to Auto-numbering, Required symbol(s) set to (required), and Question indexing type set to Q1. An arrow points at the Question Settings icon."
+  sources={{
+    light: useBaseUrl(surveySettingsLight),
+    dark: useBaseUrl(surveySettingsDark),
+  }}
+/>
+
+**Question title pattern** previews your choices — "Q1. Question Title (required)" — so you can check the result before looking at the questions.
+
+### 2. Number the Contact Questions Separately
+
+Select the **Primary contact** panel: click an empty spot inside the panel on the design surface, or click the category name at the top of the Property Grid and pick `primary_contact` from the list of form elements. Click the **Numbering** icon and set:
+
+1. **Question numbering** to **Reset on each panel**.
+2. **Question indexing type** to `a)`.
+
+<ThemedImage
+  alt="Property Grid Numbering category for the Primary contact panel, with Question numbering set to Reset on each panel and Question indexing type set to a). An arrow points at the Numbering icon."
+  sources={{
+    light: useBaseUrl(panelNumberingLight),
+    dark: useBaseUrl(panelNumberingDark),
+  }}
+/>
+
+The contact questions are now numbered `a)`, `b)`, `c)`. A panel with its own sequence doesn't use up the form's numbers, so the first question on the second page is `Q3.`, not `Q6.`.
+
+### 3. Align the Contact Titles to the Left
+
+With the panel still selected, click the **Question Settings** icon and set:
+
+1. **Question title alignment** to **Left**. The titles of the three contact questions move next to their input fields; the rest of the form keeps its titles on top.
+2. **Question title width** — which appears once titles are aligned to the left — to `220px`, so all three input fields start at the same position.
+
+<ThemedImage
+  alt="Property Grid Question Settings category for the Primary contact panel, with Question title alignment set to Left and Question title width set to 220px. An arrow points at the Question Settings icon."
+  sources={{
+    light: useBaseUrl(panelTitleAlignmentLight),
+    dark: useBaseUrl(panelTitleAlignmentDark),
+  }}
+/>
+
+### 4. Preview the Result
+
+Open the **Preview** tab. The main questions are numbered `Q1.` and `Q2.`, required questions end with "(required)", and the contact details form a compact block with their own `a)`–`c)` numbering:
+
+<img src={respondentView} width="600" alt="Preview of the Company details page: Q1. Company name (required), Q2. Company registration number (required) with its description, and a Primary contact panel with left-aligned titles a) Full name (required), b) Email address (required), and c) Phone number" />
+
+When everything looks right, click **Save**.
+
+## Question Numbering
+
+### Numbering Options
+
+**Question numbering** in the survey's Question Settings turns numbering on for the whole form:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Option</th>
+<th>What happens</th>
+<th>Numbers in the example form (without the panel settings from step 2)</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>No numbering</strong> (default)</td>
+<td>Questions have no numbers.</td>
+<td>—</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Auto-numbering</strong></td>
+<td>Questions are numbered in order through the whole form, including questions inside panels. Panel titles aren't numbered.</td>
+<td><code>1.</code>–<code>5.</code> on the first page, <code>6.</code>–<code>7.</code> on the second</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Reset on each page</strong></td>
+<td>Numbering starts again at the beginning of every page.</td>
+<td><code>1.</code>–<code>5.</code> on the first page, <code>1.</code>–<code>2.</code> on the second</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Recursive numbering</strong></td>
+<td>Panels get a number, and the questions inside a panel are numbered under it.</td>
+<td><code>1.</code>, <code>2.</code>, <code>3.</code> Primary contact (<code>3.1.</code>, <code>3.2.</code>, <code>3.3.</code>), then <code>4.</code>–<code>5.</code> on the second page</td>
+</tr>
+</tbody>
+</table>
+
+<ThemedImage
+  alt="Primary contact panel on the design surface with Recursive numbering: the panel is numbered 3. and its questions 3.1. Full name, 3.2. Email address, and 3.3. Phone number"
+  sources={{
+    light: useBaseUrl(recursiveNumberingLight),
+    dark: useBaseUrl(recursiveNumberingDark),
+  }}
+/>
+
+### Which Questions Get a Number
+
+* **Only questions the respondent can see.** A question hidden by a condition is skipped, and the numbers of the visible questions stay consecutive. When the condition shows the question, the numbers after it update immediately.
+* **Only questions with a visible title.** HTML questions, and questions whose **Question title alignment** is **Hidden**, don't get a number and don't use one up.
+* **Not questions that opt out.** Once numbering is on, every question has **Number this question** in its **Layout** category. Clear it for questions that shouldn't be counted, such as a consent checkbox at the end of the form; the next question takes the number instead.
+* **Panel titles only when asked.** A panel title is numbered with **Recursive numbering**, or when **Number this panel** is selected in the panel's **Numbering** category. A numbered panel uses up a number of its own.
+
+### Numbering Style
+
+**Question indexing type** sets what the first number looks like. The last number or letter in the value counts up; any characters around it are kept:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Question indexing type</th>
+<th>Questions are numbered</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><em>(empty — default)</em></td>
+<td><code>1.</code>, <code>2.</code>, <code>3.</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>1)</code></td>
+<td><code>1)</code>, <code>2)</code>, <code>3)</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>(1)</code></td>
+<td><code>(1)</code>, <code>(2)</code>, <code>(3)</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>Q1.</code></td>
+<td><code>Q1.</code>, <code>Q2.</code>, <code>Q3.</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>#3</code></td>
+<td><code>#3</code>, <code>#4</code>, <code>#5</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>5</code></td>
+<td><code>5</code>, <code>6</code>, <code>7</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>a)</code></td>
+<td><code>a)</code>, <code>b)</code>, <code>c)</code></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>A.</code></td>
+<td><code>A.</code>, <code>B.</code>, <code>C.</code></td>
+</tr>
+</tbody>
+</table>
+
+Start at any number to continue the numbering of a form that follows another one — `#3` begins at 3. Letters continue alphabetically, so Roman numerals aren't supported: `i.` gives `i.`, `j.`, `k.`.
+
+:::tip[Use plain numbers with Recursive numbering]
+Recursive numbering repeats the indexing type at every level. With `Q1.`, the first question inside panel `Q3.` becomes `Q3.Q1.`. Leave **Question indexing type** empty or use a plain number such as `1.` when panels are numbered recursively.
+:::
+
+### Numbering Inside Panels
+
+Select a panel (or a Dynamic Panel) and open its **Numbering** category to number its questions differently from the rest of the form:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Options</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Number this panel</strong></td>
+<td>Numbers the panel's title.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question numbering</strong></td>
+<td><strong>Auto-numbering</strong> (default) — the questions continue the form's numbering. <br/> <strong>Reset on each panel</strong> — the panel's questions get their own sequence, starting from the beginning, that doesn't use up the form's numbers. <br/> <strong>Recursive numbering</strong> — the panel gets a number, and its questions are numbered under it (<code>2.1.</code>, <code>2.2.</code>). <br/> <strong>No numbering</strong> — the questions inside the panel aren't numbered; the form's numbering continues after the panel.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question indexing type</strong></td>
+<td>The style of the panel's own sequence, such as <code>a)</code>. Without it, a reset sequence uses the form's style and starts again from the beginning.</td>
+</tr>
+</tbody>
+</table>
+
+Panel numbering builds on the form's numbering: when the survey's **Question numbering** is **No numbering**, the panel's settings have no effect.
+
+## Required Symbol and Title Pattern
+
+**Required symbol(s)** accepts any text: a symbol such as `*` or `!`, or a word such as `(required)`. The symbol appears only on required questions and panels. Click the reset icon in the field to restore the `*`.
+
+**Question title pattern** arranges the number, the title, and the required symbol. The options preview your current **Question indexing type** and **Required symbol(s)**:
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Question title pattern</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>1. Question Title *</strong> (default)</td>
+<td>Q1. Company name (required)</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>1. * Question Title</strong></td>
+<td>Q1. (required) Company name</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>1. Question Title</strong></td>
+<td>Q1. Company name</td>
+</tr>
+</tbody>
+</table>
+
+The pattern applies with or without numbering. With **1. Question Title**, required questions are still required, but nothing marks them — tell respondents which answers they must give, for example in the page description, so the error message doesn't come as a surprise.
+
+To make questions required and customize the message respondents see when they skip one, see [Validation](validation).
+
+## Title, Description, and Error Message Alignment
+
+### Question Title Alignment
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Option</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Top</strong> (default)</td>
+<td>The title is above the answer area.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Bottom</strong></td>
+<td>The title is below the answer area.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Left</strong></td>
+<td>The title is to the left of the answer area.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Hidden</strong></td>
+<td>The title, its number, and the description aren't shown. Available only for pages, panels, and individual questions.</td>
+</tr>
+</tbody>
+</table>
+
+**Left** suits short fields — names, dates, phone numbers — while long titles and choice lists are easier to read with **Top**. Multiple Textboxes and Dynamic Panel questions don't support **Left** and keep their titles on top.
+
+When questions on a page or in a panel are aligned to the left, the page's or panel's **Question Settings** category shows **Question title width**. Set it to a CSS width, such as `220px` or `30%`, to line up the input fields of all those questions.
+
+### Question Description Alignment
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Option</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Under the question title</strong> (default)</td>
+<td>The description is between the title and the answer area — read before answering.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Under the input field</strong></td>
+<td>The description is below the answer area — a good place for a hint that doesn't need to be read first, such as "As shown on your certificate of incorporation."</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Hidden</strong></td>
+<td>Descriptions aren't shown.</td>
+</tr>
+</tbody>
+</table>
+
+### Error Message Alignment
+
+Validation messages appear at the **Top** (default) or **Bottom** of each question. See [Validation](validation) for making questions required, adding validation rules, and writing error messages.
+
+### Overriding Alignment and Numbering
+
+Pages, panels, and questions can override the survey's settings. **Inherit** — the default at every level — uses the setting of the nearest page or panel that contains the element, and finally the survey's own setting.
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Survey setting</th>
+<th>Page (<strong>Question Settings</strong>)</th>
+<th>Panel (<strong>Question Settings</strong>, <strong>Numbering</strong>)</th>
+<th>Question (<strong>Layout</strong>)</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question order</strong></td>
+<td><strong>Question order on the page</strong></td>
+<td><strong>Question order within the panel</strong></td>
+<td>—</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question title alignment</strong></td>
+<td><strong>Question title alignment</strong></td>
+<td><strong>Question title alignment</strong></td>
+<td><strong>Question title alignment</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td>—</td>
+<td><strong>Question title width</strong></td>
+<td><strong>Question title width</strong></td>
+<td>—</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question description alignment</strong></td>
+<td>—</td>
+<td>—</td>
+<td><strong>Question description alignment</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Error message alignment</strong></td>
+<td><strong>Error message alignment</strong></td>
+<td><strong>Error message alignment</strong></td>
+<td><strong>Error message alignment</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question numbering</strong></td>
+<td>—</td>
+<td><strong>Question numbering</strong></td>
+<td><strong>Number this question</strong></td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Question indexing type</strong></td>
+<td>—</td>
+<td><strong>Question indexing type</strong></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+
+A Dynamic Panel's **Question Settings** category holds the same title alignment, title width, and error message alignment settings for the questions it repeats.
+
+## Question Order
+
+**Question order** set to **Random** shuffles the questions on each page for every respondent — useful in surveys where the order of questions could influence the answers, such as a set of statements respondents rate one after another.
+
+* **Questions stay on their own page.** Randomization never moves a question to another page.
+* **Panels move as a unit.** A panel is shuffled together with the questions around it. The questions inside it are shuffled within the panel, unless the panel's **Question order within the panel** is **Original**.
+* **Numbers follow the displayed order.** The first question a respondent sees is always `1.`, whichever question it is.
+* **The Designer keeps the original order.** Open the **Preview** tab to see the questions shuffled.
+
+To keep one page in a fixed order — for example, a page of demographic questions — set that page's **Question order on the page** to **Original**. To shuffle the choices of a question instead of the questions, see [Randomization of Choices](randomization-of-choices).
+
+## Text Areas and Answer Length
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Applies to</th>
+<th>Details</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Restrict answer length</strong></td>
+<td>Single-Line Input, Long Text, Multiple Textboxes</td>
+<td>The maximum number of characters; <code>0</code> (default) means no limit. A question's own <strong>Maximum character limit</strong> (<strong>Validation</strong> category) overrides it: <code>-1</code> (default) uses this setting, <code>0</code> removes the limit.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Restrict comment length</strong></td>
+<td>Comment boxes (<strong>Add a comment box</strong>) and <strong>Other</strong> text boxes</td>
+<td>The maximum number of characters; <code>0</code> (default) means no limit.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Comment area height (in lines)</strong></td>
+<td>Comment boxes and <strong>Other</strong> text boxes</td>
+<td>The number of lines visible before the box scrolls — 2 by default. Long Text questions have their own <strong>Input field height (in lines)</strong> in the <strong>Layout</strong> category (4 by default).</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Auto-expand text areas</strong></td>
+<td>Long Text questions, comment boxes, and <strong>Other</strong> text boxes</td>
+<td>The box grows taller as the respondent types, instead of scrolling. A Long Text question can override it with <strong>Expand input field dynamically</strong> (<strong>Layout</strong>).</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Allow users to resize text areas</strong></td>
+<td>Long Text questions and comment boxes</td>
+<td>Shows a handle in the corner of the box that respondents can drag to make it bigger. A Long Text question can override it with <strong>Enable resize handle</strong> (<strong>Layout</strong>).</td>
+</tr>
+</tbody>
+</table>
+
+## Focus First Question on a New Page
+
+When **Focus first question on a new page** is selected, the cursor is placed in the first question as soon as the form starts or the respondent moves to another page, so they can start typing right away. It's most useful on pages that begin with a text input, such as a name or reference number.
+
+## Important Considerations
+
+* **The required symbol and indexing type aren't translated.** Both are stored as plain text, so a word such as `(required)` or a prefix such as `Q` appears as typed in every language of a multilingual form. Use a symbol, such as `*`, and numbers without words when the form is translated. See [Form Translation](/docs/end-users/forms/translation-and-localization/form-translation).
+* **Submission details are always numbered.** The **Submission Details** page numbers questions in order — even when the form uses **No numbering** — so reviewers can refer to answers by number. The form's **Question indexing type** still applies there.
+* **Numbers aren't part of the collected data.** Answers are stored under each question's **Question name**, so renumbering or shuffling questions doesn't change how submissions are stored or exported.
+* **Refer to questions by name, not by number.** Numbers change when questions are added, moved, hidden by a condition, or shuffled. In conditions, validation rules, and [Text Piping](text-piping), always use question names such as `{company_name}`.
+* **Some settings are visible only in the Preview tab.** Random question order, focusing the first question, and error message alignment take effect when the form is filled out; the Designer shows numbering, required symbols, and alignment.
+
+## Related Documentation
+
+* [Validation](validation) — make questions required and write the error messages that **Error message alignment** positions.
+* [Form Navigation](form-navigation) — navigation buttons, the progress bar, and the table of contents.
+* [Form Display Modes](form-display-modes) — show all questions on one page or one question per page.
+* [Randomization of Choices](randomization-of-choices) — shuffle, pin, and group the choices of a question.
+* [Question Loops](question-loops) — repeat a set of questions with Dynamic Panels.
+
+## Technical Reference (JSON Schema)
+
+The example form looks like this in the **JSON Editor**:
+
+```json
+{
+  "title": "Supplier Registration",
+  "showQuestionNumbers": "on",
+  "questionStartIndex": "Q1.",
+  "requiredMark": "(required)",
+  "pages": [
+    {
+      "name": "company",
+      "title": "Company details",
+      "elements": [
+        {
+          "type": "text",
+          "name": "company_name",
+          "title": "Company name",
+          "isRequired": true
+        },
+        {
+          "type": "text",
+          "name": "registration_number",
+          "title": "Company registration number",
+          "description": "As shown on your certificate of incorporation.",
+          "isRequired": true
+        },
+        {
+          "type": "panel",
+          "name": "primary_contact",
+          "title": "Primary contact",
+          "showQuestionNumbers": "onpanel",
+          "questionStartIndex": "a)",
+          "questionTitleLocation": "left",
+          "questionTitleWidth": "220px",
+          "elements": [
+            {
+              "type": "text",
+              "name": "contact_name",
+              "title": "Full name",
+              "isRequired": true
+            },
+            {
+              "type": "text",
+              "name": "contact_email",
+              "title": "Email address",
+              "inputType": "email",
+              "isRequired": true
+            },
+            {
+              "type": "text",
+              "name": "contact_phone",
+              "title": "Phone number",
+              "inputType": "tel"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "offering",
+      "title": "Products and services",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "categories",
+          "title": "Which categories do you supply?",
+          "isRequired": true,
+          "choices": [
+            { "value": "raw_materials", "text": "Raw materials" },
+            { "value": "components", "text": "Components and parts" },
+            { "value": "logistics", "text": "Logistics and transport" },
+            { "value": "it_services", "text": "IT services" }
+          ]
+        },
+        {
+          "type": "comment",
+          "name": "offering_description",
+          "title": "Describe your products and services"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Properties left at their default values are omitted from the JSON.
+
+### Survey Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionOrder</code></td>
+<td><code>"initial"</code> | <code>"random"</code></td>
+<td><code>"initial"</code></td>
+<td><strong>Question order</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionTitleLocation</code></td>
+<td><code>"top"</code> | <code>"bottom"</code> | <code>"left"</code></td>
+<td><code>"top"</code></td>
+<td><strong>Question title alignment</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionDescriptionLocation</code></td>
+<td><code>"underTitle"</code> | <code>"underInput"</code> | <code>"hidden"</code></td>
+<td><code>"underTitle"</code></td>
+<td><strong>Question description alignment</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>showQuestionNumbers</code></td>
+<td><code>"off"</code> | <code>"on"</code> | <code>"onPage"</code> | <code>"recursive"</code></td>
+<td><code>"off"</code></td>
+<td><strong>Question numbering</strong>: No numbering, Auto-numbering, Reset on each page, Recursive numbering. <code>true</code> and <code>false</code> are accepted as <code>"on"</code> and <code>"off"</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionStartIndex</code></td>
+<td><code>string</code></td>
+<td><code>""</code></td>
+<td><strong>Question indexing type</strong>, such as <code>"Q1."</code> or <code>"a)"</code>. Empty means <code>1.</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionTitlePattern</code></td>
+<td><code>"numTitleRequire"</code> | <code>"numRequireTitle"</code> | <code>"numTitle"</code></td>
+<td><code>"numTitleRequire"</code></td>
+<td><strong>Question title pattern</strong>: 1. Question Title *, 1. * Question Title, 1. Question Title.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>requiredMark</code></td>
+<td><code>string</code></td>
+<td><code>"*"</code></td>
+<td><strong>Required symbol(s)</strong>. Not localizable.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionErrorLocation</code></td>
+<td><code>"top"</code> | <code>"bottom"</code></td>
+<td><code>"top"</code></td>
+<td><strong>Error message alignment</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>autoFocusFirstQuestion</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td><strong>Focus first question on a new page</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>maxTextLength</code></td>
+<td><code>number</code></td>
+<td><code>0</code></td>
+<td><strong>Restrict answer length</strong>. <code>0</code> means no limit.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>maxCommentLength</code></td>
+<td><code>number</code></td>
+<td><code>0</code></td>
+<td><strong>Restrict comment length</strong>. <code>0</code> means no limit.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>commentAreaRows</code></td>
+<td><code>number</code></td>
+<td>—</td>
+<td><strong>Comment area height (in lines)</strong>. When not set, comment boxes show 2 lines.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>autoGrowComment</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td><strong>Auto-expand text areas</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>allowResizeComment</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td><strong>Allow users to resize text areas</strong>.</td>
+</tr>
+</tbody>
+</table>
+
+### Page and Panel Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Applies to</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionOrder</code></td>
+<td><code>"default"</code> | <code>"initial"</code> | <code>"random"</code></td>
+<td>Pages, panels</td>
+<td><strong>Question order on the page</strong> / <strong>Question order within the panel</strong>. <code>"default"</code> inherits.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionTitleLocation</code></td>
+<td><code>"default"</code> | <code>"top"</code> | <code>"bottom"</code> | <code>"left"</code> | <code>"hidden"</code></td>
+<td>Pages, panels</td>
+<td><strong>Question title alignment</strong> for the questions inside. <code>"default"</code> inherits.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionTitleWidth</code></td>
+<td><code>string</code> (CSS width)</td>
+<td>Pages, panels</td>
+<td><strong>Question title width</strong> for left-aligned titles, such as <code>"220px"</code> or <code>"30%"</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionErrorLocation</code></td>
+<td><code>"default"</code> | <code>"top"</code> | <code>"bottom"</code></td>
+<td>Pages, panels</td>
+<td><strong>Error message alignment</strong> for the questions inside. <code>"default"</code> inherits.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>showNumber</code></td>
+<td><code>boolean</code></td>
+<td>Panels, Dynamic Panels (<code>paneldynamic</code>)</td>
+<td><strong>Number this panel</strong>. Default <code>false</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>showQuestionNumbers</code></td>
+<td><code>"default"</code> | <code>"onpanel"</code> | <code>"recursive"</code> | <code>"off"</code></td>
+<td>Panels, Dynamic Panels</td>
+<td><strong>Question numbering</strong> inside the panel: Auto-numbering, Reset on each panel, Recursive numbering, No numbering.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>questionStartIndex</code></td>
+<td><code>string</code></td>
+<td>Panels, Dynamic Panels</td>
+<td><strong>Question indexing type</strong> of the panel's own sequence.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>templateQuestionTitleLocation</code>, <code>templateQuestionTitleWidth</code>, <code>templateErrorLocation</code></td>
+<td>Same as <code>questionTitleLocation</code>, <code>questionTitleWidth</code>, <code>questionErrorLocation</code></td>
+<td>Dynamic Panels</td>
+<td>Title alignment, title width, and error message alignment for the repeated questions.</td>
+</tr>
+</tbody>
+</table>
+
+### Question Properties
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Applies to</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody className="custom-table-body">
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>titleLocation</code></td>
+<td><code>"default"</code> | <code>"top"</code> | <code>"bottom"</code> | <code>"left"</code> | <code>"hidden"</code></td>
+<td>Questions</td>
+<td><strong>Question title alignment</strong>. <code>"default"</code> inherits.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>descriptionLocation</code></td>
+<td><code>"default"</code> | <code>"underTitle"</code> | <code>"underInput"</code> | <code>"hidden"</code></td>
+<td>Questions</td>
+<td><strong>Question description alignment</strong>. <code>"default"</code> inherits.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>errorLocation</code></td>
+<td><code>"default"</code> | <code>"top"</code> | <code>"bottom"</code></td>
+<td>Questions</td>
+<td><strong>Error message alignment</strong>. <code>"default"</code> inherits.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>showNumber</code></td>
+<td><code>boolean</code></td>
+<td>Questions</td>
+<td><strong>Number this question</strong>. Default <code>true</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>maxLength</code></td>
+<td><code>number</code></td>
+<td>Single-Line Input (<code>text</code>), Long Text (<code>comment</code>)</td>
+<td><strong>Maximum character limit</strong>. <code>-1</code> (default) uses the survey's <code>maxTextLength</code>; <code>0</code> means no limit.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>rows</code></td>
+<td><code>number</code></td>
+<td>Long Text</td>
+<td><strong>Input field height (in lines)</strong>. Default <code>4</code>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><code>autoGrow</code>, <code>allowResize</code></td>
+<td><code>boolean</code></td>
+<td>Long Text</td>
+<td><strong>Expand input field dynamically</strong> and <strong>Enable resize handle</strong>. When not set, the survey's <code>autoGrowComment</code> and <code>allowResizeComment</code> apply.</td>
+</tr>
+</tbody>
+</table>
+
+### Example — Recursive Numbering with a Numbered Panel
+
+```json
+{
+  "showQuestionNumbers": "recursive",
+  "elements": [
+    { "type": "text", "name": "company_name", "title": "Company name" },
+    {
+      "type": "panel",
+      "name": "primary_contact",
+      "title": "Primary contact",
+      "elements": [
+        { "type": "text", "name": "contact_name", "title": "Full name" },
+        { "type": "text", "name": "contact_email", "title": "Email address" }
+      ]
+    },
+    { "type": "comment", "name": "notes", "title": "Anything else we should know?" }
+  ]
+}
+```
+
+The questions are numbered `1.` Company name, `2.` Primary contact (`2.1.` Full name, `2.2.` Email address), and `3.` Anything else we should know?
+
+### Example — Descriptions Under the Input and Errors at the Bottom
+
+```json
+{
+  "questionDescriptionLocation": "underInput",
+  "questionErrorLocation": "bottom",
+  "elements": [
+    {
+      "type": "text",
+      "name": "registration_number",
+      "title": "Company registration number",
+      "description": "As shown on your certificate of incorporation.",
+      "isRequired": true
+    },
+    {
+      "type": "text",
+      "name": "vat_number",
+      "title": "VAT number",
+      "description": "Shown above the input, overriding the survey setting.",
+      "descriptionLocation": "underTitle"
+    }
+  ]
+}
+```

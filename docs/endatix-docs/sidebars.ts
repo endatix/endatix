@@ -177,11 +177,20 @@ const sidebars: SidebarsConfig = {
           items: [
             "end-users/forms/form-builder/form-display-modes",
             "end-users/forms/form-builder/form-navigation",
+            "end-users/forms/form-builder/survey-logo",
+            "end-users/forms/form-builder/question-settings",
+            "end-users/forms/form-builder/thank-you-page",
+            "end-users/forms/form-builder/conditional-logic",
             "end-users/forms/form-builder/logic-expressions",
+            "end-users/forms/form-builder/custom-variables",
+            "end-users/forms/form-builder/triggers",
+            "end-users/forms/form-builder/validation",
             "end-users/forms/form-builder/question-loops",
             "end-users/forms/form-builder/randomization-of-choices",
             "end-users/forms/form-builder/blind-search",
             "end-users/forms/form-builder/carry-forward",
+            "end-users/forms/form-builder/text-piping",
+            "end-users/forms/form-builder/rich-text-formatting",
           ],
         },
         {
@@ -212,6 +221,23 @@ const sidebars: SidebarsConfig = {
           items: ["end-users/forms/submission-expiration"],
         },
         "end-users/forms/prefilling-and-personalization",
+      ],
+    },
+    {
+      type: "category",
+      label: "Submissions",
+      collapsed: false,
+      link: {
+        type: "generated-index",
+        slug: "end-users/submissions",
+        title: "Submissions",
+        description:
+          "Review, filter, and manage the responses collected by your forms.",
+      },
+      items: [
+        "end-users/submissions/viewing-submissions",
+        "end-users/submissions/submission-details",
+        "end-users/submissions/exporting-submissions",
       ],
     },
     {
