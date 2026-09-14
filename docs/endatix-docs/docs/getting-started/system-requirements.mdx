@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: System Requirements
-description: What Endatix needs before you install — .NET 10 for the API, Node.js 20.9+ for the Hub, SQL Server 2025+ or PostgreSQL with the pg_trgm extension, and supported browsers.
+description: What Endatix needs before you install — .NET 10 for the API, Node.js 20.9+ and pnpm 10.28+ for the Hub, SQL Server 2025+ or PostgreSQL with the pg_trgm extension, and supported browsers.
 ---
 
 import Link from "@docusaurus/Link";
@@ -55,8 +55,8 @@ Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Enda
         <a href="https://nodejs.org/">20.9 or newer</a> (tested up to 25.0)
       </Spec>
       <Spec label="pnpm">
-        <a href="https://pnpm.io/installation">9 or newer</a> (tested up to
-        10.33)
+        <a href="https://pnpm.io/installation">10.28 or newer</a> (12
+        recommended)
       </Spec>
       <Spec label="API">
         A reachable Endatix API —{" "}
@@ -76,7 +76,7 @@ Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Enda
 ```bash
 dotnet --list-sdks   # need 10.0.100 or newer
 node --version       # need v20.9.0 or newer
-pnpm --version       # need 9.0.0 or newer
+pnpm --version       # need 10.28.0 or newer; 12.x recommended
 docker --version     # optional — for Compose self-hosting
 ```
 

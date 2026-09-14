@@ -435,6 +435,9 @@ pre,
   padding-top: 0.25rem;
   font-size: 0.8125rem;
   color: var(--ifm-color-emphasis-700);
+  /* Card columns are narrow enough that the last line is often a single
+     orphaned word. Progressive enhancement - ignored where unsupported. */
+  text-wrap: pretty;
 }
 
 /* Card header — icon tile beside the eyebrow/title stack --- */
@@ -477,8 +480,12 @@ pre,
 /* Spec list (definition list rendered as a two-column table) - */
 .edx-specs {
   display: grid;
-  grid-template-columns: minmax(5rem, max-content) 1fr;
-  column-gap: 1rem;
+  /* The label column sizes to its longest label rather than reserving a flat
+     5rem: inside a card the value column is only ~200px, so every reclaimed
+     pixel is one less wrapped line. No column-gap - the row rule below is drawn
+     per cell, and a gap would punch a visible notch through it. The dt supplies
+     the gutter as padding instead, so the two borders meet. */
+  grid-template-columns: minmax(3.5rem, max-content) 1fr;
   margin: 0;
   font-size: 0.875rem;
 }
@@ -489,6 +496,18 @@ pre,
 }
 
 .edx-specs dd {
+  margin: 0;
+  /* Keeps a trailing link or code token from being left alone on its own line. */
+  text-wrap: pretty;
+}
+
+/* MDX wraps loose text in a <p> as soon as a Spec's children span more than one
+   source line - which Prettier does routinely. That block box pushes any
+   trailing <a>/<code> onto its own line and adds paragraph margin. Values are
+   phrases, never paragraphs, so flatten them back to inline. */
+.edx-specs dd > p,
+.edx-card__footer > p {
+  display: inline;
   margin: 0;
 }
 
@@ -503,8 +522,16 @@ pre,
   padding: 0.5rem 0;
 }
 
+.edx-specs dt {
+  padding-right: 1rem;
+}
+
 .edx-specs dd code {
   font-size: 0.8125rem;
+  /* Docusaurus centres inline code on the line box. In a one-line paragraph
+     that is invisible; in a wrapped spec value it inflates the line and leaves
+     a gap above a code token that wrapped onto its own line. */
+  vertical-align: baseline;
 }
 
 /* Pill ------------------------------------------------------ */
