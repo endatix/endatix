@@ -16,17 +16,17 @@ function filePathToUrl(filePath) {
   const blogMatch = filePath.match(/docs\/endatix-docs\/blog\/(.+)/);
   if (blogMatch) {
     const path = blogMatch[1].replace(/\.(md|mdx)$/, '').replace(/\/index$/, '');
-    return path ? `${BASE_URL}/blog/${path}/` : `${BASE_URL}/blog/`;
+    return path ? `${BASE_URL}/blog/${path}` : `${BASE_URL}/blog`;
   }
 
-  // pages: src/pages/foo.md → /foo/
+  // pages: src/pages/foo.md → /foo
   const pageMatch = filePath.match(/docs\/endatix-docs\/src\/pages\/(.+)/);
   if (pageMatch) {
     const path = pageMatch[1].replace(/\.(tsx?|md|mdx)$/, '').replace(/\/index$/, '');
-    return path ? `${BASE_URL}/${path}/` : `${BASE_URL}/`;
+    return path ? `${BASE_URL}/${path}` : `${BASE_URL}/`;
   }
 
-  // docs: docs/getting-started/foo.md → /docs/getting-started/foo/
+  // docs: docs/getting-started/foo.md → /docs/getting-started/foo
   const docsMatch = filePath.match(/docs\/endatix-docs\/docs\/(.+)/);
   if (!docsMatch) return null;
 
@@ -39,7 +39,7 @@ function filePathToUrl(filePath) {
     return null;
   }
 
-  return path ? `${BASE_URL}/docs/${path}/` : `${BASE_URL}/docs/`;
+  return path ? `${BASE_URL}/docs/${path}` : `${BASE_URL}/docs`;
 }
 
 async function submit(urlList) {
