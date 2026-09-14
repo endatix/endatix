@@ -234,7 +234,11 @@ const sidebars: SidebarsConfig = {
         description:
           "Review, filter, and manage the responses collected by your forms.",
       },
-      items: ["end-users/submissions/viewing-submissions"],
+      items: [
+        "end-users/submissions/viewing-submissions",
+        "end-users/submissions/submission-details",
+        "end-users/submissions/exporting-submissions",
+      ],
     },
     {
       type: "category",

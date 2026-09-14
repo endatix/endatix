@@ -1,0 +1,139 @@
+---
+title: Exporting Submissions
+description: Export a form's submissions as CSV, Excel, or JSON, generate a codebook, and export a single submission as a PDF.
+sidebar_label: Exporting Submissions
+---
+
+import ThemedImage from "@theme/ThemedImage";
+import needsPrepareLight from "./exports-dialog-needs-prepare_light.png";
+import needsPrepareDark from "./exports-dialog-needs-prepare_dark.png";
+import readyLight from "./exports-dialog-ready_light.png";
+import readyDark from "./exports-dialog-ready_dark.png";
+import codebookLight from "./exports-dialog-codebook_light.png";
+import codebookDark from "./exports-dialog-codebook_dark.png";
+import settingsLight from "./export-formats-settings_light.png";
+import settingsDark from "./export-formats-settings_dark.png";
+import createCodebookLight from "./export-formats-create-codebook_light.png";
+import createCodebookDark from "./export-formats-create-codebook_dark.png";
+import pdfHeaderLight from "./submission-details-header_light.png";
+import pdfHeaderDark from "./submission-details-header_dark.png";
+
+# Exporting Submissions
+
+## Overview
+
+**Export Submissions**, above the [Submissions grid](/docs/end-users/submissions/viewing-submissions), downloads a form's responses as a file — CSV, Excel, or JSON — or generates a **codebook**: a metadata file that describes the form's questions and choices for statistical software, without any response data. This article covers that button and dialog, where the available formats come from, and the separate per-submission PDF export.
+
+:::info[Two possible toolbars]
+Some workspaces still show **Export Submissions** as a dropdown listing CSV, Excel, and a fixed set of formats an administrator configured directly on the API. This article covers the newer dialog described below, which workspaces move to over time; the underlying ideas — pick a format, optionally filter, download — are the same either way.
+:::
+
+## Export a Format
+
+Click **Export Submissions** above the grid.
+
+### Prepare (First Export of a Form)
+
+The first time you export a given form, Endatix has to compile that form's questions into an export-friendly structure and backfill its existing submissions into it. You'll see:
+
+<ThemedImage
+  alt="Export submissions dialog showing Prepare required: this form's export schema has not been compiled yet, with Cancel and Prepare for export buttons"
+  sources={{ light: needsPrepareLight, dark: needsPrepareDark }}
+/>
+
+Click **Prepare for export**. This runs once per form — later exports (and other users exporting the same form) skip straight to the format picker below. Preparing doesn't change any submission; it only builds the export structure.
+
+### Choose a Format and Filters
+
+Once the form is prepared, the dialog shows the export format and, for row-based formats, filters:
+
+<ThemedImage
+  alt="Export submissions dialog: Ready to export summary, Export format set to CSV, Completion set to Completed, Include test submissions unchecked, and Created at, Started at, Completed at date ranges"
+  sources={{ light: readyLight, dark: readyDark }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Export format</strong></td>
+<td>Which of the workspace's configured formats to download. Grouped by <strong>Submissions</strong> (response data) and <strong>Codebook</strong> (metadata only) when both exist — see <a href="#where-formats-come-from">Where Formats Come From</a>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Completion</strong></td>
+<td><strong>Completed</strong> (default), <strong>Incomplete</strong>, or <strong>All</strong>. Reporting exports only include completed submissions that have been backfilled — an incomplete draft isn't in the export structure yet, so <strong>Incomplete</strong> or <strong>All</strong> may return fewer rows than you expect.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Include test submissions</strong></td>
+<td>Off by default. See <a href="/docs/end-users/submissions/viewing-submissions#filter-by-complete-status-and-submission-type">Submission Type</a> in the Submissions grid for what counts as a test submission.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Created at</strong>, <strong>Started at</strong>, <strong>Completed at</strong></td>
+<td>Optional date ranges. Prefilled from the matching date filters already applied to the Submissions grid, if any. <strong>Completed at</strong> only appears when <strong>Completion</strong> includes completed submissions.</td>
+</tr>
+</tbody>
+</table>
+
+Press **Export**, or <kbd>Enter</kbd>, to download the file with the current options.
+
+### Codebook Formats Skip the Filters
+
+Select a **Codebook** format and the filters disappear — a codebook describes the form itself, not its responses, so completion, test-submission, and date filters don't apply:
+
+<ThemedImage
+  alt="Export submissions dialog with Export format set to Codebook, showing the note Codebook exports do not use submission row filters (test or dates)"
+  sources={{ light: codebookLight, dark: codebookDark }}
+/>
+
+A codebook lists every question, its type, and its choice values and labels — the metadata a statistics package (SPSS, R, or Crunch.io) needs to make sense of a separate data file's column headers and coded values.
+
+### Rebuild Reporting Data
+
+Once a form is prepared, **Rebuild reporting data…** appears at the bottom of the dialog. Use it if the form's questions changed after you prepared it and an export is missing new columns, or an export failed and you want to retry the backfill. **Full recompile** replaces the export structure from the form's current questions instead of extending it — use it only if the structure looks wrong, since it discards any history of removed or renamed questions.
+
+## Where Formats Come From
+
+The formats listed in **Export format** are configured per workspace at **Settings → Organization → Export formats**, by someone with permission to manage organization settings:
+
+<ThemedImage
+  alt="Export formats settings page: a Tenant default export format card set to CSV, and a table of four formats — Codebook, CSV (Default), Excel (XLSX), and JSON — each with its export type and settings. An arrow points at the Create format button."
+  sources={{ light: settingsLight, dark: settingsDark }}
+/>
+
+Every new workspace starts with four formats — **CSV** (the tenant default), **Excel (XLSX)**, **JSON**, and **Codebook** — which cover the common cases. An administrator can add more: for example, a **Codebook (Shoji)** format, shown here mid-creation, produces a codebook in the variant Crunch.io expects instead of Endatix's own default shape:
+
+<ThemedImage
+  alt="Create export format panel: Name field, Export target set to Codebook, Delivery format set to JSON, and the Variant dropdown open showing Codebook (Standard Endatix codebook JSON) and Codebook (Shoji) (Crunch-compatible codebook JSON)"
+  sources={{ light: createCodebookLight, dark: createCodebookDark }}
+/>
+
+Each format also has **Column naming** and a **key separator** (under **Advanced**) that control how nested question keys — a choice within a multi-select question, for example — are joined into one column header, such as `question__choice`. As a regular user exporting submissions, you don't need to touch any of this; it's here so you know who to ask if a format you need isn't in the list, or if you're the one setting up a new workspace.
+
+## Exporting a Single Submission as PDF
+
+**Export format** downloads many submissions at once. To export exactly one submission, open it and use **Export PDF** in its own top bar:
+
+<ThemedImage
+  alt="Submission Details top bar with Back to submissions on the left and Export PDF, Copy JSON, Edit, and a more-options menu on the right"
+  sources={{ light: pdfHeaderLight, dark: pdfHeaderDark }}
+/>
+
+See [Submission Details](/docs/end-users/submissions/submission-details#the-top-bar) for what **Export PDF** includes and how it chooses a language.
+
+## Important Considerations
+
+* **Prepare is per form, not per user.** Once anyone prepares a form for export, every user exporting that form skips the prepare step — it isn't repeated per person or per browser.
+* **Reporting exports only cover completed, backfilled submissions.** A submission made after the last prepare or rebuild, or one still incomplete, may be missing until the next prepare/rebuild — or, for a completed one, until Endatix's own backfill catches up.
+* **A codebook has no rows to filter.** Completion, test-submission, and date filters apply only to Submissions-target formats.
+* **Full recompile discards export history.** It rebuilds the export structure from the form's current questions only — a question that was removed or renamed loses its column history in future exports.
+
+## Related Documentation
+
+* [Viewing Submissions](/docs/end-users/submissions/viewing-submissions) — the grid **Export Submissions** sits above, including the date and Submission Type filters this dialog prefills from.
+* [Submission Details](/docs/end-users/submissions/submission-details) — open one submission and export it as PDF or JSON.
+* [Customize Exports with Transformers](/docs/guides/customize-exports) — for developers: transform values (redact fields, flatten file objects) before they reach an export file.

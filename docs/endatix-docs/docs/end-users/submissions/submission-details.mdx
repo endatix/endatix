@@ -1,0 +1,280 @@
+---
+title: Submission Details
+description: Open a single submission in Endatix Hub to review its answers, metadata, submitter, dynamic variables, and calculated values.
+sidebar_label: Submission Details
+---
+
+import ThemedImage from "@theme/ThemedImage";
+import headerLight from "./submission-details-header_light.png";
+import headerDark from "./submission-details-header_dark.png";
+import actionsMenuLight from "./submission-details-actions-menu_light.png";
+import actionsMenuDark from "./submission-details-actions-menu_dark.png";
+import metadataLight from "./submission-details-metadata_light.png";
+import metadataDark from "./submission-details-metadata_dark.png";
+import overviewLight from "./submission-details-overview_light.png";
+import overviewDark from "./submission-details-overview_dark.png";
+import jumpToQuestionLight from "./submission-details-jump-to-question_light.png";
+import jumpToQuestionDark from "./submission-details-jump-to-question_dark.png";
+import viewOptionsLight from "./submission-details-view-options_light.png";
+import viewOptionsDark from "./submission-details-view-options_dark.png";
+import submitterTabLight from "./submission-details-submitter-tab_light.png";
+import submitterTabDark from "./submission-details-submitter-tab_dark.png";
+import dynamicVariablesTabLight from "./submission-details-dynamic-variables-tab_light.png";
+import dynamicVariablesTabDark from "./submission-details-dynamic-variables-tab_dark.png";
+
+# Submission Details
+
+## What Is Submission Details?
+
+**Submission Details** is the full-page view of one submission: every answer, when it was started and completed, who submitted it (if identified), and any dynamic variables or calculated values SurveyJS set while the respondent filled out the form. Open it to read a response in full, jump straight to one question, export it, or edit it.
+
+## Open a Submission
+
+Click any row in the [Submissions grid](/docs/end-users/submissions/viewing-submissions) to open that submission's Submission Details page. **Back to submissions** in the top bar returns you to the grid with the filters, sorting, and page you left it on.
+
+## The Top Bar
+
+<ThemedImage
+  alt="Submission Details top bar: Back to submissions on the left, and Export PDF, Copy JSON, Edit, and a more-options menu on the right"
+  sources={{ light: headerLight, dark: headerDark }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Back to submissions</strong></td>
+<td>Returns to the Submissions grid.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Export PDF</strong></td>
+<td>Downloads this submission as a PDF. Uses the submission's language unless you've turned off <strong>Display in &lt;language&gt;</strong> in <a href="#view-options">View Options</a>, in which case it uses the form's default language.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Copy JSON</strong></td>
+<td>Copies the submission's full data — metadata and answers — to the clipboard as JSON.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Edit</strong></td>
+<td>Opens the submission's answers for editing. Hidden on narrow screens; use the <strong>⋯</strong> menu instead.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>⋯</strong> (more options)</td>
+<td>View Files, Share Links, Download Files, and Delete — see <a href="#more-options">More Options</a>.</td>
+</tr>
+</tbody>
+</table>
+
+### More Options
+
+Click **⋯** for actions that don't fit in the top bar:
+
+<ThemedImage
+  alt="More options menu open: View Files, Share Links, Download Files, and Delete. An arrow points at the more-options button."
+  sources={{ light: actionsMenuLight, dark: actionsMenuDark }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Action</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>View Files</strong></td>
+<td>Opens the list of files this submission's respondent uploaded.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Share Links</strong></td>
+<td>Generates a short-lived link to <strong>Share</strong> (continue and complete), <strong>View</strong> (read-only), or <strong>Edit</strong> this submission.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Download Files</strong></td>
+<td>Downloads the files uploaded with this submission.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Delete</strong></td>
+<td>Deletes the submission after you confirm, then returns you to the Submissions grid.</td>
+</tr>
+</tbody>
+</table>
+
+On narrower screens, this menu also carries **Edit** and a **Status** shortcut that the wider layout already shows elsewhere.
+
+## Metadata
+
+Below the top bar, a card summarizes the submission:
+
+<ThemedImage
+  alt="Metadata card: Status (Read), Is Complete (Yes), Created at, Last modified, Started at, Completed at, Completion time, and Submission language"
+  sources={{ light: metadataLight, dark: metadataDark }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Cell</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Status</strong></td>
+<td>The review status. Click it to change it the same way as <a href="/docs/end-users/submissions/viewing-submissions#change-the-status">Change the Status</a> in the grid.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Is Complete</strong></td>
+<td><strong>Yes</strong> or <strong>No</strong>.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Created at</strong>, <strong>Last modified</strong>, <strong>Started at</strong>, <strong>Completed at</strong></td>
+<td>The same timestamps shown as columns in the Submissions grid. A dash means that timestamp doesn't apply yet.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Completion time</strong></td>
+<td>How long the respondent took, from start to completion, written out in full (for example <strong>19 minutes 0 seconds</strong>). A dash for incomplete submissions.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Submission language</strong></td>
+<td>The language the respondent's browser was using, or <strong>default</strong> when none was stored. Hover the info icon for how it relates to the <strong>Display in &lt;language&gt;</strong> view option.</td>
+</tr>
+</tbody>
+</table>
+
+A **This is a test submission** banner appears above these cells for [test submissions](/docs/end-users/submissions/viewing-submissions#filter-by-complete-status-and-submission-type) — ones made by a user with permission to test forms, on a form with **Limit one per user** turned on.
+
+## Submission Answers
+
+The rest of the page is a set of tabs. **Submission Answers**, the default tab, lists every page and question of the form with the respondent's answer:
+
+<ThemedImage
+  alt="Submission Answers tab: tab bar, Jump to Question search, View button, page 1 Patient Information with its first questions answered, and a Quick Navigation sidebar listing every page and question"
+  sources={{ light: overviewLight, dark: overviewDark }}
+/>
+
+* **Pages are numbered** in the order the respondent went through them, each with its questions underneath.
+* **Each question card** shows the question's number (if it's numbered in the [Form Builder](/docs/end-users/forms/form-builder/question-settings)) and type, its title, and the answer rendered the way its question type displays a value — a rating shows stars, a signature shows the drawn image, a file question lists the uploaded file.
+* **Quick Navigation**, on the right, lists every page and question as a jump link; click one to scroll to it and highlight its card.
+
+### Jump to Question
+
+Click **Jump to Question...** — or press <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on macOS) — to search by title, question type, or number:
+
+<ThemedImage
+  alt="Jump to Question dialog with a search box and a list of questions grouped by page, each showing its number and type"
+  sources={{ light: jumpToQuestionLight, dark: jumpToQuestionDark }}
+/>
+
+Type part of a title, a type such as `radiogroup`, or a number such as `#12`, then select a result to scroll to that question and highlight it.
+
+### View Options
+
+Click **View** to change what the Submission Answers tab includes:
+
+<ThemedImage
+  alt="View Options menu open: Show Invisible Items, Show Read-only Questions, and Show Personalized Items, all checked, above a Reset to Default button. An arrow points at the View button."
+  sources={{ light: viewOptionsLight, dark: viewOptionsDark }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Option</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Show Invisible Items</strong></td>
+<td>Includes pages and questions that <a href="/docs/end-users/forms/form-builder/conditional-logic">conditional logic</a> hid from the respondent, marked with an eye-off icon. Cleared, they're left out entirely — not just hidden — so Quick Navigation and Jump to Question only list what the respondent actually saw.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Show Read-only Questions</strong></td>
+<td>Reserved for a future release; toggling it has no visible effect on this build.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Show Personalized Items</strong></td>
+<td>When a question's title uses <a href="/docs/end-users/forms/form-builder/text-piping">text piping</a> or a <a href="/docs/end-users/forms/form-builder/custom-variables">custom variable</a>, highlights the piped-in value in the title so you can see what was substituted. Cleared, titles show as plain text.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Display in &lt;language&gt;</strong></td>
+<td>Only shown when the submission has a stored language. Switches the question titles, descriptions, and choices between that language and the form's default. Also changes the language <strong>Export PDF</strong> uses.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Reset to Default</strong></td>
+<td>Turns every option back on.</td>
+</tr>
+</tbody>
+</table>
+
+Your choices are saved in your browser and apply the next time you open any submission's answers, until you change them again.
+
+## Submitter
+
+The **Submitter** tab shows who submitted the form, when Endatix could identify them:
+
+<ThemedImage
+  alt="Submitter tab showing a populated Submitter ID and Submitter record ID, Test Submission set to No, and a No submitter profile empty state below. An arrow points at the Submitter tab."
+  sources={{ light: submitterTabLight, dark: submitterTabDark }}
+/>
+
+<table style={{ backgroundColor: 'var(--ifm-background-color)' }}>
+<thead>
+<tr>
+<th>Field</th>
+<th>Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Submitter ID</strong></td>
+<td>The same ID shown in the grid's <strong>Submitter</strong> column, in full. Click the copy icon to copy it.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Submitter record ID</strong></td>
+<td>Endatix's internal ID for the submitter record this submission is linked to.</td>
+</tr>
+<tr style={{ backgroundColor: 'transparent' }}>
+<td><strong>Test Submission</strong></td>
+<td><strong>Yes</strong> or <strong>No</strong> — the same flag the <strong>Submission Type</strong> filter in the grid uses.</td>
+</tr>
+</tbody>
+</table>
+
+An anonymous submission — one Endatix couldn't tie to an identified respondent — shows a dash for both IDs instead. Below the fact cards, a table lists any saved **submitter profile** fields (a snapshot taken when the submission was created); a submission with none shows **No submitter profile**, as in the screenshot above. See [Collecting Submitters Data](/docs/guides/collecting-submitters-data) for identifying respondents and capturing profile fields.
+
+## Dynamic Variables
+
+The **Dynamic Variables** tab lists runtime values SurveyJS set from the submission's metadata or JavaScript while the form was open:
+
+<ThemedImage
+  alt="Dynamic Variables tab listing one variable, @brand_name with value Spotify, plus an Advanced Logic Debugging panel and a Security Notice about masked sensitive variables. An arrow points at the Dynamic Variables tab."
+  sources={{ light: dynamicVariablesTabLight, dark: dynamicVariablesTabDark }}
+/>
+
+Each row shows the variable's `@name` and its value, with a copy button. A variable is masked as a row of dots when its name contains a word such as `secret`, `key`, `password`, `token`, `hash`, `email`, or `phone` — hover the masked value to confirm which variable it is without revealing it. A form with no dynamic variables shows an empty state instead of the table.
+
+## Calculated Values
+
+The **Calculated Values** tab lists the form's [custom variables](/docs/end-users/forms/form-builder/custom-variables) that have an expression — read-only values SurveyJS recalculated during the submission. Each row shows the variable's current value and whether it's **In result** (saved with the submission's data) or **Not in result**. Large numbers are shortened, for example `1.2K` for `1200`; click **Copy JSON** in the top bar to see the exact value. A form with no such variables shows an empty state instead of the table. See [Custom Variables](/docs/end-users/forms/form-builder/custom-variables#5-review-the-saved-values) for a populated example of this tab.
+
+## Important Considerations
+
+* **Invisible items are excluded, not just hidden, by default.** With **Show Invisible Items** off (the default is on), a question a condition hid from the respondent doesn't appear anywhere on the page — not in Submission Answers, Jump to Question, or Quick Navigation.
+* **View Options are per-browser, not per-submission.** They're saved locally and apply to every submission you open afterward, the same way column choices work in the [Submissions grid](/docs/end-users/submissions/viewing-submissions#important-considerations).
+* **Sensitive-variable masking is name-based.** Endatix masks a dynamic variable by matching words in its *name*, not by inspecting its value. Name a variable so its purpose — and sensitivity — is obvious.
+* **Copy JSON copies everything, including any sensitive dynamic variables.** Unlike the Dynamic Variables tab, the raw JSON isn't masked. Share it only with people who should see the underlying data.
+
+## Related Documentation
+
+* [Viewing Submissions](/docs/end-users/submissions/viewing-submissions) — the grid this page opens from.
+* [Custom Variables](/docs/end-users/forms/form-builder/custom-variables) — define the values that appear on the Calculated Values tab.
+* [Text Piping](/docs/end-users/forms/form-builder/text-piping) and [Conditional Logic](/docs/end-users/forms/form-builder/conditional-logic) — the form features behind personalized titles and invisible items.
+* [Collecting Submitters Data](/docs/guides/collecting-submitters-data) — identify respondents and capture the profile fields shown on the Submitter tab.
