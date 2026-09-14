@@ -225,6 +225,19 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Submissions",
+      collapsed: false,
+      link: {
+        type: "generated-index",
+        slug: "end-users/submissions",
+        title: "Submissions",
+        description:
+          "Review, filter, and manage the responses collected by your forms.",
+      },
+      items: ["end-users/submissions/viewing-submissions"],
+    },
+    {
+      type: "category",
       label: "Administration",
       collapsed: false,
       link: {
