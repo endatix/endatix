@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: System Requirements
-description: What Endatix needs before you install — .NET 10 for the API, Node.js 20.9+ and pnpm 10.28+ for the Hub, SQL Server 2025+ or PostgreSQL with the pg_trgm extension, and supported browsers.
+description: What Endatix needs before you install — .NET 10 for the API, Node.js 20.9+ and pnpm 10.34.5+ for the Hub, SQL Server 2025+ or PostgreSQL with the pg_trgm extension, and supported browsers.
 ---
 
 import Link from "@docusaurus/Link";
@@ -55,8 +55,8 @@ Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Enda
         <a href="https://nodejs.org/">20.9 or newer</a> (tested up to 25.0)
       </Spec>
       <Spec label="pnpm">
-        <a href="https://pnpm.io/installation">10.28 or newer</a> (12
-        recommended)
+        <a href="https://pnpm.io/installation">10.34.5 or newer</a> (12
+        recommended) — <a href="#pnpm-versions">not via Corepack</a>
       </Spec>
       <Spec label="API">
         A reachable Endatix API —{" "}
@@ -76,9 +76,31 @@ Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Enda
 ```bash
 dotnet --list-sdks   # need 10.0.100 or newer
 node --version       # need v20.9.0 or newer
-pnpm --version       # need 10.28.0 or newer; 12.x recommended
+pnpm --version       # need 10.34.5 or newer; 12.x recommended
 docker --version     # optional — for Compose self-hosting
 ```
+
+### pnpm versions
+
+The Hub keeps all pnpm settings — dependency overrides, the lifecycle-script allowlist, and the supply-chain defaults — in `pnpm-workspace.yaml`. pnpm 10.34.5 is the oldest release that reads every one of them *and* is patched against [GHSA-vx52-2968-3vc6](https://github.com/advisories/GHSA-vx52-2968-3vc6), where a `pnpm-workspace.yaml` can exfiltrate environment secrets through proxy settings.
+
+**pnpm 11 is not supported**: it requires Node.js 22.13 or newer, while the Hub still supports Node.js 20.9. Use 10.34.5+ or 12.
+
+:::warning[Do not use Corepack]
+Corepack cannot run pnpm 12 ([corepack#873](https://github.com/nodejs/corepack/issues/873)), which is why the Hub ships no `packageManager` field. Install pnpm standalone:
+
+```bash
+# macOS / Linux / WSL
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.4.1 sh -
+```
+
+```powershell
+# Windows PowerShell
+$env:PNPM_VERSION="12.4.1"; iwr https://get.pnpm.io/install.ps1 -UseBasicParsing | iex
+```
+
+If `pnpm --version` still prints `10.x` after installing 12, Corepack is intercepting — run `corepack disable pnpm` and reinstall.
+:::
 
 ## Databases
 
