@@ -1,19 +1,13 @@
-import Heading from "@theme/Heading";
-import type { Props } from "@theme/NotFound/Content";
+import React from "react";
 import clsx from "clsx";
-import React, { type ReactNode } from "react";
+import type { Props } from "@theme/NotFound/Content";
+import Heading from "@theme/Heading";
 import CardGrid from "@site/src/components/CardGrid";
 import LinkCard from "@site/src/components/LinkCard";
 import Sheep from "@site/src/components/Sheep";
 
-/**
- * A 404 that should never need scrolling: the sheep sits beside the copy rather
- * than above it, and the only way out is the two doc roots the navbar offers.
- * Below 720px the row stacks and re-centres.
- *
- * The numeral is decoration - the headline is the h1.
- */
-export default function NotFoundContent({ className }: Props): ReactNode {
+/** Swizzled classic NotFound body. Layout / SEO stay in the default wrapper. */
+export default function NotFoundContent({ className }: Props): React.ReactNode {
   return (
     <main className={clsx("container margin-vert--lg edx-notfound", className)}>
       <div className="edx-notfound__hero">
