@@ -33,6 +33,10 @@ Registered globally in [`src/theme/MDXComponents.tsx`](src/theme/MDXComponents.t
 
 Homepage-only (not MDX): `HomepageFeatures` (feature row), `CallToAction` (landing CTA).
 
+Theme-only (not MDX): `Sheep` (`src/components/Sheep`) — decorative CSS sheep for the 404. Swizzle `@docusaurus/theme-classic` **`NotFound/Content` only** into `src/theme/NotFound/Content` (keep the default Layout wrapper). Drawing tokens (`--edx-sheep-*`) live in the light/dark blocks of `endatix-theme.css`; rules under `.edx-notfound` / `.edx-sheep`. Do not add a second `:root` / `[data-theme="dark"]` block.
+
+Hosting: `staticwebapp.config.json` rewrites HTTP 404 → `/404.html`. Deploy copies that file into `build/` — never use `navigationFallback` to `index.html` for this site.
+
 Classes (`edx-grid`, `edx-card`, …) live in `src/css/endatix-theme.css` under `DOC CARDS & SPEC LISTS`. Prefer the tags above; do not paste the class markup into pages.
 
 ```mdx

@@ -71,6 +71,13 @@
   --edx-accent-violet: #6d3fd4;
   --edx-accent-green: #047857;
   --edx-accent-amber: #b45309;
+
+  /* --- CSS sheep (404 / error illustration) --- */
+  --edx-sheep-wool: var(--ifm-color-primary);
+  --edx-sheep-face: #253858;
+  --edx-sheep-leg: #4a6080;
+  --edx-sheep-leg-ring: rgb(255 255 255 / 0.28);
+  --edx-sheep-shadow: rgb(0 84 209 / 0.22);
 }
 
 /* ============================================================
@@ -124,6 +131,13 @@
   --edx-accent-violet: #a78bfa;
   --edx-accent-green: #34d399;
   --edx-accent-amber: #fbbf24;
+
+  /* Sheep: dim vs light-mode primary so it does not glow on the dark page. */
+  --edx-sheep-wool: oklch(52% 0.125 260);
+  --edx-sheep-face: oklch(34% 0.045 260);
+  --edx-sheep-leg: oklch(44% 0.02 260);
+  --edx-sheep-leg-ring: rgb(255 255 255 / 0.09);
+  --edx-sheep-shadow: oklch(22% 0.02 260);
 }
 
 /* ============================================================
@@ -628,4 +642,262 @@ pre,
 /* Narrower tracks — fits three link cards on a desktop content column. */
 .edx-grid--compact {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+
+/* ============================================================
+   404 / NOT FOUND  (prefix: edx-notfound)
+   Hero is sheep + copy side-by-side so recovery cards stay above the fold.
+   ============================================================ */
+.edx-notfound {
+  max-width: 46rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.edx-notfound__hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.edx-notfound__copy {
+  min-width: 0;
+}
+
+.edx-notfound__hero .edx-sheep {
+  flex: 0 0 auto;
+  --edx-sheep-scale: 0.8em;
+  margin: 0 0 2.6em;
+}
+
+.edx-notfound__code {
+  margin: 0 0 0.25rem;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  color: color-mix(in oklch, var(--ifm-font-color-base) 20%, transparent);
+  user-select: none;
+}
+
+[data-theme="dark"] .edx-notfound__code {
+  color: color-mix(in oklch, var(--ifm-font-color-base) 28%, transparent);
+}
+
+.edx-notfound__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.edx-notfound__lede {
+  margin: 0;
+  max-width: 26rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-700);
+  text-wrap: pretty;
+}
+
+@media (max-width: 720px) {
+  .edx-notfound__hero {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .edx-notfound__lede {
+    margin-inline: auto;
+  }
+}
+
+/* ============================================================
+   CSS SHEEP  (prefix: edx-sheep)
+   Markup matches Hub SheepBuddy / corp 404; draw only under .edx-sheep.
+   Tokens live in the light/dark blocks at the top of this file.
+   ============================================================ */
+@keyframes edx-sheep-bob {
+  0% {
+    top: 0;
+  }
+  50% {
+    top: 0.2em;
+  }
+}
+
+/*
+ * Sized in `em` via `--edx-sheep-scale`. Legs/shadow sit outside the body box —
+ * reserve with margin, not padding (padding changes the % containing block).
+ */
+.edx-sheep {
+  display: inline-block;
+  position: relative;
+  font-size: var(--edx-sheep-scale, 1.1em);
+  margin: 1.5rem 0 3.4em;
+}
+
+@media (max-width: 640px) {
+  .edx-sheep {
+    --edx-sheep-scale: 0.72em;
+  }
+}
+
+.edx-sheep * {
+  transition: transform 0.3s;
+}
+
+.edx-sheep .top {
+  position: relative;
+  top: 0;
+  z-index: 1;
+  animation: edx-sheep-bob 1s infinite;
+}
+
+.edx-sheep:hover .top {
+  animation-play-state: paused;
+}
+
+.edx-sheep:hover .head {
+  transform: rotate(0deg);
+}
+
+.edx-sheep:hover .head .eye {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.edx-sheep:hover .head .eye::before {
+  right: 30%;
+}
+
+.edx-sheep .body {
+  display: inline-block;
+  width: 7em;
+  height: 7em;
+  margin-right: -3em;
+  border-radius: 100%;
+  background: var(--edx-sheep-wool);
+  position: relative;
+  vertical-align: middle;
+}
+
+.edx-sheep .head {
+  display: inline-block;
+  width: 5em;
+  height: 5em;
+  border-radius: 100%;
+  background: var(--edx-sheep-face);
+  vertical-align: middle;
+  position: relative;
+  top: 1em;
+  transform: rotate(30deg);
+}
+
+.edx-sheep .head::before {
+  content: "";
+  display: inline-block;
+  width: 80%;
+  height: 50%;
+  background: var(--edx-sheep-face);
+  position: absolute;
+  bottom: 0;
+  right: -10%;
+  border-radius: 50% 40%;
+}
+
+.edx-sheep .head .eye {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border-radius: 100%;
+  background: #fff;
+  position: absolute;
+  overflow: hidden;
+}
+
+.edx-sheep .head .eye::before {
+  content: "";
+  display: inline-block;
+  width: 50%;
+  height: 50%;
+  border-radius: 100%;
+  background: #000;
+  position: absolute;
+  right: 10%;
+  bottom: 10%;
+  transition: all 0.3s;
+}
+
+.edx-sheep .head .eye.one {
+  right: -2%;
+  top: 1.7em;
+}
+
+.edx-sheep .head .eye.two {
+  right: 2.5em;
+  top: 1.7em;
+}
+
+.edx-sheep .head .ear {
+  width: 50%;
+  height: 30%;
+  border-radius: 100%;
+  background: var(--edx-sheep-face);
+  position: absolute;
+}
+
+.edx-sheep .head .ear.one {
+  left: -10%;
+  top: 5%;
+  transform: rotate(-30deg);
+}
+
+.edx-sheep .head .ear.two {
+  top: 2%;
+  right: -5%;
+  transform: rotate(20deg);
+}
+
+.edx-sheep .legs {
+  display: inline-block;
+  position: absolute;
+  top: 80%;
+  left: 10%;
+  z-index: 0;
+}
+
+.edx-sheep .legs .leg {
+  display: inline-block;
+  width: 0.5em;
+  height: 2.5em;
+  margin: 0.2em;
+  border-radius: 0.12em;
+  background: var(--edx-sheep-leg);
+  box-shadow: 0 0 0 1px var(--edx-sheep-leg-ring);
+}
+
+.edx-sheep::before {
+  content: "";
+  display: inline-block;
+  position: absolute;
+  top: 112%;
+  left: 0;
+  width: 100%;
+  height: 18%;
+  border-radius: 100%;
+  background: var(--edx-sheep-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edx-sheep .top {
+    animation: none;
+  }
+
+  .edx-sheep * {
+    transition: none;
+  }
 }
