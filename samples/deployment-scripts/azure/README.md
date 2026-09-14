@@ -14,7 +14,7 @@ Install and sign in before you start:
 - **Azure CLI (`az`)** — install and run `az login` ([install docs](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest))
 - **SWA CLI (`swa`)** — required when `hubDeploymentMode` is `'static-site'` (default) ([install docs](https://azure.github.io/static-web-apps-cli/docs/use/install))
 - **.NET 10 SDK** — build and publish the Endatix API
-- **Node.js 22 + pnpm 10** — build the Endatix Hub
+- **Node.js 22 + pnpm 12** (pnpm 10.34.5+ also works) — build the Endatix Hub
 
 ### Directory layout
 
