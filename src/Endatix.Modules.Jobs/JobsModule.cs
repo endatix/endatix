@@ -1,4 +1,5 @@
 using System.Reflection;
+using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Modules;
@@ -27,7 +28,7 @@ namespace Endatix.Modules.Jobs;
 /// on its own it leaves enqueued rows in <c>Pending</c>.
 /// </para>
 /// </remarks>
-public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations
+public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpoints
 {
     public static readonly JobsModule Instance = new();
 

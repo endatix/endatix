@@ -83,7 +83,15 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// <summary>Human-readable phase, e.g. "Streaming row 4,500 of 10,000".</summary>
     public string? StatusMessage { get; private set; }
 
-    /// <summary>Set when the job reaches <see cref="JobStatus.Failed"/> or <see cref="JobStatus.DeadLettered"/>.</summary>
+    /// <summary>
+    /// Why the most recent attempt failed. Set on <see cref="JobStatus.Failed"/> and
+    /// <see cref="JobStatus.DeadLettered"/>, and also on <see cref="JobStatus.Retrying"/>, where it
+    /// describes the attempt just ended rather than the job.
+    /// </summary>
+    /// <remarks>
+    /// Must be author-written text that is safe to show an end user: the job status endpoint returns
+    /// this column verbatim, so an exception message assigned here reaches the caller.
+    /// </remarks>
     public string? ErrorMessage { get; private set; }
 
     /// <summary>Requesting user; null for system-enqueued work such as webhook fan-out.</summary>

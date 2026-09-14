@@ -52,6 +52,12 @@ internal static class EndatixWebApplicationFactoryConfiguration
         // Deployment-scoped and off by default, so the tenant management endpoints would 404 here.
         builder.UseSetting("Endatix:FeatureFlags:MultiTenancy", "true");
 
+        // Jobs is PostgreSQL-only and fails startup deliberately on anything else, so the flag
+        // follows the provider this run is using. Tests that need the module skip on SQL Server.
+        builder.UseSetting(
+            "Endatix:FeatureFlags:JobsModule",
+            (provider == TestDatabaseProvider.PostgreSql).ToString());
+
         var auth = IntegrationTestAuthSettings.FromEnvironment();
         builder.UseSetting("Endatix:Auth:Providers:Keycloak:Enabled", "false");
         builder.UseSetting("Endatix:Auth:Providers:EndatixJwt:Enabled", "true");
