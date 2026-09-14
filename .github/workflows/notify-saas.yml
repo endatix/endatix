@@ -1,0 +1,87 @@
+# Tell endatix-saas which version of the Endatix packages was just released.
+#
+# The SaaS host compiles against Endatix.* as NuGet packages, pinned to a single
+# $(EndatixVersion) in its Directory.Packages.props. That pin used to move by hand, which is
+# how the ci-saas deployment ended up running an image built against 0.7.6 while its chart
+# had already moved to 0.7.7-canary.1 — the chart rendered probe paths the image did not
+# serve and the pod restart-looped. Moving the pin on every release keeps that gap from
+# opening in the first place.
+#
+# This is a SEPARATE workflow from notify-infra.yml, which announces the same release to
+# endatix-infra. They tell different repositories different things — infra takes a CHART
+# version to deploy, endatix-saas takes a PACKAGE version to compile against — and the App
+# tokens they mint are scoped to one repository each. One purpose per workflow.
+#
+# It reports a fact and makes no decisions. Prereleases are NOT filtered: the SaaS CI
+# environment tracks canaries deliberately, and what to do with a given version is decided
+# in endatix-saas, not here.
+#
+# CONSEQUENCE WORTH KNOWING. The bump lands on endatix-saas' main, which releases a canary
+# on every push — so each release here sets off a SaaS image build and a deployment. That
+# is the point (the image and the chart move together downstream), but it does mean an
+# Endatix release is never just an Endatix release.
+name: Notify SaaS of release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write # OIDC for Infisical
+
+# One notification per tag, and never cancel: a dropped notification leaves endatix-saas
+# pinned to an older package version until the next release happens to fix it.
+concurrency:
+  group: notify-saas-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    name: Bump EndatixVersion to ${{ github.event.release.tag_name }} in endatix-saas
+    runs-on: ubuntu-latest
+    # Matches the release pipeline's environment so the Infisical machine identity
+    # authenticates on the same OIDC subject.
+    environment:
+      name: Production
+    steps:
+      - name: 🔐 Fetch secrets (Infisical, OIDC)
+        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        with:
+          method: "oidc"
+          env-slug: "prod"
+          project-slug: "github-actions-for-endatix"
+          identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
+          recursive: true
+
+      # Scoped to endatix-saas and nothing else — a different scope from both the release
+      # pipeline's token (this repository only) and notify-infra.yml's (endatix-infra only).
+      #
+      # Contents write is what a repository_dispatch needs. create-github-app-token can only
+      # narrow what the App was granted, never widen it, so the App must already be installed
+      # on endatix-saas with contents write for this to mint anything.
+      - name: 🔑 Endatix Automations APP token (scoped to endatix-saas)
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ env.ENDATIX_PROJECT_AUTOMATIONS_APP_ID }}
+          private-key: ${{ env.ENDATIX_PROJECT_AUTOMATIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: endatix-saas
+          permission-contents: write
+
+      - name: 🚀 Trigger the EndatixVersion bump
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # The receiver strips a leading v, so the tag goes through as-is. Built with jq
+          # rather than string-interpolated so the tag cannot break out of the JSON body.
+          VERSION: ${{ github.event.release.tag_name }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          # `component` is carried so the receiver can refuse anything it does not know how
+          # to pin. endatix-hub reaches endatix-saas as a submodule pointer, not a package
+          # version, and must not land in Directory.Packages.props by accident.
+          jq -nc --arg v "$VERSION" \
+            '{event_type: "oss-release", client_payload: {component: "endatix-api", version: $v}}' \
+            | gh api --method POST "/repos/${OWNER}/endatix-saas/dispatches" --input -
+          echo "Asked endatix-saas to pin EndatixVersion to $VERSION" >> "$GITHUB_STEP_SUMMARY"
