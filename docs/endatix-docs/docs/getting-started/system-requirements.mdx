@@ -56,7 +56,7 @@ Endatix ships as two deployable parts: the **Endatix API** (.NET) and the **Enda
       </Spec>
       <Spec label="pnpm">
         <a href="https://pnpm.io/installation">10.34.5 or newer</a> (12
-        recommended) — <a href="#pnpm-versions">not via Corepack</a>
+        recommended) — <strong>not</strong> 11, and never via Corepack
       </Spec>
       <Spec label="API">
         A reachable Endatix API —{" "}
@@ -80,27 +80,7 @@ pnpm --version       # need 10.34.5 or newer; 12.x recommended
 docker --version     # optional — for Compose self-hosting
 ```
 
-### pnpm versions
-
-The Hub keeps all pnpm settings — dependency overrides, the lifecycle-script allowlist, and the supply-chain defaults — in `pnpm-workspace.yaml`. pnpm 10.34.5 is the oldest release that reads every one of them *and* is patched against [GHSA-vx52-2968-3vc6](https://github.com/advisories/GHSA-vx52-2968-3vc6), where a `pnpm-workspace.yaml` can exfiltrate environment secrets through proxy settings.
-
-**pnpm 11 is not supported**: it requires Node.js 22.13 or newer, while the Hub still supports Node.js 20.9. Use 10.34.5+ or 12.
-
-:::warning[Do not use Corepack]
-Corepack cannot run pnpm 12 ([corepack#873](https://github.com/nodejs/corepack/issues/873)), which is why the Hub ships no `packageManager` field. Install pnpm standalone:
-
-```bash
-# macOS / Linux / WSL
-curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.4.1 sh -
-```
-
-```powershell
-# Windows PowerShell
-$env:PNPM_VERSION="12.4.1"; iwr https://get.pnpm.io/install.ps1 -UseBasicParsing | iex
-```
-
-If `pnpm --version` still prints `10.x` after installing 12, Corepack is intercepting — run `corepack disable pnpm` and reinstall.
-:::
+pnpm 11 is not supported — it needs Node.js 22.13+, above the Hub's Node.js 20.9 floor. The 10.34.5 floor is a security patch ([GHSA-vx52-2968-3vc6](https://github.com/advisories/GHSA-vx52-2968-3vc6)). Corepack cannot run pnpm 12, so install pnpm standalone — the [Hub README](https://github.com/endatix/endatix-hub#prerequisites) has the commands for each platform.
 
 ## Databases
 
