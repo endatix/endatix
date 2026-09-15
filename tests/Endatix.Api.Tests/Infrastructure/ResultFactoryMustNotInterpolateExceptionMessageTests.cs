@@ -3,7 +3,8 @@ using System.Text.RegularExpressions;
 namespace Endatix.Api.Tests.Infrastructure;
 
 /// <summary>
-/// Guards against leaking exception text into RFC7807 <c>detail</c> via Result factories.
+/// Guards against leaking exception text to a client: into RFC7807 <c>detail</c> via Result factories,
+/// and into a background job's <c>ErrorMessage</c>, which the job status endpoint returns verbatim.
 /// </summary>
 /// <remarks>
 /// The sanctioned way to emit a caught exception's message is <c>SafeError.MessageOr(ex, fallback)</c>,
@@ -24,6 +25,19 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
     private static readonly Regex FactoryCall = new(
         @"Result(?:<[^>]+>)?\s*\.\s*(Error|Invalid|NotFound|Conflict|Unauthorized|Forbidden|CriticalError|Unavailable)\s*\(",
         RegexOptions.Compiled);
+
+    // Calls that record why a background job failed. The job status endpoint returns the resulting
+    // ErrorMessage as-is, so an argument here is as client-visible as a Result factory's. `Fail` is a
+    // common name, but only an exception-message argument is flagged, never the call itself.
+    private static readonly Regex JobFailureWriterCall = new(
+        @"\.\s*(Fail|Reschedule|DeadLetter|RecordFailedAttemptAsync)\s*\(",
+        RegexOptions.Compiled);
+
+    // Set-based updates write the column without going through the entity, so a setter aimed at
+    // ErrorMessage is the same leak as a failure-writer call.
+    private static readonly Regex SetPropertyCall = new(@"\bSetProperty\s*\(", RegexOptions.Compiled);
+
+    private static readonly Regex ErrorMessageMember = new(@"\bErrorMessage\b", RegexOptions.Compiled);
 
     // A dereference of the opt-in message, e.g. `safe.EndUserMessage`. Declaring the property or
     // implementing the interface is not a read, so definitions are excluded by file name above.
@@ -57,7 +71,8 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
 
         // Assert
         leaks.Should().BeEmpty(
-            "Result.Error / Result.Invalid arguments must be author-written; exception text belongs in logs. Leaks:\n{0}",
+            "Client-visible error text - Result factory arguments and a background job's ErrorMessage - must be "
+            + "author-written; exception text belongs in logs. Leaks:\n{0}",
             string.Join('\n', leaks));
     }
 
@@ -70,6 +85,11 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
     [InlineData("""catch (Exception ex) { var e = new ValidationError { ErrorMessage = ex.Message }; }""")]
     [InlineData("""return Result.Error(exception.Message);""")]
     [InlineData("""return Result.Error(HttpRequestException.Message);""")]
+    [InlineData("""catch (Exception ex) { job.Fail(ex.Message, now); }""")]
+    [InlineData("""catch (Exception ex) { job.Reschedule(nextAttemptAt, ex.Message); }""")]
+    [InlineData("""catch (Exception ex) { job.DeadLetter($"attempt failed: {ex.Message}", now); }""")]
+    [InlineData("""catch (Exception ex) { await repository.RecordFailedAttemptAsync(jobId, ex.Message, ct); }""")]
+    [InlineData("""catch (Exception ex) { await jobs.ExecuteUpdateAsync(s => s.SetProperty(j => j.ErrorMessage, ex.Message), ct); }""")]
     public void Scanner_FlagsExceptionText(string source) =>
         FindLeaks(source).Should().NotBeEmpty();
 
@@ -80,6 +100,11 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
     [InlineData("""// Historic note: we used to return ex.Message from Result.Error here.""")]
     [InlineData("""return Result.Invalid(new ValidationError("Use the 'ex.Message' placeholder."));""")]
     [InlineData("""catch (Exception ex) { logger.LogWarning("{Msg}", ex.Message); }""")]
+    [InlineData("""catch (Exception ex) { job.Reschedule(nextAttemptAt, SafeError.LogAndResolve(logger, ex, "The job could not be completed.", $"running job {jobId}")); }""")]
+    [InlineData("""catch (Exception ex) { logger.LogError(ex, "boom"); job.DeadLetter("The job could not be completed.", now); }""")]
+    [InlineData("""catch (Exception ex) { await jobs.ExecuteUpdateAsync(s => s.SetProperty(j => j.ErrorMessage, SafeError.MessageOr(ex, "The job could not be completed.")), ct); }""")]
+    [InlineData("""catch (Exception ex) { await jobs.ExecuteUpdateAsync(s => s.SetProperty(j => j.HeartbeatAt, now), ct); }""")]
+    [InlineData("""context.Fail(new AuthorizationFailureReason(this, "User does not have ownership of the entity"));""")]
     public void Scanner_AllowsSafeText(string source) =>
         FindLeaks(source).Should().BeEmpty();
 
@@ -143,17 +168,32 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
             yield return Excerpt(source, match.Index, match.Length);
         }
 
-        foreach (Match factory in FactoryCall.Matches(code))
+        foreach (Match call in FactoryCall.Matches(code).Concat(JobFailureWriterCall.Matches(code)))
         {
-            int end = FindMatchingCloseParen(code, factory.Index + factory.Length - 1);
+            int end = FindMatchingCloseParen(code, call.Index + call.Length - 1);
             if (end < 0)
             {
                 continue;
             }
 
-            if (exceptionMessage.IsMatch(code[factory.Index..end]))
+            if (exceptionMessage.IsMatch(code[call.Index..end]))
             {
-                yield return Excerpt(source, factory.Index, end - factory.Index);
+                yield return Excerpt(source, call.Index, end - call.Index);
+            }
+        }
+
+        foreach (Match setter in SetPropertyCall.Matches(code))
+        {
+            int end = FindMatchingCloseParen(code, setter.Index + setter.Length - 1);
+            if (end < 0)
+            {
+                continue;
+            }
+
+            string arguments = code[setter.Index..end];
+            if (ErrorMessageMember.IsMatch(arguments) && exceptionMessage.IsMatch(arguments))
+            {
+                yield return Excerpt(source, setter.Index, end - setter.Index);
             }
         }
     }
