@@ -125,7 +125,7 @@ Account-facing failures must be **indistinguishable to the caller**: same status
 ## Endpoint authorization (API)
 
 - **Every endpoint declares its access** straight after the verb: `Permissions(...)`, `Roles(...)`, `Policies(...)` or `AllowAnonymous()`. Module endpoints discovered through `IHasFastEndpoints` included. The default policy alone (authenticated + `sub`) is only acceptable where the endpoint is scoped to the caller by construction — `Auth/Me`, `Auth/Logout`, `MyAccount/ChangePassword`.
-- **Admins need grants too.** `AuthorizedIdentity` emits one `permission` claim per *granted* permission and carries `IsAdmin` in a separate claim; the FastEndpoints gate (`PermissionsClaimType = ClaimNames.Permission`) reads only the former. The `IsAdmin` short-circuit in `AuthorizationDataExtensions.HasPermission` covers application code that calls it, never `Permissions(...)`. Seed an explicit `RolePermissions` row for `Admin` (and `PlatformAdmin` where it applies) in an AppIdentity migration on both providers — reference: `SeedJobsPermissions`.
+- **Admins pass every permission check.** `AssertionPermissionsHandler` lets any user whose roles make `IsAdmin` true (Admin, PlatformAdmin) through the FastEndpoints permission requirement before grants are read, so an endpoint needs no admin grant. Seed `RolePermissions` rows only for the non-admin roles that should reach it.
 - **Tenant-owned reads pass the tenant explicitly** and refuse `<= 0` — see [ARCHITECTURE.md → Multi-tenancy → Data isolation](ARCHITECTURE.md#multi-tenancy-platform-tenants).
 
 ## Run (examples)
