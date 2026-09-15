@@ -192,7 +192,7 @@ Smaller keys live only in `.env.example`: `NEXT_FORMS_COOKIE_NAME` and `NEXT_FOR
 
 ## Containers and CI
 
-Every key above is ordinary process env — set it in the pod spec, the Compose file, or the app settings of your host. Changing one is a restart, never an image rebuild, so the same digest you tested is the digest you promote.
+Set these in the pod spec, Compose file, or host app settings. Process env applies on restart, never a rebuild — same digest you tested is the digest you promote. Exception: `NEXT_PUBLIC_BASE_PATH` (and blob hostnames in `images.remotePatterns`) are baked at build; changing them needs a new image. See [Subfolder deployment](/docs/building-your-solution/deployment/subfolder-deployment).
 
 Hold secrets (`SESSION_SECRET`, `AUTH_SECRET`, `ENDATIX_SURVEY_LICENSE_KEY`) in your platform's secret store rather than in a values file or a CI variable that lands in logs. The [Helm chart](https://github.com/endatix/endatix-hub/tree/main/helm) maps its values onto these variables and documents its own defaults.
 
@@ -233,8 +233,14 @@ Renamed alongside the label it belongs with.
 The PostHog keys were renamed without a fallback of any kind: set the current name, or analytics and feature flags stay off.
 
 <Settings>
-<Setting name="NEXT_PUBLIC_POSTHOG_KEY, _HOST, _UI_HOST" status="removed" since="0.7.6">
-Build-time inlined like the group above, and under the wrong stem — PostHog is a vendor and owns its own. Use `POSTHOG_PROJECT_TOKEN`, `POSTHOG_HOST` and `POSTHOG_UI_HOST`: PostHog's own documented names minus the `NEXT_PUBLIC_` prefix, so their docs read straight across to Hub. Never reintroduce a `NEXT_PUBLIC_` spelling here — server-side flag evaluation needs a value it can read at runtime.
+<Setting name="NEXT_PUBLIC_POSTHOG_KEY" status="removed" since="0.7.6" replacedBy="POSTHOG_PROJECT_TOKEN">
+Build-time inlined and under the wrong stem. PostHog owns `POSTHOG_*`. No fallback — empty token disables analytics and PostHog flags.
+</Setting>
+<Setting name="NEXT_PUBLIC_POSTHOG_HOST" status="removed" since="0.7.6" replacedBy="POSTHOG_HOST">
+Same rename. Capture host is now `POSTHOG_HOST`.
+</Setting>
+<Setting name="NEXT_PUBLIC_POSTHOG_UI_HOST" status="removed" since="0.7.6" replacedBy="POSTHOG_UI_HOST">
+Same rename. UI deep-link host is now `POSTHOG_UI_HOST`.
 </Setting>
 </Settings>
 

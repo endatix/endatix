@@ -2,53 +2,46 @@ import clsx from "clsx";
 import React from "react";
 
 type SettingProps = Readonly<{
-  /** The key as it is written in config — `ENDATIX_BASE_URL`, `Endatix:Jwt:SigningKey`. */
   name: string;
-  /** Marks the key as required to boot. */
   required?: boolean;
-  /** Effective value when the key is unset. Omit when there is no meaningful default. */
   default?: string;
-  /** Short qualifier shown beside the name — "server only", "build time", "one of these two". */
   note?: string;
-  /** Lifecycle state. `deprecated` still works; `removed` no longer does. */
   status?: "deprecated" | "removed";
-  /** Release the status applies to, e.g. `0.7.6`. Shown as "Deprecated in 0.7.6". */
   since?: string;
-  /** Current key that supersedes this one. Rendered as a link to its entry on the page. */
   replacedBy?: string;
-  /** What the key does, then what to set it to. One or two sentences. */
   children: React.ReactNode;
 }>;
 
-/**
- * Renders the key with a break opportunity after each underscore, so a long name wraps as
- * `NEXT_PUBLIC_SUBMITTER_` / `PRIMARY_FILTER_LABEL` instead of splitting mid-word at the
- * column edge. `<wbr>` adds no character, so the name still copies as one string.
- */
+/** Insert `<wbr>` after each `_` so long keys wrap between tokens. */
 function breakableName(name: string): React.ReactNode {
-  const parts = name.split(/(?<=_)/);
-  return parts.map((part, index) => (
-    <React.Fragment key={index}>
-      {part}
-      {index < parts.length - 1 && <wbr />}
+  const chunks: { key: string; text: string; breakAfter: boolean }[] = [];
+  let start = 0;
+  for (let i = 0; i < name.length; i++) {
+    if (name[i] === "_") {
+      chunks.push({
+        key: name.slice(0, i + 1),
+        text: name.slice(start, i + 1),
+        breakAfter: true,
+      });
+      start = i + 1;
+    }
+  }
+  if (start < name.length) {
+    chunks.push({ key: name, text: name.slice(start), breakAfter: false });
+  }
+
+  return chunks.map((chunk) => (
+    <React.Fragment key={chunk.key}>
+      {chunk.text}
+      {chunk.breakAfter ? <wbr /> : null}
     </React.Fragment>
   ));
 }
 
-/** Slug for the anchor: lowercase, non-alphanumerics collapsed, no leading or trailing dash. */
 function toAnchor(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return name.toLowerCase().match(/[a-z0-9]+/g)?.join("-") ?? "";
 }
 
-/**
- * One configuration key: name, how it behaves when unset, and what it does.
- *
- * The name carries an `id`, so a reader or an agent can link to a single key
- * (`…/environment#endatix-base-url`) rather than to the section that contains it.
- */
 export default function Setting({
   name,
   required = false,

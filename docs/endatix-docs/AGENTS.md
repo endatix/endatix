@@ -29,7 +29,7 @@ Registered globally in [`src/theme/MDXComponents.tsx`](src/theme/MDXComponents.t
 | `Specs` / `Spec` | `src/components/Specs`, `Spec` | Label/value rows inside a `Card`. `<Spec label="SDK">…</Spec>`. |
 | `LinkCard` | `src/components/LinkCard` | Next-step link: `to`, `title`, `description`, optional `icon`. |
 | `Pill` | `src/components/Pill` | Status chip. `required` for the brand tint. |
-| `Settings` / `Setting` | `src/components/Settings`, `Setting` | Configuration-key reference — env vars, `appsettings.json` paths. One `Setting` per key: `name`, optional `required` / `default` / `note`, children are the explanation. Use instead of a variable table. |
+| `Settings` / `Setting` | `src/components/Settings`, `Setting` | Configuration-key reference — env vars, `appsettings.json` paths. One `Setting` per key (`name` is the anchor). Optional: `required`, `default`, `note`, `status` (`deprecated` \| `removed`), `since`, `replacedBy`. Children are the explanation. Never comma-join names. |
 | `Icon` | `src/components/Icon` | Tinted Lucide tile. Used by Card/LinkCard; also valid in MDX. |
 
 Homepage-only (not MDX): `HomepageFeatures` (feature row), `CallToAction` (landing CTA).

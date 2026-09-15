@@ -596,10 +596,7 @@ pre,
   color: var(--ifm-color-primary);
 }
 
-/* Setting list (configuration key reference) ---------------- */
-/* One row per key. A Markdown table would fix the description into a narrow
-   column that wraps into a block of text; this keeps the table-like alignment on
-   wide screens and stacks below Docusaurus's 996px breakpoint. */
+/* Setting list — two columns ≥997px, stacked below. */
 .edx-settings {
   margin-bottom: 1.5rem;
   border-top: 1px solid var(--ifm-toc-border-color);
@@ -610,7 +607,6 @@ pre,
   gap: 0.375rem 1.5rem;
   padding: 0.875rem 0;
   border-bottom: 1px solid var(--ifm-toc-border-color);
-  /* Deep links land below the sticky navbar rather than under it. */
   scroll-margin-top: calc(var(--ifm-navbar-height) + 1rem);
 }
 
@@ -621,7 +617,6 @@ pre,
   }
 }
 
-/* Linked key stays highlighted so a shared anchor points at something visible. */
 .edx-setting:target {
   background: color-mix(in oklch, var(--ifm-color-primary) 7%, transparent);
   box-shadow: inset 3px 0 0 var(--ifm-color-primary);
@@ -643,7 +638,6 @@ pre,
 .edx-setting__name code {
   font-size: 0.8125rem;
   font-weight: 600;
-  /* Prefer the <wbr> points after underscores; break mid-token only as a last resort. */
   word-break: normal;
   overflow-wrap: break-word;
 }
@@ -691,8 +685,6 @@ pre,
   font-weight: 600;
 }
 
-/* The superseded name stays legible — it is what a reader greps their .env for —
-   but sits below the key so the replacement is the line that draws the eye. */
 .edx-setting--deprecated .edx-setting__name code,
 .edx-setting--removed .edx-setting__name code {
   color: var(--ifm-color-emphasis-700);
@@ -714,7 +706,6 @@ pre,
   text-wrap: pretty;
 }
 
-/* MDX wraps each child line in its own <p>; keep the row compact. */
 .edx-setting__body > p {
   margin-bottom: 0.5rem;
 }
