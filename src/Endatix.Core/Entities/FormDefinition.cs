@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Endatix.Core.Configuration;
 using Endatix.Core.Infrastructure.Domain;
 
@@ -15,6 +16,17 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
         jsonData ??= EndatixConfig.Configuration.DefaultFormDefinitionJson;
         IsDraft = isDraft;
         JsonData = jsonData;
+    }
+
+    /// <summary>
+    /// Explicit Id for tests, imports, seeding. Must be positive. Normal path is the constructor (Id 0 until OnAdd).
+    /// </summary>
+    public static FormDefinition Create(long id, long tenantId, bool isDraft = false, string? jsonData = null)
+    {
+        Guard.Against.NegativeOrZero(id);
+        FormDefinition definition = new(tenantId, isDraft, jsonData);
+        definition.Id = id;
+        return definition;
     }
 
     public IReadOnlyList<Submission> Submissions => _submissions.AsReadOnly();

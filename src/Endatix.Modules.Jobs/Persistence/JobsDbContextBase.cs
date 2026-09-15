@@ -1,6 +1,5 @@
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
-using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Persistence.Config;
@@ -65,7 +64,7 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
         // notably the JSON column type and the filtered-index predicates, whose syntax differs.
         ApplyProviderConfigurations(modelBuilder);
 
-        ConfigureEntityIdValueGenerators(modelBuilder);
+        modelBuilder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
         modelBuilder.ApplyModuleTableNames();
     }
 
@@ -88,27 +87,6 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
         return await base.SaveChangesAsync(true, cancellationToken);
     }
 
-    // No id generator is passed: ids come from the value generator configured below, which has
-    // already run by the time an entity is tracked.
     private void ApplyEntityDefaults() =>
         ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
-
-    // Ids are assigned by an EF value generator when the entity is tracked, not here at SaveChanges.
-    // That distinction matters for fan-out: AddRange of N new jobs would otherwise put N entities
-    // with Id 0 into the identity map and throw before SaveChanges ever ran.
-    private void ConfigureEntityIdValueGenerators(ModelBuilder builder)
-    {
-        var entityTypes = builder.Model.GetEntityTypes()
-            .Where(entityType =>
-                !entityType.IsOwned() &&
-                typeof(BaseEntity).IsAssignableFrom(entityType.ClrType));
-
-        foreach (var entityType in entityTypes)
-        {
-            builder.Entity(entityType.ClrType)
-                .Property<long>(nameof(BaseEntity.Id))
-                .HasValueGenerator((property, _) => _valueGeneratorFactory.Create<long>(property))
-                .ValueGeneratedNever();
-        }
-    }
 }

@@ -317,15 +317,13 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
     {
         IntegrationTenantContext tenantContext = new(TenantId);
 
-        IncrementingIdGenerator idGenerator = new();
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
 
         return new AppDbContext(
             optionsBuilder.Options,
-            idGenerator,
             tenantContext,
-            new EfCoreValueGeneratorFactory(idGenerator),
+            IntegrationAppDbContextFactory.ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher());
     }
 
@@ -336,7 +334,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, new IncrementingIdGenerator(), tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
     }
 
     private sealed record SeededForm(long FormId, long FormDefinitionId);

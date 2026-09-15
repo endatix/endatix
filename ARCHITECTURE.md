@@ -370,9 +370,32 @@ Apply these rules in **Core entities** (`Submission`, `Form`, …). Application 
 3. **Pair revision + event** — use a private `RegisterRevisedDomainEvent(...)` helper that calls `IncrementRevision()` then `RegisterDomainEvent(...)`. Do **not** override `RegisterDomainEvent` globally — some events intentionally skip the bump (e.g. `form.created` at revision 1, `submission.deleted`).
 4. **Encapsulate reporting triggers on the aggregate** — e.g. `Form.UpdateActiveDefinitionSchema` and `Form.SetActiveFormDefinition` raise `FormDefinitionUpdatedEvent`; handlers call those methods instead of separate notify methods. Keep the split explicit: `SetActiveFormDefinition` changes which definition row is active (pointer swap); `UpdateActiveDefinitionSchema` mutates the current active row's JSON/draft status. Do not pass constructed clones to `SetActiveFormDefinition` to effect schema edits.
 5. **Use `[Flags]` enums for multi-field changes** — accumulate `SubmissionChangeKinds` inline when several fields can change in one operation; subscribers filter with domain masks (`SubmissionChangeKindsMasks.SubmissionData`, `AffectsSubmissionData()`).
-6. **Capture payload values deliberately** — integration event constructors should capture **revision at raise time** (`private readonly long _revision = aggregate.Revision`) so multiple events in one transaction keep distinct revisions. Prefer reading **live aggregate state in `GetPayload()`** for IDs that are assigned during `SaveChanges` (see `FormDefinitionUpdatedEvent` reading `FormDefinition.Id` at capture time, after Id stamping).
+6. **Capture payload values deliberately** — integration event constructors should capture **revision at raise time** (`private readonly long _revision = aggregate.Revision`) so multiple events in one transaction keep distinct revisions. Prefer reading **live aggregate state in `GetPayload()`** for IDs: by the time capture runs (inside `SaveChanges`) the EF `OnAdd` generator has already stamped a real `Id`. Do not freeze `Id` in an event constructor at `new Entity()` / `Create(args)` time — it is still `0` there.
 
-Example shape (submission update):
+### Entity Ids (snowflake)
+
+The `Id` is a client-assigned snowflake `long`, never a database `IDENTITY`/serial. `BaseEntity.Id`
+carries **no** data annotation — `ApplySnowflakeIdValueGenerators` is the single source of truth.
+
+- **Core:** `Form.Create(args)` leaves `Id == 0`; EF stamps it on `Add`. `Form.Create(long id, args)` (same on `Submission`; `FormDefinition.Create(long id, …)`) is for tests, imports, seeding. Handlers and infrastructure services take **no** `IIdGenerator` (only `DataSeeder` / design-time still hold one).
+- **Infrastructure:** `ApplySnowflakeIdValueGenerators` sets every `long Id` PK to `ValueGeneratedOnAdd` + client `SnowflakeValueGenerator` + store strategy `None`. Call it **after** all `ApplyConfiguration*` / assembly scans (Jobs is the reference). `OnAdd` (not `Never`) so EF stamps at `.Add()` / `AddRange`. OSS contexts: App, Identity, Reporting, Jobs. SaaS `AgentsDbContext` is outside this repo and must use the same helper last in `OnModelCreating`. `ApplySnowflakeIdValueGeneratorsTests` fails CI if a `long Id` PK is missing the generator or still IDENTITY/serial.
+- **Not Framework.** `ProcessEntities` / `ApplyEndatixEntityDefaults` stamp `CreatedAt` / `ModifiedAt` only.
+- **Tests:** one `EfCoreValueGeneratorFactory` per context type for the process (`IntegrationAppDbContextFactory.ValueGeneratorFactory`, `ReportingTestSchema.ValueGeneratorFactory`, `AppDbContextModelInspectionFactory`) — EF caches one model per type and closes over the first factory.
+- **Seeding:** tenant catalogs `Add` per missing default and concede unique races one row at a time (a batch save would drop the rest of the catalog). No `HasData` for those.
+
+**Known limitations.** `Id` still has a public setter (assign-once is a follow-up). Snowflake is the public id and is roughly enumerable. Legacy positional constructors stay `[Obsolete]` until a test sweep.
+
+### Outbox capture flow
+
+```mermaid
+Handler → Form.Create(args) / mutation (RegisterDomainEvent)
+       → repository.AddAsync            (EF OnAdd generator stamps Id here)
+       → repository.SaveChangesAsync
+       → AppDbContext.ProcessEntities
+            1. Stamp CreatedAt / ModifiedAt
+            2. OutboxIntegrationEventDispatcher.Capture → GetPayload() reads live aggregate Id + serialize
+            3. Add OutboxMessage rows (Ids from the same OnAdd generator)
+```
 
 ```csharp
 SubmissionChangeKinds changeKind = SubmissionChangeKinds.None;
@@ -390,17 +413,6 @@ if (changeKind != SubmissionChangeKinds.None)
 {
     RegisterRevisedDomainEvent(new SubmissionUpdatedEvent(this, changeKind));
 }
-```
-
-### Outbox capture flow
-
-```mermaid
-Handler → aggregate mutation (RegisterDomainEvent)
-       → repository.SaveChangesAsync
-       → AppDbContext.ProcessEntities
-            1. Stamp Id / CreatedAt / ModifiedAt on tracked entities
-            2. OutboxIntegrationEventDispatcher.Capture → GetPayload() + serialize
-            3. Add OutboxMessage rows in the same transaction
 ```
 
 `OutboxIntegrationEventDispatcher` is intentionally generic — it never switches on concrete event types. Adding a new integration event requires **no dispatcher changes**; wire a subscriber or webhook mapping if needed.
