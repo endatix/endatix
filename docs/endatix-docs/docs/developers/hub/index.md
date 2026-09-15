@@ -12,7 +12,7 @@ Configure Hub with **environment variables**. The API uses `appsettings.json` �
 
 ## Start here
 
-- [Hub environment variables](/docs/developers/hub/environment) — required keys, request-time `ENDATIX_*`, Helm
+- [Hub environment variables](/docs/developers/hub/environment) — required keys, request-time config (`ENDATIX_*`, `POSTHOG_*`, `FLAG_*`), Helm
 - [Environment](/docs/end-users/administration/environment) — Platform Admin runtime audit (no secret values)
 
 ## Hub developer pages
