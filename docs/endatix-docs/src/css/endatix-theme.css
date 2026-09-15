@@ -648,6 +648,11 @@ pre,
   gap: 0.375rem;
 }
 
+.edx-setting--deprecated .edx-setting__tags,
+.edx-setting--removed .edx-setting__tags {
+  flex-basis: 100%;
+}
+
 .edx-setting__tag {
   display: inline-block;
   padding: 0.05rem 0.4rem;
