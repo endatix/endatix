@@ -1,3 +1,5 @@
+using Ardalis.GuardClauses;
+
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
@@ -7,8 +9,8 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <para>
 /// <see cref="MaxAttempts"/>, <see cref="MaxRuntimeMinutes"/>, <see cref="BackoffBaseSeconds"/> and
 /// <see cref="BackoffCapSeconds"/> apply to every job type unless <see cref="JobTypes"/> overrides them, one
-/// value at a time. Code that acts on a job resolves them with <see cref="ResolvePolicy"/> instead of reading
-/// these properties, because reading a global value directly silently ignores the job type's override.
+/// value at a time. The runtime resolves these four values per job type, so reading one of these properties
+/// directly ignores any override in <see cref="JobTypes"/>.
 /// </para>
 /// <para>
 /// Every other value describes the process that runs jobs rather than a kind of job, so it is global only.
@@ -20,6 +22,8 @@ public sealed class BackgroundJobsOptions
     /// The configuration section these options bind to.
     /// </summary>
     public const string SectionName = "Endatix:BackgroundJobs";
+
+    private Dictionary<string, BackgroundJobTypeOptions> _jobTypes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Whether this process executes jobs. Every host that registers the module can enqueue, so set this to
@@ -90,10 +94,19 @@ public sealed class BackgroundJobsOptions
     /// <remarks>
     /// A key matches its job type regardless of case, even though job types themselves are case-sensitive.
     /// Configuration keys are case-insensitive everywhere else, so an override written in a different case has
-    /// to apply rather than be silently ignored.
+    /// to apply rather than be silently ignored. An assigned dictionary is copied into one that ignores case,
+    /// whatever comparer it was created with, so assigning a dictionary whose keys differ only in case throws.
     /// </remarks>
-    public Dictionary<string, BackgroundJobTypeOptions> JobTypes { get; set; } =
-        new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, BackgroundJobTypeOptions> JobTypes
+    {
+        get => _jobTypes;
+        set
+        {
+            Guard.Against.Null(value);
+
+            _jobTypes = new Dictionary<string, BackgroundJobTypeOptions>(value, StringComparer.OrdinalIgnoreCase);
+        }
+    }
 
     /// <summary>
     /// Resolves the policy for <paramref name="jobType"/>, taking each value from the job type's override when
@@ -101,33 +114,13 @@ public sealed class BackgroundJobsOptions
     /// </summary>
     internal BackgroundJobTypePolicy ResolvePolicy(string jobType)
     {
-        var overrides = FindJobTypeOptions(jobType);
+        var overrides = JobTypes.TryGetValue(jobType, out var jobTypeOptions) ? jobTypeOptions : null;
 
         return new BackgroundJobTypePolicy(
             MaxAttempts: overrides?.MaxAttempts ?? MaxAttempts,
             MaxRuntime: TimeSpan.FromMinutes(overrides?.MaxRuntimeMinutes ?? MaxRuntimeMinutes),
             BackoffBase: TimeSpan.FromSeconds(overrides?.BackoffBaseSeconds ?? BackoffBaseSeconds),
             BackoffCap: TimeSpan.FromSeconds(overrides?.BackoffCapSeconds ?? BackoffCapSeconds));
-    }
-
-    private BackgroundJobTypeOptions? FindJobTypeOptions(string jobType)
-    {
-        if (JobTypes.TryGetValue(jobType, out var exactMatch))
-        {
-            return exactMatch;
-        }
-
-        // A host can replace the dictionary in code with one that compares ordinally, so the case-insensitive
-        // match cannot rely on the dictionary's comparer.
-        foreach (var (key, jobTypeOptions) in JobTypes)
-        {
-            if (string.Equals(key, jobType, StringComparison.OrdinalIgnoreCase))
-            {
-                return jobTypeOptions;
-            }
-        }
-
-        return null;
     }
 }
 

@@ -18,11 +18,14 @@ internal static class BackgroundJobRetryPolicy
     /// <param name="policy">The resolved policy for the job's type.</param>
     /// <remarks>
     /// The exponent is the claimed attempt minus one. The attempt count goes up when a job is claimed, not when
-    /// it fails, so a first attempt that fails is already attempt 1 and has to wait exactly the base delay.
+    /// it fails, so a first attempt that fails is already attempt 1 and has to wait exactly the base delay. An
+    /// attempt below 1 is treated as the first attempt, so it waits the base delay rather than a shorter one and
+    /// does not throw.
     /// </remarks>
     public static DateTime NextAttemptAt(int claimedAttempt, DateTime utcNow, BackgroundJobTypePolicy policy)
     {
-        var exponent = Math.Min(claimedAttempt - 1, MaxExponent);
+        // Compared before subtracting, so an attempt of int.MinValue cannot wrap round to the largest exponent.
+        var exponent = claimedAttempt <= 1 ? 0 : Math.Min(claimedAttempt - 1, MaxExponent);
 
         // Computed in seconds as a double: a large base doubled thirty times does not fit in a TimeSpan.
         var delaySeconds = Math.Min(
