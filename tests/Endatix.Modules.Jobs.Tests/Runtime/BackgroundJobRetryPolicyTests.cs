@@ -32,4 +32,25 @@ public class BackgroundJobRetryPolicyTests
         // Assert
         act.Should().NotThrow().Which.Should().Be(Now.AddSeconds(expectedDelaySeconds));
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MinValue)]
+    public void NextAttemptAt_AttemptBelowOne_WaitsBaseDelay(int claimedAttempt)
+    {
+        // Arrange
+        var policy = new BackgroundJobTypePolicy(
+            MaxAttempts: 1,
+            MaxRuntime: TimeSpan.FromMinutes(1),
+            BackoffBase: TimeSpan.FromSeconds(30),
+            BackoffCap: TimeSpan.FromSeconds(900));
+
+        // Act
+        var act = () => BackgroundJobRetryPolicy.NextAttemptAt(claimedAttempt, Now, policy);
+
+        // Assert — a negative exponent would wait less than the base delay, and int.MinValue minus one would wrap
+        // round to the largest exponent.
+        act.Should().NotThrow().Which.Should().Be(Now.AddSeconds(30));
+    }
 }

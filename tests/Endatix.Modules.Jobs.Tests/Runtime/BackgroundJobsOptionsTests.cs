@@ -92,6 +92,58 @@ public class BackgroundJobsOptionsTests
         policy.MaxAttempts.Should().Be(8);
     }
 
+    [Fact]
+    public void JobTypes_AssignedOrdinalDictionary_MatchesRegardlessOfCase()
+    {
+        // Arrange — overrides assigned in code must match the same way bound ones do, whatever comparer the caller's
+        // dictionary was created with.
+        var options = new BackgroundJobsOptions
+        {
+            JobTypes = new Dictionary<string, BackgroundJobTypeOptions>(StringComparer.Ordinal)
+            {
+                ["WebHookDelivery"] = new() { MaxAttempts = 8 },
+            },
+        };
+
+        // Act
+        var policy = options.ResolvePolicy("webhookdelivery");
+
+        // Assert
+        policy.MaxAttempts.Should().Be(8);
+    }
+
+    [Fact]
+    public void JobTypes_AssignedKeysDifferOnlyInCase_Throws()
+    {
+        // Arrange
+        var options = new BackgroundJobsOptions();
+        var jobTypes = new Dictionary<string, BackgroundJobTypeOptions>(StringComparer.Ordinal)
+        {
+            ["EXPORT"] = new() { MaxAttempts = 5 },
+            ["export"] = new() { MaxAttempts = 8 },
+        };
+
+        // Act
+        var act = () => options.JobTypes = jobTypes;
+
+        // Assert — once keys match regardless of case both entries name the same job type, and neither may silently
+        // win.
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void JobTypes_AssignedNull_Throws()
+    {
+        // Arrange
+        var options = new BackgroundJobsOptions();
+
+        // Act
+        var act = () => options.JobTypes = null!;
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>();
+    }
+
     [Theory]
     [MemberData(nameof(InvalidValues))]
     public void Validate_InvalidValue_FailsNamingKey(
