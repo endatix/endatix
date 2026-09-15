@@ -5,9 +5,9 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </summary>
 internal static class BackgroundJobRetryPolicy
 {
-    // Bounds the doubling so the arithmetic stays finite for any attempt count. At this exponent even a
-    // one-second base already exceeds thirty years, past any cap worth configuring.
-    private const int MaxExponent = 30;
+    // Bounds the doubling so the arithmetic stays finite for any attempt count. At this exponent a one-second
+    // base already exceeds int.MaxValue seconds, the largest cap the options accept.
+    private const int MaxExponent = 31;
 
     /// <summary>
     /// Returns <paramref name="utcNow"/> plus the retry delay for <paramref name="claimedAttempt"/>: the policy's
@@ -27,7 +27,7 @@ internal static class BackgroundJobRetryPolicy
         // Compared before subtracting, so an attempt of int.MinValue cannot wrap round to the largest exponent.
         var exponent = claimedAttempt <= 1 ? 0 : Math.Min(claimedAttempt - 1, MaxExponent);
 
-        // Computed in seconds as a double: a large base doubled thirty times does not fit in a TimeSpan.
+        // Computed in seconds as a double: a large base doubled that many times does not fit in a TimeSpan.
         var delaySeconds = Math.Min(
             policy.BackoffCap.TotalSeconds,
             policy.BackoffBase.TotalSeconds * Math.Pow(2, exponent));

@@ -53,4 +53,20 @@ public class BackgroundJobRetryPolicyTests
         // round to the largest exponent.
         act.Should().NotThrow().Which.Should().Be(Now.AddSeconds(30));
     }
+
+    [Theory]
+    [InlineData(32)]
+    [InlineData(int.MaxValue)]
+    public void NextAttemptAt_OneSecondBaseAndLargestCap_ReachesCap(int claimedAttempt)
+    {
+        // Arrange — the smallest base with the largest cap the options accept needs the most doublings to reach it.
+        var options = new BackgroundJobsOptions { BackoffBaseSeconds = 1, BackoffCapSeconds = int.MaxValue };
+        var policy = options.ResolvePolicy("SubmissionExport");
+
+        // Act
+        var nextAttemptAt = BackgroundJobRetryPolicy.NextAttemptAt(claimedAttempt, Now, policy);
+
+        // Assert
+        nextAttemptAt.Should().Be(Now.AddSeconds(int.MaxValue));
+    }
 }
