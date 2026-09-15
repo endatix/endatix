@@ -29,6 +29,7 @@ Registered globally in [`src/theme/MDXComponents.tsx`](src/theme/MDXComponents.t
 | `Specs` / `Spec` | `src/components/Specs`, `Spec` | Label/value rows inside a `Card`. `<Spec label="SDK">…</Spec>`. |
 | `LinkCard` | `src/components/LinkCard` | Next-step link: `to`, `title`, `description`, optional `icon`. |
 | `Pill` | `src/components/Pill` | Status chip. `required` for the brand tint. |
+| `Settings` / `Setting` | `src/components/Settings`, `Setting` | Configuration-key reference — env vars, `appsettings.json` paths. One `Setting` per key (`name` is the anchor). Optional: `required`, `default`, `note`, `status` (`deprecated` \| `removed`), `since`, `replacedBy`. Children are the explanation. Never comma-join names. |
 | `Icon` | `src/components/Icon` | Tinted Lucide tile. Used by Card/LinkCard; also valid in MDX. |
 
 Homepage-only (not MDX): `HomepageFeatures` (feature row), `CallToAction` (landing CTA).
@@ -52,6 +53,8 @@ Classes (`edx-grid`, `edx-card`, …) live in `src/css/endatix-theme.css` under 
 Reference page: `docs/getting-started/system-requirements.mdx`.
 
 Prefer these tags over Markdown tables (tables wrap badly here). Browsers and one-dimension lists stay bullets. Real 2D lookup: a table, three columns max.
+
+A list of configuration keys is never a table — each row needs a sentence or two of explanation, which a Markdown column wraps into a wall of text. Use `Settings` / `Setting`; every key then gets its own anchor for deep links. Reference page: `docs/developers/hub/environment.mdx`.
 
 ### Icons
 

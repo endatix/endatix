@@ -1,161 +1,268 @@
 ---
 title: Hub environment variables
-description: Configure Endatix Hub with env vars — required keys, request-time ENDATIX_* client config, deprecated NEXT_PUBLIC fallbacks, and Helm.
+description: Reference for every Endatix Hub environment variable — what it does, what happens when it is unset, and what to set it to for local development, a deployed image, and CI.
 sidebar_label: Environment variables
 sidebar_position: 2
 ---
 
 # Hub environment variables
 
-Endatix Hub is a Next.js app. You configure it with **environment variables** (`.env`, Helm, Azure Static Web Apps) — not `appsettings.json`.
+Hub is a Next.js app and takes all of its configuration from **environment variables** — `.env` locally, container env when deployed. The API is configured separately through `appsettings.json`; its keys are under [Configuration](/docs/configuration/), and the URL the API puts in emails is [API Hub URL](/docs/configuration/settings/hub-settings), not a Hub variable.
 
-The API has its own settings under [Configuration](/docs/configuration/). Need the API to *link back* to Hub in emails? That is [API Hub URL](/docs/configuration/settings/hub-settings), not this page.
+[`hub/.env.example`](https://github.com/endatix/endatix-hub/blob/main/.env.example) is the annotated master list. Every key on this page links to itself, so you can point a teammate or an agent at one variable.
 
-Platform admins can **audit** the live Hub runtime on **Platform Admin → Environment**. That page never shows secret values — see [Environment](/docs/end-users/administration/environment).
+## Minimum to boot
 
-## How to set values
+```bash
+ENDATIX_BASE_URL=https://localhost:5001   # or ENDATIX_API_URL — see API origin
+SESSION_SECRET=...                        # openssl rand -hex 32
+AUTH_SECRET=...                           # npx auth secret
+```
 
-| How | When it applies |
-| --- | --- |
-| `.env` / `.env.local` | Local `pnpm dev` |
-| Helm / container env / SWA appsettings | A **published** image or Static Web App |
-| `withEndatix(nextConfig, options)` | Rebuild only — cannot retarget an image you already built |
+Everything else has a default or stays off. Without an API origin, any request that reaches the API throws:
 
-Always wrap Next.js with `export default withEndatix(nextConfig)` so image hosts compile correctly.
+```
+Endatix API URL is not configured. Set ENDATIX_BASE_URL (optional ENDATIX_API_PREFIX) or a complete ENDATIX_API_URL.
+```
 
-Copy [`hub/.env.example`](https://github.com/endatix/endatix-hub/blob/main/.env.example) for the full key list.
+Behind a reverse proxy or on a non-root domain, add `AUTH_URL` and `AUTH_TRUST_HOST` — see [Reverse proxy](/docs/building-your-solution/deployment/reverse-proxy-deployment).
+
+## Where values come from
+
+- **`.env`, `.env.local`** — local `pnpm dev`. Restart the dev server to pick up a change.
+- **Container env** — a published image, wherever it runs. Restart the process.
+- **`withEndatix(nextConfig)` in `next.config.ts`** — build-time settings only, so a change needs a rebuild. Always export the wrapped config, or image hosts and storage-derived `images.remotePatterns` are never compiled in.
 
 ## Runtime vs build
 
-Next.js **inlines** any `NEXT_PUBLIC_*` variable into client JavaScript at build time. That cannot be overridden later from `process.env` — see [Next.js environment variables](https://nextjs.org/docs/app/guides/environment-variables#bundling-environment-variables-for-the-browser).
+Next.js **inlines** every `NEXT_PUBLIC_*` variable into the client bundle at build time, and no later `process.env` value can override it ([Next.js docs](https://nextjs.org/docs/app/guides/environment-variables#bundling-environment-variables-for-the-browser)).
 
-For Docker and Kubernetes, Hub’s browser-facing settings use **`ENDATIX_*` names** resolved **at request time** on the server, then passed into the client tree. You set them like ordinary Node.js environment variables.
+Hub therefore keeps its browser-facing settings on **request-time** names (`ENDATIX_*`, `POSTHOG_*`). The server reads them per request and projects the public subset into the React tree. One image runs every environment: point it at another API, flip debug, or replace the SurveyJS licence by changing env and restarting.
 
-That means **one Hub image** can talk to different APIs, toggle debug, or swap a SurveyJS licence by changing container env — no rebuild. Changing blob hostnames for `next/image` still needs a rebuild (`images.remotePatterns`). Path prefix (`NEXT_PUBLIC_BASE_PATH`) is still a Next.js public path and is baked at build.
+Only two things are still baked at build — `NEXT_PUBLIC_BASE_PATH` ([subfolder deployment](/docs/building-your-solution/deployment/subfolder-deployment)) and the blob hostnames compiled into `images.remotePatterns`.
 
-:::tip[Do not use `--build-arg` for the API URL]
-Baking the API origin into the image ties that artifact to one environment. Set `ENDATIX_BASE_URL` (and `ENDATIX_API_URL` if you do not use the default `/api` prefix) at **runtime**.
+:::warning[Never pass the API origin as `--build-arg`]
+Baking an API URL into the image ties that artifact to one environment and defeats promote-the-same-image releases. Set `ENDATIX_BASE_URL` at runtime.
 :::
+
+Prefix new keys by **owner**, not by "this is Hub": `ENDATIX_*` for the Endatix API origin and Endatix product settings, and the vendor or subsystem stem otherwise — `POSTHOG_*`, `STORAGE_*`, `AUTH_*`, `FLAG_*`, `SLACK_*`, `OTEL_*`, `MAINTENANCE_*`. Whether a value is public depends on which module reads it, not on the letters in the name. Do not add new `NEXT_PUBLIC_*` keys.
+
+## API origin
+
+Hub needs **exactly one** of two ways to reach the API — a complete URL, or an origin plus a path prefix. Neither is deprecated; pick by what your platform hands you:
+
+- **One complete URL** — use `ENDATIX_API_URL`. One variable carries the origin and any prefix, which is why the Helm chart sets it by default and why it suits containers and platform config screens.
+- **An origin you compose** — use `ENDATIX_BASE_URL`, plus `ENDATIX_API_PREFIX` when the API is not under `/api`. This is the pair the [reverse proxy](/docs/building-your-solution/deployment/reverse-proxy-deployment) and [subfolder](/docs/building-your-solution/deployment/subfolder-deployment) guides use, and what `.env.example` ships for local development.
+
+<Settings>
+<Setting name="ENDATIX_API_URL" note="one of these two">
+Complete API URL including its prefix, `http` or `https` only — `https://api.example.com/api`. Hub splits the origin and prefix back out of it, so any path prefix works here without a second variable.
+</Setting>
+<Setting name="ENDATIX_BASE_URL" note="one of these two">
+API origin **without** the path prefix — `https://localhost:5001` in development, the API's internal service URL in a cluster. Combined with the prefix to form every API call.
+</Setting>
+<Setting name="ENDATIX_API_PREFIX" default="/api">
+Path prefix appended to `ENDATIX_BASE_URL`, ignored in `ENDATIX_API_URL` mode. Normalised to a leading `/` and no trailing `/`; an empty value or `/` means no prefix.
+</Setting>
+</Settings>
+
+:::warning[Set one, not both]
+`ENDATIX_BASE_URL` takes precedence for routing, and at startup Hub writes the URL it composed into `ENDATIX_API_URL` **only when that variable is empty**. Set both to different hosts and the value you left in `ENDATIX_API_URL` survives — a public data-list lookup reads it directly and will call the other host while the rest of Hub talks to the first.
+:::
+
+A value that does not parse resolves to "not configured" rather than being passed through — a typo surfaces as the error above instead of a failed fetch to a malformed host.
 
 ## Request-time client config
 
-On Node boot, Hub copies any **unset** current name from its deprecated `NEXT_PUBLIC_*` counterpart (`applyLegacyPublicEnv`). After that, every reader — layouts, public forms, the Environment admin page — reads **only** `ENDATIX_*`.
-
-Precedence:
-
-1. A non-blank `ENDATIX_*` value always wins.
-2. If `ENDATIX_*` is missing or whitespace-only, the deprecated `NEXT_PUBLIC_*` name fills it **once at process start**.
-3. Consumers never merge the two names at read time. That avoids “current equals default, so legacy wins” bugs.
-
-The SurveyJS Creator licence is **not** part of the public client projection (that HTML is also served on anonymous form routes). It is injected only on the authenticated designer via a server-only reader (`ENDATIX_SURVEY_LICENSE_KEY`).
-
-## Minimum to run
-
-| Variable | Role |
-| --- | --- |
-| `ENDATIX_BASE_URL` | API origin, no `/api` suffix — e.g. `https://localhost:5001` |
-| `ENDATIX_API_PREFIX` | Optional. Defaults to `/api` |
-| `ENDATIX_API_URL` | Optional complete API URL. Use when `ENDATIX_BASE_URL` is unset (Helm often sets both) |
-| `SESSION_SECRET` | Hub session cookie — `openssl rand -hex 32` |
-| `AUTH_SECRET` | Auth.js — `npx auth secret` |
-| `AUTH_URL` | Public Hub origin behind a proxy (recommended) |
-| `AUTH_TRUST_HOST` | `true` behind a reverse proxy |
-
-## Request-time `ENDATIX_*` variables
-
-These match the groups on **Platform Admin → Environment**. Hosts and flags are shown as values. Keys and the SurveyJS licence are **Set / Not set** only.
-
-### API
-
-| Variable | Role |
-| --- | --- |
-| `ENDATIX_BASE_URL` | API origin. Combined with prefix to form the URL Hub calls |
-| `ENDATIX_API_PREFIX` | Path prefix. Default `/api` |
-| `ENDATIX_API_URL` | Full API URL. Used when `ENDATIX_BASE_URL` is unset |
-
-No deprecated `NEXT_PUBLIC_*` names for API origin.
-
-### Experimental
-
-| Variable | Role |
-| --- | --- |
-| `ENDATIX_ENABLE_EXTENSIONS` | SurveyJS extensions (data-list questions, custom widgets). Off in Hub by default; **Helm defaults on** |
-
-No deprecated `NEXT_PUBLIC_*` name.
+These are the groups **Platform Admin → [Environment](/docs/end-users/administration/environment)** reports, in the same order — the fastest way to confirm what a running deployment actually resolved. Public keys and hosts appear there in full; the SurveyJS licence only as Set / Not set.
 
 ### Debug
 
-| Variable | Role |
-| --- | --- |
-| `ENDATIX_IS_DEBUG_MODE` | `"true"` / `"false"` to force debug. When unset, debug follows `NODE_ENV` (on in development, off otherwise) |
+<Settings>
+<Setting name="ENDATIX_IS_DEBUG_MODE" default="follows NODE_ENV">
+`"true"` or `"false"` to force debug output. Unset means on in development and off everywhere else, which is the right setting for most deployments — turn it on temporarily to diagnose a specific environment.
+</Setting>
+</Settings>
 
-Deprecated: `NEXT_PUBLIC_IS_DEBUG_MODE`.
+### Experimental
+
+<Settings>
+<Setting name="ENDATIX_ENABLE_EXTENSIONS" default="false">
+Registers the SurveyJS extensions — data-list questions and custom widgets. The value must be exactly `true`; anything else reads as off. Set it wherever forms use data lists, or those questions render as plain inputs.
+</Setting>
+</Settings>
 
 ### Analytics (PostHog)
 
-| Variable | Role |
-| --- | --- |
-| `ENDATIX_POSTHOG_KEY` | Project API key. Shown in full on the Environment page (it already ships to the browser) |
-| `ENDATIX_POSTHOG_HOST` | Capture host. Default `https://us.i.posthog.com` |
-| `ENDATIX_POSTHOG_UI_HOST` | Optional UI host for deep links |
+PostHog's own variable names without the `NEXT_PUBLIC_` prefix. Earlier Hub versions spelled these differently and there is **no** fallback for them — see [Renamed and removed keys](#renamed-and-removed-keys).
 
-Deprecated: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, `NEXT_PUBLIC_POSTHOG_UI_HOST`.
+<Settings>
+<Setting name="POSTHOG_PROJECT_TOKEN">
+Project token (`phc_…`). Empty disables product analytics **and** PostHog feature flags. Required if you set `FLAG_PROVIDER=posthog`.
+</Setting>
+<Setting name="POSTHOG_HOST" default="https://us.i.posthog.com">
+Capture host, and the origin server-side flag evaluation calls. Must be an absolute `http(s)` origin — a relative path falls back to the default. Left at the default, the browser posts through Hub's same-origin `/ingest` rewrite so ad blockers do not drop events; any other host (an EU project, a self-hosted instance) is called directly, because that rewrite has one destination compiled in.
+</Setting>
+<Setting name="POSTHOG_UI_HOST">
+UI host used to build deep links into PostHog. Cosmetic — set it when your project is not on the US cloud.
+</Setting>
+</Settings>
+
+On Azure Static Web Apps, do not set `POSTHOG_SECRET_KEY`: it moves flag evaluation off the remote `/flags` endpoint.
+
+### Feature flags
+
+Server-evaluated product gates, not the PostHog analytics `isFeatureEnabled` helpers. One provider wins — it is not a chain.
+
+<Settings>
+<Setting name="FLAG_PROVIDER" default="environment">
+`posthog` evaluates flags through PostHog; omitted or `environment` reads `FLAG_*` variables and falls back to each flag's code default. The choice is **frozen at the first flag evaluation** in the process, so switching it means restarting Hub — flag values themselves still resolve per request.
+</Setting>
+<Setting name="FLAG_<FLAG_KEY>" note="environment provider only">
+One variable per flag: upper-snake the flag key, so `ai-features` becomes `FLAG_AI_FEATURES`. Booleans accept `"true"`; anything else reads as false. Flags ship disabled — `ai-features`, `experimental-features`, `advanced-analytics`, `form-analytics`, `storage-stats`, `reporting-export`, `multi-tenancy`.
+</Setting>
+</Settings>
+
+:::warning[`posthog` without a token falls back silently]
+`FLAG_PROVIDER=posthog` with an empty `POSTHOG_PROJECT_TOKEN` runs the environment provider instead, with no error in the logs. Confirm the resolved provider on Platform Admin → Environment after a deploy.
+:::
 
 ### reCAPTCHA
 
-| Variable | Role |
-| --- | --- |
-| `ENDATIX_RECAPTCHA_SITE_KEY` | Google reCAPTCHA v3 site key. Shown in full on the Environment page (it is already public in the browser) |
-
-Deprecated: `NEXT_PUBLIC_RECAPTCHA_SITE_KEY`.
+<Settings>
+<Setting name="ENDATIX_RECAPTCHA_SITE_KEY">
+Google reCAPTCHA v3 **site** key — the public half of the pair, already visible in page source, so it is shown in full on the Environment page. Empty disables reCAPTCHA on public forms.
+</Setting>
+</Settings>
 
 ### SurveyJS
 
-| Variable | Role |
-| --- | --- |
-| `ENDATIX_SURVEY_LICENSE_KEY` | Creator licence. Server-only. Never in the public client config. Environment page: Set / Not set |
+<Settings>
+<Setting name="ENDATIX_SURVEY_LICENSE_KEY" note="server only">
+SurveyJS Creator licence. Read server-side and handed only to the authenticated designer — never part of the browser projection, because that object is serialised into anonymous form pages too. Empty runs Creator unlicensed, with its non-commercial banner.
 
-Deprecated: `NEXT_PUBLIC_SLK`.
+The licence is perpetual: a running deployment keeps working, and you need a new key only when you upgrade the SurveyJS packages past the window the current one covers. Store it as a secret and replace it as a config change — never rebuild the image for it.
+</Setting>
+</Settings>
 
-### Submitter labels (optional)
+### Submitter labels
 
-| Variable | Role |
-| --- | --- |
-| `ENDATIX_SUBMITTER_PRIMARY_FILTER_LABEL` | Filter label. Default `Submitter` |
-| `ENDATIX_SUBMITTER_GRID_PROFILE_FIELDS` | Comma-separated profile fields for the submissions grid |
+<Settings>
+<Setting name="ENDATIX_SUBMITTER_PRIMARY_FILTER_LABEL" default="Submitter">
+Label for the submitter filter and column. Set it to the word your product uses — "Patient", "Applicant", "Student".
+</Setting>
+<Setting name="ENDATIX_SUBMITTER_GRID_PROFILE_FIELDS">
+Comma-separated profile fields to add as columns in the submissions grid.
+</Setting>
+</Settings>
 
-Deprecated: `NEXT_PUBLIC_SUBMITTER_PRIMARY_FILTER_LABEL`, `NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS`. Not shown on the Environment page in v1.
+## Sessions and sign-in
 
-## Deprecated `NEXT_PUBLIC_*` names
+<Settings>
+<Setting name="SESSION_SECRET" required>
+Encrypts the Hub session cookie. Generate with `openssl rand -hex 32`, keep one value per environment, and rotate it to invalidate every session at once.
+</Setting>
+<Setting name="SESSION_MAX_AGE_IN_MINUTES" default="30 days">
+Session lifetime, in **minutes** — `900` is 15 hours, not 900 days. Shorten it for shared workstations.
+</Setting>
+<Setting name="AUTH_SECRET" required>
+Auth.js encryption key, separate from `SESSION_SECRET`. Generate with `npx auth secret`.
+</Setting>
+<Setting name="AUTH_URL">
+Public origin of this Hub, e.g. `https://hub.example.com`. Set it whenever Hub sits behind a proxy or an external identity provider is in play, or callbacks return to the internal hostname.
+</Setting>
+<Setting name="AUTH_TRUST_HOST">
+`true` behind a reverse proxy, so Auth.js trusts the forwarded host headers.
+</Setting>
+</Settings>
 
-Existing self-hosted `.env` files keep working across the rename. Prefer the `ENDATIX_*` names in new deployments.
+Keycloak and Google add `AUTH_KEYCLOAK_*` and `AUTH_GOOGLE_*` — see [Authentication](/docs/building-your-solution/authentication/).
 
-| Current | Deprecated (boot-time fallback) |
-| --- | --- |
-| `ENDATIX_SURVEY_LICENSE_KEY` | `NEXT_PUBLIC_SLK` |
-| `ENDATIX_RECAPTCHA_SITE_KEY` | `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` |
-| `ENDATIX_POSTHOG_KEY` | `NEXT_PUBLIC_POSTHOG_KEY` |
-| `ENDATIX_POSTHOG_HOST` | `NEXT_PUBLIC_POSTHOG_HOST` |
-| `ENDATIX_POSTHOG_UI_HOST` | `NEXT_PUBLIC_POSTHOG_UI_HOST` |
-| `ENDATIX_IS_DEBUG_MODE` | `NEXT_PUBLIC_IS_DEBUG_MODE` |
-| `ENDATIX_SUBMITTER_PRIMARY_FILTER_LABEL` | `NEXT_PUBLIC_SUBMITTER_PRIMARY_FILTER_LABEL` |
-| `ENDATIX_SUBMITTER_GRID_PROFILE_FIELDS` | `NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS` |
+## Configured elsewhere
 
-`NEXT_PUBLIC_BASE_PATH` is **not** in this table. It is still Next.js’s public base path and is a build-time setting.
-
-## What else to configure
-
-| Topic | Hub keys (summary) | Details |
+| Area | Keys | Page |
 | --- | --- | --- |
-| Sign-in / SSO | `AUTH_KEYCLOAK_*`, `AUTH_GOOGLE_*` | [Authentication](/docs/building-your-solution/authentication/) |
-| File uploads | `STORAGE_PROVIDER`, `STORAGE_AZURE_*`, `STORAGE_S3_*` | [Asset storage](/docs/configuration/asset-storage) |
+| File uploads | `STORAGE_PROVIDER`, `STORAGE_AZURE_*`, `STORAGE_S3_*` | [Asset storage](/docs/configuration/asset-storage) · [Azure Blob](/docs/developers/hub/azure-storage) · [RustFS](/docs/developers/hub/rustfs-storage) |
+| Maintenance page | `MAINTENANCE_MODE`, `MAINTENANCE_*` copy | [Maintenance mode](/docs/developers/hub/maintenance-mode) |
+| Telemetry | `OTEL_*`, `APPLICATIONINSIGHTS_CONNECTION_STRING`, `TELEMETRY_CONSOLE_FALLBACK` | [Observability](/docs/configuration/observability) |
 | Path prefix | `NEXT_PUBLIC_BASE_PATH` | [Subfolder deployment](/docs/building-your-solution/deployment/subfolder-deployment) |
-| Proxy / TLS | `AUTH_URL`, `AUTH_TRUST_HOST` | [Reverse proxy](/docs/building-your-solution/deployment/reverse-proxy-deployment) |
-| Data-list questions | `ENDATIX_ENABLE_EXTENSIONS` | Off in Hub by default; **Helm defaults on** |
-| Slack, OpenTelemetry, maintenance, robots | See `.env.example` | Optional. Storage and auth stay on their own admin pages |
+| Sign-in providers | `AUTH_KEYCLOAK_*`, `AUTH_GOOGLE_*` | [Authentication](/docs/building-your-solution/authentication/) |
 
-## Containers
+Smaller keys live only in `.env.example`: `NEXT_FORMS_COOKIE_NAME` and `NEXT_FORMS_COOKIE_DURATION_DAYS` (the cookie that resumes a partly filled form), `REMOTE_IMAGE_HOSTNAMES`, `RESIZE_IMAGES`, `RESIZE_IMAGES_WIDTH`, `ROBOTS_ALLOWED_DOMAINS`, and the `SLACK_*` credentials.
 
-Helm maps `api.baseUrl` → `ENDATIX_BASE_URL`, `api.apiUrl` → `ENDATIX_API_URL`, and `experimental.extensions` → `ENDATIX_ENABLE_EXTENSIONS`. Set those as **pod env**, not Docker build args.
+## Containers and CI
 
-The same rule applies to request-time keys (`ENDATIX_POSTHOG_*`, `ENDATIX_SURVEY_LICENSE_KEY`, `ENDATIX_IS_DEBUG_MODE`, …): change the pod env and recycle the Hub process. Do not bake them into the image.
+Set these in the pod spec, Compose file, or host app settings. Process env applies on restart, never a rebuild — same digest you tested is the digest you promote. Exception: `NEXT_PUBLIC_BASE_PATH` (and blob hostnames in `images.remotePatterns`) are baked at build; changing them needs a new image. See [Subfolder deployment](/docs/building-your-solution/deployment/subfolder-deployment).
+
+Hold secrets (`SESSION_SECRET`, `AUTH_SECRET`, `ENDATIX_SURVEY_LICENSE_KEY`) in your platform's secret store rather than in a values file or a CI variable that lands in logs. The [Helm chart](https://github.com/endatix/endatix-hub/tree/main/helm) maps its values onto these variables and documents its own defaults.
+
+After a deploy, open Platform Admin → [Environment](/docs/end-users/administration/environment) to confirm what the process resolved: the API URL it will call, the flag provider in force, and whether the licence is present.
+
+## Renamed and removed keys
+
+Two rounds of renaming. The first kept the old names working; the second did not.
+
+### `NEXT_PUBLIC_*` public config — deprecated in 0.7.6
+
+Next.js inlines every `NEXT_PUBLIC_*` value into the client bundle at build time, so each of these could only be changed by rebuilding and redeploying the image. Hub 0.7.6 moved the public client config to request-time `ENDATIX_*` names, resolved per request.
+
+**They still work.** At startup Hub copies each deprecated value into its current name once: a non-blank current value always wins, a whitespace-only value counts as unset on either side, and the two are never merged at read time. Migrate when convenient — the old names cannot be changed without a rebuild, which is the problem the rename fixes.
+
+<Settings>
+<Setting name="NEXT_PUBLIC_SLK" status="deprecated" since="0.7.6" replacedBy="ENDATIX_SURVEY_LICENSE_KEY">
+An abbreviation no one could expand, holding the value with the strongest claim to runtime replacement: rotating a SurveyJS licence should never mean rebuilding an image.
+</Setting>
+<Setting name="NEXT_PUBLIC_RECAPTCHA_SITE_KEY" status="deprecated" since="0.7.6" replacedBy="ENDATIX_RECAPTCHA_SITE_KEY">
+Renamed so one image can serve environments with different reCAPTCHA keys, or none.
+</Setting>
+<Setting name="NEXT_PUBLIC_IS_DEBUG_MODE" status="deprecated" since="0.7.6" replacedBy="ENDATIX_IS_DEBUG_MODE">
+Renamed so you can turn debug output on in one environment without a rebuild, then turn it off again.
+</Setting>
+<Setting name="NEXT_PUBLIC_SUBMITTER_PRIMARY_FILTER_LABEL" status="deprecated" since="0.7.6" replacedBy="ENDATIX_SUBMITTER_PRIMARY_FILTER_LABEL">
+Renamed for the same reason, and to sit under the `ENDATIX_*` owner stem with the rest of the product settings.
+</Setting>
+<Setting name="NEXT_PUBLIC_SUBMITTER_GRID_PROFILE_FIELDS" status="deprecated" since="0.7.6" replacedBy="ENDATIX_SUBMITTER_GRID_PROFILE_FIELDS">
+Renamed alongside the label it belongs with.
+</Setting>
+</Settings>
+
+`NEXT_PUBLIC_BASE_PATH` is deliberately not in this list. It is a genuine Next.js build-time setting and keeps its name.
+
+### PostHog names — no fallback
+
+The PostHog keys were renamed without a fallback of any kind: set the current name, or analytics and feature flags stay off.
+
+<Settings>
+<Setting name="NEXT_PUBLIC_POSTHOG_KEY" status="removed" since="0.7.6" replacedBy="POSTHOG_PROJECT_TOKEN">
+Build-time inlined and under the wrong stem. PostHog owns `POSTHOG_*`. No fallback — empty token disables analytics and PostHog flags.
+</Setting>
+<Setting name="NEXT_PUBLIC_POSTHOG_HOST" status="removed" since="0.7.6" replacedBy="POSTHOG_HOST">
+Same rename. Capture host is now `POSTHOG_HOST`.
+</Setting>
+<Setting name="NEXT_PUBLIC_POSTHOG_UI_HOST" status="removed" since="0.7.6" replacedBy="POSTHOG_UI_HOST">
+Same rename. UI deep-link host is now `POSTHOG_UI_HOST`.
+</Setting>
+</Settings>
+
+## Next steps
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/end-users/administration/environment"
+    title="Environment (Platform Admin)"
+    description="Audit what the running process resolved — API, debug, analytics, flags, reCAPTCHA, licence presence."
+    icon="dashboard"
+  />
+  <LinkCard
+    to="/docs/building-your-solution/deployment/self-hosting"
+    title="Self-hosting"
+    description="Run the Hub image with Docker Compose or Kubernetes."
+    icon="server"
+  />
+  <LinkCard
+    to="/docs/configuration/asset-storage"
+    title="Asset storage"
+    description="STORAGE_PROVIDER and the Azure or S3 keys behind it."
+    icon="package"
+  />
+</CardGrid>
