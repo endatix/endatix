@@ -20,9 +20,9 @@ public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture 
             fixture.Provider != TestDatabaseProvider.PostgreSql,
             "Background jobs are PostgreSQL-only; the module is not registered on this provider.");
 
+        // The collection fixture starts the host, and with it the migrations, before any test in it
+        // runs, so the schema is already in place here.
         var cancellationToken = TestContext.Current.CancellationToken;
-        using var client = fixture.CreateClient();
-        _ = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
 
         // Act
         var resultColumnExists = await IntegrationDbAssert.SqlRowExistsAsync(
