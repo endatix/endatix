@@ -34,21 +34,22 @@ internal interface IBackgroundJobStateRepository
     /// Takes ownership of an eligible job and consumes an attempt.
     /// </summary>
     /// <remarks>
-    /// The whole transition is one conditional update, so of any number of runners racing for the same
-    /// row exactly one can win. A job whose type no instance here handles is left alone rather than
-    /// claimed and failed, so it keeps its status and its attempt budget for an instance that can run it.
+    /// The row is read, then claimed by one conditional update that also requires the attempt count the
+    /// read saw. Of any number of runners racing for the same row exactly one can win, and the attempt it
+    /// is handed is the one its own update took: a claim that lands between the read and the update makes
+    /// the update match nothing, and the job is found again on a later pass. There is deliberately no way
+    /// to learn the attempt by reading the row afterwards. A job that was reaped and claimed again is
+    /// <c>Processing</c> once more, so such a read could hand a runner someone else's attempt as its own.
+    /// A job whose type no instance here handles is left alone rather than claimed and failed, so it keeps
+    /// its status and its attempt budget for an instance that can run it.
     /// </remarks>
-    /// <returns><c>true</c> when this caller took the job.</returns>
-    Task<bool> TryClaimAsync(
+    /// <returns>The job as this caller claimed it, whose <see cref="ClaimedJob.AttemptCount"/> fences
+    /// every later write; <c>null</c> when this caller did not take the job.</returns>
+    Task<ClaimedJob?> TryClaimAsync(
         long jobId,
         IReadOnlyCollection<string> registeredJobTypes,
         DateTime utcNow,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Reads the row, whatever state it is in, so the caller can learn the attempt its claim took.
-    /// </summary>
-    Task<ClaimedJob?> GetClaimedAsync(long jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Proves the claiming runner is still alive.

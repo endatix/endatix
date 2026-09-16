@@ -15,7 +15,7 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
     private const int ErrorMessageMaxLength = 2048;
 
     /// <inheritdoc />
-    public async Task<bool> TryClaimAsync(
+    public async Task<ClaimedJob?> TryClaimAsync(
         long jobId,
         IReadOnlyCollection<string> registeredJobTypes,
         DateTime utcNow,
@@ -25,11 +25,54 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         // be given back.
         if (registeredJobTypes.Count == 0)
         {
-            return false;
+            return null;
         }
 
+        var observed = await dbContext.BackgroundJobs
+            .AsNoTracking()
+            .Where(job => job.Id == jobId)
+            .Select(job => new ClaimedJob(
+                job.Id,
+                job.JobType,
+                job.TenantId,
+                job.PayloadJson,
+                job.AttemptCount,
+                job.TraceId,
+                job.Status))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (observed is null)
+        {
+            return null;
+        }
+
+        var claimed = await TryClaimAtAttemptAsync(
+            jobId, observed.AttemptCount, registeredJobTypes, utcNow, cancellationToken);
+
+        return claimed
+            ? observed with { AttemptCount = observed.AttemptCount + 1, Status = JobStatus.Processing }
+            : null;
+    }
+
+    /// <summary>
+    /// Claims the job only while its attempt count is still <paramref name="expectedAttemptCount"/>.
+    /// </summary>
+    /// <remarks>
+    /// Only a claim changes the attempt count, so a claim that landed after the caller read the row makes
+    /// this update match nothing, and the attempt the caller is handed can be built from its own read.
+    /// </remarks>
+    /// <returns><c>true</c> when this update took the job, which then holds attempt
+    /// <paramref name="expectedAttemptCount"/> + 1.</returns>
+    internal async Task<bool> TryClaimAtAttemptAsync(
+        long jobId,
+        int expectedAttemptCount,
+        IReadOnlyCollection<string> registeredJobTypes,
+        DateTime utcNow,
+        CancellationToken cancellationToken = default)
+    {
         var affected = await dbContext.BackgroundJobs
             .Where(job => job.Id == jobId
+                && job.AttemptCount == expectedAttemptCount
                 && (job.Status == JobStatus.Pending || job.Status == JobStatus.Retrying)
                 && job.NextAttemptAt <= utcNow
                 && registeredJobTypes.Contains(job.JobType))
@@ -45,21 +88,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
 
         return affected == 1;
     }
-
-    /// <inheritdoc />
-    public async Task<ClaimedJob?> GetClaimedAsync(long jobId, CancellationToken cancellationToken = default) =>
-        await dbContext.BackgroundJobs
-            .AsNoTracking()
-            .Where(job => job.Id == jobId)
-            .Select(job => new ClaimedJob(
-                job.Id,
-                job.JobType,
-                job.TenantId,
-                job.PayloadJson,
-                job.AttemptCount,
-                job.TraceId,
-                job.Status))
-            .FirstOrDefaultAsync(cancellationToken);
 
     /// <inheritdoc />
     public Task<bool> TryHeartbeatAsync(
