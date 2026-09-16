@@ -36,8 +36,7 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
         var ownJobId = await SeedJobAsync(world, tenantIds[0], cancellationToken);
         var foreignJobId = await SeedJobAsync(world, tenantIds[1], cancellationToken);
 
-        // jobs.view is seeded but granted to no role, so only Admin and PlatformAdmin pass —
-        // they satisfy any permission check without a grant.
+        // Only Admin and PlatformAdmin pass — they satisfy any permission check without a grant.
         using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
 
         // Act
