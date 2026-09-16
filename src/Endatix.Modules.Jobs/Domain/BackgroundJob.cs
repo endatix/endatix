@@ -74,9 +74,6 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// <summary>Handler input, immutable after creation.</summary>
     public string PayloadJson { get; private set; } = null!;
 
-    /// <summary>Handler output on success, e.g. artifact location and file name.</summary>
-    public string? ResultJson { get; private set; }
-
     /// <summary>0–100, for display only. Never load-bearing for crash detection.</summary>
     public int ProgressPercentage { get; private set; }
 
@@ -188,12 +185,11 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     }
 
     /// <summary>Completes the job successfully.</summary>
-    public void Complete(DateTime utcNow, string? resultJson = null)
+    public void Complete(DateTime utcNow)
     {
         EnsureStatus(nameof(Complete), JobStatus.Processing);
 
         Status = JobStatus.Completed;
-        ResultJson = resultJson;
         ProgressPercentage = 100;
         CompletedAt = utcNow;
         // An earlier attempt may have recorded one; a job that ended in success must not still

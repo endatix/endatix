@@ -1,3 +1,4 @@
+using System.Reflection;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Domain;
 
@@ -194,13 +195,35 @@ public class BackgroundJobTests
     }
 
     [Fact]
+    public void BackgroundJob_PublicSurface_CarriesNoResult()
+    {
+        // Arrange
+        var jobType = typeof(BackgroundJob);
+
+        // Act
+        var resultProperty = jobType.GetProperty("ResultJson");
+        var completeMethods = jobType
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Where(method => method.Name == nameof(BackgroundJob.Complete))
+            .ToList();
+
+        // Assert - the row carries state only, so there is no channel for handler output on it and
+        // no overload that would take one.
+        resultProperty.Should().BeNull();
+        var complete = completeMethods.Should().ContainSingle().Subject;
+        var parameter = complete.GetParameters().Should().ContainSingle().Subject;
+        parameter.ParameterType.Should().Be(typeof(DateTime));
+        parameter.Name.Should().Be("utcNow");
+    }
+
+    [Fact]
     public void Complete_ProcessingJob_IsTerminalAtFullProgress()
     {
         // Arrange
         var job = ClaimedJob();
 
         // Act
-        job.Complete(Now, """{"downloadPath":"a.csv"}""");
+        job.Complete(Now);
 
         // Assert
         job.Status.Should().Be(JobStatus.Completed);
