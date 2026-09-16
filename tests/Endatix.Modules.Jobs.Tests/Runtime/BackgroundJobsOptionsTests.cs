@@ -5,12 +5,6 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
 
-/// <summary>
-/// Covers binding, per-type resolution and validation of the background job options. Options are bound from
-/// configuration the way the options pipeline binds them, over a default instance, so the defaults and fallbacks
-/// pinned here are exactly what an operator gets by leaving a key out — and the validator is what stops a value
-/// jobs cannot run with before the runner starts.
-/// </summary>
 public class BackgroundJobsOptionsTests
 {
     public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidValues => new()
@@ -18,6 +12,11 @@ public class BackgroundJobsOptionsTests
         {
             "concurrency below 1",
             new() { ["MaxConcurrency"] = "0" },
+            ["MaxConcurrency"]
+        },
+        {
+            "concurrency above its upper bound",
+            new() { ["MaxConcurrency"] = "1001" },
             ["MaxConcurrency"]
         },
         {
@@ -36,6 +35,18 @@ public class BackgroundJobsOptionsTests
             "job type attempts below 1",
             new() { ["JobTypes:X:MaxAttempts"] = "0" },
             ["JobTypes:X:MaxAttempts"]
+        },
+        {
+            // The job type overrides one side of the pair and inherits the other, so each key has to be named
+            // where its value was written.
+            "job type backoff cap below the inherited global base",
+            new() { ["BackoffBaseSeconds"] = "120", ["JobTypes:X:BackoffCapSeconds"] = "60" },
+            ["JobTypes:X:BackoffCapSeconds", "BackoffBaseSeconds"]
+        },
+        {
+            "job type backoff base above the inherited global cap",
+            new() { ["BackoffCapSeconds"] = "60", ["JobTypes:X:BackoffBaseSeconds"] = "120" },
+            ["JobTypes:X:BackoffBaseSeconds", "BackoffCapSeconds"]
         },
     };
 
@@ -166,13 +177,8 @@ public class BackgroundJobsOptionsTests
     [Fact]
     public void Validate_UnknownSections_Succeeds()
     {
-        // Arrange — overrides for a job type whose handler is not deployed yet, or a section another component
-        // reads, are not mistakes.
-        var options = Bind(new()
-        {
-            ["JobTypes:UnknownType:MaxAttempts"] = "5",
-            ["Classes:Heavy:MaxConcurrency"] = "2",
-        });
+        // Arrange — overrides for a job type whose handler is not deployed yet are not mistakes.
+        var options = Bind(new() { ["JobTypes:UnknownType:MaxAttempts"] = "5" });
         var validator = new BackgroundJobsOptionsValidator();
 
         // Act

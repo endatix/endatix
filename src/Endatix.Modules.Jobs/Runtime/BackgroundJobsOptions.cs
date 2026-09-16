@@ -2,19 +2,10 @@ using Ardalis.GuardClauses;
 
 namespace Endatix.Modules.Jobs.Runtime;
 
-/// <summary>
-/// Options for executing background jobs, bound from the <c>Endatix:BackgroundJobs</c> configuration section.
-/// </summary>
 /// <remarks>
-/// <para>
-/// <see cref="MaxAttempts"/>, <see cref="MaxRuntimeMinutes"/>, <see cref="BackoffBaseSeconds"/> and
-/// <see cref="BackoffCapSeconds"/> apply to every job type unless <see cref="JobTypes"/> overrides them, one
-/// value at a time. The runtime resolves these four values per job type, so reading one of these properties
-/// directly ignores any override in <see cref="JobTypes"/>.
-/// </para>
-/// <para>
-/// Every other value describes the process that runs jobs rather than a kind of job, so it is global only.
-/// </para>
+/// <see cref="JobTypes"/> overrides <see cref="MaxAttempts"/>, <see cref="MaxRuntimeMinutes"/>,
+/// <see cref="BackoffBaseSeconds"/> and <see cref="BackoffCapSeconds"/> one value at a time, so the runtime must
+/// read those four through <see cref="ResolvePolicy"/>; reading the property itself ignores every override.
 /// </remarks>
 public sealed class BackgroundJobsOptions
 {
@@ -26,24 +17,15 @@ public sealed class BackgroundJobsOptions
     private Dictionary<string, BackgroundJobTypeOptions> _jobTypes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Whether this process executes jobs. Every host that registers the module can enqueue, so set this to
-    /// <c>false</c> on a host that should only enqueue, such as an API tier deployed apart from its workers.
+    /// Every host that registers the module can enqueue, so set this to <c>false</c> on a host that should only
+    /// enqueue, such as an API tier deployed apart from its workers.
     /// </summary>
     public bool RunInProcess { get; set; } = true;
 
-    /// <summary>
-    /// Maximum number of jobs this process executes at the same time.
-    /// </summary>
     public int MaxConcurrency { get; set; } = 4;
 
-    /// <summary>
-    /// Seconds between sweeper passes.
-    /// </summary>
     public int SweepIntervalSeconds { get; set; } = 10;
 
-    /// <summary>
-    /// Maximum number of jobs a sweeper pass reads at each of its steps.
-    /// </summary>
     public int SweepBatchSize { get; set; } = 200;
 
     /// <summary>
@@ -52,50 +34,36 @@ public sealed class BackgroundJobsOptions
     /// </summary>
     public int StuckJobThresholdMinutes { get; set; } = 10;
 
-    /// <summary>
-    /// Seconds between heartbeats of a running job.
-    /// </summary>
     public int HeartbeatIntervalSeconds { get; set; } = 30;
 
-    /// <summary>
-    /// Minutes one attempt may run before it is stopped and recorded as a retryable failure. Can be
-    /// overridden per job type.
-    /// </summary>
     public int MaxRuntimeMinutes { get; set; } = 60;
 
-    /// <summary>
-    /// Attempts a job gets before a retryable failure dead-letters it. Can be overridden per job type.
-    /// </summary>
     public int MaxAttempts { get; set; } = 3;
 
     /// <summary>
     /// Seconds before the first retry. Each later retry waits twice as long as the one before it, up to
-    /// <see cref="BackoffCapSeconds"/>. Can be overridden per job type.
+    /// <see cref="BackoffCapSeconds"/>.
     /// </summary>
     public int BackoffBaseSeconds { get; set; } = 30;
 
-    /// <summary>
-    /// Longest wait between retries, in seconds. Can be overridden per job type.
-    /// </summary>
     public int BackoffCapSeconds { get; set; } = 900;
 
     /// <summary>
     /// Minutes an eligible job may wait without being claimed before the sweeper warns about a backlog. Unlike
     /// <see cref="StuckJobThresholdMinutes"/>, which measures a lost heartbeat, this measures time spent waiting
-    /// for a runner. Applies to every job type; there is no per-type override.
+    /// for a runner.
     /// </summary>
     public int BacklogWarningMinutes { get; set; } = 15;
 
     /// <summary>
     /// Overrides keyed by job type, for example
-    /// <c>Endatix:BackgroundJobs:JobTypes:SubmissionExport:MaxAttempts</c>. A value left unset falls back to
-    /// the global value of the same name.
+    /// <c>Endatix:BackgroundJobs:JobTypes:SubmissionExport:MaxAttempts</c>.
     /// </summary>
     /// <remarks>
-    /// A key matches its job type regardless of case, even though job types themselves are case-sensitive.
-    /// Configuration keys are case-insensitive everywhere else, so an override written in a different case has
-    /// to apply rather than be silently ignored. An assigned dictionary is copied into one that ignores case,
-    /// whatever comparer it was created with, so assigning a dictionary whose keys differ only in case throws.
+    /// A key matches its job type regardless of case, even though job types themselves are case-sensitive:
+    /// configuration keys are case-insensitive everywhere else, so an override written in a different case has to
+    /// apply rather than be silently ignored. Only the four values of <see cref="BackgroundJobTypeOptions"/>
+    /// override; anything else written under a job type binds to nothing and is ignored.
     /// </remarks>
     public Dictionary<string, BackgroundJobTypeOptions> JobTypes
     {
@@ -104,6 +72,8 @@ public sealed class BackgroundJobsOptions
         {
             Guard.Against.Null(value);
 
+            // Copied into a dictionary that ignores case whatever comparer the caller used, so an assignment
+            // whose keys differ only in case throws instead of letting one of them silently win.
             _jobTypes = new Dictionary<string, BackgroundJobTypeOptions>(value, StringComparer.OrdinalIgnoreCase);
         }
     }
@@ -130,24 +100,12 @@ public sealed class BackgroundJobsOptions
 /// </summary>
 public sealed class BackgroundJobTypeOptions
 {
-    /// <summary>
-    /// Overrides <see cref="BackgroundJobsOptions.MaxAttempts"/> for this job type.
-    /// </summary>
     public int? MaxAttempts { get; set; }
 
-    /// <summary>
-    /// Overrides <see cref="BackgroundJobsOptions.MaxRuntimeMinutes"/> for this job type.
-    /// </summary>
     public int? MaxRuntimeMinutes { get; set; }
 
-    /// <summary>
-    /// Overrides <see cref="BackgroundJobsOptions.BackoffBaseSeconds"/> for this job type.
-    /// </summary>
     public int? BackoffBaseSeconds { get; set; }
 
-    /// <summary>
-    /// Overrides <see cref="BackgroundJobsOptions.BackoffCapSeconds"/> for this job type.
-    /// </summary>
     public int? BackoffCapSeconds { get; set; }
 }
 
@@ -155,10 +113,6 @@ public sealed class BackgroundJobTypeOptions
 /// The retry and runtime values in effect for one job type, once its overrides have fallen back to the global
 /// values.
 /// </summary>
-/// <param name="MaxAttempts">Attempts before a retryable failure dead-letters the job.</param>
-/// <param name="MaxRuntime">How long one attempt may run before it is stopped.</param>
-/// <param name="BackoffBase">Wait before the first retry.</param>
-/// <param name="BackoffCap">Longest wait between retries.</param>
 internal readonly record struct BackgroundJobTypePolicy(
     int MaxAttempts,
     TimeSpan MaxRuntime,

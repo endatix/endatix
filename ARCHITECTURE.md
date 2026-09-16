@@ -201,6 +201,14 @@ Commercial waitlist (`Endatix.SaaS.Management`) is **not** registered by OSS `Us
 
 **Startup migrations (two phases):** When `Endatix:Data:EnableAutoMigrations` is true, `DatabaseMigrationService` first migrates core `AppDbContext` and `AppIdentityDbContext`, then iterates registered [`IDbContextMigrationContributor`](src/Endatix.Framework/Modules/IDbContextMigrationContributor.cs) instances for opt-in module/custom contexts. Modules implement `IHasDbMigrations` as a marker; the host warns if `AddDbContextWithMigrations` was not called.
 
+**Module options.** `Endatix.Modules.Jobs` is the pattern for a module's configuration surface:
+
+- One section per module, named by the options type itself — `BackgroundJobsOptions.SectionName` (`Endatix:BackgroundJobs`). The type carries the defaults; no doc restates them.
+- The module registers `AddOptions<T>().BindConfiguration(SectionName).ValidateOnStart()` together with an `IValidateOptions<T>` — Jobs adds both when the runner and sweeper are registered — so a value the module cannot run with fails the host at startup rather than at the first tick.
+- Validation messages name the **full configuration key** (`Endatix:BackgroundJobs:JobTypes:SubmissionExport:BackoffCapSeconds`): that is what an operator searches for in `appsettings.json` or an environment variable.
+- Per-item overrides are a `Dictionary<string, TOverrides>` of nullable properties. Keys match regardless of case, and each unset property falls back to the global value of the same name, one value at a time.
+- Overridable values are read only through the resolver (`BackgroundJobsOptions.ResolvePolicy(jobType)`). Reading the global property directly ignores every override, so the runtime never reads those properties itself.
+
 ---
 
 ## Reference slice: Platform Admin
