@@ -38,11 +38,10 @@
     <InternalsVisibleTo Include="Endatix.Modules.Jobs.Tests" />
     <InternalsVisibleTo Include="Endatix.IntegrationTests" />
     <!-- NSubstitute proxies are emitted into this assembly, so without a grant a substitute for an
-         internal interface fails at run time rather than at compile time. Both forms are needed: the
-         key-qualified one matches the grant the other Endatix projects carry, while the plain one is
-         what actually applies here, because these assemblies are not strong-named and the proxy
-         assembly is therefore generated unsigned. -->
-    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" PublicKey="$(NSubstitutePublicKey)" />
+         internal type fails at run time rather than at compile time. The grant names no public key.
+         The proxy assembly is signed only when the proxied type comes from a strong-named assembly,
+         as ILogger<T> does, so a key-qualified grant never matches the proxy of an internal interface
+         declared here. This assembly is not strong-named, so a grant by name alone matches both. -->
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 </Project>
