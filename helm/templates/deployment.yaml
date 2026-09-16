@@ -6,6 +6,7 @@ metadata:
     {{- include "endatix-api.selectorLabels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   selector:
     matchLabels:
       {{- include "endatix-api.selectorLabels" . | nindent 6 }}

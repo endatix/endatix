@@ -1,5 +1,10 @@
 replicaCount: 1
 
+# ReplicaSets kept after a rollout for `kubectl rollout undo`. 0 because
+# rollbacks go through Git (ArgoCD) or `helm rollback`, not the ReplicaSet
+# history — stale ReplicaSets would only pile up as clutter in the namespace.
+revisionHistoryLimit: 0
+
 image:
   repository: endatix/endatix-api
   pullPolicy: Always
