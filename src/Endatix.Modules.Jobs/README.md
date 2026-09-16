@@ -54,7 +54,7 @@ Database schema: `jobs`
 
 | Table | Purpose |
 |-------|---------|
-| `BackgroundJobs` | One row per unit of work: type, payload, tenant, status, progress, retry state, result |
+| `BackgroundJobs` | One row per unit of work: type, payload, tenant, status, progress, retry state |
 
 The schema carries its own `__EFMigrationsHistory`, so job migrations advance independently
 of app-schema migrations.

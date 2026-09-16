@@ -29,7 +29,7 @@ public enum JobStatus
     /// <summary>An attempt failed retryably; waits until NextAttemptAt.</summary>
     Retrying = 2,
 
-    /// <summary>Terminal. Success; the result payload is populated.</summary>
+    /// <summary>Terminal. The handler reported success.</summary>
     Completed = 3,
 
     /// <summary>

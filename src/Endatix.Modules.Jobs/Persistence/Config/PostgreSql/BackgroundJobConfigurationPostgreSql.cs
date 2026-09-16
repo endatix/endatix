@@ -24,9 +24,6 @@ internal sealed class BackgroundJobConfigurationPostgreSql : IEntityTypeConfigur
         builder.Property(job => job.PayloadJson)
             .HasColumnType("jsonb");
 
-        builder.Property(job => job.ResultJson)
-            .HasColumnType("jsonb");
-
         var tenantId = $"\"{nameof(BackgroundJob.TenantId)}\"";
 
         // The entity refuses a job without a tenant, but the entity is not the only way a row can

@@ -13,11 +13,6 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
             // Granted to the two roles IsAdmin covers — Admin and PlatformAdmin. Widening to
             // Creator, the role that starts the work these jobs carry out, is a grant rather than a
             // new permission.
-            //
-            // The grant is not optional for an admin. AuthorizedIdentity emits one permission claim
-            // per granted permission and puts IsAdmin in a claim of its own, and the FastEndpoints
-            // permission gate reads only the former — so the IsAdmin short-circuit in
-            // AuthorizationDataExtensions does not reach an endpoint's Permissions(...) call.
             migrationBuilder.Sql(@"
                 INSERT INTO identity.""Permissions"" (
                     ""Id"", ""Name"", ""Description"", ""Category"",

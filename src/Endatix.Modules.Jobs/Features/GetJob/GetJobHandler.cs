@@ -21,11 +21,10 @@ public sealed record GetJobQuery(long TenantId, long JobId) : IQuery<Result<JobD
 /// used to decide a job has stalled. <c>Status</c> is the authoritative value.
 /// </para>
 /// <para>
-/// Whatever a job produced is deliberately absent. The job row records it in <c>ResultJson</c>, but
-/// that column is written by whichever handler ran the job, so the only shape this contract could
-/// promise across every job type is a free-form object — which tells a client nothing it can rely
-/// on. A job type whose output a caller genuinely needs should expose it through the endpoint that
-/// owns that output, where it can be typed.
+/// Whatever a job produced is deliberately absent: the Jobs framework stores no job output, so the job
+/// row carries state only. A handler that produces output saves or publishes it itself, and a job
+/// type whose output a caller needs exposes it through the endpoint that owns that output, where it
+/// can be typed.
 /// </para>
 /// </remarks>
 public sealed record JobDto(
