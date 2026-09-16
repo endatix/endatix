@@ -37,5 +37,12 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Endatix.Modules.Jobs.Tests" />
     <InternalsVisibleTo Include="Endatix.IntegrationTests" />
+    <!-- NSubstitute proxies are emitted into this assembly, so without a grant a substitute for an
+         internal interface fails at run time rather than at compile time. Both forms are needed: the
+         key-qualified one matches the grant the other Endatix projects carry, while the plain one is
+         what actually applies here, because these assemblies are not strong-named and the proxy
+         assembly is therefore generated unsigned. -->
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" PublicKey="$(NSubstitutePublicKey)" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 </Project>
