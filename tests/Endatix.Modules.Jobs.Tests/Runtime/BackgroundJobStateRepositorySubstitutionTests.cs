@@ -18,14 +18,15 @@ public class BackgroundJobStateRepositorySubstitutionTests
     {
         // Arrange
         var utcNow = new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc);
+        var cancellationToken = TestContext.Current.CancellationToken;
         var repository = Substitute.For<IBackgroundJobStateRepository>();
-        repository.TryHeartbeatAsync(42, 1, utcNow).Returns(false);
+        repository.TryHeartbeatAsync(42, 1, utcNow, cancellationToken).Returns(false);
 
         // Act
-        var owned = await repository.TryHeartbeatAsync(42, 1, utcNow);
+        var owned = await repository.TryHeartbeatAsync(42, 1, utcNow, cancellationToken);
 
         // Assert
         owned.Should().BeFalse();
-        await repository.Received(1).TryHeartbeatAsync(42, 1, utcNow);
+        await repository.Received(1).TryHeartbeatAsync(42, 1, utcNow, cancellationToken);
     }
 }

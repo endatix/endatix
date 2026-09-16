@@ -467,6 +467,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         // Act
         var eligible = await repository.FindEligibleAsync(RegisteredJobTypes, Now, 3, cancellationToken);
         var withoutRegisteredTypes = await repository.FindEligibleAsync([], Now, 3, cancellationToken);
+        var beyondTheLimit = await repository.FindEligibleAsync(RegisteredJobTypes, Now, 200, cancellationToken);
 
         // Assert
         eligible.Select(item => item.JobId).Should().Equal(dueIds.Take(3));
@@ -487,7 +488,12 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         // With no handler registered, nothing here could run any of them.
         withoutRegisteredTypes.Should().BeEmpty();
 
-        dueIds.Should().NotContain([notDueId, processingId, completedId]);
+        // Asserted against what the read returned, and past the limit that would otherwise hide the
+        // answer: the three earliest due rows sort ahead of these whether or not they are eligible, so
+        // a limited read would look the same even if a not-due, running or finished job were returned.
+        var beyondTheLimitIds = beyondTheLimit.Select(item => item.JobId).ToList();
+        beyondTheLimitIds.Should().Equal(dueIds);
+        beyondTheLimitIds.Should().NotContain([notDueId, processingId, completedId]);
     }
 
     [Fact]
