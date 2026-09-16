@@ -122,6 +122,12 @@ Account-facing failures must be **indistinguishable to the caller**: same status
 - Equalize work, not just payloads: run the password KDF on the unknown-account path too (`AuthService.BurnPasswordHashingWork`), or response time leaks what the body does not.
 - Pair each with a `#region Security and Privacy Tests` test asserting the disallowed strings are absent. References: `LoginHandler.INVALID_CREDENTIALS_MESSAGE`, `EmailVerificationService.INVALID_VERIFICATION_TOKEN_MESSAGE`, `ForgotPasswordHandler.GENERAL_SUCCESS_MESSAGE`, `SendVerificationEmailHandler` (returns `Success` for unknown users), `UserPasswordManageServiceTests` (`DoesNotLeakUserExistence`).
 
+## Endpoint authorization (API)
+
+- **Every endpoint declares its access** straight after the verb: `Permissions(...)`, `Roles(...)`, `Policies(...)` or `AllowAnonymous()`. Module endpoints discovered through `IHasFastEndpoints` included. The default policy alone (authenticated + `sub`) is only acceptable where the endpoint is scoped to the caller by construction — `Auth/Me`, `Auth/Logout`, `MyAccount/ChangePassword`.
+- **Admins pass every permission check.** `AssertionPermissionsHandler` lets any user whose roles make `IsAdmin` true (Admin, PlatformAdmin) through the FastEndpoints permission requirement before grants are read, so an endpoint needs no admin grant. Seed `RolePermissions` rows only for the non-admin roles that should reach it.
+- **Tenant-owned reads pass the tenant explicitly** and refuse `<= 0` — see [ARCHITECTURE.md → Multi-tenancy → Data isolation](ARCHITECTURE.md#multi-tenancy-platform-tenants).
+
 ## Run (examples)
 
 ```bash
