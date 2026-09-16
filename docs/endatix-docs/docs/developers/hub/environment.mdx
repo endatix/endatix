@@ -45,7 +45,7 @@ Only two things are still baked at build — `NEXT_PUBLIC_BASE_PATH` ([subfolder
 Baking an API URL into the image ties that artifact to one environment and defeats promote-the-same-image releases. Set `ENDATIX_BASE_URL` at runtime.
 :::
 
-Prefix new keys by **owner**, not by "this is Hub": `ENDATIX_*` for the Endatix API origin and Endatix product settings, and the vendor or subsystem stem otherwise — `POSTHOG_*`, `STORAGE_*`, `AUTH_*`, `FLAG_*`, `SLACK_*`, `OTEL_*`, `MAINTENANCE_*`. Whether a value is public depends on which module reads it, not on the letters in the name. Do not add new `NEXT_PUBLIC_*` keys.
+Prefix new keys by **owner**, not by "this is Hub": `ENDATIX_*` for the Endatix API origin and Endatix product settings, and the vendor or subsystem stem otherwise — `POSTHOG_*`, `STORAGE_*`, `AUTH_*`, `FLAG_*`, `SLACK_*`, `OTEL_*`, `MAINTENANCE_*`, `PDF_*`. Whether a value is public depends on which module reads it, not on the letters in the name. Do not add new `NEXT_PUBLIC_*` keys.
 
 ## API origin
 
@@ -153,6 +153,18 @@ Label for the submitter filter and column. Set it to the word your product uses 
 </Setting>
 <Setting name="ENDATIX_SUBMITTER_GRID_PROFILE_FIELDS">
 Comma-separated profile fields to add as columns in the submissions grid.
+</Setting>
+</Settings>
+
+## PDF export
+
+<Settings>
+<Setting name="PDF_RENDER_TIMEOUT_SECONDS" default="40">
+How long a submission PDF may take to render before the export gives up. Browsers land on an error page; API clients get an RFC 7807 `502` with `"errorCode": "pdf_render_timeout"`.
+
+The default sits just under the 45-second cap Azure Static Web Apps puts on a backend request — past that the platform returns its own `Backend call failure`, which cannot be styled. Raise it where there is no cap (standalone container, self-hosted), lower it where the cap is shorter. An unparseable, zero or negative value falls back to 40.
+
+Stopping the wait does not stop the render — the renderer has no abort, so an overrunning export keeps using CPU until it finishes.
 </Setting>
 </Settings>
 
