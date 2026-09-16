@@ -1,7 +1,7 @@
 ---
-title: Pre-filling and Personalization
+title: Prefilling and Personalization
 description: Create SurveyJS variables, pass their values through query string parameters, and use them to prefill questions, drive logic, and personalize text throughout a form.
-sidebar_label: Pre-filling and Personalization
+sidebar_label: Prefilling and Personalization
 ---
 
 import useBaseUrl from "@docusaurus/useBaseUrl";
@@ -13,18 +13,18 @@ import defaultValueDark from "./prefill-default-value-expression_dark.png";
 import respondentResult from "./prefill-respondent-result.png";
 import textPipingRating from "./prefill-text-piping-rating.png";
 
-# Pre-filling and Personalization
+# Prefilling and Personalization
 
-## What Is Pre-filling?
+## What Is Prefilling?
 
-Pre-filling means a form arrives with some of its values already supplied, based on information you already have about the respondent — a name, an account ID, a plan tier — so they see fewer blank fields and the form feels tailored to them rather than generic.
+Prefilling means a form arrives with some of its values already supplied, based on information you already have about the respondent — a name, an account ID, a plan tier — so they see fewer blank fields and the form feels tailored to them rather than generic.
 
 Endatix supports two ways to pre-fill a form:
 
 * **Query string variables** (this guide) — values are read directly in the respondent's browser from the link they open, with no backend involved. It's the simplest option and well suited to personalized links in an email campaign or CRM outreach — append the data to the URL, and the form does the rest.
-* **Access-token pre-filling** — your backend creates a submission with data it already holds and issues a scoped, expiring access token for it. This relies on the Endatix API and is aimed at developers integrating Endatix server-side; see [Form Prefilling and Sharing](/docs/guides/form-prefilling) for details.
+* **Access-token prefilling** — your backend creates a submission with data it already holds and issues a scoped, expiring access token for it. This relies on the Endatix API and is aimed at developers integrating Endatix server-side; see [Form Prefilling and Sharing](/docs/guides/form-prefilling) for details.
 
-The rest of this guide covers query string variables. Beyond pre-filling a question, the same variables can:
+The rest of this guide covers query string variables. Beyond prefilling a question, the same variables can:
 
 * **Drive logic** — show, hide, or branch based on where the respondent came from.
 * **Personalize text** — pipe the value into a question's title or description.
@@ -77,7 +77,7 @@ Query string values arrive as plain strings. SurveyJS automatically converts a n
 
 The parameters stay in the address bar after the page loads — Endatix Hub doesn't strip them, so the link stays shareable and bookmarkable with the same pre-fill data.
 
-## Pre-filling a Question
+## Prefilling a Question
 
 With the variable in place, point a question at it using **Default value expression** — a standard SurveyJS property available on every question type.
 
@@ -96,7 +96,7 @@ Using a **Single-Line Input** question as an example:
 />
 
 :::tip[Default value expression, not Set value expression]
-**Default value expression** only seeds the question's *starting* value — the respondent can still review and change it. **Set value expression** keeps recalculating and would silently overwrite anything the respondent types, so avoid it for pre-filling. If the query parameter is missing from the URL, the variable is simply empty and the question starts blank — no error.
+**Default value expression** only seeds the question's *starting* value — the respondent can still review and change it. **Set value expression** keeps recalculating and would silently overwrite anything the respondent types, so avoid it for prefilling. If the query parameter is missing from the URL, the variable is simply empty and the question starts blank — no error.
 :::
 
 ### Respondent Experience
@@ -240,7 +240,7 @@ A variable created through **Custom variables** is stored on the survey as a [`c
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><code>setValueExpression</code></td>
 <td><code>expression</code></td>
-<td>Continuously recalculates the question's value. Avoid for pre-filling — it overwrites respondent edits.</td>
+<td>Continuously recalculates the question's value. Avoid for prefilling — it overwrites respondent edits.</td>
 </tr>
 </tbody>
 </table>
