@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Domain;
@@ -9,13 +10,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The job state repository against a real PostgreSQL database.
+/// The job state repository against PostgreSQL: its writes are conditional <c>ExecuteUpdate</c>
+/// statements, which only a real database runs.
 /// </summary>
-/// <remarks>
-/// These cannot be unit tests. Every write here is one conditional <c>ExecuteUpdateAsync</c>, which the
-/// in-memory provider does not run at all, and what is being tested is precisely what the database does
-/// with those predicates — including what happens when two writers race for the same row.
-/// </remarks>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
@@ -40,14 +37,12 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
 
     private static readonly DateTime Now = new(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc);
 
-    /// <summary>An instant before <see cref="Now"/>, for a value a row already carried.</summary>
     private static readonly DateTime Earlier = Now.AddMinutes(-1);
 
-    /// <summary>
-    /// Stamped on every seeded row, so "did this write touch ModifiedAt?" is answerable rather than a
-    /// comparison of one null with another.
-    /// </summary>
+    // Stamped on every seeded row, so a write that touches ModifiedAt is detectable.
     private static readonly DateTime SeededModifiedAt = Now.AddDays(-1);
+
+    private static readonly TimeSpan LockWaitTimeout = TimeSpan.FromSeconds(30);
 
     [Fact]
     public async Task TryClaimAsync_EligibleJob_ClaimsAndConsumesAttempt()
@@ -72,9 +67,6 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         job.AttemptCount.Should().Be(1);
         job.StartedAt.Should().Be(Now);
         job.HeartbeatAt.Should().Be(Now);
-
-        // The runner fences every later write on what the claim returned, so that has to be the row as
-        // the claim left it.
         claimed.Should().Be(new ClaimedJob(
             job.Id, job.JobType, job.TenantId, job.PayloadJson, job.AttemptCount, job.TraceId, job.Status));
     }
@@ -95,8 +87,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         // Act
         var reclaimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
 
-        // Assert — the second claim consumes nothing, so a job cannot lose attempts to runners that
-        // arrive late.
+        // Assert
         reclaimed.Should().BeNull();
         var job = await ReadAsync(context, jobId, cancellationToken);
         job.AttemptCount.Should().Be(1);
@@ -151,8 +142,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         // Act
         var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
 
-        // Assert — left alone rather than claimed and failed, so an instance that does handle this type
-        // still finds the job with its attempt budget intact.
+        // Assert — left untouched, so an instance that handles the type still has the full attempt budget.
         claimed.Should().BeNull();
         var job = await ReadAsync(context, jobId, cancellationToken);
         job.Status.Should().Be(JobStatus.Pending);
@@ -184,7 +174,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         // Act
         var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
 
-        // Assert — StartedAt is when the job began, not when this attempt did.
+        // Assert
         claimed.Should().NotBeNull();
         claimed!.AttemptCount.Should().Be(2);
         var job = await ReadAsync(context, jobId, cancellationToken);
@@ -203,8 +193,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         await ClearJobsAsync(seedContext, cancellationToken);
         var jobId = await SeedAsync(seedContext, cancellationToken, nextAttemptAt: Now);
 
-        // Separate scopes, because two runners racing for a job are two processes, each with its own
-        // connection — one context would serialize them and prove nothing.
+        // One scope each: a shared context would serialize the two claims in the client.
         using var firstScope = fixture.Factory.Services.CreateScope();
         using var secondScope = fixture.Factory.Services.CreateScope();
         var first = new BackgroundJobStateRepository(JobsContext(firstScope));
@@ -215,7 +204,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
             first.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken),
             second.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken));
 
-        // Assert — one handler invocation per claimed attempt, whatever races for the row.
+        // Assert
         claims.Should().ContainSingle(claimed => claimed != null)
             .Which!.AttemptCount.Should().Be(1);
         var job = await ReadAsync(seedContext, jobId, cancellationToken);
@@ -223,7 +212,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
     }
 
     [Fact]
-    public async Task TryClaimAsync_AttemptCountChangedSinceRead_ClaimsNothing()
+    public async Task TryClaimAsync_AttemptCountChangedSinceRead_ReturnsNull()
     {
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
@@ -232,34 +221,49 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var context = JobsContext(scope);
         await ClearJobsAsync(context, cancellationToken);
         var jobId = await SeedAsync(context, cancellationToken, nextAttemptAt: Now);
-        var staleAttemptCount = (await ReadAsync(context, jobId, cancellationToken)).AttemptCount;
 
-        // Another runner claims the job and is reaped before this one's update runs, which leaves the row
-        // claimable again, one attempt further on.
-        await context.BackgroundJobs
+        using var claimScope = fixture.Factory.Services.CreateScope();
+        var repository = new BackgroundJobStateRepository(JobsContext(claimScope));
+
+        // A second connection holds the row lock, so the claim's read goes through and its update waits.
+        using var lockScope = fixture.Factory.Services.CreateScope();
+        var lockContext = JobsContext(lockScope);
+        await using var transaction = await lockContext.Database.BeginTransactionAsync(cancellationToken);
+        await lockContext.Database.ExecuteSqlAsync(
+            $"""SELECT "Id" FROM jobs."BackgroundJobs" WHERE "Id" = {jobId} FOR UPDATE""",
+            cancellationToken);
+        var lockHolderPid = await lockContext.Database
+            .SqlQuery<int>($"""SELECT pg_backend_pid() AS "Value" """)
+            .SingleAsync(cancellationToken);
+
+        // Act
+        var claim = Task.Run(
+            () => repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken),
+            cancellationToken);
+        await WaitForUpdateBlockedByAsync(context, lockHolderPid, claim, cancellationToken);
+
+        // Another runner's attempt was claimed and reaped meanwhile: claimable again, one attempt on.
+        await lockContext.BackgroundJobs
             .Where(row => row.Id == jobId)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(row => row.Status, JobStatus.Retrying)
-                    .SetProperty(row => row.AttemptCount, staleAttemptCount + 1)
+                    .SetProperty(row => row.AttemptCount, row => row.AttemptCount + 1)
                     .SetProperty(row => row.StartedAt, (DateTime?)Earlier),
                 cancellationToken);
-        var before = await ReadAsync(context, jobId, cancellationToken);
-        var repository = new BackgroundJobStateRepository(context);
-
-        // Act
-        var claimed = await repository.TryClaimAtAttemptAsync(
-            jobId, staleAttemptCount, RegisteredJobTypes, Now, cancellationToken);
+        var movedOn = await ReadAsync(lockContext, jobId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        var claimed = await claim;
 
         // Assert — claiming here would hand this runner an attempt it did not take.
-        claimed.Should().BeFalse();
+        claimed.Should().BeNull();
         var job = await ReadAsync(context, jobId, cancellationToken);
-        job.Status.Should().Be(before.Status);
-        job.AttemptCount.Should().Be(before.AttemptCount);
-        job.NextAttemptAt.Should().Be(before.NextAttemptAt);
-        job.StartedAt.Should().Be(before.StartedAt);
-        job.HeartbeatAt.Should().Be(before.HeartbeatAt);
-        job.ModifiedAt.Should().Be(before.ModifiedAt);
+        job.Status.Should().Be(JobStatus.Retrying);
+        job.AttemptCount.Should().Be(1);
+        job.NextAttemptAt.Should().Be(movedOn.NextAttemptAt);
+        job.StartedAt.Should().Be(movedOn.StartedAt);
+        job.HeartbeatAt.Should().Be(movedOn.HeartbeatAt);
+        job.ModifiedAt.Should().Be(movedOn.ModifiedAt);
     }
 
     [Fact]
@@ -294,7 +298,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         owned.Should().BeTrue();
         afterOwnedBeat.HeartbeatAt.Should().Be(beatAt);
 
-        // The liveness signal must not be mistakable for an edit, so the row's ModifiedAt stays put.
+        // A heartbeat is not an edit.
         afterOwnedBeat.ModifiedAt.Should().Be(SeededModifiedAt);
 
         staleAttempt.Should().BeFalse();
@@ -338,7 +342,6 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         running.CompletedAt.Should().Be(Now);
         running.ErrorMessage.Should().BeNull();
 
-        // A job a user cancelled must not be reported as a success by the runner that was still on it.
         completedCanceled.Should().BeFalse();
         var canceled = await ReadAsync(context, canceledId, cancellationToken);
         canceled.Status.Should().Be(JobStatus.Canceled);
@@ -383,8 +386,6 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         job.CompletedAt.Should().Be(Now);
         job.AttemptCount.Should().Be(1);
 
-        // Cut to the column length rather than rejected: losing the tail of an operator's message is
-        // better than losing the record that the job failed.
         failedWithLongMessage.Should().BeTrue();
         var truncated = await ReadAsync(context, longMessageId, cancellationToken);
         truncated.ErrorMessage.Should().HaveLength(2048);
@@ -428,7 +429,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         retrying.HeartbeatAt.Should().BeNull();
         retrying.CompletedAt.Should().BeNull();
 
-        // The attempt was consumed by the claim that started it, so recording its failure consumes none.
+        // The claim consumed the attempt; recording its failure consumes none.
         retrying.AttemptCount.Should().Be(1);
 
         deadLettered.Should().BeTrue();
@@ -436,6 +437,73 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         exhausted.Status.Should().Be(JobStatus.DeadLettered);
         exhausted.CompletedAt.Should().Be(Now);
         exhausted.AttemptCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task RecordFailedAttemptAsync_LongMessage_Truncates()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var jobId = await SeedAsync(
+            context,
+            cancellationToken,
+            status: JobStatus.Processing,
+            attemptCount: 1,
+            heartbeatAt: Now);
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var retried = await repository.RecordFailedAttemptAsync(
+            jobId, 1, 3, Now.AddSeconds(30), new string('a', 3000), Now, cancellationToken);
+
+        // Assert
+        retried.Should().BeTrue();
+        var job = await ReadAsync(context, jobId, cancellationToken);
+        job.Status.Should().Be(JobStatus.Retrying);
+        job.ErrorMessage.Should().HaveLength(2048);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task FailureWriters_NullOrWhiteSpaceMessage_ThrowWithoutWriting(string? errorMessage)
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var jobId = await SeedAsync(
+            context,
+            cancellationToken,
+            status: JobStatus.Processing,
+            attemptCount: 1,
+            heartbeatAt: Now.AddMinutes(-11));
+        var before = await ReadAsync(context, jobId, cancellationToken);
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var fail = () => repository.TryFailAsync(jobId, 1, errorMessage!, Now, cancellationToken);
+        var recordFailedAttempt = () => repository.RecordFailedAttemptAsync(
+            jobId, 1, 3, Now.AddSeconds(30), errorMessage!, Now, cancellationToken);
+        var reap = () => repository.TryReapAsync(
+            jobId, 1, Now.AddMinutes(-10), 3, Now.AddSeconds(30), errorMessage!, Now, cancellationToken);
+
+        // Assert — the entity's own failure transitions refuse such a message too.
+        await fail.Should().ThrowAsync<ArgumentException>();
+        await recordFailedAttempt.Should().ThrowAsync<ArgumentException>();
+        await reap.Should().ThrowAsync<ArgumentException>();
+        var job = await ReadAsync(context, jobId, cancellationToken);
+        job.Status.Should().Be(before.Status);
+        job.ErrorMessage.Should().Be(before.ErrorMessage);
+        job.CompletedAt.Should().Be(before.CompletedAt);
+        job.HeartbeatAt.Should().Be(before.HeartbeatAt);
     }
 
     [Fact]
@@ -472,9 +540,67 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         reapedStale.Should().BeTrue();
         (await ReadAsync(context, staleId, cancellationToken)).Status.Should().Be(JobStatus.Retrying);
 
-        // A runner that checked in since the sweeper's scan is alive, and its job is not taken away.
+        // A runner that checked in since the sweeper's scan keeps its job.
         reapedAlive.Should().BeFalse();
         (await ReadAsync(context, aliveId, cancellationToken)).Status.Should().Be(JobStatus.Processing);
+    }
+
+    [Fact]
+    public async Task TryReapAsync_AttemptsExhausted_DeadLetters()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var jobId = await SeedAsync(
+            context,
+            cancellationToken,
+            status: JobStatus.Processing,
+            attemptCount: 3,
+            heartbeatAt: Now.AddMinutes(-11));
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var reaped = await repository.TryReapAsync(
+            jobId, 3, Now.AddMinutes(-10), 3, Now.AddSeconds(30), ReapedMessage, Now, cancellationToken);
+
+        // Assert
+        reaped.Should().BeTrue();
+        var job = await ReadAsync(context, jobId, cancellationToken);
+        job.Status.Should().Be(JobStatus.DeadLettered);
+        job.CompletedAt.Should().Be(Now);
+        job.ErrorMessage.Should().Be(ReapedMessage);
+        job.AttemptCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task TryReapAsync_LongMessage_Truncates()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var jobId = await SeedAsync(
+            context,
+            cancellationToken,
+            status: JobStatus.Processing,
+            attemptCount: 1,
+            heartbeatAt: Now.AddMinutes(-11));
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var reaped = await repository.TryReapAsync(
+            jobId, 1, Now.AddMinutes(-10), 3, Now.AddSeconds(30), new string('a', 3000), Now, cancellationToken);
+
+        // Assert
+        reaped.Should().BeTrue();
+        var job = await ReadAsync(context, jobId, cancellationToken);
+        job.Status.Should().Be(JobStatus.Retrying);
+        job.ErrorMessage.Should().HaveLength(2048);
     }
 
     [Fact]
@@ -493,7 +619,6 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
             dueIds.Add(await SeedAsync(
                 context,
                 cancellationToken,
-                // Both statuses mean "eligible at NextAttemptAt", so one query has to dispatch either.
                 status: minutesOverdue % 2 == 0 ? JobStatus.Retrying : JobStatus.Pending,
                 nextAttemptAt: Now.AddMinutes(-minutesOverdue),
                 // Alternating, so the earliest three cannot all come from one tenant.
@@ -508,8 +633,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
 
         var before = await SnapshotAsync(context, cancellationToken);
 
-        // The sweeper holds no tenant scope, and the ambient tenant of 0 is what makes the tenant filter
-        // permissive instead of hiding every other tenant's work from it.
+        // Ambient tenant 0 is what lets the sweeper see every tenant's jobs.
         context.GetTenantId().Should().Be(0);
 
         // Act
@@ -530,15 +654,11 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
             .ToListAsync(cancellationToken);
         tenants.Should().BeEquivalentTo([FirstTenantId, SecondTenantId]);
 
-        // Discovery reads; it must not change what it finds, nor make an untouched row look edited.
         (await SnapshotAsync(context, cancellationToken)).Should().BeEquivalentTo(before);
 
-        // With no handler registered, nothing here could run any of them.
         withoutRegisteredTypes.Should().BeEmpty();
 
-        // Asserted against what the read returned, and past the limit that would otherwise hide the
-        // answer: the three earliest due rows sort ahead of these whether or not they are eligible, so
-        // a limited read would look the same even if a not-due, running or finished job were returned.
+        // Past the limit, because the three earliest due rows sort ahead of the ineligible ones.
         var beyondTheLimitIds = beyondTheLimit.Select(item => item.JobId).ToList();
         beyondTheLimitIds.Should().Equal(dueIds);
         beyondTheLimitIds.Should().NotContain([notDueId, processingId, completedId]);
@@ -564,29 +684,51 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         // Act
         var stale = await repository.FindStaleAsync(Now.AddMinutes(-10), 200, cancellationToken);
 
-        // Assert — silent longest first, so a batch smaller than the backlog reaps the worst cases.
+        // Assert
         stale.Select(job => job.Id).Should().Equal(longestSilentId, staleId);
         stale.Should().AllSatisfy(job => job.JobType.Should().Be(KnownJobType));
+    }
+
+    [Fact]
+    public async Task FindStaleAsync_NullHeartbeat_ReturnsFirstAndReaps()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var staleCutoff = Now.AddMinutes(-10);
+        var longestSilentId = await SeedAsync(
+            context, cancellationToken, status: JobStatus.Processing, attemptCount: 1, heartbeatAt: Now.AddMinutes(-15));
+        var noHeartbeatId = await SeedAsync(
+            context, cancellationToken, status: JobStatus.Processing, attemptCount: 1, heartbeatAt: null);
+        await SeedAsync(
+            context, cancellationToken, status: JobStatus.Processing, attemptCount: 1, heartbeatAt: Now.AddMinutes(-1));
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var stale = await repository.FindStaleAsync(staleCutoff, 200, cancellationToken);
+        var reaped = await repository.TryReapAsync(
+            noHeartbeatId, 1, staleCutoff, 3, Now.AddSeconds(30), ReapedMessage, Now, cancellationToken);
+
+        // Assert — nothing proves a running job without a heartbeat alive.
+        stale.Select(job => job.Id).Should().Equal(noHeartbeatId, longestSilentId);
+        reaped.Should().BeTrue();
+        var job = await ReadAsync(context, noHeartbeatId, cancellationToken);
+        job.Status.Should().Be(JobStatus.Retrying);
+        job.ErrorMessage.Should().Be(ReapedMessage);
+        job.AttemptCount.Should().Be(1);
     }
 
     private static JobsPostgreSqlDbContext JobsContext(IServiceScope scope) =>
         scope.ServiceProvider.GetRequiredService<JobsPostgreSqlDbContext>();
 
-    /// <remarks>
-    /// Outside a request the ambient tenant is 0, which turns the tenant filter off, so this clears
-    /// every tenant's rows and leaves each test a table it fully owns.
-    /// </remarks>
+    // Ambient tenant 0 turns the tenant filter off, so this clears every tenant's rows.
     private static Task ClearJobsAsync(JobsPostgreSqlDbContext context, CancellationToken cancellationToken) =>
         context.BackgroundJobs.ExecuteDeleteAsync(cancellationToken);
 
-    /// <summary>
-    /// Writes one job row in exactly the state a test needs.
-    /// </summary>
-    /// <remarks>
-    /// The columns are set directly after the insert: the entity's guarded transitions cannot produce
-    /// every combination a fenced write has to be tried against, and driving them here would be testing
-    /// the entity rather than the predicates.
-    /// </remarks>
+    // Columns are set directly: the entity's guarded transitions cannot reach every state a fence is tried against.
     private static async Task<long> SeedAsync(
         JobsPostgreSqlDbContext context,
         CancellationToken cancellationToken,
@@ -643,4 +785,34 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
             .OrderBy(job => job.Id)
             .Select(job => new ValueTuple<long, JobStatus, DateTime?>(job.Id, job.Status, job.ModifiedAt))
             .ToListAsync(cancellationToken);
+
+    // Polls from a connection outside any transaction, because pg_stat_activity is a per-transaction snapshot.
+    private static async Task WaitForUpdateBlockedByAsync(
+        JobsPostgreSqlDbContext context,
+        int lockHolderPid,
+        Task claim,
+        CancellationToken cancellationToken)
+    {
+        var waited = Stopwatch.StartNew();
+        while (true)
+        {
+            var blockedUpdates = await context.Database
+                .SqlQuery<int>(
+                    $"""
+                    SELECT count(*)::int AS "Value"
+                    FROM pg_stat_activity
+                    WHERE {lockHolderPid} = ANY(pg_blocking_pids(pid)) AND query LIKE 'UPDATE%'
+                    """)
+                .SingleAsync(cancellationToken);
+
+            if (blockedUpdates > 0)
+            {
+                return;
+            }
+
+            claim.IsCompleted.Should().BeFalse("the claim's update has to wait on the row lock");
+            waited.Elapsed.Should().BeLessThan(LockWaitTimeout, "the claim's update never waited on the row lock");
+            await Task.Delay(TimeSpan.FromMilliseconds(20), cancellationToken);
+        }
+    }
 }

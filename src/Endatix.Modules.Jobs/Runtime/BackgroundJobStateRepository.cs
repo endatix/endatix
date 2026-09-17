@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Persistence;
@@ -10,19 +11,15 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <inheritdoc cref="IBackgroundJobStateRepository" />
 internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : IBackgroundJobStateRepository
 {
-    // The column is varchar(2048). A longer message is an operator's summary of a failure rather than
-    // the failure itself, so it is cut here instead of failing the write that records why a job ended.
+    // The column is varchar(2048); a longer message is cut so recording a failure cannot itself fail.
     private const int ErrorMessageMaxLength = 2048;
 
-    /// <inheritdoc />
     public async Task<ClaimedJob?> TryClaimAsync(
         long jobId,
         IReadOnlyCollection<string> registeredJobTypes,
         DateTime utcNow,
         CancellationToken cancellationToken = default)
     {
-        // With no handler registered here nothing could run the job, and the claim would only have to
-        // be given back.
         if (registeredJobTypes.Count == 0)
         {
             return null;
@@ -54,42 +51,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             : null;
     }
 
-    /// <summary>
-    /// Claims the job only while its attempt count is still <paramref name="expectedAttemptCount"/>.
-    /// </summary>
-    /// <remarks>
-    /// Only a claim changes the attempt count, so a claim that landed after the caller read the row makes
-    /// this update match nothing, and the attempt the caller is handed can be built from its own read.
-    /// </remarks>
-    /// <returns><c>true</c> when this update took the job, which then holds attempt
-    /// <paramref name="expectedAttemptCount"/> + 1.</returns>
-    internal async Task<bool> TryClaimAtAttemptAsync(
-        long jobId,
-        int expectedAttemptCount,
-        IReadOnlyCollection<string> registeredJobTypes,
-        DateTime utcNow,
-        CancellationToken cancellationToken = default)
-    {
-        var affected = await dbContext.BackgroundJobs
-            .Where(job => job.Id == jobId
-                && job.AttemptCount == expectedAttemptCount
-                && (job.Status == JobStatus.Pending || job.Status == JobStatus.Retrying)
-                && job.NextAttemptAt <= utcNow
-                && registeredJobTypes.Contains(job.JobType))
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(job => job.Status, JobStatus.Processing)
-                    .SetProperty(job => job.AttemptCount, job => job.AttemptCount + 1)
-                    // Kept rather than overwritten: this records when the job began, not when the
-                    // current attempt did, so a retry must not reset it.
-                    .SetProperty(job => job.StartedAt, job => job.StartedAt ?? utcNow)
-                    .SetProperty(job => job.HeartbeatAt, (DateTime?)utcNow),
-                cancellationToken);
-
-        return affected == 1;
-    }
-
-    /// <inheritdoc />
     public Task<bool> TryHeartbeatAsync(
         long jobId,
         int claimedAttempt,
@@ -101,7 +62,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             setters => setters.SetProperty(job => job.HeartbeatAt, (DateTime?)utcNow),
             cancellationToken);
 
-    /// <inheritdoc />
     public Task<bool> TryCompleteAsync(
         long jobId,
         int claimedAttempt,
@@ -114,12 +74,10 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
                 .SetProperty(job => job.Status, JobStatus.Completed)
                 .SetProperty(job => job.ProgressPercentage, 100)
                 .SetProperty(job => job.CompletedAt, (DateTime?)utcNow)
-                // An earlier attempt may have left one behind, and a job that ended in success must not
-                // still show the failure that preceded it.
+                // A success must not keep showing an earlier attempt's failure.
                 .SetProperty(job => job.ErrorMessage, (string?)null),
             cancellationToken);
 
-    /// <inheritdoc />
     public Task<bool> TryFailAsync(
         long jobId,
         int claimedAttempt,
@@ -127,7 +85,7 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         DateTime utcNow,
         CancellationToken cancellationToken = default)
     {
-        var message = Truncate(errorMessage);
+        var message = StorableErrorMessage(errorMessage);
 
         return UpdateFencedAsync(
             jobId,
@@ -139,7 +97,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             cancellationToken);
     }
 
-    /// <inheritdoc />
     public Task<bool> RecordFailedAttemptAsync(
         long jobId,
         int claimedAttempt,
@@ -154,7 +111,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             FailedAttemptSetters(claimedAttempt, maxAttempts, nextAttemptAt, errorMessage, utcNow),
             cancellationToken);
 
-    /// <inheritdoc />
     public Task<bool> TryReapAsync(
         long jobId,
         int claimedAttempt,
@@ -169,34 +125,33 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             claimedAttempt,
             FailedAttemptSetters(claimedAttempt, maxAttempts, nextAttemptAt, errorMessage, utcNow),
             cancellationToken,
-            // Re-checked in the statement that writes, not just in the scan that found the job: a
-            // runner that checked in since that scan is alive and keeps its job.
-            job => job.HeartbeatAt < staleCutoff);
+            // Re-checked in the write, so a runner that checked in since the scan keeps its job.
+            IsStale(staleCutoff));
 
-    /// <inheritdoc />
     public async Task<IReadOnlyList<StaleJob>> FindStaleAsync(
         DateTime staleCutoff,
         int limit,
         CancellationToken cancellationToken = default) =>
         await dbContext.BackgroundJobs
             .AsNoTracking()
-            .Where(job => job.Status == JobStatus.Processing && job.HeartbeatAt < staleCutoff)
-            // Silent longest first, so a batch smaller than the backlog still reaps the jobs that have
-            // been stuck the longest.
-            .OrderBy(job => job.HeartbeatAt)
+            .Where(job => job.Status == JobStatus.Processing)
+            .Where(IsStale(staleCutoff))
+            // Missing heartbeats first, then the longest silent, so a short batch takes the worst cases.
+            .OrderBy(job => job.HeartbeatAt != null)
+            .ThenBy(job => job.HeartbeatAt)
             .ThenBy(job => job.Id)
             .Take(limit)
             .Select(job => new StaleJob(job.Id, job.JobType, job.AttemptCount))
             .ToListAsync(cancellationToken);
 
-    /// <inheritdoc />
+    // ExpiresAt is not a filter: expiry is retention, and the retention collector removes terminal rows
+    // only, so skipping expired rows here would strand them as Pending.
     public async Task<IReadOnlyList<JobDispatchItem>> FindEligibleAsync(
         IReadOnlyCollection<string> registeredJobTypes,
         DateTime utcNow,
         int limit,
         CancellationToken cancellationToken = default)
     {
-        // Nothing here can run a job of any type, so the rows would all be discarded again.
         if (registeredJobTypes.Count == 0)
         {
             return [];
@@ -214,12 +169,33 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             .ToListAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// The one update a retryable failure makes, whether it schedules another attempt or gives up.
-    /// </summary>
-    /// <remarks>
-    /// Neither branch touches the attempt count: the attempt was consumed by the claim that started it.
-    /// </remarks>
+    // Only a claim changes the attempt count, so a claim that landed after the caller's read matches nothing.
+    private async Task<bool> TryClaimAtAttemptAsync(
+        long jobId,
+        int expectedAttemptCount,
+        IReadOnlyCollection<string> registeredJobTypes,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
+    {
+        var affected = await dbContext.BackgroundJobs
+            .Where(job => job.Id == jobId
+                && job.AttemptCount == expectedAttemptCount
+                && (job.Status == JobStatus.Pending || job.Status == JobStatus.Retrying)
+                && job.NextAttemptAt <= utcNow
+                && registeredJobTypes.Contains(job.JobType))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(job => job.Status, JobStatus.Processing)
+                    .SetProperty(job => job.AttemptCount, job => job.AttemptCount + 1)
+                    // When the job began, not the current attempt, so a retry keeps it.
+                    .SetProperty(job => job.StartedAt, job => job.StartedAt ?? utcNow)
+                    .SetProperty(job => job.HeartbeatAt, (DateTime?)utcNow),
+                cancellationToken);
+
+        return affected == 1;
+    }
+
+    // Neither branch changes the attempt count: the claim that started the attempt consumed it.
     private static Action<UpdateSettersBuilder<BackgroundJob>> FailedAttemptSetters(
         int claimedAttempt,
         int maxAttempts,
@@ -227,7 +203,7 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         string errorMessage,
         DateTime utcNow)
     {
-        var message = Truncate(errorMessage);
+        var message = StorableErrorMessage(errorMessage);
         var outOfAttempts = claimedAttempt >= maxAttempts;
 
         return setters =>
@@ -243,16 +219,11 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
 
             setters.SetProperty(job => job.Status, JobStatus.Retrying);
             setters.SetProperty(job => job.NextAttemptAt, nextAttemptAt);
-            // Cleared so the row stops looking alive: nothing is running it until it is claimed again.
+            // Nothing runs a retrying job, so it carries no heartbeat.
             setters.SetProperty(job => job.HeartbeatAt, (DateTime?)null);
         };
     }
 
-    /// <summary>
-    /// Applies <paramref name="setters"/> to the job only while the caller still owns the attempt it
-    /// claimed.
-    /// </summary>
-    /// <returns><c>true</c> when the one row was changed; <c>false</c> when the caller has been fenced out.</returns>
     private async Task<bool> UpdateFencedAsync(
         long jobId,
         int claimedAttempt,
@@ -273,6 +244,15 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         return await fenced.ExecuteUpdateAsync(setters, cancellationToken) == 1;
     }
 
-    private static string Truncate(string errorMessage) =>
-        errorMessage.Length <= ErrorMessageMaxLength ? errorMessage : errorMessage[..ErrorMessageMaxLength];
+    // A running job without a heartbeat has nothing proving it alive, so it is as stale as a silent one.
+    private static Expression<Func<BackgroundJob, bool>> IsStale(DateTime staleCutoff) =>
+        job => job.HeartbeatAt == null || job.HeartbeatAt < staleCutoff;
+
+    // Rejected like the entity's own failure transitions, then cut to fit the column.
+    private static string StorableErrorMessage(string errorMessage)
+    {
+        Guard.Against.NullOrWhiteSpace(errorMessage);
+
+        return errorMessage.Length <= ErrorMessageMaxLength ? errorMessage : errorMessage[..ErrorMessageMaxLength];
+    }
 }
