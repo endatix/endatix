@@ -12,7 +12,7 @@ namespace Endatix.IntegrationTests.Shared;
 /// </summary>
 public sealed class DatabaseCheckpoint
 {
-    private static readonly string[] _postgresSchemas = ["public", "identity", "agents", "reporting"];
+    private static readonly string[] _postgresSchemas = ["public", "identity", "agents", "reporting", "jobs"];
 
     private static readonly string[] _sqlServerSchemas = ["dbo", "identity", "agents", "reporting"];
 
