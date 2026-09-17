@@ -148,6 +148,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "developers/hub/index",
         "developers/hub/environment",
+        "developers/hub/observability",
         "developers/hub/embed-events",
         "developers/hub/azure-storage",
         "developers/hub/rustfs-storage",

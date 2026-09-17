@@ -196,7 +196,7 @@ Keycloak and Google add `AUTH_KEYCLOAK_*` and `AUTH_GOOGLE_*` — see [Authentic
 | --- | --- | --- |
 | File uploads | `STORAGE_PROVIDER`, `STORAGE_AZURE_*`, `STORAGE_S3_*` | [Asset storage](/docs/configuration/asset-storage) · [Azure Blob](/docs/developers/hub/azure-storage) · [RustFS](/docs/developers/hub/rustfs-storage) |
 | Maintenance page | `MAINTENANCE_MODE`, `MAINTENANCE_*` copy | [Maintenance mode](/docs/developers/hub/maintenance-mode) |
-| Telemetry | `OTEL_*`, `APPLICATIONINSIGHTS_CONNECTION_STRING`, `TELEMETRY_CONSOLE_FALLBACK` | [Observability](/docs/configuration/observability) |
+| Telemetry | `OTEL_*`, `APPLICATIONINSIGHTS_CONNECTION_STRING`, `TELEMETRY_CONSOLE_FALLBACK`, Helm `otel.*`, `NEXT_OTEL_VERBOSE` | [Hub observability](/docs/developers/hub/observability) |
 | Path prefix | `NEXT_PUBLIC_BASE_PATH` | [Subfolder deployment](/docs/building-your-solution/deployment/subfolder-deployment) |
 | Sign-in providers | `AUTH_KEYCLOAK_*`, `AUTH_GOOGLE_*` | [Authentication](/docs/building-your-solution/authentication/) |
 
@@ -264,6 +264,12 @@ Same rename. UI deep-link host is now `POSTHOG_UI_HOST`.
     title="Environment (Platform Admin)"
     description="Audit what the running process resolved — API, debug, analytics, flags, reCAPTCHA, licence presence."
     icon="dashboard"
+  />
+  <LinkCard
+    to="/docs/developers/hub/observability"
+    title="Hub observability"
+    description="Azure Monitor and OTLP (gRPC or HTTP) — runtime keys, Helm, stdout."
+    icon="server"
   />
   <LinkCard
     to="/docs/building-your-solution/deployment/self-hosting"
