@@ -131,9 +131,11 @@ Telemetry never ends the process. Uncaught exceptions and unhandled promise reje
 
 Node 18+ `fetch` is undici, which bypasses `node:http`. Next.js's own fetch span does not add `traceparent` to the request, so Hub registers `UndiciInstrumentation`: Hub → API calls carry `traceparent` and join one trace. Next's duplicate fetch span is off by default (`NEXT_OTEL_FETCH_DISABLED`). Do not add browser `FetchInstrumentation`.
 
-Noisy requests Hub serves — `/_next/*`, static files, RSC payload requests (`_rsc=`), `/api/health`, `robots.txt`, `sitemap` — are dropped for the **whole trace**, including the Next.js render spans under them, for Azure and OTLP alike. Internal `metric.*` spans and calls to `telemetry.nextjs.org` are dropped too. Outgoing calls are never dropped for their path: fetching an image or a `.json` file is a real dependency.
+Noisy requests Hub serves — `/_next/*`, static files, `/api/health`, `robots.txt`, `sitemap` — are dropped for the **whole trace**, including the Next.js render spans under them, for Azure and OTLP alike. A static file served by the Next.js router produces only two URL-less wrapper spans (`NextServer.getRequestHandler`, `NextServer.getServerRequestHandler`); those are dropped when nothing else happened in the trace. Internal `metric.*` spans and calls to `telemetry.nextjs.org` are dropped too. Outgoing calls are never dropped for their path: fetching an image or a `.json` file is a real dependency.
 
-Two limits: static-file requests still export Next.js's two wrapper spans (they carry no URL to match), and with a rate limit those requests count against the per-second budget. Serving `/_next/static` from a CDN removes both.
+RSC requests (`?_rsc=`) are **traced**. They are App Router navigations that render server components and call the API, so their spans and errors matter; sampling bounds the volume. Next.js marks them with `next.rsc`.
+
+One limit: sampling decides when a request's first span starts, before the URL is known, so static-file requests still count against `TELEMETRY_TRACES_PER_SECOND` even though they export nothing. Browsers cache `/_next/static` files as immutable, and serving them from a CDN removes this entirely.
 
 Next leaves the OTel and Azure exporter packages unbundled (`serverExternalPackages`) so instrumentation and request handlers load the same modules the SDK registered with.
 
