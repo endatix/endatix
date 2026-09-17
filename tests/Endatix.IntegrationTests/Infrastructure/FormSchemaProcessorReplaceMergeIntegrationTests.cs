@@ -323,7 +323,6 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         return new AppDbContext(
             optionsBuilder.Options,
             tenantContext,
-            IntegrationAppDbContextFactory.ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher());
     }
 
@@ -334,7 +333,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private sealed record SeededForm(long FormId, long FormDefinitionId);

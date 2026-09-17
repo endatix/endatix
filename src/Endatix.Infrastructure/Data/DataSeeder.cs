@@ -1,18 +1,17 @@
 ﻿using System.Diagnostics;
-using System.Reflection;
 using Endatix.Infrastructure.Data.Logging;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Entities;
 using Microsoft.EntityFrameworkCore;
-using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data.SeedData;
+using Endatix.Infrastructure.Identity.Authentication;
 
 namespace Endatix.Infrastructure.Data;
 
 /// <summary>
 /// This class is responsible for seeding the database with sample data. It is designed for creating sample data, but can evolve to support testing cases or SDK templates.
 /// </summary>
-public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerator)
+public class DataSeeder(ILogger<DataSeeder> logger)
 {
     /// <summary>
     /// Synchronous version of the seeder, existing because EF Core requires both sync and async seeding methods.
@@ -35,8 +34,8 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
     {
         try
         {
-            var hasForms = await dbContext.Set<Form>().AnyAsync(cancellationToken);
-            if (hasForms)
+            // A failed Form insert (no definition yet) must not skip retry.
+            if (await dbContext.Set<FormDefinition>().AnyAsync(cancellationToken))
             {
                 return;
             }
@@ -62,11 +61,17 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
 
     private async Task SeedFromFileAsync(DbContext dbContext, FormSeedData seedData, CancellationToken cancellationToken)
     {
+        // Forms.ActiveDefinitionId and FormDefinitions.FormId are a cycle: insert Form with
+        // null ActiveDefinitionId, then INSERT the definition (must be Added, not Modified),
+        // then update the form FK. Pre-stamping a snowflake Id on the definition and only
+        // attaching it via the parent makes EF treat it as existing → UPDATE + FK 23503.
         var form = CreateForm(seedData.Form.Name, seedData.Form.Id);
         await dbContext.Set<Form>().AddAsync(form, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        CreateDefinition(form, seedData.Definition.JsonSchema.GetRawText());
+        var formDefinition = new FormDefinition(tenantId: AuthConstants.DEFAULT_ADMIN_TENANT_ID, jsonData: seedData.Definition.JsonSchema.GetRawText());
+        form.AddFormDefinition(formDefinition, isActive: true);
+        await dbContext.Set<FormDefinition>().AddAsync(formDefinition, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var submissions = seedData.Submissions
@@ -80,30 +85,19 @@ public class DataSeeder(ILogger<DataSeeder> logger, IIdGenerator<long> idGenerat
         dbContext.ChangeTracker.Clear();
     }
 
-    private Form CreateForm(string name, long? id = null)
+    private static Form CreateForm(string name, long? id = null)
     {
         FormCreateArgs args = new(
-            TenantId: 1,
+            TenantId: AuthConstants.DEFAULT_ADMIN_TENANT_ID,
             Name: name,
             IsEnabled: true);
-        // Seed graph reads form.Id / ActiveDefinition.Id before SaveChanges, so stamp Ids here.
-        var form = Form.Create(id ?? idGenerator.CreateId(), args);
-        return form;
+        return id is { } explicitId ? Form.Create(explicitId, args) : Form.Create(args);
     }
 
-    private FormDefinition CreateDefinition(Form form, string jsonData, long? id = null, bool isActive = true)
+    private static Submission CreateSubmission(SubmissionInfo submissionInfo, Form form, long? formDefinitionId = default)
     {
-        var definitionId = id ?? idGenerator.CreateId();
-        var formDefinition = FormDefinition.Create(definitionId, tenantId: 1, jsonData: jsonData);
-
-        form.AddFormDefinition(formDefinition, isActive);
-        return formDefinition;
-    }
-
-    private Submission CreateSubmission(SubmissionInfo submissionInfo, Form form, long? formDefinitionId = default)
-    {
-        var submission = Submission.Create(idGenerator.CreateId(), new SubmissionCreateArgs(
-            TenantId: 1,
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: AuthConstants.DEFAULT_ADMIN_TENANT_ID,
             FormId: form.Id,
             FormDefinitionId: formDefinitionId ?? form.ActiveDefinition!.Id,
             JsonData: submissionInfo.JsonData.GetRawText(),

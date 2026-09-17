@@ -250,7 +250,7 @@ public sealed class FlattenedSubmissionRepositoryTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private static FlattenedSubmissionRepository CreateRepository(ReportingDbContext dbContext)

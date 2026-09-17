@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authorization;
@@ -15,8 +14,7 @@ public sealed class PlatformAdminLocalApprovalGateTests
     {
         // Arrange
         var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>().Options;
-        var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<Core.Abstractions.IIdGenerator<long>>());
-        var db = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory);
+        var db = Substitute.For<AppIdentityDbContext>(dbOptions);
         var gate = new PlatformAdminLocalApprovalGate(db, new UpperInvariantLookupNormalizer());
 
         // Act

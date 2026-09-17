@@ -27,8 +27,7 @@ public sealed class GetJobHandlerTests : IDisposable
             .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
             .Options;
 
-        _dbContext = new TestJobsDbContext(
-            options, new SequentialIdGenerator(), new FixedTenantContext(CallerTenantId));
+        _dbContext = new TestJobsDbContext(options, new FixedTenantContext(CallerTenantId));
         _handler = new GetJobHandler(_dbContext);
     }
 

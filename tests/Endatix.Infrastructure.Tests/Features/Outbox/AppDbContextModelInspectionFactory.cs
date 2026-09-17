@@ -21,14 +21,6 @@ internal static class AppDbContextModelInspectionFactory
     private const string SqlServerMigrationsAssembly = "Endatix.Persistence.SqlServer";
     private const string SqlServerAppMigrationsNamespace = "Endatix.Persistence.SqlServer.Migrations.AppEntities";
 
-    /// <summary>
-    /// One factory per context type: EF caches a single <see cref="AppDbContext"/> model per process
-    /// and it closes over the first <see cref="EfCoreValueGeneratorFactory"/> it sees. Every build
-    /// here shares this instance so both providers (and any persisting test in this assembly) agree.
-    /// </summary>
-    private static readonly EfCoreValueGeneratorFactory ValueGeneratorFactory =
-        new(new MonotonicIdGenerator());
-
     internal static AppDbContext CreatePostgreSqlAppDbContext(
         ITenantContext? tenantContext = null)
     {
@@ -50,7 +42,6 @@ internal static class AppDbContextModelInspectionFactory
         return new AppDbContext(
             optionsBuilder.Options,
             resolvedTenantContext,
-            ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher());
     }
 
@@ -75,7 +66,6 @@ internal static class AppDbContextModelInspectionFactory
         return new AppDbContext(
             optionsBuilder.Options,
             resolvedTenantContext,
-            ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher());
     }
 
@@ -85,7 +75,7 @@ internal static class AppDbContextModelInspectionFactory
         optionsBuilder.UseNpgsql(
             "Host=127.0.0.1;Database=__ef_model_inspection_not_connected__;Username=postgres;Password=postgres");
 
-        return new AppIdentityDbContext(optionsBuilder.Options, ValueGeneratorFactory);
+        return new AppIdentityDbContext(optionsBuilder.Options);
     }
 
     internal static AppIdentityDbContext CreateSqlServerAppIdentityDbContext()
@@ -94,12 +84,6 @@ internal static class AppDbContextModelInspectionFactory
         optionsBuilder.UseSqlServer(
             "Server=(localdb)\\mssqllocaldb;Database=__ef_model_inspection_not_connected__;Trusted_Connection=True");
 
-        return new AppIdentityDbContext(optionsBuilder.Options, ValueGeneratorFactory);
-    }
-
-    private sealed class MonotonicIdGenerator : IIdGenerator<long>
-    {
-        private long _current;
-        public long CreateId() => Interlocked.Increment(ref _current);
+        return new AppIdentityDbContext(optionsBuilder.Options);
     }
 }

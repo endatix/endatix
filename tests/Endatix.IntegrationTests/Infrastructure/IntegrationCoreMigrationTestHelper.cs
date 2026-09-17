@@ -55,14 +55,14 @@ internal static class IntegrationCoreMigrationTestHelper
 
     private static void RegisterCoreContextDependencies(IServiceCollection services)
     {
-        services.AddSingleton<IIdGenerator<long>, NoOpIdGenerator>();
+        services.AddSingleton<IIdGenerator<long>, SequentialIdGenerator>();
         services.AddSingleton<ITenantContext>(IntegrationTenantContext.Bypass);
-        services.AddSingleton(sp => new EfCoreValueGeneratorFactory(sp.GetRequiredService<IIdGenerator<long>>()));
         services.AddSingleton<OutboxIntegrationEventDispatcher>();
     }
 
-    private sealed class NoOpIdGenerator : IIdGenerator<long>
+    private sealed class SequentialIdGenerator : IIdGenerator<long>
     {
-        public long CreateId() => 0;
+        private long _current;
+        public long CreateId() => Interlocked.Increment(ref _current);
     }
 }

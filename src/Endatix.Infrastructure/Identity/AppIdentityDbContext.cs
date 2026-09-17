@@ -11,13 +11,8 @@ namespace Endatix.Infrastructure.Identity;
 /// </summary>
 public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 {
-    private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
-
-    public AppIdentityDbContext(
-        DbContextOptions<AppIdentityDbContext> options,
-        EfCoreValueGeneratorFactory valueGeneratorFactory) : base(options)
+    public AppIdentityDbContext(DbContextOptions<AppIdentityDbContext> options) : base(options)
     {
-        _valueGeneratorFactory = valueGeneratorFactory;
     }
 
     public DbSet<Permission> Permissions { get; set; }
@@ -32,7 +27,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 
         builder.HasDefaultSchema("identity");
 
-        builder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
+        builder.ApplySnowflakeIdValueGenerators();
 
         RenameIdentityTables(builder);
     }

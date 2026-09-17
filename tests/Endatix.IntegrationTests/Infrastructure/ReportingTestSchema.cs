@@ -10,13 +10,6 @@ namespace Endatix.IntegrationTests;
 
 internal static class ReportingTestSchema
 {
-    /// <summary>
-    /// EF caches one model per context type; the OnAdd generator is the factory from the first
-    /// <see cref="ReportingDbContext"/> compiled in this process.
-    /// </summary>
-    internal static readonly EfCoreValueGeneratorFactory ValueGeneratorFactory =
-        new(new IncrementingIdGenerator());
-
     public static async Task EnsureMigratedAsync(
         string connectionString,
         TestDatabaseProvider provider,
@@ -28,7 +21,6 @@ internal static class ReportingTestSchema
 
         await using ReportingDbContext context = new(
             optionsBuilder.Options,
-            ReportingTestSchema.ValueGeneratorFactory,
             IntegrationTenantContext.Bypass);
 
         // Reporting integration tests reset data via Respawn but keep schema objects.

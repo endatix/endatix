@@ -97,15 +97,14 @@ public sealed class ReportingQueryFilterTests
         var optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new TestReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
+        return new TestReportingDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private sealed class TestReportingDbContext : ReportingDbContext
     {
         public TestReportingDbContext(
             DbContextOptions<ReportingDbContext> options,
-            EfCoreValueGeneratorFactory valueGeneratorFactory,
             ITenantContext tenantContext)
-            : base(options, valueGeneratorFactory, tenantContext) { }
+            : base(options, tenantContext) { }
     }
 }

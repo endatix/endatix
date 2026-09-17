@@ -21,18 +21,15 @@ public class AppDbContext : DbContext, ITenantDbContext
     private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
 
     private readonly ITenantContext _tenantContext;
-    private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
     private readonly OutboxIntegrationEventDispatcher _outboxDispatcher;
 
     protected AppDbContext() { }
     public AppDbContext(
         DbContextOptions<AppDbContext> options,
         ITenantContext tenantContext,
-        EfCoreValueGeneratorFactory valueGeneratorFactory,
         OutboxIntegrationEventDispatcher outboxDispatcher) : base(options)
     {
         _tenantContext = tenantContext;
-        _valueGeneratorFactory = valueGeneratorFactory;
         _outboxDispatcher = outboxDispatcher;
     }
 
@@ -104,7 +101,7 @@ public class AppDbContext : DbContext, ITenantDbContext
             .HasNoKey()
             .ToTable(t => t.ExcludeFromMigrations());
 
-        builder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
+        builder.ApplySnowflakeIdValueGenerators();
 
         PrefixTableNames(builder);
     }
@@ -199,8 +196,7 @@ public class AppDbContext : DbContext, ITenantDbContext
     }
 
     /// <summary>
-    /// Captures <see cref="IIntegrationEvent"/>s into <see cref="OutboxMessage"/> rows in this context.
-    /// Runs after Add, so payloads read live Ids. Outbox rows get Ids from the same OnAdd generator.
+    /// Captures integration events after Add, so payloads read live Ids.
     /// </summary>
     private void CaptureIntegrationEvents()
     {

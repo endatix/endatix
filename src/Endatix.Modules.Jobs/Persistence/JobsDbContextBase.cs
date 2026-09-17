@@ -28,16 +28,13 @@ namespace Endatix.Modules.Jobs.Persistence;
 public abstract class JobsDbContextBase : DbContext, IJobsDbContext
 {
     private readonly ITenantContext _tenantContext;
-    private readonly EfCoreValueGeneratorFactory _valueGeneratorFactory;
 
     protected JobsDbContextBase(
         DbContextOptions options,
-        ITenantContext tenantContext,
-        EfCoreValueGeneratorFactory valueGeneratorFactory)
+        ITenantContext tenantContext)
         : base(options)
     {
         _tenantContext = tenantContext;
-        _valueGeneratorFactory = valueGeneratorFactory;
     }
 
     public DbSet<BackgroundJob> BackgroundJobs => Set<BackgroundJob>();
@@ -64,7 +61,7 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
         // notably the JSON column type and the filtered-index predicates, whose syntax differs.
         ApplyProviderConfigurations(modelBuilder);
 
-        modelBuilder.ApplySnowflakeIdValueGenerators(_valueGeneratorFactory);
+        modelBuilder.ApplySnowflakeIdValueGenerators();
         modelBuilder.ApplyModuleTableNames();
     }
 

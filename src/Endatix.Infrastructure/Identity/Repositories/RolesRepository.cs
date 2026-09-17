@@ -32,15 +32,12 @@ public class RolesRepository : IRolesRepository
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             _identityDbContext.Roles.Add(role);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
             foreach (var permissionId in permissionIds)
             {
-                var rolePermission = new RolePermission(role.Id, permissionId);
-                _identityDbContext.RolePermissions.Add(rolePermission);
+                _identityDbContext.RolePermissions.Add(new RolePermission(role.Id, permissionId));
             }
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return role;

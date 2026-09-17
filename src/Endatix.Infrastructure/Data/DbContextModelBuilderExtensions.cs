@@ -15,18 +15,14 @@ namespace Endatix.Infrastructure.Data;
 public static class DbContextModelBuilderExtensions
 {
     /// <summary>
-    /// Client snowflake on every <c>long Id</c> PK: <c>OnAdd</c> + store strategy <c>None</c>
-    /// (no IDENTITY/serial). Call after all entity configurations so types discovered by
-    /// <c>ApplyConfigurationsFor</c> / assembly scans are included. OSS: App, Identity,
-    /// Reporting, Jobs. SaaS <c>AgentsDbContext</c> must call it the same way (last in
-    /// <c>OnModelCreating</c>); that type is not in this repository.
+    /// Client snowflake on every <c>long Id</c> PK: EF <see cref="SnowflakeValueGeneratorFactory"/>
+    /// + <c>OnAdd</c> + store strategy <c>None</c>. Call last in <c>OnModelCreating</c>.
+    /// The factory only constructs the generator type (model is cached). <c>IIdGenerator&lt;long&gt;</c>
+    /// is resolved at <c>Add</c> from host DI.
     /// </summary>
-    public static void ApplySnowflakeIdValueGenerators(
-        this ModelBuilder builder,
-        EfCoreValueGeneratorFactory valueGeneratorFactory)
+    public static void ApplySnowflakeIdValueGenerators(this ModelBuilder builder)
     {
         Guard.Against.Null(builder);
-        Guard.Against.Null(valueGeneratorFactory);
 
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
@@ -43,12 +39,13 @@ public static class DbContextModelBuilderExtensions
 
             IMutableProperty metadata = builder.Entity(entityType.ClrType)
                 .Property<long>("Id")
-                .HasValueGenerator((property, _) => valueGeneratorFactory.Create<long>(property))
+                .HasValueGeneratorFactory<SnowflakeValueGeneratorFactory>()
                 .ValueGeneratedOnAdd()
                 .Metadata;
 
             metadata.SetValueGenerationStrategy(NpgsqlValueGenerationStrategy.None);
             metadata.SetValueGenerationStrategy(SqlServerValueGenerationStrategy.None);
+            metadata.ValueGenerated = ValueGenerated.OnAdd;
         }
     }
 

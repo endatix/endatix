@@ -50,7 +50,7 @@ Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · h
 
 ## Entity Ids (snowflake)
 
-Client snowflake stamped on `Add` by `ApplySnowflakeIdValueGenerators` — not IDENTITY, not `IIdGenerator` in handlers/repos. `Create(args)` leaves `Id == 0`; `Create(long id, args)` only for tests/seed/import. NSubstitute `AddAsync` must stamp `Id` itself (`ci.Arg<T>().Id = SomeId`). Details: [`ARCHITECTURE.md` → Entity Ids](ARCHITECTURE.md).
+Client snowflake stamped on `Add` by `ApplySnowflakeIdValueGenerators` — not IDENTITY, not `IIdGenerator` in handlers/repos. `Create(args)` leaves `Id == 0`; `Create(long id, args)` only for tests/seed/import. Model maps `SnowflakeValueGeneratorFactory`; `IIdGenerator<long>` is resolved at `Add` from host DI (do not capture a generator instance in `OnModelCreating`). NSubstitute `AddAsync` must stamp `Id` itself (`ci.Arg<T>().Id = SomeId`). Details: [`ARCHITECTURE.md` → Entity Ids](ARCHITECTURE.md).
 
 ## Error HTTP contract (API)
 

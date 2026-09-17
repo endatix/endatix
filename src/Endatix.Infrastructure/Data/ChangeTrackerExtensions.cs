@@ -5,21 +5,16 @@ namespace Endatix.Infrastructure.Data;
 
 /// <summary>
 /// Save-time conventions shared by every Endatix <see cref="DbContext"/>.
+/// Extension methods rather than a base class: contexts differ in save-time work
+/// (outbox capture vs timestamps only).
 /// </summary>
-/// <remarks>
-/// Extension methods rather than a base class on purpose. Contexts differ in what else they do at
-/// save time — capturing integration events, generating ids from a value generator instead of here —
-/// so each one composes the conventions it needs and the call site says which those are. A shared
-/// base would force every context into one shape and change all of them silently when it moved.
-/// </remarks>
 public static class ChangeTrackerExtensions
 {
     private const string CreatedAtPropertyName = "CreatedAt";
     private const string ModifiedAtPropertyName = "ModifiedAt";
 
     /// <summary>
-    /// Applies <c>CreatedAt</c> on insert and <c>ModifiedAt</c> on update.
-    /// Ids come from the OnAdd snowflake generator (or explicit <c>Create(id, …)</c>).
+    /// <c>CreatedAt</c> on insert, <c>ModifiedAt</c> on update. Ids come from OnAdd snowflake.
     /// </summary>
     public static void ApplyEndatixEntityDefaults(
         this ChangeTracker changeTracker,

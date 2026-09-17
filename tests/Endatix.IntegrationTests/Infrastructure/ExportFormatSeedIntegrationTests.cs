@@ -363,7 +363,6 @@ public sealed class ExportFormatSeedIntegrationTests
         await using AppDbContext appDb = new(
             optionsBuilder.Options,
             tenantContext,
-            IntegrationAppDbContextFactory.ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher());
 
         Tenant tenant = new($"xlsx-seed-{Guid.NewGuid():N}"[..32], Guid.NewGuid().ToString("N")[..8]);
@@ -415,7 +414,7 @@ public sealed class ExportFormatSeedIntegrationTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private static ExportFormatRepository CreateRepository(ReportingDbContext db) =>

@@ -9,8 +9,7 @@ namespace Endatix.Core.Entities;
 public abstract class BaseEntity : HasDomainEventsBase
 {
     /// <summary>
-    /// Client snowflake, never IDENTITY/serial. EF OnAdd generator
-    /// (<c>ApplySnowflakeIdValueGenerators</c>) stamps it; <c>Create(long id, …)</c> sets it for tests/seed/import.
+    /// Client snowflake. EF OnAdd stamps it; <c>Create(long id, …)</c> is tests/seed/import.
     /// </summary>
     public virtual long Id { get; set; }
     public DateTime CreatedAt { get; protected set; }

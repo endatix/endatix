@@ -134,7 +134,7 @@ public sealed class FormSchemaRepositoryTests
         DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new ReportingDbContext(optionsBuilder.Options, ReportingTestSchema.ValueGeneratorFactory, tenantContext);
+        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private static FormSchemaRepository CreateRepository(ReportingDbContext dbContext)

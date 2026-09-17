@@ -25,7 +25,7 @@ public class BackgroundJobQueueTests : IDisposable
             .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
             .Options;
 
-        _dbContext = new TestJobsDbContext(options, new SequentialIdGenerator(), new FixedTenantContext(0));
+        _dbContext = new TestJobsDbContext(options, new FixedTenantContext(0));
 
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(new DateTimeOffset(Now));

@@ -82,6 +82,21 @@ public class ApplySnowflakeIdValueGeneratorsTests
         new[] { added.Id, rangeFirst.Id, rangeSecond.Id }.Should().OnlyHaveUniqueItems();
     }
 
+    [Fact]
+    public void Add_Tenant_StampsSnowflakeId_BeforeSaveChanges()
+    {
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(1L);
+        using AppDbContext context = AppDbContextModelInspectionFactory.CreatePostgreSqlAppDbContext(tenantContext);
+
+        Tenant tenant = new("Acme", "abcd1234");
+        tenant.Id.Should().Be(0);
+
+        context.Set<Tenant>().Add(tenant);
+
+        tenant.Id.Should().BeGreaterThan(0);
+    }
+
     private static void AssertLongKeyContract(DbContext context)
     {
         var longKeyProperties = context.Model.GetEntityTypes()

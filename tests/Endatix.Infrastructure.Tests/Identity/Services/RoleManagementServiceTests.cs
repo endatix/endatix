@@ -8,7 +8,6 @@ using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -34,9 +33,8 @@ public class RoleManagementServiceTests
 
         var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>()
             .Options;
-        var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<IIdGenerator<long>>());
 
-        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory);
+        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions);
 
         _tenantContext = Substitute.For<ITenantContext>();
 

@@ -294,7 +294,6 @@ public sealed class OutboxCaptureTests
         return new TestAppDbContext(
             optionsBuilder.Options,
             _tenantContext,
-            IntegrationAppDbContextFactory.ValueGeneratorFactory,
             new OutboxIntegrationEventDispatcher(),
             ProbeSchema,
             ProbeTable);
@@ -330,11 +329,10 @@ internal sealed class TestAppDbContext : AppDbContext
     public TestAppDbContext(
         DbContextOptions<AppDbContext> options,
         ITenantContext tenantContext,
-        EfCoreValueGeneratorFactory valueGeneratorFactory,
         OutboxIntegrationEventDispatcher outboxDispatcher,
         string probeSchema,
         string probeTable)
-        : base(options, tenantContext, valueGeneratorFactory, outboxDispatcher)
+        : base(options, tenantContext, outboxDispatcher)
     {
         _probeSchema = probeSchema;
         _probeTable = probeTable;

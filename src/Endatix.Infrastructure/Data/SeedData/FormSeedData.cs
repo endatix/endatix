@@ -15,7 +15,7 @@ internal sealed class FormInfo
     public string Name { get; init; } = null!;
 
     /// <summary>
-    /// Optional stable ID. When null, the ID is generated via IIdGenerator.
+    /// Optional stable ID. When null, EF OnAdd stamps a snowflake Id.
     /// </summary>
     public long? Id { get; init; }
 }
