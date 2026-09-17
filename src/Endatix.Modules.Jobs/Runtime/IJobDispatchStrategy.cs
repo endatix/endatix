@@ -4,7 +4,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 public interface IJobDispatchStrategy
 {
-    /// <summary>Never blocks, and returns <c>false</c> when the channel is full.</summary>
+    /// <summary>Never blocks, and returns <c>false</c> when the strategy has no room for the item.</summary>
     bool TryOffer(JobDispatchItem item);
 
     ValueTask<JobDispatchLease> AcquireAsync(CancellationToken ct);
