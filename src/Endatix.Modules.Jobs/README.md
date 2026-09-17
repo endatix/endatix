@@ -28,10 +28,12 @@ attempt count, next attempt time, and the terminal statuses — lives on the job
 second system can disagree with it about what a job is doing.
 
 > [!IMPORTANT]
-> This package currently provides **persistence and enqueueing only**. It contains no runner
-> and no sweeper, so enqueued jobs stay `Pending` until a host that executes jobs exists.
-> The state machine, the handler contract, and the schema below describe the full design and
-> are what execution will be built against.
+> This package currently provides **persistence, enqueueing, and an internal job state
+> repository** that nothing uses yet. No runner or sweeper is hosted, so enqueued jobs stay
+> `Pending`. The state machine, the handler contract, and the schema below describe the full
+> design and are what execution will be built against. Cancelling a job and reporting a running
+> job's progress through conditional writes is tracked in
+> [endatix/endatix#1061](https://github.com/endatix/endatix/issues/1061).
 
 Work that outlives a request belongs here: exporting a large submission set, delivering a
 webhook to one endpoint, backfilling or purging tenant data.
