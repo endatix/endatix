@@ -13,6 +13,7 @@ Configure Hub with **environment variables**. The API uses `appsettings.json` �
 ## Start here
 
 - [Hub environment variables](/docs/developers/hub/environment) — required keys, request-time config (`ENDATIX_*`, `POSTHOG_*`, `FLAG_*`), Helm
+- [Hub observability](/docs/developers/hub/observability) — OTel logs and traces (Azure Monitor, OTLP gRPC or HTTP, stdout)
 - [Environment](/docs/end-users/administration/environment) — Platform Admin runtime audit (no secret values)
 
 ## Hub developer pages

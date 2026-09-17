@@ -1,0 +1,155 @@
+---
+title: Hub observability
+description: OpenTelemetry logs and traces for Endatix Hub — Azure Monitor, OTLP over gRPC or HTTP, AWS, Google Cloud, Helm, and stdout
+sidebar_label: Observability
+sidebar_position: 3
+---
+
+# Hub observability
+
+Hub exports **traces** and **logs** with one Node.js OpenTelemetry SDK (`NodeSDK` plus an explicit `LoggerProvider`). Next.js already emits route spans ([instrumentation](https://nextjs.org/docs/app/guides/instrumentation), [OpenTelemetry](https://nextjs.org/docs/app/guides/open-telemetry)). App logs go through `TelemetryLogger`.
+
+This page is Hub only. API metrics, file logging, and `Endatix:Telemetry` live on [API observability](/docs/configuration/observability). Hub does **not** export metrics.
+
+Hub does **not** use `@vercel/otel`. That package is traces-first and only registers a LoggerProvider if you pass `logRecordProcessors`. Hub needs Azure Monitor exporters, undici instrumentation (so `traceparent` reaches the API), and a global LoggerProvider so `TelemetryLogger` records reach an exporter.
+
+## What to set
+
+Telemetry is off until at least one exporter is set. Both may be set; then traces and logs fan out to both.
+
+**Stdout** (process log stream — SWA / App Service **Log stream**, `kubectl logs`): one line at boot, `Telemetry SDK started in Azure AppInsights mode` (or `OTel` / `Azure AppInsights + OTel`). That line is `console.log`, not an App Insights row.
+
+**App Insights `traces`**: Next.js HTTP spans land in `requests` / `dependencies` even when no app log has been emitted yet. After boot Hub writes one `TelemetryLogger` info record (`logger` = `instrumentation`) so `traces` is not empty if the logs pipeline works. Restart the instance if you are looking at an old process.
+
+<Settings>
+<Setting name="APPLICATIONINSIGHTS_CONNECTION_STRING">
+Azure Application Insights. **Runtime** app setting only — not a Static Web Apps **build** variable. HTTP spans land in `requests` / `dependencies`. `TelemetryLogger` records land in `traces`, except `error` / `critical` calls that pass an `Error`: those carry `exception.type` and `exception.stacktrace` and land in `exceptions`.
+</Setting>
+<Setting name="OTEL_EXPORTER_OTLP_ENDPOINT">
+OTLP endpoint for traces and logs. `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` / `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` override it per signal, and either one on its own also turns on export for that signal only.
+</Setting>
+<Setting name="OTEL_EXPORTER_OTLP_PROTOCOL" default="grpc">
+`grpc` (usually port `4317`), `http/protobuf` or `http/json` (usually `4318`). `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` / `OTEL_EXPORTER_OTLP_LOGS_PROTOCOL` override it per signal. Hub defaults to `grpc`, like the API, rather than the spec's `http/protobuf`. An unknown value logs a warning and uses `grpc`.
+</Setting>
+<Setting name="OTEL_EXPORTER_OTLP_HEADERS">
+Auth for a vendor endpoint, e.g. `api-key=…` or `Authorization=Bearer …`. Sent as gRPC metadata or HTTP headers.
+</Setting>
+<Setting name="OTEL_EXPORTER_OTLP_CERTIFICATE">
+TLS is read from the standard variables: `OTEL_EXPORTER_OTLP_CERTIFICATE` for a private CA, `OTEL_EXPORTER_OTLP_CLIENT_KEY` / `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` for mTLS, and `OTEL_EXPORTER_OTLP_INSECURE` for plaintext gRPC. For gRPC, `http://` means plaintext, `https://` means TLS, and an endpoint with no scheme uses TLS unless `OTEL_EXPORTER_OTLP_INSECURE=true`.
+</Setting>
+<Setting name="OTEL_SERVICE_NAME" default="endatix-hub">
+`service.name` / App Insights `cloud_RoleName`.
+</Setting>
+<Setting name="OTEL_RESOURCE_ATTRIBUTES">
+Extra resource attributes on **both** spans and logs, e.g. `deployment.environment.name=staging,service.namespace=endatix`. Hub also adds host and process attributes. It does not set `deployment.environment.name` itself.
+</Setting>
+<Setting name="OTEL_SDK_DISABLED">
+`true` (any case) skips SDK start, as the [OTel env spec](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) defines. Other values, including `1`, do not disable. Stdout: `OpenTelemetry SDK disabled (OTEL_SDK_DISABLED)`. `TelemetryLogger` then behaves as if no exporter were set.
+</Setting>
+<Setting name="OTEL_LOG_LEVEL">
+OpenTelemetry **SDK** diagnostics to **stdout** (`ALL`, `VERBOSE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `NONE`) — not App Insights `traces`, and not `TelemetryLogger` severity. Leave **unset in production** (SDK default). Set `WARN` or `ERROR` only while chasing export failures; `DEBUG` / `VERBOSE` / `ALL` on a short-lived test slot. `INFO` is noisy in prod (batch export chatter).
+</Setting>
+<Setting name="TELEMETRY_CONSOLE_FALLBACK" default="false">
+Print `TelemetryLogger` records to stdout in production. With no **active log** exporter, it forces the plain console fallback (development already has it). With an active log exporter, it adds one JSON object per line to stdout alongside the export — see [Stdout](#stdout).
+</Setting>
+<Setting name="NEXT_OTEL_VERBOSE">
+Next.js built-in OTel verbosity. Compose and Helm set `0` when OTLP is on. Not a Hub exporter switch.
+</Setting>
+</Settings>
+
+Master list: [`hub/.env.example`](https://github.com/endatix/endatix-hub/blob/main/.env.example). Catalog of every Hub key: [Hub environment variables](/docs/developers/hub/environment).
+
+## Choosing a setup by host
+
+| Host | Set | Notes |
+| --- | --- | --- |
+| Azure Static Web Apps, App Service, Container Apps | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Exporters only, not the Azure Monitor distro: no Live Metrics or performance counters. |
+| AWS (ECS, EKS, EC2) | `OTEL_EXPORTER_OTLP_ENDPOINT` → ADOT Collector | The collector forwards to X-Ray and CloudWatch. Add cloud attributes with its `resourcedetection` processor. |
+| Google Cloud (Cloud Run, GKE) | `OTEL_EXPORTER_OTLP_ENDPOINT` → an OpenTelemetry Collector (sidecar or agent) | Google's OTLP endpoint needs Google credentials, which Hub does not attach. Let the collector authenticate. |
+| OTLP vendor (Grafana Cloud, Honeycomb, …) | endpoint, `OTEL_EXPORTER_OTLP_PROTOCOL`, `OTEL_EXPORTER_OTLP_HEADERS` | Use `http/protobuf` for endpoints that accept only OTLP/HTTP. |
+| Self-hosted (Grafana Alloy, Collector, Tempo, Loki) | `OTEL_EXPORTER_OTLP_ENDPOINT` | gRPC or HTTP receiver; match the protocol to the port. |
+| Local Docker | nothing — Compose sets it | Aspire Dashboard, see below. |
+
+## Azure
+
+1. Put `APPLICATIONINSIGHTS_CONNECTION_STRING` on the **app** (runtime), not the GitHub/Oryx **build** env.
+2. Do **not** run the classic site agent (`ApplicationInsightsAgent_EXTENSION_VERSION=~3`) alongside Hub OTel. The agent collects HTTP on its own; it does not subscribe to the OTel Logs API, so you get duplicate requests and still no app logs from it.
+3. Confirm boot: process **Log stream** shows `Telemetry SDK started in Azure AppInsights mode`. In App Insights (wait a minute for ingest):
+
+```kusto
+traces
+| where cloud_RoleName == "endatix-hub"
+| where message startswith "Telemetry SDK started"
+| order by timestamp desc
+```
+
+4. Application logs (same table; logger name `instrumentation` for lifecycle):
+
+```kusto
+union traces, exceptions
+| where cloud_RoleName == "endatix-hub"
+| order by timestamp desc
+```
+
+Use `requests` and `dependencies` for HTTP spans.
+
+## AWS, Google Cloud, Helm, and self-hosted
+
+Point `OTEL_EXPORTER_OTLP_ENDPOINT` at a collector (ADOT, Grafana Alloy, vanilla Collector) and set `OTEL_EXPORTER_OTLP_PROTOCOL` to match its receiver. Collector-to-backend auth, sampling, and cloud resource attributes belong in the collector.
+
+Helm (`hub/helm/values.yaml`) defaults `otel.enabled` to `false`. When enabled, the chart sets `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` (`otel.protocol`, default `grpc`), and `NEXT_OTEL_VERBOSE`. An empty endpoint with `otel.enabled=false` is the same as no export.
+
+`docker compose up` already points Hub at the Aspire Dashboard — [local development on the API page](/docs/configuration/observability#local-development).
+
+## Stdout
+
+With an exporter set, Hub writes nothing extra to stdout by default, so a host that also collects container stdout does not ingest every record twice.
+
+Set `TELEMETRY_CONSOLE_FALLBACK=true` when the host's log stream is where you look (SWA log stream, `kubectl logs`, CloudWatch, Cloud Logging). Each record is one JSON line with `timestamp`, `severity`, `logger`, `body`, `traceId`, `spanId`, and `attributes`, so log agents keep it as one entry. Attributes whose key looks like a credential (`authorization`, `cookie`, `token`, `secret`, `password`, `api-key`, `connection string`) are written as `[REDACTED]` on **every** destination (`TelemetryLogger.emit`, JSON stdout, Azure, OTLP).
+
+Traces-only OTLP (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` with no logs endpoint) does **not** count as an active log exporter: `TelemetryLogger` still uses the development console fallback unless Azure or a logs OTLP endpoint is set.
+
+## Shutdown
+
+Next.js handles `SIGTERM` / `SIGINT`: it stops accepting connections, drains in-flight requests, then exits. Hub emits `Telemetry flushing on SIGTERM` (or `SIGINT`) then flushes; it does not exit early or shut the pipeline, so records from requests still draining are exported too.
+
+On an uncaught exception Hub logs it, shuts telemetry down for at most 5 seconds, then exits with code 1. Unhandled promise rejections are logged; Next.js decides whether the process survives them.
+
+## Traces to the API
+
+Node 18+ `fetch` is undici, which bypasses `node:http`. Hub registers `UndiciInstrumentation` so Hub → API calls carry `traceparent` and join one trace. Do not add browser `FetchInstrumentation`.
+
+Noisy Next.js spans (`/_next/*`, RSC, static assets, `/api/health`, `telemetry.nextjs.org`, internal `metric.*`) are dropped before export, for Azure and OTLP alike.
+
+Next leaves the OTel and Azure exporter packages unbundled (`serverExternalPackages`) so instrumentation and request handlers load the same modules the SDK registered with.
+
+## App logs
+
+Use `TelemetryLogger` from `@/features/telemetry`. Do not `console.log` in application code — those lines never reach Azure or OTLP.
+
+For Endatix API failures, map with `toResult(...)` and pass `logMessage` / `loggerName`. Expected 403/404/validation stay quiet; unexpected failures log safe scalars only (status, error code, endpoint) — never tokens, bodies, or raw API `detail`.
+
+PDF render **timeout** is a **warn** (expected deadline), not an exception.
+
+## Next steps
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/developers/hub/environment"
+    title="Hub environment variables"
+    description="Full Hub env catalog, including the telemetry pointer."
+    icon="dashboard"
+  />
+  <LinkCard
+    to="/docs/configuration/observability"
+    title="API observability"
+    description="OTLP logs, metrics, and traces on the Endatix API host."
+    icon="server"
+  />
+  <LinkCard
+    to="/docs/building-your-solution/deployment/self-hosting"
+    title="Self-hosting"
+    description="Compose and Kubernetes already wire OTEL_* when you turn them on."
+    icon="rocket"
+  />
+</CardGrid>
