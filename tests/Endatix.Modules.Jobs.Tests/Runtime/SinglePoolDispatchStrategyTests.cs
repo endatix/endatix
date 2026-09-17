@@ -98,11 +98,14 @@ public class SinglePoolDispatchStrategyTests
         await cancellation.CancelAsync();
         var act = () => acquisition;
 
-        // Assert — once the held leases are disposed, every slot can be held again.
+        // Assert — once the held leases are disposed, every slot can be held again, and no more.
         completedBeforeCancel.Should().BeFalse();
         await act.Should().ThrowAsync<OperationCanceledException>();
         DisposeAll(leases);
         HoldLeases(strategy, MaxConcurrency);
+        strategy.TryOffer(NextItem());
+        var beyondCapacity = strategy.AcquireAsync(TestContext.Current.CancellationToken);
+        beyondCapacity.IsCompleted.Should().BeFalse();
     }
 
     [Fact]
