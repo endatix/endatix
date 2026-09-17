@@ -7,7 +7,7 @@ sidebar_position: 3
 
 # Hub observability
 
-Hub exports **traces** and **logs** with one Node.js OpenTelemetry SDK (`NodeSDK` plus an explicit `LoggerProvider`). Next.js already emits route spans ([instrumentation](https://nextjs.org/docs/app/guides/instrumentation), [OpenTelemetry](https://nextjs.org/docs/app/guides/open-telemetry)). App logs go through `TelemetryLogger`.
+Hub exports **traces** and **logs** with one Node.js OpenTelemetry SDK (`NodeSDK`, which owns the tracer and logger providers). Next.js already emits route spans ([instrumentation](https://nextjs.org/docs/app/guides/instrumentation), [OpenTelemetry](https://nextjs.org/docs/app/guides/open-telemetry)). App logs go through `TelemetryLogger`.
 
 This page is Hub only. API metrics, file logging, and `Endatix:Telemetry` live on [API observability](/docs/configuration/observability). Hub does **not** export metrics.
 
@@ -15,7 +15,7 @@ Hub does **not** use `@vercel/otel`. That package is traces-first and only regis
 
 ## What to set
 
-Telemetry is off until at least one exporter is set. Both may be set; then traces and logs fan out to both.
+Telemetry is off until at least one exporter is set. Both may be set; then traces and logs fan out to both. If one exporter cannot be created (for example a malformed connection string), it is logged and skipped and the others still start.
 
 **Stdout** (process log stream — SWA / App Service **Log stream**, `kubectl logs`): one line at boot, `Telemetry SDK started in Azure AppInsights mode` (or `OTel` / `Azure AppInsights + OTel`). That line is `console.log`, not an App Insights row.
 
@@ -35,7 +35,13 @@ OTLP endpoint for traces and logs. `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` / `OTEL_
 Auth for a vendor endpoint, e.g. `api-key=…` or `Authorization=Bearer …`. Sent as gRPC metadata or HTTP headers.
 </Setting>
 <Setting name="OTEL_EXPORTER_OTLP_CERTIFICATE">
-TLS is read from the standard variables: `OTEL_EXPORTER_OTLP_CERTIFICATE` for a private CA, `OTEL_EXPORTER_OTLP_CLIENT_KEY` / `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` for mTLS, and `OTEL_EXPORTER_OTLP_INSECURE` for plaintext gRPC. For gRPC, `http://` means plaintext, `https://` means TLS, and an endpoint with no scheme uses TLS unless `OTEL_EXPORTER_OTLP_INSECURE=true`.
+TLS is read from the standard variables: `OTEL_EXPORTER_OTLP_CERTIFICATE` for a private CA and `OTEL_EXPORTER_OTLP_CLIENT_KEY` / `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` for mTLS.
+</Setting>
+<Setting name="OTEL_EXPORTER_OTLP_INSECURE">
+gRPC plaintext. `true` / `false` decides for any non-`https://` endpoint; `OTEL_EXPORTER_OTLP_TRACES_INSECURE` / `OTEL_EXPORTER_OTLP_LOGS_INSECURE` override per signal. Unset, `http://` and a scheme-less `host:port` (e.g. `otel-collector:4317`) are plaintext — Hub's long-standing default, where the OTel SDK alone would try TLS. `https://` is always TLS.
+</Setting>
+<Setting name="TELEMETRY_TRACES_PER_SECOND">
+Rate-limits sampled traces per second (`0` = no limit), using Azure Monitor's `RateLimitedSampler`, which records the sample rate so App Insights still extrapolates request and dependency counts. Unset: a standard `OTEL_TRACES_SAMPLER` / `OTEL_TRACES_SAMPLER_ARG` applies if set; otherwise **5** traces/s when Azure is configured (the Azure Monitor distro default) and every trace for OTLP only.
 </Setting>
 <Setting name="OTEL_SERVICE_NAME" default="endatix-hub">
 `service.name` / App Insights `cloud_RoleName`.
@@ -50,7 +56,10 @@ Extra resource attributes on **both** spans and logs, e.g. `deployment.environme
 OpenTelemetry **SDK** diagnostics to **stdout** (`ALL`, `VERBOSE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `NONE`) — not App Insights `traces`, and not `TelemetryLogger` severity. Leave **unset in production** (SDK default). Set `WARN` or `ERROR` only while chasing export failures; `DEBUG` / `VERBOSE` / `ALL` on a short-lived test slot. `INFO` is noisy in prod (batch export chatter).
 </Setting>
 <Setting name="TELEMETRY_CONSOLE_FALLBACK" default="false">
-Print `TelemetryLogger` records to stdout in production. With no **active log** exporter, it forces the plain console fallback (development already has it). With an active log exporter, it adds one JSON object per line to stdout alongside the export — see [Stdout](#stdout).
+Print `TelemetryLogger` records to stdout in production. With no running log exporter, it forces the plain console fallback (development already has it). With a running log exporter, it adds one JSON object per line to stdout alongside the export — see [Stdout](#stdout).
+</Setting>
+<Setting name="NEXT_OTEL_FETCH_DISABLED" default="1">
+Hub sets `1` at start unless you set it, which turns off Next.js's own fetch span. Hub → API calls are traced by undici instead, which also carries `traceparent`; with both, every call would be two `dependencies` rows. Set `0` to keep Next's span as well.
 </Setting>
 <Setting name="NEXT_OTEL_VERBOSE">
 Next.js built-in OTel verbosity. Compose and Helm set `0` when OTLP is on. Not a Hub exporter switch.
@@ -105,21 +114,26 @@ Helm (`hub/helm/values.yaml`) defaults `otel.enabled` to `false`. When enabled, 
 
 With an exporter set, Hub writes nothing extra to stdout by default, so a host that also collects container stdout does not ingest every record twice.
 
-Set `TELEMETRY_CONSOLE_FALLBACK=true` when the host's log stream is where you look (SWA log stream, `kubectl logs`, CloudWatch, Cloud Logging). Each record is one JSON line with `timestamp`, `severity`, `logger`, `body`, `traceId`, `spanId`, and `attributes`, so log agents keep it as one entry. Attributes whose key looks like a credential (`authorization`, `cookie`, `token`, `secret`, `password`, `api-key`, `connection string`) are written as `[REDACTED]` on **every** destination (`TelemetryLogger.emit`, JSON stdout, Azure, OTLP).
+Set `TELEMETRY_CONSOLE_FALLBACK=true` when the host's log stream is where you look (SWA log stream, `kubectl logs`, CloudWatch, Cloud Logging). Each record is one JSON line with `timestamp`, `severity`, `logger`, `body`, `traceId`, `spanId`, and `attributes`, so log agents keep it as one entry. If log export is configured but did not start (every log exporter failed to build, or the SDK failed), `TelemetryLogger` prints to stdout instead of dropping records. Traces-only OTLP (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` with no logs endpoint) has no log exporter: `TelemetryLogger` uses the console only in development or with `TELEMETRY_CONSOLE_FALLBACK=true`.
 
-Traces-only OTLP (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` with no logs endpoint) does **not** count as an active log exporter: `TelemetryLogger` still uses the development console fallback unless Azure or a logs OTLP endpoint is set.
+## Redaction
+
+- **Log attributes:** string values under a credential-like key (`authorization`, `cookie`, `token`, `secret`, `password`, `api-key`, `connection string`) become `[REDACTED]` on every destination. Booleans and numbers stay, so `hasToken: true` is kept.
+- **Spans:** secret query parameters — storage SAS `sig`, S3 / GCS signatures and credentials, `token`, `access_token`, `id_token`, `refresh_token`, OAuth `code` — are redacted in `url.full`, `url.query`, `http.url`, `http.target`, span names and exception events. Exceptions recorded through `TelemetryTracer` are redacted too.
 
 ## Shutdown
 
-Next.js handles `SIGTERM` / `SIGINT`: it stops accepting connections, drains in-flight requests, then exits. Hub emits `Telemetry flushing on SIGTERM` (or `SIGINT`) then flushes; it does not exit early or shut the pipeline, so records from requests still draining are exported too.
+Next.js handles `SIGTERM` / `SIGINT`: it stops accepting connections, drains in-flight requests, then calls `process.exit(143)` (or `130`). Hub emits `Telemetry flushing on SIGTERM` (or `SIGINT`) and flushes. It then holds Next's final `process.exit` until the SDK has shut down, at most 5 seconds, so spans and logs from the requests that finished during the drain are exported too. Before a signal arrives, `process.exit` behaves normally.
 
-On an uncaught exception Hub logs it, shuts telemetry down for at most 5 seconds, then exits with code 1. Unhandled promise rejections are logged; Next.js decides whether the process survives them.
+Telemetry never ends the process. Uncaught exceptions and unhandled promise rejections are logged as errors; Next.js keeps serving.
 
 ## Traces to the API
 
-Node 18+ `fetch` is undici, which bypasses `node:http`. Hub registers `UndiciInstrumentation` so Hub → API calls carry `traceparent` and join one trace. Do not add browser `FetchInstrumentation`.
+Node 18+ `fetch` is undici, which bypasses `node:http`. Next.js's own fetch span does not add `traceparent` to the request, so Hub registers `UndiciInstrumentation`: Hub → API calls carry `traceparent` and join one trace. Next's duplicate fetch span is off by default (`NEXT_OTEL_FETCH_DISABLED`). Do not add browser `FetchInstrumentation`.
 
-Noisy Next.js spans (`/_next/*`, RSC, static assets, `/api/health`, `telemetry.nextjs.org`, internal `metric.*`) are dropped before export, for Azure and OTLP alike.
+Noisy requests Hub serves — `/_next/*`, static files, RSC payload requests (`_rsc=`), `/api/health`, `robots.txt`, `sitemap` — are dropped for the **whole trace**, including the Next.js render spans under them, for Azure and OTLP alike. Internal `metric.*` spans and calls to `telemetry.nextjs.org` are dropped too. Outgoing calls are never dropped for their path: fetching an image or a `.json` file is a real dependency.
+
+Two limits: static-file requests still export Next.js's two wrapper spans (they carry no URL to match), and with a rate limit those requests count against the per-second budget. Serving `/_next/static` from a CDN removes both.
 
 Next leaves the OTel and Azure exporter packages unbundled (`serverExternalPackages`) so instrumentation and request handlers load the same modules the SDK registered with.
 
