@@ -30,7 +30,7 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
     // ErrorMessage as-is, so an argument here is as client-visible as a Result factory's. `Fail` is a
     // common name, but only an exception-message argument is flagged, never the call itself.
     private static readonly Regex JobFailureWriterCall = new(
-        @"\.\s*(Fail|Reschedule|DeadLetter|RecordFailedAttemptAsync)\s*\(",
+        @"\.\s*(Fail|Reschedule|DeadLetter|RecordFailedAttemptAsync|TryFailAsync|TryReapAsync)\s*\(",
         RegexOptions.Compiled);
 
     // Set-based updates write the column without going through the entity, so a setter aimed at
@@ -89,6 +89,8 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
     [InlineData("""catch (Exception ex) { job.Reschedule(nextAttemptAt, ex.Message); }""")]
     [InlineData("""catch (Exception ex) { job.DeadLetter($"attempt failed: {ex.Message}", now); }""")]
     [InlineData("""catch (Exception ex) { await repository.RecordFailedAttemptAsync(jobId, ex.Message, ct); }""")]
+    [InlineData("""catch (Exception ex) { await repository.TryFailAsync(jobId, attempt, ex.Message, now); }""")]
+    [InlineData("""catch (Exception ex) { await repository.TryReapAsync(jobId, attempt, cutoff, maxAttempts, nextAttemptAt, $"lost: {ex.Message}", now); }""")]
     [InlineData("""catch (Exception ex) { await jobs.ExecuteUpdateAsync(s => s.SetProperty(j => j.ErrorMessage, ex.Message), ct); }""")]
     public void Scanner_FlagsExceptionText(string source) =>
         FindLeaks(source).Should().NotBeEmpty();
@@ -102,6 +104,7 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
     [InlineData("""catch (Exception ex) { logger.LogWarning("{Msg}", ex.Message); }""")]
     [InlineData("""catch (Exception ex) { job.Reschedule(nextAttemptAt, SafeError.LogAndResolve(logger, ex, "The job could not be completed.", $"running job {jobId}")); }""")]
     [InlineData("""catch (Exception ex) { logger.LogError(ex, "boom"); job.DeadLetter("The job could not be completed.", now); }""")]
+    [InlineData("""catch (Exception ex) { await repository.TryFailAsync(jobId, attempt, "The job failed.", now); }""")]
     [InlineData("""catch (Exception ex) { await jobs.ExecuteUpdateAsync(s => s.SetProperty(j => j.ErrorMessage, SafeError.MessageOr(ex, "The job could not be completed.")), ct); }""")]
     [InlineData("""catch (Exception ex) { await jobs.ExecuteUpdateAsync(s => s.SetProperty(j => j.HeartbeatAt, now), ct); }""")]
     [InlineData("""context.Fail(new AuthorizationFailureReason(this, "User does not have ownership of the entity"));""")]
