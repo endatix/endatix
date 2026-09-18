@@ -30,4 +30,4 @@ Naming conventions:
 - Public/respondent access: `Get<Resource>PublicAccess` in `Endpoints/Public/`
 - Prefer resource-specific endpoints over generic “resource access” endpoints until you see repeated duplication across multiple resources.
 
-See also root [`ARCHITECTURE.md`](../../../../../ARCHITECTURE.md) (OSS API endpoint layout).
+See also [`ARCHITECTURE.md`](../../../../ARCHITECTURE.md) (OSS API endpoint layout).

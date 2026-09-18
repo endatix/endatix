@@ -1,6 +1,8 @@
 # Endatix API (OSS) — Agent Instructions
 
-Clean Architecture + vertical slices in `oss/`. Architecture/testing rules of record: [`.cursor/rules/endatix-api-rules.mdc`](../.cursor/rules/endatix-api-rules.mdc). Integration suite ops: [`tests/README.md`](tests/README.md).
+Clean Architecture + vertical slices. Integration suite ops: [`tests/README.md`](tests/README.md).
+Architecture/testing rules of record live with the Cursor workspace (not this git root):
+[endatix-api-rules.mdc](https://github.com/endatix/endatix-saas/blob/main/.cursor/rules/endatix-api-rules.mdc).
 
 ## Unit vs integration
 
@@ -8,7 +10,7 @@ Clean Architecture + vertical slices in `oss/`. Architecture/testing rules of re
 
 | Need                                                                                 | Doc                                                                       |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| When unit vs integration, naming (`UnitOfWork_Scenario_ExpectedBehavior`), AAA       | [endatix-api-rules.mdc → Testing](../.cursor/rules/endatix-api-rules.mdc) |
+| When unit vs integration, naming (`UnitOfWork_Scenario_ExpectedBehavior`), AAA       | [endatix-api-rules.mdc → Testing](https://github.com/endatix/endatix-saas/blob/main/.cursor/rules/endatix-api-rules.mdc) |
 | Testcontainers, Respawn, traits (`Category` / `Priority` / `DbSpecific`), how to run | [`tests/README.md`](tests/README.md)                                      |
 
 **Short rule of thumb**
@@ -153,6 +155,6 @@ HTTPS playground + HTTP Hub = mixed content: **builder UI** (200, no script), in
 
 ## Related
 
-- SaaS / Hub agent rules: [`../.cursor/AGENTS.md`](../.cursor/AGENTS.md)
+- SaaS / Hub agent rules (not in this git root): [endatix-saas AGENTS.md](https://github.com/endatix/endatix-saas/blob/main/AGENTS.md)
 - Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)
-- Public docs writing rules (voice, cards, when a table is allowed): [`docs/endatix-docs/AGENTS.md`](docs/endatix-docs/AGENTS.md)
+- Docs site local run: [`docs/endatix-docs/AGENTS.md`](docs/endatix-docs/AGENTS.md)
