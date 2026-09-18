@@ -6,6 +6,8 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 internal sealed class SinglePoolDispatchStrategy : IJobDispatchStrategy
 {
+    // Fixed on purpose rather than configurable: enough queued ids to keep every slot busy through a sweep, while
+    // anything beyond stays in the database and is found again.
     private const int QueuedItemsPerSlot = 25;
 
     private readonly Channel<JobDispatchItem> _channel;
