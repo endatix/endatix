@@ -32,7 +32,7 @@ public sealed class MeterJobMetricsTests : IDisposable
         _listener.Start();
     }
 
-    public static TheoryData<JobLifecycleEvent, string> TagValues => new()
+    public static TheoryData<JobLifecycleEvent, string> EventTagValues => new()
     {
         { JobLifecycleEvent.Enqueued, "enqueued" },
         { JobLifecycleEvent.Claimed, "claimed" },
@@ -44,6 +44,16 @@ public sealed class MeterJobMetricsTests : IDisposable
         { JobLifecycleEvent.Reaped, "reaped" },
         { JobLifecycleEvent.OfferRejected, "offer_rejected" },
         { JobLifecycleEvent.Abandoned, "abandoned" },
+    };
+
+    public static TheoryData<JobAttemptOutcome, string> OutcomeTagValues => new()
+    {
+        { JobAttemptOutcome.Completed, "completed" },
+        { JobAttemptOutcome.Failed, "failed" },
+        { JobAttemptOutcome.RetryScheduled, "retry_scheduled" },
+        { JobAttemptOutcome.DeadLettered, "dead_lettered" },
+        { JobAttemptOutcome.Canceled, "canceled" },
+        { JobAttemptOutcome.Abandoned, "abandoned" },
     };
 
     [Fact]
@@ -84,7 +94,7 @@ public sealed class MeterJobMetricsTests : IDisposable
     }
 
     [Theory]
-    [MemberData(nameof(TagValues))]
+    [MemberData(nameof(EventTagValues))]
     public void Record_EachLifecycleEvent_TagsSnakeCaseName(JobLifecycleEvent lifecycleEvent, string expected)
     {
         // Arrange
@@ -160,7 +170,7 @@ public sealed class MeterJobMetricsTests : IDisposable
         var metrics = CreateMetrics();
 
         // Act
-        metrics.ObserveDuration("Test.Echo", TimeSpan.FromMilliseconds(1500), JobLifecycleEvent.Completed);
+        metrics.ObserveDuration("Test.Echo", TimeSpan.FromMilliseconds(1500), JobAttemptOutcome.Completed);
 
         // Assert
         var measurement = _measurements.Should().ContainSingle().Subject;
@@ -178,8 +188,8 @@ public sealed class MeterJobMetricsTests : IDisposable
     }
 
     [Theory]
-    [MemberData(nameof(TagValues))]
-    public void ObserveDuration_EachOutcome_TagsSnakeCaseName(JobLifecycleEvent outcome, string expected)
+    [MemberData(nameof(OutcomeTagValues))]
+    public void ObserveDuration_EachOutcome_TagsSnakeCaseName(JobAttemptOutcome outcome, string expected)
     {
         // Arrange
         var metrics = CreateMetrics();
@@ -201,7 +211,7 @@ public sealed class MeterJobMetricsTests : IDisposable
         metrics.Record(JobLifecycleEvent.Completed, "Test.Echo");
         metrics.ObserveQueueDepth(7);
         metrics.ObserveBacklog("Orphan", 3, TimeSpan.FromMinutes(20));
-        metrics.ObserveDuration("Test.Echo", TimeSpan.FromSeconds(1), JobLifecycleEvent.Completed);
+        metrics.ObserveDuration("Test.Echo", TimeSpan.FromSeconds(1), JobAttemptOutcome.Completed);
 
         // Assert — a tenant id per series would grow without bound.
         _measurements.Should().HaveCount(5);

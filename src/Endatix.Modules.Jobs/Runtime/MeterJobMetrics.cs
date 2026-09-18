@@ -8,6 +8,9 @@ internal sealed class MeterJobMetrics : IJobMetrics
     private const string JobEventTag = "endatix.job.event";
     private const string JobOutcomeTag = "endatix.job.outcome";
 
+    // OpenTelemetry's value for anything outside a known set, so a cast integer cannot add a series of its own.
+    private const string OtherTagValue = "_OTHER";
+
     private const string SameValueOnEveryInstance =
         "Every instance reports the same cluster-wide value, so aggregate across instances with max, not sum.";
 
@@ -61,7 +64,7 @@ internal sealed class MeterJobMetrics : IJobMetrics
         _backlogOldestWait.Record(oldestWait.TotalSeconds, new KeyValuePair<string, object?>(JobTypeTag, jobType));
     }
 
-    public void ObserveDuration(string jobType, TimeSpan duration, JobLifecycleEvent outcome) =>
+    public void ObserveDuration(string jobType, TimeSpan duration, JobAttemptOutcome outcome) =>
         _duration.Record(duration.TotalSeconds, new(JobTypeTag, jobType), new(JobOutcomeTag, TagValue(outcome)));
 
     private static string TagValue(JobLifecycleEvent lifecycleEvent) => lifecycleEvent switch
@@ -76,7 +79,17 @@ internal sealed class MeterJobMetrics : IJobMetrics
         JobLifecycleEvent.Reaped => "reaped",
         JobLifecycleEvent.OfferRejected => "offer_rejected",
         JobLifecycleEvent.Abandoned => "abandoned",
-        // OpenTelemetry's value for anything outside a known set, so a cast integer cannot add a series of its own.
-        _ => "_OTHER",
+        _ => OtherTagValue,
+    };
+
+    private static string TagValue(JobAttemptOutcome outcome) => outcome switch
+    {
+        JobAttemptOutcome.Completed => "completed",
+        JobAttemptOutcome.Failed => "failed",
+        JobAttemptOutcome.RetryScheduled => "retry_scheduled",
+        JobAttemptOutcome.DeadLettered => "dead_lettered",
+        JobAttemptOutcome.Canceled => "canceled",
+        JobAttemptOutcome.Abandoned => "abandoned",
+        _ => OtherTagValue,
     };
 }

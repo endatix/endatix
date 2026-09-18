@@ -12,14 +12,14 @@ public class JobMetricsSeamTests
 
         // Act
         var lifecycleEvents = Enum.GetNames<JobLifecycleEvent>();
+        var attemptOutcomes = Enum.GetNames<JobAttemptOutcome>();
         var methods = metricsType.GetMethods()
             .Select(method =>
                 $"{method.Name}({string.Join(", ", method.GetParameters().Select(parameter => parameter.ParameterType.Name))})")
             .ToList();
 
-        // Assert — an exporter built against this assembly bakes in each event's value, so the order is part of the
-        // contract.
-        lifecycleEvents.Should().Equal(
+        // Assert
+        lifecycleEvents.Should().BeEquivalentTo(
             "Enqueued",
             "Claimed",
             "Completed",
@@ -30,10 +30,17 @@ public class JobMetricsSeamTests
             "Reaped",
             "OfferRejected",
             "Abandoned");
+        attemptOutcomes.Should().BeEquivalentTo(
+            "Completed",
+            "Failed",
+            "RetryScheduled",
+            "DeadLettered",
+            "Canceled",
+            "Abandoned");
         methods.Should().BeEquivalentTo(
             "Record(JobLifecycleEvent, String)",
             "ObserveQueueDepth(Int32)",
             "ObserveBacklog(String, Int32, TimeSpan)",
-            "ObserveDuration(String, TimeSpan, JobLifecycleEvent)");
+            "ObserveDuration(String, TimeSpan, JobAttemptOutcome)");
     }
 }

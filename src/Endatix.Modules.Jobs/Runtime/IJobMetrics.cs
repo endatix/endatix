@@ -13,11 +13,7 @@ public interface IJobMetrics
     /// </summary>
     void ObserveBacklog(string jobType, int count, TimeSpan oldestWait);
 
-    /// <summary>
-    /// The outcome is the event that ended the attempt: completed, failed, retry scheduled, dead-lettered, canceled
-    /// or abandoned.
-    /// </summary>
-    void ObserveDuration(string jobType, TimeSpan duration, JobLifecycleEvent outcome);
+    void ObserveDuration(string jobType, TimeSpan duration, JobAttemptOutcome outcome);
 }
 
 public enum JobLifecycleEvent
@@ -31,5 +27,19 @@ public enum JobLifecycleEvent
     Canceled,
     Reaped,
     OfferRejected,
+    Abandoned,
+}
+
+/// <summary>
+/// The ways an attempt the runner observed can end; a reaped attempt is not among them because its runner never
+/// observes its end.
+/// </summary>
+public enum JobAttemptOutcome
+{
+    Completed,
+    Failed,
+    RetryScheduled,
+    DeadLettered,
+    Canceled,
     Abandoned,
 }
