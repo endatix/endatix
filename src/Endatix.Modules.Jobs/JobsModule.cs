@@ -30,6 +30,9 @@ namespace Endatix.Modules.Jobs;
 /// </remarks>
 public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpoints
 {
+    /// <summary>A metrics pipeline exports this module's metrics only once it subscribes to this meter.</summary>
+    public const string MeterName = "Endatix.Jobs";
+
     public static readonly JobsModule Instance = new();
 
     private JobsModule() { }

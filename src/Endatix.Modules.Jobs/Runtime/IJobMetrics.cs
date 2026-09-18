@@ -12,6 +12,12 @@ public interface IJobMetrics
     /// not sum.
     /// </summary>
     void ObserveBacklog(string jobType, int count, TimeSpan oldestWait);
+
+    /// <summary>
+    /// The outcome is the event that ended the attempt: completed, failed, retry scheduled, dead-lettered, canceled
+    /// or abandoned.
+    /// </summary>
+    void ObserveDuration(string jobType, TimeSpan duration, JobLifecycleEvent outcome);
 }
 
 public enum JobLifecycleEvent
