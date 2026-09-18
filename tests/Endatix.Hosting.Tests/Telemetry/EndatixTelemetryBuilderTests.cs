@@ -1,5 +1,7 @@
+using System.Diagnostics.Metrics;
 using Endatix.Hosting.Builders;
 using Endatix.Hosting.Options;
+using Endatix.Modules.Jobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Exporter;
@@ -538,6 +540,29 @@ public sealed class EndatixTelemetryBuilderTests
 
         // Assert
         meters.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Build_WithOtlpEndpoint_SubscribesToJobsMeter()
+    {
+        // Arrange
+        using var _ = ClearOtelEnvironment(
+            (EndatixTelemetryBuilder.EnvVars.OtlpEndpoint, CollectorEndpoint));
+        var builder = CreateBuilder();
+        builder.UseDefaults().Build();
+        List<Metric> collected = [];
+        var reader = new BaseExportingMetricReader(new InMemoryExporter<Metric>(collected));
+        builder.Services.ConfigureOpenTelemetryMeterProvider(metrics => metrics.AddReader(reader));
+        using var provider = builder.Services.BuildServiceProvider();
+        provider.GetRequiredService<MeterProvider>();
+        using var jobsMeter = new Meter(JobsModule.MeterName);
+
+        // Act
+        jobsMeter.CreateCounter<long>("endatix.jobs.events").Add(1);
+        reader.Collect();
+
+        // Assert
+        collected.Should().Contain(metric => metric.MeterName == JobsModule.MeterName);
     }
 
     [Fact]
