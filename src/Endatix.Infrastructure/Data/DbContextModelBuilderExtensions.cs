@@ -6,11 +6,49 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data.Config;
 using Ardalis.GuardClauses;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.SqlServer.Metadata;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Endatix.Infrastructure.Data;
 
 public static class DbContextModelBuilderExtensions
 {
+    /// <summary>
+    /// Client snowflake on every <c>long Id</c> PK: EF <see cref="SnowflakeValueGeneratorFactory"/>
+    /// + <c>OnAdd</c> + store strategy <c>None</c>. Call last in <c>OnModelCreating</c>.
+    /// The factory only constructs the generator type (model is cached). <c>IIdGenerator&lt;long&gt;</c>
+    /// is resolved at <c>Add</c> from host DI.
+    /// </summary>
+    public static void ApplySnowflakeIdValueGenerators(this ModelBuilder builder)
+    {
+        Guard.Against.Null(builder);
+
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            if (entityType.IsOwned() || entityType.FindPrimaryKey() is null)
+            {
+                continue;
+            }
+
+            var idProperty = entityType.FindProperty("Id");
+            if (idProperty is null || idProperty.ClrType != typeof(long))
+            {
+                continue;
+            }
+
+            IMutableProperty metadata = builder.Entity(entityType.ClrType)
+                .Property<long>("Id")
+                .HasValueGeneratorFactory<SnowflakeValueGeneratorFactory>()
+                .ValueGeneratedOnAdd()
+                .Metadata;
+
+            metadata.SetValueGenerationStrategy(NpgsqlValueGenerationStrategy.None);
+            metadata.SetValueGenerationStrategy(SqlServerValueGenerationStrategy.None);
+            metadata.ValueGenerated = ValueGenerated.OnAdd;
+        }
+    }
+
     /// <summary>
     /// Applies named Endatix query filters for soft deletion and tenant isolation.
     /// </summary>

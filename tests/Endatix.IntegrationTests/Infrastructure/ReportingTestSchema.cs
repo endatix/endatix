@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
@@ -22,7 +21,6 @@ internal static class ReportingTestSchema
 
         await using ReportingDbContext context = new(
             optionsBuilder.Options,
-            new NoOpIdGenerator(),
             IntegrationTenantContext.Bypass);
 
         // Reporting integration tests reset data via Respawn but keep schema objects.
@@ -59,9 +57,4 @@ internal static class ReportingTestSchema
                 ["ConnectionStrings:DefaultConnection_DbProvider"] = "PostgreSql"
             })
             .Build();
-
-    private sealed class NoOpIdGenerator : IIdGenerator<long>
-    {
-        public long CreateId() => 0;
-    }
 }

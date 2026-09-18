@@ -31,7 +31,6 @@ public sealed class JobsPostgreSqlDbContextFactory : IDesignTimeDbContextFactory
 
         return new JobsPostgreSqlDbContext(
             optionsBuilder.Options,
-            DesignTimeDbContextDependencies.TenantContext,
-            new EfCoreValueGeneratorFactory(DesignTimeDbContextDependencies.IdGenerator));
+            DesignTimeDbContextDependencies.TenantContext);
     }
 }

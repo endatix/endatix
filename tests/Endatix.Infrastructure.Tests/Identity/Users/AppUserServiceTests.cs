@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
-using Endatix.Infrastructure.Data;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using System.Security.Claims;
@@ -31,9 +30,7 @@ public class AppUserServiceTests
             null, null, null, null, null, null, null, null);
         _tenantContext = Substitute.For<ITenantContext>();
         var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>().Options;
-        var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<IIdGenerator<long>>());
-        var idGenerator = Substitute.For<IIdGenerator<long>>();
-        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory, idGenerator);
+        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions);
         _emailVerificationService = Substitute.For<IEmailVerificationService>();
         _userContext = Substitute.For<IUserContext>();
         _substringLikeFilter = Substitute.For<IRelationalSubstringLikeFilter>();

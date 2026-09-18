@@ -8,7 +8,6 @@ using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +19,6 @@ public class RoleManagementServiceTests
     private readonly AppIdentityDbContext _identityDbContext;
     private readonly ITenantContext _tenantContext;
     private readonly IRolesRepository _rolesRepository;
-    private readonly IIdGenerator<long> _idGenerator;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ICurrentUserAuthorizationService _currentUserAuthorizationService;
     private readonly IAuthorizationCache _authorizationCache;
@@ -35,15 +33,12 @@ public class RoleManagementServiceTests
 
         var dbOptions = new DbContextOptionsBuilder<AppIdentityDbContext>()
             .Options;
-        var valueGeneratorFactory = Substitute.For<EfCoreValueGeneratorFactory>(Substitute.For<IIdGenerator<long>>());
-        var idGenerator = Substitute.For<IIdGenerator<long>>();
 
-        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions, valueGeneratorFactory, idGenerator);
+        _identityDbContext = Substitute.For<AppIdentityDbContext>(dbOptions);
 
         _tenantContext = Substitute.For<ITenantContext>();
 
         _rolesRepository = Substitute.For<IRolesRepository>();
-        _idGenerator = Substitute.For<IIdGenerator<long>>();
         _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
         _currentUserAuthorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _authorizationCache = Substitute.For<IAuthorizationCache>();
@@ -54,7 +49,6 @@ public class RoleManagementServiceTests
             _identityDbContext,
             _tenantContext,
             _rolesRepository,
-            _idGenerator,
             _httpContextAccessor,
             _currentUserAuthorizationService,
             _authorizationCache,

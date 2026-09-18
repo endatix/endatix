@@ -10,9 +10,8 @@ namespace Endatix.Modules.Jobs.Persistence;
 /// </summary>
 public sealed class JobsPostgreSqlDbContext(
     DbContextOptions<JobsPostgreSqlDbContext> options,
-    ITenantContext tenantContext,
-    EfCoreValueGeneratorFactory valueGeneratorFactory)
-    : JobsDbContextBase(options, tenantContext, valueGeneratorFactory)
+    ITenantContext tenantContext)
+    : JobsDbContextBase(options, tenantContext)
 {
     /// <inheritdoc />
     protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>

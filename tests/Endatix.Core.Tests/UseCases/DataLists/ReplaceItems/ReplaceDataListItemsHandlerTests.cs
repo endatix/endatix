@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
@@ -16,21 +15,16 @@ public class ReplaceDataListItemsHandlerTests
 {
     private readonly IRepository<DataList> _repository;
     private readonly IMediator _mediator;
-    private readonly IIdGenerator<long> _idGenerator;
     private readonly ReplaceDataListItemsHandler _sut;
     private readonly RecordingLogger _logger = new();
-    private long _nextId = 100;
 
     public ReplaceDataListItemsHandlerTests()
     {
         _repository = Substitute.For<IRepository<DataList>>();
         _mediator = Substitute.For<IMediator>();
-        _idGenerator = Substitute.For<IIdGenerator<long>>();
-        _idGenerator.CreateId().Returns(_ => Interlocked.Increment(ref _nextId));
         _sut = new ReplaceDataListItemsHandler(
             _repository,
             _mediator,
-            _idGenerator,
             _logger);
     }
 

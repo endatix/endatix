@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Infrastructure.Identity;
 using Endatix.Persistence.PostgreSql.Querying;
 using Endatix.Persistence.SqlServer.Querying;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
 
 /// <summary>
-/// Builds <see cref="AppDbContext" /> for EF model/metadata inspection without opening a connection.
+/// Builds <see cref="AppDbContext" /> / <see cref="AppIdentityDbContext" /> for EF model/metadata
+/// inspection without opening a connection.
 /// </summary>
 internal static class AppDbContextModelInspectionFactory
 {
@@ -20,10 +22,8 @@ internal static class AppDbContextModelInspectionFactory
     private const string SqlServerAppMigrationsNamespace = "Endatix.Persistence.SqlServer.Migrations.AppEntities";
 
     internal static AppDbContext CreatePostgreSqlAppDbContext(
-        IIdGenerator<long>? idGenerator = null,
         ITenantContext? tenantContext = null)
     {
-        var resolvedIdGenerator = idGenerator ?? Substitute.For<IIdGenerator<long>>();
         var resolvedTenantContext = tenantContext ?? Substitute.For<ITenantContext>();
 
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
@@ -41,17 +41,13 @@ internal static class AppDbContextModelInspectionFactory
 
         return new AppDbContext(
             optionsBuilder.Options,
-            resolvedIdGenerator,
             resolvedTenantContext,
-            new EfCoreValueGeneratorFactory(resolvedIdGenerator),
             new OutboxIntegrationEventDispatcher());
     }
 
     internal static AppDbContext CreateSqlServerAppDbContext(
-        IIdGenerator<long>? idGenerator = null,
         ITenantContext? tenantContext = null)
     {
-        var resolvedIdGenerator = idGenerator ?? Substitute.For<IIdGenerator<long>>();
         var resolvedTenantContext = tenantContext ?? Substitute.For<ITenantContext>();
 
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
@@ -69,9 +65,25 @@ internal static class AppDbContextModelInspectionFactory
 
         return new AppDbContext(
             optionsBuilder.Options,
-            resolvedIdGenerator,
             resolvedTenantContext,
-            new EfCoreValueGeneratorFactory(resolvedIdGenerator),
             new OutboxIntegrationEventDispatcher());
+    }
+
+    internal static AppIdentityDbContext CreatePostgreSqlAppIdentityDbContext()
+    {
+        DbContextOptionsBuilder<AppIdentityDbContext> optionsBuilder = new();
+        optionsBuilder.UseNpgsql(
+            "Host=127.0.0.1;Database=__ef_model_inspection_not_connected__;Username=postgres;Password=postgres");
+
+        return new AppIdentityDbContext(optionsBuilder.Options);
+    }
+
+    internal static AppIdentityDbContext CreateSqlServerAppIdentityDbContext()
+    {
+        DbContextOptionsBuilder<AppIdentityDbContext> optionsBuilder = new();
+        optionsBuilder.UseSqlServer(
+            "Server=(localdb)\\mssqllocaldb;Database=__ef_model_inspection_not_connected__;Trusted_Connection=True");
+
+        return new AppIdentityDbContext(optionsBuilder.Options);
     }
 }

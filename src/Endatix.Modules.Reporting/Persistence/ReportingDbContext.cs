@@ -11,16 +11,13 @@ namespace Endatix.Modules.Reporting.Persistence;
 /// </summary>
 public class ReportingDbContext : DbContext, ITenantDbContext
 {
-    private readonly IIdGenerator<long> _idGenerator;
     private readonly ITenantContext _tenantContext;
 
     public ReportingDbContext(
         DbContextOptions<ReportingDbContext> options,
-        IIdGenerator<long> idGenerator,
         ITenantContext tenantContext)
         : base(options)
     {
-        _idGenerator = idGenerator;
         _tenantContext = tenantContext;
     }
 
@@ -42,6 +39,7 @@ public class ReportingDbContext : DbContext, ITenantDbContext
         modelBuilder.ApplyEndatixQueryFilters(this);
         modelBuilder.ApplyConfigurationsFor<ReportingDbContext>(typeof(ReportingDbContext).Assembly);
         ApplyProviderSpecificConfigurations(modelBuilder);
+        modelBuilder.ApplySnowflakeIdValueGenerators();
 
         modelBuilder.ApplyModuleTableNames();
     }
@@ -82,5 +80,5 @@ public class ReportingDbContext : DbContext, ITenantDbContext
     }
 
     private void ApplyEntityDefaults() =>
-        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow, _idGenerator);
+        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
 }

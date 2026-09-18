@@ -51,7 +51,6 @@ public class InfrastructureDataBuilder
         Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         Services.AddSingleton<IShortUrlGenerator, ShortUrlGenerator>();
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
-        Services.AddSingleton<EfCoreValueGeneratorFactory>();
         Services.AddSingleton<Endatix.Infrastructure.Features.Outbox.OutboxIntegrationEventDispatcher>();
         // NOTE: the in-process outbox relay (AddEndatixOutboxRelay) is registered by the active persistence
         // builder's AddDbSpecificRepositories(), co-located with its claim store — so the relay exists only

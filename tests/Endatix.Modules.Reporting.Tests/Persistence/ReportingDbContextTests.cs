@@ -92,14 +92,6 @@ public class ReportingDbContextTests
 
     private static ReportingDbContext CreateContext(
         DbContextOptions<ReportingDbContext> options,
-        ITenantContext? tenantContext = null)
-    {
-        var idGenerator = Substitute.For<IIdGenerator<long>>();
-        idGenerator.CreateId().Returns(1001, 1002);
-
-        return new ReportingDbContext(
-            options,
-            idGenerator,
-            tenantContext ?? Substitute.For<ITenantContext>());
-    }
+        ITenantContext? tenantContext = null) =>
+        new(options, tenantContext ?? Substitute.For<ITenantContext>());
 }

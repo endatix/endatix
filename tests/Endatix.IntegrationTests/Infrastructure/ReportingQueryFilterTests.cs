@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Endatix.Core.Abstractions;
+using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain;
@@ -96,15 +97,14 @@ public sealed class ReportingQueryFilterTests
         var optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
-        return new TestReportingDbContext(optionsBuilder.Options, idGenerator, tenantContext);
+        return new TestReportingDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private sealed class TestReportingDbContext : ReportingDbContext
     {
         public TestReportingDbContext(
             DbContextOptions<ReportingDbContext> options,
-            IIdGenerator<long> idGenerator,
             ITenantContext tenantContext)
-            : base(options, idGenerator, tenantContext) { }
+            : base(options, tenantContext) { }
     }
 }

@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions;
-using Endatix.Infrastructure.Data;
 using Endatix.Modules.Jobs.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,9 +11,8 @@ namespace Endatix.Modules.Jobs.Tests.Shared;
 /// </summary>
 internal sealed class TestJobsDbContext(
     DbContextOptions<TestJobsDbContext> options,
-    IIdGenerator<long> idGenerator,
     ITenantContext tenantContext)
-    : JobsDbContextBase(options, tenantContext, new EfCoreValueGeneratorFactory(idGenerator))
+    : JobsDbContextBase(options, tenantContext)
 {
     public int SaveChangesCallCount { get; private set; }
 
@@ -28,14 +26,6 @@ internal sealed class TestJobsDbContext(
         SaveChangesCallCount++;
         return base.SaveChangesAsync(cancellationToken);
     }
-}
-
-/// <summary>Predictable ids, so assertions can compare them without ordering surprises.</summary>
-internal sealed class SequentialIdGenerator : IIdGenerator<long>
-{
-    private long _current;
-
-    public long CreateId() => Interlocked.Increment(ref _current);
 }
 
 internal sealed class FixedTenantContext(long tenantId) : ITenantContext

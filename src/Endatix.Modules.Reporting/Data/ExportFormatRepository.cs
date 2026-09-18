@@ -183,12 +183,11 @@ internal sealed class ExportFormatRepository(
 
         var missing = DefaultExportFormats.All.Where(definition => !existing.Any(format =>
             format.ExportTarget == definition.Target &&
-            format.DeliveryFormat == definition.Delivery));
+            format.DeliveryFormat == definition.Delivery)).ToList();
 
-        // BaseEntity.Id is None-generated; two unsaved rows would both be Id = 0.
         foreach (var definition in missing)
         {
-            var entry = dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
+            EntityEntry entry = dbContext.ExportFormats.Add(CreateDefault(tenantId, definition));
             await SaveOrConcedeAsync(entry, cancellationToken);
         }
 
