@@ -4,9 +4,9 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 internal sealed class MeterJobMetrics : IJobMetrics
 {
-    private const string JobTypeTag = "job.type";
-    private const string JobEventTag = "job.event";
-    private const string JobOutcomeTag = "job.outcome";
+    private const string JobTypeTag = "endatix.job.type";
+    private const string JobEventTag = "endatix.job.event";
+    private const string JobOutcomeTag = "endatix.job.outcome";
 
     private const string SameValueOnEveryInstance =
         "Every instance reports the same cluster-wide value, so aggregate across instances with max, not sum.";

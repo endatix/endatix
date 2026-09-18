@@ -78,8 +78,8 @@ public sealed class MeterJobMetricsTests : IDisposable
         measurement.Value.Should().Be(1L);
         measurement.Tags.Should().BeEquivalentTo(new Dictionary<string, object?>
         {
-            ["job.type"] = "Test.Echo",
-            ["job.event"] = "retry_scheduled",
+            ["endatix.job.type"] = "Test.Echo",
+            ["endatix.job.event"] = "retry_scheduled",
         });
     }
 
@@ -94,7 +94,7 @@ public sealed class MeterJobMetricsTests : IDisposable
         metrics.Record(lifecycleEvent, "Test.Echo");
 
         // Assert
-        _measurements.Should().ContainSingle().Which.Tags["job.event"].Should().Be(expected);
+        _measurements.Should().ContainSingle().Which.Tags["endatix.job.event"].Should().Be(expected);
     }
 
     [Fact]
@@ -130,13 +130,13 @@ public sealed class MeterJobMetricsTests : IDisposable
         count.Instrument.Should().BeOfType<Gauge<int>>();
         count.Instrument.Unit.Should().Be("{job}");
         count.Value.Should().Be(3);
-        count.Tags.Should().BeEquivalentTo(new Dictionary<string, object?> { ["job.type"] = "Orphan" });
+        count.Tags.Should().BeEquivalentTo(new Dictionary<string, object?> { ["endatix.job.type"] = "Orphan" });
         var oldestWait = _measurements.Should()
             .ContainSingle(m => m.Instrument.Name == "endatix.jobs.backlog.oldest_wait").Subject;
         oldestWait.Instrument.Should().BeOfType<Gauge<double>>();
         oldestWait.Instrument.Unit.Should().Be("s");
         oldestWait.Value.Should().Be(1200d);
-        oldestWait.Tags.Should().BeEquivalentTo(new Dictionary<string, object?> { ["job.type"] = "Orphan" });
+        oldestWait.Tags.Should().BeEquivalentTo(new Dictionary<string, object?> { ["endatix.job.type"] = "Orphan" });
     }
 
     [Fact]
@@ -172,8 +172,8 @@ public sealed class MeterJobMetricsTests : IDisposable
         measurement.Value.Should().Be(1.5d);
         measurement.Tags.Should().BeEquivalentTo(new Dictionary<string, object?>
         {
-            ["job.type"] = "Test.Echo",
-            ["job.outcome"] = "completed",
+            ["endatix.job.type"] = "Test.Echo",
+            ["endatix.job.outcome"] = "completed",
         });
     }
 
@@ -188,7 +188,7 @@ public sealed class MeterJobMetricsTests : IDisposable
         metrics.ObserveDuration("Test.Echo", TimeSpan.FromSeconds(1), outcome);
 
         // Assert
-        _measurements.Should().ContainSingle().Which.Tags["job.outcome"].Should().Be(expected);
+        _measurements.Should().ContainSingle().Which.Tags["endatix.job.outcome"].Should().Be(expected);
     }
 
     [Fact]
