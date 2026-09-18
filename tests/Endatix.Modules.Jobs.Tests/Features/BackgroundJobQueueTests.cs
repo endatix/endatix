@@ -44,7 +44,7 @@ public class BackgroundJobQueueTests : IDisposable
 
     private static BackgroundJobQueue QueueWith(
         IJobsDbContext dbContext,
-        IJobDispatchStrategy dispatchStrategy,
+        IJobDispatchStrategy? dispatchStrategy,
         IJobMetrics? metrics = null)
     {
         var clock = Substitute.For<IDateTimeProvider>();
@@ -225,6 +225,23 @@ public class BackgroundJobQueueTests : IDisposable
         job.Id.Should().Be(jobId);
         metrics.Received(1).Record(JobLifecycleEvent.Enqueued, "SubmissionExport");
         metrics.Received(1).Record(JobLifecycleEvent.OfferRejected, "SubmissionExport");
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_NoStrategy_RecordsEnqueuedButNoRejection()
+    {
+        // Arrange
+        var metrics = Substitute.For<IJobMetrics>();
+        var queue = QueueWith(_dbContext, dispatchStrategy: null, metrics);
+
+        // Act
+        var jobId = await queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert
+        var job = await _dbContext.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken);
+        job.Id.Should().Be(jobId);
+        metrics.Received(1).Record(JobLifecycleEvent.Enqueued, "SubmissionExport");
+        metrics.DidNotReceive().Record(JobLifecycleEvent.OfferRejected, Arg.Any<string>());
     }
 
     [Fact]

@@ -115,6 +115,8 @@ internal sealed class BackgroundJobQueue(
     private List<BackgroundJob> OfferAll(IReadOnlyList<BackgroundJob> jobs)
     {
         List<BackgroundJob> rejected = [];
+
+        // No strategy means this host doesn't run jobs; nothing was offered, so nothing was refused.
         if (dispatchStrategy is null)
         {
             return rejected;
