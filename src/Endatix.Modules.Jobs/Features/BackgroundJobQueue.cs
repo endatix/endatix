@@ -94,24 +94,40 @@ internal sealed class BackgroundJobQueue(
     }
 
     // The rows are already committed, so nothing from here on may throw into the caller or change the ids it gets.
+    // Every offer is made before any metric is recorded, so a slow host-supplied metrics sink cannot delay dispatch.
     private void SignalCommitted(IReadOnlyList<BackgroundJob> jobs)
     {
+        var rejected = OfferAll(jobs);
+
         foreach (var job in jobs)
         {
             Record(JobLifecycleEvent.Enqueued, job.JobType);
         }
 
+        foreach (var job in rejected)
+        {
+            Record(JobLifecycleEvent.OfferRejected, job.JobType);
+        }
+    }
+
+    // Returns the jobs the strategy refused. An offer that throws is logged rather than counted as refused, and does
+    // not stop the offers after it.
+    private List<BackgroundJob> OfferAll(IReadOnlyList<BackgroundJob> jobs)
+    {
+        List<BackgroundJob> rejected = [];
         if (dispatchStrategy is null)
         {
-            return;
+            return rejected;
         }
 
         foreach (var job in jobs)
         {
-            bool accepted;
             try
             {
-                accepted = dispatchStrategy.TryOffer(new JobDispatchItem(job.Id, job.JobType));
+                if (!dispatchStrategy.TryOffer(new JobDispatchItem(job.Id, job.JobType)))
+                {
+                    rejected.Add(job);
+                }
             }
             catch (Exception exception)
             {
@@ -120,14 +136,10 @@ internal sealed class BackgroundJobQueue(
                     "Offering background job {JobId} of type {JobType} failed; the next sweep will find it",
                     job.Id,
                     job.JobType);
-                continue;
-            }
-
-            if (!accepted)
-            {
-                Record(JobLifecycleEvent.OfferRejected, job.JobType);
             }
         }
+
+        return rejected;
     }
 
     private void Record(JobLifecycleEvent lifecycleEvent, string jobType)

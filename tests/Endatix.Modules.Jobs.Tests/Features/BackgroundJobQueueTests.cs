@@ -246,6 +246,37 @@ public class BackgroundJobQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task EnqueueManyAsync_FirstOfferThrows_StillOffersTheRestInOrder()
+    {
+        // Arrange
+        var offers = new List<JobDispatchItem>();
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Returns(call =>
+        {
+            offers.Add(call.Arg<JobDispatchItem>());
+            return offers.Count == 1 ? throw new InvalidOperationException("Offer failed.") : true;
+        });
+        var queue = QueueWith(_dbContext, dispatchStrategy);
+
+        // Act
+        var act = () => queue.EnqueueManyAsync(
+            [Request("A"), Request("B"), Request("C")],
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        var jobIds = (await act.Should().NotThrowAsync()).Subject;
+        var committedIds = await _dbContext.BackgroundJobs
+            .Select(job => job.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        jobIds.Should().HaveCount(3).And.BeEquivalentTo(committedIds);
+        // One failed offer only leaves its own job to the sweep; the jobs after it are still signalled.
+        offers.Should().Equal(
+            new JobDispatchItem(jobIds[0], "A"),
+            new JobDispatchItem(jobIds[1], "B"),
+            new JobDispatchItem(jobIds[2], "C"));
+    }
+
+    [Fact]
     public async Task EnqueueAsync_MetricsThrows_DoesNotSurface()
     {
         // Arrange
@@ -260,10 +291,41 @@ public class BackgroundJobQueueTests : IDisposable
         // Act
         var act = () => queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
 
-        // Assert — the failed Enqueued record did not stop the offer, and the failed rejection record did not surface.
+        // Assert — the failed Enqueued record did not stop the rejection being recorded, and neither failure surfaced.
         var jobId = (await act.Should().NotThrowAsync()).Subject;
         dispatchStrategy.Received(1).TryOffer(new JobDispatchItem(jobId, "SubmissionExport"));
         metrics.Received(1).Record(JobLifecycleEvent.OfferRejected, "SubmissionExport");
+    }
+
+    [Fact]
+    public async Task EnqueueManyAsync_StrategyAndMetricsRegistered_OffersEveryJobBeforeRecordingAnyMetric()
+    {
+        // Arrange — one log shared by both seams shows the order of their calls, whatever each returns.
+        const string Offer = nameof(IJobDispatchStrategy.TryOffer);
+        const string Metric = nameof(IJobMetrics.Record);
+        var calls = new List<string>();
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Returns(call =>
+        {
+            calls.Add(Offer);
+            return call.Arg<JobDispatchItem>().JobType != "B";
+        });
+        var metrics = Substitute.For<IJobMetrics>();
+        metrics
+            .When(substitute => substitute.Record(Arg.Any<JobLifecycleEvent>(), Arg.Any<string>()))
+            .Do(_ => calls.Add(Metric));
+        var queue = QueueWith(_dbContext, dispatchStrategy, metrics);
+
+        // Act
+        await queue.EnqueueManyAsync(
+            [Request("A"), Request("B"), Request("C")],
+            TestContext.Current.CancellationToken);
+
+        // Assert — a slow host-supplied metrics sink must not delay dispatch, so no offer waits behind a metric call.
+        // The metric calls are three Enqueued and one OfferRejected, for the refused B.
+        calls.Should().Equal(Offer, Offer, Offer, Metric, Metric, Metric, Metric);
+        metrics.Received(3).Record(JobLifecycleEvent.Enqueued, Arg.Any<string>());
+        metrics.Received(1).Record(JobLifecycleEvent.OfferRejected, "B");
     }
 
     [Fact]
