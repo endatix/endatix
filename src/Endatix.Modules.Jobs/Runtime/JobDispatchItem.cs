@@ -1,6 +1,6 @@
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
-/// One piece of work offered to the runner: which job, and of what type.
+/// Carries the job type so a dispatch strategy can route an item without reading its job row.
 /// </summary>
-internal readonly record struct JobDispatchItem(long JobId, string JobType);
+public readonly record struct JobDispatchItem(long JobId, string JobType);

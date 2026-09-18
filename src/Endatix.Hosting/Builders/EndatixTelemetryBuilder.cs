@@ -1,6 +1,7 @@
 using System.Reflection;
 using Endatix.Hosting.Builders.Logging;
 using Endatix.Hosting.Options;
+using Endatix.Modules.Jobs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -271,6 +272,9 @@ public class EndatixTelemetryBuilder
             {
                 metrics.AddRuntimeInstrumentation();
             }
+
+            // Subscribed whether or not the Jobs module is on: a meter nothing creates exports nothing.
+            metrics.AddMeter(JobsModule.MeterName);
 
             metrics.AddOtlpExporter((exporter, _) => ConfigureOtlp(exporter, exporterEndpoint, exporterProtocol));
         });

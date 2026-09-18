@@ -3,7 +3,7 @@
     <PackageId>Endatix.Modules.Jobs</PackageId>
     <Title>Endatix - Background Jobs Module</Title>
     <Description>
-      This package contains the Background Jobs module of the Endatix Platform. It provides persistence and enqueueing for long-running tenant operations: the BackgroundJobs table is a durable, generic job queue, and retry state is held on the job row. It also contains an internal job state repository that nothing uses yet. No runner or sweeper is hosted, so enqueued jobs stay Pending. Persistence lives in its own "jobs" schema with its own migration history, so job migrations deploy independently of app-schema migrations.
+      This package contains the Background Jobs module of the Endatix Platform. It provides persistence and enqueueing for long-running tenant operations: the BackgroundJobs table is a durable, generic job queue, and retry state is held on the job row. It also contains an internal job state repository and the public IJobDispatchStrategy and IJobMetrics extension points, which nothing uses yet. No runner or sweeper is hosted, so enqueued jobs stay Pending. Persistence lives in its own "jobs" schema with its own migration history, so job migrations deploy independently of app-schema migrations.
 
       $(EndatixPlatformDescription)
     </Description>
