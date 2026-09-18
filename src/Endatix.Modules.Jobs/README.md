@@ -47,6 +47,7 @@ webhook to one endpoint, backfilling or purging tenant data.
 | `Endatix.Modules.Jobs.Domain` | `BackgroundJob` entity and its state machine |
 | `Endatix.Modules.Jobs.Persistence` | `jobs`-schema contexts, EF configuration, migrations |
 | `Endatix.Modules.Jobs.Features` | `BackgroundJobQueue` |
+| `Endatix.Modules.Jobs.Runtime` | `BackgroundJobsOptions`, the internal job state repository, and the `IJobDispatchStrategy` and `IJobMetrics` seams with their defaults — see [Runtime](#runtime) |
 
 The abstractions live in `Endatix.Core` rather than here so that assemblies which cannot
 reference this module — `Endatix.Infrastructure`, most notably — can still enqueue.
@@ -124,6 +125,28 @@ Four obligations, each invisible until it hurts in production:
 4. **Do not hold one `DbContext` for the length of the job.** Open a scope per chunk via
    `IServiceScopeFactory`; a change tracker held for minutes accumulates every row streamed
    through it.
+
+## Runtime
+
+The runner and sweeper will pass work through `IJobDispatchStrategy` and report through
+`IJobMetrics`. Both are public so that a host can replace them, and nothing registers either yet.
+
+The default strategy queues at most `MaxConcurrency × 25` job ids, a multiplier fixed on purpose:
+anything beyond stays in the database for the next sweep.
+
+The default metrics record on the `Endatix.Jobs` meter (`JobsModule.MeterName`), and
+`EndatixTelemetryBuilder` subscribes the host's metrics pipeline to it.
+
+| Instrument | Type | Unit | Tags |
+|------------|------|------|------|
+| `endatix.jobs.events` | counter | `{event}` | `endatix.job.type`, `endatix.job.event` |
+| `endatix.jobs.queue.depth` | gauge | `{job}` | — |
+| `endatix.jobs.backlog.count` | gauge | `{job}` | `endatix.job.type` |
+| `endatix.jobs.backlog.oldest_wait` | gauge | `s` | `endatix.job.type` |
+| `endatix.jobs.duration` | histogram | `s` | `endatix.job.type`, `endatix.job.outcome` |
+
+Every instance reports the same cluster-wide backlog, so aggregate the two backlog gauges across
+instances with max, not sum.
 
 ## Registration
 
