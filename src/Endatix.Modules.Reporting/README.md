@@ -54,7 +54,7 @@ Test submissions alone do **not** force merge. This is a defensive bridge until 
 
 ## Registration
 
-Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. Capabilities: `IEndatixModule`, `IHasFeatureFlag`, `IHasDbMigrations`, `IHasFastEndpoints` (serializers/OpenAPI tags via `ConfigureFastEndpoints`). Do **not** also `Api.ScanAssemblies` this assembly. Dual-provider persistence (`ReportingPersistence.ConfigureDbContextOptions` sets both namespaces). Disabled by default until:
+Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. Capabilities: `IEndatixModule`, `IHasFeatureFlag`, `IHasDbMigrations`, `IHasFastEndpoints` (serializers/OpenAPI tags via `ConfigureFastEndpoints`). Do **not** also `Api.ScanAssemblies` this assembly. `ReportingPersistence.ConfigureDbContextOptions` sets both namespaces, but **runtime requires PostgreSQL** until [#813](https://github.com/endatix/endatix/issues/813) (no SQL Server migrations; auto-migrate does not create `reporting`). Disabled by default until:
 
 ```json
 "Endatix": {
