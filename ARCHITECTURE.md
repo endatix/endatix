@@ -74,7 +74,7 @@ Monolith features and modules follow the same vertical-slice mindset at differen
 | **Public contracts** | API response DTOs in `Endatix.Api` endpoints             | `Endatix.Modules.*.Contracts` (DTOs, commands, queries, events, wire codes — not domain) |
 | **Domain**           | Shared `Endatix.Core` entities                           | Module `Domain/` (e.g. `Agent`, `Conversation`)                                          |
 | **Persistence**      | Shared `AppDbContext` / `AppIdentityDbContext`           | Module `Persistence/AgentsDbContext`                                                     |
-| **DI registration**  | `AddPlatformAdminFeatures()`                             | `{Name}Module` + `EndatixBuilder.UseModule()` (OSS Reporting, SaaS Agents)               |
+| **DI registration**  | `AddPlatformAdminFeatures()`                             | `{Name}Module` + `EndatixBuilder.UseModule()` (OSS Reporting/Jobs, SaaS Agents + SaaS.Management) |
 | **Reads**            | Concrete `List*` type → `ExecuteAsync` (no MediatR)      | Often MediatR handler + DbContext **inside the module** (still no Core interface)        |
 | **Writes**           | MediatR + Core handler + port (`IRoleManagementService`) | MediatR command/handler in module                                                        |
 | **Endpoints**        | `Endatix.Api/Endpoints/Admin/…`                          | FastEndpoints colocated in module `Features/*/…cs`                                       |
@@ -180,7 +180,7 @@ Persistence                ──► Domain
 Optional OSS modules implement `IEndatixModule` in a single `{Name}Module` class — no separate `Setup.cs`, no nested registration type.
 
 ```csharp
-public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations
+public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpoints
 {
     public static readonly ReportingModule Instance = new();
     private ReportingModule() { }
@@ -190,12 +190,18 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        builder.AddDbContextWithMigrations<ReportingDbContext>(/* schema, migrations, shouldMigrate */);
+        builder.AddDbContextWithMigrations<ReportingDbContext>(ReportingPersistence.ConfigureDbContextOptions);
     }
 }
 ```
 
-Host wiring: `EndatixBuilder.UseDefaults()` calls `UseModule(ReportingModule.Instance)`, which scans `Assembly` for MediatR handlers and FastEndpoints and invokes `ConfigureServices` at finalization. Modules with `IHasFeatureFlag` are skipped when the flag is disabled.
+Host wiring: OSS `UseDefaults()` calls `UseModule(ReportingModule.Instance)` and `UseModule(JobsModule.Instance)`. `UseModule` scans MediatR on `Assembly`, invokes `ConfigureServices` at finalization, and **only if** the module implements `IHasFastEndpoints` registers FastEndpoints discovery (flag-off modules contribute nothing). Do **not** also call `Api.ScanAssemblies` from `Program` for that assembly — duplicate scan bypasses the flag.
+
+**Provider:** Reporting is dual-provider (PostgreSQL + SQL Server namespaces). Jobs, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only** at runtime today: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder.
+
+**Optimistic concurrency:** For aggregates that can be updated concurrently, use `long Revision` + `IsConcurrencyToken()` and bump `Revision` on `Modified` at save. Same CLR type and column on both providers. Do not use PostgreSQL `xmin` (`uint` / `IsRowVersion`) on dual-provider (or future dual-provider) modules — SQL Server `rowversion` is `byte[]`. Identity keeps `ConcurrencyStamp`. `Form`/`Submission.Revision` today is outbox/event pairing, not an EF concurrency token. Map `DbUpdateConcurrencyException` to HTTP 409. Unique indexes still cover insert uniqueness.
+
+**Flags:** OSS catalogue (`FeatureFlags.cs`) is for modules `UseDefaults()` might load. SaaS.Management is **module-local** (`SaaSManagementFeatureFlags.SaaSManagement`), default off. SaaS Agents is **always-on** (no `IHasFeatureFlag`) but still implements `IHasFastEndpoints` so endpoints are discovered.
 
 Commercial waitlist (`Endatix.SaaS.Management`) is **not** registered by OSS `UseDefaults`. Product wiring and Hub `/signup` live in the SaaS workspace — see [Related](#endatix-oss-architecture). Distinct from OSS tenant self-registration (`POST /api/auth/register` + Hub `/t/{slug}/register`).
 
