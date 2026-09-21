@@ -3,8 +3,11 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Features;
 using Endatix.Modules.Jobs.Persistence;
+using Endatix.Modules.Jobs.Runtime;
 using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Modules.Jobs.Tests.Features;
 
@@ -38,6 +41,17 @@ public class BackgroundJobQueueTests : IDisposable
 
     private static BackgroundJobRequest Request(string jobType = "SubmissionExport", long tenantId = 7) =>
         new(jobType, """{"formId":"1"}""", tenantId);
+
+    private static BackgroundJobQueue QueueWith(
+        IJobsDbContext dbContext,
+        IJobDispatchStrategy? dispatchStrategy,
+        IJobMetrics? metrics = null)
+    {
+        var clock = Substitute.For<IDateTimeProvider>();
+        clock.UtcNow.Returns(new DateTimeOffset(Now));
+
+        return new BackgroundJobQueue(dbContext, clock, dispatchStrategy, metrics);
+    }
 
     [Fact]
     public async Task EnqueueAsync_ValidRequest_PersistsAnImmediatelyEligibleJob()
@@ -165,5 +179,200 @@ public class BackgroundJobQueueTests : IDisposable
 
         // Assert
         await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task EnqueueManyAsync_StrategyRegistered_OffersCommittedIdsInOrder()
+    {
+        // Arrange
+        var offers = new List<(JobDispatchItem Item, int SaveChangesCallCount)>();
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Returns(call =>
+        {
+            offers.Add((call.Arg<JobDispatchItem>(), _dbContext.SaveChangesCallCount));
+            return true;
+        });
+        var queue = QueueWith(_dbContext, dispatchStrategy);
+
+        // Act
+        var jobIds = await queue.EnqueueManyAsync(
+            [Request("A"), Request("B"), Request("A")],
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        offers.Select(offer => offer.Item).Should().Equal(
+            new JobDispatchItem(jobIds[0], "A"),
+            new JobDispatchItem(jobIds[1], "B"),
+            new JobDispatchItem(jobIds[2], "A"));
+        // A runner handed an id before its row commits would find nothing to claim.
+        offers[0].SaveChangesCallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_OfferRejected_ReturnsIdAndRecordsMetric()
+    {
+        // Arrange
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Returns(false);
+        var metrics = Substitute.For<IJobMetrics>();
+        var queue = QueueWith(_dbContext, dispatchStrategy, metrics);
+
+        // Act
+        var jobId = await queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert
+        var job = await _dbContext.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken);
+        job.Id.Should().Be(jobId);
+        metrics.Received(1).Record(JobLifecycleEvent.Enqueued, "SubmissionExport");
+        metrics.Received(1).Record(JobLifecycleEvent.OfferRejected, "SubmissionExport");
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_NoStrategy_RecordsEnqueuedButNoRejection()
+    {
+        // Arrange
+        var metrics = Substitute.For<IJobMetrics>();
+        var queue = QueueWith(_dbContext, dispatchStrategy: null, metrics);
+
+        // Act
+        var jobId = await queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert
+        var job = await _dbContext.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken);
+        job.Id.Should().Be(jobId);
+        metrics.Received(1).Record(JobLifecycleEvent.Enqueued, "SubmissionExport");
+        metrics.DidNotReceive().Record(JobLifecycleEvent.OfferRejected, Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_StrategyThrows_DoesNotSurface()
+    {
+        // Arrange
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Throws(new InvalidOperationException("Offer failed."));
+        var queue = QueueWith(_dbContext, dispatchStrategy);
+
+        // Act
+        var act = () => queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert
+        var jobId = (await act.Should().NotThrowAsync()).Subject;
+        var job = await _dbContext.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken);
+        job.Id.Should().Be(jobId);
+        dispatchStrategy.Received(1).TryOffer(new JobDispatchItem(jobId, "SubmissionExport"));
+    }
+
+    [Fact]
+    public async Task EnqueueManyAsync_FirstOfferThrows_StillOffersTheRestInOrder()
+    {
+        // Arrange
+        var offers = new List<JobDispatchItem>();
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Returns(call =>
+        {
+            offers.Add(call.Arg<JobDispatchItem>());
+            return offers.Count == 1 ? throw new InvalidOperationException("Offer failed.") : true;
+        });
+        var queue = QueueWith(_dbContext, dispatchStrategy);
+
+        // Act
+        var act = () => queue.EnqueueManyAsync(
+            [Request("A"), Request("B"), Request("C")],
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        var jobIds = (await act.Should().NotThrowAsync()).Subject;
+        var committedIds = await _dbContext.BackgroundJobs
+            .Select(job => job.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        jobIds.Should().HaveCount(3).And.BeEquivalentTo(committedIds);
+        // One failed offer only leaves its own job to the sweep; the jobs after it are still signalled.
+        offers.Should().Equal(
+            new JobDispatchItem(jobIds[0], "A"),
+            new JobDispatchItem(jobIds[1], "B"),
+            new JobDispatchItem(jobIds[2], "C"));
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_MetricsThrows_DoesNotSurface()
+    {
+        // Arrange
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Returns(false);
+        var metrics = Substitute.For<IJobMetrics>();
+        metrics
+            .When(substitute => substitute.Record(Arg.Any<JobLifecycleEvent>(), Arg.Any<string>()))
+            .Throw(new InvalidOperationException("Recording failed."));
+        var queue = QueueWith(_dbContext, dispatchStrategy, metrics);
+
+        // Act
+        var act = () => queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert — the failed Enqueued record did not stop the rejection being recorded, and neither failure surfaced.
+        var jobId = (await act.Should().NotThrowAsync()).Subject;
+        dispatchStrategy.Received(1).TryOffer(new JobDispatchItem(jobId, "SubmissionExport"));
+        metrics.Received(1).Record(JobLifecycleEvent.OfferRejected, "SubmissionExport");
+    }
+
+    [Fact]
+    public async Task EnqueueManyAsync_StrategyAndMetricsRegistered_OffersEveryJobBeforeRecordingAnyMetric()
+    {
+        // Arrange — one log shared by both seams shows the order of their calls, whatever each returns.
+        const string Offer = nameof(IJobDispatchStrategy.TryOffer);
+        const string Metric = nameof(IJobMetrics.Record);
+        var calls = new List<string>();
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Returns(call =>
+        {
+            calls.Add(Offer);
+            return call.Arg<JobDispatchItem>().JobType != "B";
+        });
+        var metrics = Substitute.For<IJobMetrics>();
+        metrics
+            .When(substitute => substitute.Record(Arg.Any<JobLifecycleEvent>(), Arg.Any<string>()))
+            .Do(_ => calls.Add(Metric));
+        var queue = QueueWith(_dbContext, dispatchStrategy, metrics);
+
+        // Act
+        await queue.EnqueueManyAsync(
+            [Request("A"), Request("B"), Request("C")],
+            TestContext.Current.CancellationToken);
+
+        // Assert — a slow host-supplied metrics sink must not delay dispatch, so no offer waits behind a metric call.
+        // The metric calls are three Enqueued and one OfferRejected, for the refused B.
+        calls.Should().Equal(Offer, Offer, Offer, Metric, Metric, Metric, Metric);
+        metrics.Received(3).Record(JobLifecycleEvent.Enqueued, Arg.Any<string>());
+        metrics.Received(1).Record(JobLifecycleEvent.OfferRejected, "B");
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_SaveFails_OffersNothing()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<TestJobsDbContext>()
+            .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
+            .AddInterceptors(new FailingSaveInterceptor())
+            .Options;
+        await using var failingContext = new TestJobsDbContext(options, new FixedTenantContext(0));
+        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
+        var metrics = Substitute.For<IJobMetrics>();
+        var queue = QueueWith(failingContext, dispatchStrategy, metrics);
+
+        // Act
+        var act = () => queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert
+        await act.Should().ThrowAsync<DbUpdateException>();
+        dispatchStrategy.DidNotReceiveWithAnyArgs().TryOffer(default);
+        metrics.ReceivedCalls().Should().BeEmpty();
+    }
+
+    private sealed class FailingSaveInterceptor : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default) =>
+            throw new DbUpdateException("The save failed.");
     }
 }
