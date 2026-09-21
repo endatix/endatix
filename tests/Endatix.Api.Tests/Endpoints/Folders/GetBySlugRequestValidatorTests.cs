@@ -1,7 +1,6 @@
 using Endatix.Api.Endpoints.Folders;
-using FluentValidation.TestHelper;
 using Endatix.Core.Common;
-using Endatix.Infrastructure.Data.Config;
+using FluentValidation.TestHelper;
 
 namespace Endatix.Api.Tests.Endpoints.Folders;
 
