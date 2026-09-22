@@ -151,8 +151,9 @@ instances with max, not sum.
 
 ## Registration
 
-Registered via `EndatixBuilder.UseDefaults()` → `UseModule(JobsModule.Instance)`. The module
-implements `IEndatixModule` and `IHasDbMigrations`.
+Registered via `EndatixBuilder.UseDefaults()` → `UseModule(JobsModule.Instance)`. Capabilities:
+`IEndatixModule`, `IHasFeatureFlag`, `IHasDbMigrations`, `IHasFastEndpoints`. Do **not** also
+`Api.ScanAssemblies` this assembly (bypasses the flag).
 
 Gated by `Endatix:FeatureFlags:JobsModule`, **off by default**. The module owns a DbContext
 and its own migrations, so registering it where nothing enqueues would create a schema no code

@@ -1,6 +1,6 @@
 # Endatix API (OSS) — Agent Instructions
 
-Clean Architecture + vertical slices in `oss/`. Architecture/testing rules of record: [`.cursor/rules/endatix-api-rules.mdc`](../.cursor/rules/endatix-api-rules.mdc). Integration suite ops: [`tests/README.md`](tests/README.md).
+Clean Architecture + vertical slices in `oss/`. Architecture/testing rules of record: [`.cursor/rules/endatix-api-rules.mdc`](../.cursor/rules/endatix-api-rules.mdc). Module registration (`IHasFastEndpoints` required when the assembly has endpoints; PG-only vs dual-provider; `long Revision` concurrency token not `xmin`; catalogue flags vs always-on commercial): [`ARCHITECTURE.md`](ARCHITECTURE.md). Integration suite ops: [`tests/README.md`](tests/README.md).
 
 ## Unit vs integration
 
