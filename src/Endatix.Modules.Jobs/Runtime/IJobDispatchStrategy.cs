@@ -4,7 +4,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 public interface IJobDispatchStrategy
 {
-    /// <summary>Never blocks, and returns <c>false</c> when the strategy has no room for the item.</summary>
+    /// <summary>Never blocks and never throws: returns <c>false</c> when the strategy has no room for the item.</summary>
     bool TryOffer(JobDispatchItem item);
 
     /// <summary>Waits for a free slot, then for the next item. A cancelled call gives back any slot it took.</summary>

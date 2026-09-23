@@ -129,8 +129,21 @@ Four obligations, each invisible until it hurts in production:
 
 ## Runtime
 
-The runner and sweeper will pass work through `IJobDispatchStrategy` and report through
-`IJobMetrics`. Both are public so that a host can replace them, and nothing registers either yet.
+`IJobDispatchStrategy` and `IJobMetrics` are public so that a host can replace them. Enqueueing
+uses them in this order:
+
+1. Commit the rows.
+2. If a strategy is registered, `TryOffer` each job id in request order. This is a latency
+   optimisation only: a refused or failed offer leaves the job for the sweeper.
+3. If metrics are registered, record `Enqueued` for each job, then `OfferRejected` for each
+   refusal.
+
+`false` from `TryOffer` means the strategy refused the job for back-pressure, and is counted as
+`OfferRejected`. A throw is a bug in the strategy: it is logged at Warning and
+swallowed, and is not counted as a refusal. Neither reaches the caller, whose rows are already committed.
+
+The module registers neither seam yet, and no runner is hosted, so rows stay `Pending` even if
+they are offered into a channel.
 
 The default strategy queues at most `MaxConcurrency × 25` job ids, a multiplier fixed on purpose:
 anything beyond stays in the database for the next sweep.
