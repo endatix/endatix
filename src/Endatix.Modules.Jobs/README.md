@@ -139,8 +139,8 @@ uses them in this order:
    refusal.
 
 `false` from `TryOffer` means the strategy refused the job for back-pressure, and is counted as
-`OfferRejected`. A throw is a bug in the strategy: it is logged and swallowed, and is not counted
-as a refusal. Neither reaches the caller, whose rows are already committed.
+`OfferRejected`. A throw is a bug in the strategy: it is logged at Warning and
+swallowed, and is not counted as a refusal. Neither reaches the caller, whose rows are already committed.
 
 The module registers neither seam yet, and no runner is hosted, so rows stay `Pending` even if
 they are offered into a channel.

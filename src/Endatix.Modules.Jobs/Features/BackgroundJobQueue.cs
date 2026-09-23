@@ -133,7 +133,7 @@ internal sealed class BackgroundJobQueue(
             }
             catch (Exception exception)
             {
-                _logger.LogDebug(
+                _logger.LogWarning(
                     exception,
                     "Offering background job {JobId} of type {JobType} failed; the next sweep will find it",
                     job.Id,
@@ -157,7 +157,7 @@ internal sealed class BackgroundJobQueue(
         }
         catch (Exception exception)
         {
-            _logger.LogDebug(
+            _logger.LogWarning(
                 exception,
                 "Recording {LifecycleEvent} for background job type {JobType} failed",
                 lifecycleEvent,
