@@ -64,6 +64,7 @@ public sealed class BackgroundJobExecutorTests : IDisposable
         { FailureShape.ErrorMessage, "Form 42 has no schema." },
         { FailureShape.ValidationErrorMessage, "Payload is missing formId." },
         { FailureShape.NoMessage, "The job failed." },
+        { FailureShape.NoValidationErrors, "The job failed." },
     };
 
     /// <summary>
@@ -86,6 +87,9 @@ public sealed class BackgroundJobExecutorTests : IDisposable
         ErrorMessage,
         ValidationErrorMessage,
         NoMessage,
+
+        /// <summary>A handler's own Result, whose validation errors are whatever it passed - here nothing at all.</summary>
+        NoValidationErrors,
     }
 
     [Fact]
@@ -105,6 +109,28 @@ public sealed class BackgroundJobExecutorTests : IDisposable
             .Which.Should().Be(nameof(IBackgroundJobStateRepository.TryClaimAsync));
         _metrics.Records.Should().BeEmpty();
         _metrics.Durations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunAsync_ClaimThrows_InvokesNothing()
+    {
+        // Arrange
+        var handler = HandlerReturning(Result.Success());
+        var executor = CreateExecutor(handler);
+        _stateRepository
+            .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), _utcNow, Arg.Any<CancellationToken>())
+            .Returns<ClaimedJob?>(_ => throw new TimeoutException("The claim timed out."));
+
+        // Act
+        await RunAsync(executor);
+
+        // Assert
+        handler.Invocations.Should().BeEmpty();
+        CalledRepositoryMethods().Should().ContainSingle()
+            .Which.Should().Be(nameof(IBackgroundJobStateRepository.TryClaimAsync));
+        _metrics.Records.Should().BeEmpty();
+        _logger.Entries.Should().ContainSingle(entry => entry.Level == LogLevel.Error)
+            .Which.Exception.Should().BeOfType<TimeoutException>();
     }
 
     [Fact]
@@ -274,6 +300,22 @@ public sealed class BackgroundJobExecutorTests : IDisposable
         _metrics.Durations.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task RunAsync_MetricsThrow_RecordsOutcomeAnyway()
+    {
+        // Arrange
+        _metrics.Throws = true;
+        var executor = CreateExecutor(HandlerReturning(Result.Success()));
+        ClaimReturns(Claimed());
+
+        // Act
+        await RunAsync(executor);
+
+        // Assert
+        await _stateRepository.Received(1).TryCompleteAsync(JobId, 1, _utcNow, Arg.Any<CancellationToken>());
+        _logger.Entries.Should().NotContain(entry => entry.Level >= LogLevel.Warning);
+    }
+
     [Theory]
     [MemberData(nameof(StoredTraces))]
     public async Task RunAsync_TraceId_ReparentsExecutionActivity(
@@ -359,6 +401,7 @@ public sealed class BackgroundJobExecutorTests : IDisposable
         FailureShape.ErrorMessage => Result.Error("Form 42 has no schema."),
         FailureShape.ValidationErrorMessage =>
             Result.Invalid(new ValidationError { ErrorMessage = "Payload is missing formId." }),
+        FailureShape.NoValidationErrors => Result.Invalid((IEnumerable<ValidationError>)null!),
         _ => Result.Error(),
     };
 
@@ -402,18 +445,38 @@ public sealed class BackgroundJobExecutorTests : IDisposable
 
     private sealed class RecordingJobMetrics : IJobMetrics
     {
+        /// <summary>Makes the sink fail every call, the way a host-supplied one can.</summary>
+        public bool Throws { get; set; }
+
         public List<(JobLifecycleEvent LifecycleEvent, string JobType)> Records { get; } = [];
 
         public List<(string JobType, TimeSpan Duration, JobAttemptOutcome Outcome)> Durations { get; } = [];
 
-        public void Record(JobLifecycleEvent lifecycleEvent, string jobType) => Records.Add((lifecycleEvent, jobType));
+        public void Record(JobLifecycleEvent lifecycleEvent, string jobType)
+        {
+            if (Throws)
+            {
+                throw Unavailable();
+            }
+
+            Records.Add((lifecycleEvent, jobType));
+        }
 
         public void ObserveQueueDepth(int depth) => throw SweeperOnly();
 
         public void ObserveBacklog(string jobType, int count, TimeSpan oldestWait) => throw SweeperOnly();
 
-        public void ObserveDuration(string jobType, TimeSpan duration, JobAttemptOutcome outcome) =>
+        public void ObserveDuration(string jobType, TimeSpan duration, JobAttemptOutcome outcome)
+        {
+            if (Throws)
+            {
+                throw Unavailable();
+            }
+
             Durations.Add((jobType, duration, outcome));
+        }
+
+        private static InvalidOperationException Unavailable() => new("The metrics sink is unavailable.");
 
         private static NotSupportedException SweeperOnly() =>
             new("Running a job observes its duration only; the sweeper observes the queue and the backlog.");

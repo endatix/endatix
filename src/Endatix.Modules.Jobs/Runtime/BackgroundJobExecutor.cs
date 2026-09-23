@@ -215,7 +215,7 @@ internal sealed class BackgroundJobExecutor(
             return string.Join('\n', errors);
         }
 
-        if (NonBlank(result.ValidationErrors.Select(validationError => validationError.ErrorMessage))
+        if (NonBlank(result.ValidationErrors?.Select(validationError => validationError.ErrorMessage))
             is { Count: > 0 } validationMessages)
         {
             return string.Join('\n', validationMessages);
@@ -224,6 +224,8 @@ internal sealed class BackgroundJobExecutor(
         return BackgroundJobMessages.FailedWithoutMessage;
     }
 
+    // Null-tolerant, and read that way at both call sites: a handler builds the failure Result itself, and one
+    // whose collection is missing has to end the attempt as the failure it reported rather than as a throw.
     private static List<string> NonBlank(IEnumerable<string>? messages) =>
         [.. (messages ?? []).Where(message => !string.IsNullOrWhiteSpace(message))];
 
