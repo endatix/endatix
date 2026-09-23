@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Exceptions;
@@ -99,10 +100,27 @@ internal sealed class BackgroundJobExecutor(
         var context = contextResolver.Resolve(claimed);
 
         using var activity = BackgroundJobsTelemetry.StartExecution(claimed);
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var handler = handlerRegistry.Resolve(scope.ServiceProvider, claimed.JobType);
 
-        return await handler.ExecuteAsync(context, stoppingToken);
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var handler = handlerRegistry.Resolve(scope.ServiceProvider, claimed.JobType);
+
+            var result = await handler.ExecuteAsync(context, stoppingToken);
+            if (!result.IsSuccess)
+            {
+                // No description: the message the handler wrote is already on the row.
+                activity?.SetStatus(ActivityStatusCode.Error);
+            }
+
+            return result;
+        }
+        catch (Exception exception)
+        {
+            // The type name only, because a message can carry secrets, which is why none reaches the row either.
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+            throw;
+        }
     }
 
     private Task RecordResultAsync(ClaimedJob claimed, DateTime claimedAt, Result result)
@@ -215,7 +233,7 @@ internal sealed class BackgroundJobExecutor(
             return string.Join('\n', errors);
         }
 
-        if (NonBlank(result.ValidationErrors?.Select(validationError => validationError.ErrorMessage))
+        if (NonBlank(result.ValidationErrors?.Select(validationError => validationError?.ErrorMessage))
             is { Count: > 0 } validationMessages)
         {
             return string.Join('\n', validationMessages);
@@ -225,9 +243,10 @@ internal sealed class BackgroundJobExecutor(
     }
 
     // Null-tolerant, and read that way at both call sites: a handler builds the failure Result itself, and one
-    // whose collection is missing has to end the attempt as the failure it reported rather than as a throw.
-    private static List<string> NonBlank(IEnumerable<string>? messages) =>
-        [.. (messages ?? []).Where(message => !string.IsNullOrWhiteSpace(message))];
+    // whose collection, or an entry in it, is missing has to end the attempt as the failure it reported rather than
+    // as a throw.
+    private static List<string> NonBlank(IEnumerable<string?>? messages) =>
+        [.. (messages ?? []).OfType<string>().Where(message => !string.IsNullOrWhiteSpace(message))];
 
     private static JobLifecycleEvent LifecycleEventOf(JobAttemptOutcome outcome) => outcome switch
     {

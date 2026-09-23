@@ -65,6 +65,7 @@ public sealed class BackgroundJobExecutorTests : IDisposable
         { FailureShape.ValidationErrorMessage, "Payload is missing formId." },
         { FailureShape.NoMessage, "The job failed." },
         { FailureShape.NoValidationErrors, "The job failed." },
+        { FailureShape.NullValidationError, "The job failed." },
     };
 
     /// <summary>
@@ -90,6 +91,9 @@ public sealed class BackgroundJobExecutorTests : IDisposable
 
         /// <summary>A handler's own Result, whose validation errors are whatever it passed - here nothing at all.</summary>
         NoValidationErrors,
+
+        /// <summary>A handler's own Result, whose validation errors hold an entry that is null.</summary>
+        NullValidationError,
     }
 
     [Fact]
@@ -316,6 +320,60 @@ public sealed class BackgroundJobExecutorTests : IDisposable
         _logger.Entries.Should().NotContain(entry => entry.Level >= LogLevel.Warning);
     }
 
+    [Fact]
+    public async Task RunAsync_Success_LeavesExecutionStatusUnset()
+    {
+        // Arrange
+        var handler = HandlerReturning(Result.Success());
+        var executor = CreateExecutor(handler);
+        ClaimReturns(Claimed());
+
+        // Act
+        await RunAsync(executor);
+
+        // Assert
+        var activity = ExecutionActivity(handler);
+        activity.Status.Should().Be(ActivityStatusCode.Unset);
+        activity.StatusDescription.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RunAsync_FailureResult_MarksExecutionErrorWithoutDescription()
+    {
+        // Arrange
+        var handler = HandlerReturning(Result.Error("Form 42 has no schema."));
+        var executor = CreateExecutor(handler);
+        ClaimReturns(Claimed());
+
+        // Act
+        await RunAsync(executor);
+
+        // Assert
+        var activity = ExecutionActivity(handler);
+        activity.Status.Should().Be(ActivityStatusCode.Error);
+        activity.StatusDescription.Should().BeNull("the handler's own message is already on the job row");
+    }
+
+    [Fact]
+    public async Task RunAsync_ThrowsWithSecretMessage_MarksExecutionErrorWithTypeNameOnly()
+    {
+        // Arrange
+        var connectionString = "Host=db.internal;Username=endatix;Password=s3cret";
+        var handler = HandlerThrowing(new InvalidOperationException(connectionString));
+        var executor = CreateExecutor(handler);
+        ClaimReturns(Claimed());
+
+        // Act
+        await RunAsync(executor);
+
+        // Assert
+        var activity = ExecutionActivity(handler);
+        activity.Status.Should().Be(ActivityStatusCode.Error);
+        activity.StatusDescription.Should().Be(nameof(InvalidOperationException));
+        connectionString.Split(';', '=').Should().AllSatisfy(part =>
+            activity.StatusDescription.Should().NotContain(part));
+    }
+
     [Theory]
     [MemberData(nameof(StoredTraces))]
     public async Task RunAsync_TraceId_ReparentsExecutionActivity(
@@ -402,11 +460,17 @@ public sealed class BackgroundJobExecutorTests : IDisposable
         FailureShape.ValidationErrorMessage =>
             Result.Invalid(new ValidationError { ErrorMessage = "Payload is missing formId." }),
         FailureShape.NoValidationErrors => Result.Invalid((IEnumerable<ValidationError>)null!),
+        FailureShape.NullValidationError => Result.Invalid(new ValidationError[] { null! }),
         _ => Result.Error(),
     };
 
     private List<string> CalledRepositoryMethods() =>
         [.. _stateRepository.ReceivedCalls().Select(call => call.GetMethodInfo().Name)];
+
+    /// <summary>The activity the one handler invocation ran in, as the attempt left it.</summary>
+    private static Activity ExecutionActivity(RecordingJobHandler handler) =>
+        handler.Invocations.Should().ContainSingle().Subject.Activity
+        ?? throw new InvalidOperationException("The handler ran outside an activity.");
 
     /// <summary>The message argument of the one failed-attempt write the executor made.</summary>
     private string FailedAttemptMessage() =>
