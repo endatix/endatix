@@ -41,10 +41,13 @@ public sealed class PagedListWindowFlowTests
         using var client = await ClientAsAsync(TestPersona.TenantAdmin, cancellationToken);
 
         // Act
-        var page = await GetPageAsync(client, $"/api/{route}?{HugePage}", cancellationToken);
+        if (route == "forms")
+        {
+            await CreateFormAsync(client, cancellationToken);
+            await CreateFormAsync(client, cancellationToken);
+        }
 
-        // Assert
-        AssertIsLastPage(page);
+        await AssertHugePageIsNotTheFirstRow(client, $"/api/{route}", cancellationToken);
     }
 
     [Theory]
@@ -56,10 +59,7 @@ public sealed class PagedListWindowFlowTests
         using var client = await ClientAsAsync(TestPersona.PlatformAdmin, cancellationToken);
 
         // Act
-        var page = await GetPageAsync(client, $"/api/{route}?{HugePage}", cancellationToken);
-
-        // Assert
-        AssertIsLastPage(page);
+        await AssertHugePageIsNotTheFirstRow(client, $"/api/{route}", cancellationToken);
     }
 
     [Fact]
@@ -73,24 +73,45 @@ public sealed class PagedListWindowFlowTests
         var formId = await CreateFormWithSubmissionsAsync(client, submissions: 3, cancellationToken);
 
         // Act
+        var first = await GetPageAsync(client, $"/api/forms/{formId}/submissions?page=1&pageSize=2", cancellationToken);
         var pastTheEnd = await GetPageAsync(client, $"/api/forms/{formId}/submissions?page=5&pageSize=2", cancellationToken);
         var huge = await GetPageAsync(client, $"/api/forms/{formId}/submissions?page=2147483647&pageSize=2", cancellationToken);
 
         // Assert
-        Assert.Equal(new ListPage(2, 2, 3, 1), pastTheEnd);
+        Assert.Equal(2, pastTheEnd.Page);
+        Assert.Equal(2, pastTheEnd.TotalPages);
+        Assert.Equal(3, pastTheEnd.TotalRecords);
+        Assert.Equal(1, pastTheEnd.ItemCount);
         Assert.Equal(pastTheEnd, huge);
+        Assert.NotEqual(first.FirstItemId, huge.FirstItemId);
     }
 
     private static void AssertIsLastPage(ListPage page)
     {
         if (page.TotalRecords == 0)
         {
-            Assert.Equal(new ListPage(1, 0, 0, 0), page);
+            Assert.Equal(new ListPage(1, 0, 0, 0, null), page);
             return;
         }
 
         Assert.Equal(page.TotalPages, page.Page);
         Assert.Equal(1, page.ItemCount);
+    }
+
+    private static async Task AssertHugePageIsNotTheFirstRow(
+        HttpClient client,
+        string route,
+        CancellationToken cancellationToken)
+    {
+        var huge = await GetPageAsync(client, $"{route}?{HugePage}", cancellationToken);
+        AssertIsLastPage(huge);
+        if (huge.TotalRecords < 2)
+        {
+            return;
+        }
+
+        var first = await GetPageAsync(client, $"{route}?page=1&pageSize=1", cancellationToken);
+        Assert.NotEqual(first.FirstItemId, huge.FirstItemId);
     }
 
     private async Task<HttpClient> ClientAsAsync(TestPersona persona, CancellationToken cancellationToken)
@@ -124,11 +145,34 @@ public sealed class PagedListWindowFlowTests
 
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var root = body.RootElement;
+        var items = root.GetProperty("items");
+        var firstItemId = items.GetArrayLength() == 0 ? null : ReadId(items[0]);
         return new ListPage(
             root.GetProperty("page").GetInt32(),
             root.GetProperty("totalPages").GetInt32(),
             root.GetProperty("totalRecords").GetInt32(),
-            root.GetProperty("items").GetArrayLength());
+            items.GetArrayLength(),
+            firstItemId);
+    }
+
+    private static string? ReadId(JsonElement item)
+    {
+        var id = item.GetProperty("id");
+        return id.ValueKind == JsonValueKind.String ? id.GetString() : id.GetRawText();
+    }
+
+    private static async Task CreateFormAsync(HttpClient client, CancellationToken cancellationToken)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/forms",
+            new
+            {
+                name = $"paged-list-form-{Guid.NewGuid():N}",
+                isEnabled = true,
+                formDefinitionJsonData = """{"pages":[{"name":"page1","elements":[{"type":"text","name":"q1"}]}]}"""
+            },
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 
     private static async Task<string> CreateFormWithSubmissionsAsync(
@@ -161,5 +205,5 @@ public sealed class PagedListWindowFlowTests
         return formId;
     }
 
-    private sealed record ListPage(int Page, int TotalPages, int TotalRecords, int ItemCount);
+    private sealed record ListPage(int Page, int TotalPages, int TotalRecords, int ItemCount, string? FirstItemId);
 }
