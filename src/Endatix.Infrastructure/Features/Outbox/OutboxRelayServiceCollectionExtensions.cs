@@ -3,6 +3,7 @@ using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using OpenFeature;
 using OpenFeature.Hosting;
 using OpenFeature.Hosting.Providers.Memory;
@@ -38,11 +39,44 @@ public static class OutboxRelayServiceCollectionExtensions
 
         services.AddOutboxRelay();
         services.AddOptions<OutboxOptions>().BindConfiguration("Endatix:Outbox");
-        services.AddScoped<IOutboxIntegrationEventHandler, WebHookOutboxIntegrationEventHandler>();
+        services.AddWebHookDelivery();
         services.AddScoped<IIntegrationEventPublisher, CompositeIntegrationEventPublisher>();
         services.AddEndatixOpenFeature();
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers the single webhook handler of the relay: the inline <see cref="WebHookOutboxIntegrationEventHandler"/>
+    /// by default, or the <see cref="WebHookDoorbellOutboxHandler"/> when <c>Endatix:WebHookDoorbell:Enabled</c> is
+    /// <c>true</c>. Exactly one of them is resolved, because the composite publisher invokes every matching
+    /// handler and having both would deliver each webhook twice.
+    /// </summary>
+    private static void AddWebHookDelivery(this IServiceCollection services)
+    {
+        services.AddOptions<WebHookDoorbellOptions>()
+            .BindConfiguration(WebHookDoorbellOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<WebHookDoorbellOptions>, WebHookDoorbellOptionsValidator>();
+
+        // No resilience handler: a failed call throws and the relay's own retry takes over.
+        services.AddHttpClient(WebHookDoorbellOutboxHandler.HttpClientName, (serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<WebHookDoorbellOptions>>().Value;
+            if (Uri.TryCreate(options.WorkerBaseUrl, UriKind.Absolute, out var workerBaseUrl))
+            {
+                client.BaseAddress = workerBaseUrl;
+            }
+
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
+
+        services.AddScoped<WebHookOutboxIntegrationEventHandler>();
+        services.AddScoped<WebHookDoorbellOutboxHandler>();
+        services.AddScoped<IOutboxIntegrationEventHandler>(serviceProvider =>
+            serviceProvider.GetRequiredService<IOptions<WebHookDoorbellOptions>>().Value.Enabled
+                ? serviceProvider.GetRequiredService<WebHookDoorbellOutboxHandler>()
+                : serviceProvider.GetRequiredService<WebHookOutboxIntegrationEventHandler>());
     }
 
     /// <summary>
