@@ -26,6 +26,7 @@ public sealed class MyFlowTests(EndatixIntegrationWebHostFixture fixture)
 - **DB-only** (no host): `DbIntegrationTestCollection` + `DbIntegrationFixture` — see `ReportingQueryFilterTests`.
 - **Provider-specific only when required:** `[Trait("DbSpecific", "PostgreSql")]` or `SqlServer` — e.g. `OutboxCaptureTests`, `SqlServerMigrationArtifactTests`.
 - **Keycloak:** `IClassFixture<KeycloakTestContainerFixture>`, `Category=Keycloak`, `Priority=P2`.
+- **Standard seed** (`StandardSeedOptions`, `ResetDatabaseAsync(useStandardSeed: true)`) is a realistic baseline; do not use it where the test needs an empty database.
 
 ## Reference tests
 

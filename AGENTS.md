@@ -1,52 +1,31 @@
 # Endatix API (OSS) — Agent Instructions
 
-Clean Architecture + vertical slices in `oss/`. Architecture/testing rules of record: [`.cursor/rules/endatix-api-rules.mdc`](../.cursor/rules/endatix-api-rules.mdc). Module registration (`IHasFastEndpoints` required when the assembly has endpoints; PG-only vs dual-provider; `long Revision` concurrency token not `xmin`; catalogue flags vs always-on commercial): [`ARCHITECTURE.md`](ARCHITECTURE.md). Integration suite ops: [`tests/README.md`](tests/README.md).
+Rules of record for .NET code in this repo; the SaaS workspace follows them too. Layering, modules, MediatR vs direct reads, paged lists, events and multi-tenancy: [`ARCHITECTURE.md`](ARCHITECTURE.md). Integration suite ops: [`tests/README.md`](tests/README.md).
 
-## Unit vs integration
+## C# conventions
 
-**Do not duplicate the full decision tree here.** Use:
+- Primary constructors for DI. `sealed` by default; `internal` unless the type is public API or framework-discovered (endpoints, requests, validators).
+- `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
+- Comment a decision, constraint or non-obvious invariant, not what the name already says.
 
-| Need                                                                                 | Doc                                                                       |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| When unit vs integration, naming (`UnitOfWork_Scenario_ExpectedBehavior`), AAA       | [endatix-api-rules.mdc → Testing](../.cursor/rules/endatix-api-rules.mdc) |
-| Testcontainers, Respawn, traits (`Category` / `Priority` / `DbSpecific`), how to run | [`tests/README.md`](tests/README.md)                                      |
+## Endpoints (FastEndpoints)
 
-**Short rule of thumb**
+- **One file per operation.** `Endpoints/{Feature}/{Op}.cs` holds the endpoint, request, response and validator. Split a part into `{Op}.{Part}.cs` only when it is large or reused and the split makes the endpoint easier to read. Older split endpoints (`Forms/Delete.*`) merge when touched, not in bulk. References: `Forms/List.cs`, `Public/Tenants/GetBySlug.cs`.
+- Declare access straight after the verb ([Endpoint authorization](#endpoint-authorization-api)). Return `Results<Ok|Created<T>, ProblemHttpResult>` via `TypedResultsBuilder` ([Error HTTP contract](#error-http-contract-api)).
+- **Anonymous:** `Group<PublicApiGroup>()` adds `public/`, so the route must not repeat it. Pair `AllowAnonymous()` with `Throttle(hits, seconds)` (keys on `X-Forwarded-For`, then the connection IP). An endpoint that must not reveal whether a value exists returns the same payload for found, duplicate and bot input, and keeps timing-visible work behind it. Reference: `Public/Tenants/GetBySlug.cs`.
 
-- **Unit** — domain, handlers, validators, mappers, endpoint `ExecuteAsync` mapping; mocks/substitutes only.
-- **Integration** — HTTP + auth + EF + real DB (`WebApplicationFactory` / Testcontainers). Prefer `CriticalPaths/` · `FeatureFlows/` · `Infrastructure/`.
+## Validation
 
-## Unit test placement (OSS)
+- FluentValidation on every request. Limits come from constants (`PagedRequestLimits`, entity `*MaxLength`), never literals.
+- Custom rules are `IRuleBuilder` extensions built on `Must` — FluentValidation's recommended pattern (`Common/FluentValidationExtensions.cs`, e.g. `ValidUrlSlug`). `Custom(...)` only when one rule adds several failures.
+- A field the entity also guards: the entity exposes `static string? {Field}Error(value)` (message or `null`) and throws it as `DomainValidationException`; the validator reports that message through a `Must` extension with a message placeholder. Never restate limits in the validator or try/catch the factory.
+- **Paged lists:** `Include` the shared validators (`SearchablePagedRequestValidator` when the list has search, otherwise `PageableRequestValidator` plus the `PagedRequestLimits.MAX_PAGE_SIZE` cap; `SortableRequestValidator<T>`). Map with `ListRequestExtensions`. Handlers take `SearchablePageRequest` / `SortRequest<T>` and do not re-apply those limits. Do not `Skip` the raw page: count, then `Paged<T>.ResolvePage`, then skip that window (`PageRequest.Skip` overflows on a huge page). One helper should own that sequence. Reference: `Endpoints/Forms/List.cs` (validators), `UseCases/Themes/List/ListThemesHandler.cs` (`ResolvePage`). See [ARCHITECTURE.md → Paged list requests](ARCHITECTURE.md#paged-list-requests).
 
-| Layer               | Project                        | Folder                         | Reference                                                                      |
-| ------------------- | ------------------------------ | ------------------------------ | ------------------------------------------------------------------------------ |
-| FastEndpoints       | `Endatix.Api.Tests`            | `Endpoints/{Feature}/`         | `Forms/DeleteTests.cs`, `DataLists/*LocaleTests.cs`                            |
-| Handlers / commands | `Endatix.Core.Tests`           | `UseCases/{Feature}/{Action}/` | `Forms/Delete/DeleteFormHandlerTests.cs`, `DataLists/Locales/*Locale*Tests.cs` |
-| Domain              | `Endatix.Core.Tests`           | `Entities/`                    | `DataListLocaleCatalogTests.cs`                                                |
-| Infrastructure      | `Endatix.Infrastructure.Tests` | Mirror source                  | `Data/Querying/...`                                                            |
+## Data access
 
-- **Class:** `{Sut}Tests`. **Methods:** `Method_State_ExpectedBehavior`.
-- Always `// Arrange` · `// Act` · `// Assert`.
-
-### FastEndpoints (`Endatix.Api.Tests`)
-
-Pattern: substitute `IMediator` → `Factory.Create<TEndpoint>(_mediator)` → assert `response.Result`.
-
-Minimum cases: invalid → 400 · not found → 404 (if applicable) · success payload · request→command via `Received`/`Arg.Is`. Skip FluentValidation re-tests unless validation is the SUT.
-
-**Error HTTP contract:** resource endpoints return `Results<Ok|Created<T>, ProblemHttpResult>`. Assert failures as:
-
-```csharp
-var problemResult = response.Result as ProblemHttpResult;
-problemResult.Should().NotBeNull();
-problemResult!.StatusCode.Should().Be(StatusCodes.Status404NotFound); // or 400
-```
-
-Do **not** assert empty-body `BadRequest` / `NotFound`. References: `FormDefinitions/GetActiveTests.cs`, `Forms/Delete.cs` (OpenAPI `Produces` + `ProducesProblem`).
-
-### Handlers (`Endatix.Core.Tests`)
-
-Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · happy path + persist · domain `Invalid` (no persist) · event reason/payload. Prefer real aggregates. Thin command-ctor tests when `Guard.Against.*` matters.
+- Generic `IRepository<T>` + Ardalis specifications. A dedicated repository (`Core.Abstractions.Repositories` → `Infrastructure.Data.Repositories`) only for multi-entity aggregates or queries a spec cannot express.
+- `IUnitOfWork` only when several entities must save atomically: begin → changes → one `SaveChangesAsync` → commit. In `catch`: roll back, log, return author-written `Result.Error` (never `ex.Message`).
+- Global query filters are **named** (`EndatixQueryFilterNames`); opt out by name, never blanket. Ambient tenant `0` is bypass, not isolation. See [ARCHITECTURE.md → Multi-tenancy](ARCHITECTURE.md#multi-tenancy-platform-tenants).
 
 ## Entity Ids (snowflake)
 
@@ -77,7 +56,7 @@ Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, un
 - **No 5xx body ever echoes handler- or exception-derived text.** `EndatixProblemDetails.Create` replaces any `>= 500` detail with the generic title and logs the original (correlate via `traceId`). Never pass `ex.Message` to a `Result.*` factory — including `Result.Error`: the 5xx scrub is defense in depth, not a license (see below). Log the exception, return author-written text. If a 5xx message must reach the user, model the failure as a 4xx/503 instead.
 - Writing a problem body by hand? Pass `contentType: "application/problem+json"` to `WriteAsJsonAsync`; it otherwise overwrites `Response.ContentType` with `application/json`.
 - `SetErrorMessage(...)` overrides the problem **title for every status**, so set it only on the branch it describes (see `Auth/VerifyEmail.cs`) — otherwise a 404 inherits a 400-shaped message.
-- OpenAPI: `Description(b => b.Produces<T>(...).ProducesProblem(400).ProducesProblem(404))` listing exactly the statuses the endpoint's `Summary(s => s.Responses[...])` declares — every endpoint returning `ProblemHttpResult` must have one. FE validators set `ProducesMetadataType = typeof(ProblemDetails)`.
+- OpenAPI: `Description(b => b.Produces<T>(...).ProducesProblem(400).ProducesProblem(404))` listing exactly the statuses the endpoint's `Summary(s => s.Responses[...])` declares — every endpoint returning `ProblemHttpResult` must have one. The success status matches the typed result (`Ok` → 200, `Created` → 201). FE validators set `ProducesMetadataType = typeof(ProblemDetails)`.
 
 ### Exception text never reaches the caller (`IEndUserSafeError` / `SafeError`)
 
@@ -115,6 +94,11 @@ catch (ArgumentException ex)
 - **Prefer a real message over a mask.** "…cannot have more than 25 cultures." is actionable; "Could not add locale." is not. No safe message to author? Log and return a static string (`DefaultAuthorizationMapper`, `ReCaptchaHttpClient`, `ThemeJsonData`).
 - **The boundary is not a status mapper.** A `Domain*Exception` reaching `EndatixExceptionHandler` is a missing `catch`, and gets an opaque 500 so the defect surfaces. Prefer a Result-returning domain API where input is caller-supplied and validated in a loop (`DataListEnsureLocales.TryEnsure`) — it keeps throws off hot paths entirely.
 
+### Rethrowing
+
+- Log **or** rethrow, never both (Sonar S2139). Wrap with context and keep the original as `InnerException`; bare `throw;` only to rethrow unchanged (`OperationCanceledException`).
+- Log where the outcome is owned: return `Result.Error`, mark a row failed, or let the outbox relay log once.
+
 ### Uniform failure responses (OWASP A07)
 
 Account-facing failures must be **indistinguishable to the caller**: same status, same message, whatever the real cause. Log the real reason server-side instead — never return it.
@@ -131,6 +115,48 @@ Account-facing failures must be **indistinguishable to the caller**: same status
 - **Every endpoint declares its access** straight after the verb: `Permissions(...)`, `Roles(...)`, `Policies(...)` or `AllowAnonymous()`. Module endpoints discovered through `IHasFastEndpoints` included. The default policy alone (authenticated + `sub`) is only acceptable where the endpoint is scoped to the caller by construction — `Auth/Me`, `Auth/Logout`, `MyAccount/ChangePassword`.
 - **Admins pass every permission check.** `AssertionPermissionsHandler` lets any user whose roles make `IsAdmin` true (Admin, PlatformAdmin) through the FastEndpoints permission requirement before grants are read, so an endpoint needs no admin grant. Seed `RolePermissions` rows only for the non-admin roles that should reach it.
 - **Tenant-owned reads pass the tenant explicitly** and refuse `<= 0` — see [ARCHITECTURE.md → Multi-tenancy → Data isolation](ARCHITECTURE.md#multi-tenancy-platform-tenants).
+
+## Transactional email
+
+- Compose `EmailWithTemplate` with `To`, `TemplateId` and `Metadata` only. **Do not set `From`** on stored templates: `EmailTemplateRenderer` resolves it (`Endatix:EmailTemplates:*:FromAddress` → template row → default). External templates (`IsExternal = true`) send `From` as-is.
+- `Metadata` keys match the template's `{{placeholders}}` (`Scripts/Data/*.sql`); a template id with no row throws at render time.
+- Best-effort after a committed write: catch and log a send failure, do not turn it into a 5xx. When nothing was persisted, return `Result.Unavailable` (`ForgotPasswordHandler`).
+
+## Testing
+
+- **Unit** — domain, handlers, validators, mappers, endpoint `ExecuteAsync` mapping; substitutes only.
+- **Integration** — HTTP + auth + DI + EF + real database (`WebApplicationFactory`, Testcontainers, Respawn; never an in-memory DB). Assert status, response contract and the persistence effect. Authenticate with synthetic JWT; Keycloak only in trait-scoped tests. Fixtures, traits and folders (`CriticalPaths/` · `FeatureFlows/` · `Infrastructure/`): [`tests/README.md`](tests/README.md).
+- **Naming:** class `{Sut}Tests`. Unit and persistence-integration methods are `UnitOfWork_Scenario_ExpectedBehavior` (`Constructor_NegativeOrZeroFormId_ThrowsArgumentException`, `GetByFormIdAsync_WithOtherTenant_ReturnsNull`). HTTP integration methods read as outcomes (`Create_tenant_as_tenant_admin_is_forbidden`).
+- Explicit `// Arrange` · `// Act` · `// Assert`; one behavior per test.
+
+### Unit test placement
+
+| Layer               | Project                        | Folder                         | Reference                                                                      |
+| ------------------- | ------------------------------ | ------------------------------ | ------------------------------------------------------------------------------ |
+| FastEndpoints       | `Endatix.Api.Tests`            | `Endpoints/{Feature}/`         | `Forms/DeleteTests.cs`, `DataLists/*LocaleTests.cs`                            |
+| Handlers / commands | `Endatix.Core.Tests`           | `UseCases/{Feature}/{Action}/` | `Forms/Delete/DeleteFormHandlerTests.cs`, `DataLists/Locales/*Locale*Tests.cs` |
+| Domain              | `Endatix.Core.Tests`           | `Entities/`                    | `DataListLocaleCatalogTests.cs`                                                |
+| Infrastructure      | `Endatix.Infrastructure.Tests` | Mirror source                  | `Data/Querying/...`                                                            |
+
+#### FastEndpoints (`Endatix.Api.Tests`)
+
+Pattern: substitute `IMediator` → `Factory.Create<TEndpoint>(_mediator)` → assert `response.Result`.
+
+Minimum cases: invalid → 400 · not found → 404 (if applicable) · success payload · request→command via `Received`/`Arg.Is`. Skip FluentValidation re-tests unless validation is the SUT.
+
+**Error HTTP contract:** resource endpoints return `Results<Ok|Created<T>, ProblemHttpResult>`. Assert failures as:
+
+```csharp
+var problemResult = response.Result as ProblemHttpResult;
+problemResult.Should().NotBeNull();
+problemResult!.StatusCode.Should().Be(StatusCodes.Status404NotFound); // or 400
+```
+
+Do **not** assert empty-body `BadRequest` / `NotFound`. References: `FormDefinitions/GetActiveTests.cs`, `Forms/Delete.cs` (OpenAPI `Produces` + `ProducesProblem`).
+
+#### Handlers (`Endatix.Core.Tests`)
+
+Substitute `IRepository<T>` (+ `IMediator` if publishing). Cover: not found · happy path + persist · domain `Invalid` (no persist) · event reason/payload. Prefer real aggregates. Thin command-ctor tests when `Guard.Against.*` matters.
 
 ## Run (examples)
 
@@ -157,6 +183,5 @@ HTTPS playground + HTTP Hub = mixed content: **builder UI** (200, no script), in
 
 ## Related
 
-- SaaS / Hub agent rules: [`../.cursor/AGENTS.md`](../.cursor/AGENTS.md)
 - Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)
 - Public docs writing rules (voice, cards, when a table is allowed): [`docs/endatix-docs/AGENTS.md`](docs/endatix-docs/AGENTS.md)
