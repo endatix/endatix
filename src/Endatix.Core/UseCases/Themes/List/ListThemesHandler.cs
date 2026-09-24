@@ -27,16 +27,13 @@ public class ListThemesHandler(IRepository<Theme> themeRepository)
             request.Modified);
         var totalRecords = await themeRepository.CountAsync(countSpec, cancellationToken);
 
-        var page = Paged<Theme>.ResolvePage(
-            pagingParams.Page,
-            pagingParams.PageSize,
-            totalRecords);
+        var resolved = pagingParams.ForTotal(totalRecords);
 
         IReadOnlyList<Theme> items = [];
         if (totalRecords > 0)
         {
             var spec = new ThemeSpecifications.Paginated(
-                new PagingParameters(page, pagingParams.PageSize),
+                new PagingParameters(resolved),
                 request.SortBy,
                 request.SortDescending,
                 request.Created,
@@ -44,10 +41,6 @@ public class ListThemesHandler(IRepository<Theme> themeRepository)
             items = [.. await themeRepository.ListAsync(spec, cancellationToken)];
         }
 
-        return Result.Success(Paged<Theme>.FromPage(
-            page,
-            pagingParams.PageSize,
-            totalRecords,
-            items));
+        return Result.Success(resolved.ToPaged(items));
     }
 }

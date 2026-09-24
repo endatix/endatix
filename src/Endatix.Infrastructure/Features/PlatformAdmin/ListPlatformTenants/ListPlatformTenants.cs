@@ -20,9 +20,6 @@ public sealed class ListPlatformTenants(
         PlatformTenantListCriteria criteria,
         CancellationToken cancellationToken = default)
     {
-        var normalizedPageSize = paging.Paging.PageSize;
-        var skip = paging.Paging.Skip;
-
         var tenantsQuery = appDbContext.Set<Tenant>()
             .IgnoreQueryFilters()
             .AsNoTracking()
@@ -34,10 +31,10 @@ public sealed class ListPlatformTenants(
             .WhereUtcRange(tenant => tenant.CreatedAt, criteria.Created)
             .WhereUtcRange(tenant => tenant.ModifiedAt, criteria.Modified);
 
-        var totalRecords = await tenantsQuery.CountAsync(cancellationToken);
+        var resolved = paging.Paging.ForTotal(await tenantsQuery.CountAsync(cancellationToken));
         var pageTenants = await ApplyOrdering(tenantsQuery, criteria.Sort)
-            .Skip(skip)
-            .Take(normalizedPageSize)
+            .Skip(resolved.Skip)
+            .Take(resolved.PageSize)
             .Select(tenant => new
             {
                 tenant.Id,
@@ -82,11 +79,7 @@ public sealed class ListPlatformTenants(
                 tenant.SelfRegistrationEnabled))
             .ToList();
 
-        return Result.Success(Paged<PlatformTenantListItem>.FromSkipAndTake(
-            skip,
-            normalizedPageSize,
-            totalRecords,
-            items));
+        return Result.Success(resolved.ToPaged(items));
     }
 
     private IQueryable<Tenant> ApplySearch(IQueryable<Tenant> tenantsQuery, string? search)

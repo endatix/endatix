@@ -482,8 +482,6 @@ public sealed class RoleManagementService : IRoleManagementService
         RoleListCriteria criteria,
         CancellationToken cancellationToken = default)
     {
-        var skip = paging.Paging.Skip;
-        var take = paging.Paging.PageSize;
         var tenantId = _tenantContext.TenantId;
 
         var roles = await LoadPersistedRolesWithPermissionsAsync(tenantId, cancellationToken);
@@ -500,11 +498,10 @@ public sealed class RoleManagementService : IRoleManagementService
         allItems = ApplyRoleListFilters(allItems, criteria.RoleType, paging.Search);
         allItems = ApplyRoleListOrdering(allItems, criteria.Sort);
 
-        var totalRecords = allItems.Count;
-        var pagedItems = allItems.Skip(skip).Take(take).ToList();
+        var resolved = paging.Paging.ForTotal(allItems.Count);
+        var pagedItems = allItems.Skip(resolved.Skip).Take(resolved.PageSize).ToList();
 
-        return Result<Paged<RoleListItem>>.Success(
-            Paged<RoleListItem>.FromSkipAndTake(skip, take, totalRecords, pagedItems));
+        return Result<Paged<RoleListItem>>.Success(resolved.ToPaged(pagedItems));
     }
 
     /// <inheritdoc/>

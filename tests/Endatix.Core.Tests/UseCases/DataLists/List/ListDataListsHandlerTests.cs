@@ -186,6 +186,26 @@ public class ListDataListsHandlerTests
         result.Value.Items.Should().ContainSingle(x => x.Id == 99);
     }
 
+    [Fact]
+    public async Task Handle_PagePastTheEnd_FetchesAndReportsTheLastPage()
+    {
+        // Arrange
+        _repository.CountAsync(Arg.Any<DataListsSpecifications.ListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(25);
+        _repository.ListAsync(Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        // Act
+        var result = await _sut.Handle(new ListDataListsQuery(9, 10), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Value!.Page.Should().Be(3);
+        result.Value.TotalRecords.Should().Be(25);
+        await _repository.Received(1).ListAsync(
+            Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(spec => spec.Skip == 20 && spec.Take == 10),
+            Arg.Any<CancellationToken>());
+    }
+
     private static bool SpecFiltersByLocale(ISpecification<DataList> spec, string locale)
     {
         DataList withLocale = new(SampleData.TENANT_ID, "WithLocale");

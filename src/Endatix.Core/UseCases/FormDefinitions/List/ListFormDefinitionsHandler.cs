@@ -1,4 +1,4 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -29,24 +29,17 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository)
             return Result.NotFound("Form not found.");
         }
 
-        var page = Paged<FormDefinition>.ResolvePage(
-            pagingParams.Page,
-            pagingParams.PageSize,
-            totalRecords);
+        var resolved = pagingParams.ForTotal(totalRecords);
 
         var spec = new FormDefinitionsListSpec(
             request.FormId,
-            new PagingParameters(page, pagingParams.PageSize),
+            new PagingParameters(resolved),
             request.SortBy,
             request.SortDescending,
             request.Created,
             request.Modified);
         IReadOnlyList<FormDefinition> items = [.. await repository.ListAsync(spec, cancellationToken)];
 
-        return Result.Success(Paged<FormDefinition>.FromPage(
-            page,
-            pagingParams.PageSize,
-            totalRecords,
-            items));
+        return Result.Success(resolved.ToPaged(items));
     }
 }

@@ -23,16 +23,13 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository)
             request.Modified);
         var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
 
-        var page = Paged<FormTemplateDto>.ResolvePage(
-            pagingParams.Page,
-            pagingParams.PageSize,
-            totalRecords);
+        var resolved = pagingParams.ForTotal(totalRecords);
 
         IReadOnlyList<FormTemplateDto> items = [];
         if (totalRecords > 0)
         {
             var spec = new FormTemplatesSpec(
-                new PagingParameters(page, pagingParams.PageSize),
+                new PagingParameters(resolved),
                 filterParams,
                 request.SortBy,
                 request.SortDescending,
@@ -41,11 +38,7 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository)
             items = [.. await repository.ListAsync(spec, cancellationToken)];
         }
 
-        return Result.Success(Paged<FormTemplateDto>.FromPage(
-            page,
-            pagingParams.PageSize,
-            totalRecords,
-            items));
+        return Result.Success(resolved.ToPaged(items));
     }
 
     private static FilterParameters CreateFilterParameters(

@@ -68,16 +68,16 @@ Core cannot reference EF and other infrastructure concerns. Forcing every list t
 
 Monolith features and modules follow the same vertical-slice mindset at different packaging levels.
 
-| Concern              | OSS monolith (`Infrastructure/Features/…`)               | SaaS module (`Endatix.Modules.*`)                                                        |
-| -------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| **Feature folder**   | `Features/PlatformAdmin/ListPlatformAdmins/`             | `Features/Conversations/ListConversations.cs` + handler                                  |
-| **Public contracts** | API response DTOs in `Endatix.Api` endpoints             | `Endatix.Modules.*.Contracts` (DTOs, commands, queries, events, wire codes — not domain) |
-| **Domain**           | Shared `Endatix.Core` entities                           | Module `Domain/` (e.g. `Agent`, `Conversation`)                                          |
-| **Persistence**      | Shared `AppDbContext` / `AppIdentityDbContext`           | Module `Persistence/AgentsDbContext`                                                     |
+| Concern              | OSS monolith (`Infrastructure/Features/…`)               | SaaS module (`Endatix.Modules.*`)                                                                 |
+| -------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Feature folder**   | `Features/PlatformAdmin/ListPlatformAdmins/`             | `Features/Conversations/ListConversations.cs` + handler                                           |
+| **Public contracts** | API response DTOs in `Endatix.Api` endpoints             | `Endatix.Modules.*.Contracts` (DTOs, commands, queries, events, wire codes — not domain)          |
+| **Domain**           | Shared `Endatix.Core` entities                           | Module `Domain/` (e.g. `Agent`, `Conversation`)                                                   |
+| **Persistence**      | Shared `AppDbContext` / `AppIdentityDbContext`           | Module `Persistence/AgentsDbContext`                                                              |
 | **DI registration**  | `AddPlatformAdminFeatures()`                             | `{Name}Module` + `EndatixBuilder.UseModule()` (OSS Reporting/Jobs, SaaS Agents + SaaS.Management) |
-| **Reads**            | Concrete `List*` type → `ExecuteAsync` (no MediatR)      | Often MediatR handler + DbContext **inside the module** (still no Core interface)        |
-| **Writes**           | MediatR + Core handler + port (`IRoleManagementService`) | MediatR command/handler in module                                                        |
-| **Endpoints**        | `Endatix.Api/Endpoints/Admin/…`                          | FastEndpoints colocated in module `Features/*/…cs`                                       |
+| **Reads**            | Concrete `List*` type → `ExecuteAsync` (no MediatR)      | Often MediatR handler + DbContext **inside the module** (still no Core interface)                 |
+| **Writes**           | MediatR + Core handler + port (`IRoleManagementService`) | MediatR command/handler in module                                                                 |
+| **Endpoints**        | `Endatix.Api/Endpoints/Admin/…`                          | FastEndpoints colocated in module `Features/*/…cs`                                                |
 
 **Agents** (`ListConversationsHandler`) uses MediatR but injects `AgentsDbContext` directly — no `IConversationListService` in Core. That is the same pragmatic read-side pattern; only the dispatch mechanism differs (Mediator vs direct injection).
 
@@ -336,7 +336,7 @@ When touching Platform Admin registration or new admin lists, migrate toward **o
 
 **Api:** compose capability interfaces on the request DTO (`IPagedRequest`, `ISearchableRequest`, `ISortableRequest<T>`, `IFilterable`, plus typed calendar ranges such as `ICreatedRange` / `IModifiedRange`; or `ISearchablePagedRequest` = page + search). Validate with the matching `*RequestValidator`. Map once via `ListRequestExtensions` (`ToSearchablePageRequest`, `ToSortRequest`, `ToCreatedRange`, …). HTTP stays flat stem strings (`createdFrom`/`createdTo`).
 
-**Core:** pass normalized records into read models — `PageRequest`, `SearchablePageRequest`, `SortRequest<T>`, and **`UtcDateTimeRange`** for each timestamp column. Limits in `PagedRequestLimits.cs`. Calendar day strings (`YYYY-MM-DD`) are parsed at the API boundary into one `UtcDateTimeRange` (inclusive From / exclusive To UTC). Specs call `WhereUtcRange`; do not explode back to paired `DateTime?` on ports, queries, or export DTOs.
+**Core:** pass normalized records into read models — `PageRequest`, `SearchablePageRequest`, `SortRequest<T>`, and **`UtcDateTimeRange`** for each timestamp column. Limits in `PagedRequestLimits.cs`. **Count first, then page:** `paging.ForTotal(totalRecords)` (on `PageRequest` or `PagingParameters`) returns a `ResolvedPage` clamped to the last page. Fetch with `resolved.Skip` / `resolved.PageSize` (specs: `new PagingParameters(resolved)`), then return `resolved.ToPaged(items)`. Never skip the raw requested page. EF lists use `QueryablePaging.ToPagedAsync` (`Endatix.Infrastructure.Data`), which does all three. Reference: `ListThemesHandler`, `ListPlatformTenants`. Calendar day strings (`YYYY-MM-DD`) are parsed at the API boundary into one `UtcDateTimeRange` (inclusive From / exclusive To UTC). Specs call `WhereUtcRange`; do not explode back to paired `DateTime?` on ports, queries, or export DTOs.
 
 **Hub client** (`hub/lib/endatix-api/shared`, future `packages/@endatix/api-client`): compose the same wire shape with TypeScript helpers — `IPagedRequest`, `SortRequest<TFields>`, `DateRangeFilter<"created">` / `AuditDateFilters`, plus `parseCalendarDateYmd` / `pickDateRangeFilters` / `appendSortParams` / `appendDateRangeFilters` in `list-query.ts`. Sort field unions stay property names (`createdAt`); date stems stay bare verbs (`"created"` → `createdFrom`/`createdTo`). Feature URL parsers call these helpers; do not hand-copy From/To fields on new list DTOs. Do not nest query objects to mirror Core’s `UtcDateTimeRange`.
 

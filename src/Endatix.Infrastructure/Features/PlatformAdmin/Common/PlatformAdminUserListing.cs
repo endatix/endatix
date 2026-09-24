@@ -35,9 +35,6 @@ public sealed class PlatformAdminUserListing(
         PlatformAdminUserListCriteria criteria,
         CancellationToken cancellationToken)
     {
-        var skip = paging.Paging.Skip;
-        var pageSize = paging.Paging.PageSize;
-
         var usersQuery = BuildTenantUsersQuery();
         if (criteria.TenantId is > 0)
         {
@@ -52,7 +49,7 @@ public sealed class PlatformAdminUserListing(
         usersQuery = ApplySearch(usersQuery, paging.Search);
         usersQuery = usersQuery.WhereUtcRange(user => user.LastLoginAt, criteria.LastLogin);
 
-        var totalRecords = await usersQuery.CountAsync(cancellationToken);
+        var resolved = paging.Paging.ForTotal(await usersQuery.CountAsync(cancellationToken));
 
         var userRoles = identityDbContext.UserRoles.AsNoTracking();
         var users = await OrderUsers(
@@ -62,8 +59,8 @@ public sealed class PlatformAdminUserListing(
                 criteria.PrioritizeExternalPlatformAdminRole,
                 criteria.PrioritizeLocalPlatformAdminRole,
                 criteria.Sort)
-            .Skip(skip)
-            .Take(pageSize)
+            .Skip(resolved.Skip)
+            .Take(resolved.PageSize)
             .Select(user => new UserRow(
                 user.Id,
                 user.TenantId,
@@ -79,11 +76,7 @@ public sealed class PlatformAdminUserListing(
 
         if (users.Count == 0)
         {
-            return Result.Success(Paged<PlatformAdminUserListItem>.FromSkipAndTake(
-                skip,
-                pageSize,
-                totalRecords,
-                []));
+            return Result.Success(resolved.ToPaged<PlatformAdminUserListItem>([]));
         }
 
         var userIds = users.ConvertAll(user => user.Id);
@@ -102,11 +95,7 @@ public sealed class PlatformAdminUserListing(
         var items = users
             .ConvertAll(user => MapToListItem(user, tenantNamesById, rolesByUserId));
 
-        return Result.Success(Paged<PlatformAdminUserListItem>.FromSkipAndTake(
-            skip,
-            pageSize,
-            totalRecords,
-            items));
+        return Result.Success(resolved.ToPaged(items));
     }
 
     private IQueryable<AppUser> BuildTenantUsersQuery() =>

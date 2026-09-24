@@ -24,21 +24,17 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
             request.SortDescending,
             request.Created,
             request.Modified);
-        var pagedSpec = new DataListsSpecifications.ListWithPagingToDtoSpec(pagingParams, filter);
         var listSpec = new DataListsSpecifications.ListSpec(filter);
         var totalRecords = await repository.CountAsync(listSpec, cancellationToken);
+        var resolved = pagingParams.ForTotal(totalRecords);
 
-        var dataListDtos = totalRecords <= 0
-            ? Enumerable.Empty<DataListDto>()
-            : await repository.ListAsync(pagedSpec, cancellationToken);
+        IReadOnlyList<DataListDto> items = [];
+        if (totalRecords > 0)
+        {
+            var pagedSpec = new DataListsSpecifications.ListWithPagingToDtoSpec(new PagingParameters(resolved), filter);
+            items = [.. await repository.ListAsync(pagedSpec, cancellationToken)];
+        }
 
-        var skip = (pagingParams.Page - 1) * pagingParams.PageSize;
-        var paged = Paged<DataListDto>.FromSkipAndTake(
-            skip: skip,
-            take: pagingParams.PageSize,
-            totalRecords: totalRecords,
-            items: [.. dataListDtos]);
-
-        return Result.Success(paged);
+        return Result.Success(resolved.ToPaged(items));
     }
 }

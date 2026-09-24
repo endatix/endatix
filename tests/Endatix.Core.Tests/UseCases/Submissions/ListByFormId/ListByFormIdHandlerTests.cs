@@ -112,6 +112,52 @@ public class ListByFormIdHandlerTests
         );
     }
 
+    [Theory]
+    [InlineData(9)]
+    [InlineData(int.MaxValue)]
+    public async Task Handle_PagePastTheEnd_FetchesAndReportsTheLastPage(int page)
+    {
+        // Arrange
+        var request = new ListByFormIdQuery(1, page, 10, []);
+
+        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        _submissionsRepository.CountAsync(Arg.Any<ISpecification<Submission>>(), Arg.Any<CancellationToken>())
+            .Returns(25);
+        _submissionsRepository.ListAsync(Arg.Any<ISpecification<Submission, SubmissionDto>>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Value!.Page.Should().Be(3);
+        result.Value.TotalRecords.Should().Be(25);
+        await _submissionsRepository.Received(1).ListAsync(
+            Arg.Is<ISpecification<Submission, SubmissionDto>>(spec => spec.Skip == 20 && spec.Take == 10),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_NoSubmissions_ReturnsEmptyPageWithoutListing()
+    {
+        // Arrange
+        var request = new ListByFormIdQuery(1, 4, 10, []);
+
+        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Value!.Page.Should().Be(1);
+        result.Value.Items.Should().BeEmpty();
+        await _submissionsRepository.DidNotReceive().ListAsync(
+            Arg.Any<ISpecification<Submission, SubmissionDto>>(),
+            Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task Handle_ValidRequest_CountsWithUnpagedSpec()
     {
