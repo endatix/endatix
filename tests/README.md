@@ -84,7 +84,7 @@ Please create unit tests for class [CLASS_PLACEHOLDER] using Xunit, NSubstitute 
 - Prepare the test code ready to be stored in a file with all the neccesary using directives.
 - The namespace of the file must be defined in file-scoped style, with a semicolon after the namespace name instead of a block under it.
 - The namespace is [NAMESPACE_PLACEHOLDER].
-- The tests names must follow the convention MethodName_StateUnderTest_ExpectedBehavior.
+- The tests names must follow the convention UnitOfWork_Scenario_ExpectedBehavior (see AGENTS.md → Testing).
 - The tests order should start from the failing to the successful.
 - When the result of a mock method call is used, do not check it for a received call.
 - When a mock method does not return a result or the result of its call is not used, do not set it to return a value and instead check it for a received call with the correct parameters.
