@@ -16,14 +16,15 @@ public sealed record PageRequest
     public int PageSize { get; }
 
     /// <summary>
-    /// The number of items to skip. Uses <see cref="ResolvedPage.SafeSkip"/> so a huge page cannot overflow to a negative offset.
+    /// The number of items to skip for the requested page. Saturates instead of overflowing on a huge page.
+    /// Lists that report paging metadata use <see cref="ForTotal"/> instead, which also clamps to the last page.
     /// </summary>
-    public int Skip => ResolvedPage.SafeSkip(Page, PageSize);
+    public int Skip => PageWindow.SkipFor(Page, PageSize);
 
     /// <summary>
-    /// Clamps <see cref="Page"/> to the last page that <paramref name="totalRecords"/> can fill.
+    /// The window to fetch once the list is counted. See <see cref="PageWindow"/>.
     /// </summary>
-    public ResolvedPage ForTotal(int totalRecords) => ResolvedPage.For(Page, PageSize, totalRecords);
+    public PageWindow ForTotal(int totalRecords) => PageWindow.For(Page, PageSize, totalRecords);
 
     /// <summary>
     /// Creates a new <see cref="PageRequest"/> from a page and page size.

@@ -37,8 +37,6 @@ public sealed class AppUserService(
         UserListCriteria criteria,
         CancellationToken cancellationToken = default)
     {
-        var skip = paging.Paging.Skip;
-        var take = paging.Paging.PageSize;
         var tenantId = tenantContext.TenantId;
 
         var filteredUsers = identityDbContext.Users
@@ -53,12 +51,11 @@ public sealed class AppUserService(
         filteredUsers = ApplySearchFilter(filteredUsers, paging.Search);
         filteredUsers = filteredUsers.WhereUtcRange(user => user.LastLoginAt, criteria.LastLogin);
 
-        var totalRecords = await filteredUsers.CountAsync(cancellationToken);
-        var effectiveSkip = NormalizeSkip(skip, take, totalRecords);
+        var window = paging.Paging.ForTotal(await filteredUsers.CountAsync(cancellationToken));
 
         var pageUsers = await ApplyUserListOrdering(filteredUsers, criteria.Sort)
-            .Skip(effectiveSkip)
-            .Take(take)
+            .Skip(window.Skip)
+            .Take(window.PageSize)
             .Select(user => new
             {
                 user.Id,
@@ -125,13 +122,7 @@ public sealed class AppUserService(
             })
             .ToList();
 
-        var paged = Paged<UserWithRoles>.FromSkipAndTake(
-            effectiveSkip,
-            take,
-            totalRecords,
-            usersResult);
-
-        return Result.Success(paged);
+        return Result.Success(window.ToPaged(usersResult));
     }
 
     private static IOrderedQueryable<AppUser> ApplyUserListOrdering(
@@ -260,17 +251,6 @@ public sealed class AppUserService(
         };
 
         return Result.Success(userWithRoles);
-    }
-
-    private static int NormalizeSkip(int skip, int take, long totalRecords)
-    {
-        if (totalRecords == 0 || skip < totalRecords)
-        {
-            return skip;
-        }
-
-        var totalPages = (totalRecords + take - 1) / take;
-        return (int)((totalPages - 1) * take);
     }
 
     /// <inheritdoc />

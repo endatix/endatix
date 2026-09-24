@@ -3,7 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.UseCases.Themes.List;
@@ -28,13 +27,13 @@ public class ListThemesHandler(IRepository<Theme> themeRepository)
             request.Modified);
         var totalRecords = await themeRepository.CountAsync(countSpec, cancellationToken);
 
-        var window = new PageRequest(pagingParams.Page, pagingParams.PageSize).ForTotal(totalRecords);
+        var window = pagingParams.ForTotal(totalRecords);
 
         IReadOnlyList<Theme> items = [];
         if (totalRecords > 0)
         {
             var spec = new ThemeSpecifications.Paginated(
-                new PagingParameters(window.Page, window.PageSize),
+                new PagingParameters(window),
                 request.SortBy,
                 request.SortDescending,
                 request.Created,
@@ -42,6 +41,6 @@ public class ListThemesHandler(IRepository<Theme> themeRepository)
             items = [.. await themeRepository.ListAsync(spec, cancellationToken)];
         }
 
-        return Result.Success(window.ToPaged(totalRecords, items));
+        return Result.Success(window.ToPaged(items));
     }
 }

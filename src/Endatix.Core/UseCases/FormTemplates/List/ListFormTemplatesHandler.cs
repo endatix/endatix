@@ -3,7 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.UseCases.FormTemplates.List;
@@ -24,13 +23,13 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository)
             request.Modified);
         var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
 
-        var window = new PageRequest(pagingParams.Page, pagingParams.PageSize).ForTotal(totalRecords);
+        var window = pagingParams.ForTotal(totalRecords);
 
         IReadOnlyList<FormTemplateDto> items = [];
         if (totalRecords > 0)
         {
             var spec = new FormTemplatesSpec(
-                new PagingParameters(window.Page, window.PageSize),
+                new PagingParameters(window),
                 filterParams,
                 request.SortBy,
                 request.SortDescending,
@@ -39,7 +38,7 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository)
             items = [.. await repository.ListAsync(spec, cancellationToken)];
         }
 
-        return Result.Success(window.ToPaged(totalRecords, items));
+        return Result.Success(window.ToPaged(items));
     }
 
     private static FilterParameters CreateFilterParameters(

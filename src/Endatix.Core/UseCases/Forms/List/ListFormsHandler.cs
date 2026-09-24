@@ -1,7 +1,6 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
 using Microsoft.Extensions.Logging;
@@ -34,8 +33,8 @@ public sealed class ListFormsHandler(
                 request.Modified);
             var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
 
-            var window = new PageRequest(pagingParams.Page, pagingParams.PageSize).ForTotal(totalRecords);
-            var queryPagingParams = new PagingParameters(window.Page, window.PageSize);
+            var window = pagingParams.ForTotal(totalRecords);
+            var queryPagingParams = new PagingParameters(window);
 
             var forms = await LoadFormsPageAsync(
                 totalRecords,
@@ -45,7 +44,7 @@ public sealed class ListFormsHandler(
                 request,
                 cancellationToken);
 
-            return Result.Success(window.ToPaged(totalRecords, [.. forms]));
+            return Result.Success(window.ToPaged([.. forms]));
         }
         catch (Exception ex)
         {

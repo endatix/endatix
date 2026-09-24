@@ -1,4 +1,4 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -31,21 +31,17 @@ public class ListByFormIdHandler(
             request.Modified,
             request.Started,
             request.Completed);
-        var formByIdSpec = new SubmissionsByFormIdSpec(request.FormId, pagingParams, filterParams, listFilter);
         var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams, listFilter);
-
         var totalCount = await submissionsRepository.CountAsync(totalCountSpec, cancellationToken);
-        var submissions = totalCount <= 0
-            ? []
-            : await submissionsRepository.ListAsync(formByIdSpec, cancellationToken);
+        var window = pagingParams.ForTotal(totalCount);
 
-        var skip = (pagingParams.Page - 1) * pagingParams.PageSize;
-        var paged = Paged<SubmissionDto>.FromSkipAndTake(
-            skip: skip,
-            take: pagingParams.PageSize,
-            totalRecords: totalCount,
-            items: [.. submissions]);
+        IReadOnlyList<SubmissionDto> submissions = [];
+        if (totalCount > 0)
+        {
+            var pageSpec = new SubmissionsByFormIdSpec(request.FormId, new PagingParameters(window), filterParams, listFilter);
+            submissions = [.. await submissionsRepository.ListAsync(pageSpec, cancellationToken)];
+        }
 
-        return Result.Success(paged);
+        return Result.Success(window.ToPaged(submissions));
     }
 }

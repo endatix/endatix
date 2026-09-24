@@ -3,7 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.UseCases.CustomQuestions.List;
@@ -26,8 +25,8 @@ public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuesti
             request.Modified);
         var totalRecords = await customQuestionsRepository.CountAsync(countSpec, cancellationToken);
 
-        var window = new PageRequest(pagingParams.Page, pagingParams.PageSize).ForTotal(totalRecords);
-        var queryPagingParams = new PagingParameters(window.Page, window.PageSize);
+        var window = pagingParams.ForTotal(totalRecords);
+        var queryPagingParams = new PagingParameters(window);
 
         IReadOnlyList<CustomQuestion> items = [];
         if (totalRecords > 0)
@@ -41,6 +40,6 @@ public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuesti
             items = await customQuestionsRepository.ListAsync(pageSpec, cancellationToken);
         }
 
-        return Result.Success(window.ToPaged(totalRecords, items));
+        return Result.Success(window.ToPaged(items));
     }
 }
