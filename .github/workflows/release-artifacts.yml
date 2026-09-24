@@ -54,7 +54,7 @@ jobs:
       id-token: write # OIDC for Infisical + NuGet trusted publishing
     steps:
       - name: 🔐 Fetch secrets (Infisical, OIDC)
-        uses: Infisical/secrets-action@6cd3f7c0e4cc0d2395ee4ef414eb6eeb5d3e73db # v1.0.17
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         with:
           method: "oidc"
           env-slug: "prod"
