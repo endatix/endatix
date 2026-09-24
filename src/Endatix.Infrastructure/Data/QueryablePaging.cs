@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Endatix.Infrastructure.Data;
 
 /// <summary>
-/// Pages an EF list the one reliable way: count, clamp the page (<see cref="PageWindow"/>), then order, skip and take.
+/// Pages an EF list the one reliable way: count, clamp the page (<see cref="ResolvedPage"/>), then order, skip and take.
 /// </summary>
 public static class QueryablePaging
 {
@@ -20,17 +20,17 @@ public static class QueryablePaging
         Func<TSource, TResult> map,
         CancellationToken cancellationToken)
     {
-        var window = paging.ForTotal(await filtered.CountAsync(cancellationToken));
-        if (window.TotalRecords == 0)
+        var resolved = paging.ForTotal(await filtered.CountAsync(cancellationToken));
+        if (resolved.TotalRecords == 0)
         {
-            return window.ToPaged<TResult>([]);
+            return resolved.ToPaged<TResult>([]);
         }
 
         var rows = await orderBy(filtered)
-            .Skip(window.Skip)
-            .Take(window.PageSize)
+            .Skip(resolved.Skip)
+            .Take(resolved.PageSize)
             .ToListAsync(cancellationToken);
 
-        return window.ToPaged(rows.ConvertAll(row => map(row)));
+        return resolved.ToPaged(rows.ConvertAll(row => map(row)));
     }
 }

@@ -27,7 +27,7 @@ public static class SpecificationExtensions
 
         if (filter.Page > 1)
         {
-            query = query.Skip(PageWindow.SkipFor(filter.Page, filter.PageSize));
+            query = query.Skip(ResolvedPage.SkipFor(filter.Page, filter.PageSize));
         }
 
         return query.Take(filter.PageSize);

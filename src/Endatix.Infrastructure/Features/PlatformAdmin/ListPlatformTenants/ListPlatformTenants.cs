@@ -31,10 +31,10 @@ public sealed class ListPlatformTenants(
             .WhereUtcRange(tenant => tenant.CreatedAt, criteria.Created)
             .WhereUtcRange(tenant => tenant.ModifiedAt, criteria.Modified);
 
-        var window = paging.Paging.ForTotal(await tenantsQuery.CountAsync(cancellationToken));
+        var resolved = paging.Paging.ForTotal(await tenantsQuery.CountAsync(cancellationToken));
         var pageTenants = await ApplyOrdering(tenantsQuery, criteria.Sort)
-            .Skip(window.Skip)
-            .Take(window.PageSize)
+            .Skip(resolved.Skip)
+            .Take(resolved.PageSize)
             .Select(tenant => new
             {
                 tenant.Id,
@@ -79,7 +79,7 @@ public sealed class ListPlatformTenants(
                 tenant.SelfRegistrationEnabled))
             .ToList();
 
-        return Result.Success(window.ToPaged(items));
+        return Result.Success(resolved.ToPaged(items));
     }
 
     private IQueryable<Tenant> ApplySearch(IQueryable<Tenant> tenantsQuery, string? search)

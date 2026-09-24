@@ -3,7 +3,7 @@ using Endatix.Core.Specifications.Parameters;
 
 namespace Endatix.Core.Tests.Infrastructure.Paging;
 
-public sealed class PageWindowTests
+public sealed class ResolvedPageTests
 {
     [Theory]
     [InlineData("empty list", 1, 10, 0, 1, 0)]
@@ -26,13 +26,13 @@ public sealed class PageWindowTests
         int expectedSkip)
     {
         // Act
-        var window = PageWindow.For(page, pageSize, totalRecords);
+        var resolved = ResolvedPage.For(page, pageSize, totalRecords);
 
         // Assert
-        window.Page.Should().Be(expectedPage, scenario);
-        window.Skip.Should().Be(expectedSkip, scenario);
-        window.PageSize.Should().Be(pageSize, scenario);
-        window.TotalRecords.Should().Be(totalRecords, scenario);
+        resolved.Page.Should().Be(expectedPage, scenario);
+        resolved.Skip.Should().Be(expectedSkip, scenario);
+        resolved.PageSize.Should().Be(pageSize, scenario);
+        resolved.TotalRecords.Should().Be(totalRecords, scenario);
     }
 
     [Theory]
@@ -41,7 +41,7 @@ public sealed class PageWindowTests
     public void For_InvalidPageSizeOrTotal_Throws(int pageSize, int totalRecords)
     {
         // Act
-        var act = () => PageWindow.For(1, pageSize, totalRecords);
+        var act = () => ResolvedPage.For(1, pageSize, totalRecords);
 
         // Assert
         act.Should().Throw<ArgumentOutOfRangeException>();
@@ -51,11 +51,11 @@ public sealed class PageWindowTests
     public void ToPaged_FullPage_ReportsPageAndTotals()
     {
         // Arrange
-        var window = PageWindow.For(page: 2, pageSize: 10, totalRecords: 25);
+        var resolved = ResolvedPage.For(page: 2, pageSize: 10, totalRecords: 25);
         var items = Enumerable.Range(11, 10).ToList();
 
         // Act
-        var paged = window.ToPaged(items);
+        var paged = resolved.ToPaged(items);
 
         // Assert
         paged.Page.Should().Be(2);
@@ -69,10 +69,10 @@ public sealed class PageWindowTests
     public void ToPaged_EmptyList_ReturnsEmptyFirstPage()
     {
         // Arrange
-        var window = PageWindow.For(page: 4, pageSize: 10, totalRecords: 0);
+        var resolved = ResolvedPage.For(page: 4, pageSize: 10, totalRecords: 0);
 
         // Act
-        var paged = window.ToPaged<int>([]);
+        var paged = resolved.ToPaged<int>([]);
 
         // Assert
         paged.Page.Should().Be(1);
@@ -85,10 +85,10 @@ public sealed class PageWindowTests
     public void ToPaged_RowsAddedAfterCount_RaisesTotalInsteadOfThrowing()
     {
         // Arrange
-        var window = PageWindow.For(page: 3, pageSize: 10, totalRecords: 25);
+        var resolved = ResolvedPage.For(page: 3, pageSize: 10, totalRecords: 25);
 
         // Act
-        var paged = window.ToPaged(Enumerable.Range(21, 8).ToList());
+        var paged = resolved.ToPaged(Enumerable.Range(21, 8).ToList());
 
         // Assert
         paged.Page.Should().Be(3);
@@ -100,10 +100,10 @@ public sealed class PageWindowTests
     public void ToPaged_RowAddedToListCountedEmpty_RaisesTotal()
     {
         // Arrange
-        var window = PageWindow.For(page: 1, pageSize: 10, totalRecords: 0);
+        var resolved = ResolvedPage.For(page: 1, pageSize: 10, totalRecords: 0);
 
         // Act
-        var paged = window.ToPaged(["new"]);
+        var paged = resolved.ToPaged(["new"]);
 
         // Assert
         paged.TotalRecords.Should().Be(1);
@@ -114,10 +114,10 @@ public sealed class PageWindowTests
     public void ToPaged_RowsDeletedAfterCount_KeepsTotalAndReturnsShortPage()
     {
         // Arrange
-        var window = PageWindow.For(page: 3, pageSize: 10, totalRecords: 25);
+        var resolved = ResolvedPage.For(page: 3, pageSize: 10, totalRecords: 25);
 
         // Act
-        var paged = window.ToPaged<int>([]);
+        var paged = resolved.ToPaged<int>([]);
 
         // Assert
         paged.Page.Should().Be(3);
@@ -139,17 +139,17 @@ public sealed class PageWindowTests
     }
 
     [Fact]
-    public void PageRequestForTotal_PagePastTheEnd_ReturnsLastPageWindow()
+    public void PageRequestForTotal_PagePastTheEnd_ReturnsLastPage()
     {
         // Arrange
         var request = new PageRequest(page: 5, pageSize: 2);
 
         // Act
-        var window = request.ForTotal(totalRecords: 3);
+        var resolved = request.ForTotal(totalRecords: 3);
 
         // Assert
-        window.Page.Should().Be(2);
-        window.Skip.Should().Be(2);
+        resolved.Page.Should().Be(2);
+        resolved.Skip.Should().Be(2);
     }
 
     [Fact]
@@ -159,11 +159,11 @@ public sealed class PageWindowTests
         var paging = new PagingParameters(page: 9, pageSize: 500);
 
         // Act
-        var window = paging.ForTotal(totalRecords: 1200);
-        var fetch = new PagingParameters(window);
+        var resolved = paging.ForTotal(totalRecords: 1200);
+        var fetch = new PagingParameters(resolved);
 
         // Assert
-        window.PageSize.Should().Be(500);
+        resolved.PageSize.Should().Be(500);
         fetch.Page.Should().Be(3);
         fetch.PageSize.Should().Be(500);
     }

@@ -7,9 +7,9 @@ namespace Endatix.Core.Infrastructure.Paging;
 /// Build it with <see cref="PageRequest.ForTotal"/> once the count is known, fetch with
 /// <see cref="Skip"/> / <see cref="PageSize"/>, then call <see cref="ToPaged{T}"/>.
 /// </summary>
-public readonly record struct PageWindow
+public readonly record struct ResolvedPage
 {
-    private PageWindow(int page, int pageSize, int totalRecords)
+    private ResolvedPage(int page, int pageSize, int totalRecords)
     {
         Page = page;
         PageSize = pageSize;
@@ -31,13 +31,13 @@ public readonly record struct PageWindow
     /// Clamps <paramref name="page"/> to the last page that <paramref name="totalRecords"/> fills.
     /// A page below 1 reads the first page.
     /// </summary>
-    public static PageWindow For(int page, int pageSize, int totalRecords)
+    public static ResolvedPage For(int page, int pageSize, int totalRecords)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(totalRecords);
 
         var lastPage = totalRecords == 0 ? 1 : (int)((totalRecords + (long)pageSize - 1) / pageSize);
-        return new PageWindow(Math.Clamp(page, 1, lastPage), pageSize, totalRecords);
+        return new ResolvedPage(Math.Clamp(page, 1, lastPage), pageSize, totalRecords);
     }
 
     /// <summary>

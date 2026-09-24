@@ -51,11 +51,11 @@ public sealed class AppUserService(
         filteredUsers = ApplySearchFilter(filteredUsers, paging.Search);
         filteredUsers = filteredUsers.WhereUtcRange(user => user.LastLoginAt, criteria.LastLogin);
 
-        var window = paging.Paging.ForTotal(await filteredUsers.CountAsync(cancellationToken));
+        var resolved = paging.Paging.ForTotal(await filteredUsers.CountAsync(cancellationToken));
 
         var pageUsers = await ApplyUserListOrdering(filteredUsers, criteria.Sort)
-            .Skip(window.Skip)
-            .Take(window.PageSize)
+            .Skip(resolved.Skip)
+            .Take(resolved.PageSize)
             .Select(user => new
             {
                 user.Id,
@@ -122,7 +122,7 @@ public sealed class AppUserService(
             })
             .ToList();
 
-        return Result.Success(window.ToPaged(usersResult));
+        return Result.Success(resolved.ToPaged(usersResult));
     }
 
     private static IOrderedQueryable<AppUser> ApplyUserListOrdering(

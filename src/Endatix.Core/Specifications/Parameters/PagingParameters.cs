@@ -20,7 +20,7 @@ public class PagingParameters
     /// <summary>
     /// Fetches the clamped page of a counted list.
     /// </summary>
-    public PagingParameters(PageWindow window) : this(window.Page, window.PageSize)
+    public PagingParameters(ResolvedPage resolved) : this(resolved.Page, resolved.PageSize)
     {
     }
 
@@ -31,9 +31,9 @@ public class PagingParameters
     public const int DEFAULT_PAGE_SIZE = 10;
 
     /// <summary>
-    /// The window to fetch once the list is counted. See <see cref="PageWindow"/>.
+    /// The page to fetch once the list is counted. See <see cref="ResolvedPage"/>.
     /// </summary>
-    public PageWindow ForTotal(int totalRecords) => PageWindow.For(Page, PageSize, totalRecords);
+    public ResolvedPage ForTotal(int totalRecords) => ResolvedPage.For(Page, PageSize, totalRecords);
 
     public const int FIRST_PAGE = 1;
 }

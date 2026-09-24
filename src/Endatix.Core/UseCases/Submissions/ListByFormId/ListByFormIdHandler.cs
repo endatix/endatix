@@ -33,15 +33,15 @@ public class ListByFormIdHandler(
             request.Completed);
         var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams, listFilter);
         var totalCount = await submissionsRepository.CountAsync(totalCountSpec, cancellationToken);
-        var window = pagingParams.ForTotal(totalCount);
+        var resolved = pagingParams.ForTotal(totalCount);
 
         IReadOnlyList<SubmissionDto> submissions = [];
         if (totalCount > 0)
         {
-            var pageSpec = new SubmissionsByFormIdSpec(request.FormId, new PagingParameters(window), filterParams, listFilter);
+            var pageSpec = new SubmissionsByFormIdSpec(request.FormId, new PagingParameters(resolved), filterParams, listFilter);
             submissions = [.. await submissionsRepository.ListAsync(pageSpec, cancellationToken)];
         }
 
-        return Result.Success(window.ToPaged(submissions));
+        return Result.Success(resolved.ToPaged(submissions));
     }
 }

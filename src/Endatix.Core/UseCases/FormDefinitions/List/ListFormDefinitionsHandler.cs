@@ -29,17 +29,17 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository)
             return Result.NotFound("Form not found.");
         }
 
-        var window = pagingParams.ForTotal(totalRecords);
+        var resolved = pagingParams.ForTotal(totalRecords);
 
         var spec = new FormDefinitionsListSpec(
             request.FormId,
-            new PagingParameters(window),
+            new PagingParameters(resolved),
             request.SortBy,
             request.SortDescending,
             request.Created,
             request.Modified);
         IReadOnlyList<FormDefinition> items = [.. await repository.ListAsync(spec, cancellationToken)];
 
-        return Result.Success(window.ToPaged(items));
+        return Result.Success(resolved.ToPaged(items));
     }
 }

@@ -49,7 +49,7 @@ public sealed class PlatformAdminUserListing(
         usersQuery = ApplySearch(usersQuery, paging.Search);
         usersQuery = usersQuery.WhereUtcRange(user => user.LastLoginAt, criteria.LastLogin);
 
-        var window = paging.Paging.ForTotal(await usersQuery.CountAsync(cancellationToken));
+        var resolved = paging.Paging.ForTotal(await usersQuery.CountAsync(cancellationToken));
 
         var userRoles = identityDbContext.UserRoles.AsNoTracking();
         var users = await OrderUsers(
@@ -59,8 +59,8 @@ public sealed class PlatformAdminUserListing(
                 criteria.PrioritizeExternalPlatformAdminRole,
                 criteria.PrioritizeLocalPlatformAdminRole,
                 criteria.Sort)
-            .Skip(window.Skip)
-            .Take(window.PageSize)
+            .Skip(resolved.Skip)
+            .Take(resolved.PageSize)
             .Select(user => new UserRow(
                 user.Id,
                 user.TenantId,
@@ -76,7 +76,7 @@ public sealed class PlatformAdminUserListing(
 
         if (users.Count == 0)
         {
-            return Result.Success(window.ToPaged<PlatformAdminUserListItem>([]));
+            return Result.Success(resolved.ToPaged<PlatformAdminUserListItem>([]));
         }
 
         var userIds = users.ConvertAll(user => user.Id);
@@ -95,7 +95,7 @@ public sealed class PlatformAdminUserListing(
         var items = users
             .ConvertAll(user => MapToListItem(user, tenantNamesById, rolesByUserId));
 
-        return Result.Success(window.ToPaged(items));
+        return Result.Success(resolved.ToPaged(items));
     }
 
     private IQueryable<AppUser> BuildTenantUsersQuery() =>

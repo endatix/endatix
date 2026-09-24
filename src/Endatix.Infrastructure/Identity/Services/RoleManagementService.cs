@@ -498,10 +498,10 @@ public sealed class RoleManagementService : IRoleManagementService
         allItems = ApplyRoleListFilters(allItems, criteria.RoleType, paging.Search);
         allItems = ApplyRoleListOrdering(allItems, criteria.Sort);
 
-        var window = paging.Paging.ForTotal(allItems.Count);
-        var pagedItems = allItems.Skip(window.Skip).Take(window.PageSize).ToList();
+        var resolved = paging.Paging.ForTotal(allItems.Count);
+        var pagedItems = allItems.Skip(resolved.Skip).Take(resolved.PageSize).ToList();
 
-        return Result<Paged<RoleListItem>>.Success(window.ToPaged(pagedItems));
+        return Result<Paged<RoleListItem>>.Success(resolved.ToPaged(pagedItems));
     }
 
     /// <inheritdoc/>

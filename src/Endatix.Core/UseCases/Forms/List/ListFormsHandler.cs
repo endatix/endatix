@@ -33,8 +33,8 @@ public sealed class ListFormsHandler(
                 request.Modified);
             var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
 
-            var window = pagingParams.ForTotal(totalRecords);
-            var queryPagingParams = new PagingParameters(window);
+            var resolved = pagingParams.ForTotal(totalRecords);
+            var queryPagingParams = new PagingParameters(resolved);
 
             var forms = await LoadFormsPageAsync(
                 totalRecords,
@@ -44,7 +44,7 @@ public sealed class ListFormsHandler(
                 request,
                 cancellationToken);
 
-            return Result.Success(window.ToPaged([.. forms]));
+            return Result.Success(resolved.ToPaged([.. forms]));
         }
         catch (Exception ex)
         {

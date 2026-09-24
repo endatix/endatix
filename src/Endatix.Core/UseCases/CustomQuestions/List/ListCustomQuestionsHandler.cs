@@ -25,8 +25,8 @@ public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuesti
             request.Modified);
         var totalRecords = await customQuestionsRepository.CountAsync(countSpec, cancellationToken);
 
-        var window = pagingParams.ForTotal(totalRecords);
-        var queryPagingParams = new PagingParameters(window);
+        var resolved = pagingParams.ForTotal(totalRecords);
+        var queryPagingParams = new PagingParameters(resolved);
 
         IReadOnlyList<CustomQuestion> items = [];
         if (totalRecords > 0)
@@ -40,6 +40,6 @@ public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuesti
             items = await customQuestionsRepository.ListAsync(pageSpec, cancellationToken);
         }
 
-        return Result.Success(window.ToPaged(items));
+        return Result.Success(resolved.ToPaged(items));
     }
 }
