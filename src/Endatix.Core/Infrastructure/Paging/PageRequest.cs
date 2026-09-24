@@ -16,9 +16,14 @@ public sealed record PageRequest
     public int PageSize { get; }
 
     /// <summary>
-    /// The number of items to skip.
+    /// The number of items to skip. Uses <see cref="ResolvedPage.SafeSkip"/> so a huge page cannot overflow to a negative offset.
     /// </summary>
-    public int Skip => (Page - 1) * PageSize;
+    public int Skip => ResolvedPage.SafeSkip(Page, PageSize);
+
+    /// <summary>
+    /// Clamps <see cref="Page"/> to the last page that <paramref name="totalRecords"/> can fill.
+    /// </summary>
+    public ResolvedPage ForTotal(int totalRecords) => ResolvedPage.For(Page, PageSize, totalRecords);
 
     /// <summary>
     /// Creates a new <see cref="PageRequest"/> from a page and page size.
