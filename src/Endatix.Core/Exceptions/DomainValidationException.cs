@@ -19,6 +19,17 @@ public class DomainValidationException : ArgumentException, IEndUserSafeError
         EndUserMessage = message;
     }
 
+    /// <summary>
+    /// Throws when <paramref name="error"/> is a caller-safe rejection. No-op when it is <c>null</c>.
+    /// </summary>
+    public static void ThrowIfError(string? error, string paramName)
+    {
+        if (error is not null)
+        {
+            throw new DomainValidationException(error, paramName);
+        }
+    }
+
     /// <inheritdoc />
     /// <remarks>
     /// Held separately from <see cref="Exception.Message"/> because
