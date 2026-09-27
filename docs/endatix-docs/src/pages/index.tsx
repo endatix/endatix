@@ -113,16 +113,19 @@ function HomepageContent() {
               icon={LayoutDashboard}
               title="I am an End User"
               description="Create forms, manage responses, and analyze data. Learn how to use the Endatix Hub UI to power your business."
-              primaryCTA="Endatix Hub Docs"
-              primaryLink="/docs/end-users/forms"
-              secondaryLinks={[{
+              primaryCTA="Platform Overview"
+              primaryLink="/docs/end-users"
+              secondaryLinks={[
+                { label: "Forms", href: "/docs/end-users/forms" },
+                {
                   label: "Form Builder",
                   href: "/docs/end-users/forms/form-builder",
                 },
-              {
+                {
                   label: "Logic Expressions",
                   href: "/docs/end-users/forms/form-builder/logic-expressions",
-                }]}
+                },
+              ]}
             />
           </div>
         </div>
