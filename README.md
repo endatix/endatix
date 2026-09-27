@@ -8,15 +8,27 @@
 [![Publish Stable Artifacts](https://github.com/endatix/endatix/actions/workflows/release-artifacts.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/release-artifacts.yml)
 [![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=main)](https://coveralls.io/github/endatix/endatix?branch=main)
 
-## What is Endatix?
+## What is the Endatix Headless Form Management API?
 
-Endatix is a free form management backend API designed to integrate with the [SurveyJS](https://github.com/surveyjs/survey-library) frontend library.
+Endatix is a free form management backend API designed to work with the [SurveyJS](https://github.com/surveyjs/survey-library) frontend library.
 
 It provides REST API endpoints for CRUD operations and the management of forms, templates, submissions, themes, custom form fields, and more. It can be used to build self-hosted or SaaS solutions that focus on collecting information from [humans](https://en.wikipedia.org/wiki/Human) in industries such as market research, legal, insurance, finance, education, healthcare, and more.
 
-This API project is the core of the [Endatix Hub](https://github.com/endatix/endatix-hub) form management system for business users, offering a complete UI, seamless integration with the [SurveyJS Creator](https://github.com/surveyjs/survey-creator) form-building tool, and an [AI assistant](https://www.youtube.com/watch?v=aX_Hm4WYsEE).
+This API powers the [Endatix Hub](https://github.com/endatix/endatix-hub) form management system. for business users, offering a complete UI, seamless integration with the [SurveyJS Creator](https://github.com/surveyjs/survey-creator) form-building tool, and an [AI assistant](https://www.youtube.com/watch?v=aX_Hm4WYsEE).
+
+## Is there UI for end-users?
+
+Yes, the [Endatix Hub](https://github.com/endatix/endatix-hub) application is built on top of this API and it offers complete and modern user interface. It targets non-technical users who need to create forms and surveys, distribute them, collect submissions, export, and analyze data. Endatix Hub can be self-hosted as well as used as a SaaS service. Unlike the Endatix API (this repository), Endatix Hub is commercially licensed.
 
 For more information visit https://endatix.com
+
+## Is this a backend for the SurveyJS frontend library?
+
+Yes! Both the Endatix API and Endatix Hub applications are designed to work with the [SurveyJS Library](https://github.com/surveyjs/survey-library), the [SurveyJS Creator WYSYWYG Form Builder](https://github.com/surveyjs/survey-creator) and the [SurveyJS Analytics Dashboard](https://github.com/surveyjs/survey-analytics)
+
+Endatix is a Certified SurveyJS Partner.
+
+For more information visit [https://surveyjs.io](https://surveyjs.io/?utm_source=endatix&utm_medium=referral)
 
 ## Table of Contents
 - [Features](#features)
@@ -45,9 +57,9 @@ For more information visit https://endatix.com
 * **Submission metadata** (Including completion status, date/time started, and date/time completed)
 * **One submission per respondent** (Optional validation for non-anonymous forms and surveys)
 * **Webhooks** (Support for *submission completed*, *form created*, *form updated*, and *form deleted* events)
-* **reCAPTCHA support**
+* **reCAPTCHA**
 * **Email Notifications** (Sendgrid, Mailgun, and SMTP connectors)
-* **Database-stored Custom Question Types** (SurveyJS [specialized](https://surveyjs.io/form-library/documentation/customize-question-types/create-specialized-question-types) or [composite](https://surveyjs.io/form-library/documentation/customize-question-types/create-composite-question-types) custom question code can be added at runtime)
+* **CSV and Excel exports**
 * **Multitenancy** (ORM-enforced tenant isolation)
 * **Basic Authentication**
 * **Role Based Access Control**
@@ -65,7 +77,7 @@ For more information visit https://endatix.com
 
 Endatix runs on any server or workstation that supports [.NET 10.0 (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0), including **Linux**, **Windows**, and **macOS**.
 
-It can be deployed to on-premise servers, cloud environments such as **Azure**, **AWS**, or **Google Cloud**, and also runs in [**Docker Containers**](https://hub.docker.com/u/endatix) for simplified setup and scaling.
+It can be deployed to on-premise servers, cloud environments such as **Azure**, **AWS**, or **Google Cloud**, and also runs in [**Docker Containers**](https://hub.docker.com/u/endatix) or Kubernetes for simplified setup and scaling.
 
 ## Installation
 
