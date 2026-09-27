@@ -10,15 +10,13 @@
 
 ## What is the Endatix Headless Form Management API?
 
-Endatix is a free form management backend API designed to work with the [SurveyJS](https://github.com/surveyjs/survey-library) frontend library.
+Endatix is a free self-hosted form and survey management backend API. It provides REST endpoints for CRUD operations and the management of forms, templates, submissions, themes, custom form fields, and more. It can be used to build self-hosted or SaaS solutions that focus on collecting information from [humans](https://en.wikipedia.org/wiki/Human) in industries such as market research, legal, insurance, finance, education, healthcare, field service, manufacturing, and more.
 
-It provides REST API endpoints for CRUD operations and the management of forms, templates, submissions, themes, custom form fields, and more. It can be used to build self-hosted or SaaS solutions that focus on collecting information from [humans](https://en.wikipedia.org/wiki/Human) in industries such as market research, legal, insurance, finance, education, healthcare, and more.
-
-This API powers the [Endatix Hub](https://github.com/endatix/endatix-hub) form management system. for business users, offering a complete UI, seamless integration with the [SurveyJS Creator](https://github.com/surveyjs/survey-creator) form-building tool, and an [AI assistant](https://www.youtube.com/watch?v=aX_Hm4WYsEE).
+This API powers the [Endatix Hub](https://github.com/endatix/endatix-hub) form management system.
 
 ## Is there UI for end-users?
 
-Yes, the [Endatix Hub](https://github.com/endatix/endatix-hub) application is built on top of this API and it offers complete and modern user interface. It targets non-technical users who need to create forms and surveys, distribute them, collect submissions, export, and analyze data. Endatix Hub can be self-hosted as well as used as a SaaS service. Unlike the Endatix API (this repository), Endatix Hub is commercially licensed.
+Yes, the [Endatix Hub](https://github.com/endatix/endatix-hub) application is built on top of this API and it offers complete and modern user interface. It targets non-technical users who need to create forms and surveys, distribute them, collect submissions, export and analyze data. Endatix Hub can be self-hosted as well as used as a SaaS service. Unlike the Endatix API (this repository), Endatix Hub is commercially licensed.
 
 For more information visit https://endatix.com
 
