@@ -157,6 +157,7 @@ const sidebars: SidebarsConfig = {
     },
   ],
   userSidebar: [
+    "end-users/index",
     {
       type: "category",
       label: "Forms",
@@ -225,6 +226,7 @@ const sidebars: SidebarsConfig = {
         "end-users/forms/prefilling-and-personalization",
       ],
     },
+    "end-users/data-lists/index",
     {
       type: "category",
       label: "Sharing and Embedding",
@@ -256,6 +258,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "end-users/submissions/viewing-submissions",
         "end-users/submissions/submission-details",
+        "end-users/submissions/sharing-submissions",
         "end-users/submissions/exporting-submissions",
       ],
     },

@@ -1,0 +1,96 @@
+---
+sidebar_position: 1
+title: Platform Overview
+description: What Endatix Hub does, how a form goes from draft to collected answers, and where each part of the app is documented.
+sidebar_label: Platform Overview
+---
+
+# Platform Overview
+
+Endatix Hub is the web app you use for running forms or surveys: you build them, decide who can open them, put them in front of respondents, and work with the answers that come back. This section covers what you do in that UI.
+
+If you are integrating Endatix with your own code or running the servers yourself, use the **Developers** tab instead.
+
+## What you can do
+
+<CardGrid>
+  <LinkCard
+    to="/docs/end-users/forms"
+    title="Forms"
+    description="Build questions, logic, validation, and translations in the Form Builder"
+  />
+  <LinkCard
+    to="/docs/end-users/data-lists"
+    title="Data Lists"
+    description="Share one maintained set of answer options, in several languages, across forms"
+  />
+  <LinkCard
+    to="/docs/end-users/sharing"
+    title="Sharing and Embedding"
+    description="Control who can open a form, share a link, or embed it in your own page"
+  />
+  <LinkCard
+    to="/docs/end-users/submissions"
+    title="Submissions"
+    description="Read, filter, share, and export the responses a form collects"
+  />
+  <LinkCard
+    to="/docs/administration"
+    title="Administration"
+    description="Workspace and platform settings: users, email, authentication, environment"
+  />
+</CardGrid>
+
+## From a form to data
+
+Four steps, in the order you will do them.
+
+1. **Create the form.** Start from the **Forms** list, or copy a starting point from **Form Templates**. A new form begins empty and is not reachable by respondents yet.
+2. **Design it.** The [Form Builder](/docs/end-users/forms/form-builder) holds everything about the form's content: questions and pages, [conditional logic](/docs/end-users/forms/form-builder/conditional-logic), [validation](/docs/end-users/forms/form-builder/validation), the [thank you page](/docs/end-users/forms/form-builder/thank-you-page), and [translations](/docs/end-users/forms/translation-and-localization).
+3. **Decide who can open it, then share it.** [Visibility](/docs/end-users/sharing/public-and-private-forms) decides whether respondents have to sign in. From there you either hand out the share link or paste an [embed code](/docs/end-users/sharing/embedding) into a page you own.
+4. **Collect and review.** Answers arrive in the form's [Submissions](/docs/end-users/submissions/viewing-submissions) grid, where you filter them, open one to read it, mark your review progress, and [export](/docs/end-users/submissions/exporting-submissions) the set.
+
+## Where things are in Hub
+
+The left sidebar in Hub maps to these docs:
+
+- **Forms** - every form in the workspace. Opening one gives you Form Overview, the Form Builder, and that form's submissions.
+- **Form Templates** - reusable starting points for new forms.
+- **Folders** - grouping for a long form list.
+- **[Data Lists](/docs/end-users/data-lists)** - choice lists shared across forms, so several questions can draw from one maintained set of options.
+- **Settings** - your workspace: form defaults, users, roles, export formats, and your own account security.
+- **Platform Admin** - visible to platform administrators only. Tenants, [platform admins](/docs/end-users/administration/platform-admins), [authentication](/docs/end-users/administration/auth-settings), [email](/docs/end-users/administration/email-settings), storage, and the [environment](/docs/end-users/administration/environment) audit.
+
+## Terms you will see
+
+- **Form** - the thing a respondent fills in. It has one identity and one URL for its whole life, even as you keep editing it.
+- **Form definition** - the saved version of a form's questions and settings. Each submission is tied to the definition that was active when it was answered, so editing a live form does not rewrite responses you already collected.
+- **Submission** - one respondent's answers to one form. Endatix saves a submission from the respondent's first answers, not only when they press submit.
+- **Partial submission** - a submission that was started and not finished. The respondent can come back and continue until the [session expires](/docs/end-users/forms/submission-expiration).
+- **Complete and Status** - two different things in the submissions grid. **Complete** says whether the respondent reached the end. **Status** (**New**, **Read**, **Approved**) is your own review marker, and Endatix never changes it for you.
+- **Visibility** - **Public** forms open for anyone with the link. **Private** forms make the respondent sign in first.
+- **Workspace** - your organization inside Endatix: its forms, users, roles, and shared settings.
+
+## If you also work with the API
+
+Several things in this section have a developer counterpart in the **Developers** tab: [embedding a form via iframe](/docs/guides/embed-form-via-iframe), [webhooks](/docs/guides/webhooks) for reacting to a submission, [pre-filling from a URL](/docs/guides/form-prefilling), and the [API reference](/docs/developers/api/api-reference).
+
+## Next steps
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/end-users/forms/form-builder"
+    title="Form Builder"
+    description="Questions, logic, validation, and the thank you page"
+  />
+  <LinkCard
+    to="/docs/end-users/sharing/public-and-private-forms"
+    title="Visibility (Public / Private)"
+    description="Decide whether respondents have to sign in"
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/viewing-submissions"
+    title="Viewing Submissions"
+    description="Filter, sort, and choose columns in the submissions grid"
+  />
+</CardGrid>

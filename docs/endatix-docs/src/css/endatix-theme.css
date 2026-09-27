@@ -691,7 +691,6 @@ pre,
 .edx-specs dt {
   font-weight: 500;
   color: var(--ifm-color-emphasis-700);
-  padding-right: 1rem;
 }
 
 .edx-specs dd {
@@ -716,7 +715,14 @@ pre,
   border-top: 1px solid var(--ifm-toc-border-color);
 }
 
-.edx-specs dt,
+/* Vertical padding is shared; the dt also carries the column gutter. Keep these
+   as one declaration each: a shared `padding: 0.5rem 0` shorthand here would
+   reset the dt's padding-right, and because the label column is sized to its
+   longest label, only that longest row shows the collision. */
+.edx-specs dt {
+  padding: 0.5rem 1rem 0.5rem 0;
+}
+
 .edx-specs dd {
   padding: 0.5rem 0;
 }
