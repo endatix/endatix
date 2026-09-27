@@ -236,7 +236,10 @@ const sidebars: SidebarsConfig = {
         description:
           "Get a form in front of respondents: who can open it, and how the link reaches them.",
       },
-      items: ["end-users/sharing/public-and-private-forms"],
+      items: [
+        "end-users/sharing/public-and-private-forms",
+        "end-users/sharing/embedding",
+      ],
     },
     {
       type: "category",

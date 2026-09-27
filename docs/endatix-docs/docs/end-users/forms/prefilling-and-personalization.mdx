@@ -77,6 +77,8 @@ Query string values arrive as plain strings. SurveyJS automatically converts a n
 
 The parameters stay in the address bar after the page loads — Endatix Hub doesn't strip them, so the link stays shareable and bookmarkable with the same pre-fill data.
 
+If the form is embedded in your own page rather than opened on its share link, the respondent's URL is yours and Endatix never sees these parameters. Pass the same pairs on the embed snippet's `data-prefill` attribute instead - see [Embedding a Form](/docs/end-users/sharing/embedding#personalize-an-embedded-form).
+
 ## Prefilling a Question
 
 With the variable in place, point a question at it using **Default value expression** — a standard SurveyJS property available on every question type.
@@ -161,6 +163,7 @@ When that respondent opens the link, the title renders with the value already fi
 * [Text Piping](/docs/end-users/forms/form-builder/text-piping) — pipe earlier answers, not just variables, into titles, descriptions, and choice text.
 * [Form Prefilling and Sharing](/docs/guides/form-prefilling) — pre-populate an entire submission from your backend using access tokens, instead of query string variables.
 * [Carry Forward](/docs/end-users/forms/form-builder/carry-forward) — another way to drive a question's choices from earlier answers.
+* [Embedding a Form](/docs/end-users/sharing/embedding) — pass the same variables to a form running inside your own web page.
 
 ## Technical Reference (JSON Schema)
 

@@ -39,7 +39,7 @@ Get the link from **Form Overview**:
   sources={{ light: ShareLinkLight, dark: ShareLinkDark }}
 />
 
-The link has the shape <code>{"https://<your-hub>/share/<formId>"}</code>. The **Embed code** tab of the same dialog gives you a `<script>` tag that renders the form inside your own page - see [Embed a form via iframe](/docs/guides/embed-form-via-iframe).
+The link has the shape <code>{"https://<your-hub>/share/<formId>"}</code>. The **Embed code** tab of the same dialog gives you a `<script>` tag that renders the form inside your own page - see [Embedding a Form](/docs/end-users/sharing/embedding).
 
 :::warning[A public link cannot be un-shared]
 Anyone who already copied the URL keeps it. Switching the form to private later closes the link for them, but it does not remove responses they already submitted.
@@ -47,7 +47,7 @@ Anyone who already copied the URL keeps it. Switching the form to private later 
 
 ## Private forms
 
-A private form asks the respondent to authenticate. A visitor who is not signed in gets **401 - Sign in required**, with a **Sign in** link that returns them to the form once they authenticate.
+A private form asks the respondent to authenticate. A visitor who is not signed in gets **401 - Sign in required**, with a **Sign in** link that returns them to the form once they authenticate. The same wall appears inside the frame when a private form is [embedded in another site](/docs/end-users/sharing/embedding).
 
 <img
   src={require("./public-and-private-forms-sign-in.webp").default}
@@ -120,9 +120,9 @@ The **Forms** list has a **Visibility** filter with **All visibility**, **Public
 
 <CardGrid compact>
   <LinkCard
-    to="/docs/guides/embed-form-via-iframe"
-    title="Embed a form via iframe"
-    description="Put the same share link inside your own page with the embed script."
+    to="/docs/end-users/sharing/embedding"
+    title="Embedding a Form"
+    description="Put the same form inside your own page with the embed script."
   />
   <LinkCard
     to="/docs/guides/api-permissions-reference"
