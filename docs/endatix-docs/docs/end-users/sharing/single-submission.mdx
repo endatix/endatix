@@ -1,0 +1,130 @@
+---
+title: "One Response Per Person"
+description: Turn on Limit one per user so each signed-in respondent can submit a form only once, and understand why the setting is permanent.
+sidebar_label: "One Response Per Person"
+sidebar_position: 3
+---
+
+import SettingLight from "./single-submission-setting_light.webp";
+import SettingDark from "./single-submission-setting_dark.webp";
+import ConfirmLight from "./single-submission-confirm_light.webp";
+import ConfirmDark from "./single-submission-confirm_dark.webp";
+import LockedLight from "./single-submission-locked_light.webp";
+import LockedDark from "./single-submission-locked_dark.webp";
+
+# One Response Per Person
+
+Some forms only make sense once per person: an application, a registration, a vote, an annual declaration. **Limit one per user** on **Form Overview** enforces that. Once a signed-in respondent completes the form, Endatix stops them from starting another response.
+
+The setting is also called *one response per person* in Hub's own dialogs and *single submission* in the API.
+
+:::warning[Turning this on cannot be undone]
+**Limit one per user** is permanent. There is no way to switch it back off later, and the form can never be made public again. Endatix locks it this way so that a set of responses collected under a one-per-person promise cannot quietly become something else.
+:::
+
+## What it needs
+
+The form must be **Private**. Counting responses per person needs a signed-in identity, and a public form has none: everyone is an anonymous visitor. On a public form the switch is greyed out with the note *This option is available only for private forms.*
+
+Set the form to Private first, then come back. See [Visibility (Public / Private)](/docs/end-users/sharing/public-and-private-forms).
+
+## Turn it on
+
+1. Open the form from the **Forms** list to reach **Form Overview**.
+2. Find the **Limit one per user** row, below **Visibility**.
+3. Turn the switch on.
+
+<Shot
+  alt="Form Overview settings with an arrow pointing at the Limit one per user switch, still set to Disabled"
+  sources={{ light: SettingLight, dark: SettingDark }}
+/>
+
+Hub asks you to confirm, and spells out both consequences before anything is saved.
+
+<Shot
+  alt="Confirmation dialog: Enable one response per person, warning that the setting is permanent and the form cannot be made public later"
+  sources={{ light: ConfirmLight, dark: ConfirmDark }}
+/>
+
+Choose **Enable permanently**. A toast confirms **Single response per user is enabled**. Choosing **Cancel** leaves the form exactly as it was.
+
+## What changes on the form
+
+The **Limit one per user** switch now reads **Enabled** and is disabled, with the tooltip *This setting is permanent once enabled.*
+
+**Visibility** is disabled too. Hovering it explains why:
+
+<Shot
+  alt="Form Overview after enabling, with Visibility locked and a tooltip explaining that it cannot be changed while one response per person is enabled"
+  sources={{ light: LockedLight, dark: LockedDark }}
+/>
+
+The form stays private for the rest of its life. Everything else about it stays editable: questions, logic, theme, webhooks, and the **Status** switch that opens and closes the form to new responses.
+
+## What respondents see
+
+A respondent who has already completed the form gets this instead of the questions, whether they open the share link again or reload an embedded copy:
+
+<Shot
+  src={require("./single-submission-responded.webp").default}
+  alt="Respondent view: Already Responded, with the message You have already submitted a response for this form"
+/>
+
+### Write your own message
+
+The default wording is generic. Replace it from the **Metadata (JSON)** field on **Form Overview**:
+
+```json
+{
+  "alreadyResponded": {
+    "title": "Thanks, we have your application",
+    "message": "Each student can submit this form once. Contact admissions if you need to change an answer."
+  }
+}
+```
+
+Choose **Save metadata**. Either key can be left out, and the default is used for whichever is missing. Give people a way forward in the message, because from their side the form is now a dead end.
+
+## Who is not blocked
+
+The limit counts completed responses by a signed-in person, which leaves four cases open on purpose:
+
+- **Someone who started but has not finished.** An incomplete response is still resumable. They can come back and finish it, and only the finished response counts.
+- **Anyone holding an access-token link.** A link generated from a submission carries its own permission and opens that submission for editing. Use this when someone genuinely needs to correct an answer after submitting.
+- **You and your team, while testing.** Anyone who can test the form in Hub is treated as a tester, not a respondent: their responses are recorded as test submissions and never trip the limit. This means **you cannot check the limit with your own Hub account**. To see what a respondent sees, use an account that only has the **Respondent** role.
+- **A different person on the same device.** The limit is tied to the signed-in account, not to the browser, the cookie, or the IP address. Two people sharing a laptop and signing in separately get one response each.
+
+## If Hub will not let you turn it on
+
+| What Hub says | What it means |
+| --- | --- |
+| *A single-submission form cannot be made public.* | The form is still Public. Switch **Visibility** to Private first. |
+| *Cannot enable single submission gate because this form already has duplicate submissions.* | Someone has already submitted this form more than once, so the limit would be a promise the existing responses break. Remove the extra responses from **Submissions**, or start a fresh form. |
+| *Single submission gate cannot be disabled after it has been enabled.* | The setting is already on and cannot be turned off. If you need an unlimited version of the form, duplicate it and leave the limit off on the copy. |
+
+Your own integrations hit the same rule: a second submission for the same person is rejected with **409** and *A submission already exists for this user and form.*
+
+## Related documentation
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/end-users/sharing/public-and-private-forms"
+    title="Visibility (Public / Private)"
+    description="Make the form private, and give respondents the role they need to answer it."
+  />
+  <LinkCard
+    to="/docs/end-users/sharing/embedding"
+    title="Embedding a Form"
+    description="Run the same form inside your own page, limit and all."
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/viewing-submissions"
+    title="Viewing Submissions"
+    description="Find and remove the duplicate responses that block the setting."
+  />
+  <LinkCard
+    to="/docs/guides/form-prefilling"
+    title="Form Prefilling and Sharing"
+    description="Developer reference: access tokens, the one way back into a submitted response."
+  />
+</CardGrid>

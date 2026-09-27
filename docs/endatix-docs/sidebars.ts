@@ -239,6 +239,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "end-users/sharing/public-and-private-forms",
         "end-users/sharing/embedding",
+        "end-users/sharing/single-submission",
       ],
     },
     {

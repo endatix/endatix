@@ -29,6 +29,7 @@ Registered globally in [`src/theme/MDXComponents.tsx`](src/theme/MDXComponents.t
 | `Card` | `src/components/Card` | Generic card: `eyebrow`, `title`, optional `icon` / `accent` / `lede` / `footer`. Children are free-form. |
 | `Specs` / `Spec` | `src/components/Specs`, `Spec` | Label/value rows inside a `Card`. `<Spec label="SDK">…</Spec>`. |
 | `LinkCard` | `src/components/LinkCard` | Next-step link: `to`, `title`, `description`, optional `icon`. |
+| `Shot` | `src/components/Shot` | Screenshot. `sources={{ light, dark }}` or a single `src`, plus `alt`. Emits `srcSet="… 2x"` so a 2x capture lays out at life size; do not add `width`. Use instead of `ThemedImage`. |
 | `Pill` | `src/components/Pill` | Status chip. `required` for the brand tint. |
 | `Settings` / `Setting` | `src/components/Settings`, `Setting` | Configuration-key reference — env vars, `appsettings.json` paths. One `Setting` per key (`name` is the anchor). Optional: `required`, `default`, `note`, `status` (`deprecated` \| `removed`), `since`, `replacedBy`. Children are the explanation. Never comma-join names. |
 | `Icon` | `src/components/Icon` | Tinted Lucide tile. Used by Card/LinkCard; also valid in MDX. |

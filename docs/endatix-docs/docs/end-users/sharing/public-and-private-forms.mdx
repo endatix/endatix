@@ -5,7 +5,6 @@ sidebar_label: "Visibility (Public / Private)"
 sidebar_position: 1
 ---
 
-import ThemedImage from "@theme/ThemedImage";
 import VisibilityLight from "./public-and-private-forms-visibility_light.webp";
 import VisibilityDark from "./public-and-private-forms-visibility_dark.webp";
 import ShareLinkLight from "./public-and-private-forms-share-link_light.webp";
@@ -34,7 +33,7 @@ Get the link from **Form Overview**:
 2. Choose **Share**.
 3. On the **Share link** tab, copy the **Public share link**.
 
-<ThemedImage
+<Shot
   alt="Share Form dialog with the Share link tab showing the public share link and copy button"
   sources={{ light: ShareLinkLight, dark: ShareLinkDark }}
 />
@@ -49,10 +48,9 @@ Anyone who already copied the URL keeps it. Switching the form to private later 
 
 A private form asks the respondent to authenticate. A visitor who is not signed in gets **401 - Sign in required**, with a **Sign in** link that returns them to the form once they authenticate. The same wall appears inside the frame when a private form is [embedded in another site](/docs/end-users/sharing/embedding).
 
-<img
+<Shot
   src={require("./public-and-private-forms-sign-in.webp").default}
   alt="Private form shown to a signed-out visitor: 401 Sign in required with a Sign in link"
-  width="560"
 />
 
 ### Permissions
@@ -87,7 +85,7 @@ Custom roles work the same way - add `submissions.create` to any role whose memb
 2. Find the **Visibility** row.
 3. Turn the switch on for **Public** (globe) or off for **Private** (lock).
 
-<ThemedImage
+<Shot
   alt="Form Overview with an arrow pointing at the Visibility switch set to Public"
   sources={{ light: VisibilityLight, dark: VisibilityDark }}
 />
@@ -109,7 +107,7 @@ Visibility is re-checked when a response is saved, not only when the form is ope
 :::
 
 :::warning[Visibility locks when "Limit one per user" is on]
-**Limit one per user** (one response per person) only works on a private form, because it needs a signed-in identity to count against. Turning it on is permanent, and while it is on the **Visibility** switch is disabled with the tooltip *Visibility cannot be changed while "one response per person" is enabled.* A form with that setting turned on can never be made public.
+**Limit one per user** (one response per person) only works on a private form, because it needs a signed-in identity to count against. Turning it on is permanent, and while it is on the **Visibility** switch is disabled with the tooltip *Visibility cannot be changed while "one response per person" is enabled.* A form with that setting turned on can never be made public. See [One Response Per Person](/docs/end-users/sharing/single-submission).
 :::
 
 ## Find forms by visibility
@@ -128,6 +126,11 @@ The **Forms** list has a **Visibility** filter with **All visibility**, **Public
     to="/docs/guides/api-permissions-reference"
     title="API Permissions Reference"
     description="Every permission and the endpoints that require it."
+  />
+  <LinkCard
+    to="/docs/end-users/sharing/single-submission"
+    title="One Response Per Person"
+    description="Cap a private form at one completed response per signed-in respondent."
   />
   <LinkCard
     to="/docs/end-users/forms/submission-expiration"

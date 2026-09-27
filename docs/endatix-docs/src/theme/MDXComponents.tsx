@@ -5,6 +5,7 @@ import LinkCard from "@site/src/components/LinkCard";
 import Pill from "@site/src/components/Pill";
 import Setting from "@site/src/components/Setting";
 import Settings from "@site/src/components/Settings";
+import Shot from "@site/src/components/Shot";
 import Spec from "@site/src/components/Spec";
 import Specs from "@site/src/components/Specs";
 import MDXComponents from "@theme-original/MDXComponents";
@@ -21,6 +22,7 @@ export default {
   Pill,
   Setting,
   Settings,
+  Shot,
   Spec,
   Specs,
 };
