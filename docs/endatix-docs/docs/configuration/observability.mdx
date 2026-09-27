@@ -28,7 +28,7 @@ Logs also always go to **stdout**, whether or not telemetry is configured — th
 
 All three share one resource, so a log record and its span agree on `service.name`.
 
-:::note Runtime metric names
+:::note[Runtime metric names]
 On .NET 9 and later the runtime instrumentation emits `dotnet.*` metrics (`dotnet.gc.collections`, `dotnet.thread_pool.thread.count`). The older `process.runtime.dotnet.*` names are **not** emitted. If a dashboard shows nothing, check which names it queries.
 :::
 
@@ -63,7 +63,7 @@ Sampling strategy, e.g. `parentbased_traceidratio`. Pair with `OTEL_TRACES_SAMPL
 </Setting>
 </Settings>
 
-:::warning A malformed endpoint fails startup
+:::warning[A malformed endpoint fails startup]
 An unparseable endpoint or an unknown protocol throws at startup, naming the offending value. The alternative is a host that starts and silently exports nothing.
 :::
 
@@ -170,7 +170,7 @@ Older files are deleted as new ones roll.
 
 **Enabling file logging never silences the console.** Both receive every record.
 
-:::danger Enabling this in a container needs a writable volume
+:::danger[Enabling this in a container needs a writable volume]
 The Helm chart runs with `readOnlyRootFilesystem: true` and only `/tmp` writable. Enabling file logging without mounting a writable volume at the configured path will **fail startup** with a message naming the directory. Use the chart's `extraVolumes` / `extraVolumeMounts` passthrough.
 :::
 
@@ -250,7 +250,7 @@ Serilog level names map to .NET names: `Verbose` → `Trace`, `Debug` → `Debug
 
 `Serilog:WriteTo:File:Args` maps key-for-key onto `Endatix:Logging:File`: `path` → `Path`, `rollingInterval` → `RollingInterval`, `fileSizeLimitBytes` → `FileSizeLimitBytes`, `rollOnFileSizeLimit` → `RollOnFileSizeLimit`, `retainedFileCountLimit` → `RetainedFileCountLimit`.
 
-:::caution Check your file path while migrating
+:::caution[Check your file path while migrating]
 If your old configuration used an absolute path such as `/logs/log-.txt`, confirm the process can actually write there. Relative paths now resolve against the **content root**; absolute paths are left exactly as given.
 :::
 
@@ -270,7 +270,7 @@ builder.Host.ConfigureEndatixWithDefaults(endatix =>
 });
 ```
 
-:::warning `builder.Logging.AddX()` in `Program.cs` does not survive
+:::warning[`builder.Logging.AddX()` in `Program.cs` does not survive]
 Endatix registers logging inside `IHostBuilder.ConfigureServices`, which runs at `Build()` and calls `ClearProviders()` first — so anything added directly to `builder.Logging` beforehand is discarded. `endatix.Logging.Configure(...)` exists because it runs **after** that point.
 :::
 

@@ -227,6 +227,19 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Sharing and Embedding",
+      collapsed: false,
+      link: {
+        type: "generated-index",
+        slug: "end-users/sharing",
+        title: "Sharing and Embedding",
+        description:
+          "Get a form in front of respondents: who can open it, and how the link reaches them.",
+      },
+      items: ["end-users/sharing/public-and-private-forms"],
+    },
+    {
+      type: "category",
       label: "Submissions",
       collapsed: false,
       link: {

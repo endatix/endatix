@@ -31,7 +31,7 @@ app.Run();
 
 Repeated calls compose, applying in call order.
 
-:::warning Why not just `builder.Logging.AddX()`?
+:::warning[Why not just `builder.Logging.AddX()`?]
 Because it will not survive. Endatix registers logging inside `IHostBuilder.ConfigureServices`, which
 runs at `Build()` — and it calls `ClearProviders()` first, since `WebApplication.CreateBuilder` has
 already added Console, Debug, EventSource and EventLog and leaving them produces duplicated output.
@@ -95,7 +95,7 @@ OTEL_TRACES_SAMPLER_ARG=0.1
 
 Environment variables win over code, so a deployment can always dial sampling down without a rebuild.
 
-:::danger Sampling silently drops logs too
+:::danger[Sampling silently drops logs too]
 By default, **log records belonging to unsampled traces are dropped**. A naive `SamplingRatio = 0.1`
 therefore discards roughly 90% of your log records as well as 90% of traces — including, quite
 possibly, the error you are trying to diagnose.

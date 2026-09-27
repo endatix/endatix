@@ -8,6 +8,7 @@ Docusaurus 3 site for [docs.endatix.com](https://docs.endatix.com). Content live
 
 Write for a developer who is mid-task and wants to leave the page as fast as possible.
 
+- **No em-dashes.** Plain hyphen with spaces (` - `), a comma, a colon, or two sentences. Applies to body text, headings, table cells, `description` frontmatter and image `alt` text. Check: `grep -rn $'\u2014' docs` must return nothing.
 - **Short and concrete over complete.** One accurate sentence beats a paragraph that covers every case. If a section can be cut without losing a fact, cut it.
 - **No marketing.** Never "powerful", "seamless", "effortlessly", "robust", "simply", "just", "blazing fast". Never sell a feature inside a reference page — say what it does and what it needs.
 - **No filler verbosity either.** Skip "In this section we will…", "As you can see", restating the heading in the first line, and summary paragraphs that repeat what was just said.
@@ -65,6 +66,8 @@ A list of configuration keys is never a table — each row needs a sentence or t
 
 ### MDX gotchas these rules avoid
 
+- **Admonition titles need brackets:** `:::warning[Title]`. The Docusaurus v2 form `:::warning Title` does **not** error — the whole block renders as literal `:::warning Title … :::` text in the page body, so `pnpm build` stays green and only a browser check catches it. Guard: `grep -rnE "^:::[a-zA-Z]+[ ]+[^[:space:]]" docs` must return nothing.
+- **Tables: raised body, darker head, no stripes, card radius** (both themes). Set in the TABLES block of `src/css/endatix-theme.css` via Infima's own tokens. Neutralising stripes means *same fill as the body*, never `transparent`: Infima pipes `--ifm-table-stripe-background` into both `table tr:nth-child(2n)` **and** `table thead`, so on the tinted canvas a transparent value lets every even row punch through and the banding returns inverted. The head is coloured through `table th`, which wins over the thead fill. Corners are rounded on the four corner **cells**, with `border-collapse: separate` and the grid rebuilt one side per cell (top+left on every cell, right on the last column, bottom on the last row). A radius on the `table` alone does not work: collapsed borders are painted as straight segments owned by the cells, so the `overflow: auto` clip shears their ends rather than curving them, and the bottom corners come out square with the border cut. Rounding the cells also survives the horizontal scroll Docusaurus enables on narrow screens, since the corners travel with the content. Do not re-add striping or hand-roll `nth-child` row shading in a page.
 - **Spec rows:** use `<Spec>` — do not hand-write `<dt>`/`<dd>` in MDX (Markdown wraps them in `<p>`).
 - **Use `<div>`, not `<p>`, for any JSX text container** that might hold more than a word.
 - **Wrap bare URLs in an expression**: `<code>{"https://localhost:5001"}</code>`. Plain text inside `<code>` still gets GFM autolinked.
@@ -86,3 +89,10 @@ H1 matches `title`. Open with one or two sentences that say what the page covers
 Cross-link with absolute paths (`/docs/configuration/settings/persistence-settings`), not relative ones. Use admonitions (`:::tip`, `:::warning`) for a genuine trap, not to decorate a normal paragraph.
 
 `docs/getting-started/system-requirements.mdx` is the current reference for all of the above.
+
+## Theming
+
+`--edx-surface-raised` (+ `--edx-surface-raised-border`) is the one step above the page canvas, used by table bodies and the prev/next pagination cards, and matching `.card`. Reach for it rather than hard-coding `#fff` when something should read as a panel on the canvas. Infima leaves the pagination links unfilled and borders them with `--ifm-color-emphasis-300`, which is `#606770` on dark and louder than every other panel edge on the page.
+
+`src/css/endatix-theme.css` holds the palette. `[data-theme="dark"]` sets `--ifm-background-color`; **`:root` (light) does not**, so in light mode nothing paints a page background and the UA canvas shows through. It looks white in a normal browser and picks up the backdrop of any embedder whose canvas is not white (in-app webviews, preview panes, some reader modes). Set the light value on `:root` rather than papering over it on `body`.
+

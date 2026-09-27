@@ -134,7 +134,7 @@ Not to be confused with [mailkit.com](https://www.mailkit.com/), an unrelated em
 
 *For implementation details, refer to [`SmtpSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SmtpSettings.cs).*
 
-:::warning Upgrading from the .NET SmtpClient-based sender
+:::warning[Upgrading from the .NET SmtpClient-based sender]
 Earlier Endatix versions sent SMTP mail using .NET's built-in `System.Net.Mail.SmtpClient`, which Microsoft's own docs [no longer recommend for new development](https://learn.microsoft.com/en-us/dotnet/api/system.net.mail.smtpclient). The MailKit-based sender is a drop-in replacement — no configuration changes are required for the common case of a `Host`/`Port` combination with username/password authentication over STARTTLS. Two behaviors changed:
 
 * **Blank `Username` on Windows.** Previously, leaving `Username` empty made `SmtpClient` authenticate using the Windows process identity (`UseDefaultCredentials`). MailKit has no equivalent, so a blank `Username` now always means an unauthenticated connection. This only matters if you relied on integrated Windows authentication with no explicit username — outside of that, an empty `Username` behaves the same as before.

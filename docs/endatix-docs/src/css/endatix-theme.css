@@ -47,6 +47,12 @@
   --screenshot-border-radius: 12px;
   --screenshot-border-color: oklch(88% 0.015 260 / 0.6);
 
+  /* --- Page canvas --- */
+  /* Infima leaves this transparent, so without a light value the page paints nothing and
+     picks up the host's canvas. A faint hue-260 tint keeps white cards, tables and the
+     navbar reading as raised surfaces. */
+  --ifm-background-color: #f8fbfe;
+
   /* --- Navbar --- */
   --ifm-navbar-background-color: #ffffff;
   --ifm-navbar-link-color: #0054d1;
@@ -359,6 +365,153 @@ pre,
 .table-of-contents__link--active {
   font-weight: 600;
   color: var(--ifm-color-primary);
+}
+
+/* ============================================================
+   RAISED SURFACES
+   ============================================================ */
+
+/* One step above the page canvas, shared by anything that should read as a panel
+   sitting on it: table bodies, pagination cards. The border matches .card so the
+   three panel types stay coherent. */
+:root {
+  --edx-surface-raised: #ffffff;
+  --edx-surface-raised-border: oklch(88% 0.015 260 / 0.6);
+}
+
+[data-theme="dark"] {
+  --edx-surface-raised: var(--ifm-background-surface-color);
+  --edx-surface-raised-border: oklch(21% 0.012 260);
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+
+/* No zebra striping: Endatix tables are small lookup grids, not data dumps, and
+   the banding reads as a signal the content never meant while fighting the cell
+   borders that already separate rows.
+
+   Neutralising means "same fill as the rest of the body", NOT transparent.
+   Infima pipes --ifm-table-stripe-background into BOTH `table tr:nth-child(2n)`
+   and `table thead`, so a transparent value lets every even row and the head
+   punch a hole through to the canvas and the stripes come back inverted. The
+   head is coloured through `table th`, which wins over the thead fill. */
+:root {
+  --ifm-table-background: var(--edx-surface-raised);
+  --ifm-table-stripe-background: var(--edx-surface-raised);
+  --ifm-table-head-background: oklch(94.5% 0.018 260);
+}
+
+[data-theme="dark"] {
+  --ifm-table-background: var(--edx-surface-raised);
+  --ifm-table-stripe-background: var(--edx-surface-raised);
+  /* One step up from the dark table body, mirroring how the light head sits
+     above white. Infima's `inherit` default left it indistinguishable. */
+  --ifm-table-head-background: oklch(19% 0.022 260);
+  /* emphasis-300 is tuned for text dividers and reads as a hard grid on dark;
+     this keeps the cell edges legible without drawing them louder than content. */
+  --ifm-table-border-color: oklch(28% 0.015 260);
+}
+
+/* Rounded corners.
+
+   A radius on the table alone does NOT work here: Infima collapses the borders,
+   and collapsed borders are painted as straight segments owned by the cells, so
+   the overflow clip shears their ends instead of curving them. The top looked
+   right only because the head's own fill hid the damage; the bottom corners came
+   out square with the border ends cut off.
+
+   So: separate the borders, rebuild the grid one side at a time so nothing
+   doubles, and round the four corner CELLS. The radius then belongs to the thing
+   actually drawing the border, and it survives horizontal scrolling - the
+   right-hand corners simply scroll out of view, which is correct.
+
+   `display: block; overflow: auto` stays as Docusaurus set it, so wide tables
+   still scroll on narrow screens. */
+.markdown table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--ifm-card-border-radius);
+}
+
+/* Rows cannot paint borders in separate mode; clear Infima's so nothing lingers. */
+.markdown table tr {
+  border: 0;
+}
+
+/* Every cell draws top + left; the last column adds right, the last row adds
+   bottom. One line per edge, no doubling. */
+.markdown table th,
+.markdown table td {
+  border: 0;
+  border-top: var(--ifm-table-border-width) solid var(--ifm-table-border-color);
+  border-left: var(--ifm-table-border-width) solid var(--ifm-table-border-color);
+}
+
+.markdown table th:last-child,
+.markdown table td:last-child {
+  border-right: var(--ifm-table-border-width) solid var(--ifm-table-border-color);
+}
+
+.markdown table tr:last-child td {
+  border-bottom: var(--ifm-table-border-width) solid var(--ifm-table-border-color);
+}
+
+.markdown table thead tr:first-child th:first-child {
+  border-top-left-radius: var(--ifm-card-border-radius);
+}
+
+.markdown table thead tr:first-child th:last-child {
+  border-top-right-radius: var(--ifm-card-border-radius);
+}
+
+.markdown table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: var(--ifm-card-border-radius);
+}
+
+.markdown table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: var(--ifm-card-border-radius);
+}
+
+/* ============================================================
+   CODE BLOCKS ON A TINTED CANVAS
+   ============================================================ */
+
+/* Prism's light theme paints code blocks #f6f8fa with no border, which sits within
+   a few units of the light canvas and makes the block dissolve into the page.
+   Inline code already carries a border; this gives fenced blocks the same
+   treatment. Dark mode keeps a transparent border so the box model matches and
+   nothing shifts between themes. */
+:root {
+  --edx-code-block-border: oklch(88% 0.01 260 / 0.7);
+}
+
+[data-theme="dark"] {
+  --edx-code-block-border: transparent;
+}
+
+pre,
+.prism-code {
+  border: 1px solid var(--edx-code-block-border);
+}
+
+/* ============================================================
+   PAGINATION (prev / next)
+   ============================================================ */
+
+/* Infima gives these a border but no fill, so on a tinted canvas they read as
+   outlines rather than cards. Match the other raised panels, and take the card
+   radius so they do not sit at a different roundness to everything near them. */
+:root {
+  --ifm-pagination-nav-border-radius: var(--ifm-card-border-radius);
+}
+
+.pagination-nav__link {
+  background-color: var(--edx-surface-raised);
+  /* Infima's emphasis-300 is #606770 on dark, brighter than every other panel
+     edge on the page. Match .card instead. */
+  border-color: var(--edx-surface-raised-border);
 }
 
 /* ============================================================
