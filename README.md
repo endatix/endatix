@@ -153,12 +153,12 @@ erDiagram
     "public.DataListItems" {
         bigint Id PK
         bigint DataListId FK
-        character_varying_100_ Label
         character_varying_100_ Value
         timestamp_with_time_zone CreatedAt
         timestamp_with_time_zone ModifiedAt
         timestamp_with_time_zone DeletedAt
         boolean IsDeleted
+        jsonb Labels
     }
     "public.DataListItems" }o--|| "public.DataLists" : FK_DataListItems_DataLists_DataListId
 
@@ -173,6 +173,8 @@ erDiagram
         boolean IsDeleted
         bigint TenantId FK
         character_varying_100_ NormalizedName
+        jsonb AvailableLocales
+        character_varying_16_ DefaultLocale
     }
     "public.DataLists" }o--|| "public.Tenants" : FK_DataLists_Tenants_TenantId
 
@@ -268,11 +270,33 @@ erDiagram
         boolean LimitOnePerUser
         jsonb Metadata
         bigint FolderId FK
+        bigint Revision
+        integer SubmissionTokenExpiryHours
     }
     "public.Forms" }o..|| "public.Folders" : FK_Forms_Folders_FolderId
     "public.Forms" }o..|| "public.FormDefinitions" : FK_Forms_FormDefinitions_ActiveDefinitionId
     "public.Forms" }o--|| "public.Tenants" : FK_Forms_Tenants_TenantId
     "public.Forms" }o..|| "public.Themes" : FK_Forms_Themes_ThemeId
+
+    "public.OutboxMessages" {
+        bigint Id PK
+        character_varying_128_ EventType
+        jsonb Payload
+        bigint TenantId
+        timestamp_with_time_zone OccurredAt
+        integer SchemaVersion
+        integer Status
+        integer Attempts
+        character_varying_128_ TraceId
+        timestamp_with_time_zone ProcessedAt
+        timestamp_with_time_zone LockedUntil
+        character_varying_128_ LockedBy
+        timestamp_with_time_zone NextAttemptAt
+        timestamp_with_time_zone CreatedAt
+        timestamp_with_time_zone ModifiedAt
+        timestamp_with_time_zone DeletedAt
+        boolean IsDeleted
+    }
 
     "public.SubmissionVersions" {
         bigint Id PK
@@ -305,10 +329,32 @@ erDiagram
         character_varying_64_ SubmittedBy
         boolean IsTestSubmission
         character_varying_256_ RestrictionKey UK
+        character_varying_256_ SubmitterDisplayId
+        bigint SubmitterId FK
+        jsonb SubmitterProfileSnapshot
+        bigint Revision
+        timestamp_with_time_zone StartedAt
     }
     "public.Submissions" }o--|| "public.FormDefinitions" : FK_Submissions_FormDefinitions_FormDefinitionId
     "public.Submissions" }o--|| "public.Forms" : FK_Submissions_Forms_FormId
+    "public.Submissions" }o..|| "public.Submitters" : FK_Submissions_Submitters_SubmitterId
     "public.Submissions" }o--|| "public.Tenants" : FK_Submissions_Tenants_TenantId
+
+    "public.Submitters" {
+        bigint Id PK
+        character_varying_64_ AuthProvider
+        character_varying_256_ ExternalSubjectId
+        character_varying_256_ DisplayId
+        bigint AppUserId
+        jsonb ProfileJson
+        timestamp_with_time_zone LastSeenAt
+        timestamp_with_time_zone CreatedAt
+        timestamp_with_time_zone ModifiedAt
+        timestamp_with_time_zone DeletedAt
+        boolean IsDeleted
+        bigint TenantId FK
+    }
+    "public.Submitters" }o--|| "public.Tenants" : FK_Submitters_Tenants_TenantId
 
     "public.TenantSettings" {
         bigint TenantId PK, FK
@@ -319,17 +365,21 @@ erDiagram
         jsonb WebHookSettingsJson
         jsonb CustomExportsJson
         boolean RequireFolderAssignment
+        boolean AllowSelfRegistration
+        text AllowedAuthProviderKeysJson
+        character_varying_100_ DefaultRegistrationRoleName
     }
     "public.TenantSettings" }o--|| "public.Tenants" : FK_TenantSettings_Tenants_TenantId
 
     "public.Tenants" {
         bigint Id PK
         character_varying_100_ Name
-        text Description
+        character_varying_500_ Description
         timestamp_with_time_zone CreatedAt
         timestamp_with_time_zone ModifiedAt
         timestamp_with_time_zone DeletedAt
         boolean IsDeleted
+        character_varying_8_ ShortUrl UK
     }
 
     "public.Themes" {
@@ -352,22 +402,6 @@ This schema supports authentication and authorization
 
 ```mermaid
 erDiagram
-    "identity.RoleClaims" {
-        integer Id PK
-        bigint RoleId FK
-        text ClaimType
-        text ClaimValue
-    }
-    "identity.RoleClaims" }o--|| "identity.Roles" : FK_RoleClaims_Roles_RoleId
-
-    "identity.UserClaims" {
-        integer Id PK
-        bigint UserId FK
-        text ClaimType
-        text ClaimValue
-    }
-    "identity.UserClaims" }o--|| "identity.Users" : FK_UserClaims_Users_UserId
-
     "identity.EmailVerificationTokens" {
         bigint Id PK
         bigint UserId FK
@@ -394,6 +428,14 @@ erDiagram
         boolean IsDeleted
     }
 
+    "identity.RoleClaims" {
+        integer Id PK
+        bigint RoleId FK
+        text ClaimType
+        text ClaimValue
+    }
+    "identity.RoleClaims" }o--|| "identity.Roles" : FK_RoleClaims_Roles_RoleId
+
     "identity.RolePermissions" {
         bigint Id PK
         bigint RoleId FK
@@ -419,6 +461,14 @@ erDiagram
         boolean IsSystemDefined
         bigint TenantId
     }
+
+    "identity.UserClaims" {
+        integer Id PK
+        bigint UserId FK
+        text ClaimType
+        text ClaimValue
+    }
+    "identity.UserClaims" }o--|| "identity.Users" : FK_UserClaims_Users_UserId
 
     "identity.UserLogins" {
         text LoginProvider
@@ -462,9 +512,12 @@ erDiagram
         boolean LockoutEnabled
         integer AccessFailedCount
         bigint TenantId
+        character_varying_64_ AuthProvider
+        character_varying_256_ DisplayName
+        text ExternalRolesJson
+        character_varying_256_ ExternalSubjectId
+        timestamp_with_time_zone LastLoginAt
     }
-
-
 ```
 
 ## Codebase Organization and Dependencies
