@@ -75,16 +75,22 @@ internal sealed class JobAttemptClaimer(
 /// </param>
 internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming)
 {
-    public static JobFiring Of(IJobExecutionContext context)
+    /// <summary>The firing, or <see langword="null"/> when its trigger carries no job id.</summary>
+    public static JobFiring? TryOf(IJobExecutionContext context)
     {
         var data = context.MergedJobDataMap;
+        if (!long.TryParse(
+                data.GetString(BackgroundJobExecution.JobIdKey),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var jobId))
+        {
+            return null;
+        }
+
         var reclaim = string.Equals(
             data.GetString(BackgroundJobExecution.ReclaimKey), bool.TrueString, StringComparison.OrdinalIgnoreCase);
-
-        return new JobFiring(
-            long.Parse(data.GetString(BackgroundJobExecution.JobIdKey)!, CultureInfo.InvariantCulture),
-            context.JobDetail.Key.Name,
-            context.Recovering || reclaim);
+        return new JobFiring(jobId, context.JobDetail.Key.Name, context.Recovering || reclaim);
     }
 }
 

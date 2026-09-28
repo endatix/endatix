@@ -1,3 +1,4 @@
+using System.Globalization;
 using Endatix.Core.Abstractions;
 using Microsoft.Extensions.Logging;
 using Quartz;
@@ -20,38 +21,47 @@ internal sealed class JobFiringAdmission(
     /// </summary>
     public async Task<JobFiring?> AdmitAsync(IJobExecutionContext context, CancellationToken cancellationToken)
     {
-        // Backstop only: the node's execution limits keep it from acquiring a job type it has no handler for. A
-        // node that fired one anyway must neither fail nor complete it, so the row is left untouched and the
-        // trigger waits for a node that can run it.
-        if (!registry.Contains(context.JobDetail.Key.Name))
+        // Every trigger Endatix schedules carries the id, but an operator can fire a durable job by hand from the
+        // dashboard, and such a firing names no row to run.
+        if (JobFiring.TryOf(context) is not { } firing)
         {
-            await DeclineAsync(context, cancellationToken);
+            logger.LogWarning(
+                "A firing of background job type {JobType} carried no job id and was ignored",
+                context.JobDetail.Key.Name);
             return null;
         }
 
-        return JobFiring.Of(context);
+        // Backstop only: the node's execution limits keep it from acquiring a job type it has no handler for. A
+        // node that fired one anyway must neither fail nor complete it, so the row is left untouched and the
+        // trigger waits for a node that can run it.
+        if (!registry.Contains(firing.JobType))
+        {
+            await DeclineAsync(context, firing, cancellationToken);
+            return null;
+        }
+
+        return firing;
     }
 
-    private async Task DeclineAsync(IJobExecutionContext context, CancellationToken cancellationToken)
+    private async Task DeclineAsync(IJobExecutionContext context, JobFiring firing, CancellationToken cancellationToken)
     {
         var fireAgainAt = dateTimeProvider.UtcNow.Add(DeclineDelay);
-        var jobIdText = context.MergedJobDataMap.GetString(BackgroundJobExecution.JobIdKey)!;
         logger.LogWarning(
             "Background job {JobId} of type {JobType} fired on a node without its handler; offering it again at {FireAgainAt:O}",
-            jobIdText,
-            context.JobDetail.Key.Name,
+            firing.JobId,
+            firing.JobType,
             fireAgainAt);
         await context.Scheduler.RescheduleJob(
-            context.Trigger.Key, SameTriggerAt(context, jobIdText, fireAgainAt), cancellationToken);
+            context.Trigger.Key, SameTriggerAt(context, firing.JobId, fireAgainAt), cancellationToken);
     }
 
-    private static ITrigger SameTriggerAt(IJobExecutionContext context, string jobIdText, DateTimeOffset fireAgainAt)
+    private static ITrigger SameTriggerAt(IJobExecutionContext context, long jobId, DateTimeOffset fireAgainAt)
     {
         var again = TriggerBuilder.Create()
             .WithIdentity(context.Trigger.Key)
             .ForJob(context.JobDetail.Key)
             .WithExecutionGroup(context.Trigger.ExecutionGroup)
-            .UsingJobData(BackgroundJobExecution.JobIdKey, jobIdText)
+            .UsingJobData(BackgroundJobExecution.JobIdKey, jobId.ToString(CultureInfo.InvariantCulture))
             .StartAt(fireAgainAt);
         return context.Trigger.RetryPolicy is { } retryPolicy
             ? again.WithRetryPolicy(retryPolicy).Build()

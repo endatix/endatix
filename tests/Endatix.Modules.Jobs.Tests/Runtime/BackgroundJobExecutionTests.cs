@@ -347,6 +347,25 @@ public sealed class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_FiringWithoutJobId_TouchesNothing()
+    {
+        // Arrange — a durable job fired by hand carries no job id.
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        await using var provider = Services(repository, new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = FiringOf(JobId);
+        context.MergedJobDataMap.Returns(new JobDataMap());
+
+        // Act
+        var act = async () => await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        await act.Should().NotThrowAsync();
+        repository.ReceivedCalls().Should().BeEmpty();
+        context.Scheduler.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public void Resolve_ClaimedRow_CopiesRowFields()
     {
         // Arrange
