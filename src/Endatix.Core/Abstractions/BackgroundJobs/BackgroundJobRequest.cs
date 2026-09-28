@@ -4,6 +4,11 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// One job to enqueue. Used both for a single <see cref="IBackgroundJobQueue.EnqueueAsync"/> and as
 /// the element type of a fan-out batch.
 /// </summary>
+/// <remarks>
+/// Feature code builds a request with <see cref="Create{TPayload}"/>, which takes the job type from the
+/// payload and serializes it with the one shared serializer. The positional constructor is for generic
+/// infrastructure that enqueues without knowing the payload type at compile time.
+/// </remarks>
 /// <param name="JobType">
 /// Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>. A string rather
 /// than an enum so handlers can be contributed by assemblies this one does not reference.
@@ -18,11 +23,41 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// </param>
 /// <param name="ExpiresAt">
 /// When the job row and any artifact it produced become collectable. <c>null</c> lets the retention
-/// sweeper apply the configured default for the job type.
+/// job apply the configured default for the job type.
+/// </param>
+/// <param name="DedupKey">
+/// Optional identity of the unit of work, unique within a tenant and job type. When set, enqueueing the
+/// same key again returns the job that already exists instead of creating a second one. It must name the
+/// work, not the attempt, so it never contains a timestamp or a counter.
 /// </param>
 public sealed record BackgroundJobRequest(
     string JobType,
     string PayloadJson,
     long TenantId,
     long? CreatedByUserId = null,
-    DateTime? ExpiresAt = null);
+    DateTime? ExpiresAt = null,
+    string? DedupKey = null)
+{
+    /// <summary>
+    /// Builds a request for <paramref name="payload"/>, taking the job type from the payload type and the
+    /// stored input from <see cref="BackgroundJobPayloadSerializer"/>.
+    /// </summary>
+    public static BackgroundJobRequest Create<TPayload>(
+        TPayload payload,
+        long tenantId,
+        long? createdByUserId = null,
+        DateTime? expiresAt = null,
+        string? dedupKey = null)
+        where TPayload : IBackgroundJobPayload
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+
+        return new BackgroundJobRequest(
+            TPayload.JobType,
+            BackgroundJobPayloadSerializer.Serialize(payload),
+            tenantId,
+            createdByUserId,
+            expiresAt,
+            dedupKey);
+    }
+}
