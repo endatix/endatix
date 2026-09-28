@@ -51,15 +51,17 @@ This split keeps the implementation small and avoids surprising API consumers du
 
 Defaults are generic (“scheduled maintenance”, no promotional URLs or migration messaging). Override these if you need locale- or tenant-specific wording.
 
-| Variable                           | Description                                   |
-| ---------------------------------- | --------------------------------------------- |
-| `MAINTENANCE_BADGE_LABEL`          | Short badge text (for example “Maintenance”). |
-| `MAINTENANCE_TITLE`                | Main heading.                                 |
-| `MAINTENANCE_CARD_DESCRIPTION`     | Subtitle under the heading.                   |
-| `MAINTENANCE_BODY`                 | Primary paragraph.                            |
-| `MAINTENANCE_FOOTER`               | Closing line (for example a thank-you).       |
-| `MAINTENANCE_METADATA_TITLE`       | HTML `<title>` / metadata title.              |
-| `MAINTENANCE_METADATA_DESCRIPTION` | Meta description for SEO and previews.        |
+| Variable                           | Description                                                        |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `MAINTENANCE_TITLE`                | Main heading.                                                      |
+| `MAINTENANCE_CARD_DESCRIPTION`     | First paragraph under the heading.                                 |
+| `MAINTENANCE_BODY`                 | Second paragraph.                                                  |
+| `MAINTENANCE_FOOTER`               | Quieter closing line (for example a thank-you).                    |
+| `MAINTENANCE_METADATA_TITLE`       | HTML `<title>` / metadata title. Default: “Scheduled maintenance”. |
+| `MAINTENANCE_METADATA_DESCRIPTION` | Meta description for SEO and previews.                             |
+| `MAINTENANCE_BADGE_LABEL`          | **Deprecated, ignored.** The page no longer shows a badge.         |
+
+The maintenance page is also what respondents see on embedded forms and submission links while maintenance is on, so it carries no Endatix branding beyond an optional “Powered by Endatix” line (`ENDATIX_SHOW_POWERED_BY`). It follows the visitor's light or dark system setting.
 
 ## HTTP status and Next.js
 

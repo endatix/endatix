@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Api;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Exceptions;
 using Microsoft.AspNetCore.Http;
@@ -30,7 +31,7 @@ public class EndatixExceptionHandlerTests
         // Assert
         handled.Should().BeTrue();
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
-        httpContext.Response.ContentType.Should().Be("application/problem+json");
+        httpContext.Response.ContentType.Should().StartWith(HttpConstants.ContentType.ProblemDetails);
 
         httpContext.Response.Body.Seek(0, SeekOrigin.Begin);
         using var document = await JsonDocument.ParseAsync(

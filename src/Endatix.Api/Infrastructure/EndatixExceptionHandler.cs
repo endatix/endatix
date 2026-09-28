@@ -1,6 +1,8 @@
+using Endatix.Api;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using static Endatix.Api.Infrastructure.ResultExtensions;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -29,13 +31,11 @@ public sealed class EndatixExceptionHandler(ILogger<EndatixExceptionHandler> log
             return false;
         }
 
-        var problem = EndatixProblemDetails.ForUnhandledException(httpContext);
-        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        await httpContext.Response.WriteAsJsonAsync(
-            problem,
-            options: null,
-            contentType: "application/problem+json",
-            cancellationToken);
+        await httpContext.WriteEndatixProblemAsync(
+            StatusCodes.Status500InternalServerError,
+            title: ResultTitles.INTERNAL_SERVER_ERROR,
+            detail: ResultTitles.INTERNAL_SERVER_ERROR,
+            cancellationToken: cancellationToken);
 
         return true;
     }

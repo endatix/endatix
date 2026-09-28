@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Endatix.Api;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using FluentValidation.Results;
@@ -45,7 +47,7 @@ public class EndatixProblemDetailsTests
         fields.Should().ContainKey("Name");
         fields["Name"].Should().HaveCount(2);
         fields.Should().ContainKey("IsEnabled");
-        httpContext.Response.ContentType.Should().Be("application/problem+json");
+        httpContext.Response.ContentType.Should().Be(HttpConstants.ContentType.ProblemDetails);
     }
 
     [Fact]
@@ -64,6 +66,48 @@ public class EndatixProblemDetailsTests
         problem.Detail.Should().Be(ResultTitles.BAD_REQUEST);
         problem.Extensions.Should().NotContainKey("fields");
         problem.Extensions.Should().NotContainKey("errorCode");
+    }
+
+    [Fact]
+    public async Task WriteEndatixProblemAsync_FormUnavailable_WritesProblemJson()
+    {
+        // Arrange
+        var httpContext = CreateHttpContext("/api/public/forms/1/access", "trace-deny");
+
+        // Act
+        await httpContext.WriteEndatixProblemAsync(
+            StatusCodes.Status403Forbidden,
+            title: "This survey is no longer available.",
+            detail: "Thank you for your interest. Unfortunately, this survey can no longer be completed.",
+            errorCode: EndatixProblemCodes.FORM_UNAVAILABLE);
+
+        // Assert
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        httpContext.Response.ContentType.Should().StartWith(HttpConstants.ContentType.ProblemDetails);
+        using var document = await ReadProblemAsync(httpContext);
+        document.RootElement.GetProperty("title").GetString().Should().Be("This survey is no longer available.");
+        document.RootElement.GetProperty("detail").GetString().Should().Be(
+            "Thank you for your interest. Unfortunately, this survey can no longer be completed.");
+        document.RootElement.GetProperty("errorCode").GetString().Should().Be(EndatixProblemCodes.FORM_UNAVAILABLE);
+        document.RootElement.GetProperty("traceId").GetString().Should().Be("trace-deny");
+    }
+
+    [Fact]
+    public async Task WriteEndatixProblemAsync_ServerError_ScrubsDetail()
+    {
+        // Arrange
+        var httpContext = CreateHttpContext("/api/forms/1/submissions/export", "trace-500");
+
+        // Act
+        await httpContext.WriteEndatixProblemAsync(
+            StatusCodes.Status500InternalServerError,
+            title: "Export failed",
+            detail: "connection string leaked");
+
+        // Assert
+        using var document = await ReadProblemAsync(httpContext);
+        document.RootElement.GetProperty("detail").GetString().Should().Be("Export failed");
+        document.RootElement.GetProperty("detail").GetString().Should().NotContain("connection string");
     }
 
     [Fact]
@@ -221,6 +265,12 @@ public class EndatixProblemDetailsTests
     }
 
     #endregion
+
+    private static async Task<JsonDocument> ReadProblemAsync(DefaultHttpContext httpContext)
+    {
+        httpContext.Response.Body.Position = 0;
+        return await JsonDocument.ParseAsync(httpContext.Response.Body);
+    }
 
     private static DefaultHttpContext CreateHttpContext(string path, string traceId)
     {

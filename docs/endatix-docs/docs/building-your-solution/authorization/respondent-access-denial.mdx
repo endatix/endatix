@@ -1,0 +1,41 @@
+---
+sidebar_position: 2
+title: Respondent access denial
+description: Return a 403 problem response so Hub shows your title and detail when a respondent cannot open a public form.
+---
+
+# Respondent access denial
+
+Hub asks `GET /api/public/forms/{formId}/access` before it loads a share or embed form. Deny that call when this respondent must not see the form. Hub then skips the submission and the form definition.
+
+## Response
+
+Status **403**. Content type `application/problem+json`. Hub shows your `title` and `detail` only when `errorCode` is `form_unavailable`. Any other 403, including an empty body, stays on the generic access-denied page and does not print `detail`.
+
+```json
+{
+  "status": 403,
+  "title": "This survey is no longer available.",
+  "detail": "Thank you for your interest. Unfortunately, this survey can no longer be completed.",
+  "errorCode": "form_unavailable"
+}
+```
+
+`title` and `detail` are plain text. Hub strips markup and keeps at most 240 characters of each. Write them in the request language yourself (`IStringLocalizer` or equivalent). SurveyJS locales do not apply, because the survey never loads. Hub forwards the incoming `Accept-Language` header on this call.
+
+Register the middleware **before** `app.UseEndatix()`. `UseEndatix()` maps the API endpoints, and middleware added after that does not see those requests.
+
+Write the body with `WriteEndatixProblemAsync` from `Endatix.Api`. It sets the status and `application/problem+json`, and adds `type`, `instance`, and `traceId`. Pass localized `title` and `detail`. Use `EndatixProblemCodes.FORM_UNAVAILABLE` for the code.
+
+```csharp
+await context.WriteEndatixProblemAsync(
+    StatusCodes.Status403Forbidden,
+    title: localizer["This survey is no longer available."],
+    detail: localizer["Thank you for your interest. Unfortunately, this survey can no longer be completed."],
+    errorCode: EndatixProblemCodes.FORM_UNAVAILABLE,
+    cancellationToken: context.RequestAborted);
+```
+
+A sample that always denies public form access is `samples/Endatix.Samples.SelfHosted/FormUnavailableSampleMiddleware.cs`. It is not registered. Copy the call into the check that decides the respondent is not allowed.
+
+Filtering form lists, folders, or exports is separate. This contract is only the public form access call.
