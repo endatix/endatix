@@ -112,15 +112,17 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
             cancellationToken);
         var triggersWhileOnlyScheduling = await TriggerCountAsync(database, jobIds, cancellationToken);
         await worker.StartAsync(cancellationToken);
-        var fired = await JobsTestWait.UntilAsync(
-            async () => await TriggerCountAsync(database, jobIds, cancellationToken) == 0,
+        var completed = await JobsTestWait.UntilAsync(
+            async () => await database.CountAsync(
+                $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "Status" = 3 AND "Id" IN ({jobIds.IdList()})""",
+                cancellationToken) == 3,
             StartupTimeout,
             cancellationToken);
 
         // Assert
         pendingRows.Should().Be(3);
         triggersWhileOnlyScheduling.Should().Be(3);
-        fired.Should().BeTrue("the executing node fires every trigger the schedule-only node wrote");
+        completed.Should().BeTrue("the executing node runs every job the schedule-only node enqueued");
     }
 
     private static async Task<List<long>> EnqueueAsync(JobsTestNode node, int count, CancellationToken cancellationToken)

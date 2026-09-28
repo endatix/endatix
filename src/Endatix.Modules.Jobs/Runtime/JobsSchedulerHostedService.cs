@@ -29,6 +29,7 @@ internal sealed class JobsSchedulerHostedService(
     IConfiguration configuration,
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
+    JobsShutdownSignal shutdownSignal,
     ILogger<JobsSchedulerHostedService> logger) : IHostedService, IDisposable
 {
     private static readonly TimeSpan UnreachableRetryDelay = TimeSpan.FromSeconds(5);
@@ -61,8 +62,16 @@ internal sealed class JobsSchedulerHostedService(
 
         if (_scheduler is not null)
         {
-            await _scheduler.Shutdown(waitForJobsToComplete: true, cancellationToken);
+            // Running jobs get a bounded time to finish and record their outcome. When it is up the scheduler
+            // lets go of the rest, which leaves them for recovery on the next node to check in.
+            using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            wait.CancelAfter(TimeSpan.FromSeconds(options.Value.ShutdownWaitSeconds));
+            await _scheduler.Shutdown(waitForJobsToComplete: true, wait.Token);
         }
+
+        // Only now, with the scheduler no longer listening, are the jobs still running told to stop: they record
+        // nothing, and the firing the scheduler abandoned is what runs them again.
+        shutdownSignal.Raise();
     }
 
     /// <summary>

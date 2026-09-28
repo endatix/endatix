@@ -1,3 +1,5 @@
+using Endatix.Core.Abstractions.BackgroundJobs;
+
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
@@ -11,10 +13,26 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </remarks>
 internal interface IBackgroundJobStateRepository
 {
+    /// <summary>
+    /// Claims the job for a new attempt. With <paramref name="recovering"/>, a row still <c>Processing</c> under
+    /// the attempt it was read at is claimed again; otherwise only a <c>Pending</c> or <c>Retrying</c> row is.
+    /// </summary>
     Task<ClaimedJob?> TryClaimAsync(
         long jobId,
         IReadOnlyCollection<string> registeredJobTypes,
         DateTime utcNow,
+        bool recovering = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>The job's current status, or <see langword="null"/> when the row is gone.</summary>
+    Task<JobStatus?> ReadStatusAsync(long jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Records when the scheduler will run a <c>Retrying</c> job next, for the status endpoint to show.
+    /// </summary>
+    Task<bool> TryMirrorNextAttemptAsync(
+        long jobId,
+        DateTime nextAttemptAt,
         CancellationToken cancellationToken = default);
 
     Task<bool> TryCompleteAsync(

@@ -80,6 +80,20 @@ internal sealed class JobsTestNode : IAsyncDisposable
         await _host.StopAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Stops the node the way a crash does, as far as the rest of the cluster can tell: its scheduler lets go of
+    /// running jobs without waiting, and nothing of the host's own shutdown runs.
+    /// </summary>
+    public async Task KillAsync()
+    {
+        var scheduler = await Services
+            .GetRequiredKeyedService<Quartz.ISchedulerFactory>(Endatix.Modules.Jobs.Runtime.QuartzRegistration.SchedulerName)
+            .GetScheduler();
+        await scheduler.Shutdown(waitForJobsToComplete: false);
+        _stopped = true;
+        _host.Dispose();
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (!_stopped)

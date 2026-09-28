@@ -175,6 +175,38 @@ Each job type the host has a handler for gets one durable Quartz job, which requ
 so a job cut off by a stopped or crashed node runs again on another. Every node sharing the
 store must run the same Quartz version, and nodes' clocks must agree within about a second.
 
+### Execution
+
+`BackgroundJobExecution` is the only Quartz job class. For each firing it:
+
+1. **Claims** the row with a compare-and-swap from `Pending`/`Retrying` to `Processing` that
+   increments `AttemptCount`. When Quartz reports a recovered firing, it re-claims the row from
+   `Processing`, fenced on the attempt it read. A claim that changes nothing ends the firing.
+2. Runs the handler in its own DI scope, under an `Endatix.Jobs` activity whose parent is the
+   trace captured at enqueue, with one token linked from the runtime ceiling
+   (`MaxRuntimeMinutes`), the cancellation watcher and the host's shutdown.
+3. **Records the outcome** with a write fenced on the claimed attempt:
+
+| Handler | Row | Quartz |
+|---------|-----|--------|
+| returns success | `Completed` | done |
+| returns a failure `Result` | `Failed`, with its message | done, no retry |
+| throws, attempts left | `Retrying` | the trigger's retry policy schedules the next attempt |
+| throws, attempts spent | `DeadLettered`, with a safe message | done |
+| row set to `Canceled` meanwhile | stays `Canceled` | done |
+| host stopped waiting for it | stays `Processing`, nothing written | re-run on the next node to check in |
+
+The row's `AttemptCount`, not Quartz's retry counter, decides dead-lettering: a run recovered after
+a crash consumes an attempt Quartz never counts. Exception text never reaches `ErrorMessage`.
+After Quartz schedules a retry, `NextAttemptAt` mirrors the trigger's next fire time.
+
+**Shutdown.** A stopping host gives running jobs `ShutdownWaitSeconds` to finish and record their
+outcome. Jobs still running then are left as they are: their handlers are told to stop, nothing is
+recorded, and Quartz re-runs them on the next node to check in.
+
+**Cancellation.** Setting a row to `Canceled` reaches a running handler through the wrapper's
+watcher, which re-reads the status every `CancellationPollSeconds`, on whichever node runs the job.
+
 `IJobMetrics` is public so a host can replace it. The default records on the `Endatix.Jobs`
 meter (`JobsModule.MeterName`), and `EndatixTelemetryBuilder` subscribes the host's metrics
 pipeline to it.
@@ -193,6 +225,7 @@ Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{Job
 | `RunInProcess` | `true` | Whether this host executes jobs |
 | `IdleWaitTimeSeconds` | `2` | How long an idle node waits before looking for jobs another node scheduled |
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
+| `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type) |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |

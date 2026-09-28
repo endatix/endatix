@@ -17,6 +17,7 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         long jobId,
         IReadOnlyCollection<string> registeredJobTypes,
         DateTime utcNow,
+        bool recovering = false,
         CancellationToken cancellationToken = default)
     {
         if (registeredJobTypes.Count == 0)
@@ -42,8 +43,11 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             return null;
         }
 
-        var claimed = await TryClaimAtAttemptAsync(
-            jobId, observed.AttemptCount, registeredJobTypes, utcNow, cancellationToken);
+        // A recovered run finds the row still Processing under the claim of the run that died; it takes a new
+        // attempt fenced on the one it saw, so a run that was only presumed dead can no longer record anything.
+        var claimed = recovering && observed.Status == JobStatus.Processing
+            ? await TryReclaimAtAttemptAsync(jobId, observed.AttemptCount, registeredJobTypes, cancellationToken)
+            : await TryClaimAtAttemptAsync(jobId, observed.AttemptCount, registeredJobTypes, utcNow, cancellationToken);
 
         return claimed
             ? observed with { AttemptCount = observed.AttemptCount + 1, Status = JobStatus.Processing }
@@ -122,6 +126,40 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
 
         return affected == 1;
     }
+
+    private async Task<bool> TryReclaimAtAttemptAsync(
+        long jobId,
+        int seenAttemptCount,
+        IReadOnlyCollection<string> registeredJobTypes,
+        CancellationToken cancellationToken)
+    {
+        var affected = await dbContext.BackgroundJobs
+            .Where(job => job.Id == jobId
+                && job.AttemptCount == seenAttemptCount
+                && job.Status == JobStatus.Processing
+                && registeredJobTypes.Contains(job.JobType))
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(job => job.AttemptCount, job => job.AttemptCount + 1),
+                cancellationToken);
+
+        return affected == 1;
+    }
+
+    public async Task<JobStatus?> ReadStatusAsync(long jobId, CancellationToken cancellationToken = default) =>
+        await dbContext.BackgroundJobs
+            .AsNoTracking()
+            .Where(job => job.Id == jobId)
+            .Select(job => (JobStatus?)job.Status)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<bool> TryMirrorNextAttemptAsync(
+        long jobId,
+        DateTime nextAttemptAt,
+        CancellationToken cancellationToken = default) =>
+        await dbContext.BackgroundJobs
+            .Where(job => job.Id == jobId && job.Status == JobStatus.Retrying)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(job => job.NextAttemptAt, nextAttemptAt), cancellationToken)
+        == 1;
 
     // Neither branch changes the attempt count: the claim that started the attempt consumed it.
     private static Action<UpdateSettersBuilder<BackgroundJob>> FailedAttemptSetters(

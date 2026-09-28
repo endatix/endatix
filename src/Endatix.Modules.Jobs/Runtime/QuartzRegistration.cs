@@ -1,6 +1,7 @@
 using Endatix.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Quartz;
 using Quartz.Impl;
@@ -89,6 +90,10 @@ internal static class QuartzRegistration
         var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
         services.AddScoped<BackgroundJobExecution>();
+        services.AddSingleton<JobsShutdownSignal>();
+        services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
+        services.AddMetrics();
+        services.TryAddSingleton<IJobMetrics, MeterJobMetrics>();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
 
@@ -116,6 +121,8 @@ internal static class QuartzRegistration
                 // never cancels a running job through the scheduler.
                 scheduler.ShutdownJobInterruption = ShutdownJobInterruption.Never;
             });
+
+            quartz.AddTriggerListener<JobTriggerListener>();
 
             if (options.RunInProcess)
             {

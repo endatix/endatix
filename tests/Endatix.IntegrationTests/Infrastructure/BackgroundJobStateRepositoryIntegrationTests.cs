@@ -56,7 +56,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
+        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
 
         // Assert
         claimed.Should().NotBeNull();
@@ -80,10 +80,10 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         await ClearJobsAsync(context, cancellationToken);
         var jobId = await SeedAsync(context, cancellationToken, nextAttemptAt: Now);
         var repository = new BackgroundJobStateRepository(context);
-        (await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken)).Should().NotBeNull();
+        (await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken)).Should().NotBeNull();
 
         // Act
-        var reclaimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
+        var reclaimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
 
         // Assert
         reclaimed.Should().BeNull();
@@ -109,7 +109,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
+        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
 
         // Assert
         claimed.Should().NotBeNull();
@@ -129,13 +129,42 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimedCanceled = await repository.TryClaimAsync(canceledId, RegisteredJobTypes, Now, cancellationToken);
+        var claimedCanceled = await repository.TryClaimAsync(canceledId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
 
         // Assert
         claimedCanceled.Should().BeNull();
         var canceled = await ReadAsync(context, canceledId, cancellationToken);
         canceled.AttemptCount.Should().Be(0);
         canceled.ModifiedAt.Should().Be(SeededModifiedAt);
+    }
+
+    [Fact]
+    public async Task TryClaimAsync_RecoveringProcessingRow_ReclaimsFencedOnSeenAttempt()
+    {
+        // Arrange — a run died while Processing; its recovery takes a new attempt.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var jobId = await SeedAsync(
+            context, cancellationToken, status: JobStatus.Processing, attemptCount: 1, startedAt: Earlier);
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var notRecovering = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
+        var recovered = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, recovering: true, cancellationToken);
+        var deadRunCompleted = await repository.TryCompleteAsync(jobId, 1, Now, cancellationToken);
+
+        // Assert — the presumed-dead run's attempt is fenced off, so it can no longer record an outcome.
+        notRecovering.Should().BeNull();
+        recovered.Should().NotBeNull();
+        recovered!.AttemptCount.Should().Be(2);
+        deadRunCompleted.Should().BeFalse();
+        var job = await ReadAsync(context, jobId, cancellationToken);
+        job.Status.Should().Be(JobStatus.Processing);
+        job.AttemptCount.Should().Be(2);
+        job.StartedAt.Should().Be(Earlier);
     }
 
     [Fact]
@@ -151,7 +180,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
+        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
 
         // Assert — left untouched, so an instance that handles the type still has the full attempt budget.
         claimed.Should().BeNull();
@@ -182,7 +211,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
+        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
 
         // Assert
         claimed.Should().NotBeNull();
@@ -211,8 +240,8 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
 
         // Act
         var claims = await Task.WhenAll(
-            first.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken),
-            second.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken));
+            first.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken),
+            second.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken));
 
         // Assert
         claims.Should().ContainSingle(claimed => claimed != null)
@@ -248,7 +277,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
 
         // Act
         var claim = Task.Run(
-            () => repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken),
+            () => repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken),
             cancellationToken);
         await WaitForUpdateBlockedByAsync(context, lockHolderPid, claim, cancellationToken);
 
