@@ -5,12 +5,14 @@ namespace Endatix.Core.Tests.Abstractions.BackgroundJobs;
 
 public sealed class BackgroundJobHandlerTests
 {
-    [Fact]
-    public async Task ExecuteAsync_WithUnreadablePayload_ReturnsFailureWithoutCallingHandler()
+    [Theory]
+    [InlineData("{not json")]
+    [InlineData("{}")]
+    public async Task ExecuteAsync_WithUnreadablePayload_ReturnsFailureWithoutCallingHandler(string payloadJson)
     {
         // Arrange
         var handler = new RecordingHandler();
-        var job = new BackgroundJobContext(1, "Test", 5, "{not json", 1);
+        var job = new BackgroundJobContext(1, "Test", 5, payloadJson, 1);
 
         // Act
         var result = await handler.ExecuteAsync(job, CancellationToken.None);
