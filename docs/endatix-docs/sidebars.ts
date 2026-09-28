@@ -126,7 +126,7 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Endatix API",
-      collapsed: true,
+      collapsed: false,
       items: [
         "developers/api/index",
         "developers/api/email-providers",
@@ -144,7 +144,7 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Endatix Hub",
-      collapsed: true,
+      collapsed: false,
       items: [
         "developers/hub/index",
         "developers/hub/environment",
