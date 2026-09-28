@@ -116,6 +116,27 @@ public sealed class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_HandlerSucceedsAsShutdownStarts_RecordsCompletion()
+    {
+        // Arrange — the host stops waiting just as the handler finishes its work.
+        var observed = new ObservedRun { RaiseShutdown = true };
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository
+            .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), false, Arg.Any<CancellationToken>())
+            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 1, null, JobStatus.Processing));
+        repository.TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
+        await using var provider = Services(repository, observed);
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+
+        // Act
+        await execution.Execute(FiringOf(JobId), TestContext.Current.CancellationToken);
+
+        // Assert — recorded, so recovery does not run the finished work again.
+        provider.GetRequiredService<JobsShutdownSignal>().IsRaised.Should().BeTrue();
+        await repository.Received(1).TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), CancellationToken.None);
+    }
+
+    [Fact]
     public void Resolve_ClaimedRow_CopiesRowFields()
     {
         // Arrange
@@ -167,9 +188,12 @@ public sealed class BackgroundJobExecutionTests
         public long ContextTenantId { get; set; } = -1;
 
         public long AmbientTenantId { get; set; } = -1;
+
+        public bool RaiseShutdown { get; init; }
     }
 
-    private sealed class TenantObservingHandler(ObservedRun observed, ITenantContext ambient) : IBackgroundJobHandler
+    private sealed class TenantObservingHandler(ObservedRun observed, ITenantContext ambient, JobsShutdownSignal shutdown)
+        : IBackgroundJobHandler
     {
         public string JobType => BackgroundJobExecutionTests.JobType;
 
@@ -177,6 +201,11 @@ public sealed class BackgroundJobExecutionTests
         {
             observed.ContextTenantId = job.TenantId;
             observed.AmbientTenantId = ambient.TenantId;
+            if (observed.RaiseShutdown)
+            {
+                shutdown.Raise();
+            }
+
             return Task.FromResult(Result.Success());
         }
     }

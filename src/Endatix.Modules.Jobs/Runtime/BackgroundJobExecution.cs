@@ -175,10 +175,13 @@ internal sealed class BackgroundJobExecution(
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
         }
 
+        // A handler that returned success did its work whenever the shutdown came, so it is recorded: leaving it
+        // for recovery would run that work a second time.
+        var succeeded = thrown is null && result!.IsSuccess;
         var end = watcher.SawCancellation ? AttemptEnd.Canceled
+            : succeeded ? AttemptEnd.Succeeded
             : shutdownSignal.IsRaised || schedulerToken.IsCancellationRequested ? AttemptEnd.HostShutdown
             : thrown is not null ? AttemptEnd.Threw
-            : result!.IsSuccess ? AttemptEnd.Succeeded
             : AttemptEnd.ReturnedFailure;
 
         return (end, result, thrown, runtime.IsCancellationRequested);
