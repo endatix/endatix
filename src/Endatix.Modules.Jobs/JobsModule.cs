@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
+using Endatix.Modules.Jobs.Endpoints;
 using Endatix.Modules.Jobs.Features;
 using Endatix.Modules.Jobs.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,5 +62,7 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
             sp.GetRequiredService<JobsPostgreSqlDbContext>());
 
         builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
+
+        builder.Services.AddJobsControllers();
     }
 }
