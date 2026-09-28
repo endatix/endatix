@@ -32,7 +32,7 @@ Hub calls `GET /api/public/forms/{formId}/access` before a share or embed form. 
 
 - Status **403** and content type `application/problem+json`.
 - `errorCode` is `form_unavailable`.
-- Both `title` and `detail` are still non-empty after Hub strips tags, collapses whitespace, and keeps at most 240 characters of each.
+- Both `title` and `detail` are still non-empty after Hub collapses whitespace and keeps at most 240 characters of each. Content type is `application/problem+json`. Hub renders the strings as text.
 
 `title` is the heading. `detail` is the sentence under it. The page does not show the status code.
 
