@@ -262,6 +262,21 @@ pipeline to it.
 | `endatix.jobs.events` | counter | `{event}` | `endatix.job.type`, `endatix.job.event` |
 | `endatix.jobs.duration` | histogram | `s` | `endatix.job.type`, `endatix.job.outcome` |
 
+## Outbox delivery to jobs
+
+With `Endatix:Outbox:DeliverToJobQueue` on (default `false`), the outbox relay delivers each message
+by enqueuing one job per subscriber — one `WebHookDelivery` job per configured endpoint, one job per
+Reporting handler — with the dedup key `{outboxMessageId}:{subscriber}`, and marks it sent. Modules
+register their subscriptions with `AddOutboxJobSubscription` next to their job handlers.
+
+- Every host that runs the outbox relay must register every module that subscribes to outbox
+  events, with the same module feature flags.
+- With the switch on and this module off, the relay pauses rather than lose messages.
+- Startup fails while an inline outbox handler's event has no job subscription from its module.
+- The switch needs PostgreSQL: on SQL Server it stays `false`.
+
+Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
+
 ## Configuration
 
 Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{JobType}`:
