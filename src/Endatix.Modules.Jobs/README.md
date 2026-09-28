@@ -101,6 +101,12 @@ var jobId = await backgroundJobQueue.EnqueueAsync(
     cancellationToken);
 ```
 
+**Idempotent enqueue.** A request may carry a `DedupKey` naming its unit of work — for a fan-out,
+`{outboxMessageId}:{subscriber}`. It is unique per tenant and job type (a filtered unique index,
+`IX_BackgroundJobs_DedupKey`), and enqueueing a key that already exists returns the existing job's
+id without a second row or trigger, even when two enqueues race. Requests without a key never
+collide. It names the work, never the attempt: no timestamps or counters in it.
+
 Use `EnqueueManyAsync` for fan-out — one job per webhook endpoint, say. The batch commits in
 a single transaction, so a partial fan-out cannot deliver to some destinations and silently
 drop the rest.

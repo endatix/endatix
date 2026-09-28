@@ -30,5 +30,12 @@ internal sealed class BackgroundJobConfigurationPostgreSql : IEntityTypeConfigur
         // rule belongs to the data as well as the code.
         builder.ToTable(table => table.HasCheckConstraint(
             "CK_BackgroundJobs_TenantId", $"{tenantId} > 0"));
+
+        // The guarantee behind idempotent enqueue: a redelivered fan-out cannot insert a second row for the same
+        // unit of work, however the two enqueues interleave. Filtered, so callers without a key pay nothing.
+        builder.HasIndex(job => new { job.TenantId, job.JobType, job.DedupKey })
+            .IsUnique()
+            .HasDatabaseName("IX_BackgroundJobs_DedupKey")
+            .HasFilter($"\"{nameof(BackgroundJob.DedupKey)}\" IS NOT NULL");
     }
 }

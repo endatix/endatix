@@ -214,6 +214,36 @@ public class BackgroundJobQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task EnqueueManyAsync_KeyRepeatedInBatch_InsertsOneRowForBoth()
+    {
+        // Arrange
+        var keyed = Request("A") with { DedupKey = "42:A" };
+
+        // Act
+        var jobIds = await _queue.EnqueueManyAsync([keyed, keyed], TestContext.Current.CancellationToken);
+
+        // Assert
+        jobIds[0].Should().Be(jobIds[1]);
+        (await _dbContext.BackgroundJobs.CountAsync(TestContext.Current.CancellationToken)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_KeyAlreadyEnqueued_ReturnsExistingIdAndSchedulesNothing()
+    {
+        // Arrange
+        var keyed = Request("A") with { DedupKey = "42:A" };
+        var existingId = await _queue.EnqueueAsync(keyed, TestContext.Current.CancellationToken);
+        _triggerScheduler.ClearReceivedCalls();
+
+        // Act
+        var jobId = await _queue.EnqueueAsync(keyed, TestContext.Current.CancellationToken);
+
+        // Assert
+        jobId.Should().Be(existingId);
+        _triggerScheduler.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task EnqueueManyAsync_MetricsRegistered_RecordsEnqueuedPerJob()
     {
         // Arrange

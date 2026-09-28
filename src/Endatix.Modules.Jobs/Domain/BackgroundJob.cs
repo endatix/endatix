@@ -46,7 +46,8 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         DateTime nextAttemptAt,
         long? createdByUserId = null,
         DateTime? expiresAt = null,
-        string? traceId = null)
+        string? traceId = null,
+        string? dedupKey = null)
     {
         Guard.Against.NullOrWhiteSpace(jobType);
         Guard.Against.NullOrWhiteSpace(payloadJson);
@@ -63,6 +64,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         CreatedByUserId = createdByUserId;
         ExpiresAt = expiresAt;
         TraceId = traceId;
+        DedupKey = string.IsNullOrWhiteSpace(dedupKey) ? null : dedupKey;
         Status = JobStatus.Pending;
         AttemptCount = 0;
     }
@@ -130,6 +132,13 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// the async gap renders as one distributed trace.
     /// </summary>
     public string? TraceId { get; private set; }
+
+    /// <summary>
+    /// The caller's identity for the unit of work, unique within a tenant and job type, or <c>null</c> when
+    /// the caller does not deduplicate. A second enqueue of the same key returns this job instead of creating
+    /// another.
+    /// </summary>
+    public string? DedupKey { get; private set; }
 
     /// <summary>Whether this job has reached a state it can never leave.</summary>
     public bool IsTerminal => Status is JobStatus.Completed
