@@ -3,6 +3,7 @@ using System;
 using Endatix.Modules.Jobs.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -12,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(JobsPostgreSqlDbContext))]
-    [Migration("20260908144106_RequireRealTenantOnBackgroundJobs")]
-    partial class RequireRealTenantOnBackgroundJobs
+    [Migration("20260928150416_InitialBackgroundJobs")]
+    partial class InitialBackgroundJobs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,7 +30,10 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
             modelBuilder.Entity("Endatix.Modules.Jobs.Domain.BackgroundJob", b =>
                 {
                     b.Property<long>("Id")
-                        .HasColumnType("bigint");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None)
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
 
                     b.Property<int>("AttemptCount")
                         .HasColumnType("integer");
@@ -53,9 +57,6 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("HeartbeatAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -76,9 +77,6 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
 
                     b.Property<int>("ProgressPercentage")
                         .HasColumnType("integer");
-
-                    b.Property<string>("ResultJson")
-                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("timestamp with time zone");
@@ -101,14 +99,6 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
 
                     b.HasIndex("ExpiresAt")
                         .HasDatabaseName("IX_BackgroundJobs_Expiry");
-
-                    b.HasIndex("HeartbeatAt")
-                        .HasDatabaseName("IX_BackgroundJobs_Stale")
-                        .HasFilter("\"Status\" = 1");
-
-                    b.HasIndex("NextAttemptAt", "Id")
-                        .HasDatabaseName("IX_BackgroundJobs_Eligible")
-                        .HasFilter("\"Status\" IN (0, 2)");
 
                     b.HasIndex("TenantId", "Status", "CreatedAt")
                         .HasDatabaseName("IX_BackgroundJobs_Tenant");

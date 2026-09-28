@@ -14,22 +14,12 @@ namespace Endatix.Modules.Jobs.Features;
 /// Enqueues jobs by inserting rows into the queue table.
 /// </summary>
 /// <remarks>
-/// <para>
-/// A committed row is sufficient, because the sweeper discovers eligible rows independently of whoever wrote
-/// them. That is what makes enqueue safe from any caller — a request thread, an outbox relay tick, a
-/// hosted service — without any of them needing to know whether a runner exists in this process.
-/// </para>
-/// <para>
-/// After the commit, each job is also offered to this process's dispatch strategy, when one is
-/// registered, so the happy path does not wait for the next sweep. That signal is a latency optimisation
-/// only: a rejected or failed offer only delays the job until the next sweep finds it, so neither
-/// reaches the caller.
-/// </para>
+/// The rows are committed before anything is recorded against them, so a failing metrics sink can
+/// neither fail the enqueue nor change the ids the caller gets.
 /// </remarks>
 internal sealed class BackgroundJobQueue(
     IJobsDbContext dbContext,
     IDateTimeProvider dateTimeProvider,
-    IJobDispatchStrategy? dispatchStrategy = null,
     IJobMetrics? metrics = null,
     ILogger<BackgroundJobQueue>? logger = null) : IBackgroundJobQueue
 {
@@ -46,7 +36,7 @@ internal sealed class BackgroundJobQueue(
         dbContext.BackgroundJobs.Add(job);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        SignalCommitted([job]);
+        RecordEnqueued([job]);
 
         return job.Id;
     }
@@ -70,7 +60,7 @@ internal sealed class BackgroundJobQueue(
         // committed would deliver to some webhook endpoints and silently drop the rest.
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        SignalCommitted(jobs);
+        RecordEnqueued(jobs);
 
         return jobs.Select(job => job.Id).ToList();
     }
@@ -88,60 +78,17 @@ internal sealed class BackgroundJobQueue(
             createdByUserId: request.CreatedByUserId,
             expiresAt: request.ExpiresAt,
             // Captured here rather than at execution so the job carries the trace of the request that
-            // caused it; the runner re-parents onto this, making the async gap one trace instead of
+            // caused it; the job wrapper re-parents onto this, making the async gap one trace instead of
             // two orphans.
             traceId: Activity.Current?.Id);
     }
 
-    // The rows are already committed, so nothing from here on may throw into the caller or change the ids it gets.
-    // Every offer is made before any metric is recorded, so a slow host-supplied metrics sink cannot delay dispatch.
-    private void SignalCommitted(IReadOnlyList<BackgroundJob> jobs)
+    private void RecordEnqueued(IReadOnlyList<BackgroundJob> jobs)
     {
-        var rejected = OfferAll(jobs);
-
         foreach (var job in jobs)
         {
             Record(JobLifecycleEvent.Enqueued, job.JobType);
         }
-
-        foreach (var job in rejected)
-        {
-            Record(JobLifecycleEvent.OfferRejected, job.JobType);
-        }
-    }
-
-    // Returns the jobs the strategy refused. An offer that throws is logged rather than counted as refused, and does
-    // not stop the offers after it.
-    private List<BackgroundJob> OfferAll(IReadOnlyList<BackgroundJob> jobs)
-    {
-        List<BackgroundJob> rejected = [];
-
-        // No strategy means this host doesn't run jobs; nothing was offered, so nothing was refused.
-        if (dispatchStrategy is null)
-        {
-            return rejected;
-        }
-
-        foreach (var job in jobs)
-        {
-            try
-            {
-                if (!dispatchStrategy.TryOffer(new JobDispatchItem(job.Id, job.JobType)))
-                {
-                    rejected.Add(job);
-                }
-            }
-            catch (Exception exception)
-            {
-                _logger.LogWarning(
-                    exception,
-                    "Offering background job {JobId} of type {JobType} failed; the next sweep will find it",
-                    job.Id,
-                    job.JobType);
-            }
-        }
-
-        return rejected;
     }
 
     private void Record(JobLifecycleEvent lifecycleEvent, string jobType)

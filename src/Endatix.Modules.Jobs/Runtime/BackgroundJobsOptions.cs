@@ -3,9 +3,8 @@ using Ardalis.GuardClauses;
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <remarks>
-/// <see cref="JobTypes"/> overrides <see cref="MaxAttempts"/>, <see cref="MaxRuntimeMinutes"/>,
-/// <see cref="BackoffBaseSeconds"/> and <see cref="BackoffCapSeconds"/> one value at a time, so the runtime must
-/// read those four through <see cref="ResolvePolicy"/>; reading the property itself ignores every override.
+/// <see cref="JobTypes"/> overrides the per-job-type values one at a time, so the runtime must read them through
+/// <see cref="ResolvePolicy"/>; reading the property itself ignores every override.
 /// </remarks>
 public sealed class BackgroundJobsOptions
 {
@@ -14,27 +13,29 @@ public sealed class BackgroundJobsOptions
     /// </summary>
     public const string SectionName = "Endatix:BackgroundJobs";
 
+    /// <summary>
+    /// The concurrency cap of a job type that sets none of its own.
+    /// </summary>
+    public const int DefaultJobTypeMaxConcurrency = 1;
+
     private Dictionary<string, BackgroundJobTypeOptions> _jobTypes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Every host that registers the module can enqueue, so set this to <c>false</c> on a host that should only
-    /// enqueue, such as an API tier deployed apart from its workers.
+    /// Whether this host executes jobs. Every host that registers the module can enqueue, so set this to
+    /// <c>false</c> on a host that should only enqueue, such as an API tier deployed apart from its workers.
     /// </summary>
     public bool RunInProcess { get; set; } = true;
 
-    public int MaxConcurrency { get; set; } = 4;
-
-    public int SweepIntervalSeconds { get; set; } = 10;
-
-    public int SweepBatchSize { get; set; } = 200;
+    /// <summary>
+    /// How long an idle executing node waits before looking for jobs another node scheduled. Short, because a
+    /// job enqueued on a schedule-only host waits at most this long before an executing node sees it.
+    /// </summary>
+    public int IdleWaitTimeSeconds { get; set; } = 2;
 
     /// <summary>
-    /// Minutes without a heartbeat after which a running job is presumed lost and handed back for another
-    /// attempt. Must span at least three <see cref="HeartbeatIntervalSeconds"/>.
+    /// How often a running job re-reads its row to notice that it was cancelled.
     /// </summary>
-    public int StuckJobThresholdMinutes { get; set; } = 10;
-
-    public int HeartbeatIntervalSeconds { get; set; } = 30;
+    public int CancellationPollSeconds { get; set; } = 10;
 
     public int MaxRuntimeMinutes { get; set; } = 60;
 
@@ -49,11 +50,14 @@ public sealed class BackgroundJobsOptions
     public int BackoffCapSeconds { get; set; } = 900;
 
     /// <summary>
-    /// Minutes an eligible job may wait without being claimed before the sweeper warns about a backlog. Unlike
-    /// <see cref="StuckJobThresholdMinutes"/>, which measures a lost heartbeat, this measures time spent waiting
-    /// for a runner.
+    /// Days a finished job's row is kept before the retention job may delete it.
     /// </summary>
-    public int BacklogWarningMinutes { get; set; } = 15;
+    public int RetentionDays { get; set; } = 7;
+
+    /// <summary>
+    /// How nodes sharing the job store prove to each other that they are alive.
+    /// </summary>
+    public BackgroundJobsClusteringOptions Clustering { get; set; } = new();
 
     /// <summary>
     /// Overrides keyed by job type, for example
@@ -62,8 +66,8 @@ public sealed class BackgroundJobsOptions
     /// <remarks>
     /// A key matches its job type regardless of case, even though job types themselves are case-sensitive:
     /// configuration keys are case-insensitive everywhere else, so an override written in a different case has to
-    /// apply rather than be silently ignored. Only the four values of <see cref="BackgroundJobTypeOptions"/>
-    /// override; anything else written under a job type binds to nothing and is ignored.
+    /// apply rather than be silently ignored. Only the values of <see cref="BackgroundJobTypeOptions"/> override;
+    /// anything else written under a job type binds to nothing and is ignored.
     /// </remarks>
     public Dictionary<string, BackgroundJobTypeOptions> JobTypes
     {
@@ -90,7 +94,9 @@ public sealed class BackgroundJobsOptions
             MaxAttempts: overrides?.MaxAttempts ?? MaxAttempts,
             MaxRuntime: TimeSpan.FromMinutes(overrides?.MaxRuntimeMinutes ?? MaxRuntimeMinutes),
             BackoffBase: TimeSpan.FromSeconds(overrides?.BackoffBaseSeconds ?? BackoffBaseSeconds),
-            BackoffCap: TimeSpan.FromSeconds(overrides?.BackoffCapSeconds ?? BackoffCapSeconds));
+            BackoffCap: TimeSpan.FromSeconds(overrides?.BackoffCapSeconds ?? BackoffCapSeconds),
+            MaxConcurrency: overrides?.MaxConcurrency ?? DefaultJobTypeMaxConcurrency,
+            Retention: TimeSpan.FromDays(overrides?.RetentionDays ?? RetentionDays));
     }
 }
 
@@ -107,14 +113,45 @@ public sealed class BackgroundJobTypeOptions
     public int? BackoffBaseSeconds { get; set; }
 
     public int? BackoffCapSeconds { get; set; }
+
+    /// <summary>
+    /// How many jobs of this type one node runs at once. <c>0</c> stops this node from running the type at all.
+    /// Unset means <see cref="BackgroundJobsOptions.DefaultJobTypeMaxConcurrency"/>; there is no global value.
+    /// </summary>
+    public int? MaxConcurrency { get; set; }
+
+    public int? RetentionDays { get; set; }
 }
 
 /// <summary>
-/// The retry and runtime values in effect for one job type, once its overrides have fallen back to the global
-/// values.
+/// Bound from <c>Endatix:BackgroundJobs:Clustering</c>.
+/// </summary>
+/// <remarks>
+/// A node silent for <see cref="CheckinIntervalSeconds"/> plus <see cref="CheckinMisfireThresholdSeconds"/> is
+/// presumed dead, and the jobs it was running are run again on another node. Every node's clock must agree with
+/// the others' to within about a second, or a healthy node can be presumed dead.
+/// </remarks>
+public sealed class BackgroundJobsClusteringOptions
+{
+    public double CheckinIntervalSeconds { get; set; } = 7.5;
+
+    public double CheckinMisfireThresholdSeconds { get; set; } = 7.5;
+
+    /// <summary>
+    /// This node's identity among the nodes sharing the store. Unset generates one from the host name and the
+    /// start time, so a restarted node is a new node and a peer recovers what the old one left running. Set it
+    /// only to a value no other running node uses.
+    /// </summary>
+    public string? InstanceId { get; set; }
+}
+
+/// <summary>
+/// The values in effect for one job type, once its overrides have fallen back to the global values.
 /// </summary>
 internal readonly record struct BackgroundJobTypePolicy(
     int MaxAttempts,
     TimeSpan MaxRuntime,
     TimeSpan BackoffBase,
-    TimeSpan BackoffCap);
+    TimeSpan BackoffCap,
+    int MaxConcurrency,
+    TimeSpan Retention);

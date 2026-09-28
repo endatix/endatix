@@ -7,8 +7,8 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 /// </summary>
 /// <remarks>
 /// The interface is internal, and NSubstitute emits its proxies into a separate dynamic assembly, so
-/// without the module granting that assembly access to its internals every test of the runner and the
-/// sweeper would fail at the line that creates the substitute — at run time, with no compile error to
+/// without the module granting that assembly access to its internals every test of the job wrapper
+/// would fail at the line that creates the substitute — at run time, with no compile error to
 /// point at the cause. This test fails there first, and says why.
 /// </remarks>
 public class BackgroundJobStateRepositorySubstitutionTests
@@ -20,13 +20,13 @@ public class BackgroundJobStateRepositorySubstitutionTests
         var utcNow = new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc);
         var cancellationToken = TestContext.Current.CancellationToken;
         var repository = Substitute.For<IBackgroundJobStateRepository>();
-        repository.TryHeartbeatAsync(42, 1, utcNow, cancellationToken).Returns(false);
+        repository.TryCompleteAsync(42, 1, utcNow, cancellationToken).Returns(false);
 
         // Act
-        var owned = await repository.TryHeartbeatAsync(42, 1, utcNow, cancellationToken);
+        var owned = await repository.TryCompleteAsync(42, 1, utcNow, cancellationToken);
 
         // Assert
         owned.Should().BeFalse();
-        await repository.Received(1).TryHeartbeatAsync(42, 1, utcNow, cancellationToken);
+        await repository.Received(1).TryCompleteAsync(42, 1, utcNow, cancellationToken);
     }
 }

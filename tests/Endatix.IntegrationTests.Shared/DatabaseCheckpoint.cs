@@ -16,6 +16,20 @@ public sealed class DatabaseCheckpoint
 
     private static readonly string[] _sqlServerSchemas = ["dbo", "identity", "agents", "reporting"];
 
+    // The job scheduler's own tables. A running host's scheduler keeps its check-in, locks and durable jobs
+    // there, so wiping them under it would break the host rather than reset data; triggers left behind by an
+    // earlier test point at job rows that no longer exist and fire into nothing.
+    private static readonly Table[] _jobSchedulerTables =
+    [
+        .. new[]
+        {
+            "qrtz_fired_triggers", "qrtz_paused_trigger_grps", "qrtz_paused_job_grps", "qrtz_scheduler_state",
+            "qrtz_locks", "qrtz_simprop_triggers", "qrtz_simple_triggers", "qrtz_cron_triggers",
+            "qrtz_blob_triggers", "qrtz_triggers", "qrtz_job_details", "qrtz_calendars",
+            "qrtz_execution_history", "qrtz_misfire_history",
+        }.Select(name => new Table("jobs", name)),
+    ];
+
     private readonly SemaphoreSlim _init = new(1, 1);
     private readonly Dictionary<TestDatabaseProvider, Respawner> _respawners = [];
 
@@ -142,7 +156,7 @@ public sealed class DatabaseCheckpoint
         return new RespawnerOptions
         {
             SchemasToInclude = schemas,
-            TablesToIgnore = migrationsHistoryTables
+            TablesToIgnore = [.. migrationsHistoryTables, .. _jobSchedulerTables]
         };
     }
 }
