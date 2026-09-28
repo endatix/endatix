@@ -33,7 +33,7 @@ public sealed class DocsTests
             page.Should().Contain($"<Setting name=\"{key}\" default=", "the page must document {0} and its default", key);
         }
 
-        page.Should().Contain("| `DeliverToJobQueue` |").And.Contain("| `false` |");
+        page.Should().MatchRegex(@"(?m)^\| `DeliverToJobQueue` \|[^\n]*\| `false` \|\s*$");
     }
 
     private static IEnumerable<string> LeafKeys(Type optionsType, string prefix)
