@@ -470,8 +470,10 @@ updates, and later exports. It is PostgreSQL-only and gated by `Endatix:FeatureF
 
 ### The row and the queue
 
-Every job has exactly one **row** in `jobs."BackgroundJobs"` and one **Quartz trigger** in
-`jobs.qrtz_triggers`, keyed by the job id.
+Every job has exactly one **row** in `jobs."BackgroundJobs"` and, while it waits to run, one
+**Quartz trigger** in `jobs.qrtz_triggers`, keyed by the job id. Quartz deletes a trigger once it has
+fired for the last time, so a finished job has none, and a job recovered from a dead node runs on a
+recovery trigger of Quartz's own before it gets a job-id trigger back for any retry.
 
 - The **row is the record**: tenant, status, attempts, progress, error, trace and retention. It is
   what `GET jobs/{jobId}` reads, and the only place a job's state lives.
@@ -511,6 +513,7 @@ attempt:
 | throws, attempts spent | `DeadLettered` | done |
 | row set to `Canceled` | stays `Canceled` | done |
 | host stopped waiting | nothing written | re-run on the next node to check in |
+| node stopped during the last attempt | `DeadLettered` when recovered | done, the handler not run again |
 
 The row's `AttemptCount`, not Quartz's retry counter, decides dead-lettering, because a crash-recovered
 run consumes an attempt Quartz never counts. No exception text reaches `ErrorMessage`.

@@ -181,7 +181,7 @@ With `Endatix:Outbox:DeliverToJobQueue` set to `true`, the relay stops running s
 - **Requires the Jobs module.** `Endatix:Outbox:DeliverToJobQueue` requires PostgreSQL, because the Jobs module does. On SQL Server it must stay `false`. If the switch is on and the Jobs module is not registered, the relay pauses — messages stay **Pending** — and logs `The outbox relay is paused: Endatix:Outbox:DeliverToJobQueue is on but the Jobs module is not registered.`
 - **Every subscriber needs a job subscription.** Startup fails when an outbox handler handles an event its module has no job subscription for, naming the handler and the event. Custom modules and SaaS modules keep the switch off until every one of their inline handlers has a subscription.
 - **Relay hosts register every subscribing module.** Every host that runs the outbox relay must register every module that subscribes to outbox events, with the same module feature flags. A relay host without a module marks that module's events **Sent** without enqueuing its jobs, and nothing can detect it.
-- **Webhook attempts.** Each webhook job POSTs once per attempt, with no HTTP-level retries, so an endpoint receives at most `JobTypes:WebHookDelivery:MaxAttempts` requests (8 by default) for one event. `X-Endatix-Hook-Id` is still the outbox message id.
+- **Webhook attempts.** Each webhook job POSTs once per attempt, with no HTTP-level retries, so an endpoint receives at most `JobTypes:WebHookDelivery:MaxAttempts` requests for one event: 8 with the shipped `appsettings.json`, and the global `MaxAttempts` (3) on a host that sets neither. `X-Endatix-Hook-Id` is still the outbox message id.
 - **Redelivery is safe.** A message delivered twice — after a crash between enqueueing and marking it sent — enqueues nothing new: each job carries the dedup key `{outboxMessageId}:{subscriber}`.
 
 :::note[Release note]
@@ -190,7 +190,7 @@ Webhooks delivered through the job queue retry and dead-letter **per endpoint**:
 
 ## Background jobs configuration reference
 
-All keys are under `Endatix:BackgroundJobs`. Per-job-type values go under `JobTypes:{JobType}`; a value a job type does not set falls back to the global one.
+All keys are under `Endatix:BackgroundJobs`. Per-job-type values go under `JobTypes:{JobType}`; a value a job type does not set falls back to the global one, except `MaxConcurrency`, which has no global key and falls back to `1`.
 
 ```json
 "Endatix": {
@@ -217,13 +217,13 @@ How often a running job re-reads its row to notice it was cancelled.
 How long a due job may wait for a free slot before the backlog warning `Background job {JobId} of type {JobType} waited past the misfire threshold.` is logged and `endatix.jobs.misfired` counts it.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:ShutdownWaitSeconds" default="30">
-How long a stopping host waits for running jobs. Jobs still running then record nothing and run again on the next node.
+How long a stopping host waits for running jobs. Jobs still running then record nothing and run again on the next node. The host's own shutdown timeout (`HostOptions.ShutdownTimeout`, 30 seconds by default) also bounds this wait, so a longer value needs a longer host timeout.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:MaxRuntimeMinutes" default="60">
 Ceiling on one attempt; the handler's token is cancelled when it passes. Per job type.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:MaxAttempts" default="3">
-Attempts before a job that keeps failing is dead-lettered. Per job type.
+Attempts before a job that keeps failing is dead-lettered. Per job type. A job whose node stops during its last attempt is dead-lettered when another node recovers it, rather than run again.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:BackoffBaseSeconds" default="30">
 Wait before the first retry; each later retry waits twice as long. Per job type.
@@ -235,7 +235,7 @@ Longest wait between retries. Per job type.
 Days a finished job's row is kept before the retention job deletes it. Per job type.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:JobTypes:{JobType}:MaxConcurrency" default="1">
-Jobs of this type one node runs at once. `0` keeps the node from running the type. The node's thread pool is the sum of these caps.
+Jobs of this type one node runs at once. `0` keeps the node from running the type. The node's thread pool is the sum of these caps (at least 1), plus one thread for the retention job.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Retention:Cron" default="0 0/15 * * * ?">
 When the retention job runs, as a Quartz cron expression. It runs on one node at a time.
