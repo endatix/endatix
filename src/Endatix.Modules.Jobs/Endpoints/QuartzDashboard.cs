@@ -51,9 +51,11 @@ internal static class QuartzDashboard
         return services;
     }
 
-    // The job type arrives as the name the caller wrote, with or without its assembly.
-    private static bool IsEndatixJobClass(string jobType) =>
-        jobType.StartsWith(_endatixJobClass, StringComparison.Ordinal);
+    // The job type arrives as the name the caller wrote, with or without its assembly. A bare prefix match would
+    // also admit any other type whose name merely starts with this one's.
+    internal static bool IsEndatixJobClass(string jobType) =>
+        jobType.StartsWith(_endatixJobClass, StringComparison.Ordinal)
+        && (jobType.Length == _endatixJobClass.Length || jobType[_endatixJobClass.Length] == ',');
 
     /// <summary>
     /// Appends the dashboard to the end of the application's pipeline, after the application's own endpoints,
