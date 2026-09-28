@@ -554,6 +554,36 @@ pre,
 }
 
 /* ============================================================
+   GENERATED INDEX CARDS
+   End-user topic cards replace the default document emoji with a
+   Lucide glyph (see src/theme/DocCard/Heading/Icon). Other indexes
+   keep the emoji, so the tile only applies when an svg is present.
+   ============================================================ */
+.theme-doc-card-heading:has(.theme-doc-card-icon svg) {
+  align-items: center;
+}
+
+.theme-doc-card-icon:has(svg) {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-right: 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--ifm-color-primary) 32%, transparent);
+  border-radius: 0.625rem;
+  background: color-mix(in oklch, var(--ifm-color-primary) 10%, transparent);
+  color: var(--ifm-color-primary);
+  font-size: 0;
+  line-height: 0;
+}
+
+[data-theme="dark"] .theme-doc-card-icon:has(svg) {
+  border-color: color-mix(in oklch, var(--ifm-color-primary) 26%, transparent);
+  background: color-mix(in oklch, var(--ifm-color-primary) 14%, transparent);
+}
+
+/* ============================================================
    SIDEBAR — PRODUCTS SECTION DIVIDER
    ============================================================ */
 .theme-doc-sidebar-item-link.sidebar-products-divider {
