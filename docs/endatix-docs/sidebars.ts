@@ -208,6 +208,7 @@ const sidebars: SidebarsConfig = {
               items: [
                 "end-users/forms/form-builder/question-types/text-questions",
                 "end-users/forms/form-builder/question-types/choice-questions",
+                "end-users/forms/form-builder/question-types/rating-and-ranking-questions",
               ],
             },
           ],
