@@ -1,3 +1,4 @@
+using Endatix.Infrastructure.Features.Outbox;
 using System.Reflection;
 using Endatix.Hosting.Builders.Logging;
 using Endatix.Hosting.Options;
@@ -275,6 +276,7 @@ public class EndatixTelemetryBuilder
 
             // Subscribed whether or not the Jobs module is on: a meter nothing creates exports nothing.
             metrics.AddMeter(JobsModule.MeterName);
+            metrics.AddMeter(OutboxTelemetry.SourceName);
 
             metrics.AddOtlpExporter((exporter, _) => ConfigureOtlp(exporter, exporterEndpoint, exporterProtocol));
         });
@@ -292,6 +294,10 @@ public class EndatixTelemetryBuilder
             {
                 tracing.AddHttpClientInstrumentation();
             }
+
+            // A job runs as a child of the request that enqueued it, and the relay's fan-out as a child of the
+            // request that raised the event, so these sources are what joins the two sides of the queue.
+            tracing.AddSource(JobsModule.MeterName, OutboxTelemetry.SourceName);
 
             ApplySampler(tracing);
 

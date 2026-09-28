@@ -2,7 +2,9 @@ using Endatix.Infrastructure.FeatureFlags;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using OpenFeature;
 using OpenFeature.Hosting;
 using OpenFeature.Hosting.Providers.Memory;
@@ -36,10 +38,25 @@ public static class OutboxRelayServiceCollectionExtensions
             return services;
         }
 
-        services.AddOutboxRelay();
+        services.AddOutboxRelay(serviceProvider => ActivatorUtilities.CreateInstance<EndatixOutboxRelayGate>(
+            serviceProvider,
+            ActivatorUtilities.CreateInstance<OpenFeatureOutboxRelayGate>(serviceProvider)));
+        services.AddSingleton<EndatixOutboxRelayGate.PauseState>();
         services.AddOptions<OutboxOptions>().BindConfiguration("Endatix:Outbox");
+        services.AddOptions<OutboxDeliveryOptions>().BindConfiguration(OutboxDeliveryOptions.SectionName);
         services.AddScoped<IOutboxIntegrationEventHandler, WebHookOutboxIntegrationEventHandler>();
-        services.AddScoped<IIntegrationEventPublisher, CompositeIntegrationEventPublisher>();
+
+        // One publisher per host, chosen once: the relay either runs every inline handler itself or hands each
+        // message to the job queue. The two never both deliver the same message.
+        services.AddScoped<CompositeIntegrationEventPublisher>();
+        services.AddScoped<JobQueueIntegrationEventPublisher>();
+        services.TryAddSingleton<OutboxSubscriptions>();
+        services.AddScoped<IIntegrationEventPublisher>(serviceProvider =>
+            serviceProvider.GetRequiredService<IOptions<OutboxDeliveryOptions>>().Value.DeliverToJobQueue
+                ? serviceProvider.GetRequiredService<JobQueueIntegrationEventPublisher>()
+                : serviceProvider.GetRequiredService<CompositeIntegrationEventPublisher>());
+        services.AddMetrics();
+        services.AddHostedService<OutboxSubscriptionsStartupCheck>();
         services.AddEndatixOpenFeature();
 
         return services;
