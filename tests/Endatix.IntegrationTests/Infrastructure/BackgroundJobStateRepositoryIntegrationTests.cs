@@ -196,6 +196,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
         job.AttemptCount.Should().Be(3);
         job.ErrorMessage.Should().Be(RetryMessage);
         job.CompletedAt.Should().Be(Now);
+        job.ExpiresAt.Should().Be(Now + Retention);
     }
 
     [Fact]

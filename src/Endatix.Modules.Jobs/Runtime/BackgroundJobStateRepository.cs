@@ -84,7 +84,8 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
                 setters => setters
                     .SetProperty(job => job.Status, JobStatus.DeadLettered)
                     .SetProperty(job => job.ErrorMessage, message)
-                    .SetProperty(job => job.CompletedAt, (DateTime?)failure.UtcNow),
+                    .SetProperty(job => job.CompletedAt, (DateTime?)failure.UtcNow)
+                    .SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? failure.ExpiresAt),
                 cancellationToken);
 
         return affected == 1;
