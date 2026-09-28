@@ -226,7 +226,7 @@ Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{Job
 | `RunInProcess` | `true` | Whether this host executes jobs |
 | `IdleWaitTimeSeconds` | `2` | How long an idle node waits before looking for jobs another node scheduled |
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
-| `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery |
+| `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type) |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |
