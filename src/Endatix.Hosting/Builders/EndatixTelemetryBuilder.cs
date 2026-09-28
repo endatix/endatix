@@ -297,7 +297,7 @@ public class EndatixTelemetryBuilder
 
             // A job runs as a child of the request that enqueued it, and the relay's fan-out as a child of the
             // request that raised the event, so these sources are what joins the two sides of the queue.
-            tracing.AddSource(JobsModule.MeterName, OutboxTelemetry.SourceName);
+            tracing.AddSource(JobsModule.ActivitySourceName, OutboxTelemetry.SourceName);
 
             ApplySampler(tracing);
 

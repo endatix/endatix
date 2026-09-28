@@ -7,8 +7,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </summary>
 internal static class BackgroundJobsTelemetry
 {
-    /// <summary>A tracing pipeline sees job execution only once it subscribes to this source.</summary>
-    public const string ActivitySourceName = "Endatix.Jobs";
+    public const string ActivitySourceName = JobsModule.ActivitySourceName;
 
     private const string ExecuteActivityName = "background_job.execute";
 

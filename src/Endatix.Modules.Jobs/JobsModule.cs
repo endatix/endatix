@@ -39,6 +39,9 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
     /// <summary>A metrics pipeline exports this module's metrics only once it subscribes to this meter.</summary>
     public const string MeterName = "Endatix.Jobs";
 
+    /// <summary>A tracing pipeline sees job execution only once it subscribes to this activity source.</summary>
+    public const string ActivitySourceName = "Endatix.Jobs";
+
     public static readonly JobsModule Instance = new();
 
     private JobsModule() { }
