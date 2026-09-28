@@ -121,6 +121,11 @@ const config: Config = {
           label: "End Users",
         },
         {
+          href: "https://endatix.com",
+          label: "Endatix.com",
+          position: "left",
+        },
+        {
           href: "https://github.com/endatix",
           label: "GitHub",
           position: "left",
@@ -184,10 +189,6 @@ const config: Config = {
             {
               label: "GitHub",
               href: "https://github.com/endatix",
-            },
-            {
-              label: "Stack Overflow",
-              href: "https://stackoverflow.com/questions/tagged/endatix",
             },
             {
               label: "Twitter",
