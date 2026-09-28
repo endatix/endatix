@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Maintenance mode
-description: Enable read-only maintenance UX for the Endatix Hub browser UI using env-driven proxy behavior and the /maintenance page.
+description: Turn Hub, embed, view, and edit routes into a 503 maintenance page with one environment variable. Share links and the API stay up.
 ---
 
 import useBaseUrl from "@docusaurus/useBaseUrl";
@@ -11,81 +11,108 @@ import maintenanceScreenshotDark from "./maintenance_dark.png";
 
 # Hub maintenance mode
 
-Endatix Hub supports a **single-deployment** maintenance experience controlled by environment variables. When enabled, the Next.js [`proxy`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy) layer (implemented as `proxy.ts` in the Hub repo) **rewrites** matched browser requests to the `/maintenance` route and returns **HTTP 503** with an optional **`Retry-After`** header.
+Set `MAINTENANCE_MODE=true` and restart Hub. Matched browser routes rewrite to `/maintenance` and return **HTTP 503**, with an optional `Retry-After` header. The address bar still shows the original path.
 
-This is intended for **planned work** or **degraded UI** scenarios while keeping configuration simple and **avoiding extra runtime dependencies** (no database or remote flag store in this version). Another advantage is that it's integrated into the Endatix Hub, so you don't have to use additional infrastructure e.g. edge compute, CDN, WAF. If you already have dedicate maintenance page, solution you will probably want to use it instead of this one, where the focus is ease of use.
+Share links (`/share`), Slack (`/slack`), and `/api` stay up. Use this for planned Hub downtime, not for a full API outage.
 
 <ThemedImage
-alt="Maintenance page screenshot"
-sources={{
+  alt="Maintenance page with a heading and two short paragraphs"
+  sources={{
     light: useBaseUrl(maintenanceScreenshotLight),
     dark: useBaseUrl(maintenanceScreenshotDark),
   }}
 />
 
-## User-visible behavior
+## Turn it on
 
-- **Matched routes:** Requests that hit the proxy matcher are **rewritten internally** to `/maintenance`. The address bar typically **still shows the original path** (rewrite, not redirect). The response status is **503** so monitors and bots can treat the Hub UI as temporarily unavailable.
-- **Direct `/maintenance`:** The `/maintenance` path is **excluded** from the matcher so the maintenance page can render without looping.
-- **Static assets:** Paths such as `/_next/static`, `/_next/image`, `favicon.ico`, and files under `assets` are **excluded** so CSS, JS chunks, and icons keep loading for the maintenance page.
+1. Set `MAINTENANCE_MODE=true` in `hub/.env` or the process environment. Any other value, including `false` or empty, leaves the site up.
+2. (Optional) Set `MAINTENANCE_RETRY_AFTER_SECONDS` to a non-negative integer. Hub sends it as the `Retry-After` header. An invalid value is omitted.
+3. (Optional) Override the page copy. Empty values fall back to the defaults below.
+4. Restart the process. Local `pnpm dev` does not reload `.env` until you stop and start it again. `pnpm run:standalone` does not read `hub/.env`; export the variables in the shell or the container.
+5. Open a Hub route such as `/forms` and confirm **503** in the browser network panel. Do not use `/share` for this check.
+6. To restore service, remove `MAINTENANCE_MODE` or set it to anything other than `true`, then restart again.
 
-## API routes
+## Which routes change
 
-The proxy **`matcher` excludes `/api/*`**. Therefore:
+The proxy rewrites Hub pages plus `/embed`, `/view`, and `/edit`. A respondent on those routes sees the maintenance page. It follows the visitor's light or dark system setting.
 
-- **REST `/api` routes are not gated by Hub maintenance mode.** Integrations, mobile clients, and server-to-server callers **continue to hit the Hub’s API routes** as before unless the API process or upstream backend is down separately.
-- If you need **503 JSON for every API** during a full outage, that requires a **different** policy (for example extending the matcher or adding shared handling in route handlers). That is **not** part of the default Hub maintenance behavior.
+These paths are excluded so the page can render, or so they stay available:
 
-This split keeps the implementation small and avoids surprising API consumers during UI-only maintenance.
+- `/maintenance` — otherwise the rewrite would loop.
+- `/share` and `/slack` — a published share link stays up.
+- `/api` — integrations keep calling Hub API routes unless the API process is down separately.
+- `/_next/static`, `/_next/image`, `favicon.ico`, and `assets` — CSS, scripts, and icons keep loading.
 
-## Environment variables
+`/maintenance` sets `robots` to `noindex, nofollow`.
 
-### Toggle and HTTP hints
+:::warning[API callers still get 200]
+That is expected. A 503 for every API needs a separate policy (gateway, or your own route handling). It is not part of this switch.
+:::
 
-| Variable                          | Required | Description                                                                                                               |
-| --------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `MAINTENANCE_MODE`                | No       | Set to `true` to enable maintenance. Any other value or absence means normal operation.                                   |
-| `MAINTENANCE_RETRY_AFTER_SECONDS` | No       | If set to a valid non-negative integer, sent as the **`Retry-After`** response header (seconds) on maintenance responses. |
+## Page copy
 
-### Page Data (all optional; defaults ship in code)
+`MAINTENANCE_CARD_DESCRIPTION` and `MAINTENANCE_BODY` are two paragraphs. `MAINTENANCE_FOOTER` is the quieter line under them. “Powered by Endatix” follows [`ENDATIX_SHOW_POWERED_BY`](/docs/developers/hub/environment).
 
-Defaults are generic (“scheduled maintenance”, no promotional URLs or migration messaging). Override these if you need locale- or tenant-specific wording.
+One language per deployment. Hub does not read `Accept-Language` for this page. Set the six copy variables to the language you want everyone to see. Per-respondent language is [respondent access denial](/docs/building-your-solution/authorization/respondent-access-denial), not maintenance mode.
 
-| Variable                           | Description                                                        |
-| ---------------------------------- | ------------------------------------------------------------------ |
-| `MAINTENANCE_TITLE`                | Main heading.                                                      |
-| `MAINTENANCE_CARD_DESCRIPTION`     | First paragraph under the heading.                                 |
-| `MAINTENANCE_BODY`                 | Second paragraph.                                                  |
-| `MAINTENANCE_FOOTER`               | Quieter closing line (for example a thank-you).                    |
-| `MAINTENANCE_METADATA_TITLE`       | HTML `<title>` / metadata title. Default: “Scheduled maintenance”. |
-| `MAINTENANCE_METADATA_DESCRIPTION` | Meta description for SEO and previews.                             |
-| `MAINTENANCE_BADGE_LABEL`          | **Deprecated, ignored.** The page no longer shows a badge.         |
+```bash
+MAINTENANCE_TITLE=Volveremos enseguida
+MAINTENANCE_CARD_DESCRIPTION=Esta aplicación no está disponible temporalmente.
+MAINTENANCE_BODY=Estamos realizando un mantenimiento programado. Vuelva a intentarlo pronto.
+MAINTENANCE_FOOTER=Gracias por su paciencia.
+MAINTENANCE_METADATA_TITLE=Mantenimiento programado
+MAINTENANCE_METADATA_DESCRIPTION=La aplicación no está disponible temporalmente mientras realizamos el mantenimiento.
+```
 
-The maintenance page is also what respondents see on embedded forms and submission links while maintenance is on, so it carries no Endatix branding beyond an optional “Powered by Endatix” line (`ENDATIX_SHOW_POWERED_BY`). It follows the visitor's light or dark system setting.
+<Settings>
+<Setting name="MAINTENANCE_MODE">
+Set to `true` to enable the rewrite. Anything else means normal operation.
+</Setting>
+<Setting name="MAINTENANCE_RETRY_AFTER_SECONDS">
+Non-negative integer, sent as `Retry-After` (seconds). Unset or invalid means no header.
+</Setting>
+<Setting name="MAINTENANCE_TITLE" default="We'll be right back">
+Main heading.
+</Setting>
+<Setting name="MAINTENANCE_CARD_DESCRIPTION" default="This application is temporarily unavailable.">
+First paragraph under the heading.
+</Setting>
+<Setting name="MAINTENANCE_BODY" default="We're performing scheduled maintenance. Please check back soon. We apologize for the inconvenience.">
+Second paragraph.
+</Setting>
+<Setting name="MAINTENANCE_FOOTER" default="Thank you for your patience.">
+Quieter closing line.
+</Setting>
+<Setting name="MAINTENANCE_METADATA_TITLE" default="Scheduled maintenance">
+HTML title.
+</Setting>
+<Setting name="MAINTENANCE_METADATA_DESCRIPTION" default="The application is temporarily unavailable while we perform maintenance.">
+Meta description.
+</Setting>
+<Setting name="MAINTENANCE_BADGE_LABEL" status="deprecated">
+Ignored. The page no longer shows a badge.
+</Setting>
+</Settings>
 
-## HTTP status and Next.js
+## If it does not appear
 
-The intended response is **503** plus optional **`Retry-After`**. Behavior is implemented with `NextResponse.rewrite` and `status: 503`. If you observe different status codes in a specific hosting setup, record the Next.js version and document the actual behavior for your environment.
+- The value is not exactly `true`, or the process was not restarted after the `.env` change.
+- The URL is excluded. `/share` staying up is the matcher, not a failed deploy.
+- Styles or icons missing: `/_next/static` or `favicon.ico` is being rewritten. Those paths must stay excluded.
 
-The `/maintenance` route sets **`robots`: noindex, nofollow** in metadata so transient maintenance copy is less likely to be indexed when users open `/maintenance` directly.
+## See also
 
-## Operations checklist
-
-1. Set `MAINTENANCE_MODE=true` (and optional copy variables) in the .env or your pipeline’s variable group.
-2. **Restart** the App Service (or redeploy) so the Node process reads the new settings.
-3. Verify in a browser that hub routes show the maintenance experience with **503** (for example via DevTools Network).
-4. Confirm whether **API callers** should still succeed under Option A; plan gateway or API changes separately if you need a full outage response for APIs.
-5. To restore service, set `MAINTENANCE_MODE` to `false` or remove it, then restart again.
-
-## Troubleshooting
-
-| Symptom                   | Likely cause                                                                                                                                         |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Maintenance never appears | Typo in variable name; value not exactly `true`; app not restarted; request path excluded by matcher (for example `/api/...`).                       |
-| Broken styling / no icons | Rare if static exclusions match your hosting paths; confirm `/_next/static` and `favicon.ico` are not accidentally routed through maintenance logic. |
-| APIs still respond 200    | **Expected** under Option A — `/api` is excluded from the maintenance matcher by design.                                                             |
-
-## Related documentation
-
-- [Endatix Hub overview](./index.md)
-- [Hub settings](../../configuration/settings/hub-settings.md)
+<CardGrid compact>
+  <LinkCard
+    to="/docs/developers/hub/environment"
+    title="Hub environment variables"
+    description="Where Hub reads configuration, including the Powered by line on this page."
+    icon="dashboard"
+  />
+  <LinkCard
+    to="/docs/building-your-solution/authorization/respondent-access-denial"
+    title="Respondent access denial"
+    description="Deny one public form with your own title and sentence. Maintenance mode is the whole-site switch."
+    icon="server"
+  />
+</CardGrid>
