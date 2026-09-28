@@ -30,7 +30,7 @@ Example with default paths:
 - **`/alive`** — Liveness probe
 - **`/ready`** — Readiness probe
 
-:::warning Point your orchestrator at `/alive` and `/ready`, not `/health`
+:::warning[Point your orchestrator at `/alive` and `/ready`, not `/health`]
 
 `/health` includes the database. A `livenessProbe` pointed at it restarts **every** pod when the
 database blips — removing capacity exactly when the system is already degraded, and restarting a

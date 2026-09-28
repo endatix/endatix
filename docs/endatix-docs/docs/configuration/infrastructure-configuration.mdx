@@ -233,7 +233,7 @@ builder.Host.ConfigureEndatixWithDefaults(endatix => {
 });
 ```
 
-:::info Serilog is no longer the logging pipeline
+:::info[Serilog is no longer the logging pipeline]
 Earlier versions read a `Serilog` configuration section. Endatix now uses the standard `Logging`
 section, and a leftover `Serilog` section is ignored — the host still starts and logs a warning
 naming it. See the [migration table](/docs/configuration/observability#migrating-from-the-serilog-section).

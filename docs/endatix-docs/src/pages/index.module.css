@@ -166,55 +166,61 @@
   text-decoration: underline;
 }
 
-/* Product Deep Dives Section */
-.productDeepDivesSection {
-  margin-top: 4rem;
-  margin-bottom: 4rem;
+/* ---- Common tasks ---- */
+.taskCardsSection {
+  margin-bottom: 2rem;
 }
 
-.productDeepDive {
-  background: var(--ifm-card-background-color);
-  border: 1px solid color-mix(in oklch, var(--ifm-color-primary), transparent 68%);
-  border-radius: var(--ifm-card-border-radius);
-  padding: 2rem;
-  height: 100%;
+.taskCard {
   display: flex;
   flex-direction: column;
-  text-align: center;
-  box-shadow: 0 14px 30px -16px color-mix(in oklch, var(--ifm-color-primary), transparent 52%);
+  height: 100%;
+  padding: 1.25rem;
+  background: var(--ifm-card-background-color);
+  border: 1px solid color-mix(in oklch, var(--ifm-color-primary), transparent 82%);
+  border-radius: var(--ifm-card-border-radius);
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
-.productDeepDive :global(.button) {
-  align-self: center;
-  min-width: 14.5rem;
+.taskCard,
+.taskCard:hover {
+  text-decoration: none;
 }
 
-:global([data-theme='dark']) .productDeepDive {
-  box-shadow: 0 14px 30px -16px color-mix(in oklch, var(--ifm-color-primary), transparent 60%);
+.taskCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--ifm-color-primary), transparent 55%);
+  box-shadow: 0 12px 24px -16px color-mix(in oklch, var(--ifm-color-primary), transparent 45%);
 }
 
-.productDeepDive:hover {
-  transform: translateY(-4px);
-  border-color: color-mix(in oklch, var(--ifm-color-primary), transparent 40%);
-  box-shadow: 0 20px 40px -16px color-mix(in oklch, var(--ifm-color-primary), transparent 40%);
+.taskCardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 0.875rem;
+  border-radius: calc(var(--ifm-card-border-radius) * 0.75);
+  color: var(--ifm-color-primary);
+  background: color-mix(in oklch, var(--ifm-color-primary), transparent 90%);
 }
 
-.productDeepDiveTitle {
-  font-size: 1.25rem;
-  margin-bottom: 1rem;
+.taskCardTitle {
+  font-size: 1rem;
+  line-height: 1.35;
+  margin-bottom: 0.5rem;
   color: var(--ifm-color-primary);
 }
 
-.productDeepDiveDescription {
-  flex: 1;
-  margin-bottom: 1.5rem;
+.taskCardDescription {
+  font-size: 0.875rem;
+  line-height: 1.5;
   color: var(--ifm-color-content-secondary);
 }
 
 @media screen and (max-width: 996px) {
   .heroCard,
-  .productDeepDive {
+  .taskCard {
     margin-bottom: 1.5rem;
   }
 }

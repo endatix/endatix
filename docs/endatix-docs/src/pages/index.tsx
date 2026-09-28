@@ -3,7 +3,15 @@ import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import HomepageFeatures from "@site/src/components/HomepageFeatures";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
-import { Code2, LayoutDashboard, type LucideIcon } from "lucide-react";
+import {
+  Code2,
+  CodeXml,
+  Download,
+  GitBranch,
+  LayoutDashboard,
+  Server,
+  type LucideIcon,
+} from "lucide-react";
 
 import styles from "./index.module.css";
 
@@ -64,25 +72,27 @@ function HeroCard({
   );
 }
 
-function ProductDeepDive({
+function TaskCard({
+  icon: Icon,
   title,
   description,
   link,
 }: {
+  icon: LucideIcon;
   title: string;
   description: string;
   link: string;
 }) {
   return (
-    <div className={styles.productDeepDive}>
-      <Heading as="h3" className={styles.productDeepDiveTitle}>
+    <Link className={styles.taskCard} to={link}>
+      <div className={styles.taskCardIcon}>
+        <Icon size={22} aria-hidden="true" />
+      </div>
+      <Heading as="h3" className={styles.taskCardTitle}>
         {title}
       </Heading>
-      <p className={styles.productDeepDiveDescription}>{description}</p>
-      <Link className="button button--primary button--lg" to={link}>
-        Learn More
-      </Link>
-    </div>
+      <div className={styles.taskCardDescription}>{description}</div>
+    </Link>
   );
 }
 
@@ -104,6 +114,8 @@ function HomepageContent() {
                   label: "API Reference",
                   href: "/docs/developers/api/api-reference",
                 },
+                { label: "Configuration", href: "/docs/configuration" },
+                { label: "Webhooks", href: "/docs/guides/webhooks" },
                 { label: "GitHub", href: "https://github.com/endatix" },
               ]}
             />
@@ -113,39 +125,64 @@ function HomepageContent() {
               icon={LayoutDashboard}
               title="I am an End User"
               description="Create forms, manage responses, and analyze data. Learn how to use the Endatix Hub UI to power your business."
-              primaryCTA="Endatix Hub Docs"
-              primaryLink="/docs/end-users/forms"
-              secondaryLinks={[{
+              primaryCTA="Platform Overview"
+              primaryLink="/docs/end-users"
+              secondaryLinks={[
+                { label: "Forms", href: "/docs/end-users/forms" },
+                {
                   label: "Form Builder",
                   href: "/docs/end-users/forms/form-builder",
                 },
-              {
+                {
+                  label: "Question Types",
+                  href: "/docs/end-users/forms/form-builder/question-types",
+                },
+                {
                   label: "Logic Expressions",
                   href: "/docs/end-users/forms/form-builder/logic-expressions",
-                }]}
+                },
+              ]}
             />
           </div>
         </div>
       </div>
 
-      {/* Product Deep Dives Section */}
-      <div className={styles.productDeepDivesSection}>
+      {/* Common Tasks Section */}
+      <div className={styles.taskCardsSection}>
         <Heading as="h2" className="text--center margin-bottom--lg">
-          Product Deep Dives
+          Common tasks
         </Heading>
         <div className="row">
-          <div className="col col--6">
-            <ProductDeepDive
-              title="Endatix API (.NET)"
-              description="The engine. Open-source, high-performance backend for form logic and data storage."
-              link="/docs/developers/api/"
+          <div className="col col--3">
+            <TaskCard
+              icon={CodeXml}
+              title="Embed a form on your site"
+              description="Drop a form into a page with an iframe, size it, and pass data in."
+              link="/docs/guides/embed-form-via-iframe"
             />
           </div>
-          <div className="col col--6">
-            <ProductDeepDive
-              title="Endatix Hub (Next.js)"
-              description="The interface. A sophisticated, enterprise-ready UI for managing the entire Endatix lifecycle."
-              link="/docs/developers/hub/"
+          <div className="col col--3">
+            <TaskCard
+              icon={GitBranch}
+              title="Show questions conditionally"
+              description="Reveal, hide, or require questions based on earlier answers."
+              link="/docs/end-users/forms/form-builder/conditional-logic"
+            />
+          </div>
+          <div className="col col--3">
+            <TaskCard
+              icon={Download}
+              title="Export your responses"
+              description="Download submissions as CSV, Excel, or JSON, or generate a codebook."
+              link="/docs/end-users/submissions/exporting-submissions"
+            />
+          </div>
+          <div className="col col--3">
+            <TaskCard
+              icon={Server}
+              title="Self-host Endatix"
+              description="Run the API and Hub on your own infrastructure with Docker."
+              link="/docs/building-your-solution/deployment/self-hosting"
             />
           </div>
         </div>

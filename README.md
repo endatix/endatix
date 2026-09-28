@@ -8,15 +8,25 @@
 [![Publish Stable Artifacts](https://github.com/endatix/endatix/actions/workflows/release-artifacts.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/release-artifacts.yml)
 [![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=main)](https://coveralls.io/github/endatix/endatix?branch=main)
 
-## What is Endatix?
+## What is the Endatix Headless Form Management API?
 
-Endatix is a free form management backend API designed to integrate with the [SurveyJS](https://github.com/surveyjs/survey-library) frontend library.
+Endatix is a free self-hosted form and survey management backend API. It provides REST endpoints for CRUD operations and the management of forms, templates, submissions, themes, custom form fields, and more. It can be used to build self-hosted or SaaS solutions that focus on collecting information from [humans](https://en.wikipedia.org/wiki/Human) in industries such as market research, legal, insurance, finance, education, healthcare, field service, manufacturing, and more.
 
-It provides REST API endpoints for CRUD operations and the management of forms, templates, submissions, themes, custom form fields, and more. It can be used to build self-hosted or SaaS solutions that focus on collecting information from [humans](https://en.wikipedia.org/wiki/Human) in industries such as market research, legal, insurance, finance, education, healthcare, and more.
+This API powers the [Endatix Hub](https://github.com/endatix/endatix-hub) form management system.
 
-This API project is the core of the [Endatix Hub](https://github.com/endatix/endatix-hub) form management system for business users, offering a complete UI, seamless integration with the [SurveyJS Creator](https://github.com/surveyjs/survey-creator) form-building tool, and an [AI assistant](https://www.youtube.com/watch?v=aX_Hm4WYsEE).
+## Is there UI for end-users?
+
+Yes, the [Endatix Hub](https://github.com/endatix/endatix-hub) application is built on top of this API and it offers complete and modern user interface. It targets non-technical users who need to create forms and surveys, distribute them, collect submissions, export and analyze data. Endatix Hub can be self-hosted as well as used as a SaaS service. Unlike the Endatix API (this repository), Endatix Hub is commercially licensed.
 
 For more information visit https://endatix.com
+
+## Is this a backend for the SurveyJS frontend library?
+
+Yes! Both the Endatix API and Endatix Hub applications are designed to work with the [SurveyJS Library](https://github.com/surveyjs/survey-library), the [SurveyJS Creator WYSYWYG Form Builder](https://github.com/surveyjs/survey-creator) and the [SurveyJS Analytics Dashboard](https://github.com/surveyjs/survey-analytics)
+
+Endatix is a Certified SurveyJS Partner.
+
+For more information visit [https://surveyjs.io](https://surveyjs.io/?utm_source=endatix&utm_medium=referral)
 
 ## Table of Contents
 - [Features](#features)
@@ -45,9 +55,9 @@ For more information visit https://endatix.com
 * **Submission metadata** (Including completion status, date/time started, and date/time completed)
 * **One submission per respondent** (Optional validation for non-anonymous forms and surveys)
 * **Webhooks** (Support for *submission completed*, *form created*, *form updated*, and *form deleted* events)
-* **reCAPTCHA support**
+* **reCAPTCHA**
 * **Email Notifications** (Sendgrid, Mailgun, and SMTP connectors)
-* **Database-stored Custom Question Types** (SurveyJS [specialized](https://surveyjs.io/form-library/documentation/customize-question-types/create-specialized-question-types) or [composite](https://surveyjs.io/form-library/documentation/customize-question-types/create-composite-question-types) custom question code can be added at runtime)
+* **CSV and Excel exports**
 * **Multitenancy** (ORM-enforced tenant isolation)
 * **Basic Authentication**
 * **Role Based Access Control**
@@ -65,7 +75,7 @@ For more information visit https://endatix.com
 
 Endatix runs on any server or workstation that supports [.NET 10.0 (formerly .NET Core)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0), including **Linux**, **Windows**, and **macOS**.
 
-It can be deployed to on-premise servers, cloud environments such as **Azure**, **AWS**, or **Google Cloud**, and also runs in [**Docker Containers**](https://hub.docker.com/u/endatix) for simplified setup and scaling.
+It can be deployed to on-premise servers, cloud environments such as **Azure**, **AWS**, or **Google Cloud**, and also runs in [**Docker Containers**](https://hub.docker.com/u/endatix) or Kubernetes for simplified setup and scaling.
 
 ## Installation
 
@@ -153,12 +163,12 @@ erDiagram
     "public.DataListItems" {
         bigint Id PK
         bigint DataListId FK
-        character_varying_100_ Label
         character_varying_100_ Value
         timestamp_with_time_zone CreatedAt
         timestamp_with_time_zone ModifiedAt
         timestamp_with_time_zone DeletedAt
         boolean IsDeleted
+        jsonb Labels
     }
     "public.DataListItems" }o--|| "public.DataLists" : FK_DataListItems_DataLists_DataListId
 
@@ -173,6 +183,8 @@ erDiagram
         boolean IsDeleted
         bigint TenantId FK
         character_varying_100_ NormalizedName
+        jsonb AvailableLocales
+        character_varying_16_ DefaultLocale
     }
     "public.DataLists" }o--|| "public.Tenants" : FK_DataLists_Tenants_TenantId
 
@@ -268,11 +280,33 @@ erDiagram
         boolean LimitOnePerUser
         jsonb Metadata
         bigint FolderId FK
+        bigint Revision
+        integer SubmissionTokenExpiryHours
     }
     "public.Forms" }o..|| "public.Folders" : FK_Forms_Folders_FolderId
     "public.Forms" }o..|| "public.FormDefinitions" : FK_Forms_FormDefinitions_ActiveDefinitionId
     "public.Forms" }o--|| "public.Tenants" : FK_Forms_Tenants_TenantId
     "public.Forms" }o..|| "public.Themes" : FK_Forms_Themes_ThemeId
+
+    "public.OutboxMessages" {
+        bigint Id PK
+        character_varying_128_ EventType
+        jsonb Payload
+        bigint TenantId
+        timestamp_with_time_zone OccurredAt
+        integer SchemaVersion
+        integer Status
+        integer Attempts
+        character_varying_128_ TraceId
+        timestamp_with_time_zone ProcessedAt
+        timestamp_with_time_zone LockedUntil
+        character_varying_128_ LockedBy
+        timestamp_with_time_zone NextAttemptAt
+        timestamp_with_time_zone CreatedAt
+        timestamp_with_time_zone ModifiedAt
+        timestamp_with_time_zone DeletedAt
+        boolean IsDeleted
+    }
 
     "public.SubmissionVersions" {
         bigint Id PK
@@ -305,10 +339,32 @@ erDiagram
         character_varying_64_ SubmittedBy
         boolean IsTestSubmission
         character_varying_256_ RestrictionKey UK
+        character_varying_256_ SubmitterDisplayId
+        bigint SubmitterId FK
+        jsonb SubmitterProfileSnapshot
+        bigint Revision
+        timestamp_with_time_zone StartedAt
     }
     "public.Submissions" }o--|| "public.FormDefinitions" : FK_Submissions_FormDefinitions_FormDefinitionId
     "public.Submissions" }o--|| "public.Forms" : FK_Submissions_Forms_FormId
+    "public.Submissions" }o..|| "public.Submitters" : FK_Submissions_Submitters_SubmitterId
     "public.Submissions" }o--|| "public.Tenants" : FK_Submissions_Tenants_TenantId
+
+    "public.Submitters" {
+        bigint Id PK
+        character_varying_64_ AuthProvider
+        character_varying_256_ ExternalSubjectId
+        character_varying_256_ DisplayId
+        bigint AppUserId
+        jsonb ProfileJson
+        timestamp_with_time_zone LastSeenAt
+        timestamp_with_time_zone CreatedAt
+        timestamp_with_time_zone ModifiedAt
+        timestamp_with_time_zone DeletedAt
+        boolean IsDeleted
+        bigint TenantId FK
+    }
+    "public.Submitters" }o--|| "public.Tenants" : FK_Submitters_Tenants_TenantId
 
     "public.TenantSettings" {
         bigint TenantId PK, FK
@@ -319,17 +375,21 @@ erDiagram
         jsonb WebHookSettingsJson
         jsonb CustomExportsJson
         boolean RequireFolderAssignment
+        boolean AllowSelfRegistration
+        text AllowedAuthProviderKeysJson
+        character_varying_100_ DefaultRegistrationRoleName
     }
     "public.TenantSettings" }o--|| "public.Tenants" : FK_TenantSettings_Tenants_TenantId
 
     "public.Tenants" {
         bigint Id PK
         character_varying_100_ Name
-        text Description
+        character_varying_500_ Description
         timestamp_with_time_zone CreatedAt
         timestamp_with_time_zone ModifiedAt
         timestamp_with_time_zone DeletedAt
         boolean IsDeleted
+        character_varying_8_ ShortUrl UK
     }
 
     "public.Themes" {
@@ -352,22 +412,6 @@ This schema supports authentication and authorization
 
 ```mermaid
 erDiagram
-    "identity.RoleClaims" {
-        integer Id PK
-        bigint RoleId FK
-        text ClaimType
-        text ClaimValue
-    }
-    "identity.RoleClaims" }o--|| "identity.Roles" : FK_RoleClaims_Roles_RoleId
-
-    "identity.UserClaims" {
-        integer Id PK
-        bigint UserId FK
-        text ClaimType
-        text ClaimValue
-    }
-    "identity.UserClaims" }o--|| "identity.Users" : FK_UserClaims_Users_UserId
-
     "identity.EmailVerificationTokens" {
         bigint Id PK
         bigint UserId FK
@@ -394,6 +438,14 @@ erDiagram
         boolean IsDeleted
     }
 
+    "identity.RoleClaims" {
+        integer Id PK
+        bigint RoleId FK
+        text ClaimType
+        text ClaimValue
+    }
+    "identity.RoleClaims" }o--|| "identity.Roles" : FK_RoleClaims_Roles_RoleId
+
     "identity.RolePermissions" {
         bigint Id PK
         bigint RoleId FK
@@ -419,6 +471,14 @@ erDiagram
         boolean IsSystemDefined
         bigint TenantId
     }
+
+    "identity.UserClaims" {
+        integer Id PK
+        bigint UserId FK
+        text ClaimType
+        text ClaimValue
+    }
+    "identity.UserClaims" }o--|| "identity.Users" : FK_UserClaims_Users_UserId
 
     "identity.UserLogins" {
         text LoginProvider
@@ -462,9 +522,12 @@ erDiagram
         boolean LockoutEnabled
         integer AccessFailedCount
         bigint TenantId
+        character_varying_64_ AuthProvider
+        character_varying_256_ DisplayName
+        text ExternalRolesJson
+        character_varying_256_ ExternalSubjectId
+        timestamp_with_time_zone LastLoginAt
     }
-
-
 ```
 
 ## Codebase Organization and Dependencies

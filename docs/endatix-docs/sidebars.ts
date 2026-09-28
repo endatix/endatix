@@ -129,7 +129,7 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Endatix API",
-      collapsed: true,
+      collapsed: false,
       items: [
         "developers/api/index",
         "developers/api/email-providers",
@@ -147,7 +147,7 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Endatix Hub",
-      collapsed: true,
+      collapsed: false,
       items: [
         "developers/hub/index",
         "developers/hub/environment",
@@ -160,6 +160,7 @@ const sidebars: SidebarsConfig = {
     },
   ],
   userSidebar: [
+    "end-users/index",
     {
       type: "category",
       label: "Forms",
@@ -190,12 +191,33 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/form-builder/custom-variables",
             "end-users/forms/form-builder/triggers",
             "end-users/forms/form-builder/validation",
+            "end-users/forms/form-builder/panels",
             "end-users/forms/form-builder/question-loops",
             "end-users/forms/form-builder/randomization-of-choices",
             "end-users/forms/form-builder/blind-search",
             "end-users/forms/form-builder/carry-forward",
             "end-users/forms/form-builder/text-piping",
             "end-users/forms/form-builder/rich-text-formatting",
+            {
+              type: "category",
+              label: "Question Types",
+              collapsed: false,
+              link: {
+                type: "generated-index",
+                slug: "end-users/forms/form-builder/question-types",
+                title: "Question Types",
+                description:
+                  "The question types available in the Form Builder, and the settings each one supports.",
+              },
+              items: [
+                "end-users/forms/form-builder/question-types/text-questions",
+                "end-users/forms/form-builder/question-types/choice-questions",
+                "end-users/forms/form-builder/question-types/rating-and-ranking-questions",
+                "end-users/forms/form-builder/question-types/matrix-questions",
+                "end-users/forms/form-builder/question-types/file-upload-question",
+                "end-users/forms/form-builder/question-types/display-and-calculated-widgets",
+              ],
+            },
           ],
         },
         {
@@ -228,6 +250,24 @@ const sidebars: SidebarsConfig = {
         "end-users/forms/prefilling-and-personalization",
       ],
     },
+    "end-users/data-lists/index",
+    {
+      type: "category",
+      label: "Sharing and Embedding",
+      collapsed: false,
+      link: {
+        type: "generated-index",
+        slug: "end-users/sharing",
+        title: "Sharing and Embedding",
+        description:
+          "Get a form in front of respondents: who can open it, and how the link reaches them.",
+      },
+      items: [
+        "end-users/sharing/public-and-private-forms",
+        "end-users/sharing/embedding",
+        "end-users/sharing/single-submission",
+      ],
+    },
     {
       type: "category",
       label: "Submissions",
@@ -242,6 +282,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "end-users/submissions/viewing-submissions",
         "end-users/submissions/submission-details",
+        "end-users/submissions/sharing-submissions",
         "end-users/submissions/exporting-submissions",
       ],
     },

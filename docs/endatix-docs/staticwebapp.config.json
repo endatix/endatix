@@ -70,6 +70,11 @@
       "route": "/docs/end-users/overview",
       "redirect": "/docs/end-users/forms",
       "statusCode": 301
+    },
+    {
+      "route": "/docs/developers/products-overview",
+      "redirect": "/docs/developers/api/",
+      "statusCode": 301
     }
   ],
   "responseOverrides": {

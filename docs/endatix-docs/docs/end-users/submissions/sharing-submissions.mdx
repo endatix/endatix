@@ -1,0 +1,120 @@
+---
+title: Sharing Submissions
+description: Generate a short-lived link that lets someone without a Hub account open, edit, or download one submission, and understand what the link's expiry does and does not protect.
+sidebar_label: Sharing Submissions
+---
+
+import MenuLight from "./sharing-submissions-menu_light.webp";
+import MenuDark from "./sharing-submissions-menu_dark.webp";
+import TypesLight from "./sharing-submissions-types_light.webp";
+import TypesDark from "./sharing-submissions-types_dark.webp";
+import LinkLight from "./sharing-submissions-link_light.webp";
+import LinkDark from "./sharing-submissions-link_dark.webp";
+import ViewLight from "./sharing-submissions-view_light.webp";
+import ViewDark from "./sharing-submissions-view_dark.webp";
+
+# Sharing Submissions
+
+**Share Links** turns one submission into a URL you can send to someone who has no Endatix account: a claims adjuster who needs to read an answer, a customer who needs to correct a typo, a colleague who wants the PDF. The link carries its own permission and stops working after a week.
+
+This is the opposite direction from [sharing a form](/docs/end-users/sharing/embedding), which gets a blank form to respondents. Here the response already exists and you are sending it out.
+
+## Open the dialog
+
+**Share Links** sits in the **...** menu, in two places: on any row of the [Submissions grid](/docs/end-users/submissions/viewing-submissions), and in the top bar of [Submission Details](/docs/end-users/submissions/submission-details).
+
+<Shot
+  alt="Submissions grid row menu with an arrow pointing at Share Links, between Export PDF and View Files"
+  sources={{ light: MenuLight, dark: MenuDark }}
+/>
+
+## Choose what the link can do
+
+One submission, four kinds of link. Pick one from **General access**, then choose **Generate link**.
+
+<Shot
+  alt="Share Submission dialog with the link type list open, showing Share, View, Edit, and Export PDF"
+  sources={{ light: TypesLight, dark: TypesDark }}
+/>
+
+| Link | What the recipient gets | Opens |
+| --- | --- | --- |
+| **Share** | Continues an unfinished response and submits it. The one to send when someone abandoned the form halfway. | `/share/<formId>` |
+| **View** | The answers, read-only, with the submission's timestamps. No way to change anything. | `/view/<formId>` |
+| **Edit** | The same page, editable, with **Discard** and **Save Changes**. | `/edit/<formId>` |
+| **Export PDF** | A PDF download, named `submission-<id>.pdf`. No page opens. | `/export-pdf/<formId>` |
+
+Each link does exactly its own job. An **Edit** link also reads, because editing requires it, but a **View** link cannot edit: following one to the edit page gives *You don't have permission to edit this submission*, and pointing one at the PDF download returns **403**.
+
+Switching the type after you have generated a link clears it. Generate again to get a link of the new type.
+
+## Copy the link
+
+<Shot
+  alt="Share Submission dialog after generating, showing a Temporary access notice with the expiry date and the generated link with a copy button"
+  sources={{ light: LinkLight, dark: LinkDark }}
+/>
+
+**Temporary access** states the exact expiry date and time in your own timezone. Below it, the link is ready to copy.
+
+The URL is the page plus a `token` query parameter:
+
+```
+https://your-hub.example.com/view/1553401372110487552?token=1553401372123070464.1791147435.r.<signature>
+```
+
+The token is the whole of the access control. It is signed, and it carries the submission id, the expiry, and the permissions (`r` view, `w` edit, `x` export, `s` submit). Nothing else is checked, so treat the URL itself as the secret: anyone it reaches can open the submission.
+
+## What the recipient sees
+
+No sign-in, no account, no Hub. A **View** link opens the submission on its own page:
+
+<Shot
+  alt="A View link opened by a recipient: the submission's answers with its ID, completion status, and timestamps, and no Hub navigation"
+  sources={{ light: ViewLight, dark: ViewDark }}
+/>
+
+## Expiry
+
+Links last **7 days**. Hub does not offer a shorter or longer option in the dialog.
+
+:::warning[A link cannot be taken back]
+Nothing about the link is stored, so there is nothing to revoke. Generating a second link does not cancel the first, and no setting in Hub shortens one that is already out. Until the seven days are up, every copy of that URL keeps working, including one that was forwarded or pasted into a ticket. Share it the way you would share the answers themselves.
+:::
+
+After it expires, the link shows **This link has expired** and *Request a new access link to continue.* Generate a fresh one and send that.
+
+## When a link does not work
+
+| What the recipient sees | What happened |
+| --- | --- |
+| *This link has expired.* | More than 7 days have passed, or the URL was truncated in transit. Generate a new one. |
+| *You can't open this submission.* | The link does not carry the permission that page needs, for example a View link opened at the edit page. Generate the right type. |
+| *We couldn't find that submission.* | The submission was deleted, or the id in the URL is wrong. |
+
+A link broken across two lines by an email client is the most common cause of the first row. Send it as a single line, or as a hyperlink.
+
+## Related documentation
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/end-users/submissions/submission-details"
+    title="Submission Details"
+    description="The page a View or Edit link mirrors, for people who do have Hub access."
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/exporting-submissions"
+    title="Exporting Submissions"
+    description="Download many submissions at once, or one PDF straight from Hub without a link."
+  />
+  <LinkCard
+    to="/docs/end-users/sharing/single-submission"
+    title="One Response Per Person"
+    description="A Share link is the one way back into a response once the limit has been used."
+  />
+  <LinkCard
+    to="/docs/guides/form-prefilling"
+    title="Form Prefilling and Sharing"
+    description="Developer reference: create the same tokens from the API, with your own expiry."
+  />
+</CardGrid>
