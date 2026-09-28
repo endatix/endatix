@@ -320,6 +320,33 @@ public sealed class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_UnknownJobType_DeclinesAndReschedules()
+    {
+        // Arrange — this node has no handler for "Orphan", yet its trigger fired here.
+        var now = new DateTimeOffset(2026, 9, 28, 12, 0, 0, TimeSpan.Zero);
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        await using var provider = Services(repository, new ObservedRun());
+        provider.GetRequiredService<IDateTimeProvider>().UtcNow.Returns(now);
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = FiringOf(JobId, jobType: "Orphan");
+        ITrigger? rescheduled = null;
+        context.Scheduler
+            .RescheduleJob(Arg.Any<TriggerKey>(), Arg.Do<ITrigger>(trigger => rescheduled = trigger), Arg.Any<CancellationToken>())
+            .Returns(now.AddSeconds(30));
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert — the row is never touched, and the same trigger fires again in thirty seconds.
+        repository.ReceivedCalls().Should().BeEmpty();
+        rescheduled.Should().NotBeNull();
+        rescheduled!.Key.Should().Be(context.Trigger.Key);
+        rescheduled.StartTimeUtc.Should().BeCloseTo(now.AddSeconds(30), TimeSpan.FromSeconds(2));
+        rescheduled.JobDataMap.GetString(BackgroundJobExecution.JobIdKey).Should().Be(JobId.ToString());
+        rescheduled.ExecutionGroup.Should().Be("Orphan");
+    }
+
+    [Fact]
     public void Resolve_ClaimedRow_CopiesRowFields()
     {
         // Arrange

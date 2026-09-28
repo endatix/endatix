@@ -4,9 +4,11 @@ using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
+using Endatix.Modules.Jobs.Endpoints;
 using Endatix.Modules.Jobs.Features;
 using Endatix.Modules.Jobs.Persistence;
 using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -75,5 +77,8 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
         builder.Services.AddSingleton(JobHandlerRegistry.Build);
         builder.Services.AddJobsScheduler(builder.Configuration);
         builder.Services.AddHostedService<JobsSchedulerHostedService>();
+        builder.Services.AddJobsDashboard(
+            builder.Configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
+            ?? new BackgroundJobsOptions());
     }
 }

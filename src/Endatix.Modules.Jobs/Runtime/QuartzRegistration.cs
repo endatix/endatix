@@ -39,11 +39,14 @@ internal static class QuartzRegistration
     /// </summary>
     public static JobsSchedulerPlan Build(IEnumerable<string> jobTypes, BackgroundJobsOptions options)
     {
-        var poolSize = jobTypes.Sum(jobType => options.ResolvePolicy(jobType).MaxConcurrency);
+        var caps = jobTypes.ToDictionary(
+            jobType => jobType,
+            jobType => options.ResolvePolicy(jobType).MaxConcurrency,
+            StringComparer.Ordinal);
 
         // A pool of zero is not a valid thread pool; a host whose job types are all capped at zero keeps one
         // thread it never uses.
-        return new JobsSchedulerPlan(Math.Max(1, poolSize));
+        return new JobsSchedulerPlan(Math.Max(1, caps.Values.Sum()), caps);
     }
 
     public static JobKey JobKeyFor(string jobType) => new(jobType, JobGroup);
@@ -87,6 +90,7 @@ internal static class QuartzRegistration
     public static IServiceCollection AddJobExecution(this IServiceCollection services)
     {
         services.AddScoped<BackgroundJobExecution>();
+        services.AddScoped<JobFiringAdmission>();
         services.AddScoped<JobAttemptClaimer>();
         services.AddScoped<JobHandlerRunner>();
         services.AddScoped<JobOutcomeRecorder>();
@@ -125,6 +129,8 @@ internal static class QuartzRegistration
     {
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
         quartz.AddTriggerListener<JobTriggerListener>();
+        quartz.AddTriggerListener<JobMisfireListener>();
+        quartz.UseExecutionLimits(ConfigureExecutionLimits);
 
         if (options.RunInProcess)
         {
@@ -165,8 +171,26 @@ internal static class QuartzRegistration
         scheduler.InstanceId = instanceId;
     }
 
+    // Each registered job type's group is capped at its own concurrency, and every other group at zero, so this node
+    // never acquires a job it has no handler for.
+    private static void ConfigureExecutionLimits(IServiceProvider provider, ExecutionLimitsBuilder limits)
+    {
+        var plan = Build(
+            provider.GetRequiredService<JobHandlerRegistry>().JobTypes,
+            provider.GetRequiredService<IOptions<BackgroundJobsOptions>>().Value);
+        foreach (var (group, cap) in plan.GroupCaps)
+        {
+            limits.ForGroup(group, cap);
+        }
+
+        limits.ForOtherGroups(0);
+    }
+
     private static void ConfigureStore(IPersistentStoreBuilder store, BackgroundJobsOptions options, string connectionString)
     {
+        // Named before the database, because registration is first-wins and the database would otherwise bring the
+        // shipped dialect.
+        store.UseDriverDelegate<ExecutionGroupFilteringPostgreSqlDelegate>();
         store.UsePostgres(connectionString);
         store.UseSystemTextJsonSerializer();
         store.ConfigureStore(ado =>
@@ -175,6 +199,11 @@ internal static class QuartzRegistration
             ado.StoreJobDataAsStrings = true;
             ado.SchemaProvisioning = SchemaProvisioning.Validate;
             ado.AcceptEnlistedTransactions = true;
+            ado.MisfireThreshold = TimeSpan.FromSeconds(options.MisfireThresholdSeconds);
+
+            // A job that waited past the threshold for a slot is put back in line by the misfire pass, so a pass as
+            // rare as the threshold itself could hold it up to a whole threshold longer.
+            ado.MisfireHandlerFrequency = TimeSpan.FromSeconds(Math.Min(10, options.MisfireThresholdSeconds));
         });
         store.UseClustering(clustering =>
         {
@@ -203,4 +232,8 @@ internal sealed record JobTriggerSpec(
     bool Reclaim = false);
 
 /// <param name="PoolSize">How many jobs this node runs at once, across every job type.</param>
-internal sealed record JobsSchedulerPlan(int PoolSize);
+/// <param name="GroupCaps">
+/// Each registered job type's execution group and how many of its jobs this node runs at once. Every other group
+/// is capped at zero, so this node never acquires a job it has no handler for.
+/// </param>
+internal sealed record JobsSchedulerPlan(int PoolSize, IReadOnlyDictionary<string, int> GroupCaps);
