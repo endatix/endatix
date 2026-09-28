@@ -57,6 +57,15 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         // background service. Platform-wide work needs its own design, not this sentinel.
         Guard.Against.NegativeOrZero(tenantId);
 
+        // Refused here, naming the limit, rather than by the database as a truncation error that fails every
+        // other job in the same batch without saying which key was too long.
+        if (dedupKey is not null && dedupKey.Length > DedupKeyMaxLength)
+        {
+            throw new ArgumentException(
+                $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
+                nameof(dedupKey));
+        }
+
         JobType = jobType;
         PayloadJson = payloadJson;
         TenantId = tenantId;
@@ -139,6 +148,9 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// another.
     /// </summary>
     public string? DedupKey { get; private set; }
+
+    /// <summary>The longest dedup key a job row holds: an outbox message id and a subscriber key fit well inside.</summary>
+    public const int DedupKeyMaxLength = 200;
 
     /// <summary>Whether this job has reached a state it can never leave.</summary>
     public bool IsTerminal => Status is JobStatus.Completed

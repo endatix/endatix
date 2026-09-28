@@ -62,6 +62,19 @@ public class BackgroundJobTests
     }
 
     [Fact]
+    public void Constructor_DedupKeyLongerThanColumn_Throws()
+    {
+        // Arrange
+        var dedupKey = new string('k', BackgroundJob.DedupKeyMaxLength + 1);
+
+        // Act
+        var act = () => new BackgroundJob("SubmissionExport", "{}", tenantId: 5, nextAttemptAt: Now, dedupKey: dedupKey);
+
+        // Assert
+        act.Should().Throw<ArgumentException>().WithParameterName("dedupKey");
+    }
+
+    [Fact]
     public void Constructor_TenantIdZero_Throws()
     {
         // Arrange
