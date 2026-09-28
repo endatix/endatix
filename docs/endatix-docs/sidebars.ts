@@ -209,6 +209,7 @@ const sidebars: SidebarsConfig = {
                 "end-users/forms/form-builder/question-types/text-questions",
                 "end-users/forms/form-builder/question-types/choice-questions",
                 "end-users/forms/form-builder/question-types/rating-and-ranking-questions",
+                "end-users/forms/form-builder/question-types/matrix-questions",
                 "end-users/forms/form-builder/question-types/file-upload-question",
               ],
             },
