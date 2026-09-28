@@ -199,14 +199,22 @@ internal static class QuartzRegistration
     }
 
     // Retention runs on one node at a time, in a group of its own so no job type's backlog delays it.
-    private static void AddRetentionJob(IQuartzBuilder quartz, BackgroundJobsRetentionOptions retention)
+    private static void AddRetentionJob(IQuartzBuilder quartz, BackgroundJobsRetentionOptions? retention)
     {
         quartz.AddJob<JobRetentionJob>(job => job.WithIdentity(JobRetentionJob.Group, MaintenanceJobGroup).StoreDurably());
+
+        // Parsing an invalid expression here would throw before the options validator can say which key is wrong;
+        // without the trigger, the validator fails startup with that message instead.
+        if (retention?.Cron is not { } cron || !CronExpression.TryParse(cron, out _))
+        {
+            return;
+        }
+
         quartz.AddTrigger(trigger => trigger
             .WithIdentity(JobRetentionJob.Group, MaintenanceJobGroup)
             .ForJob(JobRetentionJob.Group, MaintenanceJobGroup)
             .WithExecutionGroup(JobRetentionJob.Group)
-            .WithCronSchedule(retention.Cron));
+            .WithCronSchedule(cron));
     }
 
     private static void ConfigureStore(IPersistentStoreBuilder store, BackgroundJobsOptions options, string connectionString)
