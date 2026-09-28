@@ -6,17 +6,19 @@ description: Turn Hub, embed, view, and edit routes into a 503 maintenance page 
 
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import ThemedImage from "@theme/ThemedImage";
-import maintenanceScreenshotLight from "./maintenance_light.png";
-import maintenanceScreenshotDark from "./maintenance_dark.png";
+import maintenanceScreenshotLight from "./maintenance_light.webp";
+import maintenanceScreenshotDark from "./maintenance_dark.webp";
 
-# Hub maintenance mode
+# Maintenance mode
 
-Set `MAINTENANCE_MODE=true` and restart Hub. Matched browser routes rewrite to `/maintenance` and return **HTTP 503**, with an optional `Retry-After` header. The address bar still shows the original path.
+Set `MAINTENANCE_MODE=true` and restart Hub. Hub pages plus `/embed`, `/view`, and `/edit` rewrite to `/maintenance` and return **HTTP 503**, with an optional `Retry-After` header. The address bar still shows the original path.
 
 Share links (`/share`), Slack (`/slack`), and `/api` stay up. Use this for planned Hub downtime, not for a full API outage.
 
+The page follows the visitor's light or dark system setting. It does not show the HTTP status. A construction icon sits above the heading, then the two paragraphs, then the quieter closing line.
+
 <ThemedImage
-  alt="Maintenance page with a heading and two short paragraphs"
+  alt="Maintenance page: construction icon, We'll be right back, two short paragraphs, and a quieter thank-you line"
   sources={{
     light: useBaseUrl(maintenanceScreenshotLight),
     dark: useBaseUrl(maintenanceScreenshotDark),
@@ -32,18 +34,14 @@ Share links (`/share`), Slack (`/slack`), and `/api` stay up. Use this for plann
 5. Open a Hub route such as `/forms` and confirm **503** in the browser network panel. Do not use `/share` for this check.
 6. To restore service, remove `MAINTENANCE_MODE` or set it to anything other than `true`, then restart again.
 
-## Which routes change
-
-The proxy rewrites Hub pages plus `/embed`, `/view`, and `/edit`. A respondent on those routes sees the maintenance page. It follows the visitor's light or dark system setting.
+## Limitations
 
 These paths are excluded so the page can render, or so they stay available:
 
-- `/maintenance` — otherwise the rewrite would loop.
+- `/maintenance` — otherwise the rewrite would loop. It sets `robots` to `noindex, nofollow`.
 - `/share` and `/slack` — a published share link stays up.
 - `/api` — integrations keep calling Hub API routes unless the API process is down separately.
 - `/_next/static`, `/_next/image`, `favicon.ico`, and `assets` — CSS, scripts, and icons keep loading.
-
-`/maintenance` sets `robots` to `noindex, nofollow`.
 
 :::warning[API callers still get 200]
 That is expected. A 503 for every API needs a separate policy (gateway, or your own route handling). It is not part of this switch.
