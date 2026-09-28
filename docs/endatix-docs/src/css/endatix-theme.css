@@ -230,7 +230,7 @@ h6 {
 
 .menu__link {
   border-radius: var(--ifm-global-radius);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   transition:
     background-color 150ms ease-out,
     color 150ms ease-out;
