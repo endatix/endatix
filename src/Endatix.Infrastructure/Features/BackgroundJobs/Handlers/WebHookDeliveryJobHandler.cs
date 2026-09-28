@@ -78,7 +78,7 @@ internal sealed class WebHookDeliveryJobHandler(
         EndpointDelivery delivery,
         CancellationToken cancellationToken)
     {
-        var formId = new OutboxMessageRow(delivery.Message).GetRequiredIdProp(delivery.EventPayload, "formId");
+        var formId = new OutboxMessageView(delivery.Message).GetRequiredIdProp(delivery.EventPayload, "formId");
         var eventConfig = await configReader.GetEventConfigAsync(
             new WebHookEventLookup(tenantId, delivery.Operation.EventName, formId), cancellationToken);
         return eventConfig is { IsEnabled: true }
@@ -131,19 +131,6 @@ internal sealed class WebHookDeliveryJobHandler(
     private sealed record EndpointLookup(WebHookEndpointConfig? Endpoint, string? Refusal)
     {
         public static EndpointLookup NoneBecause(string refusal) => new(null, refusal);
-    }
-
-    /// <summary>The outbox row as the relay's message contract, to reuse its payload readers.</summary>
-    private sealed class OutboxMessageRow(OutboxMessage message) : Endatix.Outbox.Engine.IOutboxMessage
-    {
-        public long Id => message.Id;
-        public string EventType => message.EventType;
-        public string Payload => message.Payload;
-        public long TenantId => message.TenantId;
-        public DateTimeOffset OccurredAt => new(DateTime.SpecifyKind(message.OccurredAt, DateTimeKind.Utc));
-        public int SchemaVersion => message.SchemaVersion;
-        public int Attempts => message.Attempts;
-        public string? TraceId => message.TraceId;
     }
 }
 
