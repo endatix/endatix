@@ -137,6 +137,28 @@ public sealed class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_HandlerStoppedByShutdown_RecordsAbandonedAndWritesNothing()
+    {
+        // Arrange
+        var observed = new ObservedRun { RaiseShutdown = true, ThrowAfterShutdown = true };
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository
+            .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), false, Arg.Any<CancellationToken>())
+            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 1, null, JobStatus.Processing));
+        await using var provider = Services(repository, observed);
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+
+        // Act
+        await execution.Execute(FiringOf(JobId), TestContext.Current.CancellationToken);
+
+        // Assert
+        var metrics = provider.GetRequiredService<IJobMetrics>();
+        metrics.Received(1).Record(JobLifecycleEvent.Abandoned, JobType);
+        metrics.Received(1).ObserveDuration(JobType, Arg.Any<TimeSpan>(), JobAttemptOutcome.Abandoned);
+        await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default, default, default, default!, default, default);
+    }
+
+    [Fact]
     public void Resolve_ClaimedRow_CopiesRowFields()
     {
         // Arrange
@@ -190,6 +212,8 @@ public sealed class BackgroundJobExecutionTests
         public long AmbientTenantId { get; set; } = -1;
 
         public bool RaiseShutdown { get; init; }
+
+        public bool ThrowAfterShutdown { get; init; }
     }
 
     private sealed class TenantObservingHandler(ObservedRun observed, ITenantContext ambient, JobsShutdownSignal shutdown)
@@ -204,6 +228,11 @@ public sealed class BackgroundJobExecutionTests
             if (observed.RaiseShutdown)
             {
                 shutdown.Raise();
+            }
+
+            if (observed.ThrowAfterShutdown)
+            {
+                throw new OperationCanceledException(shutdown.Token);
             }
 
             return Task.FromResult(Result.Success());

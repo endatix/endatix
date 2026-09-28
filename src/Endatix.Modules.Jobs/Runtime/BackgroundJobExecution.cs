@@ -80,6 +80,8 @@ internal sealed class BackgroundJobExecution(
                 "Background job {JobId} attempt {Attempt} was left running at shutdown and will run again",
                 claimed.Id,
                 claimed.AttemptCount);
+            Record(JobLifecycleEvent.Abandoned, claimed.JobType);
+            ObserveDuration(claimed.JobType, claimedAt, JobAttemptOutcome.Abandoned);
             return;
         }
 
