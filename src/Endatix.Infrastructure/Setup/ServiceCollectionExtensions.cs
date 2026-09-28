@@ -9,6 +9,9 @@ using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
+using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Setup;
 using Endatix.Infrastructure.Storage;
@@ -117,6 +120,7 @@ public static class ServiceCollectionExtensions
                .BindConfiguration("Endatix:WebHooks")
                .ValidateDataAnnotations();
         services.AddSingleton<IBackgroundTasksQueue, BackgroundTasksQueue>();
+        services.AddScoped<WebHookEventConfigReader>();
         services.AddScoped(typeof(IWebHookService), typeof(BackgroundTaskWebHookService));
         services.AddHostedService<WebHookBackgroundWorker>();
         services.AddHttpClient<WebHookServer>((serviceProvider, client) =>
@@ -153,7 +157,40 @@ public static class ServiceCollectionExtensions
                    });
                });
 
+        AddWebHookJobDelivery(services);
+
         return services;
+    }
+
+    // Webhooks as background jobs: one job per endpoint, each POSTing once per attempt. Its client is the webhook
+    // client without the retry, so the job's attempt budget is the number of POSTs an endpoint receives rather than
+    // that budget times the client's retries. The handler only runs where the Jobs module is registered.
+    private static void AddWebHookJobDelivery(IServiceCollection services)
+    {
+        services.AddHttpClient(WebHookDeliveryJobHandler.HttpClientName, (serviceProvider, client) =>
+               {
+                   var webHookSettings = serviceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
+
+                   client.Timeout = TimeSpan.FromSeconds(webHookSettings.ServerSettings.PipelineTimeoutInSeconds);
+                   client.DefaultRequestHeaders.UserAgent.ParseAdd(WebHookRequestHeaders.Constants.ENDATIX_USER_AGENT);
+               })
+               .AddResilienceHandler("webhook-job-resilience", static (builder, context) =>
+               {
+                   var webHookSettings = context.ServiceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
+
+                   builder.AddTimeout(TimeSpan.FromSeconds(webHookSettings.ServerSettings.AttemptTimeoutInSeconds));
+                   builder.AddConcurrencyLimiter(new ConcurrencyLimiterOptions
+                   {
+                       PermitLimit = webHookSettings.ServerSettings.MaxConcurrentRequests,
+                       QueueLimit = webHookSettings.ServerSettings.MaxQueueSize
+                   });
+               });
+
+        services.AddScoped<IBackgroundJobHandler, WebHookDeliveryJobHandler>();
+        foreach (var eventType in WebHookEvents.OperationsByEventType.Keys)
+        {
+            services.AddOutboxJobSubscription<WebHookDeliveryPayload, WebHookEndpointExpander>(eventType);
+        }
     }
 
     /// <summary>

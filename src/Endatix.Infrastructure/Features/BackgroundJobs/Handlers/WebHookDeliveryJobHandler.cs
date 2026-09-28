@@ -1,0 +1,119 @@
+using System.Text.Json;
+using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Core.Entities;
+using Endatix.Core.Features.WebHooks;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Specifications;
+using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Infrastructure.Features.WebHooks;
+using Microsoft.Extensions.Logging;
+
+namespace Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
+
+/// <summary>
+/// Delivers one outbox event to one webhook endpoint, with one POST per attempt.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Everything is read when the job runs: the event from its outbox row, scoped to the job's tenant, and the
+/// endpoint from the current configuration, so a job that waited out a backoff sends to the endpoint as it is
+/// now configured and never carries its URL or credentials.
+/// </para>
+/// <para>
+/// A non-2xx answer or a failed request throws, so the job retries on its own policy; the HTTP client here does
+/// not retry, which makes the job's attempt budget the number of POSTs an endpoint receives. A message, endpoint
+/// or event configuration that is gone returns a failure: no retry can bring it back. Receivers deduplicate on
+/// <c>X-Endatix-Hook-Id</c>, the outbox message id, exactly as with delivery inside the relay.
+/// </para>
+/// </remarks>
+internal sealed class WebHookDeliveryJobHandler(
+    IRepository<OutboxMessage> outboxMessages,
+    WebHookEventConfigReader configReader,
+    IHttpClientFactory httpClientFactory,
+    ILogger<WebHookServer> serverLogger) : BackgroundJobHandler<WebHookDeliveryPayload>
+{
+    /// <summary>The HTTP client webhook jobs send with: the webhook client's settings, without its retries.</summary>
+    public const string HttpClientName = "webhook-job-delivery";
+
+    public const string MessageGone = "The outbox message no longer exists.";
+    public const string EndpointGone = "The webhook endpoint is no longer configured.";
+    public const string EventDisabled = "Webhook delivery for this event is disabled.";
+    public const string InvalidUrl = "The webhook endpoint URL is not valid.";
+
+    protected override async Task<Result> ExecuteAsync(
+        BackgroundJobContext job,
+        WebHookDeliveryPayload payload,
+        CancellationToken cancellationToken)
+    {
+        // Scoped to the job's tenant explicitly: outside a request nothing else scopes this read.
+        var message = await outboxMessages.FirstOrDefaultAsync(
+            new OutboxMessageByIdForTenantSpec(payload.OutboxMessageId, job.TenantId),
+            cancellationToken);
+        if (message is null || !WebHookEvents.OperationsByEventType.TryGetValue(message.EventType, out var operation))
+        {
+            return Result.Invalid(new ValidationError(MessageGone));
+        }
+
+        using var document = JsonDocument.Parse(message.Payload);
+        var eventPayload = document.RootElement;
+        var formId = new OutboxMessageRow(message).GetRequiredIdProp(eventPayload, "formId");
+
+        var eventConfig = await configReader.GetEventConfigAsync(job.TenantId, operation.EventName, formId, cancellationToken);
+        if (eventConfig is not { IsEnabled: true })
+        {
+            return Result.Invalid(new ValidationError(EventDisabled));
+        }
+
+        var endpoint = eventConfig.WebHookEndpoints?
+            .FirstOrDefault(candidate => !string.IsNullOrEmpty(candidate.Url)
+                && WebHookEndpointKey.Of(candidate.Url) == payload.EndpointKey);
+        if (endpoint is null)
+        {
+            return Result.Invalid(new ValidationError(EndpointGone));
+        }
+
+        if (!Uri.IsWellFormedUriString(endpoint.Url, UriKind.Absolute))
+        {
+            return Result.Invalid(new ValidationError(InvalidUrl));
+        }
+
+        var server = new WebHookServer(httpClientFactory.CreateClient(HttpClientName), serverLogger);
+        var status = await server.SendAsync(
+            new WebHookMessage<JsonElement>(message.Id, operation, eventPayload),
+            TaskInstructions.FromWebHookEndpointConfig(endpoint),
+            cancellationToken);
+
+        if ((int)status is < 200 or > 299)
+        {
+            throw new WebHookDeliveryFailedException(payload.EndpointKey, status);
+        }
+
+        return Result.Success();
+    }
+
+    /// <summary>The outbox row as the relay's message contract, to reuse its payload readers.</summary>
+    private sealed class OutboxMessageRow(OutboxMessage message) : Endatix.Outbox.Engine.IOutboxMessage
+    {
+        public long Id => message.Id;
+        public string EventType => message.EventType;
+        public string Payload => message.Payload;
+        public long TenantId => message.TenantId;
+        public DateTimeOffset OccurredAt => new(DateTime.SpecifyKind(message.OccurredAt, DateTimeKind.Utc));
+        public int SchemaVersion => message.SchemaVersion;
+        public int Attempts => message.Attempts;
+        public string? TraceId => message.TraceId;
+    }
+}
+
+/// <summary>
+/// A webhook endpoint answered something other than success. Retryable: the endpoint may recover.
+/// </summary>
+/// <remarks>Names the endpoint by its key, never its URL, which may carry a secret.</remarks>
+public sealed class WebHookDeliveryFailedException(string endpointKey, System.Net.HttpStatusCode status)
+    : Exception($"Webhook endpoint {endpointKey} answered {(int)status}.")
+{
+    public string EndpointKey { get; } = endpointKey;
+
+    public System.Net.HttpStatusCode Status { get; } = status;
+}
