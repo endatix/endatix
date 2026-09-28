@@ -37,7 +37,7 @@ internal sealed class JobHandlerRegistry
 
     /// <summary>
     /// Builds the registry. Throws <see cref="InvalidOperationException"/> naming the job type when a handler
-    /// declares a blank or over-long one, or when two handlers declare the same one, which would leave routing
+    /// declares a blank, reserved or over-long one, or when two handlers declare the same one, which would leave routing
     /// ambiguous.
     /// </summary>
     public static JobHandlerRegistry Build(IEnumerable<IBackgroundJobHandler> handlers)
@@ -57,6 +57,15 @@ internal sealed class JobHandlerRegistry
                     $"The background job handler {handlerType.FullName} declares no job type, so nothing can be routed to it.");
             }
 
+            // Every job type is also an execution group, and the scheduler reserves these names for its own limits;
+            // a handler declaring one would fail building the scheduler on every host that registers it.
+            if (IsReservedExecutionGroupName(jobType))
+            {
+                throw new InvalidOperationException(
+                    $"The job type '{jobType}' of the background job handler {handlerType.FullName} is a name the " +
+                    "scheduler reserves for its execution limits, so no job could ever run under it.");
+            }
+
             if (jobType.Length > JobTypeMaxLength)
             {
                 throw new InvalidOperationException(
@@ -74,6 +83,9 @@ internal sealed class JobHandlerRegistry
 
         return new JobHandlerRegistry(handlerTypes);
     }
+
+    private static bool IsReservedExecutionGroupName(string jobType) =>
+        jobType.Trim() is "*" or "_" || jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Builds the registry from the handlers registered in <paramref name="services"/>, in a scope of its own

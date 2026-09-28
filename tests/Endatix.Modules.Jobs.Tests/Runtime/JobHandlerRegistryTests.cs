@@ -51,6 +51,23 @@ public sealed class JobHandlerRegistryTests
         build.Should().Throw<InvalidOperationException>();
     }
 
+    [Theory]
+    [InlineData("*")]
+    [InlineData("_")]
+    [InlineData("null")]
+    [InlineData("NULL")]
+    public void Build_JobTypeReservedByExecutionLimits_Throws(string jobType)
+    {
+        // Arrange
+        IBackgroundJobHandler[] handlers = [new NamedHandler(jobType)];
+
+        // Act
+        var build = () => JobHandlerRegistry.Build(handlers);
+
+        // Assert
+        build.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain($"'{jobType}'");
+    }
+
     [Fact]
     public void Build_JobTypeLongerThanColumn_Throws()
     {
