@@ -55,7 +55,7 @@ That is expected. A 503 for every API needs a separate policy (gateway, or your 
 
 One language per deployment. Hub does not read `Accept-Language` for this page. Set the six copy variables to the language you want everyone to see. Per-respondent language is [respondent access denial](/docs/building-your-solution/authorization/respondent-access-denial), not maintenance mode.
 
-```bash
+```text
 MAINTENANCE_TITLE=Volveremos enseguida
 MAINTENANCE_CARD_DESCRIPTION=Esta aplicación no está disponible temporalmente.
 MAINTENANCE_BODY=Estamos realizando un mantenimiento programado. Vuelva a intentarlo pronto.
@@ -63,6 +63,8 @@ MAINTENANCE_FOOTER=Gracias por su paciencia.
 MAINTENANCE_METADATA_TITLE=Mantenimiento programado
 MAINTENANCE_METADATA_DESCRIPTION=La aplicación no está disponible temporalmente mientras realizamos el mantenimiento.
 ```
+
+Quote the values if you export them in a shell. Spaces would otherwise split the assignment.
 
 <Settings>
 <Setting name="MAINTENANCE_MODE">

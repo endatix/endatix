@@ -6,7 +6,8 @@ namespace Endatix.Samples.SelfHosted;
 /// <summary>
 /// Sample only. Not registered by default.
 /// Deny GET /api/public/forms/{formId}/access with the respondent problem Hub renders.
-/// Register it before <c>app.UseEndatix()</c> so the response is written before the endpoint runs.
+/// Register it before <c>app.UseEndatix()</c>. <c>ConfigureAdditionalMiddleware</c> runs after
+/// <c>UseApi</c>, so it never sees those requests.
 /// </summary>
 public sealed class FormUnavailableSampleMiddleware(RequestDelegate next)
 {
@@ -33,8 +34,16 @@ public sealed class FormUnavailableSampleMiddleware(RequestDelegate next)
             return false;
         }
 
-        var path = request.Path.Value ?? string.Empty;
-        return path.Contains("/public/forms/", StringComparison.OrdinalIgnoreCase)
-            && path.EndsWith("/access", StringComparison.OrdinalIgnoreCase);
+        var segments = (request.Path.Value ?? string.Empty)
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length < 4)
+        {
+            return false;
+        }
+
+        var tail = segments[^4..];
+        return string.Equals(tail[0], "public", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(tail[1], "forms", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(tail[3], "access", StringComparison.OrdinalIgnoreCase);
     }
 }

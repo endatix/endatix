@@ -57,10 +57,11 @@ On a share, view, or edit page the message follows the visitor's light or dark s
 
 ## Write the response
 
-1. Match `GET` paths that contain `/public/forms/` and end with `/access`.
-2. Register the middleware **before** `app.UseEndatix()`. `UseEndatix()` maps the API, and middleware added after that does not see those requests.
+1. Match `GET` requests whose last four path segments are `public`, `forms`, `{formId}`, `access`. Compare segments case-insensitively and ignore a trailing slash. Routing accepts `/access/` and `/ACCESS`, so a plain `EndsWith("/access")` lets those through.
+2. Register the middleware **before** `app.UseEndatix()`. `UseEndatix()` maps the API inside `UseFastEndpoints`, and middleware added after that does not see those requests. `ConfigureAdditionalMiddleware` runs after that mapping, so it does not either. This sample does not need `context.User`.
+
 3. Write the body with `WriteEndatixProblemAsync` from `Endatix.Api`. It sets the status and `application/problem+json`, and adds `type`, `instance`, and `traceId`. Pass `EndatixProblemCodes.FORM_UNAVAILABLE`.
-4. Localize `title` and `detail` from the request's `Accept-Language`. Hub forwards that header on this call. SurveyJS locales do not apply, because the survey never loads. Anything other than `es` or `bg` below is English.
+4. Localize `title` and `detail` from the request's `Accept-Language`. Hub forwards that header on this call. SurveyJS locales do not apply, because the survey never loads. The example below uses the first language tag and ignores `q` values. Use `RequestLocalization` and `IStringLocalizer` when you need quality-value order. Anything other than `es` or `bg` below is English.
 
 ```csharp
 var (title, detail) = CopyFor(context.Request.Headers.AcceptLanguage);
