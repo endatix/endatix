@@ -1,6 +1,7 @@
 using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Modules.Jobs.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Endatix.Modules.Jobs.Persistence;
 
@@ -15,6 +16,11 @@ namespace Endatix.Modules.Jobs.Persistence;
 public interface IJobsDbContext : ITenantDbContext
 {
     DbSet<BackgroundJob> BackgroundJobs { get; }
+
+    /// <summary>
+    /// The context's database, through which enqueueing opens the transaction the scheduler joins.
+    /// </summary>
+    DatabaseFacade Database { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

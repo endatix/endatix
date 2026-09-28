@@ -21,4 +21,22 @@ internal static class BackgroundJobRetryPolicy
 
         return utcNow.AddSeconds(delaySeconds);
     }
+
+    /// <summary>
+    /// The scheduler's retry policy for <paramref name="policy"/>: the same capped doubling curve, with one retry
+    /// fewer than the attempt budget because the first attempt is not a retry. <see langword="null"/> when the
+    /// budget is a single attempt, because then nothing is ever retried.
+    /// </summary>
+    /// <remarks>
+    /// The scheduler only times the retries. The job row's attempt count decides when a job is dead-lettered,
+    /// because a run recovered after a crash consumes an attempt the scheduler's retry counter never sees.
+    /// </remarks>
+    public static Quartz.RetryPolicy? ToQuartz(BackgroundJobTypePolicy policy) =>
+        policy.MaxAttempts <= 1
+            ? null
+            : Quartz.RetryPolicy.Exponential(
+                policy.MaxAttempts - 1,
+                policy.BackoffBase,
+                2.0,
+                policy.BackoffCap);
 }

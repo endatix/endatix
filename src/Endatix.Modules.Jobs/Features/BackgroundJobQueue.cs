@@ -11,15 +11,24 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Endatix.Modules.Jobs.Features;
 
 /// <summary>
-/// Enqueues jobs by inserting rows into the queue table.
+/// Enqueues jobs: inserts their rows and schedules one trigger per row, in one transaction.
 /// </summary>
 /// <remarks>
-/// The rows are committed before anything is recorded against them, so a failing metrics sink can
-/// neither fail the enqueue nor change the ids the caller gets.
+/// <para>
+/// The scheduler takes part in the transaction the rows are written in, so once this returns both the rows
+/// and their triggers exist, and when it throws neither does. A row is never recorded without being scheduled,
+/// or the reverse, so nothing has to repair a gap between the two.
+/// </para>
+/// <para>
+/// There is nothing to signal afterwards: the scheduler on an executing node fires the triggers, and other
+/// nodes pick them up within their idle wait. The rows are committed before anything is recorded against
+/// them, so a failing metrics sink can neither fail the enqueue nor change the ids the caller gets.
+/// </para>
 /// </remarks>
 internal sealed class BackgroundJobQueue(
     IJobsDbContext dbContext,
     IDateTimeProvider dateTimeProvider,
+    IJobTriggerScheduler triggerScheduler,
     IJobMetrics? metrics = null,
     ILogger<BackgroundJobQueue>? logger = null) : IBackgroundJobQueue
 {
@@ -32,13 +41,8 @@ internal sealed class BackgroundJobQueue(
     {
         Guard.Against.Null(request);
 
-        var job = CreateJob(request);
-        dbContext.BackgroundJobs.Add(job);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        RecordEnqueued([job]);
-
-        return job.Id;
+        var ids = await EnqueueManyAsync([request], cancellationToken);
+        return ids[0];
     }
 
     /// <inheritdoc />
@@ -54,11 +58,17 @@ internal sealed class BackgroundJobQueue(
         }
 
         var jobs = requests.Select(CreateJob).ToList();
-        dbContext.BackgroundJobs.AddRange(jobs);
 
-        // One SaveChanges for the whole batch: all rows commit or none do. A fan-out that partially
-        // committed would deliver to some webhook endpoints and silently drop the rest.
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await using (var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken))
+        {
+            dbContext.BackgroundJobs.AddRange(jobs);
+
+            // One SaveChanges for the whole batch: all rows commit or none do. A fan-out that partially
+            // committed would deliver to some webhook endpoints and silently drop the rest.
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            await triggerScheduler.ScheduleAndCommitAsync(transaction, jobs, cancellationToken);
+        }
 
         RecordEnqueued(jobs);
 

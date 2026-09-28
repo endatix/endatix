@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Endatix.Modules.Jobs.Tests;
 
 /// <summary>
-/// Resolves the queue through the module's own registrations. The other queue tests construct it by hand, which
+/// Resolves the queue through the module's own registrations, with trigger scheduling substituted. The other queue tests construct it by hand, which
 /// cannot show whether the container treats an unregistered optional metrics seam as absent or as a resolution failure.
 /// </summary>
 public class JobsModuleQueueResolutionTests
@@ -39,10 +39,7 @@ public class JobsModuleQueueResolutionTests
     public async Task GetRequiredService_MetricsRegistered_PassesThemToTheQueue()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<TestJobsDbContext>()
-            .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
-            .Options;
-        await using var dbContext = new TestJobsDbContext(options, new FixedTenantContext(0));
+        await using var dbContext = new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
         var metrics = Substitute.For<IJobMetrics>();
         var services = ModuleServices(dbContext);
         services.AddSingleton(metrics);
@@ -76,6 +73,9 @@ public class JobsModuleQueueResolutionTests
         JobsModule.Instance.ConfigureServices(new EndatixModuleBuilder(services, configuration));
 
         services.Replace(ServiceDescriptor.Scoped<IJobsDbContext>(_ => dbContext));
+
+        // Scheduling triggers needs the scheduler's database; the integration tests cover it.
+        services.Replace(ServiceDescriptor.Scoped(_ => Substitute.For<IJobTriggerScheduler>()));
 
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(new DateTimeOffset(Now));

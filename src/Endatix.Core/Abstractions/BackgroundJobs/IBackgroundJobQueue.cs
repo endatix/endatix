@@ -1,8 +1,9 @@
 namespace Endatix.Core.Abstractions.BackgroundJobs;
 
 /// <summary>
-/// Enqueues durable background jobs. The <c>BackgroundJobs</c> table <em>is</em> the queue, so
-/// enqueueing is an insert and nothing more — there is no broker to stay in sync with.
+/// Enqueues durable background jobs. Each job is a row in the <c>BackgroundJobs</c> table plus one
+/// scheduler trigger, written in one transaction, so a job is never recorded without being
+/// scheduled, or the reverse.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -36,9 +37,8 @@ public interface IBackgroundJobQueue
     /// none do.
     /// </summary>
     /// <remarks>
-    /// This exists for fan-out: an outbox handler that turns one event into one job per webhook
-    /// endpoint runs inside the relay tick and must complete in milliseconds, which N separate
-    /// inserts would not.
+    /// This exists for fan-out: the outbox relay turns one event into one job per subscriber
+    /// inside its tick and must complete in milliseconds, which N separate transactions would not.
     /// </remarks>
     /// <returns>The job ids, in the order the requests were supplied.</returns>
     Task<IReadOnlyList<long>> EnqueueManyAsync(

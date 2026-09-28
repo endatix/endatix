@@ -21,20 +21,17 @@ public class BackgroundJobQueueTests : IDisposable
 
     private readonly TestJobsDbContext _dbContext;
     private readonly BackgroundJobQueue _queue;
+    private readonly IJobTriggerScheduler _triggerScheduler = Substitute.For<IJobTriggerScheduler>();
 
     public BackgroundJobQueueTests()
     {
-        var options = new DbContextOptionsBuilder<TestJobsDbContext>()
-            .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
-            .Options;
-
-        _dbContext = new TestJobsDbContext(options, new FixedTenantContext(0));
+        _dbContext = new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
 
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(new DateTimeOffset(Now));
         clock.Now.Returns(new DateTimeOffset(Now));
 
-        _queue = new BackgroundJobQueue(_dbContext, clock);
+        _queue = new BackgroundJobQueue(_dbContext, clock, _triggerScheduler);
     }
 
     public void Dispose() => _dbContext.Dispose();
@@ -42,12 +39,12 @@ public class BackgroundJobQueueTests : IDisposable
     private static BackgroundJobRequest Request(string jobType = "SubmissionExport", long tenantId = 7) =>
         new(jobType, """{"formId":"1"}""", tenantId);
 
-    private static BackgroundJobQueue QueueWith(IJobsDbContext dbContext, IJobMetrics? metrics = null)
+    private BackgroundJobQueue QueueWith(IJobsDbContext dbContext, IJobMetrics? metrics = null)
     {
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(new DateTimeOffset(Now));
 
-        return new BackgroundJobQueue(dbContext, clock, metrics);
+        return new BackgroundJobQueue(dbContext, clock, _triggerScheduler, metrics);
     }
 
     [Fact]
@@ -179,6 +176,44 @@ public class BackgroundJobQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task EnqueueManyAsync_Requests_SchedulesEveryInsertedRowInItsTransaction()
+    {
+        // Arrange
+        IReadOnlyList<long>? scheduledIds = null;
+        await _triggerScheduler.ScheduleAndCommitAsync(
+            Arg.Any<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction>(),
+            Arg.Do<IReadOnlyList<Endatix.Modules.Jobs.Domain.BackgroundJob>>(jobs => scheduledIds = jobs.Select(job => job.Id).ToList()),
+            Arg.Any<CancellationToken>());
+
+        // Act
+        var jobIds = await _queue.EnqueueManyAsync(
+            [Request("A"), Request("B")],
+            TestContext.Current.CancellationToken);
+
+        // Assert — the rows were saved before scheduling, so every trigger names a real id.
+        scheduledIds.Should().Equal(jobIds);
+        jobIds.Should().OnlyContain(id => id != 0);
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_SchedulingFails_Throws()
+    {
+        // Arrange
+        _triggerScheduler
+            .ScheduleAndCommitAsync(default!, default!, default)
+            .ReturnsForAnyArgs(Task.FromException(new InvalidOperationException("Scheduling failed.")));
+        var metrics = Substitute.For<IJobMetrics>();
+        var queue = QueueWith(_dbContext, metrics);
+
+        // Act
+        var act = () => queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert — a job that could not be scheduled was not enqueued, so the caller must know.
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        metrics.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task EnqueueManyAsync_MetricsRegistered_RecordsEnqueuedPerJob()
     {
         // Arrange
@@ -217,10 +252,7 @@ public class BackgroundJobQueueTests : IDisposable
     public async Task EnqueueAsync_SaveFails_RecordsNothing()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<TestJobsDbContext>()
-            .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
-            .AddInterceptors(new FailingSaveInterceptor())
-            .Options;
+        var options = TestJobsDbContext.InMemoryOptions(new FailingSaveInterceptor());
         await using var failingContext = new TestJobsDbContext(options, new FixedTenantContext(0));
         var metrics = Substitute.For<IJobMetrics>();
         var queue = QueueWith(failingContext, metrics);
