@@ -1,3 +1,4 @@
+using Endatix.Api;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -25,7 +26,7 @@ internal static class ProblemDetailsJson
     /// <summary>Placeholder substituted for every string value under a volatile member.</summary>
     public const string AnyString = "<string>";
 
-    public const string ProblemJsonMediaType = "application/problem+json";
+    public const string ProblemJsonMediaType = HttpConstants.ContentType.ProblemDetails;
 
     /// <summary>
     /// Asserts the response is problem+json and returns its canonical rendering.

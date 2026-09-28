@@ -1,0 +1,124 @@
+---
+sidebar_position: 2
+title: Respondent access denial
+description: Return a 403 form_unavailable problem so Hub shows your title and sentence instead of the generic access-denied page.
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import ThemedImage from "@theme/ThemedImage";
+import formUnavailableLight from "./form-unavailable_light.webp";
+import formUnavailableDark from "./form-unavailable_dark.webp";
+
+# Respondent access denial
+
+Return **403** with `errorCode` `form_unavailable` on public form access, and Hub shows your title and sentence instead of the generic access-denied page. Hub does not load the submission or the form definition after that denial.
+
+Use it when you want to customize the logic for deciding if a respondent can or cannot open the form, and you want to control what they will see on the error page:
+
+- The form is not assigned to them, or their panel or tenant does not include it.
+- A permission check outside Endatix roles fails (folder scope, campaign window, an allow-list).
+- Your own authorization rule says the survey is closed for this person, even though the form still exists for others.
+- You want the heading and sentence, not the generic access-denied page.
+
+This page does not filter form lists, folders, or exports. An empty 403, or any other `errorCode`, stays on the generic page and does not print `detail`.
+
+:::warning[`errorCode` is the switch]
+Hub shows your title and sentence only when `errorCode` is exactly `form_unavailable`. A 403 without that code — including an empty body — keeps the generic access-denied page. The custom shape does not reach the respondent.
+:::
+
+## What Hub renders
+
+Hub calls `GET /api/public/forms/{formId}/access` before a share or embed form. It uses your copy only when all of these are true:
+
+- Status **403** and content type `application/problem+json`.
+- `errorCode` is `form_unavailable`.
+- Both `title` and `detail` are still non-empty after Hub strips tags, collapses whitespace, and keeps at most 240 characters of each.
+
+`title` is the heading. `detail` is the sentence under it. The page does not show the status code.
+
+On a share, view, or edit page the message follows the visitor's light or dark system setting. An embed stays light, the same as the survey it replaces.
+
+<ThemedImage
+  alt="Respondent page when a form is unavailable: a clipboard icon, the host title, and the host detail"
+  sources={{
+    light: useBaseUrl(formUnavailableLight),
+    dark: useBaseUrl(formUnavailableDark),
+  }}
+/>
+
+```json
+{
+  "status": 403,
+  "title": "This survey is no longer available.",
+  "detail": "Thank you for your interest. Unfortunately, this survey can no longer be completed.",
+  "errorCode": "form_unavailable"
+}
+```
+
+## Write the response
+
+1. Match `GET` requests whose last four path segments are `public`, `forms`, `{formId}`, `access`. Compare segments case-insensitively and ignore a trailing slash. Routing accepts `/access/` and `/ACCESS`, so a plain `EndsWith("/access")` lets those through.
+2. Register the middleware **before** `app.UseEndatix()`. `UseEndatix()` maps the API inside `UseFastEndpoints`, and middleware added after that does not see those requests. `ConfigureAdditionalMiddleware` runs after that mapping, so it does not either. This sample does not need `context.User`.
+
+3. Write the body with `WriteEndatixProblemAsync` from `Endatix.Api`. It sets the status and `application/problem+json`, and adds `type`, `instance`, and `traceId`. Pass `EndatixProblemCodes.FORM_UNAVAILABLE`.
+4. Localize `title` and `detail` from the request's `Accept-Language`. Hub forwards that header on this call. SurveyJS locales do not apply, because the survey never loads. The example below uses the first language tag and ignores `q` values. Use `RequestLocalization` and `IStringLocalizer` when you need quality-value order. Anything other than `es` or `bg` below is English.
+
+```csharp
+var (title, detail) = CopyFor(context.Request.Headers.AcceptLanguage);
+
+await context.WriteEndatixProblemAsync(
+    StatusCodes.Status403Forbidden,
+    title: title,
+    detail: detail,
+    errorCode: EndatixProblemCodes.FORM_UNAVAILABLE,
+    cancellationToken: context.RequestAborted);
+
+static (string Title, string Detail) CopyFor(string? acceptLanguage)
+{
+    var tag = (acceptLanguage ?? "").Split(',')[0].Split(';')[0].Trim();
+    if (tag.StartsWith("es", StringComparison.OrdinalIgnoreCase))
+    {
+        return (
+            "Esta encuesta ya no está disponible.",
+            "Gracias por su interés. Lamentablemente, esta encuesta ya no se puede completar.");
+    }
+
+    if (tag.StartsWith("bg", StringComparison.OrdinalIgnoreCase))
+    {
+        return (
+            "Тази анкета вече не е налична.",
+            "Благодарим ви за интереса. За съжаление тази анкета вече не може да бъде попълнена.");
+    }
+
+    return (
+        "This survey is no longer available.",
+        "Thank you for your interest. Unfortunately, this survey can no longer be completed.");
+}
+```
+
+`IStringLocalizer` is the same idea: resolve the two strings for the request culture, then pass them in. The `errorCode` stays `form_unavailable` in every language.
+
+A sample that always denies public form access is [`FormUnavailableSampleMiddleware.cs`](https://github.com/endatix/endatix/blob/main/samples/Endatix.Samples.SelfHosted/FormUnavailableSampleMiddleware.cs). It is not registered. Copy the call into the check that decides the respondent is not allowed.
+
+## Limitations
+
+- Form lists, folders, and exports are unchanged. Deny those routes separately if you need to.
+- A 403 with no body, or with another `errorCode`, does not show your `detail`.
+- View and edit links use this contract only when that same public access call fails. A later failure on the submission itself is a different page.
+
+## See also
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/guides/external-authorization"
+    title="External authorization"
+    description="Plug in your own authorization strategy for the API."
+    icon="server"
+  />
+  <LinkCard
+    to="/docs/developers/hub/maintenance-mode"
+    title="Maintenance mode"
+    description="Take Hub, embed, view, and edit offline without denying share links."
+    icon="dashboard"
+  />
+</CardGrid>

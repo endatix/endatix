@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Endatix.Api;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -44,7 +45,7 @@ public static class EndatixProblemDetails
 
         if (!httpContext.Response.HasStarted)
         {
-            httpContext.Response.ContentType = "application/problem+json";
+            httpContext.Response.ContentType = HttpConstants.ContentType.ProblemDetails;
         }
 
         var fields = failures

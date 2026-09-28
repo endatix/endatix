@@ -1,3 +1,4 @@
+using Endatix.Api;
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Endatix.Api.Common;
@@ -448,22 +449,10 @@ public partial class Export : Endpoint<ExportRequest>
         }
 
         int resolvedStatus = statusCode ?? StatusCodes.Status500InternalServerError;
-        HttpContext.Response.StatusCode = resolvedStatus;
-        HttpContext.Response.ContentType = "application/problem+json";
-
-        // Emit RFC7807 camelCase so Hub (and other clients) can surface Detail in the UI.
-        var problem = EndatixProblemDetails.Create(
-            statusCode: resolvedStatus,
+        await HttpContext.WriteEndatixProblemAsync(
+            resolvedStatus,
             title: "Export failed",
-            detail: message,
-            httpContext: HttpContext);
-
-        // WriteAsJsonAsync overwrites Content-Type with application/json unless it is passed
-        // explicitly, which silently undid the problem+json set above.
-        await HttpContext.Response.WriteAsJsonAsync(
-            problem,
-            options: null,
-            contentType: "application/problem+json");
+            detail: message);
     }
 
     private async Task CompletePipeIfNeeded(PipeWriter? pipeWriter, Exception? exception, string fallbackMessage)

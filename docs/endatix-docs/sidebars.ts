@@ -71,7 +71,10 @@ const sidebars: SidebarsConfig = {
             id: "building-your-solution/authorization/index",
           },
           collapsed: true,
-          items: ["building-your-solution/authorization/keycloak-rbac"],
+          items: [
+            "building-your-solution/authorization/keycloak-rbac",
+            "building-your-solution/authorization/respondent-access-denial",
+          ],
         },
         {
           type: "category",
