@@ -72,6 +72,50 @@ public sealed class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_RecoveredOnLastAttempt_DeadLettersWithoutRunningHandler()
+    {
+        // Arrange — the node running the job's last attempt stopped, and another node recovers it.
+        var observed = new ObservedRun();
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository
+            .TryDeadLetterSpentAsync(JobId, 3, BackgroundJobMessages.StoppedOnLastAttempt, Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        await using var provider = Services(repository, observed);
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+
+        // Act
+        await execution.Execute(RecoveryOf(JobId), TestContext.Current.CancellationToken);
+
+        // Assert
+        observed.ContextTenantId.Should().Be(-1);
+        await repository.DidNotReceiveWithAnyArgs().TryClaimAsync(default, default!, default, default, default);
+    }
+
+    [Fact]
+    public async Task Execute_RecoveredWithAttemptsLeft_ReclaimsAndRuns()
+    {
+        // Arrange
+        var observed = new ObservedRun();
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository
+            .TryDeadLetterSpentAsync(JobId, Arg.Any<int>(), Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        repository
+            .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), true, Arg.Any<CancellationToken>())
+            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 2, null, JobStatus.Processing));
+        repository.TryCompleteAsync(JobId, 2, Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
+        await using var provider = Services(repository, observed);
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+
+        // Act
+        await execution.Execute(RecoveryOf(JobId), TestContext.Current.CancellationToken);
+
+        // Assert
+        observed.ContextTenantId.Should().Be(TenantA);
+        await repository.Received(1).TryCompleteAsync(JobId, 2, Arg.Any<DateTime>(), CancellationToken.None);
+    }
+
+    [Fact]
     public void Resolve_ClaimedRow_CopiesRowFields()
     {
         // Arrange
@@ -107,6 +151,14 @@ public sealed class BackgroundJobExecutionTests
         var context = Substitute.For<IJobExecutionContext>();
         context.MergedJobDataMap.Returns(new JobDataMap { [BackgroundJobExecution.JobIdKey] = jobId.ToString() });
         context.Recovering.Returns(false);
+        return context;
+    }
+
+    private static IJobExecutionContext RecoveryOf(long jobId)
+    {
+        var context = FiringOf(jobId);
+        context.Recovering.Returns(true);
+        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(JobType));
         return context;
     }
 

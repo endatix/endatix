@@ -44,6 +44,13 @@ internal sealed class BackgroundJobExecution(
         var jobId = long.Parse(context.MergedJobDataMap.GetString(JobIdKey)!, CultureInfo.InvariantCulture);
         var claimedAt = dateTimeProvider.UtcNow.UtcDateTime;
 
+        // A recovery re-claims the row and counts a new attempt, so without this a job that takes its node down
+        // on its last attempt would run again on every recovery, past its budget and never dead-lettered.
+        if (context.Recovering && await TryDeadLetterSpentAsync(jobId, context.JobDetail.Key.Name, claimedAt, cancellationToken))
+        {
+            return;
+        }
+
         var claimed = await ClaimAsync(jobId, claimedAt, context.Recovering, cancellationToken);
         if (claimed is null)
         {
@@ -85,6 +92,36 @@ internal sealed class BackgroundJobExecution(
             throw new JobExecutionException(
                 $"Background job {claimed.Id} attempt {claimed.AttemptCount} failed and will be retried.");
         }
+    }
+
+    private async Task<bool> TryDeadLetterSpentAsync(
+        long jobId,
+        string jobType,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
+    {
+        bool deadLettered;
+        await using (var scope = scopeFactory.CreateAsyncScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
+            deadLettered = await repository.TryDeadLetterSpentAsync(
+                jobId,
+                options.Value.ResolvePolicy(jobType).MaxAttempts,
+                BackgroundJobMessages.StoppedOnLastAttempt,
+                utcNow,
+                cancellationToken);
+        }
+
+        if (deadLettered)
+        {
+            logger.LogWarning(
+                "Background job {JobId} of type {JobType} stopped during its last attempt and was dead-lettered",
+                jobId,
+                jobType);
+            Record(JobLifecycleEvent.DeadLettered, jobType);
+        }
+
+        return deadLettered;
     }
 
     private async Task<ClaimedJob?> ClaimAsync(

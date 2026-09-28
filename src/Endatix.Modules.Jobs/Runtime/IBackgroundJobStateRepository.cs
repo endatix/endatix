@@ -48,6 +48,18 @@ internal interface IBackgroundJobStateRepository
         DateTime utcNow,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Dead-letters a job whose node stopped during its last attempt: the row is still <c>Processing</c> and has
+    /// no attempt left to recover into. Returns <see langword="false"/>, changing nothing, when the row is not in
+    /// that state.
+    /// </summary>
+    Task<bool> TryDeadLetterSpentAsync(
+        long jobId,
+        int maxAttempts,
+        string errorMessage,
+        DateTime utcNow,
+        CancellationToken cancellationToken = default);
+
     Task<bool> RecordFailedAttemptAsync(
         long jobId,
         int claimedAttempt,

@@ -168,6 +168,55 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
     }
 
     [Fact]
+    public async Task TryDeadLetterSpentAsync_ProcessingRowOnLastAttempt_DeadLettersWithoutNewAttempt()
+    {
+        // Arrange — the run that died was the job's last attempt.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var jobId = await SeedAsync(
+            context, cancellationToken, status: JobStatus.Processing, attemptCount: 3, startedAt: Earlier);
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var deadLettered = await repository.TryDeadLetterSpentAsync(jobId, 3, RetryMessage, Now, cancellationToken);
+
+        // Assert
+        deadLettered.Should().BeTrue();
+        var job = await ReadAsync(context, jobId, cancellationToken);
+        job.Status.Should().Be(JobStatus.DeadLettered);
+        job.AttemptCount.Should().Be(3);
+        job.ErrorMessage.Should().Be(RetryMessage);
+        job.CompletedAt.Should().Be(Now);
+    }
+
+    [Fact]
+    public async Task TryDeadLetterSpentAsync_ProcessingRowWithAttemptsLeft_ChangesNothing()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var jobId = await SeedAsync(
+            context, cancellationToken, status: JobStatus.Processing, attemptCount: 2, startedAt: Earlier);
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var deadLettered = await repository.TryDeadLetterSpentAsync(jobId, 3, RetryMessage, Now, cancellationToken);
+
+        // Assert
+        deadLettered.Should().BeFalse();
+        var job = await ReadAsync(context, jobId, cancellationToken);
+        job.Status.Should().Be(JobStatus.Processing);
+        job.AttemptCount.Should().Be(2);
+        job.ModifiedAt.Should().Be(SeededModifiedAt);
+    }
+
+    [Fact]
     public async Task TryClaimAsync_UnregisteredJobType_ReturnsNull()
     {
         // Arrange

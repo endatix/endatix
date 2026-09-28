@@ -11,6 +11,8 @@ internal static class BackgroundJobMessages
 {
     public const string HandlerThrew = "The job could not be completed.";
 
+    public const string StoppedOnLastAttempt = "The job stopped during its last attempt and has no attempts left.";
+
     public const string RuntimeCeilingReached = "The job exceeded its maximum run time.";
 
     /// <summary>Stands in for a failure the handler reported without saying why.</summary>
