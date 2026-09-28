@@ -28,10 +28,10 @@ internal sealed class FailingOutcomeWrites(IBackgroundJobStateRepository inner, 
             provider.GetRequiredService<OutcomeWriteFailures>()));
     }
 
-    public Task<bool> TryCompleteAsync(AttemptRef attempt, DateTime utcNow, CancellationToken cancellationToken = default) =>
+    public Task<bool> TryCompleteAsync(AttemptRef attempt, JobFinish finish, CancellationToken cancellationToken = default) =>
         failures.TryConsume()
             ? throw new TimeoutException("The database did not answer.")
-            : inner.TryCompleteAsync(attempt, utcNow, cancellationToken);
+            : inner.TryCompleteAsync(attempt, finish, cancellationToken);
 
     public Task<ClaimedJob?> TryClaimAsync(JobClaim claim, CancellationToken cancellationToken = default) =>
         inner.TryClaimAsync(claim, cancellationToken);
@@ -41,6 +41,9 @@ internal sealed class FailingOutcomeWrites(IBackgroundJobStateRepository inner, 
 
     public Task<JobAttemptState?> ReadAttemptAsync(long jobId, CancellationToken cancellationToken = default) =>
         inner.ReadAttemptAsync(jobId, cancellationToken);
+
+    public Task<int> DeleteExpiredAsync(DateTime utcNow, int batchSize, CancellationToken cancellationToken = default) =>
+        inner.DeleteExpiredAsync(utcNow, batchSize, cancellationToken);
 
     public Task<bool> TryMirrorNextAttemptAsync(long jobId, DateTime nextAttemptAt, CancellationToken cancellationToken = default) =>
         inner.TryMirrorNextAttemptAsync(jobId, nextAttemptAt, cancellationToken);

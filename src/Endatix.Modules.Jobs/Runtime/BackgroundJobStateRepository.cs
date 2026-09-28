@@ -39,14 +39,15 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
 
     public Task<bool> TryCompleteAsync(
         AttemptRef attempt,
-        DateTime utcNow,
+        JobFinish finish,
         CancellationToken cancellationToken = default) =>
         UpdateFencedAsync(
             attempt,
             setters => setters
                 .SetProperty(job => job.Status, JobStatus.Completed)
                 .SetProperty(job => job.ProgressPercentage, 100)
-                .SetProperty(job => job.CompletedAt, (DateTime?)utcNow)
+                .SetProperty(job => job.CompletedAt, (DateTime?)finish.UtcNow)
+                .SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? finish.ExpiresAt)
                 // A success must not keep showing an earlier attempt's failure.
                 .SetProperty(job => job.ErrorMessage, (string?)null),
             cancellationToken);
@@ -63,7 +64,8 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             setters => setters
                 .SetProperty(job => job.Status, JobStatus.Failed)
                 .SetProperty(job => job.ErrorMessage, message)
-                .SetProperty(job => job.CompletedAt, (DateTime?)failure.UtcNow),
+                .SetProperty(job => job.CompletedAt, (DateTime?)failure.UtcNow)
+                .SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? failure.ExpiresAt),
             cancellationToken);
     }
 
@@ -161,6 +163,18 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             .Select(job => new JobAttemptState(job.Status, job.AttemptCount))
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<int> DeleteExpiredAsync(DateTime utcNow, int batchSize, CancellationToken cancellationToken = default) =>
+        await dbContext.BackgroundJobs
+            .Where(job => (job.Status == JobStatus.Completed
+                    || job.Status == JobStatus.Failed
+                    || job.Status == JobStatus.DeadLettered
+                    || job.Status == JobStatus.Canceled)
+                && job.ExpiresAt != null
+                && job.ExpiresAt < utcNow)
+            .OrderBy(job => job.ExpiresAt)
+            .Take(batchSize)
+            .ExecuteDeleteAsync(cancellationToken);
+
     public async Task<bool> TryMirrorNextAttemptAsync(
         long jobId,
         DateTime nextAttemptAt,
@@ -178,6 +192,7 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         var message = StorableErrorMessage(failure.Failure.ErrorMessage);
         var outOfAttempts = claimedAttempt >= failure.MaxAttempts;
         var utcNow = failure.Failure.UtcNow;
+        var expiresAt = failure.Failure.ExpiresAt;
         var nextAttemptAt = failure.NextAttemptAt;
 
         return setters =>
@@ -188,6 +203,7 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             {
                 setters.SetProperty(job => job.Status, JobStatus.DeadLettered);
                 setters.SetProperty(job => job.CompletedAt, (DateTime?)utcNow);
+                setters.SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? expiresAt);
                 return;
             }
 

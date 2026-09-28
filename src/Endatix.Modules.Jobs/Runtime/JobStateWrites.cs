@@ -18,8 +18,22 @@ internal sealed record JobClaim(
     DateTime UtcNow,
     bool Recovering = false);
 
+/// <summary>
+/// When a write finishes a job, and how long the finished row is kept before the retention job deletes it.
+/// </summary>
+internal readonly record struct JobFinish(DateTime UtcNow, TimeSpan Retention)
+{
+    public DateTime ExpiresAt => UtcNow + Retention;
+}
+
 /// <summary>Why an attempt failed, as the row keeps it, and when the failure is recorded.</summary>
-internal readonly record struct AttemptFailure(string ErrorMessage, DateTime UtcNow);
+/// <param name="ErrorMessage">The message the row records.</param>
+/// <param name="UtcNow">When the failure is recorded.</param>
+/// <param name="Retention">How long the row is kept should the failure finish the job.</param>
+internal readonly record struct AttemptFailure(string ErrorMessage, DateTime UtcNow, TimeSpan Retention)
+{
+    public DateTime ExpiresAt => UtcNow + Retention;
+}
 
 /// <summary>
 /// A failure judged against the job's attempt budget: retried while attempts remain, else dead-lettered.

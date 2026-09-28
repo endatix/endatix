@@ -32,9 +32,9 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var completed = await repository.TryCompleteAsync(new AttemptRef(runningId, 2), Now, cancellationToken);
+        var completed = await repository.TryCompleteAsync(new AttemptRef(runningId, 2), FinishedNow, cancellationToken);
         var completedCanceled = await repository.TryCompleteAsync(
-            new AttemptRef(canceledId, 2), Now, cancellationToken);
+            new AttemptRef(canceledId, 2), FinishedNow, cancellationToken);
 
         // Assert
         completed.Should().BeTrue();
@@ -68,7 +68,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
             new AttemptRef(shortMessageId, 1), FailureAt(FailureMessage), cancellationToken);
         var failedWithLongMessage = await repository.TryFailAsync(
             new AttemptRef(longMessageId, 1),
-            new AttemptFailure(new string('a', 3000), Now),
+            new AttemptFailure(new string('a', 3000), Now, Retention),
             cancellationToken);
 
         // Assert
@@ -139,7 +139,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
 
         // Act
         var retried = await repository.RecordFailedAttemptAsync(
-            new AttemptRef(jobId, 1), Retryable(new AttemptFailure(new string('a', 3000), Now)), cancellationToken);
+            new AttemptRef(jobId, 1), Retryable(new AttemptFailure(new string('a', 3000), Now, Retention)), cancellationToken);
 
         // Assert
         retried.Should().BeTrue();
@@ -178,7 +178,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
         job.CompletedAt.Should().Be(before.CompletedAt);
     }
 
-    private static AttemptFailure FailureAt(string message) => new(message, Now);
+    private static AttemptFailure FailureAt(string message) => new(message, Now, Retention);
 
     private static RetryableFailure Retryable(AttemptFailure failure) => new(failure, 3, Now.AddSeconds(30));
 }

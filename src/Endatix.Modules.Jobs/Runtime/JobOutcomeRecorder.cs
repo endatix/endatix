@@ -177,7 +177,7 @@ internal sealed class JobOutcomeRecorder(
         scopeFactory.WithStateRepositoryAsync(repository => plan.Ending.Write switch
         {
             AttemptRowWrite.Completed =>
-                repository.TryCompleteAsync(plan.Attempt.Ref, plan.EndedAt, CancellationToken.None),
+                repository.TryCompleteAsync(plan.Attempt.Ref, plan.Finish, CancellationToken.None),
             AttemptRowWrite.Failed =>
                 repository.TryFailAsync(plan.Attempt.Ref, plan.Failure, CancellationToken.None),
             _ =>
@@ -251,7 +251,9 @@ internal sealed class JobOutcomeRecorder(
             _ => JobAttemptOutcome.DeadLettered,
         };
 
-        public AttemptFailure Failure => new(ErrorMessage!, EndedAt);
+        public JobFinish Finish => new(EndedAt, Attempt.Policy.Retention);
+
+        public AttemptFailure Failure => new(ErrorMessage!, EndedAt, Attempt.Policy.Retention);
 
         public RetryableFailure RetryableFailure =>
             new(Failure, Attempt.Policy.MaxAttempts, Ending.NextAttemptAt);
