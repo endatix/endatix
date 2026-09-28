@@ -194,6 +194,21 @@ const sidebars: SidebarsConfig = {
             "end-users/forms/form-builder/carry-forward",
             "end-users/forms/form-builder/text-piping",
             "end-users/forms/form-builder/rich-text-formatting",
+            {
+              type: "category",
+              label: "Question Types",
+              collapsed: false,
+              link: {
+                type: "generated-index",
+                slug: "end-users/forms/form-builder/question-types",
+                title: "Question Types",
+                description:
+                  "The question types available in the Form Builder, and the settings each one supports.",
+              },
+              items: [
+                "end-users/forms/form-builder/question-types/text-questions",
+              ],
+            },
           ],
         },
         {
