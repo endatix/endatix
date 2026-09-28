@@ -1,6 +1,7 @@
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Reporting.Features.BackgroundJobs;
 using Endatix.Modules.Reporting.Features.Outbox;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Modules.Reporting.Tests.Features.BackgroundJobs;
@@ -43,23 +44,22 @@ public sealed class ReportingSubscriptionsTests
     [Fact]
     public void Validate_ReportingInlineHandlers_HaveSubscriptionsFromTheirAssembly()
     {
-        // Arrange — delivering to the job queue refuses to start unless every inline handler is covered.
+        // Arrange — delivering to the job queue refuses to start unless every inline handler is covered. The
+        // check reads only each handler's type and event types, so the handlers are built without dependencies.
         var services = new ServiceCollection();
         services.AddReportingOutboxWork();
         var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
-        var handlerTypes = new[]
+        var handlers = new[]
         {
             typeof(CompileFormSchemaOutboxHandler), typeof(FlattenSubmissionOutboxHandler),
             typeof(SeedDefaultExportFormatsOutboxHandler), typeof(SyncFormDeletionOutboxHandler),
             typeof(SyncSubmissionDeletionOutboxHandler),
-        };
+        }.Select(type => (IOutboxIntegrationEventHandler)RuntimeHelpers.GetUninitializedObject(type)).ToList();
 
         // Act
-        var assemblies = handlerTypes.Select(type => type.Assembly).Distinct().ToList();
+        var validate = () => subscriptions.Validate(handlers);
 
         // Assert
-        assemblies.Should().ContainSingle();
-        subscriptions.For("tenant.created").Should().ContainSingle()
-            .Which.SourceAssembly.Should().BeSameAs(assemblies[0]);
+        validate.Should().NotThrow();
     }
 }
