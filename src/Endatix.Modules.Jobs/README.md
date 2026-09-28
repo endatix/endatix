@@ -210,9 +210,12 @@ its own design-time factory, its own `Config/<Provider>/` configuration and its 
 folder — never reusing an existing one.
 
 The migrations were reset once, in the change that moved scheduling onto Quartz, to a single
-`InitialBackgroundJobs` migration; no stable release contained the earlier ones. A developer
-database where the module flag was turned on before that needs `DROP SCHEMA jobs CASCADE`
-once. From here on `jobs` migrations are append-only.
+`InitialBackgroundJobs` migration. v0.7.6 and the canaries before this change shipped the earlier
+ones (`AddBackgroundJobs`, `RequireRealTenantOnBackgroundJobs`), and EF cannot upgrade a database
+from them: it would try to create `jobs."BackgroundJobs"` again and fail. Any database where
+`Endatix:FeatureFlags:JobsModule` was turned on under those releases needs `DROP SCHEMA jobs CASCADE`
+once before upgrading; the module was off by default and nothing read its rows yet, so no data is
+lost. From here on `jobs` migrations are append-only.
 
 Run the commands from the repository root, with `Endatix.WebHost` as the startup project.
 
