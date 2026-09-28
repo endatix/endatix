@@ -38,6 +38,9 @@ public static class OutboxRelayServiceCollectionExtensions
             return services;
         }
 
+        // Hosted services start in registration order, and the relay starts claiming as soon as it starts, so the
+        // check that refuses to lose inline handlers' work must be registered ahead of it.
+        services.AddHostedService<OutboxSubscriptionsStartupCheck>();
         services.AddOutboxRelay(serviceProvider => ActivatorUtilities.CreateInstance<EndatixOutboxRelayGate>(
             serviceProvider,
             ActivatorUtilities.CreateInstance<OpenFeatureOutboxRelayGate>(serviceProvider)));
@@ -56,7 +59,6 @@ public static class OutboxRelayServiceCollectionExtensions
                 ? serviceProvider.GetRequiredService<JobQueueIntegrationEventPublisher>()
                 : serviceProvider.GetRequiredService<CompositeIntegrationEventPublisher>());
         services.AddMetrics();
-        services.AddHostedService<OutboxSubscriptionsStartupCheck>();
         services.AddEndatixOpenFeature();
 
         return services;
