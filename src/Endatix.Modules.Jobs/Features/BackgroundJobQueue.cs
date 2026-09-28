@@ -142,22 +142,27 @@ internal sealed class BackgroundJobQueue(
         IReadOnlyList<BackgroundJobRequest> requests,
         CancellationToken cancellationToken)
     {
-        var keys = requests
-            .Select(request => request.DedupKey)
-            .Where(key => !string.IsNullOrWhiteSpace(key))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        if (keys.Count == 0)
+        var keyed = requests.Where(request => !string.IsNullOrWhiteSpace(request.DedupKey)).ToList();
+        if (keyed.Count == 0)
         {
             return [];
         }
 
+        var keys = keyed.Select(request => request.DedupKey!).Distinct(StringComparer.Ordinal).ToList();
+        var tenantIds = keyed.Select(request => request.TenantId).Distinct().ToList();
+        var jobTypes = keyed.Select(request => request.JobType).Distinct(StringComparer.Ordinal).ToList();
+
         // The key is unique per tenant, and a caller serving one tenant may enqueue for another, so the ambient
-        // tenant must not narrow this lookup.
+        // tenant must not narrow this lookup. Nor may soft deletion: the unique index covers deleted rows too, so
+        // a deleted row with the key would block the insert while staying invisible here. Tenant and job type are
+        // matched as well, so the lookup can use that index, which leads with them.
         var rows = await dbContext.BackgroundJobs
-            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant, EndatixQueryFilterNames.SoftDelete])
             .AsNoTracking()
-            .Where(job => job.DedupKey != null && keys.Contains(job.DedupKey))
+            .Where(job => tenantIds.Contains(job.TenantId)
+                && jobTypes.Contains(job.JobType)
+                && job.DedupKey != null
+                && keys.Contains(job.DedupKey))
             .Select(job => new { job.Id, job.TenantId, job.JobType, job.DedupKey })
             .ToListAsync(cancellationToken);
 
