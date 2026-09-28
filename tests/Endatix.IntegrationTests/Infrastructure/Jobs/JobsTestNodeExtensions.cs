@@ -28,6 +28,4 @@ internal static class JobsTestNodeExtensions
     }
 
     public static string IdList(this IEnumerable<long> ids) => string.Join(',', ids);
-
-    public static string TriggerNameList(this IEnumerable<long> ids) => string.Join(',', ids.Select(id => $"'{id}'"));
 }
