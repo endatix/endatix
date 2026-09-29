@@ -52,17 +52,25 @@ internal sealed class JobFiringAdmission(
             firing.JobType,
             fireAgainAt);
         await context.Scheduler.RescheduleJob(
-            context.Trigger.Key, SameTriggerAt(context, firing.JobId, fireAgainAt), cancellationToken);
+            context.Trigger.Key, SameTriggerAt(context, firing, fireAgainAt), cancellationToken);
     }
 
-    private static ITrigger SameTriggerAt(IJobExecutionContext context, long jobId, DateTimeOffset fireAgainAt)
+    // The trigger keeps all of the firing's data, and a firing that was taking the job over stays marked to, so
+    // its next claim can still take the row an earlier attempt left Processing.
+    private static ITrigger SameTriggerAt(IJobExecutionContext context, JobFiring firing, DateTimeOffset fireAgainAt)
     {
         var again = TriggerBuilder.Create()
             .WithIdentity(context.Trigger.Key)
             .ForJob(context.JobDetail.Key)
             .WithExecutionGroup(context.Trigger.ExecutionGroup)
-            .UsingJobData(BackgroundJobExecution.JobIdKey, jobId.ToString(CultureInfo.InvariantCulture))
+            .UsingJobData(context.MergedJobDataMap)
+            .UsingJobData(BackgroundJobExecution.JobIdKey, firing.JobId.ToString(CultureInfo.InvariantCulture))
             .StartAt(fireAgainAt);
+        if (firing.Reclaiming)
+        {
+            again = again.UsingJobData(BackgroundJobExecution.ReclaimKey, bool.TrueString);
+        }
+
         return context.Trigger.RetryPolicy is { } retryPolicy
             ? again.WithRetryPolicy(retryPolicy).Build()
             : again.Build();

@@ -36,6 +36,39 @@ public sealed partial class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_UnknownJobTypeTakingJobOver_KeepsTheTakeoverOnTheRescheduledTrigger()
+    {
+        // Arrange — a re-fire scheduled to take over an unrecorded attempt lands on a node without the handler.
+        var context = FiringOf(JobId, jobType: "Orphan");
+        context.MergedJobDataMap.Returns(new JobDataMap
+        {
+            [BackgroundJobExecution.JobIdKey] = JobId.ToString(),
+            [BackgroundJobExecution.ReclaimKey] = bool.TrueString,
+        });
+
+        // Act
+        var rescheduled = await DeclinedTriggerOfAsync(context);
+
+        // Assert — the next firing can still re-claim the row the earlier attempt left Processing.
+        rescheduled.JobDataMap.GetString(BackgroundJobExecution.ReclaimKey).Should().Be(bool.TrueString);
+        rescheduled.JobDataMap.GetString(BackgroundJobExecution.JobIdKey).Should().Be(JobId.ToString());
+    }
+
+    [Fact]
+    public async Task Execute_UnknownJobTypeRecovered_MarksTheRescheduledTriggerToTakeTheJobOver()
+    {
+        // Arrange — Quartz recovered a dead node's firing onto a node without the handler.
+        var context = FiringOf(JobId, jobType: "Orphan");
+        context.Recovering.Returns(true);
+
+        // Act
+        var rescheduled = await DeclinedTriggerOfAsync(context);
+
+        // Assert — the rescheduled trigger is no recovery firing, so it has to say it takes the job over.
+        rescheduled.JobDataMap.GetString(BackgroundJobExecution.ReclaimKey).Should().Be(bool.TrueString);
+    }
+
+    [Fact]
     public async Task Execute_FiringWithoutJobId_TouchesNothing()
     {
         // Arrange — a durable job fired by hand carries no job id.
@@ -52,5 +85,19 @@ public sealed partial class BackgroundJobExecutionTests
         await act.Should().NotThrowAsync();
         repository.ReceivedCalls().Should().BeEmpty();
         context.Scheduler.ReceivedCalls().Should().BeEmpty();
+    }
+
+    private static async Task<ITrigger> DeclinedTriggerOfAsync(IJobExecutionContext context)
+    {
+        await using var provider = Services(Substitute.For<IBackgroundJobStateRepository>(), new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        ITrigger? rescheduled = null;
+        context.Scheduler
+            .RescheduleJob(Arg.Any<TriggerKey>(), Arg.Do<ITrigger>(trigger => rescheduled = trigger), Arg.Any<CancellationToken>())
+            .Returns(DateTimeOffset.UtcNow);
+
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        return rescheduled ?? throw new InvalidOperationException("The firing was not rescheduled.");
     }
 }
