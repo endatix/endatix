@@ -45,11 +45,14 @@ internal sealed class FlattenSubmissionJobHandler(
         }
 
         // A change that does not touch the submission's data has nothing to flatten; the job is done.
-        if (input is null)
-        {
-            return Result.Success();
-        }
+        return input is null ? Result.Success() : await FlattenForJobTenantAsync(job, input, cancellationToken);
+    }
 
+    private async Task<Result> FlattenForJobTenantAsync(
+        BackgroundJobContext job,
+        FlattenSubmissionOutboxHandler.Input input,
+        CancellationToken cancellationToken)
+    {
         if (input.TenantId != job.TenantId)
         {
             return Failure(OtherTenant);

@@ -17,19 +17,33 @@ internal static class ReportingOutboxJobs
 {
     public static IServiceCollection AddReportingOutboxWork(this IServiceCollection services)
     {
-        // Each inline handler is registered as itself too, so its job handler reuses the very same work.
+        AddInlineHandlers(services);
+        AddJobHandlers(services);
+        AddSubscriptions(services);
+        return services;
+    }
+
+    // Each inline handler is registered as itself too, so its job handler reuses the very same work.
+    private static void AddInlineHandlers(IServiceCollection services)
+    {
         AddInline<CompileFormSchemaOutboxHandler>(services);
         AddInline<FlattenSubmissionOutboxHandler>(services);
         AddInline<SyncSubmissionDeletionOutboxHandler>(services);
         AddInline<SyncFormDeletionOutboxHandler>(services);
         AddInline<SeedDefaultExportFormatsOutboxHandler>(services);
+    }
 
+    private static void AddJobHandlers(IServiceCollection services)
+    {
         services.AddBackgroundJobHandler<CompileFormSchemaJobHandler, ReportingCompileFormSchemaPayload>();
         services.AddBackgroundJobHandler<FlattenSubmissionJobHandler, ReportingFlattenSubmissionPayload>();
         services.AddBackgroundJobHandler<SeedDefaultExportFormatsJobHandler, ReportingSeedDefaultExportFormatsPayload>();
         services.AddBackgroundJobHandler<SyncFormDeletionJobHandler, ReportingSyncFormDeletionPayload>();
         services.AddBackgroundJobHandler<SyncSubmissionDeletionJobHandler, ReportingSyncSubmissionDeletionPayload>();
+    }
 
+    private static void AddSubscriptions(IServiceCollection services)
+    {
         Subscribe(services, CompileFormSchemaOutboxHandler.HandledEventTypes,
             message => new ReportingCompileFormSchemaPayload(message.Id));
         Subscribe(services, FlattenSubmissionOutboxHandler.HandledEventTypes,
@@ -40,11 +54,11 @@ internal static class ReportingOutboxJobs
             message => new ReportingSyncSubmissionDeletionPayload(message.Id));
 
         // A new tenant's event is app-level; the seeding belongs to the tenant being created.
-        Subscribe(services, SeedDefaultExportFormatsOutboxHandler.HandledEventTypes,
-            message => new ReportingSeedDefaultExportFormatsPayload(message.Id),
-            TenantBeingCreated);
-
-        return services;
+        foreach (var eventType in SeedDefaultExportFormatsOutboxHandler.HandledEventTypes)
+        {
+            services.AddOutboxJobSubscription(
+                eventType, message => new ReportingSeedDefaultExportFormatsPayload(message.Id), TenantBeingCreated);
+        }
     }
 
     private static void AddInline<THandler>(IServiceCollection services)
@@ -57,13 +71,12 @@ internal static class ReportingOutboxJobs
     private static void Subscribe<TPayload>(
         IServiceCollection services,
         IEnumerable<string> eventTypes,
-        Func<IOutboxMessage, TPayload> createPayload,
-        Func<IOutboxMessage, long>? resolveTenantId = null)
+        Func<IOutboxMessage, TPayload> createPayload)
         where TPayload : IBackgroundJobPayload
     {
         foreach (var eventType in eventTypes)
         {
-            services.AddOutboxJobSubscription(eventType, createPayload, resolveTenantId);
+            services.AddOutboxJobSubscription(eventType, createPayload);
         }
     }
 
