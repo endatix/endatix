@@ -84,9 +84,6 @@ internal sealed class JobHandlerRegistry
         return new JobHandlerRegistry(handlerTypes);
     }
 
-    private static bool IsReservedExecutionGroupName(string jobType) =>
-        jobType.Trim() is "*" or "_" || jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase);
-
     /// <summary>
     /// Builds the registry from the handlers registered in <paramref name="services"/>, in a scope of its own
     /// because handlers may be scoped.
@@ -110,6 +107,9 @@ internal sealed class JobHandlerRegistry
 
         return registry;
     }
+
+    private static bool IsReservedExecutionGroupName(string jobType) =>
+        jobType.Trim() is "*" or "_" || jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The handler <paramref name="jobType"/> routes to, from the scope the job runs in, or <see langword="null"/>

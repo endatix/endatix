@@ -1,6 +1,5 @@
 using System.Data.Common;
 using Npgsql;
-using NpgsqlTypes;
 using Quartz.Impl.AdoJobStore;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -96,10 +95,7 @@ internal sealed class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDele
                 "driver delegate has to be updated to match it.");
 
         var command = base.PrepareCommand(cth, commandText);
-        command.Parameters.Add(new NpgsqlParameter(FreeGroupsParameter, NpgsqlDbType.Array | NpgsqlDbType.Text)
-        {
-            Value = freeGroups,
-        });
+        command.Parameters.Add(new NpgsqlParameter(FreeGroupsParameter, freeGroups) { DataTypeName = "text[]" });
 
         return command;
     }
