@@ -36,8 +36,8 @@ Every job has exactly one row and one Quartz trigger, keyed by the job's id; the
 nothing but that id.
 
 > [!NOTE]
-> **In this release the scheduler is hosted but not yet used.** Enqueueing writes only the row, with
-> no trigger, and the Quartz job that runs a handler does nothing yet, so enqueued jobs stay
+> **In this release jobs are scheduled but not yet run.** Enqueueing writes the row and its trigger
+> in one transaction, but the Quartz job that runs a handler does nothing yet, so enqueued jobs stay
 > `Pending`. Per-job-type concurrency caps are configured but not yet enforced. Keep
 > `Endatix:FeatureFlags:JobsModule` off until job execution ships.
 
