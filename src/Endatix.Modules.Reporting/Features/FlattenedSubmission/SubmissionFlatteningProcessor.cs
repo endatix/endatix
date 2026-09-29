@@ -7,13 +7,21 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Microsoft.Extensions.Logging;
-using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmission;
 
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 
 /// <summary>
 /// Processes a submission into the reporting flattened read model.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Flattens run as independent jobs, so they can overlap, retry, and finish in any order relative to each other and
+/// to the deletion syncs. Two rules keep the read model right whatever the order. A submission that is gone —
+/// missing, soft-deleted, or on a deleted form or definition — leaves no row: the flatten removes its row, if any,
+/// and succeeds. And every write carries the submission's revision and lands only when the row was not written from
+/// a newer one, so an older flatten finishing last changes nothing.
+/// </para>
+/// </remarks>
 internal sealed class SubmissionFlatteningProcessor(
     IRepository<Submission> submissionRepository,
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
@@ -29,35 +37,45 @@ internal sealed class SubmissionFlatteningProcessor(
         CancellationToken cancellationToken,
         bool includeIncomplete = false)
     {
-        // Load the submission before touching the row: a submission that cannot be found must not
-        // leave a row created, or stuck in Processing.
-        SubmissionWithDefinitionAndFormSpec submissionSpec = new(formId, submissionId);
-        var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
+        // Read before any write, so a submission that is already gone never gets a row. The query filters hide a
+        // soft-deleted submission, and its required form and definition joins hide one whose form or definition
+        // was deleted; a failure to read throws and is retried rather than taken for gone.
+        var submission = await submissionRepository.SingleOrDefaultAsync(
+            new SubmissionWithDefinitionAndFormSpec(formId, submissionId),
+            cancellationToken);
         if (submission is null)
         {
-            await HandleMissingSubmissionAsync(tenantId, formId, submissionId, cancellationToken);
+            await RemoveRowOfGoneSubmissionAsync(tenantId, formId, submissionId, cancellationToken);
             return;
         }
 
-        var row = await flattenedSubmissionRepository.GetOrCreateAsync(
-            tenantId,
-            submissionId,
-            formId,
-            cancellationToken);
-
-        row.MarkProcessing();
-        await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
+        await flattenedSubmissionRepository.EnsureExistsAsync(tenantId, submissionId, formId, cancellationToken);
+        var revision = submission.Revision;
 
         if (submission.TenantId != tenantId || submission.FormId != formId)
         {
-            await FailAsync(row, SubmissionMismatchMessage, cancellationToken);
+            if (!await flattenedSubmissionRepository.TryMarkFailedAsync(
+                    tenantId, submissionId, revision, SubmissionMismatchMessage, cancellationToken))
+            {
+                LogSuperseded(submissionId, revision);
+            }
+
+            return;
+        }
+
+        if (!await flattenedSubmissionRepository.TryMarkProcessingAsync(tenantId, submissionId, revision, cancellationToken))
+        {
+            LogSuperseded(submissionId, revision);
             return;
         }
 
         if (!submission.IsComplete && !includeIncomplete)
         {
-            row.MarkSkipped();
-            await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
+            if (!await flattenedSubmissionRepository.TryMarkSkippedAsync(tenantId, submissionId, revision, cancellationToken))
+            {
+                LogSuperseded(submissionId, revision);
+            }
+
             return;
         }
 
@@ -79,8 +97,22 @@ internal sealed class SubmissionFlatteningProcessor(
             mergedSchema);
         var dataJson = FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);
 
-        row.MarkProcessed(dataJson, submission.ModifiedAt ?? submission.CreatedAt);
-        await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
+        if (!await flattenedSubmissionRepository.TryMarkProcessedAsync(
+                tenantId, submissionId, revision, dataJson, cancellationToken))
+        {
+            LogSuperseded(submissionId, revision);
+            return;
+        }
+
+        // A deletion whose cleanup ran between this flatten's read and its write would otherwise leave the row
+        // behind. The deletion is committed before its cleanup runs, so reading again after the write sees it.
+        if (!await submissionRepository.AnyAsync(
+                new SubmissionWithDefinitionAndFormSpec(formId, submissionId),
+                cancellationToken))
+        {
+            await RemoveRowOfGoneSubmissionAsync(tenantId, formId, submissionId, cancellationToken);
+            return;
+        }
 
         logger.LogInformation(
             "Flattened submission {SubmissionId} for form {FormId}",
@@ -88,49 +120,24 @@ internal sealed class SubmissionFlatteningProcessor(
             formId);
     }
 
-    /// <summary>
-    /// A submission soft-deleted after it was queued or paged mirrors the deletion onto an existing row.
-    /// Anything else (wrong form, wrong tenant, never existed) throws, so the outbox retries and the
-    /// backfill counts it as failed instead of hiding it.
-    /// </summary>
-    private async Task HandleMissingSubmissionAsync(
+    private async Task RemoveRowOfGoneSubmissionAsync(
         long tenantId,
         long formId,
         long submissionId,
         CancellationToken cancellationToken)
     {
-        var state = await submissionRepository.SingleOrDefaultAsync(
-            new SubmissionDeletionStateSpec(submissionId),
-            cancellationToken);
-
-        var deletedHere = state is { IsDeleted: true } &&
-            state.TenantId == tenantId &&
-            state.FormId == formId;
-        if (!deletedHere)
-        {
-            throw new InvalidOperationException(
-                $"Submission {submissionId} for form {formId} was not found while flattening.");
-        }
-
-        var row = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
-            tenantId,
+        var removed = await flattenedSubmissionRepository.DeleteBySubmissionAsync(
+            tenantId, formId, submissionId, cancellationToken);
+        logger.LogInformation(
+            "Submission {SubmissionId} of form {FormId} is gone; removed {Removed} flattened row(s) instead of flattening it",
             submissionId,
-            cancellationToken);
-        if (row is null)
-        {
-            return;
-        }
-
-        row.MarkDeleted();
-        await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
+            formId,
+            removed);
     }
 
-    private async Task FailAsync(
-        FlattenedSubmissionRow row,
-        string message,
-        CancellationToken cancellationToken)
-    {
-        row.MarkFailed(message);
-        await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
-    }
+    private void LogSuperseded(long submissionId, long revision) =>
+        logger.LogDebug(
+            "Flattened submission {SubmissionId} was already written from a revision newer than {Revision}; left as it is",
+            submissionId,
+            revision);
 }

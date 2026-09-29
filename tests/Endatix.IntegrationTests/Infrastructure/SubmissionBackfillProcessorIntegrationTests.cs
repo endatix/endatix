@@ -218,6 +218,9 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         submissionRepository
             .SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
+        submissionRepository
+            .AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         return submissionRepository;
     }
 

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(ReportingDbContext))]
-    partial class ReportingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929090000_AddFlattenedSubmissionSourceRevision")]
+    partial class AddFlattenedSubmissionSourceRevision
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -98,9 +101,6 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("SourceModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<long?>("SourceRevision")

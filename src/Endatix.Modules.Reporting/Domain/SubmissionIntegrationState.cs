@@ -84,7 +84,7 @@ public sealed class SubmissionIntegrationState
     public SubmissionIntegrationSnapshotDto ToSnapshot() =>
         new(Code, ProcessedAt, LastAttemptAt, LastError);
 
-    private static string? TruncateError(string? error)
+    internal static string? TruncateError(string? error)
     {
         if (string.IsNullOrWhiteSpace(error))
         {
