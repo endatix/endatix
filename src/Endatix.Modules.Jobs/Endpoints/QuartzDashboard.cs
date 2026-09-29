@@ -1,6 +1,7 @@
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 
@@ -24,31 +25,36 @@ internal static class QuartzDashboard
 
     private static readonly string _endatixJobClass = typeof(BackgroundJobExecution).FullName!;
 
-    public static IServiceCollection AddJobsDashboard(this IServiceCollection services, BackgroundJobsOptions options)
+    public static IServiceCollection AddJobsDashboard(this IServiceCollection services, IConfiguration configuration)
     {
+        var options = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
+            ?? new BackgroundJobsOptions();
         if (!options.Dashboard.Enabled)
         {
             return services;
         }
 
         var readOnly = !options.Dashboard.AllowWrites;
-
-        services.AddQuartzHttpApi(api =>
-        {
-            api.ApiPath = ApiPath;
-            api.ReadOnly = readOnly;
-            api.IsJobTypeAllowed = IsEndatixJobClass;
-        });
-        services.AddQuartzDashboard(dashboard =>
-        {
-            dashboard.DashboardPath = DashboardPath;
-            dashboard.ReadOnly = readOnly;
-            dashboard.AuthorizationPolicy = AuthorizationPolicy;
-            dashboard.IsJobTypeAllowed = IsEndatixJobClass;
-        });
+        services.AddQuartzHttpApi(api => ConfigureApi(api, readOnly));
+        services.AddQuartzDashboard(dashboard => ConfigureDashboard(dashboard, readOnly));
         services.AddSingleton<IStartupFilter, MapDashboardAfterApplication>();
 
         return services;
+    }
+
+    private static void ConfigureApi(QuartzHttpApiOptions api, bool readOnly)
+    {
+        api.ApiPath = ApiPath;
+        api.ReadOnly = readOnly;
+        api.IsJobTypeAllowed = IsEndatixJobClass;
+    }
+
+    private static void ConfigureDashboard(QuartzDashboardOptions dashboard, bool readOnly)
+    {
+        dashboard.DashboardPath = DashboardPath;
+        dashboard.ReadOnly = readOnly;
+        dashboard.AuthorizationPolicy = AuthorizationPolicy;
+        dashboard.IsJobTypeAllowed = IsEndatixJobClass;
     }
 
     // The job type arrives as the name the caller wrote, with or without its assembly. A bare prefix match would

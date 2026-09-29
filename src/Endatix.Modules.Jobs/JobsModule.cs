@@ -49,36 +49,43 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        // Reaching here means the flag is on, so the host asked for background jobs and has to be
-        // told it cannot have them, rather than discovering it when the first enqueue fails.
-        if (!DatabaseProviderResolver.IsPostgreSql(builder.Configuration))
+        RequirePostgreSql(builder.Configuration);
+        AddPersistence(builder);
+        builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
+        AddValidatedOptions(builder.Services);
+
+        builder.Services.AddSingleton(JobHandlerRegistry.Build);
+        builder.Services.AddJobsScheduler(builder.Configuration);
+        builder.Services.AddHostedService<JobsSchedulerHostedService>();
+        builder.Services.AddJobsDashboard(builder.Configuration);
+    }
+
+    // Reaching here means the flag is on, so the host asked for background jobs and has to be told it cannot have
+    // them, rather than discovering it when the first enqueue fails.
+    private static void RequirePostgreSql(IConfiguration configuration)
+    {
+        if (!DatabaseProviderResolver.IsPostgreSql(configuration))
         {
             throw new InvalidOperationException(
                 $"The Background Jobs module requires PostgreSQL. Either set the connection string " +
                 $"setting 'DefaultConnection_DbProvider' to 'postgresql', or turn off " +
                 $"'Endatix:FeatureFlags:{FeatureFlags.JobsModule}'.");
         }
+    }
 
-        // Consumers see the context only as IJobsDbContext, so nothing downstream branches on the
-        // provider.
-        builder.AddDbContextWithMigrations<JobsPostgreSqlDbContext>(
-            JobsPersistence.ConfigureDbContextOptions);
-        builder.Services.AddScoped<IJobsDbContext>(sp =>
-            sp.GetRequiredService<JobsPostgreSqlDbContext>());
+    // Consumers see the context only as IJobsDbContext, so nothing downstream branches on the provider.
+    private static void AddPersistence(EndatixModuleBuilder builder)
+    {
+        builder.AddDbContextWithMigrations<JobsPostgreSqlDbContext>(JobsPersistence.ConfigureDbContextOptions);
+        builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsPostgreSqlDbContext>());
+    }
 
-        builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
-
-        builder.Services.AddOptions<BackgroundJobsOptions>()
+    private static void AddValidatedOptions(IServiceCollection services)
+    {
+        services.AddOptions<BackgroundJobsOptions>()
             .BindConfiguration(BackgroundJobsOptions.SectionName)
             .ValidateOnStart();
-        builder.Services.TryAddEnumerable(
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<BackgroundJobsOptions>, BackgroundJobsOptionsValidator>());
-
-        builder.Services.AddSingleton(JobHandlerRegistry.Build);
-        builder.Services.AddJobsScheduler(builder.Configuration);
-        builder.Services.AddHostedService<JobsSchedulerHostedService>();
-        builder.Services.AddJobsDashboard(
-            builder.Configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
-            ?? new BackgroundJobsOptions());
     }
 }
