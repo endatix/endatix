@@ -25,19 +25,17 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     private const int Pending = 0;
     private const int Sent = 1;
 
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
-
     [Fact]
     public async Task Fan_out_enqueues_one_job_per_subscriber_and_marks_sent()
     {
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, true, SubscribeS1AndS2, ct);
+        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2), ct);
 
         // Act
-        await host.InsertMessageAsync(77, "x.happened", tenantId: 5, ct);
-        var sent = await WaitForMessageAsync(host, 77, message => message.Status == Sent, ct);
+        await host.InsertMessageAsync(new OutboxRow(77, "x.happened", TenantId: 5), ct);
+        var sent = await host.WaitForMessageAsync(77, message => message.Status == Sent, ct);
 
         // Assert
         sent.Should().BeTrue();
@@ -54,7 +52,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         // Arrange — a message whose jobs were enqueued but which was never marked sent is delivered again.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, true, SubscribeS1AndS2, ct);
+        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2), ct);
         var message = new DeliveredMessage(88, "x.happened", "{}", 5);
         await PublishAsync(host, message, ct);
 
@@ -71,11 +69,11 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, true, SubscribeS1AndS2, ct);
+        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2), ct);
 
         // Act
-        await host.InsertMessageAsync(99, "y.happened", tenantId: 5, ct);
-        var sent = await WaitForMessageAsync(host, 99, message => message.Status == Sent, ct);
+        await host.InsertMessageAsync(new OutboxRow(99, "y.happened", TenantId: 5), ct);
+        var sent = await host.WaitForMessageAsync(99, message => message.Status == Sent, ct);
 
         // Assert
         sent.Should().BeTrue();
@@ -88,11 +86,11 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, true, SubscribeS1AndS2, ct);
+        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2), ct);
 
         // Act
-        await host.InsertMessageAsync(100, "x.happened", tenantId: 0, ct);
-        var retried = await WaitForMessageAsync(host, 100, message => message.Attempts == 1, ct);
+        await host.InsertMessageAsync(new OutboxRow(100, "x.happened", TenantId: 0), ct);
+        var retried = await host.WaitForMessageAsync(100, message => message.Attempts == 1, ct);
 
         // Assert
         retried.Should().BeTrue();
@@ -110,12 +108,12 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(
-            fixture.ConnectionString, true, SubscribeS1AndS2, ct, jobsModule: false);
+            fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2) with { JobsModule = false }, ct);
 
         // Act
-        await host.InsertMessageAsync(201, "x.happened", tenantId: 5, ct);
-        await host.InsertMessageAsync(202, "x.happened", tenantId: 5, ct);
-        await host.InsertMessageAsync(203, "x.happened", tenantId: 5, ct);
+        await host.InsertMessageAsync(new OutboxRow(201, "x.happened", TenantId: 5), ct);
+        await host.InsertMessageAsync(new OutboxRow(202, "x.happened", TenantId: 5), ct);
+        await host.InsertMessageAsync(new OutboxRow(203, "x.happened", TenantId: 5), ct);
         await Task.Delay(TimeSpan.FromSeconds(5), ct);
 
         // Assert
@@ -139,18 +137,19 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         var inline = new RecordingInlineHandler("submission.completed");
         await using var host = await FanOutHost.StartAsync(
             fixture.ConnectionString,
-            deliverToJobQueue: false,
-            services =>
-            {
-                SubscribeS1AndS2(services);
-                services.AddOutboxJobSubscription("submission.completed", message => new SubscriberS1Payload(message.Id));
-                services.AddSingleton<IOutboxIntegrationEventHandler>(inline);
-            },
+            new FanOutHostSetup(
+                DeliverToJobQueue: false,
+                services =>
+                {
+                    SubscribeS1AndS2(services);
+                    services.AddOutboxJobSubscription("submission.completed", message => new SubscriberS1Payload(message.Id));
+                    services.AddSingleton<IOutboxIntegrationEventHandler>(inline);
+                }),
             ct);
 
         // Act
-        await host.InsertMessageAsync(301, "submission.completed", tenantId: 5, ct);
-        var sent = await WaitForMessageAsync(host, 301, message => message.Status == Sent, ct);
+        await host.InsertMessageAsync(new OutboxRow(301, "submission.completed", TenantId: 5), ct);
+        var sent = await host.WaitForMessageAsync(301, message => message.Status == Sent, ct);
 
         // Assert
         sent.Should().BeTrue();
@@ -166,17 +165,17 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(
             fixture.ConnectionString,
-            true,
-            services =>
+            JobQueueWith(services =>
             {
                 services.AddOutboxJobSubscription("slow.happened", message => new SlowPayload(message.Id));
                 services.AddScoped<IBackgroundJobHandler>(_ => new NamedProbeHandler(SlowPayload.JobType, new NamedProbeRuns()));
-            },
+            }),
             ct);
         var ids = Enumerable.Range(1_000, 50).Select(id => (long)id).ToList();
         foreach (var id in ids)
         {
-            await host.InsertMessageAsync(id, "slow.happened", tenantId: 5, ct, payload: """{"holdMilliseconds":60000}""");
+            await host.InsertMessageAsync(
+                new OutboxRow(id, "slow.happened", TenantId: 5, Payload: """{"holdMilliseconds":60000}"""), ct);
         }
 
         // Act
@@ -202,12 +201,8 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         await scope.ServiceProvider.GetRequiredService<JobQueueIntegrationEventPublisher>().PublishAsync(message, ct);
     }
 
-    private static Task<bool> WaitForMessageAsync(
-        FanOutHost host,
-        long id,
-        Func<(int Status, int Attempts, string? LockedBy), bool> reached,
-        CancellationToken ct) =>
-        JobsTestWait.UntilAsync(async () => reached(await host.ReadMessageAsync(id, ct)), Patience, ct);
+    private static FanOutHostSetup JobQueueWith(Action<IServiceCollection> configureServices) =>
+        new(DeliverToJobQueue: true, configureServices);
 
     internal sealed record SubscriberS1Payload(long OutboxMessageId) : IBackgroundJobPayload
     {
