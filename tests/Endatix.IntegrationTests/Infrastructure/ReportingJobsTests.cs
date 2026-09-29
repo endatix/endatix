@@ -37,7 +37,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await WaitForSeedingJobsAsync(host, ct);
 
         // Act
-        await host.InsertMessageAsync(900, "submission.completed", tenantId, ct, SubmissionPayload(tenantId, formId, submissionId));
+        await host.InsertMessageAsync(new OutboxRow(900, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
         var completed = await WaitForJobAsync(host, "900:ReportingFlattenSubmission", status => status == 3, ct);
 
         // Assert
@@ -67,7 +67,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await WaitForSeedingJobsAsync(host, ct);
 
         // Act
-        await host.InsertMessageAsync(901, "submission.completed", tenantId, ct, SubmissionPayload(tenantId, formId, submissionId));
+        await host.InsertMessageAsync(new OutboxRow(901, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
         await WaitForJobAsync(host, "901:ReportingFlattenSubmission", status => status == 3, ct);
         await JobsTestWait.UntilAsync(
             async () => await host.Database.CountAsync(
@@ -120,7 +120,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await using var host = await StartHostAsync(reporting: false, ct);
 
         // Act
-        await host.InsertMessageAsync(902, "form.deleted", 5, ct, """{"formId":"12","tenantId":"5"}""");
+        await host.InsertMessageAsync(new OutboxRow(902, "form.deleted", 5, """{"formId":"12","tenantId":"5"}"""), ct);
         await JobsTestWait.UntilAsync(async () => (await host.ReadMessageAsync(902, ct)).Status == 1, Patience, ct);
 
         // Assert
@@ -142,7 +142,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
             $"""UPDATE "Submissions" SET "IsDeleted" = true, "DeletedAt" = now() WHERE "Id" = {submissionId}""", ct);
 
         // Act — a flatten of that submission, such as a retry, runs after the deletion.
-        await host.InsertMessageAsync(910, "submission.completed", tenantId, ct, SubmissionPayload(tenantId, formId, submissionId));
+        await host.InsertMessageAsync(new OutboxRow(910, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
         var finished = await WaitForJobAsync(host, "910:ReportingFlattenSubmission", status => status is 3 or 4 or 5, ct);
 
         // Assert — it succeeds on its first attempt instead of retrying, and no row is left for the deleted submission.
@@ -222,7 +222,8 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     private Task<FanOutHost> StartHostAsync(bool reporting, CancellationToken ct, Dictionary<string, string?>? settings = null)
     {
         var all = new Dictionary<string, string?>(settings ?? []) { ["Endatix:FeatureFlags:ReportingModule"] = reporting.ToString() };
-        return FanOutHost.StartAsync(fixture.ConnectionString, deliverToJobQueue: true, _ => { }, ct, settings: all);
+        return FanOutHost.StartAsync(
+            fixture.ConnectionString, new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = all }, ct);
     }
 
     private static async Task<long> CreateTenantAsync(FanOutHost host, string name, CancellationToken ct)
