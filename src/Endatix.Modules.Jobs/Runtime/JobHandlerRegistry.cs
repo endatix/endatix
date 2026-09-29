@@ -14,8 +14,9 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </para>
 /// <para>
 /// Handlers are resolved from the job's own scope and never held, because a handler may depend on scoped
-/// services such as a <c>DbContext</c>. Job types are compared ordinally: a job type is a routing key written by
-/// code, not text a person types.
+/// services such as a <c>DbContext</c>. A handler registered keyed by its job type is the only one a job run
+/// builds; one registered without a key is found by building every handler. Job types are compared ordinally: a
+/// job type is a routing key written by code, not text a person types.
 /// </para>
 /// </remarks>
 internal sealed class JobHandlerRegistry
@@ -81,7 +82,21 @@ internal sealed class JobHandlerRegistry
     public static JobHandlerRegistry Build(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        return Build(scope.ServiceProvider.GetServices<IBackgroundJobHandler>());
+        var registry = Build(scope.ServiceProvider.GetServices<IBackgroundJobHandler>());
+
+        // A job run trusts the key, so a keyed handler that declares another job type would run the wrong jobs.
+        foreach (var jobType in registry.JobTypes)
+        {
+            if (scope.ServiceProvider.GetKeyedService<IBackgroundJobHandler>(jobType) is { } keyed
+                && !string.Equals(keyed.JobType, jobType, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"The background job handler {keyed.GetType().FullName} is registered for the job type " +
+                    $"'{jobType}' but declares '{keyed.JobType}'.");
+            }
+        }
+
+        return registry;
     }
 
     /// <summary>
@@ -90,11 +105,13 @@ internal sealed class JobHandlerRegistry
     /// </summary>
     public IBackgroundJobHandler? Resolve(IServiceProvider jobScope, string jobType)
     {
-        if (!_handlerTypes.TryGetValue(jobType, out var handlerType))
+        if (!_handlerTypes.ContainsKey(jobType))
         {
             return null;
         }
 
-        return jobScope.GetServices<IBackgroundJobHandler>().FirstOrDefault(handler => handler.GetType() == handlerType);
+        return jobScope.GetKeyedService<IBackgroundJobHandler>(jobType)
+            ?? jobScope.GetServices<IBackgroundJobHandler>().FirstOrDefault(handler =>
+                string.Equals(handler.JobType, jobType, StringComparison.Ordinal));
     }
 }

@@ -109,8 +109,9 @@ drop the rest.
 
 ## Writing a handler
 
-Derive from `BackgroundJobHandler<TPayload>` and register it in DI as an
-`IBackgroundJobHandler`. The job type comes from the payload; handlers may live in any
+Derive from `BackgroundJobHandler<TPayload>` and register it with
+`services.AddBackgroundJobHandler<THandler, TPayload>()`, which keys it by job type so a job run
+builds only its own handler. The job type comes from the payload; handlers may live in any
 assembly. Two handlers declaring the same job type fail startup.
 
 ```csharp

@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Runtime;
@@ -128,7 +129,7 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
     private static void AddProbe(IServiceCollection services, ProbeInvocations invocations)
     {
         services.AddSingleton(invocations);
-        services.AddScoped<IBackgroundJobHandler, ProbeJobHandler>();
+        services.AddBackgroundJobHandler<ProbeJobHandler, ProbePayload>();
     }
 
     private static async Task<List<long>> EnqueueAsync(JobsTestNode node, int count, CancellationToken cancellationToken)
