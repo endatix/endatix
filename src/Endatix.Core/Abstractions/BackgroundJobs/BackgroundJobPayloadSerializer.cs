@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace Endatix.Core.Abstractions.BackgroundJobs;
@@ -34,36 +33,25 @@ public static class BackgroundJobPayloadSerializer
         JsonSerializer.Serialize(payload, _options);
 
     /// <summary>
-    /// Reads <paramref name="payloadJson"/> as <typeparamref name="TPayload"/>. Returns <see langword="false"/>,
-    /// rather than throwing, when the text is not JSON or does not describe the type: stored input that
-    /// cannot be read now never will be, so the caller treats it as a permanent failure. Input that omits a
-    /// required member or holds <c>null</c> for a non-nullable one counts as unreadable.
+    /// Reads <paramref name="payloadJson"/> as <typeparamref name="TPayload"/>.
     /// </summary>
-    public static bool TryDeserialize<TPayload>(
-        string? payloadJson,
-        [NotNullWhen(true)] out TPayload? payload)
+    /// <exception cref="JsonException">
+    /// The text is empty, is not JSON, is the literal <c>null</c>, or does not describe the type. Input that
+    /// omits a required member or holds <c>null</c> for a non-nullable one counts as unreadable too. Stored
+    /// input that cannot be read now never will be, so the caller treats this as a permanent failure.
+    /// </exception>
+    public static TPayload Deserialize<TPayload>(string payloadJson)
         where TPayload : IBackgroundJobPayload
     {
-        payload = default;
-
-        if (string.IsNullOrWhiteSpace(payloadJson))
-        {
-            return false;
-        }
-
         try
         {
-            payload = JsonSerializer.Deserialize<TPayload>(payloadJson, _options);
+            return JsonSerializer.Deserialize<TPayload>(payloadJson, _options)
+                ?? throw new JsonException($"The payload is null, not a {typeof(TPayload).Name}.");
         }
-        catch (JsonException)
+        catch (NotSupportedException ex)
         {
-            return false;
+            // Raised for a shape the reader cannot bind; surfaced as JsonException so callers catch one type.
+            throw new JsonException(ex.Message, ex);
         }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
-
-        return payload is not null;
     }
 }

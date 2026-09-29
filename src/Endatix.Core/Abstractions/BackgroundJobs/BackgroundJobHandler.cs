@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.Abstractions.BackgroundJobs;
 
@@ -12,7 +14,10 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// stored data, so the job ends <c>Failed</c> on its first attempt. The contract on
 /// <see cref="IBackgroundJobHandler"/> applies to the derived handler unchanged.
 /// </remarks>
-public abstract class BackgroundJobHandler<TPayload> : IBackgroundJobHandler
+/// <param name="logger">
+/// Records why input could not be read, which the failure <see cref="Result"/> deliberately omits.
+/// </param>
+public abstract partial class BackgroundJobHandler<TPayload>(ILogger logger) : IBackgroundJobHandler
     where TPayload : IBackgroundJobPayload
 {
     /// <inheritdoc />
@@ -21,10 +26,18 @@ public abstract class BackgroundJobHandler<TPayload> : IBackgroundJobHandler
     /// <inheritdoc />
     public Task<Result> ExecuteAsync(BackgroundJobContext job, CancellationToken cancellationToken)
     {
-        if (!BackgroundJobPayloadSerializer.TryDeserialize<TPayload>(job.PayloadJson, out var payload))
+        TPayload payload;
+        try
         {
-            // Names the job type and nothing from the payload, which may hold data the status endpoint must
-            // not return.
+            payload = BackgroundJobPayloadSerializer.Deserialize<TPayload>(job.PayloadJson);
+        }
+        catch (JsonException ex)
+        {
+            // The log carries the reader's error, which names the offending member and position. Neither the
+            // log nor the result carries the payload itself, which may hold data the status endpoint must not
+            // return.
+            LogUnreadablePayload(logger, job.JobId, job.JobType, job.TenantId, job.AttemptCount, ex);
+
             return Task.FromResult(Result.Invalid(
                 new ValidationError($"The job's input could not be read ({TPayload.JobType}).")));
         }
@@ -40,4 +53,17 @@ public abstract class BackgroundJobHandler<TPayload> : IBackgroundJobHandler
         BackgroundJobContext job,
         TPayload payload,
         CancellationToken cancellationToken);
+
+    [LoggerMessage(
+        EventId = 53001,
+        Level = LogLevel.Warning,
+        EventName = "BackgroundJobPayloadUnreadable",
+        Message = "Background job {JobId} ({JobType}) for tenant {TenantId} failed on attempt {AttemptCount}: its input could not be read")]
+    private static partial void LogUnreadablePayload(
+        ILogger logger,
+        long jobId,
+        string jobType,
+        long tenantId,
+        int attemptCount,
+        Exception exception);
 }

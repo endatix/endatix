@@ -1,5 +1,7 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Core.Tests.Abstractions.BackgroundJobs;
 
@@ -11,7 +13,7 @@ public sealed class BackgroundJobHandlerTests
     public async Task ExecuteAsync_WithUnreadablePayload_ReturnsFailureWithoutCallingHandler(string payloadJson)
     {
         // Arrange
-        var handler = new RecordingHandler();
+        var handler = new RecordingHandler(NullLogger.Instance);
         var job = new BackgroundJobContext(1, "Test", 5, payloadJson, 1);
 
         // Act
@@ -28,7 +30,7 @@ public sealed class BackgroundJobHandlerTests
     public async Task ExecuteAsync_WithReadablePayload_PassesTypedPayloadToHandler()
     {
         // Arrange
-        var handler = new RecordingHandler();
+        var handler = new RecordingHandler(NullLogger.Instance);
         var job = new BackgroundJobContext(1, "Test", 5, "{\"id\":42}", 1);
 
         // Act
@@ -43,7 +45,7 @@ public sealed class BackgroundJobHandlerTests
     public void JobType_DerivedHandler_IsPayloadJobType()
     {
         // Arrange
-        var handler = new RecordingHandler();
+        var handler = new RecordingHandler(NullLogger.Instance);
 
         // Act
         var jobType = handler.JobType;
@@ -52,7 +54,26 @@ public sealed class BackgroundJobHandlerTests
         jobType.Should().Be(TestPayload.JobType);
     }
 
-    private sealed class RecordingHandler : BackgroundJobHandler<TestPayload>
+    [Fact]
+    public async Task ExecuteAsync_WithUnreadablePayload_LogsWarningWithReaderError()
+    {
+        // Arrange
+        var logger = Substitute.For<ILogger>();
+        logger.IsEnabled(LogLevel.Warning).Returns(true);
+        var handler = new RecordingHandler(logger);
+        var job = new BackgroundJobContext(1, "Test", 5, "{}", 1);
+
+        // Act
+        await handler.ExecuteAsync(job, CancellationToken.None);
+
+        // Assert
+        var logCall = logger.ReceivedCalls().Should().ContainSingle(call => call.GetMethodInfo().Name == nameof(ILogger.Log))
+            .Subject.GetArguments();
+        logCall[0].Should().Be(LogLevel.Warning);
+        logCall[3].Should().BeAssignableTo<System.Text.Json.JsonException>();
+    }
+
+    private sealed class RecordingHandler(ILogger logger) : BackgroundJobHandler<TestPayload>(logger)
     {
         public List<TestPayload> Received { get; } = [];
 
