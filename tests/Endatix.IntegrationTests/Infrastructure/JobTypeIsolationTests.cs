@@ -55,9 +55,9 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
             $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "Status" = 1 AND "Id" IN ({webhooks.IdList()})""", ct);
         var secondExportWhileFirstRuns = await database.ReadJobAsync(secondExport, ct);
         var firstEnded = await database.WaitForStatusAsync(
-            firstExport, status => status == JobStatus.Completed, TimeSpan.FromSeconds(90), ct);
+            new ExpectedJobStatus(firstExport, JobStatus.Completed, TimeSpan.FromSeconds(90)), ct);
         var secondExportAfterwards = await database.WaitForStatusAsync(
-            secondExport, status => status == JobStatus.Completed, TimeSpan.FromSeconds(45), ct);
+            new ExpectedJobStatus(secondExport, JobStatus.Completed, TimeSpan.FromSeconds(45)), ct);
 
         // Assert
         processingWebhooks.Should().Be(4);
