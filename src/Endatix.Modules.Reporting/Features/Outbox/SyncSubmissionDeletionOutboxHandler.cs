@@ -36,28 +36,15 @@ internal sealed class SyncSubmissionDeletionOutboxHandler(
     public async Task ProcessAsync(Input input, long outboxMessageId, CancellationToken cancellationToken)
     {
         var (tenantId, submissionId) = input;
+        var deleted = await unitOfWork.InTransactionAsync(
+            () => flattenedSubmissionRepository.DeleteBySubmissionIdAsync(tenantId, submissionId, cancellationToken),
+            cancellationToken);
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            var deleted = await flattenedSubmissionRepository.DeleteBySubmissionIdAsync(
-                tenantId,
-                submissionId,
-                cancellationToken);
-
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            logger.LogInformation(
-                "Cleaned reporting flattened submission {SubmissionId} (deleted={Deleted}, outboxMessageId={OutboxMessageId})",
-                submissionId,
-                deleted,
-                outboxMessageId);
-        }
-        catch
-        {
-            await unitOfWork.RollbackTransactionAsync(CancellationToken.None);
-            throw;
-        }
+        logger.LogInformation(
+            "Cleaned reporting flattened submission {SubmissionId} (deleted={Deleted}, outboxMessageId={OutboxMessageId})",
+            submissionId,
+            deleted,
+            outboxMessageId);
     }
 
     public sealed record Input(long TenantId, long SubmissionId);

@@ -37,33 +37,18 @@ internal sealed class SyncFormDeletionOutboxHandler(
     public async Task ProcessAsync(Input input, long outboxMessageId, CancellationToken cancellationToken)
     {
         var (tenantId, formId) = input;
+        var (schemasDeleted, flattenedDeleted) = await unitOfWork.InTransactionAsync(
+            async () => (
+                await formSchemaRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken),
+                await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken)),
+            cancellationToken);
 
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            var schemasDeleted = await formSchemaRepository.DeleteByFormIdAsync(
-                tenantId,
-                formId,
-                cancellationToken);
-            var flattenedDeleted = await flattenedSubmissionRepository.DeleteByFormIdAsync(
-                tenantId,
-                formId,
-                cancellationToken);
-
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            logger.LogInformation(
-                "Cleaned reporting rows for form {FormId} (schemasDeleted={SchemasDeleted}, flattenedDeleted={FlattenedDeleted}, outboxMessageId={OutboxMessageId})",
-                formId,
-                schemasDeleted,
-                flattenedDeleted,
-                outboxMessageId);
-        }
-        catch
-        {
-            await unitOfWork.RollbackTransactionAsync(CancellationToken.None);
-            throw;
-        }
+        logger.LogInformation(
+            "Cleaned reporting rows for form {FormId} (schemasDeleted={SchemasDeleted}, flattenedDeleted={FlattenedDeleted}, outboxMessageId={OutboxMessageId})",
+            formId,
+            schemasDeleted,
+            flattenedDeleted,
+            outboxMessageId);
     }
 
     public sealed record Input(long TenantId, long FormId);
