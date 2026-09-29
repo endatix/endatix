@@ -4,20 +4,17 @@ using Endatix.Core.Entities;
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 
 /// <summary>
-/// One submission id in a backfill page, with the stamps used to skip an unchanged flatten.
+/// One submission in a backfill page. Stamps decide whether an existing flatten is still current.
+/// Soft-deleted submissions stay out via the global query filter.
 /// </summary>
-public sealed record SubmissionBackfillCandidate(
+internal sealed record SubmissionBackfillCandidate(
     long SubmissionId,
     DateTime? ModifiedAt,
     DateTime CreatedAt);
 
-/// <summary>
-/// Submission ids for a form, ordered for keyset backfill pagination.
-/// Soft-deleted rows stay out via the repository query filter.
-/// </summary>
-internal sealed class CompletedSubmissionIdsForBackfillSpec : Specification<Submission, SubmissionBackfillCandidate>
+internal sealed class SubmissionBackfillPageSpec : Specification<Submission, SubmissionBackfillCandidate>
 {
-    public CompletedSubmissionIdsForBackfillSpec(
+    public SubmissionBackfillPageSpec(
         long formId,
         long? afterSubmissionId,
         int take,

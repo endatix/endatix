@@ -63,26 +63,26 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
     public async Task ProcessAsync_WithZeroRealSubmissions_ReplacesSchemaAndDeletesFlattenedRows()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededForm seed = await SeedFormAsync(seedRealSubmission: false, seedTestSubmission: false, cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedFormAsync(seedRealSubmission: false, seedTestSubmission: false, cancellationToken);
         await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
-        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        var formsRepository = Substitute.For<IFormsRepository>();
         formsRepository
             .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
             .Returns(currentDefinition);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        await using AppDbContext appDb = CreateAppDbContext();
-        FormSchemaProcessor processor = CreateProcessor(formsRepository, reportingDb, appDb);
+        await using var reportingDb = CreateReportingDbContext();
+        await using var appDb = CreateAppDbContext();
+        var processor = CreateProcessor(formsRepository, reportingDb, appDb);
 
         // Act
         await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken: cancellationToken);
 
         // Assert
         reportingDb.ChangeTracker.Clear();
-        FormSchema? schema = await reportingDb.FormSchemas
+        var schema = await reportingDb.FormSchemas
             .SingleOrDefaultAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         schema.Should().NotBeNull();
         schema!.FlatteningMap.Should().Contain("keep");
@@ -90,13 +90,13 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         schema.Codebook.Should().Contain("keep");
         schema.Codebook.Should().NotContain("\"orphan\"");
 
-        int flattenedForForm = await reportingDb.FlattenedSubmissions
+        var flattenedForForm = await reportingDb.FlattenedSubmissions
             .IgnoreQueryFilters()
             .CountAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         flattenedForForm.Should().Be(0);
 
         // Other form's flattened row must remain
-        int otherFormRows = await reportingDb.FlattenedSubmissions
+        var otherFormRows = await reportingDb.FlattenedSubmissions
             .IgnoreQueryFilters()
             .CountAsync(row => row.SubmissionId == OtherFormFlattenedSubmissionId, cancellationToken);
         otherFormRows.Should().Be(1);
@@ -106,31 +106,31 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
     public async Task ProcessAsync_WithOnlyTestSubmissions_ReplacesSchemaAndDeletesFlattenedRows()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededForm seed = await SeedFormAsync(seedRealSubmission: false, seedTestSubmission: true, cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedFormAsync(seedRealSubmission: false, seedTestSubmission: true, cancellationToken);
         await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
-        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        var formsRepository = Substitute.For<IFormsRepository>();
         formsRepository
             .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
             .Returns(currentDefinition);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        await using AppDbContext appDb = CreateAppDbContext();
-        FormSchemaProcessor processor = CreateProcessor(formsRepository, reportingDb, appDb);
+        await using var reportingDb = CreateReportingDbContext();
+        await using var appDb = CreateAppDbContext();
+        var processor = CreateProcessor(formsRepository, reportingDb, appDb);
 
         // Act
         await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken: cancellationToken);
 
         // Assert
         reportingDb.ChangeTracker.Clear();
-        FormSchema schema = await reportingDb.FormSchemas
+        var schema = await reportingDb.FormSchemas
             .SingleAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         schema.FlatteningMap.Should().Contain("keep");
         schema.FlatteningMap.Should().NotContain("orphan");
 
-        int flattenedForForm = await reportingDb.FlattenedSubmissions
+        var flattenedForForm = await reportingDb.FlattenedSubmissions
             .IgnoreQueryFilters()
             .CountAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         flattenedForForm.Should().Be(0);
@@ -140,31 +140,31 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
     public async Task ProcessAsync_WithRealSubmission_MergesAndKeepsFlattenedRows()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededForm seed = await SeedFormAsync(seedRealSubmission: true, seedTestSubmission: false, cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedFormAsync(seedRealSubmission: true, seedTestSubmission: false, cancellationToken);
         await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
-        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        var formsRepository = Substitute.For<IFormsRepository>();
         formsRepository
             .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
             .Returns(currentDefinition);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        await using AppDbContext appDb = CreateAppDbContext();
-        FormSchemaProcessor processor = CreateProcessor(formsRepository, reportingDb, appDb);
+        await using var reportingDb = CreateReportingDbContext();
+        await using var appDb = CreateAppDbContext();
+        var processor = CreateProcessor(formsRepository, reportingDb, appDb);
 
         // Act
         await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken: cancellationToken);
 
         // Assert
         reportingDb.ChangeTracker.Clear();
-        FormSchema schema = await reportingDb.FormSchemas
+        var schema = await reportingDb.FormSchemas
             .SingleAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         schema.FlatteningMap.Should().Contain("orphan");
         schema.FlatteningMap.Should().Contain("keep");
 
-        int flattenedForForm = await reportingDb.FlattenedSubmissions
+        var flattenedForForm = await reportingDb.FlattenedSubmissions
             .IgnoreQueryFilters()
             .CountAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         flattenedForForm.Should().Be(1);
@@ -174,19 +174,19 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
     public async Task ProcessAsync_WithReplaceTrueAndRealSubmissions_ReplacesSchemaAndDeletesFlattenedRows()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededForm seed = await SeedFormAsync(seedRealSubmission: true, seedTestSubmission: false, cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedFormAsync(seedRealSubmission: true, seedTestSubmission: false, cancellationToken);
         await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
-        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        var formsRepository = Substitute.For<IFormsRepository>();
         formsRepository
             .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
             .Returns(currentDefinition);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        await using AppDbContext appDb = CreateAppDbContext();
-        FormSchemaProcessor processor = CreateProcessor(formsRepository, reportingDb, appDb);
+        await using var reportingDb = CreateReportingDbContext();
+        await using var appDb = CreateAppDbContext();
+        var processor = CreateProcessor(formsRepository, reportingDb, appDb);
 
         // Act
         await processor.ProcessAsync(
@@ -198,17 +198,17 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
 
         // Assert
         reportingDb.ChangeTracker.Clear();
-        FormSchema schema = await reportingDb.FormSchemas
+        var schema = await reportingDb.FormSchemas
             .SingleAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         schema.FlatteningMap.Should().Contain("keep");
         schema.FlatteningMap.Should().NotContain("orphan");
 
-        int flattenedForForm = await reportingDb.FlattenedSubmissions
+        var flattenedForForm = await reportingDb.FlattenedSubmissions
             .IgnoreQueryFilters()
             .CountAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
         flattenedForForm.Should().Be(0);
 
-        int otherFormRows = await reportingDb.FlattenedSubmissions
+        var otherFormRows = await reportingDb.FlattenedSubmissions
             .IgnoreQueryFilters()
             .CountAsync(row => row.SubmissionId == OtherFormFlattenedSubmissionId, cancellationToken);
         otherFormRows.Should().Be(1);
@@ -222,12 +222,12 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
+        await using var appDb = CreateAppDbContext();
         Tenant tenant = new("form-schema-replace-tenant", "tnntfsrm") { Id = TenantId };
         appDb.Set<Tenant>().Add(tenant);
         await appDb.SaveChangesAsync(cancellationToken);
 
-        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Replace/merge form"));
+        var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Replace/merge form"));
         appDb.Forms.Add(form);
         await appDb.SaveChangesAsync(cancellationToken);
 
@@ -236,8 +236,8 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         appDb.Set<FormDefinition>().Add(definition);
         await appDb.SaveChangesAsync(cancellationToken);
 
-        long formId = form.Id;
-        long formDefinitionId = definition.Id;
+        var formId = form.Id;
+        var formDefinitionId = definition.Id;
 
         if (seedRealSubmission)
         {
@@ -255,9 +255,9 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
     private async Task SeedReportingStateWithOrphanAsync(SeededForm seed, CancellationToken cancellationToken)
     {
         FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(DefinitionWithOrphan);
+        var compiled = compiler.CompilePersisted(DefinitionWithOrphan);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
+        await using var reportingDb = CreateReportingDbContext();
         FormSchema schema = new(
             TenantId,
             seed.FormId,
@@ -268,11 +268,11 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         reportingDb.FormSchemas.Add(schema);
 
         FlattenedSubmission formRow = new(submissionId: seed.FormId + 1000, TenantId, seed.FormId);
-        formRow.MarkProcessed("""{"keep":"x"}""");
+        formRow.MarkProcessed("""{"keep":"x"}""", DateTime.UtcNow);
         reportingDb.FlattenedSubmissions.Add(formRow);
 
         FlattenedSubmission otherFormRow = new(OtherFormFlattenedSubmissionId, TenantId, formId: seed.FormId + 99);
-        otherFormRow.MarkProcessed("""{"other":true}""");
+        otherFormRow.MarkProcessed("""{"other":true}""", DateTime.UtcNow);
         reportingDb.FlattenedSubmissions.Add(otherFormRow);
 
         await reportingDb.SaveChangesAsync(cancellationToken);
@@ -285,7 +285,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         bool isTest,
         CancellationToken cancellationToken)
     {
-        Submission submission = Submission.Create(new SubmissionCreateArgs(
+        var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TenantId,
             FormId: formId,
             FormDefinitionId: formDefinitionId,
@@ -330,7 +330,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
     {
         IntegrationTenantContext tenantContext = new(TenantId);
 
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
+        var optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
         return new ReportingDbContext(optionsBuilder.Options, tenantContext);

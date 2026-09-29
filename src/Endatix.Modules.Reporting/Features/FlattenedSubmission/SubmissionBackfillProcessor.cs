@@ -28,7 +28,7 @@ internal sealed class SubmissionBackfillProcessor(
         var batchSize = NormalizeBatchSize(options.BatchSize);
         var fetchSize = batchSize + 1;
 
-        CompletedSubmissionIdsForBackfillSpec spec = new(
+        SubmissionBackfillPageSpec spec = new(
             formId,
             options.AfterSubmissionId,
             fetchSize,
@@ -116,13 +116,16 @@ internal sealed class SubmissionBackfillProcessor(
             existing.IsDeleted ||
             existing.Integration.Code != SubmissionIntegrationStatusCodes.Processed ||
             string.IsNullOrWhiteSpace(existing.DataJson) ||
-            existing.ModifiedAt is null)
+            existing.SourceModifiedAt is null)
         {
             return false;
         }
 
+        // Compare the submission's stamp with the stamp of the version that was flattened, both
+        // written by the core API. The row's own ModifiedAt is set by the worker after it read the
+        // submission, so a save during flattening would look older than the row and never refresh.
         var sourceAt = candidate.ModifiedAt ?? candidate.CreatedAt;
-        return sourceAt <= existing.ModifiedAt.Value;
+        return sourceAt <= existing.SourceModifiedAt.Value;
     }
 
     private static int NormalizeBatchSize(int batchSize) =>
