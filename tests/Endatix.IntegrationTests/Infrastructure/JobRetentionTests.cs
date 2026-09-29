@@ -94,7 +94,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
 
         // Act
         var jobId = await node.EnqueueAsync(NamedProbeHandler.Request("WebHookDelivery"), ct);
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Completed, TimeSpan.FromSeconds(30), ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert
         row.CompletedAt.Should().NotBeNull();
