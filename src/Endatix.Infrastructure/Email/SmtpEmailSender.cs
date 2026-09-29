@@ -87,7 +87,9 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
                 // itself throw, masking whatever exception is already propagating from the try block.
                 if (smtpClient.IsConnected)
                 {
-                    await smtpClient.DisconnectAsync(true, CancellationToken.None);
+                    // quit: false drops the socket. quit: true waits for the server's QUIT reply,
+                    // and MailKit's default timeout is two minutes when the relay never answers.
+                    await smtpClient.DisconnectAsync(false, CancellationToken.None);
                 }
             }
             catch (Exception cleanupException)

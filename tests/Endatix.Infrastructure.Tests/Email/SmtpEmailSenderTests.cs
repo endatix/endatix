@@ -351,7 +351,7 @@ public class SmtpEmailSenderTests
         // production code's finally-block comment exists to prevent: passing the ambient,
         // possibly-cancelled token here would mask the original SendAsync exception.
         await act.Should().ThrowAsync<InvalidOperationException>();
-        await transport.Received(1).DisconnectAsync(true, CancellationToken.None);
+        await transport.Received(1).DisconnectAsync(false, CancellationToken.None);
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public class SmtpEmailSenderTests
         var transport = Substitute.For<IMailTransport>();
         transport.IsConnected.Returns(true);
         transport.SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>()).Returns("250 OK");
-        transport.DisconnectAsync(true, CancellationToken.None)
+        transport.DisconnectAsync(false, CancellationToken.None)
             .Returns(Task.FromException(new IOException("disconnect failed")));
 
         var sut = new TestableSmtpEmailSender(
@@ -412,7 +412,7 @@ public class SmtpEmailSenderTests
         var disconnectException = new IOException("disconnect failed");
         transport.SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<string>(sendException));
-        transport.DisconnectAsync(true, CancellationToken.None)
+        transport.DisconnectAsync(false, CancellationToken.None)
             .Returns(Task.FromException(disconnectException));
 
         var sut = new TestableSmtpEmailSender(
