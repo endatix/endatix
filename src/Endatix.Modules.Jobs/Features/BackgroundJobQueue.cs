@@ -58,21 +58,22 @@ internal sealed class BackgroundJobQueue(
         }
 
         var jobs = requests.Select(CreateJob).ToList();
-
-        await using (var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken))
-        {
-            dbContext.BackgroundJobs.AddRange(jobs);
-
-            // One SaveChanges for the whole batch: all rows commit or none do. A fan-out that partially
-            // committed would deliver to some webhook endpoints and silently drop the rest.
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            await triggerScheduler.ScheduleAndCommitAsync(transaction, jobs, cancellationToken);
-        }
-
+        await InsertAndScheduleAsync(jobs, cancellationToken);
         RecordEnqueued(jobs);
 
         return jobs.Select(job => job.Id).ToList();
+    }
+
+    private async Task InsertAndScheduleAsync(List<BackgroundJob> jobs, CancellationToken cancellationToken)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        dbContext.BackgroundJobs.AddRange(jobs);
+
+        // One SaveChanges for the whole batch: all rows commit or none do. A fan-out that partially
+        // committed would deliver to some webhook endpoints and silently drop the rest.
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await triggerScheduler.ScheduleAndCommitAsync(transaction, jobs, cancellationToken);
     }
 
     private BackgroundJob CreateJob(BackgroundJobRequest request)
@@ -83,7 +84,7 @@ internal sealed class BackgroundJobQueue(
             jobType: request.JobType,
             payloadJson: request.PayloadJson,
             tenantId: request.TenantId,
-            // Eligible immediately. Backoff moves this forward only after a failed attempt.
+            // The first attempt is due at once; after a failed one this reports when the retry trigger fires.
             nextAttemptAt: utcNow,
             createdByUserId: request.CreatedByUserId,
             expiresAt: request.ExpiresAt,
