@@ -33,15 +33,15 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
         var now = DateTime.UtcNow;
         List<long> expired =
         [
-            await SeedAsync(node, JobStatus.Completed, now.AddMinutes(-1), ct),
-            await SeedAsync(node, JobStatus.Completed, now.AddMinutes(-1), ct),
-            await SeedAsync(node, JobStatus.Completed, now.AddMinutes(-1), ct),
+            await SeedAsync(node, new SeededRow(JobStatus.Completed, now.AddMinutes(-1)), ct),
+            await SeedAsync(node, new SeededRow(JobStatus.Completed, now.AddMinutes(-1)), ct),
+            await SeedAsync(node, new SeededRow(JobStatus.Completed, now.AddMinutes(-1)), ct),
         ];
         List<long> kept =
         [
-            await SeedAsync(node, JobStatus.Completed, now.AddHours(1), ct),
-            await SeedAsync(node, JobStatus.Pending, now.AddMinutes(-1), ct),
-            await SeedAsync(node, JobStatus.Retrying, now.AddMinutes(-1), ct),
+            await SeedAsync(node, new SeededRow(JobStatus.Completed, now.AddHours(1)), ct),
+            await SeedAsync(node, new SeededRow(JobStatus.Pending, now.AddMinutes(-1)), ct),
+            await SeedAsync(node, new SeededRow(JobStatus.Retrying, now.AddMinutes(-1)), ct),
         ];
 
         // Act
@@ -68,7 +68,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
         });
         for (var i = 0; i < 5; i++)
         {
-            await SeedAsync(node, JobStatus.Completed, DateTime.UtcNow.AddMinutes(-1), ct);
+            await SeedAsync(node, new SeededRow(JobStatus.Completed, DateTime.UtcNow.AddMinutes(-1)), ct);
         }
 
         // Act
@@ -119,7 +119,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
     }
 
     // Status and expiry are written directly: the entity's transitions cannot place a row in every state.
-    private static async Task<long> SeedAsync(JobsTestNode node, JobStatus status, DateTime expiresAt, CancellationToken ct)
+    private static async Task<long> SeedAsync(JobsTestNode node, SeededRow row, CancellationToken ct)
     {
         await using var scope = node.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<JobsPostgreSqlDbContext>();
@@ -127,10 +127,13 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
         context.BackgroundJobs.Add(job);
         await context.SaveChangesAsync(ct);
         await context.BackgroundJobs
-            .Where(row => row.Id == job.Id)
+            .Where(seeded => seeded.Id == job.Id)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(row => row.Status, status)
-                .SetProperty(row => row.ExpiresAt, (DateTime?)expiresAt), ct);
+                .SetProperty(job => job.Status, row.Status)
+                .SetProperty(job => job.ExpiresAt, (DateTime?)row.ExpiresAt), ct);
         return job.Id;
     }
+
+    /// <summary>A job row as a test places it: its status and when it expires.</summary>
+    private sealed record SeededRow(JobStatus Status, DateTime ExpiresAt);
 }

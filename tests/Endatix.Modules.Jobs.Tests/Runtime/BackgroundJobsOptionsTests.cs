@@ -36,16 +36,6 @@ public class BackgroundJobsOptionsTests
             ["Clustering:CheckinIntervalSeconds"]
         },
         {
-            "retention cron not a cron expression",
-            new() { ["Retention:Cron"] = "every quarter hour" },
-            ["Retention:Cron"]
-        },
-        {
-            "retention batch size below 1",
-            new() { ["Retention:BatchSize"] = "0" },
-            ["Retention:BatchSize"]
-        },
-        {
             "retention below 1 day",
             new() { ["JobTypes:X:RetentionDays"] = "0" },
             ["JobTypes:X:RetentionDays"]
@@ -71,6 +61,20 @@ public class BackgroundJobsOptionsTests
             "job type backoff base above the inherited global cap",
             new() { ["BackoffCapSeconds"] = "60", ["JobTypes:X:BackoffBaseSeconds"] = "120" },
             ["JobTypes:X:BackoffBaseSeconds", "BackoffCapSeconds"]
+        },
+    };
+
+    public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidRetentionValues => new()
+    {
+        {
+            "retention cron not a cron expression",
+            new() { ["Retention:Cron"] = "every quarter hour" },
+            ["Retention:Cron"]
+        },
+        {
+            "retention batch size below 1",
+            new() { ["Retention:BatchSize"] = "0" },
+            ["Retention:BatchSize"]
         },
     };
 
@@ -187,6 +191,7 @@ public class BackgroundJobsOptionsTests
 
     [Theory]
     [MemberData(nameof(InvalidValues))]
+    [MemberData(nameof(InvalidRetentionValues))]
     public void Validate_InvalidValue_FailsNamingKey(
         string caseId,
         Dictionary<string, string?> section,
