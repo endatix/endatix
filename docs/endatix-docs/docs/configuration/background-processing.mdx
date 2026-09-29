@@ -168,10 +168,10 @@ Every host that registers the Jobs module can enqueue. `Endatix:BackgroundJobs:R
 - **One process** — keep `RunInProcess` at `true`. The API enqueues and runs jobs.
 - **API and workers** — set `RunInProcess` to `false` on API instances and `true` on worker instances of the same image, all against the same database. API instances only enqueue; workers pick jobs up within `IdleWaitTimeSeconds`.
 
-Each job type is capped per node (`JobTypes:{JobType}:MaxConcurrency`), so a webhook backlog never takes a Reporting or export slot. A node never runs a job type it has no handler for; the job waits for a node that has it.
+Each job type is capped per node (`JobTypes:{JobType}:MaxConcurrency`), so a webhook backlog never takes a Reporting or export slot. A node never runs a job type it has no handler for; the job waits for a node that has it. Jobs recovered from a node that stopped do not count against their type's cap, so a type can briefly run more than its cap on the node that recovers them, never more than that node's thread pool.
 
 :::warning[Nodes' clocks must agree]
-Every node sharing the database must keep its clock within **1 second** of the others. A node judges a peer dead by comparing timestamps; a node whose clock runs behind can be presumed dead while it is healthy, and its running jobs run a second time.
+Every node sharing the database must keep its clock within **1 second** of the others. A node judges a peer dead by comparing timestamps; a node whose clock runs behind can be presumed dead while it is healthy, and its running jobs run a second time. The first run is stopped within `CancellationPollSeconds` of the second starting, and records nothing.
 :::
 
 ## Delivery to the job queue
@@ -214,7 +214,7 @@ How long an idle node waits before looking for jobs another node enqueued.
 How often a running job re-reads its row to notice it was cancelled.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:MisfireThresholdSeconds" default="60">
-How long a due job may wait for a free slot before the backlog warning `Background job {JobId} of type {JobType} waited past the misfire threshold.` is logged and `endatix.jobs.misfired` counts it.
+How long a due job may wait for a free slot before `endatix.jobs.misfired` counts it, again at every threshold while it waits. The backlog warning `Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of this type misfired since the last warning.` is logged at most once per job type per threshold.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:ShutdownWaitSeconds" default="30">
 How long a stopping host waits for running jobs. Jobs still running then record nothing and run again on the next node. The host's own shutdown timeout (`HostOptions.ShutdownTimeout`, 30 seconds by default) also bounds this wait, so a longer value needs a longer host timeout.
@@ -223,7 +223,7 @@ How long a stopping host waits for running jobs. Jobs still running then record 
 Ceiling on one attempt; the handler's token is cancelled when it passes. Per job type.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:MaxAttempts" default="3">
-Attempts before a job that keeps failing is dead-lettered. Per job type. A job whose node stops during its last attempt is dead-lettered when another node recovers it, rather than run again.
+Attempts before a job that keeps failing is dead-lettered. Per job type. A job whose node stops during its last attempt is dead-lettered when another node recovers it, rather than run again. Change a job type's value only when that type has no jobs waiting: raising it while jobs wait can leave a job `Retrying` with nothing scheduled to run it, which is logged as `The scheduler ran out of retries for background job …`.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:BackoffBaseSeconds" default="30">
 Wait before the first retry; each later retry waits twice as long. Per job type.
