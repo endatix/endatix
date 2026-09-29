@@ -67,22 +67,20 @@ internal sealed class BackgroundJobQueue(
     {
         Guard.Against.Null(requests);
 
-        if (requests.Count == 0)
-        {
-            return [];
-        }
+        return requests.Count == 0 ? [] : await EnqueueWithCollisionRetriesAsync(requests, cancellationToken);
+    }
 
+    private async Task<IReadOnlyList<long>> EnqueueWithCollisionRetriesAsync(
+        IReadOnlyList<BackgroundJobRequest> requests,
+        CancellationToken cancellationToken)
+    {
         // A redelivered fan-out races the first delivery's enqueue only in the window between two commits, so a
         // collision the database reports is resolved by reading what won and trying once more.
         for (var attempt = 1; attempt < MaxCollisionAttempts; attempt++)
         {
-            try
+            if (await EnqueueUnlessCollidingAsync(requests, cancellationToken) is { } ids)
             {
-                return await EnqueueOnceAsync(requests, cancellationToken);
-            }
-            catch (DbUpdateException exception) when (IsDedupKeyCollision(exception))
-            {
-                dbContext.ChangeTracker.Clear();
+                return ids;
             }
         }
 
@@ -90,88 +88,80 @@ internal sealed class BackgroundJobQueue(
         return await EnqueueOnceAsync(requests, cancellationToken);
     }
 
+    /// <summary>The ids, or <see langword="null"/> when another enqueue of a dedup key committed first.</summary>
+    private async Task<IReadOnlyList<long>?> EnqueueUnlessCollidingAsync(
+        IReadOnlyList<BackgroundJobRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await EnqueueOnceAsync(requests, cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsDedupKeyCollision(exception))
+        {
+            dbContext.ChangeTracker.Clear();
+            return null;
+        }
+    }
+
     private async Task<IReadOnlyList<long>> EnqueueOnceAsync(
         IReadOnlyList<BackgroundJobRequest> requests,
         CancellationToken cancellationToken)
     {
         var existing = await FindExistingAsync(requests, cancellationToken);
+        var plan = EnqueuePlan.Of(requests, existing, CreateJob);
 
-        // One job per unit of work: a key already in the table, or repeated within this batch, maps every
-        // request that carries it to one row.
-        var ids = new long[requests.Count];
-        var toInsert = new List<(int Index, BackgroundJob Job)>();
-        var insertedByKey = new Dictionary<DedupIdentity, BackgroundJob>();
-        for (var index = 0; index < requests.Count; index++)
+        // Only rows this call inserts get a trigger: a row that already existed has one.
+        if (plan.NewJobs.Count > 0)
         {
-            var request = requests[index];
-            var identity = DedupIdentity.Of(request);
-            if (identity is { } key && existing.TryGetValue(key, out var existingId))
-            {
-                ids[index] = existingId;
-                continue;
-            }
-
-            if (identity is { } batchKey && insertedByKey.TryGetValue(batchKey, out var sameBatchJob))
-            {
-                toInsert.Add((index, sameBatchJob));
-                continue;
-            }
-
-            var job = CreateJob(request);
-            toInsert.Add((index, job));
-            if (identity is { } newKey)
-            {
-                insertedByKey[newKey] = job;
-            }
+            await InsertAndScheduleAsync(plan.NewJobs, cancellationToken);
         }
 
-        var newJobs = toInsert.Select(entry => entry.Job).Distinct().ToList();
-        // Only rows this call inserted get a trigger: a row that already existed has one.
-        if (newJobs.Count > 0)
-        {
-            await InsertAndScheduleAsync(newJobs, cancellationToken);
-        }
-
-        foreach (var (index, job) in toInsert)
-        {
-            ids[index] = job.Id;
-        }
-
-        RecordEnqueued(newJobs);
-
-        return ids;
+        RecordEnqueued(plan.NewJobs);
+        return plan.Ids();
     }
 
     private async Task<Dictionary<DedupIdentity, long>> FindExistingAsync(
         IReadOnlyList<BackgroundJobRequest> requests,
         CancellationToken cancellationToken)
     {
-        var keyed = requests.Where(request => !string.IsNullOrWhiteSpace(request.DedupKey)).ToList();
-        if (keyed.Count == 0)
+        var identities = requests.Select(DedupIdentity.Of).OfType<DedupIdentity>().ToList();
+        if (identities.Count == 0)
         {
             return [];
         }
 
-        var keys = keyed.Select(request => request.DedupKey!).Distinct(StringComparer.Ordinal).ToList();
-        var tenantIds = keyed.Select(request => request.TenantId).Distinct().ToList();
-        var jobTypes = keyed.Select(request => request.JobType).Distinct(StringComparer.Ordinal).ToList();
+        var rows = await ReadDedupRowsAsync(identities, cancellationToken);
+        return rows.ToDictionary(row => new DedupIdentity(row.TenantId, row.JobType, row.DedupKey), row => row.Id);
+    }
 
-        // The key is unique per tenant, and a caller serving one tenant may enqueue for another, so the ambient
-        // tenant must not narrow this lookup. Nor may soft deletion: the unique index covers deleted rows too, so
-        // a deleted row with the key would block the insert while staying invisible here. Tenant and job type are
-        // matched as well, so the lookup can use that index, which leads with them.
-        var rows = await dbContext.BackgroundJobs
+    /// <summary>The rows that already hold one of <paramref name="identities"/>' dedup keys.</summary>
+    /// <remarks>
+    /// The key is unique per tenant, and a caller serving one tenant may enqueue for another, so the ambient tenant
+    /// must not narrow this lookup. Nor may soft deletion: the unique index covers deleted rows too, so a deleted
+    /// row with the key would block the insert while staying invisible here. Tenant and job type are matched as
+    /// well, so the lookup can use that index, which leads with them.
+    /// </remarks>
+    private Task<List<DedupRow>> ReadDedupRowsAsync(
+        List<DedupIdentity> identities,
+        CancellationToken cancellationToken)
+    {
+        var keys = identities.Select(identity => identity.DedupKey).Distinct(StringComparer.Ordinal).ToList();
+        var tenantIds = identities.Select(identity => identity.TenantId).Distinct().ToList();
+        var jobTypes = identities.Select(identity => identity.JobType).Distinct(StringComparer.Ordinal).ToList();
+
+        return dbContext.BackgroundJobs
             .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant, EndatixQueryFilterNames.SoftDelete])
             .AsNoTracking()
             .Where(job => tenantIds.Contains(job.TenantId)
                 && jobTypes.Contains(job.JobType)
                 && job.DedupKey != null
                 && keys.Contains(job.DedupKey))
-            .Select(job => new { job.Id, job.TenantId, job.JobType, job.DedupKey })
+            .Select(job => new DedupRow(job.Id, job.TenantId, job.JobType, job.DedupKey!))
             .ToListAsync(cancellationToken);
-
-        return rows.ToDictionary(row => new DedupIdentity(row.TenantId, row.JobType, row.DedupKey!), row => row.Id);
     }
+
+    private sealed record DedupRow(long Id, long TenantId, string JobType, string DedupKey);
 
     private static bool IsDedupKeyCollision(DbUpdateException exception) =>
         exception.InnerException is PostgresException
@@ -180,16 +170,7 @@ internal sealed class BackgroundJobQueue(
             ConstraintName: DedupKeyIndexName,
         };
 
-    /// <summary>What a dedup key is unique within.</summary>
-    private readonly record struct DedupIdentity(long TenantId, string JobType, string DedupKey)
-    {
-        public static DedupIdentity? Of(BackgroundJobRequest request) =>
-            string.IsNullOrWhiteSpace(request.DedupKey)
-                ? null
-                : new DedupIdentity(request.TenantId, request.JobType, request.DedupKey);
-    }
-
-    private async Task InsertAndScheduleAsync(List<BackgroundJob> jobs, CancellationToken cancellationToken)
+    private async Task InsertAndScheduleAsync(IReadOnlyList<BackgroundJob> jobs, CancellationToken cancellationToken)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         dbContext.BackgroundJobs.AddRange(jobs);
