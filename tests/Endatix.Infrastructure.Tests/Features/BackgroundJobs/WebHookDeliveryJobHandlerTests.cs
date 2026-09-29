@@ -131,7 +131,8 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
             _outbox,
             new WebHookEventConfigReader(_forms, _tenantSettings, NullLogger<WebHookEventConfigReader>.Instance),
             clients,
-            NullLogger<WebHookServer>.Instance);
+            NullLogger<WebHookServer>.Instance,
+            NullLogger<WebHookDeliveryJobHandler>.Instance);
     }
 
     private Task<long> SeedMessageAsync(long tenantId)

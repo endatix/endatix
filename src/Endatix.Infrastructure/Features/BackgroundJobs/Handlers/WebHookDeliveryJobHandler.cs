@@ -31,7 +31,8 @@ internal sealed class WebHookDeliveryJobHandler(
     IRepository<OutboxMessage> outboxMessages,
     WebHookEventConfigReader configReader,
     IHttpClientFactory httpClientFactory,
-    ILogger<WebHookServer> serverLogger) : BackgroundJobHandler<WebHookDeliveryPayload>
+    ILogger<WebHookServer> serverLogger,
+    ILogger<WebHookDeliveryJobHandler> logger) : BackgroundJobHandler<WebHookDeliveryPayload>(logger)
 {
     /// <summary>The HTTP client webhook jobs send with: the webhook client's settings, without its retries.</summary>
     public const string HttpClientName = "webhook-job-delivery";
