@@ -74,15 +74,9 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     public static BackgroundJob FromRequest(BackgroundJobRequest request, DateTime nextAttemptAt, string? traceId)
     {
         Guard.Against.Null(request);
-
-        // Refused here, naming the limit, rather than by the database as a truncation error that fails every
-        // other job in the same batch without saying which key was too long.
-        var dedupKey = request.DedupKey;
-        if (dedupKey is not null && dedupKey.Length > DedupKeyMaxLength)
+        if (DedupKeyError(request.DedupKey) is { } error)
         {
-            throw new ArgumentException(
-                $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
-                nameof(request));
+            throw new ArgumentException(error, nameof(request));
         }
 
         return new BackgroundJob(
@@ -94,9 +88,16 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
             request.ExpiresAt,
             traceId)
         {
-            DedupKey = string.IsNullOrWhiteSpace(dedupKey) ? null : dedupKey,
+            DedupKey = string.IsNullOrWhiteSpace(request.DedupKey) ? null : request.DedupKey,
         };
     }
+
+    // Refused here, naming the limit, rather than by the database as a truncation error that fails every other job
+    // in the same batch without saying which key was too long.
+    private static string? DedupKeyError(string? dedupKey) =>
+        dedupKey is { Length: > DedupKeyMaxLength }
+            ? $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}."
+            : null;
 
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>
     public string JobType { get; private set; } = null!;
