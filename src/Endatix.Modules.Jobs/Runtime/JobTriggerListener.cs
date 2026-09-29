@@ -43,23 +43,11 @@ internal sealed class JobTriggerListener : ITriggerListener
         SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default)
     {
-        if (triggerInstructionCode != SchedulerInstruction.RetryTrigger
-            || JobIdOf(context) is not { } jobId
-            || trigger.NextFireTimeUtc is not { } nextFireTime)
+        if (triggerInstructionCode == SchedulerInstruction.RetryTrigger
+            && JobIdOf(context) is { } jobId
+            && trigger.NextFireTimeUtc is { } nextFireTime)
         {
-            return;
-        }
-
-        try
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
-            await repository.TryMirrorNextAttemptAsync(jobId, nextFireTime.UtcDateTime, cancellationToken);
-        }
-        catch (Exception exception)
-        {
-            // The column is for display; the retry is already scheduled whatever it says.
-            _logger.LogWarning(exception, "Recording the next attempt time of background job {JobId} failed", jobId);
+            await MirrorNextAttemptAsync(jobId, nextFireTime.UtcDateTime, cancellationToken);
         }
     }
 
@@ -69,32 +57,51 @@ internal sealed class JobTriggerListener : ITriggerListener
         JobExecutionException exception,
         CancellationToken cancellationToken = default)
     {
-        if (JobIdOf(context) is not { } jobId)
+        if (JobIdOf(context) is { } jobId)
         {
-            return;
+            await CheckRowIsTerminalAsync(jobId, trigger.JobKey.Name, cancellationToken);
         }
+    }
 
+    private async Task MirrorNextAttemptAsync(long jobId, DateTime nextAttemptAt, CancellationToken cancellationToken)
+    {
         try
         {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
-            var status = await repository.ReadStatusAsync(jobId, cancellationToken);
-            if (status is null or JobStatus.Completed or JobStatus.Failed or JobStatus.DeadLettered or JobStatus.Canceled)
-            {
-                return;
-            }
+            await _scopeFactory.WithStateRepositoryAsync(
+                repository => repository.TryMirrorNextAttemptAsync(jobId, nextAttemptAt, cancellationToken));
+        }
+        catch (Exception exception)
+        {
+            // The column is for display; the retry is already scheduled whatever it says.
+            _logger.LogWarning(exception, "Recording the next attempt time of background job {JobId} failed", jobId);
+        }
+    }
 
-            _retriesExhaustedMismatches.Add(1, new KeyValuePair<string, object?>("endatix.job.type", trigger.JobKey.Name));
-            _logger.LogWarning(
-                "The scheduler ran out of retries for background job {JobId} of type {JobType}, whose row is still {Status}",
-                jobId,
-                trigger.JobKey.Name,
-                status);
+    private async Task CheckRowIsTerminalAsync(long jobId, string jobType, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var status = await _scopeFactory.WithStateRepositoryAsync(
+                repository => repository.ReadStatusAsync(jobId, cancellationToken));
+            if (status is not (null or JobStatus.Completed or JobStatus.Failed or JobStatus.DeadLettered or JobStatus.Canceled))
+            {
+                ReportMismatch(jobId, jobType, status.Value);
+            }
         }
         catch (Exception readFailure)
         {
             _logger.LogWarning(readFailure, "Checking background job {JobId} after its retries ran out failed", jobId);
         }
+    }
+
+    private void ReportMismatch(long jobId, string jobType, JobStatus status)
+    {
+        _retriesExhaustedMismatches.Add(1, new KeyValuePair<string, object?>("endatix.job.type", jobType));
+        _logger.LogWarning(
+            "The scheduler ran out of retries for background job {JobId} of type {JobType}, whose row is still {Status}",
+            jobId,
+            jobType,
+            status);
     }
 
     private static long? JobIdOf(IJobExecutionContext context) =>

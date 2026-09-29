@@ -60,14 +60,7 @@ internal sealed class JobsSchedulerHostedService(
             await _deferredStart;
         }
 
-        if (_scheduler is not null)
-        {
-            // Running jobs get a bounded time to finish and record their outcome. When it is up the scheduler
-            // lets go of the rest, which leaves them for recovery on the next node to check in.
-            using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            wait.CancelAfter(TimeSpan.FromSeconds(options.Value.ShutdownWaitSeconds));
-            await _scheduler.Shutdown(waitForJobsToComplete: true, wait.Token);
-        }
+        await ShutdownSchedulerAsync(cancellationToken);
 
         // Only now, with the scheduler no longer listening, are the jobs still running told to stop: they record
         // nothing, and the firing the scheduler abandoned is what runs them again.
@@ -87,6 +80,22 @@ internal sealed class JobsSchedulerHostedService(
         }
 
         _stopping.Dispose();
+    }
+
+    /// <summary>
+    /// Running jobs get a bounded time to finish and record their outcome. When it is up the scheduler lets go of
+    /// the rest, which leaves them for recovery on the next node to check in.
+    /// </summary>
+    private async Task ShutdownSchedulerAsync(CancellationToken cancellationToken)
+    {
+        if (_scheduler is null)
+        {
+            return;
+        }
+
+        using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        wait.CancelAfter(TimeSpan.FromSeconds(options.Value.ShutdownWaitSeconds));
+        await _scheduler.Shutdown(waitForJobsToComplete: true, wait.Token);
     }
 
     private async Task StartSchedulerAsync(CancellationToken cancellationToken)

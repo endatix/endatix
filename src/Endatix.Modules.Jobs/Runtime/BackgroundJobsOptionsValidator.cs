@@ -26,6 +26,20 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
     {
         List<string> failures = [];
 
+        ValidateHostSettings(options, failures);
+        ValidateJobTypeDefaults(options, failures);
+        foreach (var (jobType, overrides) in options.JobTypes.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            ValidateJobType(options, jobType, overrides, failures);
+        }
+
+        return failures.Count is 0
+            ? ValidateOptionsResult.Success
+            : ValidateOptionsResult.Fail(failures);
+    }
+
+    private static void ValidateHostSettings(BackgroundJobsOptions options, List<string> failures)
+    {
         RequireInRange(options.IdleWaitTimeSeconds, GlobalKey(nameof(options.IdleWaitTimeSeconds)), IdleWaitCeilingSeconds, failures);
         RequireInRange(options.CancellationPollSeconds, GlobalKey(nameof(options.CancellationPollSeconds)), OneHourInSeconds, failures);
         RequireInRange(options.RetentionDays, GlobalKey(nameof(options.RetentionDays)), TenYearsInDays, failures);
@@ -38,26 +52,21 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
             options.Clustering?.CheckinMisfireThresholdSeconds,
             ClusteringKey(nameof(BackgroundJobsClusteringOptions.CheckinMisfireThresholdSeconds)),
             failures);
+    }
+
+    // The global values every job type falls back to.
+    private static void ValidateJobTypeDefaults(BackgroundJobsOptions options, List<string> failures)
+    {
         RequireInRange(options.MaxRuntimeMinutes, GlobalKey(nameof(options.MaxRuntimeMinutes)), OneDayInMinutes, failures);
         RequireInRange(options.MaxAttempts, GlobalKey(nameof(options.MaxAttempts)), MaxAttemptsCeiling, failures);
         RequireInRange(options.BackoffBaseSeconds, GlobalKey(nameof(options.BackoffBaseSeconds)), OneDayInSeconds, failures);
         RequireInRange(options.BackoffCapSeconds, GlobalKey(nameof(options.BackoffCapSeconds)), OneDayInSeconds, failures);
-
         RequireCapNotBelowBase(
             options.BackoffBaseSeconds,
             GlobalKey(nameof(options.BackoffBaseSeconds)),
             options.BackoffCapSeconds,
             GlobalKey(nameof(options.BackoffCapSeconds)),
             failures);
-
-        foreach (var (jobType, overrides) in options.JobTypes.OrderBy(entry => entry.Key, StringComparer.Ordinal))
-        {
-            ValidateJobType(options, jobType, overrides, failures);
-        }
-
-        return failures.Count is 0
-            ? ValidateOptionsResult.Success
-            : ValidateOptionsResult.Fail(failures);
     }
 
     private static void ValidateJobType(
