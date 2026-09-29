@@ -78,9 +78,11 @@ internal static class QuartzSchemaScripts
         }
     }
 
+    // The input is Quartz's own script, not user input, but a bound keeps any regex from running unchecked.
     private static readonly Regex CreateTable = new(
         $@"CREATE TABLE IF NOT EXISTS {Regex.Escape(SchemaName)}\.(?<table>\w+)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
 
     private static string SchemaName =>
         QuartzRegistration.TablePrefix[..QuartzRegistration.TablePrefix.LastIndexOf('.')];
