@@ -9,6 +9,7 @@ using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Core.Abstractions.BackgroundJobs;
@@ -186,7 +187,7 @@ public static class ServiceCollectionExtensions
                    });
                });
 
-        services.AddScoped<IBackgroundJobHandler, WebHookDeliveryJobHandler>();
+        services.AddBackgroundJobHandler<WebHookDeliveryJobHandler, WebHookDeliveryPayload>();
         foreach (var eventType in WebHookEvents.OperationsByEventType.Keys)
         {
             services.AddOutboxJobSubscription<WebHookDeliveryPayload, WebHookEndpointExpander>(eventType);
