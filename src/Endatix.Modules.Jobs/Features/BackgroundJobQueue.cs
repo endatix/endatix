@@ -74,17 +74,20 @@ internal sealed class BackgroundJobQueue(
 
         // A redelivered fan-out races the first delivery's enqueue only in the window between two commits, so a
         // collision the database reports is resolved by reading what won and trying once more.
-        for (var attempt = 1; ; attempt++)
+        for (var attempt = 1; attempt < MaxCollisionAttempts; attempt++)
         {
             try
             {
                 return await EnqueueOnceAsync(requests, cancellationToken);
             }
-            catch (DbUpdateException exception) when (IsDedupKeyCollision(exception) && attempt < MaxCollisionAttempts)
+            catch (DbUpdateException exception) when (IsDedupKeyCollision(exception))
             {
                 dbContext.ChangeTracker.Clear();
             }
         }
+
+        // The last try lets a collision through: that many in a row is not the race the retries are for.
+        return await EnqueueOnceAsync(requests, cancellationToken);
     }
 
     private async Task<IReadOnlyList<long>> EnqueueOnceAsync(
