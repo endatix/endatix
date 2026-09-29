@@ -173,9 +173,10 @@ with a free slot on the node, so a backlog of one job type never holds up anothe
 fires a job type it has no handler for, the wrapper declines it without touching the row and
 offers the trigger again 30 seconds later.
 
-**Backlog warning.** A job that waited past `MisfireThresholdSeconds` for a slot logs
-`Background job {JobId} of type {JobType} waited past the misfire threshold.` and increments
-`endatix.jobs.misfired` (tag `job_type`). A job type no running node can handle shows up here:
+**Backlog warning.** A job that waited past `MisfireThresholdSeconds` for a slot increments
+`endatix.jobs.misfired` (tag `job_type`), and again at every threshold while it waits. The warning
+`Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of
+this type misfired since the last warning.` is logged at most once per job type per threshold. A job type no running node can handle shows up here:
 deploy the module that handles it.
 
 **Dashboard.** With `Dashboard:Enabled`, the Quartz dashboard is served at `/quartz` and its HTTP
