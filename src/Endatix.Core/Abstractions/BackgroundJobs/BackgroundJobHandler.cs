@@ -55,7 +55,6 @@ public abstract partial class BackgroundJobHandler<TPayload>(ILogger logger) : I
         CancellationToken cancellationToken);
 
     [LoggerMessage(
-        EventId = 53001,
         Level = LogLevel.Warning,
         EventName = "BackgroundJobPayloadUnreadable",
         Message = "Background job {JobId} ({JobType}) for tenant {TenantId} failed on attempt {AttemptCount}: its input could not be read")]
