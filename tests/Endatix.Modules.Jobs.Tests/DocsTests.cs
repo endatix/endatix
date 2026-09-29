@@ -36,32 +36,18 @@ public sealed class DocsTests
         page.Should().MatchRegex(@"(?m)^\| `DeliverToJobQueue` \|[^\n]*\| `false` \|\s*$");
     }
 
-    private static IEnumerable<string> LeafKeys(Type optionsType, string prefix)
-    {
-        foreach (var property in optionsType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            var key = $"{prefix}:{property.Name}";
-            var type = property.PropertyType;
+    private static IEnumerable<string> LeafKeys(Type optionsType, string prefix) =>
+        optionsType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            // Per-job-type overrides are listed with their global keys.
+            .Where(property => !IsDictionary(property.PropertyType))
+            .SelectMany(property => KeysOf(property.PropertyType, $"{prefix}:{property.Name}"));
 
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-            {
-                // Per-job-type overrides are listed with their global keys.
-                continue;
-            }
+    // A nested options class is a section of keys; anything else is one key.
+    private static IEnumerable<string> KeysOf(Type type, string key) =>
+        type.IsClass && type != typeof(string) ? LeafKeys(type, key) : [key];
 
-            if (type.IsClass && type != typeof(string))
-            {
-                foreach (var nested in LeafKeys(type, key))
-                {
-                    yield return nested;
-                }
-
-                continue;
-            }
-
-            yield return key;
-        }
-    }
+    private static bool IsDictionary(Type type) =>
+        type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>);
 
     private static string RepositoryRoot()
     {
