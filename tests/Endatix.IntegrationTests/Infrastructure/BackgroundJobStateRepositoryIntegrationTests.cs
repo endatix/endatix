@@ -159,7 +159,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         // Assert — the presumed-dead run's attempt is fenced off, so it can no longer record an outcome.
         notRecovering.Should().BeNull();
         recovered.Should().NotBeNull();
-        recovered!.AttemptCount.Should().Be(2);
+        recovered.AttemptCount.Should().Be(2);
         deadRunCompleted.Should().BeFalse();
         var job = await ReadAsync(context, jobId, cancellationToken);
         job.Status.Should().Be(JobStatus.Processing);

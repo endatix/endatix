@@ -14,7 +14,7 @@ public sealed class BackgroundJobExecutionTests
 {
     private const long TenantA = 101;
     private const long JobId = 42;
-    private const string JobType = "TenantProbe";
+    private const string ProbeJobType = "TenantProbe";
 
     public static TheoryData<string, string, int, int, string, bool> Outcomes => new()
     {
@@ -58,7 +58,7 @@ public sealed class BackgroundJobExecutionTests
         var repository = Substitute.For<IBackgroundJobStateRepository>();
         repository
             .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), false, Arg.Any<CancellationToken>())
-            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 1, null, JobStatus.Processing));
+            .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 1, null, JobStatus.Processing));
         repository.TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
         await using var provider = Services(repository, observed);
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
@@ -103,7 +103,7 @@ public sealed class BackgroundJobExecutionTests
             .Returns(false);
         repository
             .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), true, Arg.Any<CancellationToken>())
-            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 2, null, JobStatus.Processing));
+            .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 2, null, JobStatus.Processing));
         repository.TryCompleteAsync(JobId, 2, Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
         await using var provider = Services(repository, observed);
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
@@ -124,7 +124,7 @@ public sealed class BackgroundJobExecutionTests
         var repository = Substitute.For<IBackgroundJobStateRepository>();
         repository
             .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), false, Arg.Any<CancellationToken>())
-            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 1, null, JobStatus.Processing));
+            .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 1, null, JobStatus.Processing));
         repository.TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
         await using var provider = Services(repository, observed);
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
@@ -145,7 +145,7 @@ public sealed class BackgroundJobExecutionTests
         var repository = Substitute.For<IBackgroundJobStateRepository>();
         repository
             .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), false, Arg.Any<CancellationToken>())
-            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 1, null, JobStatus.Processing));
+            .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 1, null, JobStatus.Processing));
         await using var provider = Services(repository, observed);
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
 
@@ -154,8 +154,8 @@ public sealed class BackgroundJobExecutionTests
 
         // Assert
         var metrics = provider.GetRequiredService<IJobMetrics>();
-        metrics.Received(1).Record(JobLifecycleEvent.Abandoned, JobType);
-        metrics.Received(1).ObserveDuration(JobType, Arg.Any<TimeSpan>(), JobAttemptOutcome.Abandoned);
+        metrics.Received(1).Record(JobLifecycleEvent.Abandoned, ProbeJobType);
+        metrics.Received(1).ObserveDuration(ProbeJobType, Arg.Any<TimeSpan>(), JobAttemptOutcome.Abandoned);
         await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default, default, default, default!, default, default);
     }
 
@@ -168,7 +168,7 @@ public sealed class BackgroundJobExecutionTests
         var repository = Substitute.For<IBackgroundJobStateRepository>();
         repository
             .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), true, Arg.Any<CancellationToken>())
-            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 2, null, JobStatus.Processing));
+            .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 2, null, JobStatus.Processing));
         repository
             .RecordFailedAttemptAsync(JobId, 2, 3, Arg.Any<DateTime>(), Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
@@ -194,7 +194,7 @@ public sealed class BackgroundJobExecutionTests
 
         // Assert
         steps.Should().Equal("schedule trigger", "record retrying");
-        scheduled!.Key.Should().Be(new TriggerKey(JobId.ToString(), JobType));
+        scheduled!.Key.Should().Be(new TriggerKey(JobId.ToString(), ProbeJobType));
         scheduled.RetryPolicy.Should().NotBeNull();
     }
 
@@ -214,7 +214,7 @@ public sealed class BackgroundJobExecutionTests
 
         // Assert
         await repository.Received(2).TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), CancellationToken.None);
-        provider.GetRequiredService<IJobMetrics>().Received(1).Record(JobLifecycleEvent.Completed, JobType);
+        provider.GetRequiredService<IJobMetrics>().Received(1).Record(JobLifecycleEvent.Completed, ProbeJobType);
         context.Scheduler.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -240,7 +240,7 @@ public sealed class BackgroundJobExecutionTests
         await repository.Received(BackgroundJobExecution.OutcomeWriteRetryDelays.Length + 1)
             .TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), CancellationToken.None);
         rescheduled.Should().NotBeNull();
-        rescheduled!.Key.Should().Be(context.Trigger.Key);
+        rescheduled.Key.Should().Be(context.Trigger.Key);
         rescheduled.JobDataMap.GetString(BackgroundJobExecution.ReclaimKey).Should().Be(bool.TrueString);
         provider.GetRequiredService<IJobMetrics>().DidNotReceive().Record(JobLifecycleEvent.Completed, Arg.Any<string>());
     }
@@ -271,7 +271,7 @@ public sealed class BackgroundJobExecutionTests
         var repository = Substitute.For<IBackgroundJobStateRepository>();
         repository
             .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), true, Arg.Any<CancellationToken>())
-            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 2, null, JobStatus.Processing));
+            .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 2, null, JobStatus.Processing));
         repository.TryCompleteAsync(JobId, 2, Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
         await using var provider = Services(repository, new ObservedRun());
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
@@ -311,8 +311,8 @@ public sealed class BackgroundJobExecutionTests
         await repository.DidNotReceiveWithAnyArgs()
             .RecordFailedAttemptAsync(default, default, default, default, default!, default, default);
         var metrics = provider.GetRequiredService<IJobMetrics>();
-        metrics.Received(1).Record(JobLifecycleEvent.Abandoned, JobType);
-        metrics.Received(1).ObserveDuration(JobType, Arg.Any<TimeSpan>(), JobAttemptOutcome.Abandoned);
+        metrics.Received(1).Record(JobLifecycleEvent.Abandoned, ProbeJobType);
+        metrics.Received(1).ObserveDuration(ProbeJobType, Arg.Any<TimeSpan>(), JobAttemptOutcome.Abandoned);
     }
 
     [Fact]
@@ -320,13 +320,13 @@ public sealed class BackgroundJobExecutionTests
     {
         // Arrange
         var resolver = new JobRowExecutionContextResolver();
-        var claimed = new ClaimedJob(JobId, JobType, TenantA, """{"a":1}""", 3, "trace", JobStatus.Processing);
+        var claimed = new ClaimedJob(JobId, ProbeJobType, TenantA, """{"a":1}""", 3, "trace", JobStatus.Processing);
 
         // Act
         var context = resolver.Resolve(claimed);
 
         // Assert
-        context.Should().Be(new BackgroundJobContext(JobId, JobType, TenantA, """{"a":1}""", 3));
+        context.Should().Be(new BackgroundJobContext(JobId, ProbeJobType, TenantA, """{"a":1}""", 3));
     }
 
     private static ServiceProvider Services(
@@ -362,7 +362,7 @@ public sealed class BackgroundJobExecutionTests
         var repository = Substitute.For<IBackgroundJobStateRepository>();
         repository
             .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), false, Arg.Any<CancellationToken>())
-            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", attempt, null, JobStatus.Processing));
+            .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", attempt, null, JobStatus.Processing));
         return repository;
     }
 
@@ -370,8 +370,8 @@ public sealed class BackgroundJobExecutionTests
     private static IJobExecutionContext JobTriggerFiringOf(long jobId)
     {
         var context = FiringOf(jobId);
-        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(JobType));
-        context.Trigger.Returns(QuartzRegistration.TriggerFor(jobId, JobType, new BackgroundJobsOptions().ResolvePolicy(JobType)));
+        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(ProbeJobType));
+        context.Trigger.Returns(QuartzRegistration.TriggerFor(jobId, ProbeJobType, new BackgroundJobsOptions().ResolvePolicy(ProbeJobType)));
         context.Scheduler.Returns(Substitute.For<IScheduler>());
         return context;
     }
@@ -380,12 +380,12 @@ public sealed class BackgroundJobExecutionTests
     {
         var context = FiringOf(jobId);
         context.Recovering.Returns(true);
-        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(JobType));
+        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(ProbeJobType));
 
         // Shaped like the trigger Quartz creates to recover a dead node's firing: its own key and no retry policy.
         context.Trigger.Returns(TriggerBuilder.Create()
             .WithIdentity("recover_node-a_1", SchedulerConstants.DefaultRecoveryGroup)
-            .ForJob(QuartzRegistration.JobKeyFor(JobType))
+            .ForJob(QuartzRegistration.JobKeyFor(ProbeJobType))
             .UsingJobData(BackgroundJobExecution.JobIdKey, jobId.ToString())
             .StartNow()
             .Build());
@@ -413,7 +413,7 @@ public sealed class BackgroundJobExecutionTests
     private sealed class TenantObservingHandler(ObservedRun observed, ITenantContext ambient, JobsShutdownSignal shutdown)
         : IBackgroundJobHandler
     {
-        public string JobType => BackgroundJobExecutionTests.JobType;
+        public string JobType => ProbeJobType;
 
         public async Task<Result> ExecuteAsync(BackgroundJobContext job, CancellationToken cancellationToken)
         {
