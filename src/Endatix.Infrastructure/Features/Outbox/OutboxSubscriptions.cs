@@ -13,47 +13,48 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// </remarks>
 public sealed class OutboxJobSubscription
 {
-    private readonly Func<IServiceProvider, IOutboxMessage, long, CancellationToken, Task<IReadOnlyList<(string SubscriberKey, BackgroundJobRequest Request)>>> _requests;
-    private readonly Func<IOutboxMessage, long>? _resolveTenantId;
-
-    internal OutboxJobSubscription(
-        string eventType,
-        string jobType,
-        Assembly sourceAssembly,
-        Func<IOutboxMessage, long>? resolveTenantId,
-        Func<IServiceProvider, IOutboxMessage, long, CancellationToken, Task<IReadOnlyList<(string SubscriberKey, BackgroundJobRequest Request)>>> requests)
+    internal OutboxJobSubscription()
     {
-        EventType = eventType;
-        JobType = jobType;
-        SourceAssembly = sourceAssembly;
-        _resolveTenantId = resolveTenantId;
-        _requests = requests;
     }
 
     /// <summary>The outbox event type the subscription listens to.</summary>
-    public string EventType { get; }
+    public string EventType { get; internal init; } = string.Empty;
 
     /// <summary>The job type each of its jobs runs as.</summary>
-    public string JobType { get; }
+    public string JobType { get; internal init; } = string.Empty;
 
     /// <summary>The assembly that owns the work — the payload's.</summary>
-    public Assembly SourceAssembly { get; }
+    public Assembly SourceAssembly { get; internal init; } = null!;
+
+    /// <summary>Reads the tenant from an app-level message; <see langword="null"/> takes the message's own.</summary>
+    internal Func<IOutboxMessage, long>? TenantResolver { private get; init; }
+
+    /// <summary>Builds the job requests for a message delivered to one tenant.</summary>
+    internal OutboxRequestsBuilder Requests { private get; init; } = null!;
 
     /// <summary>
     /// The tenant the jobs belong to: the message's own, or what the subscription's resolver reads from the
     /// message when the message is app-level.
     /// </summary>
     public long ResolveTenantId(IOutboxMessage message) =>
-        _resolveTenantId is null ? message.TenantId : _resolveTenantId(message);
+        TenantResolver is null ? message.TenantId : TenantResolver(message);
 
-    /// <summary>The job requests for <paramref name="message"/>, each with its subscriber key.</summary>
-    internal Task<IReadOnlyList<(string SubscriberKey, BackgroundJobRequest Request)>> BuildRequestsAsync(
+    /// <summary>The job requests for <paramref name="delivery"/>, one per subscriber.</summary>
+    internal Task<IReadOnlyList<BackgroundJobRequest>> BuildRequestsAsync(
         IServiceProvider services,
-        IOutboxMessage message,
-        long tenantId,
+        OutboxDelivery delivery,
         CancellationToken cancellationToken) =>
-        _requests(services, message, tenantId, cancellationToken);
+        Requests(services, delivery, cancellationToken);
 }
+
+/// <summary>Builds the job requests one subscription makes of a message delivered to one tenant.</summary>
+internal delegate Task<IReadOnlyList<BackgroundJobRequest>> OutboxRequestsBuilder(
+    IServiceProvider services,
+    OutboxDelivery delivery,
+    CancellationToken cancellationToken);
+
+/// <summary>An outbox message, and the tenant whose jobs it becomes.</summary>
+internal readonly record struct OutboxDelivery(IOutboxMessage Message, long TenantId);
 
 /// <summary>
 /// Every outbox subscription registered on this host. Only the job-queue publisher reads it; the Jobs module has

@@ -34,14 +34,12 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         Guard.Against.NullOrWhiteSpace(eventType);
         Guard.Against.Null(createPayload);
 
-        return services.AddSubscription(new OutboxJobSubscription(
+        return services.AddSubscription(SubscriptionOf<TPayload>(
             eventType,
-            TPayload.JobType,
-            typeof(TPayload).Assembly,
             resolveTenantId,
-            (_, message, tenantId, _) => Task.FromResult<IReadOnlyList<(string, BackgroundJobRequest)>>(
+            (_, delivery, _) => Task.FromResult<IReadOnlyList<BackgroundJobRequest>>(
             [
-                (TPayload.JobType, Request(message, TPayload.JobType, createPayload(message), tenantId)),
+                Request(delivery, new OutboxSubscriber<TPayload>(TPayload.JobType, createPayload(delivery.Message))),
             ])));
     }
 
@@ -60,22 +58,21 @@ public static class OutboxSubscriptionServiceCollectionExtensions
 
         services.TryAddScoped<TExpander>();
 
-        return services.AddSubscription(new OutboxJobSubscription(
-            eventType,
-            TPayload.JobType,
-            typeof(TPayload).Assembly,
-            resolveTenantId,
-            async (provider, message, tenantId, cancellationToken) =>
-            {
-                var subscribers = await provider.GetRequiredService<TExpander>()
-                    .ExpandAsync(message, tenantId, cancellationToken);
-                return
-                [
-                    .. subscribers.Select(subscriber => (
-                        subscriber.SubscriberKey,
-                        Request(message, subscriber.SubscriberKey, subscriber.Payload, tenantId))),
-                ];
-            }));
+        return services.AddSubscription(SubscriptionOf<TPayload>(
+            eventType, resolveTenantId, ExpandAsync<TPayload, TExpander>));
+    }
+
+    // Runs in the relay tick's scope, which is where the expander is resolved from.
+    private static async Task<IReadOnlyList<BackgroundJobRequest>> ExpandAsync<TPayload, TExpander>(
+        IServiceProvider provider,
+        OutboxDelivery delivery,
+        CancellationToken cancellationToken)
+        where TPayload : IBackgroundJobPayload
+        where TExpander : class, IOutboxSubscriberExpander<TPayload>
+    {
+        var subscribers = await provider.GetRequiredService<TExpander>()
+            .ExpandAsync(delivery.Message, delivery.TenantId, cancellationToken);
+        return [.. subscribers.Select(subscriber => Request(delivery, subscriber))];
     }
 
     /// <summary>
@@ -84,13 +81,26 @@ public static class OutboxSubscriptionServiceCollectionExtensions
     /// </summary>
     public static string DedupKeyFor(IOutboxMessage message, string subscriberKey) => $"{message.Id}:{subscriberKey}";
 
-    private static BackgroundJobRequest Request<TPayload>(
-        IOutboxMessage message,
-        string subscriberKey,
-        TPayload payload,
-        long tenantId)
+    private static BackgroundJobRequest Request<TPayload>(OutboxDelivery delivery, OutboxSubscriber<TPayload> subscriber)
         where TPayload : IBackgroundJobPayload =>
-        BackgroundJobRequest.Create(payload, tenantId, dedupKey: DedupKeyFor(message, subscriberKey));
+        BackgroundJobRequest.Create(
+            subscriber.Payload,
+            delivery.TenantId,
+            dedupKey: DedupKeyFor(delivery.Message, subscriber.SubscriberKey));
+
+    private static OutboxJobSubscription SubscriptionOf<TPayload>(
+        string eventType,
+        Func<IOutboxMessage, long>? resolveTenantId,
+        OutboxRequestsBuilder requests)
+        where TPayload : IBackgroundJobPayload =>
+        new()
+        {
+            EventType = eventType,
+            JobType = TPayload.JobType,
+            SourceAssembly = typeof(TPayload).Assembly,
+            TenantResolver = resolveTenantId,
+            Requests = requests,
+        };
 
     private static IServiceCollection AddSubscription(this IServiceCollection services, OutboxJobSubscription subscription)
     {
