@@ -30,28 +30,42 @@ public static class OutboxRelayServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddEndatixOutboxRelay(this IServiceCollection services)
     {
-        var relayAlreadyRegistered = services.Any(descriptor =>
-            descriptor.ServiceType == typeof(IHostedService)
-            && descriptor.ImplementationType == typeof(OutboxRelayBackgroundService));
-
-        if (relayAlreadyRegistered)
+        if (IsRelayRegistered(services))
         {
             return services;
         }
 
-        // Hosted services start in registration order, and the relay starts claiming as soon as it starts, so the
-        // check that refuses to lose inline handlers' work must be registered ahead of it.
+        AddGatedRelay(services);
+        services.AddOptions<OutboxOptions>().BindConfiguration("Endatix:Outbox");
+        services.AddOptions<OutboxDeliveryOptions>().BindConfiguration(OutboxDeliveryOptions.SectionName);
+        services.AddScoped<IOutboxIntegrationEventHandler, WebHookOutboxIntegrationEventHandler>();
+        AddSelectedPublisher(services);
+        services.AddMetrics();
+        services.AddEndatixOpenFeature();
+
+        return services;
+    }
+
+    private static bool IsRelayRegistered(IServiceCollection services) =>
+        services.Any(descriptor =>
+            descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType == typeof(OutboxRelayBackgroundService));
+
+    // Hosted services start in registration order, and the relay starts claiming as soon as it starts, so the check
+    // that refuses to lose inline handlers' work must be registered ahead of it.
+    private static void AddGatedRelay(IServiceCollection services)
+    {
         services.AddHostedService<OutboxSubscriptionsStartupCheck>();
         services.AddOutboxRelay(serviceProvider => ActivatorUtilities.CreateInstance<EndatixOutboxRelayGate>(
             serviceProvider,
             ActivatorUtilities.CreateInstance<OpenFeatureOutboxRelayGate>(serviceProvider)));
         services.AddSingleton<EndatixOutboxRelayGate.PauseState>();
-        services.AddOptions<OutboxOptions>().BindConfiguration("Endatix:Outbox");
-        services.AddOptions<OutboxDeliveryOptions>().BindConfiguration(OutboxDeliveryOptions.SectionName);
-        services.AddScoped<IOutboxIntegrationEventHandler, WebHookOutboxIntegrationEventHandler>();
+    }
 
-        // One publisher per host, chosen once: the relay either runs every inline handler itself or hands each
-        // message to the job queue. The two never both deliver the same message.
+    // One publisher per host, chosen once: the relay either runs every inline handler itself or hands each message
+    // to the job queue. The two never both deliver the same message.
+    private static void AddSelectedPublisher(IServiceCollection services)
+    {
         services.AddScoped<CompositeIntegrationEventPublisher>();
         services.AddScoped<JobQueueIntegrationEventPublisher>();
         services.TryAddSingleton<OutboxSubscriptions>();
@@ -59,10 +73,6 @@ public static class OutboxRelayServiceCollectionExtensions
             serviceProvider.GetRequiredService<IOptions<OutboxDeliveryOptions>>().Value.DeliverToJobQueue
                 ? serviceProvider.GetRequiredService<JobQueueIntegrationEventPublisher>()
                 : serviceProvider.GetRequiredService<CompositeIntegrationEventPublisher>());
-        services.AddMetrics();
-        services.AddEndatixOpenFeature();
-
-        return services;
     }
 
     /// <summary>

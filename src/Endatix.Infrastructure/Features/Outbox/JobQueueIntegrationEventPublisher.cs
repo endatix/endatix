@@ -50,41 +50,9 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
     /// <inheritdoc />
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
-        // The jobs capture the current trace at enqueue, so running under the message's trace carries the
-        // originating request through the relay and into every subscriber's job.
-        using var activity = _activitySource.StartActivity(
-            "outbox.fan_out",
-            ActivityKind.Consumer,
-            ParentOf(message),
-            tags: [new("endatix.outbox.message_id", message.Id), new("endatix.outbox.event_type", message.EventType)]);
+        using var activity = StartFanOut(message);
 
-        var subscriptions = _subscriptions.For(message.EventType);
-        if (subscriptions.Count == 0)
-        {
-            _logger.LogDebug(
-                "Outbox message {MessageId} has no subscriber for event type '{EventType}'.",
-                message.Id,
-                message.EventType);
-            return;
-        }
-
-        List<BackgroundJobRequest> requests = [];
-        foreach (var subscription in subscriptions)
-        {
-            var tenantId = subscription.ResolveTenantId(message);
-
-            // A job without a tenant would be visible to no tenant and run as all of them. Failing the publish
-            // retries the message and then fails it, where an operator sees it, instead of writing such a row.
-            if (tenantId <= 0)
-            {
-                throw new InvalidOperationException(
-                    $"Outbox message {message.Id} ({message.EventType}) resolved no tenant for subscriber {subscription.JobType}.");
-            }
-
-            var subscribers = await subscription.BuildRequestsAsync(_services, message, tenantId, cancellationToken);
-            requests.AddRange(subscribers.Select(subscriber => subscriber.Request));
-        }
-
+        var requests = await RequestsForAsync(message, cancellationToken);
         if (requests.Count == 0)
         {
             return;
@@ -94,6 +62,56 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
         await queue.EnqueueManyAsync(requests, cancellationToken);
 
         _fannedOutJobs.Add(requests.Count, new KeyValuePair<string, object?>("event_type", message.EventType));
+    }
+
+    // The jobs capture the current trace at enqueue, so running under the message's trace carries the originating
+    // request through the relay and into every subscriber's job.
+    private static Activity? StartFanOut(IOutboxMessage message) =>
+        _activitySource.StartActivity(
+            "outbox.fan_out",
+            ActivityKind.Consumer,
+            ParentOf(message),
+            tags: [new("endatix.outbox.message_id", message.Id), new("endatix.outbox.event_type", message.EventType)]);
+
+    private async Task<List<BackgroundJobRequest>> RequestsForAsync(
+        IOutboxMessage message,
+        CancellationToken cancellationToken)
+    {
+        var subscriptions = _subscriptions.For(message.EventType);
+        if (subscriptions.Count == 0)
+        {
+            LogUnsubscribed(message);
+            return [];
+        }
+
+        List<BackgroundJobRequest> requests = [];
+        foreach (var subscription in subscriptions)
+        {
+            var delivery = new OutboxDelivery(message, TenantOf(subscription, message));
+            requests.AddRange(await subscription.BuildRequestsAsync(_services, delivery, cancellationToken));
+        }
+
+        return requests;
+    }
+
+    private void LogUnsubscribed(IOutboxMessage message) =>
+        _logger.LogDebug(
+            "Outbox message {MessageId} has no subscriber for event type '{EventType}'.",
+            message.Id,
+            message.EventType);
+
+    // A job without a tenant would be visible to no tenant and run as all of them. Failing the publish retries the
+    // message and then fails it, where an operator sees it, instead of writing such a row.
+    private static long TenantOf(OutboxJobSubscription subscription, IOutboxMessage message)
+    {
+        var tenantId = subscription.ResolveTenantId(message);
+        if (tenantId <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Outbox message {message.Id} ({message.EventType}) resolved no tenant for subscriber {subscription.JobType}.");
+        }
+
+        return tenantId;
     }
 
     // The outbox stores the bare trace id, so the parent is that trace with a span of its own.
