@@ -8,7 +8,6 @@ public sealed class QuartzSchemaScriptsTests
     public void PostgreSqlTables_FromReferencedQuartz_PlacesEveryTableInJobsSchema()
     {
         // Arrange
-        var expectedTables = QuartzSchemaScripts.TablesInDropOrder.Select(table => $"jobs.{table}");
 
         // Act
         var statements = QuartzSchemaScripts.PostgreSqlTables();
@@ -16,10 +15,23 @@ public sealed class QuartzSchemaScriptsTests
         // Assert
         var script = string.Join('\n', statements);
         script.Should().NotContain("{0}").And.NotContain("{1}");
-        foreach (var table in expectedTables)
-        {
-            script.Should().Contain($"CREATE TABLE IF NOT EXISTS {table} (");
-        }
+        statements.Where(statement => statement.Contains("CREATE TABLE"))
+            .Should().OnlyContain(statement => statement.Contains("CREATE TABLE IF NOT EXISTS jobs.qrtz_"));
+    }
+
+    [Fact]
+    public void PostgreSqlTableNames_FromReferencedQuartz_ListsTheSchedulerTables()
+    {
+        // Arrange — the tables the scheduler cannot run without.
+        string[] coreTables = ["qrtz_job_details", "qrtz_triggers", "qrtz_fired_triggers", "qrtz_locks", "qrtz_scheduler_state"];
+
+        // Act
+        var tables = QuartzSchemaScripts.PostgreSqlTableNames();
+
+        // Assert
+        tables.Should().Contain(coreTables);
+        tables.Should().OnlyContain(table => table.StartsWith("qrtz_"));
+        tables.Should().OnlyHaveUniqueItems();
     }
 
     [Fact]

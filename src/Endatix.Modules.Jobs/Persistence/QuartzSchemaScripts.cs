@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using Endatix.Modules.Jobs.Runtime;
 
 namespace Endatix.Modules.Jobs.Persistence;
@@ -18,27 +19,6 @@ internal static class QuartzSchemaScripts
 
     /// <summary>Quartz separates the script's statements with a line reading exactly this.</summary>
     private const string StatementSeparator = "--;;";
-
-    /// <summary>
-    /// Every scheduler table, children first, so they can be dropped in order.
-    /// </summary>
-    public static readonly string[] TablesInDropOrder =
-    [
-        "qrtz_fired_triggers",
-        "qrtz_paused_trigger_grps",
-        "qrtz_paused_job_grps",
-        "qrtz_scheduler_state",
-        "qrtz_locks",
-        "qrtz_simprop_triggers",
-        "qrtz_simple_triggers",
-        "qrtz_cron_triggers",
-        "qrtz_blob_triggers",
-        "qrtz_triggers",
-        "qrtz_job_details",
-        "qrtz_calendars",
-        "qrtz_execution_history",
-        "qrtz_misfire_history",
-    ];
 
     /// <summary>
     /// Quartz's PostgreSQL tables under <see cref="QuartzRegistration.TablePrefix"/>, one statement per entry.
@@ -77,6 +57,17 @@ internal static class QuartzSchemaScripts
         return statements;
     }
 
+    /// <summary>
+    /// The unqualified names of the tables <see cref="PostgreSqlTables"/> creates, read from the script so they
+    /// always match the referenced Quartz version.
+    /// </summary>
+    public static IReadOnlyList<string> PostgreSqlTableNames() =>
+        PostgreSqlTables()
+            .Select(statement => CreateTable.Match(statement))
+            .Where(match => match.Success)
+            .Select(match => match.Groups["table"].Value)
+            .ToArray();
+
     private static void AddIfSql(List<string> statements, StringBuilder current)
     {
         var statement = current.ToString().Trim();
@@ -86,6 +77,13 @@ internal static class QuartzSchemaScripts
             statements.Add(statement);
         }
     }
+
+    private static readonly Regex CreateTable = new(
+        $@"CREATE TABLE IF NOT EXISTS {Regex.Escape(SchemaName)}\.(?<table>\w+)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static string SchemaName =>
+        QuartzRegistration.TablePrefix[..QuartzRegistration.TablePrefix.LastIndexOf('.')];
 
     private static string UnqualifiedPrefix =>
         QuartzRegistration.TablePrefix[(QuartzRegistration.TablePrefix.LastIndexOf('.') + 1)..];

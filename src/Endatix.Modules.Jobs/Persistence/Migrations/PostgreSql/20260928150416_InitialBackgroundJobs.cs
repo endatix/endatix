@@ -70,9 +70,10 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            foreach (var table in QuartzSchemaScripts.TablesInDropOrder)
+            // CASCADE drops them in any order, so the list can come straight from the script.
+            foreach (var table in QuartzSchemaScripts.PostgreSqlTableNames())
             {
-                migrationBuilder.Sql($"DROP TABLE IF EXISTS jobs.{table};");
+                migrationBuilder.Sql($"DROP TABLE IF EXISTS jobs.{table} CASCADE;");
             }
 
             migrationBuilder.DropTable(
