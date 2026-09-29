@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Reporting.Features.BackgroundJobs;
 
@@ -16,8 +17,8 @@ namespace Endatix.Modules.Reporting.Features.BackgroundJobs;
 /// A message that is gone or cannot be read, or that names another tenant, is a failure no retry can fix. The
 /// work itself throws on a transient problem, as it always has, and the job retries.
 /// </remarks>
-internal abstract class ReportingOutboxJobHandler<TPayload>(IRepository<OutboxMessage> outboxMessages)
-    : BackgroundJobHandler<TPayload>
+internal abstract class ReportingOutboxJobHandler<TPayload>(IRepository<OutboxMessage> outboxMessages, ILogger logger)
+    : BackgroundJobHandler<TPayload>(logger)
     where TPayload : IReportingOutboxJobPayload
 {
     public const string MessageGone = "The outbox message no longer exists.";

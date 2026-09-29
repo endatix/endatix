@@ -11,7 +11,8 @@ namespace Endatix.Modules.Reporting.Features.BackgroundJobs;
 /// <summary>Compiles a form's schema after its definition changed.</summary>
 internal sealed class CompileFormSchemaJobHandler(
     IRepository<OutboxMessage> outboxMessages,
-    CompileFormSchemaOutboxHandler work) : ReportingOutboxJobHandler<ReportingCompileFormSchemaPayload>(outboxMessages)
+    CompileFormSchemaOutboxHandler work,
+    ILogger<CompileFormSchemaJobHandler> logger) : ReportingOutboxJobHandler<ReportingCompileFormSchemaPayload>(outboxMessages, logger)
 {
     protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
     {
@@ -34,7 +35,7 @@ internal sealed class CompileFormSchemaJobHandler(
 internal sealed class FlattenSubmissionJobHandler(
     IRepository<OutboxMessage> outboxMessages,
     FlattenSubmissionOutboxHandler work,
-    ILogger<FlattenSubmissionJobHandler> logger) : ReportingOutboxJobHandler<ReportingFlattenSubmissionPayload>(outboxMessages)
+    ILogger<FlattenSubmissionJobHandler> logger) : ReportingOutboxJobHandler<ReportingFlattenSubmissionPayload>(outboxMessages, logger)
 {
     protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
     {
@@ -66,7 +67,8 @@ internal sealed class FlattenSubmissionJobHandler(
 /// </remarks>
 internal sealed class SeedDefaultExportFormatsJobHandler(
     IRepository<OutboxMessage> outboxMessages,
-    SeedDefaultExportFormatsOutboxHandler work) : ReportingOutboxJobHandler<ReportingSeedDefaultExportFormatsPayload>(outboxMessages)
+    SeedDefaultExportFormatsOutboxHandler work,
+    ILogger<SeedDefaultExportFormatsJobHandler> logger) : ReportingOutboxJobHandler<ReportingSeedDefaultExportFormatsPayload>(outboxMessages, logger)
 {
     private const long AppLevelTenantId = 0;
 
@@ -92,7 +94,8 @@ internal sealed class SeedDefaultExportFormatsJobHandler(
 /// <summary>Removes a deleted form's Reporting rows.</summary>
 internal sealed class SyncFormDeletionJobHandler(
     IRepository<OutboxMessage> outboxMessages,
-    SyncFormDeletionOutboxHandler work) : ReportingOutboxJobHandler<ReportingSyncFormDeletionPayload>(outboxMessages)
+    SyncFormDeletionOutboxHandler work,
+    ILogger<SyncFormDeletionJobHandler> logger) : ReportingOutboxJobHandler<ReportingSyncFormDeletionPayload>(outboxMessages, logger)
 {
     protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
     {
@@ -114,7 +117,8 @@ internal sealed class SyncFormDeletionJobHandler(
 /// <summary>Removes a deleted submission's flattened row.</summary>
 internal sealed class SyncSubmissionDeletionJobHandler(
     IRepository<OutboxMessage> outboxMessages,
-    SyncSubmissionDeletionOutboxHandler work) : ReportingOutboxJobHandler<ReportingSyncSubmissionDeletionPayload>(outboxMessages)
+    SyncSubmissionDeletionOutboxHandler work,
+    ILogger<SyncSubmissionDeletionJobHandler> logger) : ReportingOutboxJobHandler<ReportingSyncSubmissionDeletionPayload>(outboxMessages, logger)
 {
     protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
     {
