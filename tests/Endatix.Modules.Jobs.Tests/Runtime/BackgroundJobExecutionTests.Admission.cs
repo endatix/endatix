@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
+using static Endatix.Modules.Jobs.Tests.Runtime.JobExecutionTestHost;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
 
