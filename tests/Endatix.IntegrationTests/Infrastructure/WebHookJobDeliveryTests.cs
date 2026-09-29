@@ -34,7 +34,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
         await using var host = await StartHostAsync(ct);
-        var tenantId = await SeedTenantAsync(host, "webhook-endpoints", Config(receiver.UrlFor("a"), receiver.UrlFor("b"), receiver.UrlFor("c")), ct);
+        var tenantId = await SeedTenantAsync(host, new TenantSeed("webhook-endpoints", Config(receiver.UrlFor("a"), receiver.UrlFor("b"), receiver.UrlFor("c"))), ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(500, "submission.completed", tenantId, SubmissionPayload(tenantId, MissingFormId)), ct);
@@ -67,7 +67,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         var urlA = receiver.UrlFor("a");
         var urlB = receiver.UrlFor("b", HttpStatusCode.ServiceUnavailable);
         var urlC = receiver.UrlFor("c");
-        var tenantId = await SeedTenantAsync(host, "webhook-dead-endpoint", Config(urlA, urlB, urlC), ct);
+        var tenantId = await SeedTenantAsync(host, new TenantSeed("webhook-dead-endpoint", Config(urlA, urlB, urlC)), ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(501, "submission.completed", tenantId, SubmissionPayload(tenantId, MissingFormId)), ct);
@@ -97,7 +97,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
         await using var host = await StartHostAsync(ct);
-        var tenantId = await SeedTenantAsync(host, "webhook-disabled", Config([receiver.UrlFor("a")], isEnabled: false), ct);
+        var tenantId = await SeedTenantAsync(host, new TenantSeed("webhook-disabled", Config([receiver.UrlFor("a")], isEnabled: false)), ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(502, "submission.completed", tenantId, SubmissionPayload(tenantId, MissingFormId)), ct);
@@ -117,8 +117,8 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         await using var host = await StartHostAsync(ct);
         var tenantUrl = receiver.UrlFor("tenant");
         var formUrl = receiver.UrlFor("form");
-        var tenantId = await SeedTenantAsync(host, "webhook-form-config", Config(tenantUrl), ct);
-        var formId = await SeedFormAsync(host, tenantId, Config(formUrl), ct);
+        var tenantId = await SeedTenantAsync(host, new TenantSeed("webhook-form-config", Config(tenantUrl)), ct);
+        var formId = await SeedFormAsync(host, new FormSeed(tenantId, Config(formUrl)), ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(503, "submission.completed", tenantId, SubmissionPayload(tenantId, formId)), ct);
@@ -135,30 +135,30 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
             new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = settings ?? new Dictionary<string, string?>() },
             ct);
 
-    private static async Task<long> SeedTenantAsync(FanOutHost host, string name, string webHookConfig, CancellationToken ct)
+    private static async Task<long> SeedTenantAsync(FanOutHost host, TenantSeed seed, CancellationToken ct)
     {
-        var tenantId = await new IntegrationSeedBuilder(host.Services).SeedTenantAsync(name, cancellationToken: ct);
+        var tenantId = await new IntegrationSeedBuilder(host.Services).SeedTenantAsync(seed.Name, cancellationToken: ct);
         using var scope = host.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var settings = await db.Set<TenantSettings>().IgnoreQueryFilters().FirstOrDefaultAsync(row => row.TenantId == tenantId, ct);
         if (settings is null)
         {
-            db.Set<TenantSettings>().Add(new TenantSettings(tenantId, webHookSettingsJson: webHookConfig));
+            db.Set<TenantSettings>().Add(new TenantSettings(tenantId, webHookSettingsJson: seed.WebHookConfig));
         }
         else
         {
-            settings.UpdateWebHookSettings(JsonSerializer.Deserialize<WebHookConfiguration>(webHookConfig)!);
+            settings.UpdateWebHookSettings(JsonSerializer.Deserialize<WebHookConfiguration>(seed.WebHookConfig)!);
         }
 
         await db.SaveChangesAsync(ct);
         return tenantId;
     }
 
-    private static async Task<long> SeedFormAsync(FanOutHost host, long tenantId, string webHookConfig, CancellationToken ct)
+    private static async Task<long> SeedFormAsync(FanOutHost host, FormSeed seed, CancellationToken ct)
     {
         using var scope = host.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "webhook form", WebHookSettingsJson: webHookConfig));
+        var form = Form.Create(new FormCreateArgs(TenantId: seed.TenantId, Name: "webhook form", WebHookSettingsJson: seed.WebHookConfig));
         db.Forms.Add(form);
         await db.SaveChangesAsync(ct);
         return form.Id;
@@ -190,6 +190,10 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
             """SELECT "PayloadJson"::text, "DedupKey", "Status", "AttemptCount" FROM jobs."BackgroundJobs" WHERE "JobType" = 'WebHookDelivery'""",
             reader => new WebHookJob(reader.GetString(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3)),
             ct);
+
+    private sealed record TenantSeed(string Name, string WebHookConfig);
+
+    private sealed record FormSeed(long TenantId, string WebHookConfig);
 
     private sealed record WebHookJob(string PayloadJson, string DedupKey, int Status, int AttemptCount);
 }
