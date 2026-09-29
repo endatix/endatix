@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
@@ -31,11 +30,11 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
-        await using var node = await StartNodeAsync(database, new ProbeInvocations(), ct: ct);
+        await using var node = await StartNodeAsync(new(database, new ProbeInvocations()), ct);
 
         // Act
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Completed, Patience, ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert
         row.Status.Should().Be(JobStatus.Completed);
@@ -51,11 +50,11 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
-        await using var node = await StartNodeAsync(database, new ProbeInvocations(), ct: ct);
+        await using var node = await StartNodeAsync(new(database, new ProbeInvocations()), ct);
 
         // Act
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Fail), ct);
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Failed, Patience, ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Failed, ct);
 
         // Assert
         row.Status.Should().Be(JobStatus.Failed);
@@ -72,18 +71,20 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         await using var node = await StartNodeAsync(
-            database,
-            new ProbeInvocations(),
-            new Dictionary<string, string?>
-            {
-                [ProbeKey("MaxAttempts")] = "3",
-                [ProbeKey("BackoffBaseSeconds")] = "1",
-            },
+            new(
+                database,
+                new ProbeInvocations(),
+                new Dictionary<string, string?>
+                {
+                    [ProbeKey("MaxAttempts")] = "3",
+                    [ProbeKey("BackoffBaseSeconds")] = "1",
+                }),
             ct);
 
         // Act
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Throw), ct);
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.DeadLettered, TimeSpan.FromSeconds(60), ct);
+        var row = await database.WaitForStatusAsync(
+            new ExpectedJobStatus(jobId, JobStatus.DeadLettered, TimeSpan.FromSeconds(60)), ct);
 
         // Assert
         row.Status.Should().Be(JobStatus.DeadLettered);
@@ -100,15 +101,16 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         await using var node = await StartNodeAsync(
-            database,
-            new ProbeInvocations(),
-            new Dictionary<string, string?> { [ProbeKey("BackoffBaseSeconds")] = "3" },
+            new(
+                database,
+                new ProbeInvocations(),
+                new Dictionary<string, string?> { [ProbeKey("BackoffBaseSeconds")] = "3" }),
             ct);
 
         // Act
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.ThrowOnce), ct);
-        var retrying = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Retrying, Patience, ct);
-        var completed = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Completed, Patience, ct);
+        var retrying = await database.WaitForStatusAsync(jobId, JobStatus.Retrying, ct);
+        var completed = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert
         retrying.Status.Should().Be(JobStatus.Retrying);
@@ -125,13 +127,13 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var invocations = new ProbeInvocations();
-        await using var node = await StartNodeAsync(database, invocations, ct: ct);
+        await using var node = await StartNodeAsync(new(database, invocations), ct);
 
         // Act
         var jobId = await node.EnqueueAsync(
             new BackgroundJobRequest(ProbePayload.JobType, """{"behaviour":{"not":"a string"}}""", TenantId),
             ct);
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Failed, Patience, ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Failed, ct);
 
         // Assert
         row.Status.Should().Be(JobStatus.Failed);
@@ -158,7 +160,7 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         var before = await database.ReadJobAsync(jobId, ct);
 
         // Act
-        await using var worker = await StartNodeAsync(database, invocations, ct: ct);
+        await using var worker = await StartNodeAsync(new(database, invocations), ct);
         var fired = await NoTriggerLeftAsync(database, jobId, ct);
 
         // Assert
@@ -176,14 +178,14 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
-        var nodeA = await StartNodeAsync(database, onA, InstanceId("node-a"), ct);
+        var nodeA = await StartNodeAsync(new(database, onA, InstanceId("node-a")), ct);
         var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.BlockFirst), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(onA.CountFor(jobId) == 1), Patience, ct);
-        await using var nodeB = await StartNodeAsync(database, onB, InstanceId("node-b"), ct);
+        await using var nodeB = await StartNodeAsync(new(database, onB, InstanceId("node-b")), ct);
 
         // Act
         await nodeA.KillAsync();
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Completed, Patience, ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert — the dead run never reported, the survivor's run took a second attempt and recorded the one outcome.
         row.Status.Should().Be(JobStatus.Completed);
@@ -201,16 +203,16 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
-        var nodeA = await StartNodeAsync(database, onA, InstanceId("node-a"), ct);
+        var nodeA = await StartNodeAsync(new(database, onA, InstanceId("node-a")), ct);
         var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.BlockFirstThenThrow), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(onA.CountFor(jobId) == 1), Patience, ct);
         var survivorSettings = InstanceId("node-b");
         survivorSettings[ProbeKey("BackoffBaseSeconds")] = "600";
-        await using var nodeB = await StartNodeAsync(database, onB, survivorSettings, ct);
+        await using var nodeB = await StartNodeAsync(new(database, onB, survivorSettings), ct);
 
         // Act
         await nodeA.KillAsync();
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Retrying, Patience, ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Retrying, ct);
 
         // Assert — the recovery trigger carried no retry policy, so a trigger of the job's own waits to run it again.
         row.AttemptCount.Should().Be(2);
@@ -239,7 +241,7 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
 
         // Act
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Completed, Patience, ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert — the trigger was kept, the next firing took the row over, and its completion was recorded.
         row.AttemptCount.Should().Be(2);
@@ -256,9 +258,10 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var invocations = new ProbeInvocations();
         await using var node = await StartNodeAsync(
-            database,
-            invocations,
-            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:CancellationPollSeconds"] = "1" },
+            new(
+                database,
+                invocations,
+                new Dictionary<string, string?> { ["Endatix:BackgroundJobs:CancellationPollSeconds"] = "1" }),
             ct);
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Block), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), Patience, ct);
@@ -285,9 +288,10 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         await using var node = await StartNodeAsync(
-            database,
-            new ProbeInvocations(),
-            new Dictionary<string, string?> { [ProbeKey("MaxRuntimeMinutes")] = "1" },
+            new(
+                database,
+                new ProbeInvocations(),
+                new Dictionary<string, string?> { [ProbeKey("MaxRuntimeMinutes")] = "1" }),
             ct);
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Block), ct);
 
@@ -314,7 +318,7 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         ActivitySource.AddActivityListener(listener);
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var invocations = new ProbeInvocations();
-        await using var node = await StartNodeAsync(database, invocations, ct: ct);
+        await using var node = await StartNodeAsync(new(database, invocations), ct);
         long jobId;
         string traceId;
 
@@ -325,7 +329,7 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
             jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
         }
 
-        await database.WaitForStatusAsync(jobId, status => status == JobStatus.Completed, Patience, ct);
+        await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert
         var run = invocations.Runs.Single(run => run.Job.JobId == jobId);
@@ -346,7 +350,7 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
             ["Endatix:BackgroundJobs:Clustering:InstanceId"] = "node-graceful",
             ["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "1",
         };
-        var first = await StartNodeAsync(database, invocations, settings, ct);
+        var first = await StartNodeAsync(new(database, invocations, settings), ct);
         var jobId = await first.EnqueueAsync(Probe(ProbeBehaviours.BlockFirst), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), Patience, ct);
 
@@ -354,8 +358,8 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         await first.StopAsync(ct);
         await first.DisposeAsync();
         var afterStop = await database.ReadJobAsync(jobId, ct);
-        await using var restarted = await StartNodeAsync(database, invocations, settings, ct);
-        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Completed, Patience, ct);
+        await using var restarted = await StartNodeAsync(new(database, invocations, settings), ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert
         afterStop!.Status.Should().Be(JobStatus.Processing);
@@ -371,42 +375,19 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        var events = new System.Collections.Concurrent.ConcurrentQueue<(string Event, string? JobType)>();
-        using var meterListener = new MeterListener
-        {
-            InstrumentPublished = (instrument, listener) =>
-            {
-                if (instrument.Meter.Name == "Endatix.Jobs" && instrument.Name == "endatix.jobs.events")
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            },
-        };
-        meterListener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
-        {
-            string? lifecycleEvent = null;
-            string? jobType = null;
-            foreach (var tag in tags)
-            {
-                if (tag.Key == "endatix.job.event") lifecycleEvent = tag.Value as string;
-                if (tag.Key == "endatix.job.type") jobType = tag.Value as string;
-            }
-
-            events.Enqueue((lifecycleEvent!, jobType));
-        });
-        meterListener.Start();
+        using var lifecycle = JobLifecycleEventListener.Start();
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
-        await using var node = await StartNodeAsync(database, new ProbeInvocations(), ct: ct);
+        await using var node = await StartNodeAsync(new(database, new ProbeInvocations()), ct);
 
         // Act
         var succeeded = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
         var failed = await node.EnqueueAsync(Probe(ProbeBehaviours.Fail), ct);
-        await database.WaitForStatusAsync(succeeded, status => status == JobStatus.Completed, Patience, ct);
-        await database.WaitForStatusAsync(failed, status => status == JobStatus.Failed, Patience, ct);
+        await database.WaitForStatusAsync(succeeded, JobStatus.Completed, ct);
+        await database.WaitForStatusAsync(failed, JobStatus.Failed, ct);
         await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
 
         // Assert
-        var recorded = events.ToList();
+        var recorded = lifecycle.Events;
         recorded.Should().OnlyContain(entry => entry.JobType == ProbePayload.JobType);
         recorded.GroupBy(entry => entry.Event).ToDictionary(group => group.Key, group => group.Count())
             .Should().BeEquivalentTo(new Dictionary<string, int>
@@ -427,16 +408,12 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
     private static Dictionary<string, string?> InstanceId(string instanceId) =>
         new() { ["Endatix:BackgroundJobs:Clustering:InstanceId"] = instanceId };
 
-    private static async Task<JobsTestNode> StartNodeAsync(
-        JobsTestDatabase database,
-        ProbeInvocations invocations,
-        Dictionary<string, string?>? settings = null,
-        CancellationToken ct = default)
+    private static async Task<JobsTestNode> StartNodeAsync(ProbeNodeSetup setup, CancellationToken ct)
     {
         var node = JobsTestNode.Create(
-            database.ConnectionString,
-            settings,
-            services => services.AddProbe(invocations));
+            setup.Database.ConnectionString,
+            setup.Settings,
+            services => services.AddProbe(setup.Invocations));
         await node.StartAsync(ct);
         return node;
     }
@@ -444,4 +421,10 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
     // The scheduler deletes a finished one-off trigger just after the wrapper records the outcome.
     private static Task<bool> NoTriggerLeftAsync(JobsTestDatabase database, long jobId, CancellationToken ct) =>
         JobsTestWait.UntilAsync(async () => await database.TriggerCountAsync(jobId, ct) == 0, TimeSpan.FromSeconds(10), ct);
+
+    /// <summary>A node running the probe handler against a test database, with any settings of its own.</summary>
+    private sealed record ProbeNodeSetup(
+        JobsTestDatabase Database,
+        ProbeInvocations Invocations,
+        Dictionary<string, string?>? Settings = null);
 }

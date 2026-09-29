@@ -59,16 +59,8 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
         await ClearJobsAsync(context, cancellationToken);
-        var shortMessageId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
-        var longMessageId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
+        var shortMessageId = await SeedAsync(context, cancellationToken, status: JobStatus.Processing, attemptCount: 1);
+        var longMessageId = await SeedAsync(context, cancellationToken, status: JobStatus.Processing, attemptCount: 1);
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
@@ -102,16 +94,8 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
         var context = JobsContext(scope);
         await ClearJobsAsync(context, cancellationToken);
         var nextAttemptAt = Now.AddSeconds(30);
-        var retryingId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
-        var exhaustedId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 3);
+        var retryingId = await SeedAsync(context, cancellationToken, status: JobStatus.Processing, attemptCount: 1);
+        var exhaustedId = await SeedAsync(context, cancellationToken, status: JobStatus.Processing, attemptCount: 3);
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
@@ -150,11 +134,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
         await ClearJobsAsync(context, cancellationToken);
-        var jobId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
+        var jobId = await SeedAsync(context, cancellationToken, status: JobStatus.Processing, attemptCount: 1);
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
@@ -180,11 +160,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
         await ClearJobsAsync(context, cancellationToken);
-        var jobId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
+        var jobId = await SeedAsync(context, cancellationToken, status: JobStatus.Processing, attemptCount: 1);
         var before = await ReadAsync(context, jobId, cancellationToken);
         var repository = new BackgroundJobStateRepository(context);
 

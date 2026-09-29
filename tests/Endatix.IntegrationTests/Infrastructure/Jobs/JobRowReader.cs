@@ -16,6 +16,9 @@ internal sealed record JobRow(
     string JobType,
     long TenantId);
 
+/// <summary>A status a job row is waited for, and how long to wait before giving up.</summary>
+internal sealed record ExpectedJobStatus(long JobId, JobStatus Status, TimeSpan Timeout);
+
 internal static class JobRowReader
 {
     public static async Task<JobRow?> ReadJobAsync(
@@ -43,23 +46,31 @@ internal static class JobRowReader
                 reader.GetInt64(11)),
             cancellationToken)).SingleOrDefault();
 
-    public static async Task<JobRow> WaitForStatusAsync(
+    /// <summary>How long a wait for a row's status lasts unless the caller names a timeout.</summary>
+    public static readonly TimeSpan DefaultPatience = TimeSpan.FromSeconds(30);
+
+    public static Task<JobRow> WaitForStatusAsync(
         this JobsTestDatabase database,
         long jobId,
-        Func<JobStatus, bool> reached,
-        TimeSpan timeout,
+        JobStatus status,
+        CancellationToken cancellationToken) =>
+        database.WaitForStatusAsync(new ExpectedJobStatus(jobId, status, DefaultPatience), cancellationToken);
+
+    public static async Task<JobRow> WaitForStatusAsync(
+        this JobsTestDatabase database,
+        ExpectedJobStatus expected,
         CancellationToken cancellationToken)
     {
         JobRow? row = null;
         await JobsTestWait.UntilAsync(
             async () =>
             {
-                row = await database.ReadJobAsync(jobId, cancellationToken);
-                return row is not null && reached(row.Status);
+                row = await database.ReadJobAsync(expected.JobId, cancellationToken);
+                return row is not null && row.Status == expected.Status;
             },
-            timeout,
+            expected.Timeout,
             cancellationToken);
-        return row ?? throw new InvalidOperationException($"Job {jobId} has no row.");
+        return row ?? throw new InvalidOperationException($"Job {expected.JobId} has no row.");
     }
 
     public static Task<long> TriggerCountAsync(
