@@ -37,7 +37,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         var tenantId = await SeedTenantAsync(host, "webhook-endpoints", Config(receiver.UrlFor("a"), receiver.UrlFor("b"), receiver.UrlFor("c")), ct);
 
         // Act
-        await host.InsertMessageAsync(500, "submission.completed", tenantId, ct, SubmissionPayload(tenantId, MissingFormId));
+        await host.InsertMessageAsync(new OutboxRow(500, "submission.completed", tenantId, SubmissionPayload(tenantId, MissingFormId)), ct);
         await WaitForSentAsync(host, 500, ct);
 
         // Assert
@@ -70,7 +70,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         var tenantId = await SeedTenantAsync(host, "webhook-dead-endpoint", Config(urlA, urlB, urlC), ct);
 
         // Act
-        await host.InsertMessageAsync(501, "submission.completed", tenantId, ct, SubmissionPayload(tenantId, MissingFormId));
+        await host.InsertMessageAsync(new OutboxRow(501, "submission.completed", tenantId, SubmissionPayload(tenantId, MissingFormId)), ct);
         var deadLettered = await JobsTestWait.UntilAsync(
             async () => (await WebHookJobsAsync(host, ct)).Any(job => job.Status == 5),
             Patience,
@@ -100,7 +100,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         var tenantId = await SeedTenantAsync(host, "webhook-disabled", Config([receiver.UrlFor("a")], isEnabled: false), ct);
 
         // Act
-        await host.InsertMessageAsync(502, "submission.completed", tenantId, ct, SubmissionPayload(tenantId, MissingFormId));
+        await host.InsertMessageAsync(new OutboxRow(502, "submission.completed", tenantId, SubmissionPayload(tenantId, MissingFormId)), ct);
         await WaitForSentAsync(host, 502, ct);
 
         // Assert
@@ -121,7 +121,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         var formId = await SeedFormAsync(host, tenantId, Config(formUrl), ct);
 
         // Act
-        await host.InsertMessageAsync(503, "submission.completed", tenantId, ct, SubmissionPayload(tenantId, formId));
+        await host.InsertMessageAsync(new OutboxRow(503, "submission.completed", tenantId, SubmissionPayload(tenantId, formId)), ct);
         await WaitForSentAsync(host, 503, ct);
 
         // Assert
@@ -129,13 +129,11 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         jobs.Should().ContainSingle().Which.DedupKey.Should().Be($"503:{WebHookEndpointKey.Of(formUrl)}");
     }
 
-    private Task<FanOutHost> StartHostAsync(CancellationToken ct, IDictionary<string, string?>? settings = null) =>
+    private Task<FanOutHost> StartHostAsync(CancellationToken ct, IReadOnlyDictionary<string, string?>? settings = null) =>
         FanOutHost.StartAsync(
             fixture.ConnectionString,
-            deliverToJobQueue: true,
-            _ => { },
-            ct,
-            settings: settings);
+            new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = settings ?? new Dictionary<string, string?>() },
+            ct);
 
     private static async Task<long> SeedTenantAsync(FanOutHost host, string name, string webHookConfig, CancellationToken ct)
     {
