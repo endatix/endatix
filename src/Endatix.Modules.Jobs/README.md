@@ -35,10 +35,6 @@ Two stores in one `jobs` schema, with one job each:
 Every job has exactly one row and one Quartz trigger, keyed by the job's id; the trigger carries
 nothing but that id.
 
-> [!NOTE]
-> **In this release per-job-type concurrency caps are configured but not yet enforced**: a node
-> runs any job type it has a handler for on any free thread.
-
 ## Module layout
 
 | Namespace | Contents |
