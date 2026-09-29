@@ -98,7 +98,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
 
         // Assert
         row.CompletedAt.Should().NotBeNull();
-        row.ExpiresAt.Should().Be(row.CompletedAt!.Value.AddDays(3));
+        row.ExpiresAt.Should().Be(row.CompletedAt.Value.AddDays(3));
     }
 
     private static async Task<JobsTestNode> StartScheduleOnlyNodeAsync(
