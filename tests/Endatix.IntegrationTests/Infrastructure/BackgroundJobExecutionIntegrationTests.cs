@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Runtime;
 
 namespace Endatix.IntegrationTests;
 
@@ -216,6 +217,34 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         onB.CountFor(jobId).Should().Be(1);
         (await JobsTestWait.UntilAsync(
             async () => await database.TriggerCountAsync(jobId, ct) == 1, TimeSpan.FromSeconds(10), ct)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Job_whose_outcome_cannot_be_written_runs_again_and_completes()
+    {
+        // Arrange — every try at recording the first attempt's completion fails, as while the database is away.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        var invocations = new ProbeInvocations();
+        var failures = new OutcomeWriteFailures(BackgroundJobExecution.OutcomeWriteRetryDelays.Length + 1);
+        await using var node = JobsTestNode.Create(
+            database.ConnectionString,
+            configureServices: services =>
+            {
+                services.AddProbe(invocations);
+                FailingOutcomeWrites.Register(services, failures);
+            });
+        await node.StartAsync(ct);
+
+        // Act
+        var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
+        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Completed, Patience, ct);
+
+        // Assert — the trigger was kept, the next firing took the row over, and its completion was recorded.
+        row.AttemptCount.Should().Be(2);
+        invocations.CountFor(jobId).Should().Be(2);
+        (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
     }
 
     [Fact]

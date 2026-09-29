@@ -196,6 +196,7 @@ store must run the same Quartz version, and nodes' clocks must agree within abou
 | row set to `Canceled` meanwhile | stays `Canceled` | done |
 | host stopped waiting for it | stays `Processing`, nothing written | re-run on the next node to check in |
 | its node stopped during the last attempt | `DeadLettered` when recovered, the handler not run again | done |
+| its outcome cannot be written (tried 4 times) | stays `Processing` | fires again 5 s later and re-claims the row |
 
 The row's `AttemptCount`, not Quartz's retry counter, decides dead-lettering: a run recovered after
 a crash consumes an attempt Quartz never counts. Exception text never reaches `ErrorMessage`.

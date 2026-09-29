@@ -62,13 +62,15 @@ internal static class QuartzRegistration
     /// <summary>
     /// The one-off trigger of job row <paramref name="jobId"/>. Its key is the job id, its only data is the job
     /// id, and it carries the job type's execution group and retry policy. The payload and anything secret stay
-    /// on the row.
+    /// on the row. With <paramref name="reclaim"/>, it also marks the firing as taking the job over from an attempt
+    /// whose outcome could not be written.
     /// </summary>
     public static ITrigger TriggerFor(
         long jobId,
         string jobType,
         BackgroundJobTypePolicy policy,
-        DateTimeOffset? startAt = null)
+        DateTimeOffset? startAt = null,
+        bool reclaim = false)
     {
         var id = jobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var trigger = TriggerBuilder.Create()
@@ -77,6 +79,10 @@ internal static class QuartzRegistration
             .WithExecutionGroup(jobType)
             .UsingJobData(BackgroundJobExecution.JobIdKey, id);
         trigger = startAt is { } at ? trigger.StartAt(at) : trigger.StartNow();
+        if (reclaim)
+        {
+            trigger = trigger.UsingJobData(BackgroundJobExecution.ReclaimKey, bool.TrueString);
+        }
 
         var retryPolicy = BackgroundJobRetryPolicy.ToQuartz(policy);
         if (retryPolicy is not null)

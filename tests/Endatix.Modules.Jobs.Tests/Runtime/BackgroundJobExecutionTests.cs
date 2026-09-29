@@ -198,6 +198,99 @@ public sealed class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_OutcomeWriteFailsOnce_TriesAgainAndRecordsCompletion()
+    {
+        // Arrange
+        var repository = ClaimingRepository(attempt: 1);
+        repository.TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(_ => throw new TimeoutException("The database did not answer."), _ => Task.FromResult(true));
+        await using var provider = Services(repository, new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = JobTriggerFiringOf(JobId);
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        await repository.Received(2).TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), CancellationToken.None);
+        provider.GetRequiredService<IJobMetrics>().Received(1).Record(JobLifecycleEvent.Completed, JobType);
+        context.Scheduler.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Execute_OutcomeWriteKeepsFailing_ReschedulesItsTriggerToReclaimTheRow()
+    {
+        // Arrange
+        var repository = ClaimingRepository(attempt: 1);
+        repository.TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns<Task<bool>>(_ => throw new TimeoutException("The database did not answer."));
+        await using var provider = Services(repository, new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = JobTriggerFiringOf(JobId);
+        ITrigger? rescheduled = null;
+        context.Scheduler
+            .RescheduleJob(context.Trigger.Key, Arg.Do<ITrigger>(trigger => rescheduled = trigger), Arg.Any<CancellationToken>())
+            .Returns(DateTimeOffset.UtcNow);
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert — the firing trigger itself fires again, marked to take over the row this attempt left Processing.
+        await repository.Received(BackgroundJobExecution.OutcomeWriteRetryDelays.Length + 1)
+            .TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), CancellationToken.None);
+        rescheduled.Should().NotBeNull();
+        rescheduled!.Key.Should().Be(context.Trigger.Key);
+        rescheduled.JobDataMap.GetString(BackgroundJobExecution.ReclaimKey).Should().Be(bool.TrueString);
+        provider.GetRequiredService<IJobMetrics>().DidNotReceive().Record(JobLifecycleEvent.Completed, Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task Execute_OutcomeWriteFailsDuringShutdown_LeavesTheFiringForRecovery()
+    {
+        // Arrange — the host stops as the handler succeeds, and the write that follows fails.
+        var repository = ClaimingRepository(attempt: 1);
+        repository.TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns<Task<bool>>(_ => throw new TimeoutException("The database did not answer."));
+        await using var provider = Services(repository, new ObservedRun { RaiseShutdown = true });
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = JobTriggerFiringOf(JobId);
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert — no further tries and no rescheduling on a scheduler that has stopped.
+        await repository.Received(1).TryCompleteAsync(JobId, 1, Arg.Any<DateTime>(), CancellationToken.None);
+        context.Scheduler.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Execute_ReclaimingFiring_ReclaimsTheRowLeftProcessing()
+    {
+        // Arrange
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository
+            .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), true, Arg.Any<CancellationToken>())
+            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 2, null, JobStatus.Processing));
+        repository.TryCompleteAsync(JobId, 2, Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
+        await using var provider = Services(repository, new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = JobTriggerFiringOf(JobId);
+        context.MergedJobDataMap.Returns(new JobDataMap
+        {
+            [BackgroundJobExecution.JobIdKey] = JobId.ToString(),
+            [BackgroundJobExecution.ReclaimKey] = bool.TrueString,
+        });
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        await repository.Received(1)
+            .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), true, Arg.Any<CancellationToken>());
+        await repository.Received(1).TryCompleteAsync(JobId, 2, Arg.Any<DateTime>(), CancellationToken.None);
+    }
+
+    [Fact]
     public void Resolve_ClaimedRow_CopiesRowFields()
     {
         // Arrange
@@ -233,6 +326,25 @@ public sealed class BackgroundJobExecutionTests
         var context = Substitute.For<IJobExecutionContext>();
         context.MergedJobDataMap.Returns(new JobDataMap { [BackgroundJobExecution.JobIdKey] = jobId.ToString() });
         context.Recovering.Returns(false);
+        return context;
+    }
+
+    private static IBackgroundJobStateRepository ClaimingRepository(int attempt)
+    {
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository
+            .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), false, Arg.Any<CancellationToken>())
+            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", attempt, null, JobStatus.Processing));
+        return repository;
+    }
+
+    // A firing of the job's own trigger, as enqueueing schedules it.
+    private static IJobExecutionContext JobTriggerFiringOf(long jobId)
+    {
+        var context = FiringOf(jobId);
+        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(JobType));
+        context.Trigger.Returns(QuartzRegistration.TriggerFor(jobId, JobType, new BackgroundJobsOptions().ResolvePolicy(JobType)));
+        context.Scheduler.Returns(Substitute.For<IScheduler>());
         return context;
     }
 

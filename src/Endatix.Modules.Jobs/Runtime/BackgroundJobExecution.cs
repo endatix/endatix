@@ -39,19 +39,34 @@ internal sealed class BackgroundJobExecution(
     /// <summary>The trigger data key that holds the job row's id.</summary>
     public const string JobIdKey = "jobId";
 
+    /// <summary>
+    /// The trigger data key that marks a firing scheduled to take the job over from an attempt whose outcome could
+    /// not be written, so it re-claims the row that attempt left <c>Processing</c>, as a recovery would.
+    /// </summary>
+    public const string ReclaimKey = "reclaim";
+
+    /// <summary>How long the wrapper waits before each further try at an outcome write that failed.</summary>
+    internal static readonly TimeSpan[] OutcomeWriteRetryDelays =
+        [TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)];
+
+    /// <summary>How long after its outcome could not be written a job runs again.</summary>
+    internal static readonly TimeSpan UnrecordedRefireDelay = TimeSpan.FromSeconds(5);
+
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         var jobId = long.Parse(context.MergedJobDataMap.GetString(JobIdKey)!, CultureInfo.InvariantCulture);
         var claimedAt = dateTimeProvider.UtcNow.UtcDateTime;
+        var reclaiming = context.Recovering
+            || string.Equals(context.MergedJobDataMap.GetString(ReclaimKey), bool.TrueString, StringComparison.OrdinalIgnoreCase);
 
         // A recovery re-claims the row and counts a new attempt, so without this a job that takes its node down
         // on its last attempt would run again on every recovery, past its budget and never dead-lettered.
-        if (context.Recovering && await TryDeadLetterSpentAsync(jobId, context.JobDetail.Key.Name, claimedAt, cancellationToken))
+        if (reclaiming && await TryDeadLetterSpentAsync(jobId, context.JobDetail.Key.Name, claimedAt, cancellationToken))
         {
             return;
         }
 
-        var claimed = await ClaimAsync(jobId, claimedAt, context.Recovering, cancellationToken);
+        var claimed = await ClaimAsync(jobId, claimedAt, reclaiming, cancellationToken);
         if (claimed is null)
         {
             // Returning tells the scheduler this firing is done: the job already ran, is running elsewhere, or
@@ -101,8 +116,15 @@ internal sealed class BackgroundJobExecution(
                 CancellationToken.None);
         }
 
-        var recorded = await RecordOutcomeAsync(
+        var written = await RecordOutcomeAsync(
             claimed, claimedAt, decision.Row, policy, nextAttemptAt, result, thrown, runtimeReached);
+        var recorded = written is OutcomeWrite.Landed;
+
+        if (written is OutcomeWrite.Unwritable)
+        {
+            await RefireUnrecordedAsync(context, claimed, policy);
+            return;
+        }
 
         if (needsOwnTrigger)
         {
@@ -115,6 +137,49 @@ internal sealed class BackgroundJobExecution(
             // again.
             throw new JobExecutionException(
                 $"Background job {claimed.Id} attempt {claimed.AttemptCount} failed and will be retried.");
+        }
+    }
+
+    /// <summary>
+    /// Keeps a job whose outcome could not be written from being lost: its trigger would otherwise be used up
+    /// with the row left <c>Processing</c>. The job fires again shortly and re-claims the row, whose fenced writes
+    /// settle it; if the write had in fact landed, the re-claim finds nothing to take.
+    /// </summary>
+    private async Task RefireUnrecordedAsync(IJobExecutionContext context, ClaimedJob claimed, BackgroundJobTypePolicy policy)
+    {
+        if (shutdownSignal.IsRaised)
+        {
+            // The scheduler has already stopped; the firing it abandoned is recovered by the next node to check in.
+            return;
+        }
+
+        var fireAt = dateTimeProvider.UtcNow.Add(UnrecordedRefireDelay);
+        var again = QuartzRegistration.TriggerFor(claimed.Id, claimed.JobType, policy, fireAt, reclaim: true);
+        try
+        {
+            if (context.Trigger.Key.Equals(again.Key))
+            {
+                // Rescheduling the firing trigger itself keeps it from being deleted when this firing completes.
+                await context.Scheduler.RescheduleJob(context.Trigger.Key, again, CancellationToken.None);
+            }
+            else
+            {
+                await context.Scheduler.ScheduleJob(again, ScheduleJobOptions.Replacing, CancellationToken.None);
+            }
+
+            logger.LogWarning(
+                "Background job {JobId} attempt {Attempt} could not record its outcome and runs again at {FireAt:O}",
+                claimed.Id,
+                claimed.AttemptCount,
+                fireAt);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "Background job {JobId} attempt {Attempt} could not record its outcome or be scheduled again; it stays Processing until a node recovers it",
+                claimed.Id,
+                claimed.AttemptCount);
         }
     }
 
@@ -214,9 +279,10 @@ internal sealed class BackgroundJobExecution(
     /// <summary>
     /// Makes the one fenced write that ends the attempt, and records its event and duration only when that write
     /// landed: a lost write means another run owns the row, and an event recorded for it would count an attempt
-    /// twice. Returns whether the write landed.
+    /// twice. A write that throws is tried again a few times, because a database that blinked would otherwise lose
+    /// the outcome of work that is done.
     /// </summary>
-    private async Task<bool> RecordOutcomeAsync(
+    private async Task<OutcomeWrite> RecordOutcomeAsync(
         ClaimedJob claimed,
         DateTime claimedAt,
         AttemptRowWrite write,
@@ -235,54 +301,103 @@ internal sealed class BackgroundJobExecution(
             _ => (JobLifecycleEvent.DeadLettered, JobAttemptOutcome.DeadLettered),
         };
 
-        try
+        // Resolved once, before any try: resolving a thrown message logs the exception.
+        var errorMessage = write switch
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
+            AttemptRowWrite.Completed => null,
+            AttemptRowWrite.Failed => FailureMessage(result!),
+            _ => ThrownMessage(claimed, thrown!, runtimeReached),
+        };
 
-            // Not the scheduler's token: an attempt that has already run has to be able to say how it ended.
-            var landed = write switch
+        for (var attempt = 0; ; attempt++)
+        {
+            try
             {
-                AttemptRowWrite.Completed =>
-                    await repository.TryCompleteAsync(claimed.Id, claimed.AttemptCount, endedAt, CancellationToken.None),
-                AttemptRowWrite.Failed =>
-                    await repository.TryFailAsync(
-                        claimed.Id, claimed.AttemptCount, FailureMessage(result!), endedAt, CancellationToken.None),
-                _ =>
-                    await repository.RecordFailedAttemptAsync(
+                var landed = await WriteOutcomeAsync(claimed, write, policy, nextAttemptAt, errorMessage, endedAt);
+                if (!landed)
+                {
+                    logger.LogWarning(
+                        "Background job {JobId} ended attempt {Attempt} as {Outcome}, but the row had moved on and was left as it is",
                         claimed.Id,
                         claimed.AttemptCount,
-                        policy.MaxAttempts,
-                        nextAttemptAt,
-                        ThrownMessage(claimed, thrown!, runtimeReached),
-                        endedAt,
-                        CancellationToken.None),
-            };
+                        outcome);
+                    return OutcomeWrite.RowMovedOn;
+                }
 
-            if (!landed)
-            {
-                logger.LogWarning(
-                    "Background job {JobId} ended attempt {Attempt} as {Outcome}, but the row had moved on and was left as it is",
-                    claimed.Id,
-                    claimed.AttemptCount,
-                    outcome);
-                return false;
+                break;
             }
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(
-                exception,
-                "Recording {Outcome} for background job {JobId} attempt {Attempt} failed",
-                outcome,
-                claimed.Id,
-                claimed.AttemptCount);
-            return false;
+            catch (Exception exception)
+            {
+                if (attempt >= OutcomeWriteRetryDelays.Length || shutdownSignal.IsRaised)
+                {
+                    logger.LogError(
+                        exception,
+                        "Recording {Outcome} for background job {JobId} attempt {Attempt} failed",
+                        outcome,
+                        claimed.Id,
+                        claimed.AttemptCount);
+                    return OutcomeWrite.Unwritable;
+                }
+
+                logger.LogWarning(
+                    exception,
+                    "Recording {Outcome} for background job {JobId} attempt {Attempt} failed; trying again",
+                    outcome,
+                    claimed.Id,
+                    claimed.AttemptCount);
+
+                try
+                {
+                    await Task.Delay(OutcomeWriteRetryDelays[attempt], shutdownSignal.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return OutcomeWrite.Unwritable;
+                }
+            }
         }
 
         Record(lifecycleEvent, claimed.JobType);
         ObserveDuration(claimed.JobType, claimedAt, outcome);
-        return true;
+        return OutcomeWrite.Landed;
+    }
+
+    private async Task<bool> WriteOutcomeAsync(
+        ClaimedJob claimed,
+        AttemptRowWrite write,
+        BackgroundJobTypePolicy policy,
+        DateTime nextAttemptAt,
+        string? errorMessage,
+        DateTime endedAt)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
+
+        // Not the scheduler's token: an attempt that has already run has to be able to say how it ended.
+        return write switch
+        {
+            AttemptRowWrite.Completed =>
+                await repository.TryCompleteAsync(claimed.Id, claimed.AttemptCount, endedAt, CancellationToken.None),
+            AttemptRowWrite.Failed =>
+                await repository.TryFailAsync(claimed.Id, claimed.AttemptCount, errorMessage!, endedAt, CancellationToken.None),
+            _ =>
+                await repository.RecordFailedAttemptAsync(
+                    claimed.Id,
+                    claimed.AttemptCount,
+                    policy.MaxAttempts,
+                    nextAttemptAt,
+                    errorMessage!,
+                    endedAt,
+                    CancellationToken.None),
+        };
+    }
+
+    /// <summary>How the write that ends an attempt went.</summary>
+    private enum OutcomeWrite
+    {
+        Landed,
+        RowMovedOn,
+        Unwritable,
     }
 
     private string ThrownMessage(ClaimedJob claimed, Exception thrown, bool runtimeReached)
