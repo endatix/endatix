@@ -31,8 +31,8 @@ internal sealed class BackgroundJobExecution(
     public const string JobIdKey = "jobId";
 
     /// <summary>
-    /// The trigger data key that marks a firing scheduled to take the job over from an attempt whose outcome could
-    /// not be written, so it re-claims the row that attempt left <c>Processing</c>, as a recovery would.
+    /// The trigger data key that marks a firing scheduled to take the job over from a firing that left its row
+    /// unsettled, so it re-claims a row left <c>Processing</c>, as a recovery would.
     /// </summary>
     public const string ReclaimKey = "reclaim";
 
@@ -64,40 +64,41 @@ internal sealed class BackgroundJobExecution(
     {
         var decision = AttemptDecision.Decide(run.End, attempt.Job.AttemptCount, attempt.Policy.MaxAttempts);
         var ending = new AttemptEnding(decision.Row, run, NextAttemptAt(attempt));
-        var needsOwnTrigger = decision.Rethrow && context.Trigger.RetryPolicy is null;
-        if (needsOwnTrigger)
-        {
-            await ScheduleOwnRetryAsync(context, attempt, ending.NextAttemptAt);
-        }
-
-        var written = await outcomes.RecordAsync(attempt, ending);
-        if (written is OutcomeWrite.Unwritable)
+        var written = await RecordAsync(context, attempt, ending);
+        if (written is OutcomeWrite.Unwritable or OutcomeWrite.Unscheduled)
         {
             await refire.RefireAsync(context, attempt);
             return false;
         }
 
-        return decision.Rethrow && written is OutcomeWrite.Landed && !needsOwnTrigger;
+        return decision.Rethrow && written is OutcomeWrite.Landed && !NeedsOwnTrigger(context, ending);
+    }
+
+    /// <summary>
+    /// Writes the attempt's outcome, after scheduling the next attempt's trigger when the firing cannot retry. That
+    /// trigger is stored before the row says <c>Retrying</c>: should the write then not land, the trigger finds a row
+    /// it cannot claim and does nothing. When the trigger cannot be stored, nothing is written, because a
+    /// <c>Retrying</c> row with no trigger is never claimed again; the row stays <c>Processing</c> for a re-fire to
+    /// take over.
+    /// </summary>
+    private async Task<OutcomeWrite> RecordAsync(IJobExecutionContext context, ClaimedAttempt attempt, AttemptEnding ending)
+    {
+        if (NeedsOwnTrigger(context, ending)
+            && !await refire.TryScheduleRetryAsync(context, attempt, ending.NextAttemptAt))
+        {
+            outcomes.LogUnrecordedThrow(attempt, ending.Run);
+            return OutcomeWrite.Unscheduled;
+        }
+
+        return await outcomes.RecordAsync(attempt, ending);
     }
 
     /// <summary>
     /// A firing Quartz created to recover a dead node's job carries no retry policy, so a rethrow would end it for
-    /// good. The next attempt gets a trigger of its own instead, as enqueueing would have made it. It is scheduled
-    /// before the row says <c>Retrying</c>: should the row write then not land, the trigger finds a row it cannot
-    /// claim and does nothing, where the other order could leave a <c>Retrying</c> row with no trigger.
+    /// good. The next attempt gets a trigger of its own instead, as enqueueing would have made it.
     /// </summary>
-    private static async Task ScheduleOwnRetryAsync(
-        IJobExecutionContext context,
-        ClaimedAttempt attempt,
-        DateTime nextAttemptAt)
-    {
-        var job = attempt.Job;
-        await context.Scheduler.ScheduleJob(
-            QuartzRegistration.TriggerFor(
-                new JobTriggerSpec(job.Id, job.JobType, attempt.Policy, new DateTimeOffset(nextAttemptAt))),
-            ScheduleJobOptions.Replacing,
-            CancellationToken.None);
-    }
+    private static bool NeedsOwnTrigger(IJobExecutionContext context, AttemptEnding ending) =>
+        ending.Write is AttemptRowWrite.Retrying && context.Trigger.RetryPolicy is null;
 
     private DateTime NextAttemptAt(ClaimedAttempt attempt) =>
         BackgroundJobRetryPolicy.NextAttemptAt(

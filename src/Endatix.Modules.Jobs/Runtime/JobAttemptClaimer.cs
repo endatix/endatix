@@ -89,4 +89,6 @@ internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming)
 internal sealed record ClaimedAttempt(ClaimedJob Job, BackgroundJobTypePolicy Policy, DateTime ClaimedAt)
 {
     public AttemptRef Ref => new(Job.Id, Job.AttemptCount);
+
+    public ReclaimableJob Reclaimable => new(Job.Id, Job.JobType, Policy);
 }

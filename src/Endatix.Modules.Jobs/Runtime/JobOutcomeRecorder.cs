@@ -43,6 +43,12 @@ internal sealed class JobOutcomeRecorder(
         return written;
     }
 
+    /// <summary>
+    /// Logs the throw that ended an attempt for which nothing is recorded, as recording it would have; with no write
+    /// landed, no lifecycle event or duration is recorded either.
+    /// </summary>
+    public void LogUnrecordedThrow(ClaimedAttempt attempt, HandlerRun run) => _ = ThrownMessage(attempt.Job, run);
+
     // An end that writes nothing leaves the row as it is: a cancelled row keeps its status, and a superseded or
     // abandoned attempt's row belongs to whichever attempt runs next.
     private void RecordUnwritten(ClaimedAttempt attempt, AttemptEnd end)
@@ -263,4 +269,10 @@ internal enum OutcomeWrite
     Landed,
     RowMovedOn,
     Unwritable,
+
+    /// <summary>
+    /// The write was not made, because the trigger of the next attempt could not be stored; the row stays
+    /// <c>Processing</c>.
+    /// </summary>
+    Unscheduled,
 }
