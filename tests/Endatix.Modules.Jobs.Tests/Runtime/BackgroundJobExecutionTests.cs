@@ -340,7 +340,7 @@ public sealed class BackgroundJobExecutionTests
         // Assert — the row is never touched, and the same trigger fires again in thirty seconds.
         repository.ReceivedCalls().Should().BeEmpty();
         rescheduled.Should().NotBeNull();
-        rescheduled!.Key.Should().Be(context.Trigger.Key);
+        rescheduled.Key.Should().Be(context.Trigger.Key);
         rescheduled.StartTimeUtc.Should().BeCloseTo(now.AddSeconds(30), TimeSpan.FromSeconds(2));
         rescheduled.JobDataMap.GetString(BackgroundJobExecution.JobIdKey).Should().Be(JobId.ToString());
         rescheduled.ExecutionGroup.Should().Be("Orphan");
