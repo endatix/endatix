@@ -1,7 +1,9 @@
 using System.Diagnostics.Metrics;
+using Endatix.Core.Abstractions;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
@@ -30,8 +32,7 @@ public sealed class JobMisfireListenerTests : IDisposable
     public async Task TriggerMisfired_JobTypeTrigger_CountsItsJobType()
     {
         // Arrange
-        var listener = new JobMisfireListener(
-            _services.GetRequiredService<IMeterFactory>(), NullLogger<JobMisfireListener>.Instance);
+        var listener = CreateListener();
         var trigger = TriggerBuilder.Create().WithIdentity("42", "WebHookDelivery")
             .ForJob(QuartzRegistration.JobKeyFor("WebHookDelivery")).StartNow().Build();
 
@@ -46,8 +47,7 @@ public sealed class JobMisfireListenerTests : IDisposable
     public async Task TriggerMisfired_MaintenanceTrigger_IsNotCounted()
     {
         // Arrange — retention runs late after an outage, which is not a job backlog.
-        var listener = new JobMisfireListener(
-            _services.GetRequiredService<IMeterFactory>(), NullLogger<JobMisfireListener>.Instance);
+        var listener = CreateListener();
         var trigger = TriggerBuilder.Create().WithIdentity(JobRetentionJob.Group, QuartzRegistration.MaintenanceJobGroup)
             .ForJob(JobRetentionJob.Group, QuartzRegistration.MaintenanceJobGroup).StartNow().Build();
 
@@ -57,6 +57,13 @@ public sealed class JobMisfireListenerTests : IDisposable
         // Assert
         _misfiredJobTypes.Should().BeEmpty();
     }
+
+    private JobMisfireListener CreateListener() =>
+        new(
+            _services.GetRequiredService<IMeterFactory>(),
+            Substitute.For<IDateTimeProvider>(),
+            Options.Create(new BackgroundJobsOptions()),
+            NullLogger<JobMisfireListener>.Instance);
 
     public void Dispose()
     {
