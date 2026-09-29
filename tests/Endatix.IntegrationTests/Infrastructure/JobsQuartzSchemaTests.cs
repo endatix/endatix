@@ -33,10 +33,7 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         await node.StartAsync(cancellationToken);
 
         // Assert
-        var jobsMigrations = await database.QueryAsync(
-            """SELECT "MigrationId" FROM jobs."__EFMigrationsHistory" ORDER BY "MigrationId" """,
-            reader => reader.GetString(0),
-            cancellationToken);
+        var jobsMigrations = await AppliedJobsMigrationsAsync(database, cancellationToken);
         var heartbeatColumns = await database.CountAsync(
             """
             SELECT count(*) FROM information_schema.columns
@@ -55,11 +52,7 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
             WHERE table_name = '__EFMigrationsHistory' AND table_schema <> 'jobs'
             """,
             cancellationToken);
-        // One initial migration replaced every earlier one; later changes append to it.
-        jobsMigrations.Should().NotBeEmpty();
-        jobsMigrations[0].Should().EndWith("_InitialBackgroundJobs");
-        jobsMigrations.Should().ContainSingle(id => id.EndsWith("_InitialBackgroundJobs"));
-        jobsMigrations.Should().Equal(ShippedJobsMigrations());
+        ShouldBeTheShippedMigrations(jobsMigrations);
         heartbeatColumns.Should().Be(0);
         triggersTable.Should().Be(1);
         schedulerTablesOutsideJobs.Should().Be(0);
@@ -153,6 +146,23 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         pendingRows.Should().Be(3);
         triggersWhileOnlyScheduling.Should().Be(3);
         completed.Should().BeTrue("the executing node runs every job the schedule-only node enqueued");
+    }
+
+    private static Task<List<string>> AppliedJobsMigrationsAsync(
+        JobsTestDatabase database,
+        CancellationToken cancellationToken) =>
+        database.QueryAsync(
+            """SELECT "MigrationId" FROM jobs."__EFMigrationsHistory" ORDER BY "MigrationId" """,
+            reader => reader.GetString(0),
+            cancellationToken);
+
+    // One initial migration replaced every earlier one; later changes append to it.
+    private static void ShouldBeTheShippedMigrations(List<string> jobsMigrations)
+    {
+        jobsMigrations.Should().NotBeEmpty();
+        jobsMigrations[0].Should().EndWith("_InitialBackgroundJobs");
+        jobsMigrations.Should().ContainSingle(id => id.EndsWith("_InitialBackgroundJobs"));
+        jobsMigrations.Should().Equal(ShippedJobsMigrations());
     }
 
     private static IEnumerable<string> ShippedJobsMigrations() =>

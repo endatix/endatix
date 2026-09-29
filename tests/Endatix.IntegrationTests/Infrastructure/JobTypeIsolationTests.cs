@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Diagnostics.Metrics;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
@@ -95,12 +93,7 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
             database.ConnectionString,
             configureServices: services => AddNamedProbes(services, runsOnA, "TypeR"));
         await hostA.StartAsync(ct);
-        var allCompleted = await JobsTestWait.UntilAsync(
-            async () => await database.CountAsync(
-                $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "Status" = 3 AND "AttemptCount" = 1 AND "Id" IN ({jobIds.IdList()})""",
-                ct) == 5,
-            TimeSpan.FromSeconds(30),
-            ct);
+        var allCompleted = await AllCompletedOnFirstAttemptAsync(database, jobIds, ct);
 
         // Assert — B never fired them (not even to decline), and A ran each exactly once.
         claimedWhileOnlyB.Should().Be(0);
@@ -116,28 +109,7 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        var misfires = new ConcurrentQueue<string?>();
-        using var meterListener = new MeterListener
-        {
-            InstrumentPublished = (instrument, listener) =>
-            {
-                if (instrument.Meter.Name == "Endatix.Jobs" && instrument.Name == "endatix.jobs.misfired")
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
-            },
-        };
-        meterListener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
-        {
-            foreach (var tag in tags)
-            {
-                if (tag.Key == "job_type")
-                {
-                    misfires.Enqueue(tag.Value as string);
-                }
-            }
-        });
-        meterListener.Start();
+        using var misfires = JobMisfireCounter.Start();
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var logs = new CapturingLoggerProvider();
         await using var node = JobsTestNode.Create(
@@ -167,8 +139,20 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
 
         // Assert
         warned.Should().BeTrue();
-        misfires.Should().Contain(WebHook);
+        misfires.JobTypes.Should().Contain(WebHook);
     }
+
+    // Every job ran once, and none of them twice, whichever node ran it.
+    private static Task<bool> AllCompletedOnFirstAttemptAsync(
+        JobsTestDatabase database,
+        IReadOnlyList<long> jobIds,
+        CancellationToken ct) =>
+        JobsTestWait.UntilAsync(
+            async () => await database.CountAsync(
+                $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "Status" = 3 AND "AttemptCount" = 1 AND "Id" IN ({jobIds.IdList()})""",
+                ct) == jobIds.Count,
+            TimeSpan.FromSeconds(30),
+            ct);
 
     private static void AddNamedProbes(IServiceCollection services, NamedProbeRuns runs, params string[] jobTypes)
     {
