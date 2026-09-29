@@ -58,6 +58,30 @@ internal static class QuartzRegistration
             .RequestRecovery()
             .Build();
 
+    /// <summary>
+    /// The one-off trigger of job row <paramref name="jobId"/>. Its key is the job id, its only data is the job
+    /// id, and it carries the job type's execution group and retry policy. The payload and anything secret stay
+    /// on the row.
+    /// </summary>
+    public static ITrigger TriggerFor(long jobId, string jobType, BackgroundJobTypePolicy policy)
+    {
+        var id = jobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity(id, jobType)
+            .ForJob(JobKeyFor(jobType))
+            .WithExecutionGroup(jobType)
+            .UsingJobData(BackgroundJobExecution.JobIdKey, id)
+            .StartNow();
+
+        var retryPolicy = BackgroundJobRetryPolicy.ToQuartz(policy);
+        if (retryPolicy is not null)
+        {
+            trigger = trigger.WithRetryPolicy(retryPolicy);
+        }
+
+        return trigger.Build();
+    }
+
     public static IServiceCollection AddJobsScheduler(this IServiceCollection services, IConfiguration configuration)
     {
         var options = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
@@ -65,6 +89,8 @@ internal static class QuartzRegistration
         var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
         services.AddScoped<BackgroundJobExecution>();
+        services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
+        services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
 
         services.AddQuartz(SchedulerName, quartz =>
         {

@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Modules.Jobs.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Endatix.Modules.Jobs.Tests.Shared;
 
@@ -15,6 +16,17 @@ internal sealed class TestJobsDbContext(
     : JobsDbContextBase(options, tenantContext)
 {
     public int SaveChangesCallCount { get; private set; }
+
+    /// <summary>
+    /// In-memory options that accept the transaction enqueueing opens. The provider cannot roll back, which the
+    /// unit tests never rely on; the integration tests prove the rollback against PostgreSQL.
+    /// </summary>
+    public static DbContextOptions<TestJobsDbContext> InMemoryOptions(params IInterceptor[] interceptors) =>
+        new DbContextOptionsBuilder<TestJobsDbContext>()
+            .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
+            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .AddInterceptors(interceptors)
+            .Options;
 
     protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder)
     {

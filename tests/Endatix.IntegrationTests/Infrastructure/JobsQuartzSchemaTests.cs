@@ -1,9 +1,6 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
-using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
-using Endatix.Modules.Jobs.Runtime;
-using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 
 namespace Endatix.IntegrationTests;
@@ -101,10 +98,10 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         await using var scheduleOnly = JobsTestNode.Create(
             database.ConnectionString,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" },
-            services => AddProbe(services, invocations));
+            services => services.AddProbe(invocations));
         await using var worker = JobsTestNode.Create(
             database.ConnectionString,
-            configureServices: services => AddProbe(services, invocations));
+            configureServices: services => services.AddProbe(invocations));
         await scheduleOnly.StartAsync(cancellationToken);
 
         // Act
@@ -126,35 +123,12 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         fired.Should().BeTrue("the executing node fires every trigger the schedule-only node wrote");
     }
 
-    private static void AddProbe(IServiceCollection services, ProbeInvocations invocations)
-    {
-        services.AddSingleton(invocations);
-        services.AddBackgroundJobHandler<ProbeJobHandler, ProbePayload>();
-    }
-
     private static async Task<List<long>> EnqueueAsync(JobsTestNode node, int count, CancellationToken cancellationToken)
     {
-        var scheduler = await node.Services
-            .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
-            .GetScheduler(cancellationToken);
-        List<long> jobIds = [];
-        for (var i = 0; i < count; i++)
-        {
-            using var scope = node.Services.CreateScope();
-            var queue = scope.ServiceProvider.GetRequiredService<IBackgroundJobQueue>();
-            var jobId = await queue.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), cancellationToken);
-            await scheduler.ScheduleJob(
-                TriggerBuilder.Create()
-                    .WithIdentity(jobId.ToString(), ProbePayload.JobType)
-                    .ForJob(QuartzRegistration.JobKeyFor(ProbePayload.JobType))
-                    .UsingJobData(BackgroundJobExecution.JobIdKey, jobId.ToString())
-                    .StartNow()
-                    .Build(),
-                cancellationToken: cancellationToken);
-            jobIds.Add(jobId);
-        }
-
-        return jobIds;
+        var requests = Enumerable.Range(0, count)
+            .Select(_ => BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5))
+            .ToList();
+        return [.. await node.EnqueueManyAsync(requests, cancellationToken)];
     }
 
     private static Task<long> TriggerCountAsync(
