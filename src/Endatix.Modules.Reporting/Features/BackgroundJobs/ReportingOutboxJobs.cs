@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Events;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Outbox.Engine;
@@ -23,11 +24,11 @@ internal static class ReportingOutboxJobs
         AddInline<SyncFormDeletionOutboxHandler>(services);
         AddInline<SeedDefaultExportFormatsOutboxHandler>(services);
 
-        services.AddScoped<IBackgroundJobHandler, CompileFormSchemaJobHandler>();
-        services.AddScoped<IBackgroundJobHandler, FlattenSubmissionJobHandler>();
-        services.AddScoped<IBackgroundJobHandler, SeedDefaultExportFormatsJobHandler>();
-        services.AddScoped<IBackgroundJobHandler, SyncFormDeletionJobHandler>();
-        services.AddScoped<IBackgroundJobHandler, SyncSubmissionDeletionJobHandler>();
+        services.AddBackgroundJobHandler<CompileFormSchemaJobHandler, ReportingCompileFormSchemaPayload>();
+        services.AddBackgroundJobHandler<FlattenSubmissionJobHandler, ReportingFlattenSubmissionPayload>();
+        services.AddBackgroundJobHandler<SeedDefaultExportFormatsJobHandler, ReportingSeedDefaultExportFormatsPayload>();
+        services.AddBackgroundJobHandler<SyncFormDeletionJobHandler, ReportingSyncFormDeletionPayload>();
+        services.AddBackgroundJobHandler<SyncSubmissionDeletionJobHandler, ReportingSyncSubmissionDeletionPayload>();
 
         Subscribe(services, CompileFormSchemaOutboxHandler.HandledEventTypes,
             message => new ReportingCompileFormSchemaPayload(message.Id));
