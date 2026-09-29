@@ -18,7 +18,9 @@ public sealed class JobMisfireListenerTests : IDisposable
     {
         _listener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Name == "endatix.jobs.misfired")
+            // Only this test's meters: other tests create the same instrument at the same time.
+            if (instrument.Name == "endatix.jobs.misfired"
+                && ReferenceEquals(instrument.Meter.Scope, _services.GetRequiredService<IMeterFactory>()))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
