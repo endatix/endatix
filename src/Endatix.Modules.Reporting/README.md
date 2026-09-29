@@ -41,6 +41,10 @@ Database schema: `reporting`
 | `ExportFormats` | Tenant export rows (CSV, JSON, Excel/XLSX, codebook) |
 | `SurveyTypeExportMappings` | Allowed export formats per survey type (with optional default and tenant fallback) |
 
+`FlattenedSubmissions.SubmissionId` is the row key. Backfill and the completion outbox both update that row; they do not insert a second one.
+
+`POST …/reporting/submissions/backfill` pages one scope per call. Omitted `completionScope` is `completed`. `incomplete` flattens drafts. The outbox still skips drafts. A processed row is skipped when the submission's `ModifiedAt ?? CreatedAt` is not newer than the row's `SourceModifiedAt` (the stamp of the version that was flattened), unless `force` is true. The row's own `ModifiedAt` is not used: the worker sets it after reading the submission, so a save during flattening would look older and never be refreshed. Rows without `SourceModifiedAt` (processed before it existed) are reprocessed once. A flatten whose submission is gone marks an existing row deleted only when the submission was soft-deleted in the same tenant and form; otherwise it throws, so the outbox retries and backfill reports it as failed. Export drops soft-deleted submissions.
+
 ### FormSchema compile modes
 
 On every compile path (outbox `form.definition.updated`, manual `POST .../reporting/compile-schema`):
@@ -74,7 +78,7 @@ Run the commands from the `oss` folder.
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`, `SeedDefaultExportFormats`)
+- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`)
 
   Tenant export formats are rows, not code. Runtime catalog: `DefaultExportFormats.All`
   (`SeedDefaultsAsync` / `tenant.created`). **Existing tenants:** frozen SQL in

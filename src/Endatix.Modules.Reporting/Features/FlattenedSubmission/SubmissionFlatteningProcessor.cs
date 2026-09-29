@@ -26,8 +26,19 @@ internal sealed class SubmissionFlatteningProcessor(
         long tenantId,
         long formId,
         long submissionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool includeIncomplete = false)
     {
+        // Load the submission before touching the row: a submission that cannot be found must not
+        // leave a row created, or stuck in Processing.
+        SubmissionWithDefinitionAndFormSpec submissionSpec = new(formId, submissionId);
+        var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
+        if (submission is null)
+        {
+            await HandleMissingSubmissionAsync(tenantId, formId, submissionId, cancellationToken);
+            return;
+        }
+
         var row = await flattenedSubmissionRepository.GetOrCreateAsync(
             tenantId,
             submissionId,
@@ -37,21 +48,13 @@ internal sealed class SubmissionFlatteningProcessor(
         row.MarkProcessing();
         await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
 
-        SubmissionWithDefinitionAndFormSpec submissionSpec = new(formId, submissionId);
-        var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
-        if (submission is null)
-        {
-            throw new InvalidOperationException(
-                $"Submission {submissionId} for form {formId} was not found while flattening.");
-        }
-
         if (submission.TenantId != tenantId || submission.FormId != formId)
         {
             await FailAsync(row, SubmissionMismatchMessage, cancellationToken);
             return;
         }
 
-        if (!submission.IsComplete)
+        if (!submission.IsComplete && !includeIncomplete)
         {
             row.MarkSkipped();
             await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
@@ -76,13 +79,50 @@ internal sealed class SubmissionFlatteningProcessor(
             mergedSchema);
         var dataJson = FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);
 
-        row.MarkProcessed(dataJson);
+        row.MarkProcessed(dataJson, submission.ModifiedAt ?? submission.CreatedAt);
         await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
 
         logger.LogInformation(
             "Flattened submission {SubmissionId} for form {FormId}",
             submissionId,
             formId);
+    }
+
+    /// <summary>
+    /// A submission soft-deleted after it was queued or paged mirrors the deletion onto an existing row.
+    /// Anything else (wrong form, wrong tenant, never existed) throws, so the outbox retries and the
+    /// backfill counts it as failed instead of hiding it.
+    /// </summary>
+    private async Task HandleMissingSubmissionAsync(
+        long tenantId,
+        long formId,
+        long submissionId,
+        CancellationToken cancellationToken)
+    {
+        var state = await submissionRepository.SingleOrDefaultAsync(
+            new SubmissionDeletionStateSpec(submissionId),
+            cancellationToken);
+
+        var deletedHere = state is { IsDeleted: true } &&
+            state.TenantId == tenantId &&
+            state.FormId == formId;
+        if (!deletedHere)
+        {
+            throw new InvalidOperationException(
+                $"Submission {submissionId} for form {formId} was not found while flattening.");
+        }
+
+        var row = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
+            tenantId,
+            submissionId,
+            cancellationToken);
+        if (row is null)
+        {
+            return;
+        }
+
+        row.MarkDeleted();
+        await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
     }
 
     private async Task FailAsync(

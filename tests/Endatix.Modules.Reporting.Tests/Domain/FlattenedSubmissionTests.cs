@@ -20,12 +20,27 @@ public class FlattenedSubmissionTests
     {
         var row = new FlattenedSubmission(1, 10, 100);
 
-        row.MarkProcessed("{\"q1\":\"yes\"}");
+        var sourceModifiedAt = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        row.MarkProcessed("{\"q1\":\"yes\"}", sourceModifiedAt);
 
         row.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
         row.DataJson.Should().Be("{\"q1\":\"yes\"}");
+        row.SourceModifiedAt.Should().Be(sourceModifiedAt);
         row.Integration.ProcessedAt.Should().NotBeNull();
         row.Integration.LastError.Should().BeNull();
+    }
+
+    [Fact]
+    public void MarkSkipped_ClearsDataAndSourceStamp()
+    {
+        var row = new FlattenedSubmission(1, 10, 100);
+        row.MarkProcessed("{\"q1\":\"yes\"}", DateTime.UtcNow);
+
+        row.MarkSkipped();
+
+        row.DataJson.Should().BeNull();
+        row.SourceModifiedAt.Should().BeNull();
     }
 
     [Fact]
@@ -44,7 +59,7 @@ public class FlattenedSubmissionTests
     public void ToIntegrationSnapshot_DelegatesToIntegration()
     {
         var row = new FlattenedSubmission(1, 10, 100);
-        row.MarkProcessed("{\"q1\":\"yes\"}");
+        row.MarkProcessed("{\"q1\":\"yes\"}", DateTime.UtcNow);
 
         var snapshot = row.ToIntegrationSnapshot();
 
