@@ -53,7 +53,7 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// before the first flatten recorded one. Writes from an older revision than this are refused, so flattens of
     /// one submission that finish out of order cannot put older data over newer.
     /// </summary>
-    public long? SourceRevision { get; private set; }
+    public long? SourceRevision { get; }
 
     public DateTime CreatedAt { get; private set; }
 
