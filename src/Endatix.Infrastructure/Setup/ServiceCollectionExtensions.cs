@@ -168,6 +168,15 @@ public static class ServiceCollectionExtensions
     // that budget times the client's retries. The handler only runs where the Jobs module is registered.
     private static void AddWebHookJobDelivery(IServiceCollection services)
     {
+        AddWebHookJobHttpClient(services);
+        services.AddBackgroundJobHandler<WebHookDeliveryJobHandler, WebHookDeliveryPayload>();
+        foreach (var eventType in WebHookEvents.OperationsByEventType.Keys)
+        {
+            services.AddOutboxJobSubscription<WebHookDeliveryPayload, WebHookEndpointExpander>(eventType);
+        }
+    }
+
+    private static void AddWebHookJobHttpClient(IServiceCollection services) =>
         services.AddHttpClient(WebHookDeliveryJobHandler.HttpClientName, (serviceProvider, client) =>
                {
                    var webHookSettings = serviceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
@@ -186,13 +195,6 @@ public static class ServiceCollectionExtensions
                        QueueLimit = webHookSettings.ServerSettings.MaxQueueSize
                    });
                });
-
-        services.AddBackgroundJobHandler<WebHookDeliveryJobHandler, WebHookDeliveryPayload>();
-        foreach (var eventType in WebHookEvents.OperationsByEventType.Keys)
-        {
-            services.AddOutboxJobSubscription<WebHookDeliveryPayload, WebHookEndpointExpander>(eventType);
-        }
-    }
 
     /// <summary>
     /// Adds a value transformer to the export pipeline. Transformers run in registration order for JSON columns.
