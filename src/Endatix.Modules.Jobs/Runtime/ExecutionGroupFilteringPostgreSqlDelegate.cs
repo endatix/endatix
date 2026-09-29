@@ -22,6 +22,11 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// lowered by what this node is running. Every Endatix trigger carries an execution group named after its job
 /// type, and every Endatix job is named after its job type.
 /// </para>
+/// <para>
+/// The <c>jobs</c> migrations index the triggers on the same <c>COALESCE</c> expression
+/// (<c>idx_endatix_qrtz_t_acquire</c>), so the filter reads only the free groups' triggers; a change to the
+/// expression here has to change that index with it.
+/// </para>
 /// </remarks>
 internal sealed class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
 {

@@ -33,8 +33,10 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         await node.StartAsync(cancellationToken);
 
         // Assert
-        var jobsMigrations = await database.CountAsync(
-            """SELECT count(*) FROM jobs."__EFMigrationsHistory" """, cancellationToken);
+        var jobsMigrations = await database.QueryAsync(
+            """SELECT "MigrationId" FROM jobs."__EFMigrationsHistory" ORDER BY "MigrationId" """,
+            reader => reader.GetString(0),
+            cancellationToken);
         var heartbeatColumns = await database.CountAsync(
             """
             SELECT count(*) FROM information_schema.columns
@@ -53,11 +55,39 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
             WHERE table_name = '__EFMigrationsHistory' AND table_schema <> 'jobs'
             """,
             cancellationToken);
-        jobsMigrations.Should().Be(1);
+        // One initial migration replaced every earlier one; later changes append to it.
+        jobsMigrations.Should().NotBeEmpty();
+        jobsMigrations[0].Should().EndWith("_InitialBackgroundJobs");
+        jobsMigrations.Should().ContainSingle(id => id.EndsWith("_InitialBackgroundJobs"));
+        jobsMigrations.Should().Equal(ShippedJobsMigrations());
         heartbeatColumns.Should().Be(0);
         triggersTable.Should().Be(1);
         schedulerTablesOutsideJobs.Should().Be(0);
         appMigrationTables.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task JobsMigrations_FreshDatabase_IndexesTriggersByAcquisitionGroup()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
+        await using var node = JobsTestNode.Create(database.ConnectionString);
+
+        // Act
+        await node.StartAsync(cancellationToken);
+
+        // Assert — the index leads with the expression trigger acquisition filters on.
+        var definitions = await database.QueryAsync(
+            """
+            SELECT indexdef FROM pg_indexes
+            WHERE schemaname = 'jobs' AND tablename = 'qrtz_triggers' AND indexname = 'idx_endatix_qrtz_t_acquire'
+            """,
+            reader => reader.GetString(0),
+            cancellationToken);
+        definitions.Should().ContainSingle()
+            .Which.Should().Contain("sched_name, trigger_state, ((COALESCE(execution_group, (job_name)::character varying))::text), next_fire_time, priority DESC");
     }
 
     [Fact]
@@ -124,6 +154,14 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         triggersWhileOnlyScheduling.Should().Be(3);
         completed.Should().BeTrue("the executing node runs every job the schedule-only node enqueued");
     }
+
+    private static IEnumerable<string> ShippedJobsMigrations() =>
+        typeof(Endatix.Modules.Jobs.Persistence.JobsPostgreSqlDbContext).Assembly.GetTypes()
+            .Select(type => type.GetCustomAttributes(typeof(Microsoft.EntityFrameworkCore.Migrations.MigrationAttribute), false)
+                .OfType<Microsoft.EntityFrameworkCore.Migrations.MigrationAttribute>()
+                .SingleOrDefault()?.Id)
+            .OfType<string>()
+            .Order(StringComparer.Ordinal);
 
     private static async Task<List<long>> EnqueueAsync(JobsTestNode node, int count, CancellationToken cancellationToken)
     {
