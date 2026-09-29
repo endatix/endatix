@@ -190,16 +190,19 @@ store must run the same Quartz version, and nodes' clocks must agree within abou
 `BackgroundJobExecution` is the only Quartz job class. It only orchestrates each firing, through
 one class per step:
 
-1. **Claims** the row (`JobAttemptClaimer`) with a compare-and-swap from `Pending`/`Retrying` to
+1. **Admits the firing** (`JobFiringAdmission`). A firing that carries no job id, as one an
+   operator fires by hand from the dashboard does, is ignored. A job type this host has no handler
+   for is declined without touching the row, and its trigger is offered again 30 seconds later.
+2. **Claims** the row (`JobAttemptClaimer`) with a compare-and-swap from `Pending`/`Retrying` to
    `Processing` that increments `AttemptCount`. When Quartz reports a recovered firing, or the
    firing was scheduled to take over an attempt that left its row unsettled, it re-claims the row
    from `Processing`, fenced on the attempt it read, and dead-letters a job that has no attempt left
    instead. A claim that changes nothing ends the firing. A take-over firing with no retry policy is
    the job's only trigger, so a claim that throws there re-fires the job rather than ending it.
-2. **Runs the handler** (`JobHandlerRunner`) in its own DI scope, under an `Endatix.Jobs` activity
+3. **Runs the handler** (`JobHandlerRunner`) in its own DI scope, under an `Endatix.Jobs` activity
    whose parent is the trace captured at enqueue, with one token linked from the runtime ceiling
    (`MaxRuntimeMinutes`), the cancellation watcher and the host's shutdown.
-3. **Records the outcome** (`JobOutcomeRecorder`) with one write fenced on the claimed attempt,
+4. **Records the outcome** (`JobOutcomeRecorder`) with one write fenced on the claimed attempt,
    tried again a few times if it throws, and records the lifecycle metrics only when it lands.
    A firing whose outcome still cannot be written is re-fired shortly by `UnrecordedJobRefire`.
    A recovered firing has no retry policy, so a retry it needs gets a trigger of its own, stored
