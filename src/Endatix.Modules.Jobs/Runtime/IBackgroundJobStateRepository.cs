@@ -14,15 +14,10 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal interface IBackgroundJobStateRepository
 {
     /// <summary>
-    /// Claims the job for a new attempt. With <paramref name="recovering"/>, a row still <c>Processing</c> under
-    /// the attempt it was read at is claimed again; otherwise only a <c>Pending</c> or <c>Retrying</c> row is.
+    /// Claims the job for a new attempt. A recovering claim takes a row still <c>Processing</c> under the attempt it
+    /// was read at; otherwise only a <c>Pending</c> or <c>Retrying</c> row is claimed.
     /// </summary>
-    Task<ClaimedJob?> TryClaimAsync(
-        long jobId,
-        IReadOnlyCollection<string> registeredJobTypes,
-        DateTime utcNow,
-        bool recovering = false,
-        CancellationToken cancellationToken = default);
+    Task<ClaimedJob?> TryClaimAsync(JobClaim claim, CancellationToken cancellationToken = default);
 
     /// <summary>The job's current status, or <see langword="null"/> when the row is gone.</summary>
     Task<JobStatus?> ReadStatusAsync(long jobId, CancellationToken cancellationToken = default);
@@ -38,37 +33,22 @@ internal interface IBackgroundJobStateRepository
         DateTime nextAttemptAt,
         CancellationToken cancellationToken = default);
 
-    Task<bool> TryCompleteAsync(
-        long jobId,
-        int claimedAttempt,
-        DateTime utcNow,
-        CancellationToken cancellationToken = default);
+    Task<bool> TryCompleteAsync(AttemptRef attempt, DateTime utcNow, CancellationToken cancellationToken = default);
 
-    Task<bool> TryFailAsync(
-        long jobId,
-        int claimedAttempt,
-        string errorMessage,
-        DateTime utcNow,
-        CancellationToken cancellationToken = default);
+    Task<bool> TryFailAsync(AttemptRef attempt, AttemptFailure failure, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Dead-letters a job whose node stopped during its last attempt: the row is still <c>Processing</c> and has
-    /// no attempt left to recover into. Returns <see langword="false"/>, changing nothing, when the row is not in
-    /// that state.
+    /// Dead-letters a job whose node stopped during its last attempt: the row is still <c>Processing</c> at or past
+    /// <paramref name="lastAttempt"/>, the last attempt its budget allows, and has none left to recover into.
+    /// Returns <see langword="false"/>, changing nothing, when the row is not in that state.
     /// </summary>
     Task<bool> TryDeadLetterSpentAsync(
-        long jobId,
-        int maxAttempts,
-        string errorMessage,
-        DateTime utcNow,
+        AttemptRef lastAttempt,
+        AttemptFailure failure,
         CancellationToken cancellationToken = default);
 
     Task<bool> RecordFailedAttemptAsync(
-        long jobId,
-        int claimedAttempt,
-        int maxAttempts,
-        DateTime nextAttemptAt,
-        string errorMessage,
-        DateTime utcNow,
+        AttemptRef attempt,
+        RetryableFailure failure,
         CancellationToken cancellationToken = default);
 }

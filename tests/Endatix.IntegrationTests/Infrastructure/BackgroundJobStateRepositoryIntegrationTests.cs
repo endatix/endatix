@@ -11,13 +11,14 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// The job state repository against PostgreSQL: its writes are conditional <c>ExecuteUpdate</c>
-/// statements, which only a real database runs.
+/// statements, which only a real database runs. This part covers claiming a job; the writes that end an attempt
+/// are in <c>BackgroundJobStateRepositoryIntegrationTests.OutcomeWrites.cs</c>.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "PostgreSql")]
-public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SkipReason =
         "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
@@ -56,7 +57,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
+        var claimed = await repository.TryClaimAsync(ClaimOf(jobId), cancellationToken);
 
         // Assert
         claimed.Should().NotBeNull();
@@ -80,10 +81,10 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         await ClearJobsAsync(context, cancellationToken);
         var jobId = await SeedAsync(context, cancellationToken, nextAttemptAt: Now);
         var repository = new BackgroundJobStateRepository(context);
-        (await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken)).Should().NotBeNull();
+        (await repository.TryClaimAsync(ClaimOf(jobId), cancellationToken)).Should().NotBeNull();
 
         // Act
-        var reclaimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
+        var reclaimed = await repository.TryClaimAsync(ClaimOf(jobId), cancellationToken);
 
         // Assert
         reclaimed.Should().BeNull();
@@ -109,7 +110,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
+        var claimed = await repository.TryClaimAsync(ClaimOf(jobId), cancellationToken);
 
         // Assert
         claimed.Should().NotBeNull();
@@ -129,7 +130,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimedCanceled = await repository.TryClaimAsync(canceledId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
+        var claimedCanceled = await repository.TryClaimAsync(ClaimOf(canceledId), cancellationToken);
 
         // Assert
         claimedCanceled.Should().BeNull();
@@ -152,9 +153,9 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var notRecovering = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
-        var recovered = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, recovering: true, cancellationToken);
-        var deadRunCompleted = await repository.TryCompleteAsync(jobId, 1, Now, cancellationToken);
+        var notRecovering = await repository.TryClaimAsync(ClaimOf(jobId), cancellationToken);
+        var recovered = await repository.TryClaimAsync(ClaimOf(jobId) with { Recovering = true }, cancellationToken);
+        var deadRunCompleted = await repository.TryCompleteAsync(new AttemptRef(jobId, 1), Now, cancellationToken);
 
         // Assert — the presumed-dead run's attempt is fenced off, so it can no longer record an outcome.
         notRecovering.Should().BeNull();
@@ -181,7 +182,8 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var deadLettered = await repository.TryDeadLetterSpentAsync(jobId, 3, RetryMessage, Now, cancellationToken);
+        var deadLettered = await repository.TryDeadLetterSpentAsync(
+            new AttemptRef(jobId, 3), FailureAt(RetryMessage), cancellationToken);
 
         // Assert
         deadLettered.Should().BeTrue();
@@ -206,7 +208,8 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var deadLettered = await repository.TryDeadLetterSpentAsync(jobId, 3, RetryMessage, Now, cancellationToken);
+        var deadLettered = await repository.TryDeadLetterSpentAsync(
+            new AttemptRef(jobId, 3), FailureAt(RetryMessage), cancellationToken);
 
         // Assert
         deadLettered.Should().BeFalse();
@@ -229,7 +232,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
+        var claimed = await repository.TryClaimAsync(ClaimOf(jobId), cancellationToken);
 
         // Assert — left untouched, so an instance that handles the type still has the full attempt budget.
         claimed.Should().BeNull();
@@ -260,7 +263,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken);
+        var claimed = await repository.TryClaimAsync(ClaimOf(jobId), cancellationToken);
 
         // Assert
         claimed.Should().NotBeNull();
@@ -289,8 +292,8 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
 
         // Act
         var claims = await Task.WhenAll(
-            first.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken),
-            second.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken));
+            first.TryClaimAsync(ClaimOf(jobId), cancellationToken),
+            second.TryClaimAsync(ClaimOf(jobId), cancellationToken));
 
         // Assert
         claims.Should().ContainSingle(claimed => claimed != null)
@@ -326,7 +329,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
 
         // Act
         var claim = Task.Run(
-            () => repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken: cancellationToken),
+            () => repository.TryClaimAsync(ClaimOf(jobId), cancellationToken),
             cancellationToken);
         await WaitForUpdateBlockedByAsync(context, lockHolderPid, claim, cancellationToken);
 
@@ -353,195 +356,7 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         job.ModifiedAt.Should().Be(movedOn.ModifiedAt);
     }
 
-    [Fact]
-    public async Task TryCompleteAsync_CanceledRow_LeavesItCanceled()
-    {
-        // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
-        var cancellationToken = TestContext.Current.CancellationToken;
-        using var scope = fixture.Factory.Services.CreateScope();
-        var context = JobsContext(scope);
-        await ClearJobsAsync(context, cancellationToken);
-        var runningId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 2,
-            errorMessage: RetryMessage);
-        var canceledId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Canceled,
-            attemptCount: 2,
-            completedAt: Earlier);
-        var repository = new BackgroundJobStateRepository(context);
-
-        // Act
-        var completed = await repository.TryCompleteAsync(runningId, 2, Now, cancellationToken);
-        var completedCanceled = await repository.TryCompleteAsync(canceledId, 2, Now, cancellationToken);
-
-        // Assert
-        completed.Should().BeTrue();
-        var running = await ReadAsync(context, runningId, cancellationToken);
-        running.Status.Should().Be(JobStatus.Completed);
-        running.ProgressPercentage.Should().Be(100);
-        running.CompletedAt.Should().Be(Now);
-        running.ErrorMessage.Should().BeNull();
-
-        completedCanceled.Should().BeFalse();
-        var canceled = await ReadAsync(context, canceledId, cancellationToken);
-        canceled.Status.Should().Be(JobStatus.Canceled);
-        canceled.CompletedAt.Should().Be(Earlier);
-    }
-
-    [Fact]
-    public async Task TryFailAsync_LongMessage_Truncates()
-    {
-        // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
-        var cancellationToken = TestContext.Current.CancellationToken;
-        using var scope = fixture.Factory.Services.CreateScope();
-        var context = JobsContext(scope);
-        await ClearJobsAsync(context, cancellationToken);
-        var shortMessageId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
-        var longMessageId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
-        var repository = new BackgroundJobStateRepository(context);
-
-        // Act
-        var failed = await repository.TryFailAsync(shortMessageId, 1, FailureMessage, Now, cancellationToken);
-        var failedWithLongMessage = await repository.TryFailAsync(
-            longMessageId,
-            1,
-            new string('a', 3000),
-            Now,
-            cancellationToken);
-
-        // Assert
-        failed.Should().BeTrue();
-        var job = await ReadAsync(context, shortMessageId, cancellationToken);
-        job.Status.Should().Be(JobStatus.Failed);
-        job.ErrorMessage.Should().Be(FailureMessage);
-        job.CompletedAt.Should().Be(Now);
-        job.AttemptCount.Should().Be(1);
-
-        failedWithLongMessage.Should().BeTrue();
-        var truncated = await ReadAsync(context, longMessageId, cancellationToken);
-        truncated.ErrorMessage.Should().HaveLength(2048);
-    }
-
-    [Fact]
-    public async Task RecordFailedAttemptAsync_AttemptsRemainingOrExhausted_RetriesOrDeadLetters()
-    {
-        // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
-        var cancellationToken = TestContext.Current.CancellationToken;
-        using var scope = fixture.Factory.Services.CreateScope();
-        var context = JobsContext(scope);
-        await ClearJobsAsync(context, cancellationToken);
-        var nextAttemptAt = Now.AddSeconds(30);
-        var retryingId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
-        var exhaustedId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 3);
-        var repository = new BackgroundJobStateRepository(context);
-
-        // Act
-        var retried = await repository.RecordFailedAttemptAsync(
-            retryingId, 1, 3, nextAttemptAt, RetryMessage, Now, cancellationToken);
-        var deadLettered = await repository.RecordFailedAttemptAsync(
-            exhaustedId, 3, 3, nextAttemptAt, RetryMessage, Now, cancellationToken);
-
-        // Assert
-        retried.Should().BeTrue();
-        var retrying = await ReadAsync(context, retryingId, cancellationToken);
-        retrying.Status.Should().Be(JobStatus.Retrying);
-        retrying.NextAttemptAt.Should().Be(nextAttemptAt);
-        retrying.CompletedAt.Should().BeNull();
-
-        // The claim consumed the attempt; recording its failure consumes none.
-        retrying.AttemptCount.Should().Be(1);
-
-        deadLettered.Should().BeTrue();
-        var exhausted = await ReadAsync(context, exhaustedId, cancellationToken);
-        exhausted.Status.Should().Be(JobStatus.DeadLettered);
-        exhausted.CompletedAt.Should().Be(Now);
-        exhausted.AttemptCount.Should().Be(3);
-    }
-
-    [Fact]
-    public async Task RecordFailedAttemptAsync_LongMessage_Truncates()
-    {
-        // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
-        var cancellationToken = TestContext.Current.CancellationToken;
-        using var scope = fixture.Factory.Services.CreateScope();
-        var context = JobsContext(scope);
-        await ClearJobsAsync(context, cancellationToken);
-        var jobId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
-        var repository = new BackgroundJobStateRepository(context);
-
-        // Act
-        var retried = await repository.RecordFailedAttemptAsync(
-            jobId, 1, 3, Now.AddSeconds(30), new string('a', 3000), Now, cancellationToken);
-
-        // Assert
-        retried.Should().BeTrue();
-        var job = await ReadAsync(context, jobId, cancellationToken);
-        job.Status.Should().Be(JobStatus.Retrying);
-        job.ErrorMessage.Should().HaveLength(2048);
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public async Task FailureWriters_NullOrWhiteSpaceMessage_ThrowWithoutWriting(string? errorMessage)
-    {
-        // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
-        var cancellationToken = TestContext.Current.CancellationToken;
-        using var scope = fixture.Factory.Services.CreateScope();
-        var context = JobsContext(scope);
-        await ClearJobsAsync(context, cancellationToken);
-        var jobId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Processing,
-            attemptCount: 1);
-        var before = await ReadAsync(context, jobId, cancellationToken);
-        var repository = new BackgroundJobStateRepository(context);
-
-        // Act
-        var fail = () => repository.TryFailAsync(jobId, 1, errorMessage!, Now, cancellationToken);
-        var recordFailedAttempt = () => repository.RecordFailedAttemptAsync(
-            jobId, 1, 3, Now.AddSeconds(30), errorMessage!, Now, cancellationToken);
-
-        // Assert — the entity's own failure transitions refuse such a message too.
-        await fail.Should().ThrowAsync<ArgumentException>();
-        await recordFailedAttempt.Should().ThrowAsync<ArgumentException>();
-        var job = await ReadAsync(context, jobId, cancellationToken);
-        job.Status.Should().Be(before.Status);
-        job.ErrorMessage.Should().Be(before.ErrorMessage);
-        job.CompletedAt.Should().Be(before.CompletedAt);
-    }
+    private static JobClaim ClaimOf(long jobId) => new(jobId, RegisteredJobTypes, Now);
 
     private static JobsPostgreSqlDbContext JobsContext(IServiceScope scope) =>
         scope.ServiceProvider.GetRequiredService<JobsPostgreSqlDbContext>();

@@ -205,10 +205,8 @@ internal sealed class BackgroundJobExecution(
         {
             var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
             deadLettered = await repository.TryDeadLetterSpentAsync(
-                jobId,
-                options.Value.ResolvePolicy(jobType).MaxAttempts,
-                BackgroundJobMessages.StoppedOnLastAttempt,
-                utcNow,
+                new AttemptRef(jobId, options.Value.ResolvePolicy(jobType).MaxAttempts),
+                new AttemptFailure(BackgroundJobMessages.StoppedOnLastAttempt, utcNow),
                 cancellationToken);
         }
 
@@ -232,7 +230,7 @@ internal sealed class BackgroundJobExecution(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
-        return await repository.TryClaimAsync(jobId, registry.JobTypes, claimedAt, recovering, cancellationToken);
+        return await repository.TryClaimAsync(new JobClaim(jobId, registry.JobTypes, claimedAt, recovering), cancellationToken);
     }
 
     private async Task<HandlerRun> RunHandlerAsync(
@@ -439,20 +437,17 @@ internal sealed class BackgroundJobExecution(
         var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
 
         // Not the scheduler's token: an attempt that has already run has to be able to say how it ended.
+        var attempt = new AttemptRef(claimed.Id, claimed.AttemptCount);
         return write switch
         {
             AttemptRowWrite.Completed =>
-                await repository.TryCompleteAsync(claimed.Id, claimed.AttemptCount, endedAt, CancellationToken.None),
+                await repository.TryCompleteAsync(attempt, endedAt, CancellationToken.None),
             AttemptRowWrite.Failed =>
-                await repository.TryFailAsync(claimed.Id, claimed.AttemptCount, errorMessage!, endedAt, CancellationToken.None),
+                await repository.TryFailAsync(attempt, new AttemptFailure(errorMessage!, endedAt), CancellationToken.None),
             _ =>
                 await repository.RecordFailedAttemptAsync(
-                    claimed.Id,
-                    claimed.AttemptCount,
-                    policy.MaxAttempts,
-                    nextAttemptAt,
-                    errorMessage!,
-                    endedAt,
+                    attempt,
+                    new RetryableFailure(new AttemptFailure(errorMessage!, endedAt), policy.MaxAttempts, nextAttemptAt),
                     CancellationToken.None),
         };
     }

@@ -28,14 +28,13 @@ internal sealed class FailingOutcomeWrites(IBackgroundJobStateRepository inner, 
             provider.GetRequiredService<OutcomeWriteFailures>()));
     }
 
-    public Task<bool> TryCompleteAsync(long jobId, int claimedAttempt, DateTime utcNow, CancellationToken cancellationToken = default) =>
+    public Task<bool> TryCompleteAsync(AttemptRef attempt, DateTime utcNow, CancellationToken cancellationToken = default) =>
         failures.TryConsume()
             ? throw new TimeoutException("The database did not answer.")
-            : inner.TryCompleteAsync(jobId, claimedAttempt, utcNow, cancellationToken);
+            : inner.TryCompleteAsync(attempt, utcNow, cancellationToken);
 
-    public Task<ClaimedJob?> TryClaimAsync(
-        long jobId, IReadOnlyCollection<string> registeredJobTypes, DateTime utcNow, bool recovering = false, CancellationToken cancellationToken = default) =>
-        inner.TryClaimAsync(jobId, registeredJobTypes, utcNow, recovering, cancellationToken);
+    public Task<ClaimedJob?> TryClaimAsync(JobClaim claim, CancellationToken cancellationToken = default) =>
+        inner.TryClaimAsync(claim, cancellationToken);
 
     public Task<JobStatus?> ReadStatusAsync(long jobId, CancellationToken cancellationToken = default) =>
         inner.ReadStatusAsync(jobId, cancellationToken);
@@ -46,21 +45,14 @@ internal sealed class FailingOutcomeWrites(IBackgroundJobStateRepository inner, 
     public Task<bool> TryMirrorNextAttemptAsync(long jobId, DateTime nextAttemptAt, CancellationToken cancellationToken = default) =>
         inner.TryMirrorNextAttemptAsync(jobId, nextAttemptAt, cancellationToken);
 
-    public Task<bool> TryFailAsync(
-        long jobId, int claimedAttempt, string errorMessage, DateTime utcNow, CancellationToken cancellationToken = default) =>
-        inner.TryFailAsync(jobId, claimedAttempt, errorMessage, utcNow, cancellationToken);
+    public Task<bool> TryFailAsync(AttemptRef attempt, AttemptFailure failure, CancellationToken cancellationToken = default) =>
+        inner.TryFailAsync(attempt, failure, cancellationToken);
 
     public Task<bool> TryDeadLetterSpentAsync(
-        long jobId, int maxAttempts, string errorMessage, DateTime utcNow, CancellationToken cancellationToken = default) =>
-        inner.TryDeadLetterSpentAsync(jobId, maxAttempts, errorMessage, utcNow, cancellationToken);
+        AttemptRef lastAttempt, AttemptFailure failure, CancellationToken cancellationToken = default) =>
+        inner.TryDeadLetterSpentAsync(lastAttempt, failure, cancellationToken);
 
     public Task<bool> RecordFailedAttemptAsync(
-        long jobId,
-        int claimedAttempt,
-        int maxAttempts,
-        DateTime nextAttemptAt,
-        string errorMessage,
-        DateTime utcNow,
-        CancellationToken cancellationToken = default) =>
-        inner.RecordFailedAttemptAsync(jobId, claimedAttempt, maxAttempts, nextAttemptAt, errorMessage, utcNow, cancellationToken);
+        AttemptRef attempt, RetryableFailure failure, CancellationToken cancellationToken = default) =>
+        inner.RecordFailedAttemptAsync(attempt, failure, cancellationToken);
 }
