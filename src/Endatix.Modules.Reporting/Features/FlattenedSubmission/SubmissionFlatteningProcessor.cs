@@ -26,7 +26,8 @@ internal sealed class SubmissionFlatteningProcessor(
         long tenantId,
         long formId,
         long submissionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool includeIncomplete = false)
     {
         var row = await flattenedSubmissionRepository.GetOrCreateAsync(
             tenantId,
@@ -39,10 +40,11 @@ internal sealed class SubmissionFlatteningProcessor(
 
         SubmissionWithDefinitionAndFormSpec submissionSpec = new(formId, submissionId);
         var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
-        if (submission is null)
+        if (submission is null || submission.IsDeleted)
         {
-            throw new InvalidOperationException(
-                $"Submission {submissionId} for form {formId} was not found while flattening.");
+            row.MarkDeleted();
+            await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
+            return;
         }
 
         if (submission.TenantId != tenantId || submission.FormId != formId)
@@ -51,7 +53,7 @@ internal sealed class SubmissionFlatteningProcessor(
             return;
         }
 
-        if (!submission.IsComplete)
+        if (!submission.IsComplete && !includeIncomplete)
         {
             row.MarkSkipped();
             await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);

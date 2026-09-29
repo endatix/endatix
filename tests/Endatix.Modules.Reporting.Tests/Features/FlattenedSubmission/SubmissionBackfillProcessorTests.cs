@@ -24,7 +24,7 @@ public sealed class SubmissionBackfillProcessorTests
         IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
             .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
-            .Returns([submissionId]);
+            .Returns([Candidate(submissionId)]);
 
         IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
         flattenedSubmissionRepository
@@ -61,7 +61,7 @@ public sealed class SubmissionBackfillProcessorTests
         IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
             .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
-            .Returns([submissionId]);
+            .Returns([Candidate(submissionId)]);
 
         IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
         flattenedSubmissionRepository
@@ -92,7 +92,7 @@ public sealed class SubmissionBackfillProcessorTests
         IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
             .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
-            .Returns([10L, 11L]);
+            .Returns([Candidate(10), Candidate(11)]);
 
         IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
         flattenedSubmissionRepository
@@ -133,7 +133,7 @@ public sealed class SubmissionBackfillProcessorTests
         IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
             .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
-            .Returns([10L]);
+            .Returns([Candidate(10)]);
 
         IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
         flattenedSubmissionRepository
@@ -169,7 +169,7 @@ public sealed class SubmissionBackfillProcessorTests
         IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
             .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
-            .Returns([1L, 2L, 3L]);
+            .Returns([Candidate(1), Candidate(2), Candidate(3)]);
 
         IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
         ISubmissionFlatteningProcessor flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
@@ -188,6 +188,75 @@ public sealed class SubmissionBackfillProcessorTests
         result.HasMore.Should().BeTrue();
         result.NextAfterSubmissionId.Should().Be(2);
     }
+
+    [Fact]
+    public async Task BackfillFormAsync_WhenSubmissionIsNewerThanFlatten_Reprocesses()
+    {
+        const long submissionId = 10;
+        FlattenedSubmissionRow existing = new(submissionId, TenantId, FormId);
+        existing.MarkProcessed("""{"q1":"draft"}""");
+
+        IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
+        submissionRepository
+            .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
+            .Returns([Candidate(submissionId, modifiedAt: DateTime.UtcNow.AddMinutes(5))]);
+
+        IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        flattenedSubmissionRepository
+            .GetBySubmissionIdAsync(TenantId, submissionId, Arg.Any<CancellationToken>())
+            .Returns(existing);
+
+        ISubmissionFlatteningProcessor flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        SubmissionBackfillProcessor processor = CreateProcessor(
+            submissionRepository,
+            flattenedSubmissionRepository,
+            flatteningProcessor);
+
+        SubmissionBackfillResult result = await processor.BackfillFormAsync(
+            TenantId,
+            FormId,
+            new SubmissionBackfillOptions(),
+            TestContext.Current.CancellationToken);
+
+        result.Processed.Should().Be(1);
+        result.Skipped.Should().Be(0);
+        await flatteningProcessor.Received(1)
+            .ProcessAsync(TenantId, FormId, submissionId, Arg.Any<CancellationToken>(), false);
+    }
+
+    [Fact]
+    public async Task BackfillFormAsync_WithIncompleteScope_PassesIncludeIncomplete()
+    {
+        const long submissionId = 10;
+
+        IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
+        submissionRepository
+            .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
+            .Returns([Candidate(submissionId)]);
+
+        IFlattenedSubmissionRepository flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        flattenedSubmissionRepository
+            .GetBySubmissionIdAsync(TenantId, submissionId, Arg.Any<CancellationToken>())
+            .Returns((FlattenedSubmissionRow?)null);
+
+        ISubmissionFlatteningProcessor flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        SubmissionBackfillProcessor processor = CreateProcessor(
+            submissionRepository,
+            flattenedSubmissionRepository,
+            flatteningProcessor);
+
+        await processor.BackfillFormAsync(
+            TenantId,
+            FormId,
+            new SubmissionBackfillOptions(Completion: SubmissionBackfillCompletion.Incomplete),
+            TestContext.Current.CancellationToken);
+
+        await flatteningProcessor.Received(1)
+            .ProcessAsync(TenantId, FormId, submissionId, Arg.Any<CancellationToken>(), true);
+    }
+
+    private static SubmissionBackfillCandidate Candidate(long submissionId, DateTime? modifiedAt = null) =>
+        new(submissionId, modifiedAt, CreatedAt: DateTime.UtcNow.AddDays(-1));
 
     private static SubmissionBackfillProcessor CreateProcessor(
         IRepository<Submission> submissionRepository,

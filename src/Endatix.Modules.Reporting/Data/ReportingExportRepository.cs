@@ -153,6 +153,8 @@ internal sealed class ReportingExportRepository(
         IQueryable<Endatix.Core.Entities.Submission> query,
         ExportQueryOptions options)
     {
+        query = query.Where(submission => !submission.IsDeleted);
+
         if (!options.IncludeTestSubmissions)
         {
             query = query.Where(submission => !submission.IsTestSubmission);

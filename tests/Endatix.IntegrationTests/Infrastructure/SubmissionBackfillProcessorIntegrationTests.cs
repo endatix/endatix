@@ -57,7 +57,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
             .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), cancellationToken)
-            .Returns([SubmissionId]);
+            .Returns([new SubmissionBackfillCandidate(SubmissionId, null, DateTime.UtcNow.AddDays(-1))]);
 
         ISubmissionFlatteningProcessor flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
         SubmissionBackfillProcessor processor = new(
@@ -214,7 +214,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
             .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
-            .Returns([submission.Id]);
+            .Returns([new SubmissionBackfillCandidate(submission.Id, null, DateTime.UtcNow.AddDays(-1))]);
         submissionRepository
             .SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);

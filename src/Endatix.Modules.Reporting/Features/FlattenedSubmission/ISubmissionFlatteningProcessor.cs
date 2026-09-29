@@ -12,6 +12,12 @@ public interface ISubmissionFlatteningProcessor
     /// <param name="formId">The ID of the form.</param>
     /// <param name="submissionId">The ID of the submission.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="includeIncomplete">When true, flatten a draft instead of marking it skipped. The outbox path leaves this false.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task ProcessAsync(long tenantId, long formId, long submissionId, CancellationToken cancellationToken);
+    Task ProcessAsync(
+        long tenantId,
+        long formId,
+        long submissionId,
+        CancellationToken cancellationToken,
+        bool includeIncomplete = false);
 }

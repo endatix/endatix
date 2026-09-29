@@ -8,7 +8,7 @@ using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmiss
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 
 /// <summary>
-/// Backfills flattened submission rows for completed historical submissions.
+/// Backfills flattened submission rows for historical submissions in the requested completion scope.
 /// </summary>
 internal sealed class SubmissionBackfillProcessor(
     IRepository<Submission> submissionRepository,
@@ -31,23 +31,25 @@ internal sealed class SubmissionBackfillProcessor(
         CompletedSubmissionIdsForBackfillSpec spec = new(
             formId,
             options.AfterSubmissionId,
-            fetchSize);
+            fetchSize,
+            options.Completion);
 
-        var submissionIds = await submissionRepository.ListAsync(spec, cancellationToken);
-        var hasMore = submissionIds.Count > batchSize;
+        var candidates = await submissionRepository.ListAsync(spec, cancellationToken);
+        var hasMore = candidates.Count > batchSize;
         if (hasMore)
         {
-            submissionIds = submissionIds.Take(batchSize).ToList();
+            candidates = candidates.Take(batchSize).ToList();
         }
 
+        var includeIncomplete = options.Completion == SubmissionBackfillCompletion.Incomplete;
         var processed = 0;
         var skipped = 0;
         var failed = 0;
         List<long> failedSubmissionIds = [];
 
-        foreach (var submissionId in submissionIds)
+        foreach (var candidate in candidates)
         {
-            if (await ShouldSkipAsync(tenantId, submissionId, options.Force, cancellationToken))
+            if (await ShouldSkipAsync(tenantId, candidate, options.Force, cancellationToken))
             {
                 skipped++;
                 continue;
@@ -55,7 +57,12 @@ internal sealed class SubmissionBackfillProcessor(
 
             try
             {
-                await flatteningProcessor.ProcessAsync(tenantId, formId, submissionId, cancellationToken);
+                await flatteningProcessor.ProcessAsync(
+                    tenantId,
+                    formId,
+                    candidate.SubmissionId,
+                    cancellationToken,
+                    includeIncomplete);
                 processed++;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -65,22 +72,22 @@ internal sealed class SubmissionBackfillProcessor(
             catch (Exception ex)
             {
                 failed++;
-                failedSubmissionIds.Add(submissionId);
+                failedSubmissionIds.Add(candidate.SubmissionId);
                 logger.LogWarning(
                     ex,
                     "Backfill failed for submission {SubmissionId} on form {FormId}",
-                    submissionId,
+                    candidate.SubmissionId,
                     formId);
             }
         }
 
-        var nextAfterSubmissionId = submissionIds.Count == 0
+        var nextAfterSubmissionId = candidates.Count == 0
             ? options.AfterSubmissionId
-            : submissionIds[^1];
+            : candidates[^1].SubmissionId;
 
         return new SubmissionBackfillResult(
             FormId: formId,
-            Scanned: submissionIds.Count,
+            Scanned: candidates.Count,
             Processed: processed,
             Skipped: skipped,
             Failed: failed,
@@ -91,7 +98,7 @@ internal sealed class SubmissionBackfillProcessor(
 
     private async Task<bool> ShouldSkipAsync(
         long tenantId,
-        long submissionId,
+        SubmissionBackfillCandidate candidate,
         bool force,
         CancellationToken cancellationToken)
     {
@@ -102,12 +109,20 @@ internal sealed class SubmissionBackfillProcessor(
 
         var existing = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
             tenantId,
-            submissionId,
+            candidate.SubmissionId,
             cancellationToken);
 
-        return existing is not null &&
-               existing.Integration.Code == SubmissionIntegrationStatusCodes.Processed &&
-               !string.IsNullOrWhiteSpace(existing.DataJson);
+        if (existing is null ||
+            existing.IsDeleted ||
+            existing.Integration.Code != SubmissionIntegrationStatusCodes.Processed ||
+            string.IsNullOrWhiteSpace(existing.DataJson) ||
+            existing.ModifiedAt is null)
+        {
+            return false;
+        }
+
+        var sourceAt = candidate.ModifiedAt ?? candidate.CreatedAt;
+        return sourceAt <= existing.ModifiedAt.Value;
     }
 
     private static int NormalizeBatchSize(int batchSize) =>

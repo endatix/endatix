@@ -66,7 +66,7 @@ Once the form is prepared, the dialog shows the export format and, for row-based
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><strong>Completion</strong></td>
-<td><strong>Completed</strong> (default), <strong>Incomplete</strong>, or <strong>All</strong>. Reporting exports only include completed submissions that have been backfilled — an incomplete draft isn't in the export structure yet, so <strong>Incomplete</strong> or <strong>All</strong> may return fewer rows than you expect.</td>
+<td><strong>Completed</strong> (default), <strong>Incomplete</strong>, or <strong>All</strong>. <strong>Incomplete</strong> and <strong>All</strong> include drafts. Endatix updates those drafts in the export structure before the download, which can take a moment. A draft can still change after the file is downloaded. Deleted submissions are not included.</td>
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><strong>Include test submissions</strong></td>
@@ -130,7 +130,7 @@ To hand that PDF to someone who has no Hub account, generate an **Export PDF** s
 ## Important Considerations
 
 * **Prepare is per form, not per user.** Once anyone prepares a form for export, every user exporting that form skips the prepare step — it isn't repeated per person or per browser.
-* **Reporting exports only cover completed, backfilled submissions.** A submission made after the last prepare or rebuild, or one still incomplete, may be missing until the next prepare/rebuild — or, for a completed one, until Endatix's own backfill catches up.
+* **Incomplete and All refresh drafts before the download.** Completed exports use the submissions already prepared. A draft that changes after you download the file is not in that file. Deleted submissions are never included.
 * **A codebook has no rows to filter.** Completion, test-submission, and date filters apply only to Submissions-target formats.
 * **Full recompile discards export history.** It rebuilds the export structure from the form's current questions only — a question that was removed or renamed loses its column history in future exports.
 
