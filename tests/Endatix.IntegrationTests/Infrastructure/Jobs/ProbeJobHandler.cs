@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
@@ -20,7 +21,8 @@ internal static class ProbeBehaviours
 /// <summary>
 /// A handler whose invocations a test can count, shared by every node in the process.
 /// </summary>
-internal sealed class ProbeJobHandler(ProbeInvocations invocations) : BackgroundJobHandler<ProbePayload>
+internal sealed class ProbeJobHandler(ProbeInvocations invocations, ILogger<ProbeJobHandler> logger)
+    : BackgroundJobHandler<ProbePayload>(logger)
 {
     protected override Task<Result> ExecuteAsync(
         BackgroundJobContext job,

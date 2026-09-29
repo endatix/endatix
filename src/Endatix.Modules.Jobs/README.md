@@ -114,7 +114,8 @@ Derive from `BackgroundJobHandler<TPayload>` and register it in DI as an
 assembly. Two handlers declaring the same job type fail startup.
 
 ```csharp
-internal sealed class SubmissionExportJobHandler(...) : BackgroundJobHandler<SubmissionExportPayload>
+internal sealed class SubmissionExportJobHandler(..., ILogger<SubmissionExportJobHandler> logger)
+    : BackgroundJobHandler<SubmissionExportPayload>(logger)
 {
     protected override Task<Result> ExecuteAsync(
         BackgroundJobContext job, SubmissionExportPayload payload, CancellationToken cancellationToken) => ...;
@@ -124,7 +125,8 @@ internal sealed class SubmissionExportJobHandler(...) : BackgroundJobHandler<Sub
 Payload rules: the job type is a string literal declared once, on the payload; a payload
 written by one release must deserialize in the next (adding an optional property is fine;
 renaming, removing or retyping one is a new job type); keep payloads thin — ids plus the
-minimum non-personal data. Input that cannot be read ends the job `Failed` without a retry.
+minimum non-personal data. Input that cannot be read ends the job `Failed` without a retry, and the
+base class logs why through the logger it is given.
 
 Four obligations, each invisible until it hurts in production:
 
