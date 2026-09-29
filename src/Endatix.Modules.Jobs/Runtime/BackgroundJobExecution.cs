@@ -57,7 +57,7 @@ internal sealed class BackgroundJobExecution(
     }
 
     private async Task<ClaimedAttempt?> AdmitAndClaimAsync(IJobExecutionContext context, CancellationToken cancellationToken) =>
-        await admission.AdmitAsync(context, cancellationToken) is { } firing
+        await admission.AdmitAsync(context) is { } firing
             ? await ClaimAsync(context, firing, cancellationToken)
             : null;
 

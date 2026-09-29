@@ -48,6 +48,22 @@ internal sealed class UnrecordedJobRefire(
     }
 
     /// <summary>
+    /// Stores <paramref name="trigger"/> for a firing that leaves the job's row as it is, and returns whether it was
+    /// stored. A trigger that cannot be stored is handled as a re-fire's is: logged, and held while the scheduler
+    /// stops so the next node to check in recovers the firing.
+    /// </summary>
+    public async Task<bool> TryKeepAsync(IJobExecutionContext context, ITrigger trigger, long jobId)
+    {
+        if (await TryScheduleAsync(context, trigger) is not { } failure)
+        {
+            return true;
+        }
+
+        await LeaveUnscheduledAsync(context.Scheduler, jobId, failure);
+        return false;
+    }
+
+    /// <summary>
     /// Schedules the attempt after <paramref name="attempt"/> on a trigger of the job's own, and returns whether it
     /// was stored.
     /// </summary>

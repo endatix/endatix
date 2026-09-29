@@ -70,6 +70,27 @@ public sealed partial class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_UnknownJobTypeWhileSchedulerStops_LeavesTheFiringToRecoveryWithoutThrowing()
+    {
+        // Arrange — the stopping scheduler refuses the declined trigger.
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        await using var provider = Services(repository, new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = FiringOf(JobId, jobType: "Orphan");
+        context.Scheduler.Status.Returns(SchedulerStatus.Shutdown);
+        context.Scheduler
+            .RescheduleJob(Arg.Any<TriggerKey>(), Arg.Any<ITrigger>(), Arg.Any<CancellationToken>())
+            .Returns<DateTimeOffset?>(_ => throw new SchedulerException("The scheduler is shutting down."));
+
+        // Act
+        var act = async () => await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert — the firing ends quietly, and the row is never touched.
+        await act.Should().NotThrowAsync();
+        repository.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Execute_FiringWithoutJobId_TouchesNothing()
     {
         // Arrange — a durable job fired by hand carries no job id.
