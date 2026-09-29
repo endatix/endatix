@@ -258,14 +258,16 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// Cancels the job. From <see cref="JobStatus.Pending"/> or <see cref="JobStatus.Retrying"/> this
     /// is the whole operation, because a claim will refuse it. From
     /// <see cref="JobStatus.Processing"/> the job wrapper's cancellation watcher observes the status and
-    /// trips the handler's cancellation token.
+    /// trips the handler's cancellation token. Like every terminal write, it gives a row with no expiry one of
+    /// <paramref name="retention"/> from now, so the retention job collects cancelled rows too.
     /// </summary>
-    public void Cancel(DateTime utcNow)
+    public void Cancel(DateTime utcNow, TimeSpan retention)
     {
         EnsureStatus(nameof(Cancel), JobStatus.Pending, JobStatus.Retrying, JobStatus.Processing);
 
         Status = JobStatus.Canceled;
         CompletedAt = utcNow;
+        ExpiresAt ??= utcNow + retention;
     }
 
     /// <summary>Sets the retention deadline for this job and any artifact it produced.</summary>
