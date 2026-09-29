@@ -74,46 +74,6 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void IsEligible_Pending_ReturnsTrue()
-    {
-        // Arrange
-        var job = NewJob();
-
-        // Act
-        var eligible = job.IsEligible();
-
-        // Assert
-        eligible.Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsEligible_RetryingBeforeItsNextAttempt_ReturnsTrue()
-    {
-        // Arrange — when a retry runs is the scheduler's decision, so the row only says a claim may take it.
-        var job = ClaimedJob();
-        job.Reschedule(Now.AddMinutes(5));
-
-        // Act
-        var eligible = job.IsEligible();
-
-        // Assert
-        eligible.Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsEligible_Processing_ReturnsFalse()
-    {
-        // Arrange
-        var job = ClaimedJob();
-
-        // Act
-        var eligible = job.IsEligible();
-
-        // Assert
-        eligible.Should().BeFalse();
-    }
-
-    [Fact]
     public void Claim_PendingJob_ConsumesAnAttempt()
     {
         // Arrange

@@ -138,12 +138,6 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         or JobStatus.Canceled;
 
     /// <summary>
-    /// Whether this job may be claimed. The scheduler decides when; this only says whether the row is in
-    /// a state a claim accepts.
-    /// </summary>
-    public bool IsEligible() => Status is JobStatus.Pending or JobStatus.Retrying;
-
-    /// <summary>
     /// Takes ownership of the job for execution and consumes an attempt.
     /// </summary>
     public void Claim(DateTime utcNow)

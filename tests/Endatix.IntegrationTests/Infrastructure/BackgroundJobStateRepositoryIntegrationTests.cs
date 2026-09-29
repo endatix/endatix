@@ -92,7 +92,32 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
     }
 
     [Fact]
-    public async Task TryClaimAsync_NotDueOrCanceled_ReturnsNull()
+    public async Task TryClaimAsync_RetryingBeforeItsNextAttempt_Claims()
+    {
+        // Arrange — the scheduler decides when a retry fires, so the claim no longer second-guesses the time.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = JobsContext(scope);
+        await ClearJobsAsync(context, cancellationToken);
+        var jobId = await SeedAsync(
+            context,
+            cancellationToken,
+            status: JobStatus.Retrying,
+            attemptCount: 1,
+            nextAttemptAt: Now.AddSeconds(60));
+        var repository = new BackgroundJobStateRepository(context);
+
+        // Act
+        var claimed = await repository.TryClaimAsync(jobId, RegisteredJobTypes, Now, cancellationToken);
+
+        // Assert
+        claimed.Should().NotBeNull();
+        claimed!.AttemptCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task TryClaimAsync_Canceled_ReturnsNull()
     {
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
@@ -100,28 +125,17 @@ public sealed class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrat
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
         await ClearJobsAsync(context, cancellationToken);
-        var notDueId = await SeedAsync(
-            context,
-            cancellationToken,
-            status: JobStatus.Retrying,
-            nextAttemptAt: Now.AddSeconds(60));
         var canceledId = await SeedAsync(context, cancellationToken, status: JobStatus.Canceled);
         var repository = new BackgroundJobStateRepository(context);
 
         // Act
-        var claimedNotDue = await repository.TryClaimAsync(notDueId, RegisteredJobTypes, Now, cancellationToken);
         var claimedCanceled = await repository.TryClaimAsync(canceledId, RegisteredJobTypes, Now, cancellationToken);
 
         // Assert
-        claimedNotDue.Should().BeNull();
         claimedCanceled.Should().BeNull();
-
-        var notDue = await ReadAsync(context, notDueId, cancellationToken);
-        notDue.Status.Should().Be(JobStatus.Retrying);
-        notDue.AttemptCount.Should().Be(0);
-        notDue.StartedAt.Should().BeNull();
-        notDue.NextAttemptAt.Should().Be(Now.AddSeconds(60));
-        notDue.ModifiedAt.Should().Be(SeededModifiedAt);
+        var canceled = await ReadAsync(context, canceledId, cancellationToken);
+        canceled.AttemptCount.Should().Be(0);
+        canceled.ModifiedAt.Should().Be(SeededModifiedAt);
     }
 
     [Fact]

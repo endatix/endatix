@@ -111,7 +111,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             .Where(job => job.Id == jobId
                 && job.AttemptCount == expectedAttemptCount
                 && (job.Status == JobStatus.Pending || job.Status == JobStatus.Retrying)
-                && job.NextAttemptAt <= utcNow
                 && registeredJobTypes.Contains(job.JobType))
             .ExecuteUpdateAsync(
                 setters => setters
