@@ -174,15 +174,20 @@ store must run the same Quartz version, and nodes' clocks must agree within abou
 
 ### Execution
 
-`BackgroundJobExecution` is the only Quartz job class. For each firing it:
+`BackgroundJobExecution` is the only Quartz job class. It only orchestrates each firing, through
+one class per step:
 
-1. **Claims** the row with a compare-and-swap from `Pending`/`Retrying` to `Processing` that
-   increments `AttemptCount`. When Quartz reports a recovered firing, it re-claims the row from
-   `Processing`, fenced on the attempt it read. A claim that changes nothing ends the firing.
-2. Runs the handler in its own DI scope, under an `Endatix.Jobs` activity whose parent is the
-   trace captured at enqueue, with one token linked from the runtime ceiling
+1. **Claims** the row (`JobAttemptClaimer`) with a compare-and-swap from `Pending`/`Retrying` to
+   `Processing` that increments `AttemptCount`. When Quartz reports a recovered firing, or the
+   firing was scheduled to take over an unrecorded attempt, it re-claims the row from `Processing`,
+   fenced on the attempt it read, and dead-letters a job that has no attempt left instead. A claim
+   that changes nothing ends the firing.
+2. **Runs the handler** (`JobHandlerRunner`) in its own DI scope, under an `Endatix.Jobs` activity
+   whose parent is the trace captured at enqueue, with one token linked from the runtime ceiling
    (`MaxRuntimeMinutes`), the cancellation watcher and the host's shutdown.
-3. **Records the outcome** with a write fenced on the claimed attempt:
+3. **Records the outcome** (`JobOutcomeRecorder`) with one write fenced on the claimed attempt,
+   tried again a few times if it throws, and records the lifecycle metrics only when it lands.
+   A firing whose outcome still cannot be written is re-fired shortly by `UnrecordedJobRefire`:
 
 | Handler | Row | Quartz |
 |---------|-----|--------|
