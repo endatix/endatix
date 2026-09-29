@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests.Infrastructure.Jobs;
@@ -24,7 +25,7 @@ internal static class JobsTestNodeExtensions
     public static void AddProbe(this IServiceCollection services, ProbeInvocations invocations)
     {
         services.AddSingleton(invocations);
-        services.AddScoped<IBackgroundJobHandler, ProbeJobHandler>();
+        services.AddBackgroundJobHandler<ProbeJobHandler, ProbePayload>();
     }
 
     public static string IdList(this IEnumerable<long> ids) => string.Join(',', ids);
