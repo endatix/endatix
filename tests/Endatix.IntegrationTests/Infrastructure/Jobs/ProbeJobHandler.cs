@@ -2,7 +2,10 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Quartz;
 
 namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
@@ -36,6 +39,12 @@ internal static class ProbeBehaviours
     /// <summary>Waits on its token for ever on the first attempt, and throws on every later one.</summary>
     public const string BlockFirstThenThrow = "block-first-then-throw";
 
+    /// <summary>
+    /// Waits on its token for ever on the first attempt, throws on the second once its node's scheduler has started
+    /// shutting down, and succeeds on every later one.
+    /// </summary>
+    public const string BlockFirstThenThrowWhileStopping = "block-first-then-throw-while-stopping";
+
     public const string FailureMessage = "Form 12 has no schema.";
 
     public const string SecretMessage = "Host=db;Password=secret";
@@ -44,7 +53,10 @@ internal static class ProbeBehaviours
 /// <summary>
 /// A handler whose invocations a test can observe, with its behaviour chosen per job by the payload.
 /// </summary>
-internal sealed class ProbeJobHandler(ProbeInvocations invocations, ILogger<ProbeJobHandler> logger)
+internal sealed class ProbeJobHandler(
+    ProbeInvocations invocations,
+    [FromKeyedServices(QuartzRegistration.SchedulerName)] ISchedulerFactory schedulers,
+    ILogger<ProbeJobHandler> logger)
     : BackgroundJobHandler<ProbePayload>(logger)
 {
     protected override async Task<Result> ExecuteAsync(
@@ -62,13 +74,28 @@ internal sealed class ProbeJobHandler(ProbeInvocations invocations, ILogger<Prob
             case ProbeBehaviours.ThrowOnce when job.AttemptCount == 1:
             case ProbeBehaviours.BlockFirstThenThrow when job.AttemptCount > 1:
                 throw new InvalidOperationException(ProbeBehaviours.SecretMessage);
+            case ProbeBehaviours.BlockFirstThenThrowWhileStopping when job.AttemptCount == 2:
+                await WaitForSchedulerToStopAsync(cancellationToken);
+                throw new InvalidOperationException(ProbeBehaviours.SecretMessage);
             case ProbeBehaviours.Block:
             case ProbeBehaviours.BlockFirst when job.AttemptCount == 1:
             case ProbeBehaviours.BlockFirstThenThrow when job.AttemptCount == 1:
+            case ProbeBehaviours.BlockFirstThenThrowWhileStopping when job.AttemptCount == 1:
                 await BlockAsync(job, cancellationToken);
                 return Result.Success();
             default:
                 return Result.Success();
+        }
+    }
+
+    // Puts the throw in the window where a stopping scheduler refuses new triggers but still completes the firings it
+    // waits for.
+    private async Task WaitForSchedulerToStopAsync(CancellationToken cancellationToken)
+    {
+        var scheduler = await schedulers.GetScheduler(cancellationToken);
+        while (scheduler.Status is not (SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown))
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken);
         }
     }
 

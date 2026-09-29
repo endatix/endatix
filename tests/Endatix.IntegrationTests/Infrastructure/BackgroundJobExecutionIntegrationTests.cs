@@ -222,6 +222,37 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
     }
 
     [Fact]
+    public async Task Recovered_job_that_throws_while_its_node_stops_is_recovered_and_completes()
+    {
+        // Arrange — the survivor runs the recovered attempt until its own scheduler starts shutting down, which
+        // refuses the trigger the next attempt needs.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        var invocations = new ProbeInvocations();
+        var nodeA = await StartNodeAsync(new(database, invocations, InstanceId("node-a")), ct);
+        var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.BlockFirstThenThrowWhileStopping), ct);
+        await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), Patience, ct);
+        var survivorSettings = InstanceId("node-b");
+        survivorSettings["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "2";
+        var nodeB = await StartNodeAsync(new(database, invocations, survivorSettings), ct);
+        await nodeA.KillAsync();
+        await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 2), Patience, ct);
+
+        // Act
+        await nodeB.StopAsync(ct);
+        await nodeB.DisposeAsync();
+        await using var restarted = await StartNodeAsync(new(database, invocations, survivorSettings), ct);
+        var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
+
+        // Assert — the stopping node left the firing for recovery, and the restarted node took the job over.
+        row.Status.Should().Be(JobStatus.Completed);
+        row.AttemptCount.Should().Be(3);
+        invocations.CountFor(jobId).Should().Be(3);
+        (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Job_whose_outcome_cannot_be_written_runs_again_and_completes()
     {
         // Arrange — every try at recording the first attempt's completion fails, as while the database is away.
