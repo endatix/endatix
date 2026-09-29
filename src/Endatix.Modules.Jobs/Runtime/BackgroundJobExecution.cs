@@ -25,14 +25,7 @@ internal sealed class BackgroundJobExecution(
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         var jobId = long.Parse(context.MergedJobDataMap.GetString(JobIdKey)!, CultureInfo.InvariantCulture);
-
-        ClaimedJob? claimed;
-        await using (var claimScope = scopeFactory.CreateAsyncScope())
-        {
-            var repository = claimScope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
-            claimed = await repository.TryClaimAsync(
-                jobId, registry.JobTypes, dateTimeProvider.UtcNow.UtcDateTime, cancellationToken);
-        }
+        var claimed = await ClaimAsync(jobId, cancellationToken);
 
         // Nothing to run: the job already ran, is running elsewhere, or was cancelled.
         if (claimed is null)
@@ -45,5 +38,14 @@ internal sealed class BackgroundJobExecution(
         await handler.ExecuteAsync(
             new BackgroundJobContext(claimed.Id, claimed.JobType, claimed.TenantId, claimed.PayloadJson, claimed.AttemptCount),
             cancellationToken);
+    }
+
+    // The claim gets a scope of its own, so the handler's scope never holds the context that claimed the row.
+    private async Task<ClaimedJob?> ClaimAsync(long jobId, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
+        return await repository.TryClaimAsync(
+            jobId, registry.JobTypes, dateTimeProvider.UtcNow.UtcDateTime, cancellationToken);
     }
 }
