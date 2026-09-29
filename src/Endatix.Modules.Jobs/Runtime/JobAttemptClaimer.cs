@@ -56,14 +56,19 @@ internal sealed class JobAttemptClaimer(
             repository => repository.TryDeadLetterSpentAsync(lastAttempt, failure, cancellationToken));
         if (deadLettered)
         {
-            logger.LogWarning(
-                "Background job {JobId} of type {JobType} stopped during its last attempt and was dead-lettered",
-                firing.JobId,
-                firing.JobType);
-            metrics.Record(JobLifecycleEvent.DeadLettered, firing.JobType);
+            ReportDeadLettered(firing);
         }
 
         return deadLettered;
+    }
+
+    private void ReportDeadLettered(JobFiring firing)
+    {
+        logger.LogWarning(
+            "Background job {JobId} of type {JobType} stopped during its last attempt and was dead-lettered",
+            firing.JobId,
+            firing.JobType);
+        metrics.Record(JobLifecycleEvent.DeadLettered, firing.JobType);
     }
 }
 

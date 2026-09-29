@@ -43,13 +43,8 @@ internal sealed class JobRetentionJob(
         for (var batch = 0; batch < retention.MaxBatchesPerRun; batch++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            // A scope per batch, so the context never holds more than one statement's worth of work.
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
-            var deletedInBatch = await repository.DeleteExpiredAsync(utcNow, retention.BatchSize, cancellationToken);
+            var deletedInBatch = await DeleteBatchAsync(utcNow, retention.BatchSize, cancellationToken);
             deleted += deletedInBatch;
-
             if (deletedInBatch < retention.BatchSize)
             {
                 break;
@@ -58,5 +53,13 @@ internal sealed class JobRetentionJob(
 
         logger.LogInformation("Deleted {Count} expired background job rows", deleted);
         return deleted;
+    }
+
+    // A scope per batch, so the context never holds more than one statement's worth of work.
+    private async Task<int> DeleteBatchAsync(DateTime utcNow, int batchSize, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
+        return await repository.DeleteExpiredAsync(utcNow, batchSize, cancellationToken);
     }
 }
