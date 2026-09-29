@@ -131,17 +131,19 @@ internal static class QuartzRegistration
         quartz.AddTriggerListener<JobTriggerListener>();
         quartz.AddTriggerListener<JobMisfireListener>();
         quartz.UseExecutionLimits(ConfigureExecutionLimits);
+        UseThreadPool(quartz, options);
+        quartz.UsePersistentStore(store => ConfigureStore(store, options, connectionString));
+    }
 
+    private static void UseThreadPool(IQuartzBuilder quartz, BackgroundJobsOptions options)
+    {
         if (options.RunInProcess)
         {
             quartz.UseDefaultThreadPool();
-        }
-        else
-        {
-            quartz.UseThreadPool<ZeroSizeThreadPool>();
+            return;
         }
 
-        quartz.UsePersistentStore(store => ConfigureStore(store, options, connectionString));
+        quartz.UseThreadPool<ZeroSizeThreadPool>();
     }
 
     private static void ConfigureScheduler(QuartzSchedulerOptions scheduler, BackgroundJobsOptions options)
@@ -193,24 +195,26 @@ internal static class QuartzRegistration
         store.UseDriverDelegate<ExecutionGroupFilteringPostgreSqlDelegate>();
         store.UsePostgres(connectionString);
         store.UseSystemTextJsonSerializer();
-        store.ConfigureStore(ado =>
-        {
-            ado.TablePrefix = TablePrefix;
-            ado.StoreJobDataAsStrings = true;
-            ado.SchemaProvisioning = SchemaProvisioning.Validate;
-            ado.AcceptEnlistedTransactions = true;
-            ado.MisfireThreshold = TimeSpan.FromSeconds(options.MisfireThresholdSeconds);
-
-            // A job that waited past the threshold for a slot is put back in line by the misfire pass, so a pass as
-            // rare as the threshold itself could hold it up to a whole threshold longer.
-            ado.MisfireHandlerFrequency = TimeSpan.FromSeconds(Math.Min(10, options.MisfireThresholdSeconds));
-        });
+        store.ConfigureStore(ado => ConfigureAdoStore(ado, options));
         store.UseClustering(clustering =>
         {
             clustering.CheckinInterval = TimeSpan.FromSeconds(options.Clustering.CheckinIntervalSeconds);
             clustering.CheckinMisfireThreshold =
                 TimeSpan.FromSeconds(options.Clustering.CheckinMisfireThresholdSeconds);
         });
+    }
+
+    private static void ConfigureAdoStore(AdoJobStoreOptions ado, BackgroundJobsOptions options)
+    {
+        ado.TablePrefix = TablePrefix;
+        ado.StoreJobDataAsStrings = true;
+        ado.SchemaProvisioning = SchemaProvisioning.Validate;
+        ado.AcceptEnlistedTransactions = true;
+        ado.MisfireThreshold = TimeSpan.FromSeconds(options.MisfireThresholdSeconds);
+
+        // A job that waited past the threshold for a slot is put back in line by the misfire pass, so a pass as rare
+        // as the threshold itself could hold it up to a whole threshold longer.
+        ado.MisfireHandlerFrequency = TimeSpan.FromSeconds(Math.Min(10, options.MisfireThresholdSeconds));
     }
 
     private static TriggerBuilder<IJob> WithRetryPolicy(TriggerBuilder<IJob> trigger, BackgroundJobTypePolicy policy) =>

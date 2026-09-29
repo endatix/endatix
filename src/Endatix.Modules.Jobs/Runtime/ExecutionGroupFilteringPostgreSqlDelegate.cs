@@ -67,10 +67,17 @@ internal sealed class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDele
             return [];
         }
 
+        return await WithFreeGroupsAsync(
+            freeGroups, () => base.SelectTriggersToAcquire(conn, criteria, cancellationToken));
+    }
+
+    // The groups are visible to the command the acquisition prepares, and to nothing after it.
+    private static async ValueTask<T> WithFreeGroupsAsync<T>(string[] freeGroups, Func<ValueTask<T>> acquire)
+    {
         _freeGroups.Value = freeGroups;
         try
         {
-            return await base.SelectTriggersToAcquire(conn, criteria, cancellationToken);
+            return await acquire();
         }
         finally
         {

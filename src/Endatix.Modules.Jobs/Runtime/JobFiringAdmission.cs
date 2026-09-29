@@ -31,18 +31,18 @@ internal sealed class JobFiringAdmission(
             return null;
         }
 
-        // Backstop only: the node's execution limits keep it from acquiring a job type it has no handler for. A
-        // node that fired one anyway must neither fail nor complete it, so the row is left untouched and the
-        // trigger waits for a node that can run it.
-        if (!registry.Contains(firing.JobType))
+        if (registry.Contains(firing.JobType))
         {
-            await DeclineAsync(context, firing, cancellationToken);
-            return null;
+            return firing;
         }
 
-        return firing;
+        await DeclineAsync(context, firing, cancellationToken);
+        return null;
     }
 
+    // Backstop only: the node's execution limits keep it from acquiring a job type it has no handler for. A node
+    // that fired one anyway must neither fail nor complete it, so the row is left untouched and the trigger waits
+    // for a node that can run it.
     private async Task DeclineAsync(IJobExecutionContext context, JobFiring firing, CancellationToken cancellationToken)
     {
         var fireAgainAt = dateTimeProvider.UtcNow.Add(DeclineDelay);
