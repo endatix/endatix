@@ -29,7 +29,6 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal sealed class BackgroundJobExecution(
     IServiceScopeFactory scopeFactory,
     JobHandlerRegistry registry,
-    IJobExecutionContextResolver contextResolver,
     IDateTimeProvider dateTimeProvider,
     IOptions<BackgroundJobsOptions> options,
     JobsShutdownSignal shutdownSignal,
@@ -77,17 +76,17 @@ internal sealed class BackgroundJobExecution(
         Record(JobLifecycleEvent.Claimed, claimed.JobType);
 
         var policy = options.Value.ResolvePolicy(claimed.JobType);
-        var (end, result, thrown, runtimeReached) = await RunHandlerAsync(claimed, policy, cancellationToken);
-        var decision = AttemptDecision.Decide(end, claimed.AttemptCount, policy.MaxAttempts);
+        var run = await RunHandlerAsync(claimed, policy, cancellationToken);
+        var decision = AttemptDecision.Decide(run.End, claimed.AttemptCount, policy.MaxAttempts);
 
-        if (end is AttemptEnd.Canceled)
+        if (run.End is AttemptEnd.Canceled)
         {
             Record(JobLifecycleEvent.Canceled, claimed.JobType);
             ObserveDuration(claimed.JobType, claimedAt, JobAttemptOutcome.Canceled);
             return;
         }
 
-        if (end is AttemptEnd.Superseded)
+        if (run.End is AttemptEnd.Superseded)
         {
             // Another attempt owns the row, so nothing this one writes could land; its handler was stopped so the
             // two do not run the work side by side.
@@ -100,7 +99,7 @@ internal sealed class BackgroundJobExecution(
             return;
         }
 
-        if (end is AttemptEnd.HostShutdown)
+        if (run.End is AttemptEnd.HostShutdown)
         {
             // Indistinguishable from a crash at the same instant, so it is treated like one: the attempt taken
             // at the claim stands, nothing is recorded, and the job runs again on the next node to check in.
@@ -129,8 +128,7 @@ internal sealed class BackgroundJobExecution(
                 CancellationToken.None);
         }
 
-        var written = await RecordOutcomeAsync(
-            claimed, claimedAt, decision.Row, policy, nextAttemptAt, result, thrown, runtimeReached);
+        var written = await RecordOutcomeAsync(claimed, claimedAt, decision.Row, policy, nextAttemptAt, run);
         var recorded = written is OutcomeWrite.Landed;
 
         if (written is OutcomeWrite.Unwritable)
@@ -237,7 +235,7 @@ internal sealed class BackgroundJobExecution(
         return await repository.TryClaimAsync(jobId, registry.JobTypes, claimedAt, recovering, cancellationToken);
     }
 
-    private async Task<(AttemptEnd End, Result? Result, Exception? Thrown, bool RuntimeReached)> RunHandlerAsync(
+    private async Task<HandlerRun> RunHandlerAsync(
         ClaimedJob claimed,
         BackgroundJobTypePolicy policy,
         CancellationToken schedulerToken)
@@ -252,7 +250,6 @@ internal sealed class BackgroundJobExecution(
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             schedulerToken, shutdownSignal.Token, runtime.Token, watcher.Token);
 
-        var jobContext = contextResolver.Resolve(claimed);
         using var activity = BackgroundJobsTelemetry.StartExecution(claimed);
 
         Result? result = null;
@@ -260,6 +257,7 @@ internal sealed class BackgroundJobExecution(
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
+            var jobContext = scope.ServiceProvider.GetRequiredService<IJobExecutionContextResolver>().Resolve(claimed);
             var handler = registry.Resolve(scope.ServiceProvider, claimed.JobType)
                 ?? throw new InvalidOperationException(
                     $"No background job handler is registered for job type '{claimed.JobType}'.");
@@ -280,16 +278,44 @@ internal sealed class BackgroundJobExecution(
 
         // A handler that returned success did its work whenever the shutdown came, so it is recorded: leaving it
         // for recovery would run that work a second time.
-        var succeeded = thrown is null && result!.IsSuccess;
-        var end = watcher.SawCancellation ? AttemptEnd.Canceled
-            : watcher.SawSupersession ? AttemptEnd.Superseded
-            : succeeded ? AttemptEnd.Succeeded
-            : shutdownSignal.IsRaised || schedulerToken.IsCancellationRequested ? AttemptEnd.HostShutdown
-            : thrown is not null ? AttemptEnd.Threw
-            : AttemptEnd.ReturnedFailure;
+        var end = DecideEnd(
+            watcher,
+            succeeded: thrown is null && result!.IsSuccess,
+            shuttingDown: shutdownSignal.IsRaised || schedulerToken.IsCancellationRequested,
+            threw: thrown is not null);
 
-        return (end, result, thrown, runtime.IsCancellationRequested);
+        return new HandlerRun(end, result, thrown, runtime.IsCancellationRequested);
     }
+
+    // Checked in this order: a cancelled or superseded row wins over whatever the handler did, and success wins
+    // over a shutdown that arrived after the work was done.
+    private static AttemptEnd DecideEnd(CancellationWatcher watcher, bool succeeded, bool shuttingDown, bool threw)
+    {
+        if (watcher.SawCancellation)
+        {
+            return AttemptEnd.Canceled;
+        }
+
+        if (watcher.SawSupersession)
+        {
+            return AttemptEnd.Superseded;
+        }
+
+        if (succeeded)
+        {
+            return AttemptEnd.Succeeded;
+        }
+
+        if (shuttingDown)
+        {
+            return AttemptEnd.HostShutdown;
+        }
+
+        return threw ? AttemptEnd.Threw : AttemptEnd.ReturnedFailure;
+    }
+
+    /// <summary>How the handler's run ended, and what it returned or threw.</summary>
+    private sealed record HandlerRun(AttemptEnd End, Result? Result, Exception? Thrown, bool RuntimeReached);
 
     /// <summary>
     /// Makes the one fenced write that ends the attempt, and records its event and duration only when that write
@@ -303,9 +329,7 @@ internal sealed class BackgroundJobExecution(
         AttemptRowWrite write,
         BackgroundJobTypePolicy policy,
         DateTime nextAttemptAt,
-        Result? result,
-        Exception? thrown,
-        bool runtimeReached)
+        HandlerRun run)
     {
         var endedAt = dateTimeProvider.UtcNow.UtcDateTime;
         var (lifecycleEvent, outcome) = write switch
@@ -320,40 +344,49 @@ internal sealed class BackgroundJobExecution(
         var errorMessage = write switch
         {
             AttemptRowWrite.Completed => null,
-            AttemptRowWrite.Failed => FailureMessage(result!),
-            _ => ThrownMessage(claimed, thrown!, runtimeReached),
+            AttemptRowWrite.Failed => FailureMessage(run.Result!),
+            _ => ThrownMessage(claimed, run.Thrown!, run.RuntimeReached),
         };
 
-        for (var attempt = 0; ; attempt++)
+        var written = await WriteOutcomeWithRetriesAsync(claimed, write, policy, nextAttemptAt, errorMessage, endedAt, outcome);
+        if (written is not OutcomeWrite.Landed)
+        {
+            return written;
+        }
+
+        Record(lifecycleEvent, claimed.JobType);
+        ObserveDuration(claimed.JobType, claimedAt, outcome);
+        return OutcomeWrite.Landed;
+    }
+
+    private async Task<OutcomeWrite> WriteOutcomeWithRetriesAsync(
+        ClaimedJob claimed,
+        AttemptRowWrite write,
+        BackgroundJobTypePolicy policy,
+        DateTime nextAttemptAt,
+        string? errorMessage,
+        DateTime endedAt,
+        JobAttemptOutcome outcome)
+    {
+        // One first try, then one more after each delay.
+        for (var attempt = 0; attempt <= OutcomeWriteRetryDelays.Length; attempt++)
         {
             try
             {
-                var landed = await WriteOutcomeAsync(claimed, write, policy, nextAttemptAt, errorMessage, endedAt);
-                if (!landed)
+                if (await WriteOutcomeAsync(claimed, write, policy, nextAttemptAt, errorMessage, endedAt))
                 {
-                    logger.LogWarning(
-                        "Background job {JobId} ended attempt {Attempt} as {Outcome}, but the row had moved on and was left as it is",
-                        claimed.Id,
-                        claimed.AttemptCount,
-                        outcome);
-                    return OutcomeWrite.RowMovedOn;
+                    return OutcomeWrite.Landed;
                 }
 
-                break;
+                logger.LogWarning(
+                    "Background job {JobId} ended attempt {Attempt} as {Outcome}, but the row had moved on and was left as it is",
+                    claimed.Id,
+                    claimed.AttemptCount,
+                    outcome);
+                return OutcomeWrite.RowMovedOn;
             }
-            catch (Exception exception)
+            catch (Exception exception) when (attempt < OutcomeWriteRetryDelays.Length && !shutdownSignal.IsRaised)
             {
-                if (attempt >= OutcomeWriteRetryDelays.Length || shutdownSignal.IsRaised)
-                {
-                    logger.LogError(
-                        exception,
-                        "Recording {Outcome} for background job {JobId} attempt {Attempt} failed",
-                        outcome,
-                        claimed.Id,
-                        claimed.AttemptCount);
-                    return OutcomeWrite.Unwritable;
-                }
-
                 logger.LogWarning(
                     exception,
                     "Recording {Outcome} for background job {JobId} attempt {Attempt} failed; trying again",
@@ -361,20 +394,37 @@ internal sealed class BackgroundJobExecution(
                     claimed.Id,
                     claimed.AttemptCount);
 
-                try
-                {
-                    await Task.Delay(OutcomeWriteRetryDelays[attempt], shutdownSignal.Token);
-                }
-                catch (OperationCanceledException)
+                if (!await DelayUnlessShuttingDownAsync(OutcomeWriteRetryDelays[attempt]))
                 {
                     return OutcomeWrite.Unwritable;
                 }
             }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "Recording {Outcome} for background job {JobId} attempt {Attempt} failed",
+                    outcome,
+                    claimed.Id,
+                    claimed.AttemptCount);
+                return OutcomeWrite.Unwritable;
+            }
         }
 
-        Record(lifecycleEvent, claimed.JobType);
-        ObserveDuration(claimed.JobType, claimedAt, outcome);
-        return OutcomeWrite.Landed;
+        return OutcomeWrite.Unwritable;
+    }
+
+    private async Task<bool> DelayUnlessShuttingDownAsync(TimeSpan delay)
+    {
+        try
+        {
+            await Task.Delay(delay, shutdownSignal.Token);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
     }
 
     private async Task<bool> WriteOutcomeAsync(
