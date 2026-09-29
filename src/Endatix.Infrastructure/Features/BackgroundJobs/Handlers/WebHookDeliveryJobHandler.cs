@@ -31,7 +31,7 @@ internal sealed class WebHookDeliveryJobHandler(
     IRepository<OutboxMessage> outboxMessages,
     WebHookEventConfigReader configReader,
     IHttpClientFactory httpClientFactory,
-    ILogger<WebHookServer> serverLogger,
+    ILoggerFactory loggerFactory,
     ILogger<WebHookDeliveryJobHandler> logger) : BackgroundJobHandler<WebHookDeliveryPayload>(logger)
 {
     /// <summary>The HTTP client webhook jobs send with: the webhook client's settings, without its retries.</summary>
@@ -79,7 +79,7 @@ internal sealed class WebHookDeliveryJobHandler(
             return Result.Invalid(new ValidationError(InvalidUrl));
         }
 
-        var server = new WebHookServer(httpClientFactory.CreateClient(HttpClientName), serverLogger);
+        var server = new WebHookServer(httpClientFactory.CreateClient(HttpClientName), loggerFactory.CreateLogger<WebHookServer>());
         var status = await server.SendAsync(
             new WebHookMessage<JsonElement>(message.Id, operation, eventPayload),
             TaskInstructions.FromWebHookEndpointConfig(endpoint),

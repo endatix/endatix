@@ -131,7 +131,7 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
             _outbox,
             new WebHookEventConfigReader(_forms, _tenantSettings, NullLogger<WebHookEventConfigReader>.Instance),
             clients,
-            NullLogger<WebHookServer>.Instance,
+            NullLoggerFactory.Instance,
             NullLogger<WebHookDeliveryJobHandler>.Instance);
     }
 
