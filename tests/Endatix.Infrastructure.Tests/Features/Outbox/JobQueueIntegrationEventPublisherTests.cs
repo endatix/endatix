@@ -30,7 +30,7 @@ public sealed class JobQueueIntegrationEventPublisherTests
         // Assert
         await queue.Received(1).EnqueueManyAsync(Arg.Any<IReadOnlyList<BackgroundJobRequest>>(), Arg.Any<CancellationToken>());
         enqueued.Should().NotBeNull();
-        enqueued!.Select(request => (request.JobType, request.TenantId, request.DedupKey, request.CreatedByUserId))
+        enqueued.Select(request => (request.JobType, request.TenantId, request.DedupKey, request.CreatedByUserId))
             .Should().Equal(("S1", 5L, "77:S1", (long?)null), ("S2", 5L, "77:S2", (long?)null));
     }
 
