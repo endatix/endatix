@@ -78,15 +78,14 @@ public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subsc
         foreach (var handler in inlineHandlers)
         {
             var handlerAssembly = handler.GetType().Assembly;
-            foreach (var eventType in handler.EventTypes)
+            var eventType = handler.EventTypes.FirstOrDefault(type =>
+                !_byEventType[type].Any(subscription => subscription.SourceAssembly == handlerAssembly));
+            if (eventType is not null)
             {
-                if (!_byEventType[eventType].Any(subscription => subscription.SourceAssembly == handlerAssembly))
-                {
-                    throw new InvalidOperationException(
-                        $"The outbox handler {handler.GetType().FullName} handles '{eventType}', but its module registers " +
-                        $"no job subscription for it, so with Endatix:Outbox:DeliverToJobQueue on that work would be " +
-                        $"marked sent and never done. Register the subscription or turn the switch off.");
-                }
+                throw new InvalidOperationException(
+                    $"The outbox handler {handler.GetType().FullName} handles '{eventType}', but its module registers " +
+                    $"no job subscription for it, so with Endatix:Outbox:DeliverToJobQueue on that work would be " +
+                    $"marked sent and never done. Register the subscription or turn the switch off.");
             }
         }
     }
