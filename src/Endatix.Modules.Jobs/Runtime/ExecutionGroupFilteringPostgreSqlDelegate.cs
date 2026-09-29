@@ -77,14 +77,24 @@ internal sealed class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDele
     /// <inheritdoc />
     public override DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
     {
-        var command = base.PrepareCommand(cth, commandText);
-        if (commandText.Contains(FreeGroupsMarker, StringComparison.Ordinal))
+        if (!commandText.Contains(FreeGroupsMarker, StringComparison.Ordinal))
         {
-            command.Parameters.Add(new NpgsqlParameter(FreeGroupsParameter, NpgsqlDbType.Array | NpgsqlDbType.Text)
-            {
-                Value = _freeGroups.Value ?? [],
-            });
+            return base.PrepareCommand(cth, commandText);
         }
+
+        // Only the acquisition override knows the free groups. Binding none would make the node acquire nothing,
+        // silently, so a statement prepared any other way is refused instead.
+        var freeGroups = _freeGroups.Value
+            ?? throw new InvalidOperationException(
+                "The trigger acquisition statement was prepared outside trigger acquisition, so this node's free " +
+                "execution groups are unknown. The scheduler's acquisition path has changed; the Endatix PostgreSQL " +
+                "driver delegate has to be updated to match it.");
+
+        var command = base.PrepareCommand(cth, commandText);
+        command.Parameters.Add(new NpgsqlParameter(FreeGroupsParameter, NpgsqlDbType.Array | NpgsqlDbType.Text)
+        {
+            Value = freeGroups,
+        });
 
         return command;
     }
