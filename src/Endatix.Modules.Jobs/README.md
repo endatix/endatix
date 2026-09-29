@@ -35,6 +35,12 @@ Two stores in one `jobs` schema, with one job each:
 Every job has exactly one row and one Quartz trigger, keyed by the job's id; the trigger carries
 nothing but that id.
 
+> [!NOTE]
+> **In this release the scheduler is hosted but not yet used.** Enqueueing writes only the row, with
+> no trigger, and the Quartz job that runs a handler does nothing yet, so enqueued jobs stay
+> `Pending`. Per-job-type concurrency caps are configured but not yet enforced. Keep
+> `Endatix:FeatureFlags:JobsModule` off until job execution ships.
+
 ## Module layout
 
 | Namespace | Contents |
@@ -63,6 +69,9 @@ PostgreSQL script embedded in the referenced Quartz.NET version, so a fresh data
 the schema that version expects. Quartz validates them at startup (`SchemaProvisioning.Validate`)
 and never creates them, so a node whose tables are missing or outdated fails to start. A Quartz
 upgrade that changes its schema also ships a `jobs` migration, for databases created before it.
+That migration must be idempotent (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, and
+so on): a database created after the upgrade already has the new schema from
+`InitialBackgroundJobs` when it runs.
 
 ### Status
 
@@ -218,8 +227,10 @@ The migrations were reset once, in the change that moved scheduling onto Quartz,
 ones (`AddBackgroundJobs`, `RequireRealTenantOnBackgroundJobs`), and EF cannot upgrade a database
 from them: it would try to create `jobs."BackgroundJobs"` again and fail. Any database where
 `Endatix:FeatureFlags:JobsModule` was turned on under those releases needs `DROP SCHEMA jobs CASCADE`
-once before upgrading; the module was off by default and nothing read its rows yet, so no data is
-lost. From here on `jobs` migrations are append-only.
+once before upgrading. That deletes every job row and the schema's migration history. Those rows
+never ran, because no release executed jobs, and they cannot be carried over, because each job now
+needs a Quartz trigger as well as its row. Back up `jobs."BackgroundJobs"` first if you need a
+record of them. From here on `jobs` migrations are append-only.
 
 Run the commands from the repository root, with `Endatix.WebHost` as the startup project.
 
