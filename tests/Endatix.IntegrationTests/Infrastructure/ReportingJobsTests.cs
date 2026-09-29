@@ -38,7 +38,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(900, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
-        var completed = await WaitForJobAsync(host, "900:ReportingFlattenSubmission", status => status == 3, ct);
+        var completed = await WaitForJobAsync(host, new ExpectedJob("900:ReportingFlattenSubmission", status => status == 3), ct);
 
         // Assert
         completed.Should().BeTrue();
@@ -63,12 +63,13 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
             ["Endatix:BackgroundJobs:JobTypes:WebHookDelivery:BackoffCapSeconds"] = "1",
         });
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-failing-webhook", ct);
-        await ConfigureTenantWebHookAsync(host, tenantId, receiver.UrlFor("down", HttpStatusCode.ServiceUnavailable), ct);
+        await ConfigureTenantWebHookAsync(
+            host, new TenantWebHook(tenantId, receiver.UrlFor("down", HttpStatusCode.ServiceUnavailable)), ct);
         await WaitForSeedingJobsAsync(host, ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(901, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
-        await WaitForJobAsync(host, "901:ReportingFlattenSubmission", status => status == 3, ct);
+        await WaitForJobAsync(host, new ExpectedJob("901:ReportingFlattenSubmission", status => status == 3), ct);
         await JobsTestWait.UntilAsync(
             async () => await host.Database.CountAsync(
                 """SELECT count(*) FROM jobs."BackgroundJobs" WHERE "JobType" = 'WebHookDelivery' AND "DedupKey" LIKE '901:%' AND "AttemptCount" > 1""",
@@ -143,7 +144,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
 
         // Act — a flatten of that submission, such as a retry, runs after the deletion.
         await host.InsertMessageAsync(new OutboxRow(910, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
-        var finished = await WaitForJobAsync(host, "910:ReportingFlattenSubmission", status => status is 3 or 4 or 5, ct);
+        var finished = await WaitForJobAsync(host, new ExpectedJob("910:ReportingFlattenSubmission", status => status is 3 or 4 or 5), ct);
 
         // Assert — it succeeds on its first attempt instead of retrying, and no row is left for the deleted submission.
         finished.Should().BeTrue();
@@ -162,12 +163,12 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await using var host = await StartHostAsync(reporting: true, ct);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-stale-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
-        await SetSubmissionAsync(host, submissionId, revision: 5, answer: "newer", ct);
-        await FlattenAsync(host, tenantId, formId, submissionId, ct);
-        await SetSubmissionAsync(host, submissionId, revision: 3, answer: "older", ct);
+        await SetSubmissionAsync(host, new SubmissionAnswer(submissionId, Revision: 5, Answer: "newer"), ct);
+        await FlattenAsync(host, new SeededSubmission(tenantId, formId, submissionId), ct);
+        await SetSubmissionAsync(host, new SubmissionAnswer(submissionId, Revision: 3, Answer: "older"), ct);
 
         // Act — the flatten that read revision 3 writes after the one that read revision 5.
-        await FlattenAsync(host, tenantId, formId, submissionId, ct);
+        await FlattenAsync(host, new SeededSubmission(tenantId, formId, submissionId), ct);
 
         // Assert
         var rows = await host.Database.QueryAsync(
@@ -189,12 +190,12 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await using var host = await StartHostAsync(reporting: true, ct);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-newer-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
-        await SetSubmissionAsync(host, submissionId, revision: 3, answer: "older", ct);
-        await FlattenAsync(host, tenantId, formId, submissionId, ct);
-        await SetSubmissionAsync(host, submissionId, revision: 5, answer: "newer", ct);
+        await SetSubmissionAsync(host, new SubmissionAnswer(submissionId, Revision: 3, Answer: "older"), ct);
+        await FlattenAsync(host, new SeededSubmission(tenantId, formId, submissionId), ct);
+        await SetSubmissionAsync(host, new SubmissionAnswer(submissionId, Revision: 5, Answer: "newer"), ct);
 
         // Act
-        await FlattenAsync(host, tenantId, formId, submissionId, ct);
+        await FlattenAsync(host, new SeededSubmission(tenantId, formId, submissionId), ct);
 
         // Assert
         var rows = await host.Database.QueryAsync(
@@ -207,16 +208,16 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     }
 
     // Writes the submission's answer and revision straight to its row, so no event fans out a flatten of its own.
-    private static Task SetSubmissionAsync(FanOutHost host, long submissionId, long revision, string answer, CancellationToken ct) =>
+    private static Task SetSubmissionAsync(FanOutHost host, SubmissionAnswer answer, CancellationToken ct) =>
         host.Database.ExecuteAsync(
-            $$$"""UPDATE "Submissions" SET "JsonData" = '{"q1":"{{{answer}}}"}', "Revision" = {{{revision}}} WHERE "Id" = {{{submissionId}}}""",
+            $$$"""UPDATE "Submissions" SET "JsonData" = '{"q1":"{{{answer.Answer}}}"}', "Revision" = {{{answer.Revision}}} WHERE "Id" = {{{answer.SubmissionId}}}""",
             ct);
 
-    private static async Task FlattenAsync(FanOutHost host, long tenantId, long formId, long submissionId, CancellationToken ct)
+    private static async Task FlattenAsync(FanOutHost host, SeededSubmission seeded, CancellationToken ct)
     {
         using var scope = host.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<ISubmissionFlatteningProcessor>()
-            .ProcessAsync(tenantId, formId, submissionId, ct);
+            .ProcessAsync(seeded.TenantId, seeded.FormId, seeded.SubmissionId, ct);
     }
 
     private Task<FanOutHost> StartHostAsync(bool reporting, CancellationToken ct, Dictionary<string, string?>? settings = null)
@@ -240,7 +241,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         return tenant.Id;
     }
 
-    private static async Task<(long TenantId, long FormId, long SubmissionId)> SeedSubmissionAsync(
+    private static async Task<SeededSubmission> SeedSubmissionAsync(
         FanOutHost host,
         string tenantName,
         CancellationToken ct)
@@ -259,10 +260,10 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         var submission = new Submission(tenantId, """{"q1":"hello"}""", form.Id, definition.Id, isComplete: true);
         db.Submissions.Add(submission);
         await db.SaveChangesAsync(ct);
-        return (tenantId, form.Id, submission.Id);
+        return new SeededSubmission(tenantId, form.Id, submission.Id);
     }
 
-    private static async Task ConfigureTenantWebHookAsync(FanOutHost host, long tenantId, string url, CancellationToken ct)
+    private static async Task ConfigureTenantWebHookAsync(FanOutHost host, TenantWebHook webHook, CancellationToken ct)
     {
         using var scope = host.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -270,13 +271,13 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         {
             Events = new Dictionary<string, WebHookEventConfig>
             {
-                ["SubmissionCompleted"] = new() { IsEnabled = true, WebHookEndpoints = [new WebHookEndpointConfig { Url = url }] },
+                ["SubmissionCompleted"] = new() { IsEnabled = true, WebHookEndpoints = [new WebHookEndpointConfig { Url = webHook.Url }] },
             },
         };
-        var settings = db.Set<TenantSettings>().FirstOrDefault(row => row.TenantId == tenantId);
+        var settings = db.Set<TenantSettings>().FirstOrDefault(row => row.TenantId == webHook.TenantId);
         if (settings is null)
         {
-            db.Set<TenantSettings>().Add(new TenantSettings(tenantId, webHookSettingsJson: JsonSerializer.Serialize(config)));
+            db.Set<TenantSettings>().Add(new TenantSettings(webHook.TenantId, webHookSettingsJson: JsonSerializer.Serialize(config)));
         }
         else
         {
@@ -301,9 +302,9 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     private static string SubmissionPayload(long tenantId, long formId, long submissionId) =>
         $$"""{"formId":"{{formId}}","submissionId":"{{submissionId}}","tenantId":"{{tenantId}}"}""";
 
-    private static Task<bool> WaitForJobAsync(FanOutHost host, string dedupKey, Func<int, bool> reached, CancellationToken ct) =>
+    private static Task<bool> WaitForJobAsync(FanOutHost host, ExpectedJob expected, CancellationToken ct) =>
         JobsTestWait.UntilAsync(
-            async () => await JobAsync(host, dedupKey, ct) is { } job && reached(job.Status),
+            async () => await JobAsync(host, expected.DedupKey, ct) is { } job && expected.Reached(job.Status),
             Patience,
             ct);
 
@@ -315,4 +316,14 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
             ct);
         return rows.Count == 0 ? null : rows[0];
     }
+
+    private sealed record SeededSubmission(long TenantId, long FormId, long SubmissionId);
+
+    /// <summary>The answer and revision a test writes straight to a submission's row.</summary>
+    private sealed record SubmissionAnswer(long SubmissionId, long Revision, string Answer);
+
+    private sealed record TenantWebHook(long TenantId, string Url);
+
+    /// <summary>The job, by its dedup key, and the status it is waited for.</summary>
+    private sealed record ExpectedJob(string DedupKey, Func<int, bool> Reached);
 }
