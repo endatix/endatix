@@ -28,8 +28,13 @@ public sealed record BackgroundJobContext(
 /// <see cref="JobType"/>, and may live in any assembly — including ones the jobs module does not
 /// reference.
 /// <para>
-/// No component executes handlers yet. This contract is what an executing host will hold them to,
-/// and the obligations below are far cheaper to honour while a handler is written than to retrofit.
+/// Handlers whose input is a typed record derive from <see cref="BackgroundJobHandler{TPayload}"/>, which
+/// reads the input and returns a failure for input it cannot read. Implement this interface directly only
+/// for infrastructure that handles input it does not know the type of.
+/// </para>
+/// <para>
+/// Handlers never reference the scheduler that runs them. The obligations below are what the
+/// executing host holds every handler to.
 /// </para>
 /// </summary>
 /// <remarks>
