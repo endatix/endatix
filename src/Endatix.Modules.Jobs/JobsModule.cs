@@ -6,7 +6,10 @@ using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Jobs.Features;
 using Endatix.Modules.Jobs.Persistence;
+using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Jobs;
 
@@ -24,8 +27,9 @@ namespace Endatix.Modules.Jobs;
 /// the queue. That is what allows API and worker roles to be deployed separately from the same image.
 /// </para>
 /// <para>
-/// This module registers persistence and enqueueing. It contains no component that executes jobs, so
-/// on its own it leaves enqueued rows in <c>Pending</c>.
+/// The job rows live in the <c>jobs</c> schema, and so do the tables of the scheduler that fires them.
+/// <c>Endatix:BackgroundJobs:RunInProcess</c> decides whether this host executes jobs or only schedules
+/// them.
 /// </para>
 /// </remarks>
 public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpoints
@@ -61,5 +65,15 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
             sp.GetRequiredService<JobsPostgreSqlDbContext>());
 
         builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
+
+        builder.Services.AddOptions<BackgroundJobsOptions>()
+            .BindConfiguration(BackgroundJobsOptions.SectionName)
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<BackgroundJobsOptions>, BackgroundJobsOptionsValidator>());
+
+        builder.Services.AddSingleton(JobHandlerRegistry.Build);
+        builder.Services.AddJobsScheduler(builder.Configuration);
+        builder.Services.AddHostedService<JobsSchedulerHostedService>();
     }
 }

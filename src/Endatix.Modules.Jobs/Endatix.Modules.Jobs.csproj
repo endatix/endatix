@@ -3,7 +3,7 @@
     <PackageId>Endatix.Modules.Jobs</PackageId>
     <Title>Endatix - Background Jobs Module</Title>
     <Description>
-      This package contains the Background Jobs module of the Endatix Platform. It provides persistence and enqueueing for long-running tenant operations: the BackgroundJobs table is a durable, generic job queue, and retry state is held on the job row. It also contains an internal job state repository, which nothing uses yet, and the public IJobDispatchStrategy and IJobMetrics extension points, which enqueueing calls only when a host registers them. No runner or sweeper is hosted, so enqueued jobs stay Pending. Persistence lives in its own "jobs" schema with its own migration history, so job migrations deploy independently of app-schema migrations.
+      This package contains the Background Jobs module of the Endatix Platform. The BackgroundJobs table is the record of every job, and Quartz.NET, clustered in the same database, schedules and fires them. Persistence lives in its own "jobs" schema with its own migration history, so job migrations deploy independently of app-schema migrations. Quartz.NET is Apache-2.0 licensed; see THIRD-PARTY-NOTICES in this package.
 
       $(EndatixPlatformDescription)
     </Description>
@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+    <PackageReference Include="Quartz" />
     <!-- GHSA-w3x6-4m5h-cxqf: pins transitive 9.0.0 from EF Design; design-time only (PrivateAssets). -->
     <PackageReference Include="System.Security.Cryptography.Xml">
       <PrivateAssets>all</PrivateAssets>
@@ -32,6 +33,11 @@
     <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
     <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
     <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Quartz.NET's Apache-2.0 licence and NOTICE travel with every package that depends on it. -->
+    <None Include="..\..\THIRD-PARTY-NOTICES" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

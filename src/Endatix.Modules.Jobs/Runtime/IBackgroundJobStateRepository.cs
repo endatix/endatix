@@ -1,7 +1,7 @@
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
-/// Reads and writes job rows on behalf of the runner and the sweeper.
+/// Reads and writes job rows on behalf of the job wrapper.
 /// </summary>
 /// <remarks>
 /// Writes use <c>ExecuteUpdate</c>, never <c>SaveChanges</c>, and never touch <c>ModifiedAt</c>.
@@ -14,12 +14,6 @@ internal interface IBackgroundJobStateRepository
     Task<ClaimedJob?> TryClaimAsync(
         long jobId,
         IReadOnlyCollection<string> registeredJobTypes,
-        DateTime utcNow,
-        CancellationToken cancellationToken = default);
-
-    Task<bool> TryHeartbeatAsync(
-        long jobId,
-        int claimedAttempt,
         DateTime utcNow,
         CancellationToken cancellationToken = default);
 
@@ -44,28 +38,4 @@ internal interface IBackgroundJobStateRepository
         string errorMessage,
         DateTime utcNow,
         CancellationToken cancellationToken = default);
-
-    Task<bool> TryReapAsync(
-        long jobId,
-        int claimedAttempt,
-        DateTime staleCutoff,
-        int maxAttempts,
-        DateTime nextAttemptAt,
-        string errorMessage,
-        DateTime utcNow,
-        CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<StaleJob>> FindStaleAsync(
-        DateTime staleCutoff,
-        int limit,
-        CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<JobDispatchItem>> FindEligibleAsync(
-        IReadOnlyCollection<string> registeredJobTypes,
-        DateTime utcNow,
-        int limit,
-        CancellationToken cancellationToken = default);
 }
-
-/// <summary>A running job whose heartbeat is missing or stopped, with the attempt a reap is fenced on.</summary>
-internal readonly record struct StaleJob(long Id, string JobType, int AttemptCount);

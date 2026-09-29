@@ -37,8 +37,10 @@ public static class BackgroundJobPayloadSerializer
     /// </summary>
     /// <exception cref="JsonException">
     /// The text is empty, is not JSON, is the literal <c>null</c>, or does not describe the type. Input that
-    /// omits a required member or holds <c>null</c> for a non-nullable one counts as unreadable too. Stored
-    /// input that cannot be read now never will be, so the caller treats this as a permanent failure.
+    /// omits a required member or holds <c>null</c> for a non-nullable one counts as unreadable too, and so does
+    /// any input when the payload type itself cannot be bound, such as a constructor parameter that matches no
+    /// property. Stored input that cannot be read now never will be, so the caller treats this as a permanent
+    /// failure.
     /// </exception>
     public static TPayload Deserialize<TPayload>(string payloadJson)
         where TPayload : IBackgroundJobPayload
@@ -48,9 +50,11 @@ public static class BackgroundJobPayloadSerializer
             return JsonSerializer.Deserialize<TPayload>(payloadJson, _options)
                 ?? throw new JsonException($"The payload is null, not a {typeof(TPayload).Name}.");
         }
-        catch (NotSupportedException ex)
+        catch (Exception ex) when (ex is NotSupportedException or InvalidOperationException)
         {
-            // Raised for a shape the reader cannot bind; surfaced as JsonException so callers catch one type.
+            // Raised for a payload type the reader cannot bind, such as a constructor parameter that matches no
+            // property. Serializing such a type succeeds, so it is only found here; surfaced as JsonException so
+            // callers catch one type and the job fails at once instead of retrying something no retry can fix.
             throw new JsonException(ex.Message, ex);
         }
     }

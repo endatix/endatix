@@ -74,34 +74,7 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void IsEligible_PendingAndDue_ReturnsTrue()
-    {
-        // Arrange
-        var job = NewJob();
-
-        // Act
-        var eligible = job.IsEligible(Now);
-
-        // Assert
-        eligible.Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsEligible_BackoffNotElapsed_ReturnsFalse()
-    {
-        // Arrange
-        var job = ClaimedJob();
-        job.Reschedule(Now.AddMinutes(5));
-
-        // Act
-        var eligible = job.IsEligible(Now);
-
-        // Assert
-        eligible.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Claim_PendingJob_ConsumesAnAttemptAndStartsHeartbeat()
+    public void Claim_PendingJob_ConsumesAnAttempt()
     {
         // Arrange
         var job = NewJob();
@@ -113,7 +86,6 @@ public class BackgroundJobTests
         job.Status.Should().Be(JobStatus.Processing);
         job.AttemptCount.Should().Be(1);
         job.StartedAt.Should().Be(Now);
-        job.HeartbeatAt.Should().Be(Now);
     }
 
     [Fact]
@@ -133,20 +105,18 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void Claim_BeforeBackoffElapsed_Throws()
+    public void Claim_RetryingBeforeItsNextAttempt_Succeeds()
     {
-        // Arrange — a job waiting out a retry backoff.
+        // Arrange — the scheduler fires a retry when it is due, so the entity does not second-guess the time.
         var job = ClaimedJob();
         job.Reschedule(Now.AddMinutes(5));
 
         // Act
-        var act = () => job.Claim(Now);
+        job.Claim(Now);
 
-        // Assert — the entity must refuse for the same reason the claim query would not match it,
-        // so an early retry cannot be started in memory and consume an attempt.
-        act.Should().Throw<InvalidOperationException>();
-        job.Status.Should().Be(JobStatus.Retrying);
-        job.AttemptCount.Should().Be(1);
+        // Assert
+        job.Status.Should().Be(JobStatus.Processing);
+        job.AttemptCount.Should().Be(2);
     }
 
     [Fact]
@@ -266,20 +236,6 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void Reschedule_ProcessingJob_ClearsHeartbeat()
-    {
-        // Arrange
-        var job = ClaimedJob();
-
-        // Act
-        job.Reschedule(Now.AddSeconds(30));
-
-        // Assert — a waiting job has no live worker, so a stale heartbeat must not linger and make
-        // the stale-reaper treat it as an abandoned in-flight job.
-        job.HeartbeatAt.Should().BeNull();
-    }
-
-    [Fact]
     public void DeadLetter_ProcessingJob_IsTerminalAndDistinctFromFailed()
     {
         // Arrange
@@ -339,15 +295,14 @@ public class BackgroundJobTests
     {
         // Arrange
         var job = ClaimedJob();
-        var heartbeatBefore = job.HeartbeatAt;
 
         // Act
         job.ReportProgress(45, "Processing 4,500 of 10,000 rows");
 
-        // Assert — progress is a user-facing courtesy, never the liveness signal.
+        // Assert — progress is a user-facing courtesy and leaves the job's state alone.
         job.ProgressPercentage.Should().Be(45);
         job.StatusMessage.Should().Be("Processing 4,500 of 10,000 rows");
-        job.HeartbeatAt.Should().Be(heartbeatBefore);
+        job.Status.Should().Be(JobStatus.Processing);
     }
 
     [Theory]
@@ -373,35 +328,6 @@ public class BackgroundJobTests
 
         // Act
         var act = () => job.ReportProgress(10);
-
-        // Assert
-        act.Should().Throw<InvalidOperationException>();
-    }
-
-    [Fact]
-    public void Heartbeat_ProcessingJob_AdvancesLivenessWithoutTouchingProgress()
-    {
-        // Arrange
-        var job = ClaimedJob();
-        job.ReportProgress(20);
-        var later = Now.AddSeconds(30);
-
-        // Act
-        job.Heartbeat(later);
-
-        // Assert — a handler that reports nothing for minutes must still read as alive.
-        job.HeartbeatAt.Should().Be(later);
-        job.ProgressPercentage.Should().Be(20);
-    }
-
-    [Fact]
-    public void Heartbeat_PendingJob_Throws()
-    {
-        // Arrange
-        var job = NewJob();
-
-        // Act
-        var act = () => job.Heartbeat(Now);
 
         // Assert
         act.Should().Throw<InvalidOperationException>();

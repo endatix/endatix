@@ -65,7 +65,9 @@ public sealed class DatabaseCheckpoint
 
             try
             {
-                var respawner = await Respawner.CreateAsync(connection, BuildOptions(provider));
+                var respawner = await Respawner.CreateAsync(
+                    connection,
+                    BuildOptions(provider, await JobSchedulerTablesAsync(connection, provider, cancellationToken)));
                 _respawners[provider] = respawner;
                 return respawner;
             }
@@ -125,7 +127,38 @@ public sealed class DatabaseCheckpoint
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
 
-    private static RespawnerOptions BuildOptions(TestDatabaseProvider provider)
+    // The job scheduler's own tables. A running host's scheduler keeps its check-in, locks and durable jobs
+    // there, so wiping them under it would break the host rather than reset data; triggers left behind by an
+    // earlier test point at job rows that no longer exist and fire into nothing. They are read from the
+    // database, because the migration takes them from whichever Quartz version is referenced.
+    private static async Task<Table[]> JobSchedulerTablesAsync(
+        DbConnection connection,
+        TestDatabaseProvider provider,
+        CancellationToken cancellationToken)
+    {
+        if (provider != TestDatabaseProvider.PostgreSql)
+        {
+            return [];
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'jobs' AND table_name LIKE 'qrtz\_%'
+            """;
+
+        var tables = new List<Table>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            tables.Add(new Table("jobs", reader.GetString(0)));
+        }
+
+        return [.. tables];
+    }
+
+    private static RespawnerOptions BuildOptions(TestDatabaseProvider provider, Table[] jobSchedulerTables)
     {
         var schemas = provider switch
         {
@@ -142,7 +175,7 @@ public sealed class DatabaseCheckpoint
         return new RespawnerOptions
         {
             SchemasToInclude = schemas,
-            TablesToIgnore = migrationsHistoryTables
+            TablesToIgnore = [.. migrationsHistoryTables, .. jobSchedulerTables]
         };
     }
 }

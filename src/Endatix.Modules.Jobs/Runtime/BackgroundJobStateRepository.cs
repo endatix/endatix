@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Domain;
@@ -51,17 +50,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             : null;
     }
 
-    public Task<bool> TryHeartbeatAsync(
-        long jobId,
-        int claimedAttempt,
-        DateTime utcNow,
-        CancellationToken cancellationToken = default) =>
-        UpdateFencedAsync(
-            jobId,
-            claimedAttempt,
-            setters => setters.SetProperty(job => job.HeartbeatAt, (DateTime?)utcNow),
-            cancellationToken);
-
     public Task<bool> TryCompleteAsync(
         long jobId,
         int claimedAttempt,
@@ -111,64 +99,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             FailedAttemptSetters(claimedAttempt, maxAttempts, nextAttemptAt, errorMessage, utcNow),
             cancellationToken);
 
-    public Task<bool> TryReapAsync(
-        long jobId,
-        int claimedAttempt,
-        DateTime staleCutoff,
-        int maxAttempts,
-        DateTime nextAttemptAt,
-        string errorMessage,
-        DateTime utcNow,
-        CancellationToken cancellationToken = default) =>
-        UpdateFencedAsync(
-            jobId,
-            claimedAttempt,
-            FailedAttemptSetters(claimedAttempt, maxAttempts, nextAttemptAt, errorMessage, utcNow),
-            cancellationToken,
-            // Re-checked in the write, so a runner that checked in since the scan keeps its job.
-            IsStale(staleCutoff));
-
-    public async Task<IReadOnlyList<StaleJob>> FindStaleAsync(
-        DateTime staleCutoff,
-        int limit,
-        CancellationToken cancellationToken = default) =>
-        await dbContext.BackgroundJobs
-            .AsNoTracking()
-            .Where(job => job.Status == JobStatus.Processing)
-            .Where(IsStale(staleCutoff))
-            // Missing heartbeats first, then the longest silent, so a short batch takes the worst cases.
-            .OrderBy(job => job.HeartbeatAt != null)
-            .ThenBy(job => job.HeartbeatAt)
-            .ThenBy(job => job.Id)
-            .Take(limit)
-            .Select(job => new StaleJob(job.Id, job.JobType, job.AttemptCount))
-            .ToListAsync(cancellationToken);
-
-    // ExpiresAt is not a filter: expiry is retention, and the retention collector removes terminal rows
-    // only, so skipping expired rows here would strand them as Pending.
-    public async Task<IReadOnlyList<JobDispatchItem>> FindEligibleAsync(
-        IReadOnlyCollection<string> registeredJobTypes,
-        DateTime utcNow,
-        int limit,
-        CancellationToken cancellationToken = default)
-    {
-        if (registeredJobTypes.Count == 0)
-        {
-            return [];
-        }
-
-        return await dbContext.BackgroundJobs
-            .AsNoTracking()
-            .Where(job => (job.Status == JobStatus.Pending || job.Status == JobStatus.Retrying)
-                && job.NextAttemptAt <= utcNow
-                && registeredJobTypes.Contains(job.JobType))
-            .OrderBy(job => job.NextAttemptAt)
-            .ThenBy(job => job.Id)
-            .Take(limit)
-            .Select(job => new JobDispatchItem(job.Id, job.JobType))
-            .ToListAsync(cancellationToken);
-    }
-
     // Only a claim changes the attempt count, so a claim that landed after the caller's read matches nothing.
     private async Task<bool> TryClaimAtAttemptAsync(
         long jobId,
@@ -181,15 +111,13 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             .Where(job => job.Id == jobId
                 && job.AttemptCount == expectedAttemptCount
                 && (job.Status == JobStatus.Pending || job.Status == JobStatus.Retrying)
-                && job.NextAttemptAt <= utcNow
                 && registeredJobTypes.Contains(job.JobType))
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(job => job.Status, JobStatus.Processing)
                     .SetProperty(job => job.AttemptCount, job => job.AttemptCount + 1)
                     // When the job began, not the current attempt, so a retry keeps it.
-                    .SetProperty(job => job.StartedAt, job => job.StartedAt ?? utcNow)
-                    .SetProperty(job => job.HeartbeatAt, (DateTime?)utcNow),
+                    .SetProperty(job => job.StartedAt, job => job.StartedAt ?? utcNow),
                 cancellationToken);
 
         return affected == 1;
@@ -219,8 +147,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
 
             setters.SetProperty(job => job.Status, JobStatus.Retrying);
             setters.SetProperty(job => job.NextAttemptAt, nextAttemptAt);
-            // Nothing runs a retrying job, so it carries no heartbeat.
-            setters.SetProperty(job => job.HeartbeatAt, (DateTime?)null);
         };
     }
 
@@ -228,25 +154,15 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         long jobId,
         int claimedAttempt,
         Action<UpdateSettersBuilder<BackgroundJob>> setters,
-        CancellationToken cancellationToken,
-        Expression<Func<BackgroundJob, bool>>? alsoWhere = null)
+        CancellationToken cancellationToken)
     {
         var fenced = dbContext.BackgroundJobs
             .Where(job => job.Id == jobId
                 && job.Status == JobStatus.Processing
                 && job.AttemptCount == claimedAttempt);
 
-        if (alsoWhere is not null)
-        {
-            fenced = fenced.Where(alsoWhere);
-        }
-
         return await fenced.ExecuteUpdateAsync(setters, cancellationToken) == 1;
     }
-
-    // A running job without a heartbeat has nothing proving it alive, so it is as stale as a silent one.
-    private static Expression<Func<BackgroundJob, bool>> IsStale(DateTime staleCutoff) =>
-        job => job.HeartbeatAt == null || job.HeartbeatAt < staleCutoff;
 
     // Rejected like the entity's own failure transitions, then cut to fit the column.
     private static string StorableErrorMessage(string errorMessage)

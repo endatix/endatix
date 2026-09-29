@@ -14,14 +14,14 @@ namespace Endatix.Modules.Jobs.Tests;
 
 /// <summary>
 /// Resolves the queue through the module's own registrations. The other queue tests construct it by hand, which
-/// cannot show whether the container treats an unregistered optional seam as absent or as a resolution failure.
+/// cannot show whether the container treats an unregistered optional metrics seam as absent or as a resolution failure.
 /// </summary>
 public class JobsModuleQueueResolutionTests
 {
     private static readonly DateTime Now = new(2026, 9, 21, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
-    public void GetRequiredService_NoStrategyOrMetricsRegistered_ResolvesTheQueue()
+    public void GetRequiredService_NoMetricsRegistered_ResolvesTheQueue()
     {
         // Arrange
         var services = ModuleServices(Substitute.For<IJobsDbContext>());
@@ -36,18 +36,15 @@ public class JobsModuleQueueResolutionTests
     }
 
     [Fact]
-    public async Task GetRequiredService_StrategyAndMetricsRegistered_PassesThemToTheQueue()
+    public async Task GetRequiredService_MetricsRegistered_PassesThemToTheQueue()
     {
         // Arrange
         var options = new DbContextOptionsBuilder<TestJobsDbContext>()
             .UseInMemoryDatabase($"jobs-{Guid.NewGuid()}")
             .Options;
         await using var dbContext = new TestJobsDbContext(options, new FixedTenantContext(0));
-        var dispatchStrategy = Substitute.For<IJobDispatchStrategy>();
-        dispatchStrategy.TryOffer(Arg.Any<JobDispatchItem>()).Returns(true);
         var metrics = Substitute.For<IJobMetrics>();
         var services = ModuleServices(dbContext);
-        services.AddSingleton(dispatchStrategy);
         services.AddSingleton(metrics);
         await using var provider = services.BuildServiceProvider(validateScopes: true);
         await using var scope = provider.CreateAsyncScope();
@@ -59,7 +56,7 @@ public class JobsModuleQueueResolutionTests
             TestContext.Current.CancellationToken);
 
         // Assert
-        dispatchStrategy.Received(1).TryOffer(new JobDispatchItem(jobId, "SubmissionExport"));
+        jobId.Should().NotBe(0);
         metrics.Received(1).Record(JobLifecycleEvent.Enqueued, "SubmissionExport");
     }
 

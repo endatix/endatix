@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
 {
     /// <inheritdoc />
-    public partial class AddBackgroundJobs : Migration
+    public partial class InitialBackgroundJobs : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -24,7 +24,6 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     PayloadJson = table.Column<string>(type: "jsonb", nullable: false),
-                    ResultJson = table.Column<string>(type: "jsonb", nullable: true),
                     ProgressPercentage = table.Column<int>(type: "integer", nullable: false),
                     StatusMessage = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
                     ErrorMessage = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
@@ -32,7 +31,6 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
                     StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    HeartbeatAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     AttemptCount = table.Column<int>(type: "integer", nullable: false),
                     NextAttemptAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     TraceId = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
@@ -44,14 +42,8 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_BackgroundJobs", x => x.Id);
+                    table.CheckConstraint("CK_BackgroundJobs_TenantId", "\"TenantId\" > 0");
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BackgroundJobs_Eligible",
-                schema: "jobs",
-                table: "BackgroundJobs",
-                columns: new[] { "NextAttemptAt", "Id" },
-                filter: "\"Status\" IN (0, 2)");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BackgroundJobs_Expiry",
@@ -60,22 +52,30 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
                 column: "ExpiresAt");
 
             migrationBuilder.CreateIndex(
-                name: "IX_BackgroundJobs_Stale",
-                schema: "jobs",
-                table: "BackgroundJobs",
-                column: "HeartbeatAt",
-                filter: "\"Status\" = 1");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_BackgroundJobs_Tenant",
                 schema: "jobs",
                 table: "BackgroundJobs",
                 columns: new[] { "TenantId", "Status", "CreatedAt" });
+
+            // The scheduler's own tables live beside the rows they schedule, and only migrations create
+            // them. The DDL is the referenced Quartz version's own, so a fresh database always gets the
+            // schema that version validates; an existing database needs a new migration when an upgrade
+            // changes it.
+            foreach (var statement in QuartzSchemaScripts.PostgreSqlTables())
+            {
+                migrationBuilder.Sql(statement);
+            }
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // CASCADE drops them in any order, so the list can come straight from the script.
+            foreach (var table in QuartzSchemaScripts.PostgreSqlTableNames())
+            {
+                migrationBuilder.Sql($"DROP TABLE IF EXISTS jobs.{table} CASCADE;");
+            }
+
             migrationBuilder.DropTable(
                 name: "BackgroundJobs",
                 schema: "jobs");

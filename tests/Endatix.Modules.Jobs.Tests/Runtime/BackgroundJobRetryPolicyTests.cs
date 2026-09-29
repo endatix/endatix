@@ -19,7 +19,9 @@ public class BackgroundJobRetryPolicyTests
             MaxAttempts: 1,
             MaxRuntime: TimeSpan.FromMinutes(1),
             BackoffBase: TimeSpan.FromSeconds(30),
-            BackoffCap: TimeSpan.FromSeconds(900));
+            BackoffCap: TimeSpan.FromSeconds(900),
+            MaxConcurrency: 1,
+            Retention: TimeSpan.FromDays(7));
 
         // Act
         var act = () => BackgroundJobRetryPolicy.NextAttemptAt(claimedAttempt, Now, policy);
@@ -39,7 +41,9 @@ public class BackgroundJobRetryPolicyTests
             MaxAttempts: 1,
             MaxRuntime: TimeSpan.FromMinutes(1),
             BackoffBase: TimeSpan.FromSeconds(30),
-            BackoffCap: TimeSpan.FromSeconds(900));
+            BackoffCap: TimeSpan.FromSeconds(900),
+            MaxConcurrency: 1,
+            Retention: TimeSpan.FromDays(7));
 
         // Act
         var nextAttemptAt = BackgroundJobRetryPolicy.NextAttemptAt(claimedAttempt, Now, policy);

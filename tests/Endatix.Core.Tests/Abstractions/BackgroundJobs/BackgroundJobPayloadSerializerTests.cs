@@ -78,6 +78,19 @@ public sealed class BackgroundJobPayloadSerializerTests
     }
 
     [Fact]
+    public void Deserialize_PayloadTypeReaderCannotBind_ThrowsJsonException()
+    {
+        // Arrange
+        var json = BackgroundJobPayloadSerializer.Serialize(new UnbindablePayload(7));
+
+        // Act
+        var act = () => BackgroundJobPayloadSerializer.Deserialize<UnbindablePayload>(json);
+
+        // Assert
+        act.Should().Throw<JsonException>().WithInnerException<InvalidOperationException>();
+    }
+
+    [Fact]
     public void Serialize_NullInNonNullableReference_Throws()
     {
         // Arrange

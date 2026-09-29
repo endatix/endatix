@@ -3,6 +3,7 @@ using System;
 using Endatix.Modules.Jobs.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -26,7 +27,10 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
             modelBuilder.Entity("Endatix.Modules.Jobs.Domain.BackgroundJob", b =>
                 {
                     b.Property<long>("Id")
-                        .HasColumnType("bigint");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None)
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
 
                     b.Property<int>("AttemptCount")
                         .HasColumnType("integer");
@@ -48,9 +52,6 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
                         .HasColumnType("character varying(2048)");
 
                     b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("HeartbeatAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
@@ -95,14 +96,6 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
 
                     b.HasIndex("ExpiresAt")
                         .HasDatabaseName("IX_BackgroundJobs_Expiry");
-
-                    b.HasIndex("HeartbeatAt")
-                        .HasDatabaseName("IX_BackgroundJobs_Stale")
-                        .HasFilter("\"Status\" = 1");
-
-                    b.HasIndex("NextAttemptAt", "Id")
-                        .HasDatabaseName("IX_BackgroundJobs_Eligible")
-                        .HasFilter("\"Status\" IN (0, 2)");
 
                     b.HasIndex("TenantId", "Status", "CreatedAt")
                         .HasDatabaseName("IX_BackgroundJobs_Tenant");

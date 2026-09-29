@@ -27,8 +27,6 @@ public class JobMetricsSeamTests
             "RetryScheduled",
             "DeadLettered",
             "Canceled",
-            "Reaped",
-            "OfferRejected",
             "Abandoned");
         attemptOutcomes.Should().BeEquivalentTo(
             "Completed",
@@ -39,8 +37,6 @@ public class JobMetricsSeamTests
             "Abandoned");
         methods.Should().BeEquivalentTo(
             "Record(JobLifecycleEvent, String)",
-            "ObserveQueueDepth(Int32)",
-            "ObserveBacklog(String, Int32, TimeSpan)",
             "ObserveDuration(String, TimeSpan, JobAttemptOutcome)");
     }
 }

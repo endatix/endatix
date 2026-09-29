@@ -13,8 +13,8 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// directly from <see cref="Pending"/> or <see cref="Retrying"/> — a job cancelled before it is
 /// claimed never runs at all.
 /// <para>
-/// <see cref="Pending"/> and <see cref="Retrying"/> both mean <em>eligible to run at
-/// NextAttemptAt</em>, so one query dispatches either.
+/// <see cref="Pending"/> and <see cref="Retrying"/> both mean the job is waiting for its trigger to fire;
+/// the scheduler, not the row, decides when that is.
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -23,10 +23,10 @@ public enum JobStatus
     /// <summary>Enqueued, never started.</summary>
     Pending = 0,
 
-    /// <summary>Claimed by a runner; a heartbeat is expected while it runs.</summary>
+    /// <summary>Claimed by the attempt that is running it.</summary>
     Processing = 1,
 
-    /// <summary>An attempt failed retryably; waits until NextAttemptAt.</summary>
+    /// <summary>An attempt failed retryably; waits for its retry trigger, whose fire time NextAttemptAt reports.</summary>
     Retrying = 2,
 
     /// <summary>Terminal. The handler reported success.</summary>
