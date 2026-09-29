@@ -191,27 +191,27 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         RetryableFailure failure)
     {
         var message = StorableErrorMessage(failure.Failure.ErrorMessage);
-        var outOfAttempts = claimedAttempt >= failure.MaxAttempts;
-        var utcNow = failure.Failure.UtcNow;
-        var expiresAt = failure.Failure.ExpiresAt;
-        var nextAttemptAt = failure.NextAttemptAt;
-
-        return setters =>
-        {
-            setters.SetProperty(job => job.ErrorMessage, message);
-
-            if (outOfAttempts)
-            {
-                setters.SetProperty(job => job.Status, JobStatus.DeadLettered);
-                setters.SetProperty(job => job.CompletedAt, (DateTime?)utcNow);
-                setters.SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? expiresAt);
-                return;
-            }
-
-            setters.SetProperty(job => job.Status, JobStatus.Retrying);
-            setters.SetProperty(job => job.NextAttemptAt, nextAttemptAt);
-        };
+        return claimedAttempt >= failure.MaxAttempts
+            ? DeadLetteredSetters(message, failure.Failure)
+            : RetryingSetters(message, failure.NextAttemptAt);
     }
+
+    private static Action<UpdateSettersBuilder<BackgroundJob>> DeadLetteredSetters(string message, AttemptFailure failure)
+    {
+        var utcNow = failure.UtcNow;
+        var expiresAt = failure.ExpiresAt;
+        return setters => setters
+            .SetProperty(job => job.ErrorMessage, message)
+            .SetProperty(job => job.Status, JobStatus.DeadLettered)
+            .SetProperty(job => job.CompletedAt, (DateTime?)utcNow)
+            .SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? expiresAt);
+    }
+
+    private static Action<UpdateSettersBuilder<BackgroundJob>> RetryingSetters(string message, DateTime nextAttemptAt) =>
+        setters => setters
+            .SetProperty(job => job.ErrorMessage, message)
+            .SetProperty(job => job.Status, JobStatus.Retrying)
+            .SetProperty(job => job.NextAttemptAt, nextAttemptAt);
 
     private async Task<bool> UpdateFencedAsync(
         AttemptRef attempt,
