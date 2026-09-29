@@ -46,8 +46,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         DateTime nextAttemptAt,
         long? createdByUserId = null,
         DateTime? expiresAt = null,
-        string? traceId = null,
-        string? dedupKey = null)
+        string? traceId = null)
     {
         Guard.Against.NullOrWhiteSpace(jobType);
         Guard.Against.NullOrWhiteSpace(payloadJson);
@@ -57,15 +56,6 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         // background service. Platform-wide work needs its own design, not this sentinel.
         Guard.Against.NegativeOrZero(tenantId);
 
-        // Refused here, naming the limit, rather than by the database as a truncation error that fails every
-        // other job in the same batch without saying which key was too long.
-        if (dedupKey is not null && dedupKey.Length > DedupKeyMaxLength)
-        {
-            throw new ArgumentException(
-                $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
-                nameof(dedupKey));
-        }
-
         JobType = jobType;
         PayloadJson = payloadJson;
         TenantId = tenantId;
@@ -73,9 +63,39 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         CreatedByUserId = createdByUserId;
         ExpiresAt = expiresAt;
         TraceId = traceId;
-        DedupKey = string.IsNullOrWhiteSpace(dedupKey) ? null : dedupKey;
         Status = JobStatus.Pending;
         AttemptCount = 0;
+    }
+
+    /// <summary>
+    /// Creates the job <paramref name="request"/> asks for, eligible to run at <paramref name="nextAttemptAt"/>,
+    /// under the dedup key the request carries.
+    /// </summary>
+    public static BackgroundJob FromRequest(BackgroundJobRequest request, DateTime nextAttemptAt, string? traceId)
+    {
+        Guard.Against.Null(request);
+
+        // Refused here, naming the limit, rather than by the database as a truncation error that fails every
+        // other job in the same batch without saying which key was too long.
+        var dedupKey = request.DedupKey;
+        if (dedupKey is not null && dedupKey.Length > DedupKeyMaxLength)
+        {
+            throw new ArgumentException(
+                $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
+                nameof(request));
+        }
+
+        return new BackgroundJob(
+            request.JobType,
+            request.PayloadJson,
+            request.TenantId,
+            nextAttemptAt,
+            request.CreatedByUserId,
+            request.ExpiresAt,
+            traceId)
+        {
+            DedupKey = string.IsNullOrWhiteSpace(dedupKey) ? null : dedupKey,
+        };
     }
 
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>

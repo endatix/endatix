@@ -62,16 +62,30 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void Constructor_DedupKeyLongerThanColumn_Throws()
+    public void FromRequest_DedupKeyLongerThanColumn_Throws()
     {
         // Arrange
-        var dedupKey = new string('k', BackgroundJob.DedupKeyMaxLength + 1);
+        var request = new BackgroundJobRequest(
+            "SubmissionExport", "{}", TenantId: 5, DedupKey: new string('k', BackgroundJob.DedupKeyMaxLength + 1));
 
         // Act
-        var act = () => new BackgroundJob("SubmissionExport", "{}", tenantId: 5, nextAttemptAt: Now, dedupKey: dedupKey);
+        var act = () => BackgroundJob.FromRequest(request, Now, traceId: null);
 
         // Assert
-        act.Should().Throw<ArgumentException>().WithParameterName("dedupKey");
+        act.Should().Throw<ArgumentException>().WithParameterName("request");
+    }
+
+    [Fact]
+    public void FromRequest_BlankDedupKey_StoresNoKey()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: "  ");
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.DedupKey.Should().BeNull();
     }
 
     [Fact]

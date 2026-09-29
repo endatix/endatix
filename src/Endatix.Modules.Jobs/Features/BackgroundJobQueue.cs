@@ -202,19 +202,14 @@ internal sealed class BackgroundJobQueue(
     {
         var utcNow = dateTimeProvider.UtcNow.UtcDateTime;
 
-        return new BackgroundJob(
-            jobType: request.JobType,
-            payloadJson: request.PayloadJson,
-            tenantId: request.TenantId,
+        return BackgroundJob.FromRequest(
+            request,
             // The first attempt is due at once; after a failed one this reports when the retry trigger fires.
             nextAttemptAt: utcNow,
-            createdByUserId: request.CreatedByUserId,
-            expiresAt: request.ExpiresAt,
             // Captured here rather than at execution so the job carries the trace of the request that
             // caused it; the job wrapper re-parents onto this, making the async gap one trace instead of
             // two orphans.
-            traceId: Activity.Current?.Id,
-            dedupKey: request.DedupKey);
+            traceId: Activity.Current?.Id);
     }
 
     private void RecordEnqueued(IReadOnlyList<BackgroundJob> jobs)
