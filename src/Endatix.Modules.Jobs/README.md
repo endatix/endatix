@@ -58,10 +58,11 @@ Database schema: `jobs`
 | `qrtz_*` | Quartz.NET's clustered job store: durable jobs, triggers, fired triggers, node check-ins, locks |
 
 The schema carries its own `__EFMigrationsHistory`, so job migrations advance independently
-of app-schema migrations. Quartz's tables are created by the `jobs` migrations only; Quartz
-validates them at startup (`SchemaProvisioning.Validate`) and never creates them, so a node
-whose tables are missing or outdated fails to start. A Quartz upgrade that changes its schema
-ships as a `jobs` migration in the same change.
+of app-schema migrations. Quartz's tables are created by the `jobs` migrations only, from the
+PostgreSQL script embedded in the referenced Quartz.NET version, so a fresh database always gets
+the schema that version expects. Quartz validates them at startup (`SchemaProvisioning.Validate`)
+and never creates them, so a node whose tables are missing or outdated fails to start. A Quartz
+upgrade that changes its schema also ships a `jobs` migration, for databases created before it.
 
 ### Status
 

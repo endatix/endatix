@@ -36,10 +36,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Persistence\Migrations\PostgreSql\Sql\*.sql" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- Quartz.NET's Apache-2.0 licence and NOTICE travel with every package that depends on it. -->
     <None Include="..\..\THIRD-PARTY-NOTICES" Pack="true" PackagePath="\" />
   </ItemGroup>

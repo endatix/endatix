@@ -58,9 +58,13 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
                 columns: new[] { "TenantId", "Status", "CreatedAt" });
 
             // The scheduler's own tables live beside the rows they schedule, and only migrations create
-            // them. Its version is pinned, and a Quartz upgrade that changes the schema ships as a new
-            // migration in the same change.
-            migrationBuilder.Sql(QuartzSchemaScripts.Read(QuartzSchemaScripts.PostgreSqlTables));
+            // them. The DDL is the referenced Quartz version's own, so a fresh database always gets the
+            // schema that version validates; an existing database needs a new migration when an upgrade
+            // changes it.
+            foreach (var statement in QuartzSchemaScripts.PostgreSqlTables())
+            {
+                migrationBuilder.Sql(statement);
+            }
         }
 
         /// <inheritdoc />
