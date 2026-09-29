@@ -83,7 +83,7 @@ internal sealed class WebHookDeliveryJobHandler(
             new WebHookEventLookup(tenantId, delivery.Operation.EventName, formId), cancellationToken);
         return eventConfig is { IsEnabled: true }
             ? LookUpIn(eventConfig, delivery.EndpointKey)
-            : EndpointLookup.Refused(EventDisabled);
+            : EndpointLookup.NoneBecause(EventDisabled);
     }
 
     private static EndpointLookup LookUpIn(WebHookEventConfig eventConfig, string endpointKey)
@@ -93,8 +93,8 @@ internal sealed class WebHookDeliveryJobHandler(
                 && WebHookEndpointKey.Of(candidate.Url) == endpointKey);
         return endpoint switch
         {
-            null => EndpointLookup.Refused(EndpointGone),
-            _ when !Uri.IsWellFormedUriString(endpoint.Url, UriKind.Absolute) => EndpointLookup.Refused(InvalidUrl),
+            null => EndpointLookup.NoneBecause(EndpointGone),
+            _ when !Uri.IsWellFormedUriString(endpoint.Url, UriKind.Absolute) => EndpointLookup.NoneBecause(InvalidUrl),
             _ => new EndpointLookup(endpoint, null),
         };
     }
@@ -130,7 +130,7 @@ internal sealed class WebHookDeliveryJobHandler(
     /// <summary>The endpoint to send to, or why there is none.</summary>
     private sealed record EndpointLookup(WebHookEndpointConfig? Endpoint, string? Refusal)
     {
-        public static EndpointLookup Refused(string refusal) => new(null, refusal);
+        public static EndpointLookup NoneBecause(string refusal) => new(null, refusal);
     }
 
     /// <summary>The outbox row as the relay's message contract, to reuse its payload readers.</summary>
