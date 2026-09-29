@@ -27,6 +27,9 @@ internal interface IBackgroundJobStateRepository
     /// <summary>The job's current status, or <see langword="null"/> when the row is gone.</summary>
     Task<JobStatus?> ReadStatusAsync(long jobId, CancellationToken cancellationToken = default);
 
+    /// <summary>The job's current status and attempt count, or <see langword="null"/> when the row is gone.</summary>
+    Task<JobAttemptState?> ReadAttemptAsync(long jobId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Records when the scheduler will run a <c>Retrying</c> job next, for the status endpoint to show.
     /// </summary>

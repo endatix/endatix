@@ -176,6 +176,13 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             .Select(job => (JobStatus?)job.Status)
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<JobAttemptState?> ReadAttemptAsync(long jobId, CancellationToken cancellationToken = default) =>
+        await dbContext.BackgroundJobs
+            .AsNoTracking()
+            .Where(job => job.Id == jobId)
+            .Select(job => new JobAttemptState(job.Status, job.AttemptCount))
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<bool> TryMirrorNextAttemptAsync(
         long jobId,
         DateTime nextAttemptAt,

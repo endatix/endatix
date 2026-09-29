@@ -40,6 +40,9 @@ internal sealed class FailingOutcomeWrites(IBackgroundJobStateRepository inner, 
     public Task<JobStatus?> ReadStatusAsync(long jobId, CancellationToken cancellationToken = default) =>
         inner.ReadStatusAsync(jobId, cancellationToken);
 
+    public Task<JobAttemptState?> ReadAttemptAsync(long jobId, CancellationToken cancellationToken = default) =>
+        inner.ReadAttemptAsync(jobId, cancellationToken);
+
     public Task<bool> TryMirrorNextAttemptAsync(long jobId, DateTime nextAttemptAt, CancellationToken cancellationToken = default) =>
         inner.TryMirrorNextAttemptAsync(jobId, nextAttemptAt, cancellationToken);
 

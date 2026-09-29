@@ -87,6 +87,19 @@ internal sealed class BackgroundJobExecution(
             return;
         }
 
+        if (end is AttemptEnd.Superseded)
+        {
+            // Another attempt owns the row, so nothing this one writes could land; its handler was stopped so the
+            // two do not run the work side by side.
+            logger.LogWarning(
+                "Background job {JobId} attempt {Attempt} was taken over by another attempt; its handler was stopped and nothing is recorded",
+                claimed.Id,
+                claimed.AttemptCount);
+            Record(JobLifecycleEvent.Abandoned, claimed.JobType);
+            ObserveDuration(claimed.JobType, claimedAt, JobAttemptOutcome.Abandoned);
+            return;
+        }
+
         if (end is AttemptEnd.HostShutdown)
         {
             // Indistinguishable from a crash at the same instant, so it is treated like one: the attempt taken
@@ -233,6 +246,7 @@ internal sealed class BackgroundJobExecution(
         await using var watcher = CancellationWatcher.Start(
             scopeFactory,
             claimed.Id,
+            claimed.AttemptCount,
             TimeSpan.FromSeconds(options.Value.CancellationPollSeconds),
             logger);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
@@ -268,6 +282,7 @@ internal sealed class BackgroundJobExecution(
         // for recovery would run that work a second time.
         var succeeded = thrown is null && result!.IsSuccess;
         var end = watcher.SawCancellation ? AttemptEnd.Canceled
+            : watcher.SawSupersession ? AttemptEnd.Superseded
             : succeeded ? AttemptEnd.Succeeded
             : shutdownSignal.IsRaised || schedulerToken.IsCancellationRequested ? AttemptEnd.HostShutdown
             : thrown is not null ? AttemptEnd.Threw

@@ -25,6 +25,7 @@ public sealed class BackgroundJobExecutionTests
         { "throw past the budget after a recovery", nameof(AttemptEnd.Threw), 4, 3, nameof(AttemptRowWrite.DeadLettered), false },
         { "row canceled", nameof(AttemptEnd.Canceled), 1, 3, nameof(AttemptRowWrite.None), false },
         { "host shutdown", nameof(AttemptEnd.HostShutdown), 1, 3, nameof(AttemptRowWrite.None), false },
+        { "attempt taken over", nameof(AttemptEnd.Superseded), 1, 3, nameof(AttemptRowWrite.None), false },
     };
 
     [Theory]
@@ -291,6 +292,30 @@ public sealed class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_AttemptTakenOverWhileRunning_StopsHandlerAndRecordsAbandoned()
+    {
+        // Arrange — while the handler runs, the row moves on to an attempt another node took over.
+        var observed = new ObservedRun { WaitForCancellation = true };
+        var repository = ClaimingRepository(attempt: 1);
+        repository.ReadAttemptAsync(JobId, Arg.Any<CancellationToken>())
+            .Returns(new JobAttemptState(JobStatus.Processing, 2));
+        await using var provider = Services(repository, observed, new BackgroundJobsOptions { CancellationPollSeconds = 1 });
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+
+        // Act
+        await execution.Execute(JobTriggerFiringOf(JobId), TestContext.Current.CancellationToken);
+
+        // Assert
+        observed.HandlerTokenCancelled.Should().BeTrue();
+        await repository.DidNotReceiveWithAnyArgs().TryCompleteAsync(default, default, default, default);
+        await repository.DidNotReceiveWithAnyArgs()
+            .RecordFailedAttemptAsync(default, default, default, default, default!, default, default);
+        var metrics = provider.GetRequiredService<IJobMetrics>();
+        metrics.Received(1).Record(JobLifecycleEvent.Abandoned, JobType);
+        metrics.Received(1).ObserveDuration(JobType, Arg.Any<TimeSpan>(), JobAttemptOutcome.Abandoned);
+    }
+
+    [Fact]
     public void Resolve_ClaimedRow_CopiesRowFields()
     {
         // Arrange
@@ -304,7 +329,10 @@ public sealed class BackgroundJobExecutionTests
         context.Should().Be(new BackgroundJobContext(JobId, JobType, TenantA, """{"a":1}""", 3));
     }
 
-    private static ServiceProvider Services(IBackgroundJobStateRepository repository, ObservedRun observed)
+    private static ServiceProvider Services(
+        IBackgroundJobStateRepository repository,
+        ObservedRun observed,
+        BackgroundJobsOptions? options = null)
     {
         var services = new ServiceCollection();
         services.AddScoped(_ => repository);
@@ -314,7 +342,7 @@ public sealed class BackgroundJobExecutionTests
         services.AddSingleton(provider => JobHandlerRegistry.Build(provider));
         services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
         services.AddSingleton(Substitute.For<IDateTimeProvider>());
-        services.AddSingleton(Options.Create(new BackgroundJobsOptions()));
+        services.AddSingleton(Options.Create(options ?? new BackgroundJobsOptions()));
         services.AddSingleton<JobsShutdownSignal>();
         services.AddSingleton(Substitute.For<IJobMetrics>());
         services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(NullLogger<>));
@@ -376,6 +404,10 @@ public sealed class BackgroundJobExecutionTests
         public bool ThrowAfterShutdown { get; init; }
 
         public bool Throw { get; init; }
+
+        public bool WaitForCancellation { get; init; }
+
+        public bool HandlerTokenCancelled { get; set; }
     }
 
     private sealed class TenantObservingHandler(ObservedRun observed, ITenantContext ambient, JobsShutdownSignal shutdown)
@@ -383,7 +415,7 @@ public sealed class BackgroundJobExecutionTests
     {
         public string JobType => BackgroundJobExecutionTests.JobType;
 
-        public Task<Result> ExecuteAsync(BackgroundJobContext job, CancellationToken cancellationToken)
+        public async Task<Result> ExecuteAsync(BackgroundJobContext job, CancellationToken cancellationToken)
         {
             observed.ContextTenantId = job.TenantId;
             observed.AmbientTenantId = ambient.TenantId;
@@ -402,7 +434,20 @@ public sealed class BackgroundJobExecutionTests
                 throw new OperationCanceledException(shutdown.Token);
             }
 
-            return Task.FromResult(Result.Success());
+            if (observed.WaitForCancellation)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    observed.HandlerTokenCancelled = true;
+                    throw;
+                }
+            }
+
+            return Result.Success();
         }
     }
 }

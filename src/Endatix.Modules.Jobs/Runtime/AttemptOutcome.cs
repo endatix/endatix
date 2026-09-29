@@ -17,6 +17,9 @@ internal enum AttemptEnd
 
     /// <summary>The host stopped waiting for the job before it ended.</summary>
     HostShutdown,
+
+    /// <summary>The row was taken over by another attempt, or is gone, while the handler ran.</summary>
+    Superseded,
 }
 
 /// <summary>What the wrapper writes to the row for an attempt.</summary>
@@ -49,6 +52,7 @@ internal readonly record struct AttemptDecision(AttemptRowWrite Row, bool Rethro
         AttemptEnd.Threw => new(AttemptRowWrite.DeadLettered, Rethrow: false),
         AttemptEnd.Canceled => new(AttemptRowWrite.None, Rethrow: false),
         AttemptEnd.HostShutdown => new(AttemptRowWrite.None, Rethrow: false),
+        AttemptEnd.Superseded => new(AttemptRowWrite.None, Rethrow: false),
         _ => throw new ArgumentOutOfRangeException(nameof(end), end, null),
     };
 }
