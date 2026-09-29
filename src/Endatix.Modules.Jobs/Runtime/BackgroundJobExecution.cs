@@ -86,7 +86,10 @@ internal sealed class BackgroundJobExecution(
     /// before the row says <c>Retrying</c>: should the row write then not land, the trigger finds a row it cannot
     /// claim and does nothing, where the other order could leave a <c>Retrying</c> row with no trigger.
     /// </summary>
-    private static async Task ScheduleOwnRetryAsync(IJobExecutionContext context, ClaimedAttempt attempt, DateTime nextAttemptAt)
+    private static async Task ScheduleOwnRetryAsync(
+        IJobExecutionContext context,
+        ClaimedAttempt attempt,
+        DateTime nextAttemptAt)
     {
         var job = attempt.Job;
         await context.Scheduler.ScheduleJob(
@@ -97,5 +100,6 @@ internal sealed class BackgroundJobExecution(
     }
 
     private DateTime NextAttemptAt(ClaimedAttempt attempt) =>
-        BackgroundJobRetryPolicy.NextAttemptAt(attempt.Job.AttemptCount, dateTimeProvider.UtcNow.UtcDateTime, attempt.Policy);
+        BackgroundJobRetryPolicy.NextAttemptAt(
+            attempt.Job.AttemptCount, dateTimeProvider.UtcNow.UtcDateTime, attempt.Policy);
 }

@@ -83,9 +83,9 @@ internal sealed class JobTriggerListener : ITriggerListener
         {
             var status = await _scopeFactory.WithStateRepositoryAsync(
                 repository => repository.ReadStatusAsync(jobId, cancellationToken));
-            if (status is not (null or JobStatus.Completed or JobStatus.Failed or JobStatus.DeadLettered or JobStatus.Canceled))
+            if (status is { } current && !IsTerminal(current))
             {
-                ReportMismatch(jobId, jobType, status.Value);
+                ReportMismatch(jobId, jobType, current);
             }
         }
         catch (Exception readFailure)
@@ -103,6 +103,9 @@ internal sealed class JobTriggerListener : ITriggerListener
             jobType,
             status);
     }
+
+    private static bool IsTerminal(JobStatus status) =>
+        status is JobStatus.Completed or JobStatus.Failed or JobStatus.DeadLettered or JobStatus.Canceled;
 
     private static long? JobIdOf(IJobExecutionContext context) =>
         context.MergedJobDataMap.GetString(BackgroundJobExecution.JobIdKey) is { } value

@@ -71,7 +71,10 @@ internal sealed class JobHandlerRunner(
         }
     }
 
-    private async Task<Result> ExecuteHandlerAsync(ClaimedJob job, Activity? activity, CancellationToken cancellationToken)
+    private async Task<Result> ExecuteHandlerAsync(
+        ClaimedJob job,
+        Activity? activity,
+        CancellationToken cancellationToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var jobContext = scope.ServiceProvider.GetRequiredService<IJobExecutionContextResolver>().Resolve(job);

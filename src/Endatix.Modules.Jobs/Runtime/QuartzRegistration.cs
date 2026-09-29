@@ -118,7 +118,10 @@ internal static class QuartzRegistration
         return services;
     }
 
-    private static void ConfigureQuartz(IQuartzBuilder quartz, BackgroundJobsOptions options, string connectionString)
+    private static void ConfigureQuartz(
+        IQuartzBuilder quartz,
+        BackgroundJobsOptions options,
+        string connectionString)
     {
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
         quartz.AddTriggerListener<JobTriggerListener>();
@@ -176,7 +179,8 @@ internal static class QuartzRegistration
         store.UseClustering(clustering =>
         {
             clustering.CheckinInterval = TimeSpan.FromSeconds(options.Clustering.CheckinIntervalSeconds);
-            clustering.CheckinMisfireThreshold = TimeSpan.FromSeconds(options.Clustering.CheckinMisfireThresholdSeconds);
+            clustering.CheckinMisfireThreshold =
+                TimeSpan.FromSeconds(options.Clustering.CheckinMisfireThresholdSeconds);
         });
     }
 

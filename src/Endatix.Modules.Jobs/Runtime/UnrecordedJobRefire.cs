@@ -39,7 +39,8 @@ internal sealed class UnrecordedJobRefire(
     private async Task<bool> TryReplaceFiringAsync(IJobExecutionContext context, ClaimedAttempt attempt, DateTimeOffset fireAt)
     {
         var job = attempt.Job;
-        var again = QuartzRegistration.TriggerFor(new JobTriggerSpec(job.Id, job.JobType, attempt.Policy, fireAt, Reclaim: true));
+        var again = QuartzRegistration.TriggerFor(
+            new JobTriggerSpec(job.Id, job.JobType, attempt.Policy, fireAt, Reclaim: true));
         try
         {
             await ReplaceFiringAsync(context, again);

@@ -21,7 +21,9 @@ internal sealed record JobClaim(
 /// <summary>Why an attempt failed, as the row keeps it, and when the failure is recorded.</summary>
 internal readonly record struct AttemptFailure(string ErrorMessage, DateTime UtcNow);
 
-/// <summary>A failure judged against the job's attempt budget: retried while attempts remain, else dead-lettered.</summary>
+/// <summary>
+/// A failure judged against the job's attempt budget: retried while attempts remain, else dead-lettered.
+/// </summary>
 /// <param name="Failure">The failure the row records either way.</param>
 /// <param name="MaxAttempts">The job type's attempt budget.</param>
 /// <param name="NextAttemptAt">When the next attempt is due, should one remain.</param>

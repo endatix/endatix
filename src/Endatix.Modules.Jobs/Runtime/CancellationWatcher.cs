@@ -46,7 +46,10 @@ internal sealed class CancellationWatcher : IAsyncDisposable
     /// <summary>Whether the row was seen to belong to another attempt, or to be gone.</summary>
     public bool SawSupersession => _sawSupersession;
 
-    public static CancellationWatcher Start(IServiceScopeFactory scopeFactory, WatchedAttempt watched, ILogger logger) =>
+    public static CancellationWatcher Start(
+        IServiceScopeFactory scopeFactory,
+        WatchedAttempt watched,
+        ILogger logger) =>
         new(scopeFactory, watched, logger);
 
     public async ValueTask DisposeAsync()
@@ -91,7 +94,8 @@ internal sealed class CancellationWatcher : IAsyncDisposable
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             // One failed read must not stop the job; the next tick tries again.
-            _logger.LogWarning(exception, "Checking background job {JobId} for cancellation failed", _watched.Attempt.JobId);
+            _logger.LogWarning(
+                exception, "Checking background job {JobId} for cancellation failed", _watched.Attempt.JobId);
             return false;
         }
     }

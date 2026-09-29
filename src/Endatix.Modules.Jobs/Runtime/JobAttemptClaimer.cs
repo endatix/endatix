@@ -41,7 +41,10 @@ internal sealed class JobAttemptClaimer(
         return new ClaimedAttempt(claimed, options.Value.ResolvePolicy(claimed.JobType), claimedAt);
     }
 
-    private async Task<bool> TryDeadLetterSpentAsync(JobFiring firing, DateTime utcNow, CancellationToken cancellationToken)
+    private async Task<bool> TryDeadLetterSpentAsync(
+        JobFiring firing,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
     {
         var lastAttempt = new AttemptRef(firing.JobId, options.Value.ResolvePolicy(firing.JobType).MaxAttempts);
         var failure = new AttemptFailure(BackgroundJobMessages.StoppedOnLastAttempt, utcNow);
