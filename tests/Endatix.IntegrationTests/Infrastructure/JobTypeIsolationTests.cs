@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Extensions.DependencyInjection;
@@ -173,7 +174,7 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
     {
         foreach (var jobType in jobTypes)
         {
-            services.AddScoped<IBackgroundJobHandler>(_ => new NamedProbeHandler(jobType, runs));
+            services.AddBackgroundJobHandler(jobType, _ => new NamedProbeHandler(jobType, runs));
         }
     }
 }
