@@ -241,9 +241,9 @@ internal sealed class BackgroundJobExecution(
         using var runtime = new CancellationTokenSource(policy.MaxRuntime);
         await using var watcher = CancellationWatcher.Start(
             scopeFactory,
-            claimed.Id,
-            claimed.AttemptCount,
-            TimeSpan.FromSeconds(options.Value.CancellationPollSeconds),
+            new WatchedAttempt(
+                new AttemptRef(claimed.Id, claimed.AttemptCount),
+                TimeSpan.FromSeconds(options.Value.CancellationPollSeconds)),
             logger);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             schedulerToken, shutdownSignal.Token, runtime.Token, watcher.Token);

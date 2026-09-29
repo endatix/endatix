@@ -23,18 +23,19 @@ internal sealed class CancellationWatcher : IAsyncDisposable
 {
     private readonly CancellationTokenSource _tripped = new();
     private readonly CancellationTokenSource _stop = new();
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly WatchedAttempt _watched;
+    private readonly ILogger _logger;
     private readonly Task _watching;
     private volatile bool _sawCancellation;
     private volatile bool _sawSupersession;
 
-    private CancellationWatcher(
-        IServiceScopeFactory scopeFactory,
-        long jobId,
-        int claimedAttempt,
-        TimeSpan interval,
-        ILogger logger)
+    private CancellationWatcher(IServiceScopeFactory scopeFactory, WatchedAttempt watched, ILogger logger)
     {
-        _watching = WatchAsync(scopeFactory, jobId, claimedAttempt, interval, logger);
+        _scopeFactory = scopeFactory;
+        _watched = watched;
+        _logger = logger;
+        _watching = WatchAsync();
     }
 
     /// <summary>Cancelled once the row is seen <c>Canceled</c>, or taken over by another attempt.</summary>
@@ -45,13 +46,8 @@ internal sealed class CancellationWatcher : IAsyncDisposable
     /// <summary>Whether the row was seen to belong to another attempt, or to be gone.</summary>
     public bool SawSupersession => _sawSupersession;
 
-    public static CancellationWatcher Start(
-        IServiceScopeFactory scopeFactory,
-        long jobId,
-        int claimedAttempt,
-        TimeSpan interval,
-        ILogger logger) =>
-        new(scopeFactory, jobId, claimedAttempt, interval, logger);
+    public static CancellationWatcher Start(IServiceScopeFactory scopeFactory, WatchedAttempt watched, ILogger logger) =>
+        new(scopeFactory, watched, logger);
 
     public async ValueTask DisposeAsync()
     {
@@ -61,48 +57,65 @@ internal sealed class CancellationWatcher : IAsyncDisposable
         _tripped.Dispose();
     }
 
-    private async Task WatchAsync(
-        IServiceScopeFactory scopeFactory,
-        long jobId,
-        int claimedAttempt,
-        TimeSpan interval,
-        ILogger logger)
+    private async Task WatchAsync()
     {
-        using var timer = new PeriodicTimer(interval);
         try
         {
-            while (await timer.WaitForNextTickAsync(_stop.Token))
-            {
-                try
-                {
-                    await using var scope = scopeFactory.CreateAsyncScope();
-                    var repository = scope.ServiceProvider.GetRequiredService<IBackgroundJobStateRepository>();
-                    var state = await repository.ReadAttemptAsync(jobId, _stop.Token);
-
-                    if (state is { Status: JobStatus.Canceled })
-                    {
-                        _sawCancellation = true;
-                        await _tripped.CancelAsync();
-                        return;
-                    }
-
-                    if (state is not { Status: JobStatus.Processing } || state.AttemptCount != claimedAttempt)
-                    {
-                        _sawSupersession = true;
-                        await _tripped.CancelAsync();
-                        return;
-                    }
-                }
-                catch (Exception exception) when (exception is not OperationCanceledException)
-                {
-                    // One failed read must not stop the job; the next tick tries again.
-                    logger.LogWarning(exception, "Checking background job {JobId} for cancellation failed", jobId);
-                }
-            }
+            await PollUntilTrippedAsync();
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested)
         {
             // The attempt ended.
         }
     }
+
+    private async Task PollUntilTrippedAsync()
+    {
+        using var timer = new PeriodicTimer(_watched.Interval);
+        var tripped = false;
+        while (!tripped && await timer.WaitForNextTickAsync(_stop.Token))
+        {
+            tripped = await PollAsync();
+        }
+    }
+
+    // Returns whether the row was seen to have moved on, which trips the handler's token.
+    private async Task<bool> PollAsync()
+    {
+        try
+        {
+            var state = await _scopeFactory.WithStateRepositoryAsync(
+                repository => repository.ReadAttemptAsync(_watched.Attempt.JobId, _stop.Token));
+            return await TripIfMovedOnAsync(state);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // One failed read must not stop the job; the next tick tries again.
+            _logger.LogWarning(exception, "Checking background job {JobId} for cancellation failed", _watched.Attempt.JobId);
+            return false;
+        }
+    }
+
+    private async Task<bool> TripIfMovedOnAsync(JobAttemptState? state)
+    {
+        if (state is { Status: JobStatus.Canceled })
+        {
+            _sawCancellation = true;
+        }
+        else if (state is not { Status: JobStatus.Processing } || state.AttemptCount != _watched.Attempt.AttemptCount)
+        {
+            _sawSupersession = true;
+        }
+        else
+        {
+            return false;
+        }
+
+        await _tripped.CancelAsync();
+        return true;
+    }
 }
+
+/// <param name="Attempt">The attempt whose row is watched.</param>
+/// <param name="Interval">How often the row is read.</param>
+internal readonly record struct WatchedAttempt(AttemptRef Attempt, TimeSpan Interval);

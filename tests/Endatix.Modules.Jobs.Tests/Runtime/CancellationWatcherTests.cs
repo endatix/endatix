@@ -88,7 +88,9 @@ public sealed class CancellationWatcherTests
 
     private static CancellationWatcher Start(ServiceProvider services) =>
         CancellationWatcher.Start(
-            services.GetRequiredService<IServiceScopeFactory>(), JobId, ClaimedAttempt, Interval, NullLogger.Instance);
+            services.GetRequiredService<IServiceScopeFactory>(),
+            new WatchedAttempt(new AttemptRef(JobId, ClaimedAttempt), Interval),
+            NullLogger.Instance);
 
     private static async Task<bool> TrippedAsync(CancellationWatcher watcher)
     {
