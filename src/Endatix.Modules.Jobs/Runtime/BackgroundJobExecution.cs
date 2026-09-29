@@ -38,8 +38,7 @@ internal sealed class BackgroundJobExecution(
 
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var claimedAt = dateTimeProvider.UtcNow.UtcDateTime;
-        var attempt = await claimer.ClaimAsync(JobFiring.Of(context), claimedAt, cancellationToken);
+        var attempt = await ClaimAsync(context, JobFiring.Of(context), cancellationToken);
         if (attempt is null)
         {
             // Returning tells the scheduler this firing is done.
@@ -53,6 +52,28 @@ internal sealed class BackgroundJobExecution(
             // again.
             throw new JobExecutionException(
                 $"Background job {attempt.Job.Id} attempt {attempt.Job.AttemptCount} failed and will be retried.");
+        }
+    }
+
+    /// <summary>
+    /// Claims the row the firing points at. A firing that takes the job over and carries no retry policy is the
+    /// job's only trigger, and a throw would end it for good, so a claim that fails re-fires the job instead; a
+    /// firing with a policy throws, and the scheduler retries it.
+    /// </summary>
+    private async Task<ClaimedAttempt?> ClaimAsync(
+        IJobExecutionContext context,
+        JobFiring firing,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await claimer.ClaimAsync(firing, dateTimeProvider.UtcNow.UtcDateTime, cancellationToken);
+        }
+        catch (Exception exception) when (firing.Reclaiming && context.Trigger.RetryPolicy is null) // Any failure: the firing is the job's only trigger.
+        {
+            var job = new ReclaimableJob(firing.JobId, firing.JobType, claimer.PolicyFor(firing.JobType));
+            await refire.RefireUnclaimedAsync(context, job, exception);
+            return null;
         }
     }
 

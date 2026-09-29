@@ -101,6 +101,73 @@ public sealed class BackgroundJobExecutionRefireTests
         provider.GetRequiredService<JobsShutdownSignal>().IsRaised.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Execute_ClaimFailsOnRecoveryFiring_RefiresToReclaimWithoutRunningHandler()
+    {
+        // Arrange
+        var observed = new ObservedRun();
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository.TryClaimAsync(ClaimOfJob(recovering: true), Arg.Any<CancellationToken>())
+            .Returns<Task<ClaimedJob?>>(_ => throw new TimeoutException("The database did not answer."));
+        await using var provider = Services(repository, observed);
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = RecoveryOf(JobId);
+        var scheduled = CaptureStoredTriggers(context.Scheduler);
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        observed.ContextTenantId.Should().Be(-1);
+        scheduled.Should().ContainSingle().Which.Should().Match<ITrigger>(trigger => IsReclaim(trigger));
+        scheduled[0].RetryPolicy.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Execute_DeadLetterFailsOnRecoveryFiring_RefiresToReclaim()
+    {
+        // Arrange
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository
+            .TryDeadLetterSpentAsync(Arg.Any<AttemptRef>(), Arg.Any<AttemptFailure>(), Arg.Any<CancellationToken>())
+            .Returns<Task<bool>>(_ => throw new TimeoutException("The database did not answer."));
+        await using var provider = Services(repository, new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = RecoveryOf(JobId);
+        var scheduled = CaptureStoredTriggers(context.Scheduler);
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        scheduled.Should().ContainSingle().Which.Should().Match<ITrigger>(trigger => IsReclaim(trigger));
+        await repository.DidNotReceiveWithAnyArgs().TryClaimAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Execute_ClaimFailsOnReclaimingFiringWithRetryPolicy_ThrowsForTheSchedulerToRetry()
+    {
+        // Arrange — the scheduler retries a firing with a policy by itself, keeping the trigger's data.
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository.TryClaimAsync(ClaimOfJob(recovering: true), Arg.Any<CancellationToken>())
+            .Returns<Task<ClaimedJob?>>(_ => throw new TimeoutException("The database did not answer."));
+        await using var provider = Services(repository, new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = JobTriggerFiringOf(JobId);
+        context.MergedJobDataMap.Returns(new JobDataMap
+        {
+            [BackgroundJobExecution.JobIdKey] = JobId.ToString(),
+            [BackgroundJobExecution.ReclaimKey] = bool.TrueString,
+        });
+
+        // Act
+        var act = async () => await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        await act.Should().ThrowAsync<TimeoutException>();
+        context.Scheduler.ReceivedCalls().Should().BeEmpty();
+    }
+
     private static IBackgroundJobStateRepository RecoveringRepository(int attempt)
     {
         var repository = Substitute.For<IBackgroundJobStateRepository>();
@@ -108,6 +175,15 @@ public sealed class BackgroundJobExecutionRefireTests
             .TryClaimAsync(ClaimOfJob(recovering: true), Arg.Any<CancellationToken>())
             .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", attempt, null, JobStatus.Processing));
         return repository;
+    }
+
+    private static List<ITrigger> CaptureStoredTriggers(IScheduler scheduler)
+    {
+        var scheduled = new List<ITrigger>();
+        scheduler
+            .ScheduleJob(Arg.Do<ITrigger>(scheduled.Add), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Stored());
+        return scheduled;
     }
 
     private static void RefuseEveryTrigger(IScheduler scheduler) =>

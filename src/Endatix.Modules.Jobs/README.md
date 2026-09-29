@@ -181,7 +181,8 @@ one class per step:
    `Processing` that increments `AttemptCount`. When Quartz reports a recovered firing, or the
    firing was scheduled to take over an attempt that left its row unsettled, it re-claims the row
    from `Processing`, fenced on the attempt it read, and dead-letters a job that has no attempt left
-   instead. A claim that changes nothing ends the firing.
+   instead. A claim that changes nothing ends the firing. A take-over firing with no retry policy is
+   the job's only trigger, so a claim that throws there re-fires the job rather than ending it.
 2. **Runs the handler** (`JobHandlerRunner`) in its own DI scope, under an `Endatix.Jobs` activity
    whose parent is the trace captured at enqueue, with one token linked from the runtime ceiling
    (`MaxRuntimeMinutes`), the cancellation watcher and the host's shutdown.

@@ -38,15 +38,18 @@ internal sealed class JobAttemptClaimer(
         }
 
         metrics.Record(JobLifecycleEvent.Claimed, claimed.JobType);
-        return new ClaimedAttempt(claimed, options.Value.ResolvePolicy(claimed.JobType), claimedAt);
+        return new ClaimedAttempt(claimed, PolicyFor(claimed.JobType), claimedAt);
     }
+
+    /// <summary>The policy attempts of <paramref name="jobType"/> run under.</summary>
+    public BackgroundJobTypePolicy PolicyFor(string jobType) => options.Value.ResolvePolicy(jobType);
 
     private async Task<bool> TryDeadLetterSpentAsync(
         JobFiring firing,
         DateTime utcNow,
         CancellationToken cancellationToken)
     {
-        var lastAttempt = new AttemptRef(firing.JobId, options.Value.ResolvePolicy(firing.JobType).MaxAttempts);
+        var lastAttempt = new AttemptRef(firing.JobId, PolicyFor(firing.JobType).MaxAttempts);
         var failure = new AttemptFailure(BackgroundJobMessages.StoppedOnLastAttempt, utcNow);
         var deadLettered = await scopeFactory.WithStateRepositoryAsync(
             repository => repository.TryDeadLetterSpentAsync(lastAttempt, failure, cancellationToken));

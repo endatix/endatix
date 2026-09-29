@@ -80,6 +80,16 @@ internal sealed class UnrecordedJobRefire(
         }
     }
 
+    /// <summary>Re-fires a job that a firing taking it over could not claim.</summary>
+    public async Task RefireUnclaimedAsync(IJobExecutionContext context, ReclaimableJob job, Exception failure)
+    {
+        logger.LogError(failure, "Background job {JobId} could not be taken over from the attempt that left it", job.JobId);
+        if (await TryRefireAsync(context, job) is { } fireAt)
+        {
+            logger.LogWarning("Background job {JobId} is re-fired at {FireAt:O} to be taken over again", job.JobId, fireAt);
+        }
+    }
+
     // Returns when the job fires again, or null when nothing was scheduled.
     private async Task<DateTimeOffset?> TryRefireAsync(IJobExecutionContext context, ReclaimableJob job)
     {
