@@ -159,6 +159,45 @@ public sealed class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_RecoveredRunThrowsWithAttemptsLeft_SchedulesOwnTriggerBeforeRecordingRetry()
+    {
+        // Arrange — a recovery firing has no retry policy, so the next attempt needs a trigger of its own.
+        var observed = new ObservedRun { Throw = true };
+        var steps = new List<string>();
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository
+            .TryClaimAsync(JobId, Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<DateTime>(), true, Arg.Any<CancellationToken>())
+            .Returns(new ClaimedJob(JobId, JobType, TenantA, "{}", 2, null, JobStatus.Processing));
+        repository
+            .RecordFailedAttemptAsync(JobId, 2, 3, Arg.Any<DateTime>(), Arg.Any<string>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                steps.Add("record retrying");
+                return true;
+            });
+        await using var provider = Services(repository, observed);
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = RecoveryOf(JobId);
+        ITrigger? scheduled = null;
+        context.Scheduler
+            .ScheduleJob(Arg.Any<ITrigger>(), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                scheduled = call.Arg<ITrigger>();
+                steps.Add("schedule trigger");
+                return new ValueTask<DateTimeOffset>(DateTimeOffset.UtcNow);
+            });
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        steps.Should().Equal("schedule trigger", "record retrying");
+        scheduled!.Key.Should().Be(new TriggerKey(JobId.ToString(), JobType));
+        scheduled.RetryPolicy.Should().NotBeNull();
+    }
+
+    [Fact]
     public void Resolve_ClaimedRow_CopiesRowFields()
     {
         // Arrange
@@ -202,6 +241,15 @@ public sealed class BackgroundJobExecutionTests
         var context = FiringOf(jobId);
         context.Recovering.Returns(true);
         context.JobDetail.Returns(QuartzRegistration.DurableJobFor(JobType));
+
+        // Shaped like the trigger Quartz creates to recover a dead node's firing: its own key and no retry policy.
+        context.Trigger.Returns(TriggerBuilder.Create()
+            .WithIdentity("recover_node-a_1", SchedulerConstants.DefaultRecoveryGroup)
+            .ForJob(QuartzRegistration.JobKeyFor(JobType))
+            .UsingJobData(BackgroundJobExecution.JobIdKey, jobId.ToString())
+            .StartNow()
+            .Build());
+        context.Scheduler.Returns(Substitute.For<IScheduler>());
         return context;
     }
 
@@ -214,6 +262,8 @@ public sealed class BackgroundJobExecutionTests
         public bool RaiseShutdown { get; init; }
 
         public bool ThrowAfterShutdown { get; init; }
+
+        public bool Throw { get; init; }
     }
 
     private sealed class TenantObservingHandler(ObservedRun observed, ITenantContext ambient, JobsShutdownSignal shutdown)
@@ -228,6 +278,11 @@ public sealed class BackgroundJobExecutionTests
             if (observed.RaiseShutdown)
             {
                 shutdown.Raise();
+            }
+
+            if (observed.Throw)
+            {
+                throw new InvalidOperationException("Transient failure.");
             }
 
             if (observed.ThrowAfterShutdown)

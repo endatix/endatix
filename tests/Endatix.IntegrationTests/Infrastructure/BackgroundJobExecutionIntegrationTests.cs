@@ -192,6 +192,33 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
     }
 
     [Fact]
+    public async Task Recovered_job_that_fails_with_attempts_left_is_scheduled_to_retry()
+    {
+        // Arrange — the survivor's backoff is long, so the retry is still waiting when the test looks.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        var onA = new ProbeInvocations();
+        var onB = new ProbeInvocations();
+        var nodeA = await StartNodeAsync(database, onA, InstanceId("node-a"), ct);
+        var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.BlockFirstThenThrow), ct);
+        await JobsTestWait.UntilAsync(() => Task.FromResult(onA.CountFor(jobId) == 1), Patience, ct);
+        var survivorSettings = InstanceId("node-b");
+        survivorSettings[ProbeKey("BackoffBaseSeconds")] = "600";
+        await using var nodeB = await StartNodeAsync(database, onB, survivorSettings, ct);
+
+        // Act
+        await nodeA.KillAsync();
+        var row = await database.WaitForStatusAsync(jobId, status => status == JobStatus.Retrying, Patience, ct);
+
+        // Assert — the recovery trigger carried no retry policy, so a trigger of the job's own waits to run it again.
+        row.AttemptCount.Should().Be(2);
+        onB.CountFor(jobId).Should().Be(1);
+        (await JobsTestWait.UntilAsync(
+            async () => await database.TriggerCountAsync(jobId, ct) == 1, TimeSpan.FromSeconds(10), ct)).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Canceled_row_cancels_running_handler_on_another_node()
     {
         // Arrange

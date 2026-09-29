@@ -85,7 +85,29 @@ internal sealed class BackgroundJobExecution(
             return;
         }
 
-        var recorded = await RecordOutcomeAsync(claimed, claimedAt, decision.Row, policy, result, thrown, runtimeReached);
+        var nextAttemptAt = BackgroundJobRetryPolicy.NextAttemptAt(
+            claimed.AttemptCount, dateTimeProvider.UtcNow.UtcDateTime, policy);
+
+        // A firing Quartz created to recover a dead node's job carries no retry policy, so a rethrow would end it
+        // for good. The next attempt gets a trigger of its own instead, as enqueueing would have made it. It is
+        // scheduled before the row says Retrying: should the row write then not land, the trigger finds a row it
+        // cannot claim and does nothing, where the other order could leave a Retrying row with no trigger.
+        var needsOwnTrigger = decision.Rethrow && context.Trigger.RetryPolicy is null;
+        if (needsOwnTrigger)
+        {
+            await context.Scheduler.ScheduleJob(
+                QuartzRegistration.TriggerFor(claimed.Id, claimed.JobType, policy, new DateTimeOffset(nextAttemptAt)),
+                ScheduleJobOptions.Replacing,
+                CancellationToken.None);
+        }
+
+        var recorded = await RecordOutcomeAsync(
+            claimed, claimedAt, decision.Row, policy, nextAttemptAt, result, thrown, runtimeReached);
+
+        if (needsOwnTrigger)
+        {
+            return;
+        }
 
         if (decision.Rethrow && recorded)
         {
@@ -199,6 +221,7 @@ internal sealed class BackgroundJobExecution(
         DateTime claimedAt,
         AttemptRowWrite write,
         BackgroundJobTypePolicy policy,
+        DateTime nextAttemptAt,
         Result? result,
         Exception? thrown,
         bool runtimeReached)
@@ -230,7 +253,7 @@ internal sealed class BackgroundJobExecution(
                         claimed.Id,
                         claimed.AttemptCount,
                         policy.MaxAttempts,
-                        BackgroundJobRetryPolicy.NextAttemptAt(claimed.AttemptCount, endedAt, policy),
+                        nextAttemptAt,
                         ThrownMessage(claimed, thrown!, runtimeReached),
                         endedAt,
                         CancellationToken.None),

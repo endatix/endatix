@@ -33,6 +33,9 @@ internal static class ProbeBehaviours
     /// <summary>Waits on its token for ever on the first attempt, and succeeds on the next.</summary>
     public const string BlockFirst = "block-first";
 
+    /// <summary>Waits on its token for ever on the first attempt, and throws on every later one.</summary>
+    public const string BlockFirstThenThrow = "block-first-then-throw";
+
     public const string FailureMessage = "Form 12 has no schema.";
 
     public const string SecretMessage = "Host=db;Password=secret";
@@ -57,9 +60,11 @@ internal sealed class ProbeJobHandler(ProbeInvocations invocations, ILogger<Prob
                 return Result.Invalid(new ValidationError(ProbeBehaviours.FailureMessage));
             case ProbeBehaviours.Throw:
             case ProbeBehaviours.ThrowOnce when job.AttemptCount == 1:
+            case ProbeBehaviours.BlockFirstThenThrow when job.AttemptCount > 1:
                 throw new InvalidOperationException(ProbeBehaviours.SecretMessage);
             case ProbeBehaviours.Block:
             case ProbeBehaviours.BlockFirst when job.AttemptCount == 1:
+            case ProbeBehaviours.BlockFirstThenThrow when job.AttemptCount == 1:
                 await BlockAsync(job, cancellationToken);
                 return Result.Success();
             default:

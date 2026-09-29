@@ -64,15 +64,19 @@ internal static class QuartzRegistration
     /// id, and it carries the job type's execution group and retry policy. The payload and anything secret stay
     /// on the row.
     /// </summary>
-    public static ITrigger TriggerFor(long jobId, string jobType, BackgroundJobTypePolicy policy)
+    public static ITrigger TriggerFor(
+        long jobId,
+        string jobType,
+        BackgroundJobTypePolicy policy,
+        DateTimeOffset? startAt = null)
     {
         var id = jobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var trigger = TriggerBuilder.Create()
             .WithIdentity(id, jobType)
             .ForJob(JobKeyFor(jobType))
             .WithExecutionGroup(jobType)
-            .UsingJobData(BackgroundJobExecution.JobIdKey, id)
-            .StartNow();
+            .UsingJobData(BackgroundJobExecution.JobIdKey, id);
+        trigger = startAt is { } at ? trigger.StartAt(at) : trigger.StartNow();
 
         var retryPolicy = BackgroundJobRetryPolicy.ToQuartz(policy);
         if (retryPolicy is not null)
