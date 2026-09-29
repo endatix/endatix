@@ -67,14 +67,13 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             cancellationToken);
     }
 
+    // The attempt count stays as it is: no attempt is started, so none is counted.
     public async Task<bool> TryDeadLetterSpentAsync(
         AttemptRef lastAttempt,
         AttemptFailure failure,
         CancellationToken cancellationToken = default)
     {
         var message = StorableErrorMessage(failure.ErrorMessage);
-
-        // The attempt count stays as it is: no attempt is started, so none is counted.
         var affected = await dbContext.BackgroundJobs
             .Where(job => job.Id == lastAttempt.JobId
                 && job.Status == JobStatus.Processing

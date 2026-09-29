@@ -227,7 +227,7 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var invocations = new ProbeInvocations();
-        var failures = new OutcomeWriteFailures(BackgroundJobExecution.OutcomeWriteRetryDelays.Length + 1);
+        var failures = new OutcomeWriteFailures(JobOutcomeRecorder.WriteRetryDelays.Length + 1);
         await using var node = JobsTestNode.Create(
             database.ConnectionString,
             configureServices: services =>

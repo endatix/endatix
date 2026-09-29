@@ -69,7 +69,7 @@ internal sealed class QuartzJobTriggerScheduler(
         {
             var policy = options.Value.ResolvePolicy(job.JobType);
             await scheduler.ScheduleJob(
-                QuartzRegistration.TriggerFor(job.Id, job.JobType, policy),
+                QuartzRegistration.TriggerFor(new JobTriggerSpec(job.Id, job.JobType, policy)),
                 cancellationToken: cancellationToken);
         }
     }

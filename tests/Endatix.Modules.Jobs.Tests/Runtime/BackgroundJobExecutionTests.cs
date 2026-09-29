@@ -244,7 +244,7 @@ public sealed class BackgroundJobExecutionTests
         await execution.Execute(context, TestContext.Current.CancellationToken);
 
         // Assert — the firing trigger itself fires again, marked to take over the row this attempt left Processing.
-        await repository.Received(BackgroundJobExecution.OutcomeWriteRetryDelays.Length + 1)
+        await repository.Received(JobOutcomeRecorder.WriteRetryDelays.Length + 1)
             .TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), CancellationToken.None);
         rescheduled.Should().NotBeNull();
         rescheduled.Key.Should().Be(context.Trigger.Key);
@@ -347,12 +347,11 @@ public sealed class BackgroundJobExecutionTests
         services.AddSingleton(observed);
         services.AddScoped<IBackgroundJobHandler, TenantObservingHandler>();
         services.AddSingleton(provider => JobHandlerRegistry.Build(provider));
-        services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
         services.AddSingleton(Substitute.For<IDateTimeProvider>());
         services.AddSingleton(Options.Create(options ?? new BackgroundJobsOptions()));
-        services.AddSingleton<JobsShutdownSignal>();
         services.AddSingleton(Substitute.For<IJobMetrics>());
         services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(NullLogger<>));
+        services.AddJobExecution();
         return services.BuildServiceProvider();
     }
 
@@ -365,6 +364,7 @@ public sealed class BackgroundJobExecutionTests
         var context = Substitute.For<IJobExecutionContext>();
         context.MergedJobDataMap.Returns(new JobDataMap { [BackgroundJobExecution.JobIdKey] = jobId.ToString() });
         context.Recovering.Returns(false);
+        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(ProbeJobType));
         return context;
     }
 
@@ -381,8 +381,8 @@ public sealed class BackgroundJobExecutionTests
     private static IJobExecutionContext JobTriggerFiringOf(long jobId)
     {
         var context = FiringOf(jobId);
-        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(ProbeJobType));
-        context.Trigger.Returns(QuartzRegistration.TriggerFor(jobId, ProbeJobType, new BackgroundJobsOptions().ResolvePolicy(ProbeJobType)));
+        context.Trigger.Returns(QuartzRegistration.TriggerFor(
+            new JobTriggerSpec(jobId, ProbeJobType, new BackgroundJobsOptions().ResolvePolicy(ProbeJobType))));
         context.Scheduler.Returns(Substitute.For<IScheduler>());
         return context;
     }
@@ -391,7 +391,6 @@ public sealed class BackgroundJobExecutionTests
     {
         var context = FiringOf(jobId);
         context.Recovering.Returns(true);
-        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(ProbeJobType));
 
         // Shaped like the trigger Quartz creates to recover a dead node's firing: its own key and no retry policy.
         context.Trigger.Returns(TriggerBuilder.Create()
