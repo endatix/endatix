@@ -29,7 +29,7 @@ internal sealed class JobsSchedulerHostedService(
     IConfiguration configuration,
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
-    ILogger<JobsSchedulerHostedService> logger) : IHostedService
+    ILogger<JobsSchedulerHostedService> logger) : IHostedService, IDisposable
 {
     private static readonly TimeSpan UnreachableRetryDelay = TimeSpan.FromSeconds(5);
 
@@ -63,6 +63,21 @@ internal sealed class JobsSchedulerHostedService(
         {
             await _scheduler.Shutdown(waitForJobsToComplete: true, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Cancels first, so a deferred start still waiting for the database ends even when the host is disposed
+    /// without having been stopped, for example after another hosted service failed to start.
+    /// </summary>
+    public void Dispose()
+    {
+        // Stopping has usually cancelled already; the check also keeps a second Dispose from throwing.
+        if (!_stopping.IsCancellationRequested)
+        {
+            _stopping.Cancel();
+        }
+
+        _stopping.Dispose();
     }
 
     private async Task StartSchedulerAsync(CancellationToken cancellationToken)
