@@ -63,47 +63,27 @@ public interface IFlattenedSubmissionRepository
     /// flatten finds its submission gone, so it removes only the row it would have written.
     /// </summary>
     /// <returns>The number of rows deleted.</returns>
-    Task<int> DeleteBySubmissionAsync(long tenantId, long formId, long submissionId, CancellationToken cancellationToken);
+    Task<int> DeleteBySubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken);
 
     /// <summary>
     /// Creates the tracking row for a submission unless it already exists, including when another flatten of the
     /// same submission creates it at the same time.
     /// </summary>
-    Task EnsureExistsAsync(long tenantId, long submissionId, long formId, CancellationToken cancellationToken);
+    Task EnsureExistsAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Marks the row processing, unless it was already written from a newer submission revision.
-    /// </summary>
-    /// <returns><c>false</c> when the row is newer than <paramref name="revision"/>, or missing, and nothing was written.</returns>
-    Task<bool> TryMarkProcessingAsync(long tenantId, long submissionId, long revision, CancellationToken cancellationToken);
+    /// <summary>Marks the row processing.</summary>
+    /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
+    Task<bool> TryMarkProcessingAsync(FlattenedRevision write, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Stores the flattened data built from <paramref name="revision"/>, unless the row was already written from a
-    /// newer one.
-    /// </summary>
-    /// <returns><c>false</c> when the row is newer than <paramref name="revision"/>, or missing, and nothing was written.</returns>
-    Task<bool> TryMarkProcessedAsync(
-        long tenantId,
-        long submissionId,
-        long revision,
-        string dataJson,
-        CancellationToken cancellationToken);
+    /// <summary>Stores the flattened data built from the write's revision.</summary>
+    /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
+    Task<bool> TryMarkProcessedAsync(FlattenedRevision write, string dataJson, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Marks the row skipped for a submission that was incomplete at <paramref name="revision"/>, unless the row was
-    /// already written from a newer revision.
-    /// </summary>
-    /// <returns><c>false</c> when the row is newer than <paramref name="revision"/>, or missing, and nothing was written.</returns>
-    Task<bool> TryMarkSkippedAsync(long tenantId, long submissionId, long revision, CancellationToken cancellationToken);
+    /// <summary>Marks the row skipped for a submission that was incomplete at the write's revision.</summary>
+    /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
+    Task<bool> TryMarkSkippedAsync(FlattenedRevision write, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Marks the row failed with <paramref name="error"/>, unless it was already written from a newer revision.
-    /// </summary>
-    /// <returns><c>false</c> when the row is newer than <paramref name="revision"/>, or missing, and nothing was written.</returns>
-    Task<bool> TryMarkFailedAsync(
-        long tenantId,
-        long submissionId,
-        long revision,
-        string error,
-        CancellationToken cancellationToken);
+    /// <summary>Marks the row failed with <paramref name="error"/>.</summary>
+    /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
+    Task<bool> TryMarkFailedAsync(FlattenedRevision write, string error, CancellationToken cancellationToken);
 }
