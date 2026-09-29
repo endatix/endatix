@@ -86,6 +86,10 @@ internal sealed class JobsSchedulerHostedService(
             .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
             .GetScheduler(cancellationToken);
 
+        // Kept before anything else can fail or be cancelled: the factory caches the scheduler it built, so a
+        // stop that arrives mid-registration must still find it to shut it down.
+        _scheduler = scheduler;
+
         // Every host with a handler keeps its job type's durable job in the store, so a trigger enqueued anywhere
         // has a job to point at.
         foreach (var jobType in registry.JobTypes)
@@ -95,8 +99,6 @@ internal sealed class JobsSchedulerHostedService(
                 AddJobOptions.Replacing,
                 cancellationToken);
         }
-
-        _scheduler = scheduler;
 
         if (options.Value.RunInProcess)
         {
