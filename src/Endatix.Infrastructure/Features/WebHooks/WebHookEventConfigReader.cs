@@ -20,57 +20,58 @@ public sealed class WebHookEventConfigReader(
     ILogger<WebHookEventConfigReader> logger)
 {
     /// <summary>
-    /// The configuration of <paramref name="eventName"/> (snake case, e.g. <c>submission_completed</c>), or
-    /// <see langword="null"/> when neither the form nor the tenant configures it.
+    /// The configuration of the event <paramref name="lookup"/> names, or <see langword="null"/> when neither the
+    /// form nor the tenant configures it.
     /// </summary>
     public async Task<WebHookEventConfig?> GetEventConfigAsync(
-        long tenantId,
-        string eventName,
-        long? formId,
+        WebHookEventLookup lookup,
         CancellationToken cancellationToken)
     {
-        var config = await GetConfigAsync(tenantId, formId, cancellationToken);
-        if (config is not null)
-        {
-            // Event names are snake case on the wire and Pascal case as configuration keys, e.g.
-            // "form_created" -> "FormCreated".
-            var pascalCaseEventName = StringUtils.ToPascalCase(eventName);
+        var config = await FormConfigAsync(lookup.FormId, cancellationToken)
+            ?? await TenantConfigAsync(lookup.TenantId, cancellationToken);
 
-            if (config.Events.TryGetValue(pascalCaseEventName, out var eventConfig))
-            {
-                return eventConfig;
-            }
+        // Event names are snake case on the wire and Pascal case as configuration keys, e.g.
+        // "form_created" -> "FormCreated".
+        if (config is not null && config.Events.TryGetValue(StringUtils.ToPascalCase(lookup.EventName), out var eventConfig))
+        {
+            return eventConfig;
         }
 
-        logger.LogTrace("No webhook configuration found for event {EventName}, tenant {TenantId}, form {FormId}", eventName, tenantId, formId);
+        LogNotConfigured(lookup);
         return null;
     }
 
-    private async Task<WebHookConfiguration?> GetConfigAsync(long tenantId, long? formId, CancellationToken cancellationToken)
+    private void LogNotConfigured(WebHookEventLookup lookup) =>
+        logger.LogTrace(
+            "No webhook configuration found for event {EventName}, tenant {TenantId}, form {FormId}",
+            lookup.EventName,
+            lookup.TenantId,
+            lookup.FormId);
+
+    private async Task<WebHookConfiguration?> FormConfigAsync(long? formId, CancellationToken cancellationToken)
     {
-        WebHookConfiguration? config = null;
-
-        if (formId.HasValue)
+        if (formId is not { } id)
         {
-            var form = await formRepository.GetByIdAsync(formId.Value, cancellationToken);
-            if (form is not null && !string.IsNullOrEmpty(form.WebHookSettingsJson))
-            {
-                config = form.WebHookSettings;
-            }
+            return null;
         }
 
-        if (config is null)
-        {
-            var tenantSettings = await tenantSettingsRepository.FirstOrDefaultAsync(
-                new TenantSettingsByTenantIdSpec(tenantId),
-                cancellationToken);
+        var form = await formRepository.GetByIdAsync(id, cancellationToken);
+        return form is not null && !string.IsNullOrEmpty(form.WebHookSettingsJson) ? form.WebHookSettings : null;
+    }
 
-            if (tenantSettings is not null && !string.IsNullOrEmpty(tenantSettings.WebHookSettingsJson))
-            {
-                config = tenantSettings.WebHookSettings;
-            }
-        }
-
-        return config;
+    private async Task<WebHookConfiguration?> TenantConfigAsync(long tenantId, CancellationToken cancellationToken)
+    {
+        var tenantSettings = await tenantSettingsRepository.FirstOrDefaultAsync(
+            new TenantSettingsByTenantIdSpec(tenantId),
+            cancellationToken);
+        return tenantSettings is not null && !string.IsNullOrEmpty(tenantSettings.WebHookSettingsJson)
+            ? tenantSettings.WebHookSettings
+            : null;
     }
 }
+
+/// <summary>Which event's webhook configuration to read, and for which tenant and form.</summary>
+/// <param name="TenantId">The tenant whose configuration applies when the form has none.</param>
+/// <param name="EventName">The event, in snake case, e.g. <c>submission_completed</c>.</param>
+/// <param name="FormId">The form whose own configuration wins, if the event concerns one.</param>
+public sealed record WebHookEventLookup(long TenantId, string EventName, long? FormId);

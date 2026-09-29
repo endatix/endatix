@@ -47,50 +47,90 @@ internal sealed class WebHookDeliveryJobHandler(
         WebHookDeliveryPayload payload,
         CancellationToken cancellationToken)
     {
-        // Scoped to the job's tenant explicitly: outside a request nothing else scopes this read.
-        var message = await outboxMessages.FirstOrDefaultAsync(
-            new OutboxMessageByIdForTenantSpec(payload.OutboxMessageId, job.TenantId),
-            cancellationToken);
+        var message = await ReadMessageAsync(job, payload, cancellationToken);
         if (message is null || !WebHookEvents.OperationsByEventType.TryGetValue(message.EventType, out var operation))
         {
-            return Result.Invalid(new ValidationError(MessageGone));
+            return Refused(MessageGone);
         }
 
         using var document = JsonDocument.Parse(message.Payload);
-        var eventPayload = document.RootElement;
-        var formId = new OutboxMessageRow(message).GetRequiredIdProp(eventPayload, "formId");
+        var delivery = new EndpointDelivery(message, operation, document.RootElement, payload.EndpointKey);
+        var endpoint = await FindEndpointAsync(job.TenantId, delivery, cancellationToken);
+        return endpoint.Refusal is { } refusal
+            ? Refused(refusal)
+            : await SendAsync(delivery, endpoint.Endpoint!, cancellationToken);
+    }
 
-        var eventConfig = await configReader.GetEventConfigAsync(job.TenantId, operation.EventName, formId, cancellationToken);
-        if (eventConfig is not { IsEnabled: true })
-        {
-            return Result.Invalid(new ValidationError(EventDisabled));
-        }
+    // Scoped to the job's tenant explicitly: outside a request nothing else scopes this read.
+    private Task<OutboxMessage?> ReadMessageAsync(
+        BackgroundJobContext job,
+        WebHookDeliveryPayload payload,
+        CancellationToken cancellationToken) =>
+        outboxMessages.FirstOrDefaultAsync(
+            new OutboxMessageByIdForTenantSpec(payload.OutboxMessageId, job.TenantId),
+            cancellationToken);
 
+    private static Result Refused(string reason) => Result.Invalid(new ValidationError(reason));
+
+    // The endpoint as it is configured now, or why the event can no longer be sent to it.
+    private async Task<EndpointLookup> FindEndpointAsync(
+        long tenantId,
+        EndpointDelivery delivery,
+        CancellationToken cancellationToken)
+    {
+        var formId = new OutboxMessageRow(delivery.Message).GetRequiredIdProp(delivery.EventPayload, "formId");
+        var eventConfig = await configReader.GetEventConfigAsync(
+            new WebHookEventLookup(tenantId, delivery.Operation.EventName, formId), cancellationToken);
+        return eventConfig is { IsEnabled: true }
+            ? LookUpIn(eventConfig, delivery.EndpointKey)
+            : EndpointLookup.Refused(EventDisabled);
+    }
+
+    private static EndpointLookup LookUpIn(WebHookEventConfig eventConfig, string endpointKey)
+    {
         var endpoint = eventConfig.WebHookEndpoints?
             .FirstOrDefault(candidate => !string.IsNullOrEmpty(candidate.Url)
-                && WebHookEndpointKey.Of(candidate.Url) == payload.EndpointKey);
-        if (endpoint is null)
+                && WebHookEndpointKey.Of(candidate.Url) == endpointKey);
+        return endpoint switch
         {
-            return Result.Invalid(new ValidationError(EndpointGone));
-        }
+            null => EndpointLookup.Refused(EndpointGone),
+            _ when !Uri.IsWellFormedUriString(endpoint.Url, UriKind.Absolute) => EndpointLookup.Refused(InvalidUrl),
+            _ => new EndpointLookup(endpoint, null),
+        };
+    }
 
-        if (!Uri.IsWellFormedUriString(endpoint.Url, UriKind.Absolute))
-        {
-            return Result.Invalid(new ValidationError(InvalidUrl));
-        }
-
-        var server = new WebHookServer(httpClientFactory.CreateClient(HttpClientName), loggerFactory.CreateLogger<WebHookServer>());
+    // One POST, through the client without retries; any answer but success is thrown for the job to retry.
+    private async Task<Result> SendAsync(
+        EndpointDelivery delivery,
+        WebHookEndpointConfig endpoint,
+        CancellationToken cancellationToken)
+    {
+        var server = new WebHookServer(
+            httpClientFactory.CreateClient(HttpClientName), loggerFactory.CreateLogger<WebHookServer>());
         var status = await server.SendAsync(
-            new WebHookMessage<JsonElement>(message.Id, operation, eventPayload),
+            new WebHookMessage<JsonElement>(delivery.Message.Id, delivery.Operation, delivery.EventPayload),
             TaskInstructions.FromWebHookEndpointConfig(endpoint),
             cancellationToken);
 
         if ((int)status is < 200 or > 299)
         {
-            throw new WebHookDeliveryFailedException(payload.EndpointKey, status);
+            throw new WebHookDeliveryFailedException(delivery.EndpointKey, status);
         }
 
         return Result.Success();
+    }
+
+    /// <summary>The event a job delivers, and the key of the endpoint it delivers to.</summary>
+    private sealed record EndpointDelivery(
+        OutboxMessage Message,
+        WebHookOperation Operation,
+        JsonElement EventPayload,
+        string EndpointKey);
+
+    /// <summary>The endpoint to send to, or why there is none.</summary>
+    private sealed record EndpointLookup(WebHookEndpointConfig? Endpoint, string? Refusal)
+    {
+        public static EndpointLookup Refused(string refusal) => new(null, refusal);
     }
 
     /// <summary>The outbox row as the relay's message contract, to reuse its payload readers.</summary>

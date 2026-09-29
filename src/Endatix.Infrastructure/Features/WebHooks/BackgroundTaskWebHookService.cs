@@ -23,7 +23,7 @@ public class BackgroundTaskWebHookService(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task EnqueueWebHookAsync<TPayload>(long tenantId, WebHookMessage<TPayload> message, CancellationToken cancellationToken, long? formId = null) where TPayload : notnull
     {
-        var eventConfig = await configReader.GetEventConfigAsync(tenantId, message.operation.EventName, formId, cancellationToken);
+        var eventConfig = await configReader.GetEventConfigAsync(new WebHookEventLookup(tenantId, message.operation.EventName, formId), cancellationToken);
         if (eventConfig == null || !eventConfig.IsEnabled)
         {
             logger.LogTrace("WebHook for {eventName} event is disabled or not configured. Skipping processing...", message.operation.EventName);
@@ -50,7 +50,7 @@ public class BackgroundTaskWebHookService(
     /// <inheritdoc />
     public async Task<bool> DeliverWebHookAsync<TPayload>(long tenantId, WebHookMessage<TPayload> message, CancellationToken cancellationToken, long? formId = null) where TPayload : notnull
     {
-        var eventConfig = await configReader.GetEventConfigAsync(tenantId, message.operation.EventName, formId, cancellationToken);
+        var eventConfig = await configReader.GetEventConfigAsync(new WebHookEventLookup(tenantId, message.operation.EventName, formId), cancellationToken);
         if (eventConfig == null || !eventConfig.IsEnabled)
         {
             logger.LogTrace("WebHook for {EventName} event is disabled or not configured. Nothing to deliver.", message.operation.EventName);
