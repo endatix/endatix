@@ -185,6 +185,30 @@ public class SubmissionFlatteningProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_IncompleteSubmissionWithIncludeIncomplete_WritesFlattenedDataAtItsRevision()
+    {
+        // Arrange — a draft, as the incomplete backfill scope asks for it.
+        var draft = Submission.Create(new SubmissionCreateArgs(
+            TenantId, FormId, FormDefinitionId, FormSchemaFixtureLoader.LoadText("simple-submission.json"), IsComplete: false));
+        draft.Id = SubmissionId;
+        GivenSubmission(draft);
+        GivenSchema();
+        GivenRowAcceptsRevision(true);
+        _submissions.AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        // Act
+        await Processor().ProcessAsync(
+            TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken, includeIncomplete: true);
+
+        // Assert
+        await _rows.Received(1).TryMarkProcessedAsync(
+            WriteOf(draft),
+            Arg.Is<string>(json => json.Contains("firstName")),
+            Arg.Any<CancellationToken>());
+        await _rows.DidNotReceiveWithAnyArgs().TryMarkSkippedAsync(default, default);
+    }
+
+    [Fact]
     public async Task ProcessAsync_UnavailableSchema_Throws()
     {
         // Arrange
