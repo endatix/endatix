@@ -11,7 +11,7 @@ using static Endatix.Modules.Jobs.Tests.Runtime.JobExecutionTestHost;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
 
-public sealed class BackgroundJobExecutionTests
+public sealed partial class BackgroundJobExecutionTests
 {
     public static TheoryData<string, string, int, int, string, bool> Outcomes => new()
     {

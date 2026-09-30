@@ -21,6 +21,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </para>
 /// </remarks>
 internal sealed class BackgroundJobExecution(
+    JobFiringAdmission admission,
     JobAttemptClaimer claimer,
     JobHandlerRunner runner,
     JobOutcomeRecorder outcomes,
@@ -38,7 +39,7 @@ internal sealed class BackgroundJobExecution(
 
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var attempt = await ClaimAsync(context, JobFiring.Of(context), cancellationToken);
+        var attempt = await AdmitAndClaimAsync(context, cancellationToken);
         if (attempt is null)
         {
             // Returning tells the scheduler this firing is done.
@@ -54,6 +55,11 @@ internal sealed class BackgroundJobExecution(
                 $"Background job {attempt.Job.Id} attempt {attempt.Job.AttemptCount} failed and will be retried.");
         }
     }
+
+    private async Task<ClaimedAttempt?> AdmitAndClaimAsync(IJobExecutionContext context, CancellationToken cancellationToken) =>
+        await admission.AdmitAsync(context) is { } firing
+            ? await ClaimAsync(context, firing, cancellationToken)
+            : null;
 
     /// <summary>
     /// Claims the row the firing points at. A firing that takes the job over and carries no retry policy is the

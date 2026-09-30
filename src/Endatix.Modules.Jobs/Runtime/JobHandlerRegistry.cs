@@ -37,7 +37,7 @@ internal sealed class JobHandlerRegistry
 
     /// <summary>
     /// Builds the registry. Throws <see cref="InvalidOperationException"/> naming the job type when a handler
-    /// declares a blank or over-long one, or when two handlers declare the same one, which would leave routing
+    /// declares a blank, reserved or over-long one, or when two handlers declare the same one, which would leave routing
     /// ambiguous.
     /// </summary>
     public static JobHandlerRegistry Build(IEnumerable<IBackgroundJobHandler> handlers)
@@ -48,28 +48,7 @@ internal sealed class JobHandlerRegistry
 
         foreach (var handler in handlers)
         {
-            var jobType = handler.JobType;
-            var handlerType = handler.GetType();
-
-            if (string.IsNullOrWhiteSpace(jobType))
-            {
-                throw new InvalidOperationException(
-                    $"The background job handler {handlerType.FullName} declares no job type, so nothing can be routed to it.");
-            }
-
-            if (jobType.Length > JobTypeMaxLength)
-            {
-                throw new InvalidOperationException(
-                    $"The job type '{jobType}' of the background job handler {handlerType.FullName} is longer than " +
-                    $"{JobTypeMaxLength} characters, so no job could ever carry it.");
-            }
-
-            if (!handlerTypes.TryAdd(jobType, handlerType))
-            {
-                throw new InvalidOperationException(
-                    $"More than one background job handler is registered for the job type '{jobType}': " +
-                    $"{handlerTypes[jobType].FullName} and {handlerType.FullName}.");
-            }
+            AddHandler(handlerTypes, handler);
         }
 
         return new JobHandlerRegistry(handlerTypes);
@@ -98,6 +77,43 @@ internal sealed class JobHandlerRegistry
 
         return registry;
     }
+
+    private static void AddHandler(Dictionary<string, Type> handlerTypes, IBackgroundJobHandler handler)
+    {
+        var jobType = handler.JobType;
+        var handlerType = handler.GetType();
+        if (JobTypeError(jobType, handlerType) is { } error)
+        {
+            throw new InvalidOperationException(error);
+        }
+
+        if (!handlerTypes.TryAdd(jobType, handlerType))
+        {
+            throw new InvalidOperationException(
+                $"More than one background job handler is registered for the job type '{jobType}': " +
+                $"{handlerTypes[jobType].FullName} and {handlerType.FullName}.");
+        }
+    }
+
+    /// <summary>Why no job could run under <paramref name="jobType"/>, or <see langword="null"/> when one can.</summary>
+    private static string? JobTypeError(string? jobType, Type handlerType) => jobType switch
+    {
+        _ when string.IsNullOrWhiteSpace(jobType) =>
+            $"The background job handler {handlerType.FullName} declares no job type, so nothing can be routed to it.",
+
+        // Every job type is also an execution group, and the scheduler reserves these names for its own limits; a
+        // handler declaring one would fail building the scheduler on every host that registers it.
+        _ when IsReservedExecutionGroupName(jobType) =>
+            $"The job type '{jobType}' of the background job handler {handlerType.FullName} is a name the " +
+            "scheduler reserves for its execution limits, so no job could ever run under it.",
+        { Length: > JobTypeMaxLength } =>
+            $"The job type '{jobType}' of the background job handler {handlerType.FullName} is longer than " +
+            $"{JobTypeMaxLength} characters, so no job could ever carry it.",
+        _ => null,
+    };
+
+    private static bool IsReservedExecutionGroupName(string jobType) =>
+        jobType.Trim() is "*" or "_" || jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The handler <paramref name="jobType"/> routes to, from the scope the job runs in, or <see langword="null"/>

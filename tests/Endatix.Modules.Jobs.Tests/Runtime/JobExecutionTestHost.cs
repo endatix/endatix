@@ -40,12 +40,21 @@ internal static class JobExecutionTestHost
     public static JobClaim ClaimOfJob(bool recovering) =>
         Arg.Is<JobClaim>(claim => claim.JobId == JobId && claim.Recovering == recovering);
 
-    public static IJobExecutionContext FiringOf(long jobId)
+    public static IJobExecutionContext FiringOf(long jobId, string jobType = ProbeJobType)
     {
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity(jobId.ToString(), jobType)
+            .ForJob(jobType, "endatix")
+            .WithExecutionGroup(jobType)
+            .UsingJobData(BackgroundJobExecution.JobIdKey, jobId.ToString())
+            .StartNow()
+            .Build();
         var context = Substitute.For<IJobExecutionContext>();
         context.MergedJobDataMap.Returns(new JobDataMap { [BackgroundJobExecution.JobIdKey] = jobId.ToString() });
         context.Recovering.Returns(false);
-        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(ProbeJobType));
+        context.Trigger.Returns(trigger);
+        context.JobDetail.Returns(QuartzRegistration.DurableJobFor(jobType));
+        context.Scheduler.Returns(Substitute.For<IScheduler>());
         return context;
     }
 

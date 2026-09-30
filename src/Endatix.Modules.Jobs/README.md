@@ -35,10 +35,6 @@ Two stores in one `jobs` schema, with one job each:
 Every job has exactly one row and one Quartz trigger, keyed by the job's id; the trigger carries
 nothing but that id.
 
-> [!NOTE]
-> **In this release per-job-type concurrency caps are configured but not yet enforced**: a node
-> runs any job type it has a handler for on any free thread.
-
 ## Module layout
 
 | Namespace | Contents |
@@ -164,9 +160,26 @@ the shared store. `Endatix:BackgroundJobs:RunInProcess` decides what it does wit
 
 That is what allows API and worker roles to be deployed separately from the same image.
 
-The Quartz thread pool holds every registered job type's full concurrency cap at once
-(`JobTypes:{JobType}:MaxConcurrency`, default `1`), so it is sized as the sum of the caps.
-There is no global concurrency setting.
+**Each job type is its own Quartz execution group**, capped per node at
+`JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
+capped at `0`, so a node never takes a job it cannot run; the job waits for a node that can. The
+thread pool holds every registered job type's full cap at once, so it is sized as the sum of the
+caps, and there is no global concurrency setting. Trigger acquisition is narrowed to the groups
+with a free slot on the node, so a backlog of one job type never holds up another. If a node ever
+fires a job type it has no handler for, the wrapper declines it without touching the row and
+offers the trigger again 30 seconds later.
+
+**Backlog warning.** A job that waited past `MisfireThresholdSeconds` for a slot increments
+`endatix.jobs.misfired` (tag `job_type`), and again at every threshold while it waits. The warning
+`Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of
+this type misfired since the last warning.` is logged at most once per job type per threshold. A job type no running node can handle shows up here:
+deploy the module that handles it.
+
+**Dashboard.** With `Dashboard:Enabled`, the Quartz dashboard is served at `/quartz` and its HTTP
+API at `/quartz-api`, both behind the `PlatformAdmin` policy and read-only unless
+`Dashboard:AllowWrites` is set. It is an operator tool: a caller that may write can schedule jobs
+on the host, and it shows every tenant's triggers. Even with writes on, only Endatix's own job
+class may be named.
 
 Each job type the host has a handler for gets one durable Quartz job, which requests recovery,
 so a job cut off by a stopped or crashed node runs again on another. Every node sharing the
@@ -177,16 +190,19 @@ store must run the same Quartz version, and nodes' clocks must agree within abou
 `BackgroundJobExecution` is the only Quartz job class. It only orchestrates each firing, through
 one class per step:
 
-1. **Claims** the row (`JobAttemptClaimer`) with a compare-and-swap from `Pending`/`Retrying` to
+1. **Admits the firing** (`JobFiringAdmission`). A firing that carries no job id, as one an
+   operator fires by hand from the dashboard does, is ignored. A job type this host has no handler
+   for is declined without touching the row, and its trigger is offered again 30 seconds later.
+2. **Claims** the row (`JobAttemptClaimer`) with a compare-and-swap from `Pending`/`Retrying` to
    `Processing` that increments `AttemptCount`. When Quartz reports a recovered firing, or the
    firing was scheduled to take over an attempt that left its row unsettled, it re-claims the row
    from `Processing`, fenced on the attempt it read, and dead-letters a job that has no attempt left
    instead. A claim that changes nothing ends the firing. A take-over firing with no retry policy is
    the job's only trigger, so a claim that throws there re-fires the job rather than ending it.
-2. **Runs the handler** (`JobHandlerRunner`) in its own DI scope, under an `Endatix.Jobs` activity
+3. **Runs the handler** (`JobHandlerRunner`) in its own DI scope, under an `Endatix.Jobs` activity
    whose parent is the trace captured at enqueue, with one token linked from the runtime ceiling
    (`MaxRuntimeMinutes`), the cancellation watcher and the host's shutdown.
-3. **Records the outcome** (`JobOutcomeRecorder`) with one write fenced on the claimed attempt,
+4. **Records the outcome** (`JobOutcomeRecorder`) with one write fenced on the claimed attempt,
    tried again a few times if it throws, and records the lifecycle metrics only when it lands.
    A firing whose outcome still cannot be written is re-fired shortly by `UnrecordedJobRefire`.
    A recovered firing has no retry policy, so a retry it needs gets a trigger of its own, stored
@@ -241,6 +257,7 @@ Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{Job
 | `RunInProcess` | `true` | Whether this host executes jobs |
 | `IdleWaitTimeSeconds` | `2` | How long an idle node waits before looking for jobs another node scheduled |
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
+| `MisfireThresholdSeconds` | `60` | How long a due job may wait for a slot before the backlog warning |
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type) |
@@ -248,6 +265,7 @@ Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{Job
 | `RetentionDays` | `7` | How long a finished job's row is kept (per type) |
 | `JobTypes:{JobType}:MaxConcurrency` | `1` | Jobs of this type one node runs at once; `0` declines the type |
 | `Clustering:CheckinIntervalSeconds` / `CheckinMisfireThresholdSeconds` | `7.5` / `7.5` | A node silent for their sum is presumed dead |
+| `Dashboard:Enabled` / `Dashboard:AllowWrites` | `false` / `false` | The operator dashboard, for platform admins |
 | `Clustering:InstanceId` | generated | This node's identity; set only to a value no other running node uses |
 
 ## Registration

@@ -43,6 +43,7 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
         RequireInRange(options.IdleWaitTimeSeconds, GlobalKey(nameof(options.IdleWaitTimeSeconds)), IdleWaitCeilingSeconds, failures);
         RequireInRange(options.CancellationPollSeconds, GlobalKey(nameof(options.CancellationPollSeconds)), OneHourInSeconds, failures);
         RequireInRange(options.RetentionDays, GlobalKey(nameof(options.RetentionDays)), TenYearsInDays, failures);
+        RequireInRange(options.MisfireThresholdSeconds, GlobalKey(nameof(options.MisfireThresholdSeconds)), OneHourInSeconds, failures);
         RequireInRange(options.ShutdownWaitSeconds, GlobalKey(nameof(options.ShutdownWaitSeconds)), OneHourInSeconds, failures);
         RequirePositiveSeconds(
             options.Clustering?.CheckinIntervalSeconds,

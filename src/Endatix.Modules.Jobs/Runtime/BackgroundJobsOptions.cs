@@ -38,6 +38,11 @@ public sealed class BackgroundJobsOptions
     public int CancellationPollSeconds { get; set; } = 10;
 
     /// <summary>
+    /// How long a due job may wait for a free slot before it counts as misfired, which logs the backlog warning.
+    /// </summary>
+    public int MisfireThresholdSeconds { get; set; } = 60;
+
+    /// <summary>
     /// How long a stopping host waits for running jobs to finish. A job still running when the wait ends is left
     /// as it is, with nothing recorded, and runs again on the next node to check in. The host's own shutdown timeout
     /// (<c>HostOptions.ShutdownTimeout</c>, 30 seconds by default) also bounds the wait, so a longer value needs a
@@ -61,6 +66,11 @@ public sealed class BackgroundJobsOptions
     /// Days a finished job's row is kept before the retention job may delete it.
     /// </summary>
     public int RetentionDays { get; set; } = 7;
+
+    /// <summary>
+    /// The scheduler's operator dashboard. Off unless enabled.
+    /// </summary>
+    public BackgroundJobsDashboardOptions Dashboard { get; set; } = new();
 
     /// <summary>
     /// How nodes sharing the job store prove to each other that they are alive.
@@ -129,6 +139,22 @@ public sealed class BackgroundJobTypeOptions
     public int? MaxConcurrency { get; set; }
 
     public int? RetentionDays { get; set; }
+}
+
+/// <summary>
+/// Bound from <c>Endatix:BackgroundJobs:Dashboard</c>.
+/// </summary>
+/// <remarks>
+/// The dashboard and its HTTP API are for platform operators only: an authorized caller that may write can
+/// schedule any job, which is code execution on the host, and every tenant's triggers are visible there.
+/// </remarks>
+public sealed class BackgroundJobsDashboardOptions
+{
+    /// <summary>Maps the dashboard at <c>/quartz</c> and its HTTP API at <c>/quartz-api</c>, for platform admins.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>Allows changes through the dashboard and its HTTP API. Read-only otherwise.</summary>
+    public bool AllowWrites { get; set; }
 }
 
 /// <summary>

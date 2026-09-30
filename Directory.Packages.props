@@ -46,6 +46,7 @@
     <!-- Pinned to one exact version: the jobs migrations carry this version's schema, and every node sharing the
          store must run the same one. Apache-2.0; its licence ships in THIRD-PARTY-NOTICES. -->
     <PackageVersion Include="Quartz" Version="4.2.2" />
+    <PackageVersion Include="Quartz.Dashboard" Version="4.2.2" />
     <PackageVersion Include="OpenFeature.Hosting" Version="2.14.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="$(EFCoreVersion)" />
