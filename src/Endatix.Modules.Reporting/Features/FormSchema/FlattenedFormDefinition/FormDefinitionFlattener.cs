@@ -570,6 +570,20 @@ internal static class FormDefinitionFlattener
             AddChoiceIndicatorColumn(collected, name, value, text, columns, seenKeys, limits);
         }
 
+        // Data-list and other lazy multi-selects have no choices on the form.
+        // One column keeps the selected values instead of dropping the question.
+        if (choiceCount == 0 &&
+            !collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        {
+            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                name,
+                FormSchemaColumnKind.Simple,
+                collected.Element.GetSurveyJsTitle(name),
+                "string",
+                SourceQuestion: name));
+            return;
+        }
+
         if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
             var otherLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.OtherText) ?? "Other";
@@ -1360,6 +1374,19 @@ internal static class FormDefinitionFlattener
 
             AddLoopSourceChoiceIndicatorColumn(
                 template, childName, value, text, keyPrefix, loopPath, columns, seenKeys, limits);
+        }
+
+        if (choiceCount == 0 &&
+            !template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        {
+            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                ExportPathBuilder.Join([.. keyPrefix, childName]),
+                FormSchemaColumnKind.LoopSource,
+                template.GetSurveyJsTitle(childName),
+                "string",
+                SourceQuestion: childName,
+                LoopPath: loopPath));
+            return;
         }
 
         if (template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))

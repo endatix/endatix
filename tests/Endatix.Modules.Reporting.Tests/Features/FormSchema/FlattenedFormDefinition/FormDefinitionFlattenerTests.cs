@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
@@ -29,14 +30,14 @@ public class FormDefinitionFlattenerTests
   [InlineData("radiogroup-with-checkbox-definition.json", "radiogroup-with-checkbox-expected-keys.json")]
   public void Flatten_ProducesExpectedKeys(string definitionFixture, string expectedKeysFixture)
   {
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition(definitionFixture);
-    SchemaCompilationLimits limits = definitionFixture.Contains("paneldynamic", StringComparison.Ordinal)
+    var definition = FormSchemaFixtureLoader.LoadDefinition(definitionFixture);
+    var limits = definitionFixture.Contains("paneldynamic", StringComparison.Ordinal)
         ? new SchemaCompilationLimits { MaxPanelCount = 2 }
         : definitionFixture.Contains("matrixdynamic", StringComparison.Ordinal)
             ? new SchemaCompilationLimits { MaxMatrixRowCount = 2 }
             : SchemaCompilationLimits.Default;
 
-    IReadOnlyList<FormSchemaColumn> columns =
+    var columns =
         FormDefinitionFlattener.Flatten(definition, limits);
 
     columns.Select(column => column.Key).Should().BeEquivalentTo(
@@ -47,9 +48,9 @@ public class FormDefinitionFlattenerTests
   [Fact]
   public void Flatten_SkipsNonDataElements()
   {
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("simple-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("simple-definition.json");
 
-    IReadOnlyList<FormSchemaColumn> columns =
+    var columns =
         FormDefinitionFlattener.Flatten(definition);
 
     columns.Should().NotContain(column => column.Key == "info");
@@ -73,14 +74,14 @@ public class FormDefinitionFlattenerTests
               ]
             }
             """;
-    using JsonDocument document = JsonDocument.Parse(json);
-    JsonElement definition = document.RootElement.Clone();
+    using var document = JsonDocument.Parse(json);
+    var definition = document.RootElement.Clone();
 
     // Act
     Action act = () => FormDefinitionFlattener.Flatten(definition);
 
     // Assert
-    SchemaCompilationLimitExceededException exception = act
+    var exception = act
         .Should().Throw<SchemaCompilationLimitExceededException>().Which;
     exception.LimitKind.Should().Be(SchemaCompilationLimitKind.DuplicateColumnKey);
     exception.Context.Should().Be("score");
@@ -90,7 +91,7 @@ public class FormDefinitionFlattenerTests
   public void Flatten_ExceedsMaxNestingDepth_Throws()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("paneldynamic-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("paneldynamic-definition.json");
     SchemaCompilationLimits limits = new() { MaxNestingDepth = 0, MaxPanelCount = 2 };
 
     // Act
@@ -123,12 +124,12 @@ public class FormDefinitionFlattenerTests
               ]
             }
             """;
-    using JsonDocument document = JsonDocument.Parse(json);
-    JsonElement definition = document.RootElement.Clone();
+    using var document = JsonDocument.Parse(json);
+    var definition = document.RootElement.Clone();
     SchemaCompilationLimits limits = new() { MaxPanelCount = 2 };
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition, limits);
+    var columns = FormDefinitionFlattener.Flatten(definition, limits);
 
     // Assert
     columns.Select(column => column.Key).Should().BeEquivalentTo(
@@ -157,15 +158,15 @@ public class FormDefinitionFlattenerTests
               ]
             }
             """;
-    using JsonDocument document = JsonDocument.Parse(json);
-    JsonElement definition = document.RootElement.Clone();
+    using var document = JsonDocument.Parse(json);
+    var definition = document.RootElement.Clone();
     SchemaCompilationLimits limits = new() { MaxChoicesPerQuestion = 2 };
 
     // Act
     Action act = () => FormDefinitionFlattener.Flatten(definition, limits);
 
     // Assert
-    SchemaCompilationLimitExceededException exception = act
+    var exception = act
         .Should().Throw<SchemaCompilationLimitExceededException>().Which;
     exception.LimitKind.Should().Be(SchemaCompilationLimitKind.MaxChoicesPerQuestion);
     exception.Context.Should().Be("satisfaction");
@@ -175,7 +176,7 @@ public class FormDefinitionFlattenerTests
   public void Flatten_ExceedsMaxLoopCombinations_Throws()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("nested-loop-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("nested-loop-definition.json");
     SchemaCompilationLimits limits = new() { MaxLoopCombinations = 1 };
 
     // Act
@@ -204,13 +205,13 @@ public class FormDefinitionFlattenerTests
           ]
         }
         """;
-    using JsonDocument document = JsonDocument.Parse(json);
-    JsonElement definition = document.RootElement.Clone();
+    using var document = JsonDocument.Parse(json);
+    var definition = document.RootElement.Clone();
     SchemaCompilationLimits limits = new() { MaxQuestions = 2 };
 
     Action act = () => FormDefinitionFlattener.Flatten(definition, limits);
 
-    SchemaCompilationLimitExceededException exception = act
+    var exception = act
         .Should().Throw<SchemaCompilationLimitExceededException>().Which;
     exception.LimitKind.Should().Be(SchemaCompilationLimitKind.MaxQuestions);
     exception.Actual.Should().Be(3);
@@ -220,14 +221,14 @@ public class FormDefinitionFlattenerTests
   public void Flatten_Radiogroup_EmitsSingleNeutralColumn()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("radiogroup-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("radiogroup-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
     columns.Should().ContainSingle();
-    FormSchemaColumn column = columns[0];
+    var column = columns[0];
     column.Kind.Should().Be(FormSchemaColumnKind.Simple);
     column.Key.Should().Be("carColor");
     column.DataType.Should().Be("string");
@@ -267,10 +268,10 @@ public class FormDefinitionFlattenerTests
         }
         """;
 
-    using JsonDocument definition = JsonDocument.Parse(definitionJson);
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+    using var definition = JsonDocument.Parse(definitionJson);
+    var columns = FormDefinitionFlattener.Flatten(definition.RootElement);
 
-    FormSchemaColumn column = columns.Single(c => c.Key == "brandLoop__nike__brandPhoto");
+    var column = columns.Single(c => c.Key == "brandLoop__nike__brandPhoto");
     column.Kind.Should().Be(FormSchemaColumnKind.FileUpload);
     column.SourceQuestion.Should().Be("brandPhoto");
     column.LoopPath.Should().NotBeNull();
@@ -315,17 +316,17 @@ public class FormDefinitionFlattenerTests
         }
         """;
 
-    using JsonDocument definition = JsonDocument.Parse(definitionJson);
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+    using var definition = JsonDocument.Parse(definitionJson);
+    var columns = FormDefinitionFlattener.Flatten(definition.RootElement);
 
-    FormSchemaColumn companyRow0 = columns.Single(c => c.Key == "brandLoop__nike__employers__0__company");
+    var companyRow0 = columns.Single(c => c.Key == "brandLoop__nike__employers__0__company");
     companyRow0.Kind.Should().Be(FormSchemaColumnKind.MatrixCell);
     companyRow0.PanelIndex.Should().Be(0);
     companyRow0.MatrixColumnValue.Should().Be("company");
     companyRow0.LoopPath.Should().NotBeNull();
     companyRow0.DataType.Should().Be("string");
 
-    FormSchemaColumn yearsRow1 = columns.Single(c => c.Key == "brandLoop__nike__employers__1__years");
+    var yearsRow1 = columns.Single(c => c.Key == "brandLoop__nike__employers__1__years");
     yearsRow1.Kind.Should().Be(FormSchemaColumnKind.MatrixCell);
     yearsRow1.PanelIndex.Should().Be(1);
     yearsRow1.MatrixColumnValue.Should().Be("years");
@@ -340,13 +341,13 @@ public class FormDefinitionFlattenerTests
   public void Flatten_FileUpload_ColumnKindIsFileUpload()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("file-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("file-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
-    FormSchemaColumn column = columns.Should().ContainSingle().Subject;
+    var column = columns.Should().ContainSingle().Subject;
     column.Kind.Should().Be(FormSchemaColumnKind.FileUpload);
     column.DataType.Should().Be("file");
   }
@@ -355,10 +356,10 @@ public class FormDefinitionFlattenerTests
   public void Flatten_NumberInput_MapsDataTypeToNumber()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("number-input-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("number-input-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
     columns.Single(c => c.Key == "age").DataType.Should().Be("number");
@@ -369,10 +370,10 @@ public class FormDefinitionFlattenerTests
   public void Flatten_Boolean_EmitsSimpleScalarColumn()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("boolean-expression-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("boolean-expression-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
     columns.Single(column => column.Key == "isActive").Kind.Should().Be(FormSchemaColumnKind.Simple);
@@ -384,10 +385,10 @@ public class FormDefinitionFlattenerTests
   public void Flatten_Tagbox_ColumnKindIsChoiceIndicator()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("tagbox-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("tagbox-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
     columns.Should().AllSatisfy(column =>
@@ -397,13 +398,36 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
+  public void Flatten_TagboxWithoutChoices_EmitsOneColumnForTheSelectedValues()
+  {
+    const string definitionJson = """
+      {"pages":[{"name":"page1","elements":[{"type":"tagbox","name":"questionCities","title":"Cities","choicesLazyLoadEnabled":true}]}]}
+      """;
+    using var definition = JsonDocument.Parse(definitionJson);
+
+    var columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+
+    var column = columns.Should().ContainSingle().Subject;
+    column.Key.Should().Be("questionCities");
+    column.Kind.Should().Be(FormSchemaColumnKind.Simple);
+    column.SourceQuestion.Should().Be("questionCities");
+
+    MergedFormSchema schema = new(columns);
+    using var submission = JsonDocument.Parse("""{"questionCities":["3247449","3408424"]}""");
+    var flattened =
+      FlattenedSubmissionFlattener.Flatten(submission.RootElement, schema);
+
+    flattened["questionCities"]!.Value.GetRawText().Should().Be("""["3247449","3408424"]""");
+  }
+
+  [Fact]
   public void Flatten_DeepNestedPanels_CollectsInnerElements()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("nested-panels-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("nested-panels-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
     columns.Select(c => c.Key).Should().BeEquivalentTo(
@@ -415,10 +439,10 @@ public class FormDefinitionFlattenerTests
   public void Flatten_Matrix_ColumnKindIsMatrixRow()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("matrix-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("matrix-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
     columns.Should().AllSatisfy(column =>
@@ -431,13 +455,13 @@ public class FormDefinitionFlattenerTests
   public void Flatten_MultiLanguageTitle_FallsBackToName()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("multilang-title-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("multilang-title-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
-    FormSchemaColumn column = columns.Should().ContainSingle().Subject;
+    var column = columns.Should().ContainSingle().Subject;
     column.Label.Should().Be("fullName");
   }
 
@@ -445,10 +469,10 @@ public class FormDefinitionFlattenerTests
   public void Flatten_RadiogroupWithValuePropertyName_IsNotEmitted()
   {
     // Arrange
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("radiogroup-with-checkbox-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("radiogroup-with-checkbox-definition.json");
 
     // Act
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     // Assert
     columns.Should().NotContain(c => c.Key == "drivingRg");
@@ -463,9 +487,9 @@ public class FormDefinitionFlattenerTests
   [InlineData("f3-multipletext-definition.json", "f3-multipletext-expected-keys.json")]
   public void Flatten_CustomerExcerpt_ProducesExpectedKeys(string definitionFixture, string expectedKeysFixture)
   {
-    JsonElement definition = FormSchemaFixtureLoader.LoadCustomerExcerptDefinition(definitionFixture);
+    var definition = FormSchemaFixtureLoader.LoadCustomerExcerptDefinition(definitionFixture);
 
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     columns.Select(column => column.Key).Should().BeEquivalentTo(
         FormSchemaFixtureLoader.LoadCustomerExcerptExpectedKeys(expectedKeysFixture),
@@ -475,9 +499,9 @@ public class FormDefinitionFlattenerTests
   [Fact]
   public void Flatten_CheckboxOtherChoiceLabel_IncludesQuestionTitleOnce()
   {
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("checkbox-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("checkbox-definition.json");
 
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     columns.Single(column => column.Key == "colors__other").Label.Should().Be("Favorite colors — Other");
   }
@@ -540,8 +564,8 @@ public class FormDefinitionFlattenerTests
         }
         """;
 
-    using JsonDocument definition = JsonDocument.Parse(definitionJson);
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+    using var definition = JsonDocument.Parse(definitionJson);
+    var columns = FormDefinitionFlattener.Flatten(definition.RootElement);
     IReadOnlyCollection<string> keys = columns.Select(column => column.Key).ToArray();
 
     keys.Should().Contain("outerLoop__nike__parentNote");
@@ -583,10 +607,10 @@ public class FormDefinitionFlattenerTests
         }
         """;
 
-    using JsonDocument definition = JsonDocument.Parse(definitionJson);
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+    using var definition = JsonDocument.Parse(definitionJson);
+    var columns = FormDefinitionFlattener.Flatten(definition.RootElement);
 
-    FormSchemaColumn column = columns.Single(c => c.Key == "brandLoop__nike__brandNote");
+    var column = columns.Single(c => c.Key == "brandLoop__nike__brandNote");
     column.LoopPath.Should().NotBeNull();
     column.LoopPath![0].PanelValueName.Should().Be("brandsLoop");
   }
@@ -594,9 +618,9 @@ public class FormDefinitionFlattenerTests
   [Fact]
   public void Flatten_MatrixDropdown_ColumnKindIsMatrixCell()
   {
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("matrixdropdown-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("matrixdropdown-definition.json");
 
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     columns.Should().AllSatisfy(column => column.Kind.Should().Be(FormSchemaColumnKind.MatrixCell));
     columns.Single(c => c.Key == "orgCount__SPO_small__N_org").DataType.Should().Be("number");
@@ -605,11 +629,11 @@ public class FormDefinitionFlattenerTests
   [Fact]
   public void Flatten_Video_ColumnKindIsFileUpload()
   {
-    JsonElement definition = FormSchemaFixtureLoader.LoadCustomerExcerptDefinition("f2-unit-panel-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadCustomerExcerptDefinition("f2-unit-panel-definition.json");
 
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
-    FormSchemaColumn videoColumn = columns.Single(c => c.Key == "verificationVideo");
+    var videoColumn = columns.Single(c => c.Key == "verificationVideo");
     videoColumn.Kind.Should().Be(FormSchemaColumnKind.FileUpload);
     videoColumn.DataType.Should().Be("file");
   }
@@ -617,9 +641,9 @@ public class FormDefinitionFlattenerTests
   [Fact]
   public void Flatten_CalculatedValues_ColumnKindIsCalculated()
   {
-    JsonElement definition = FormSchemaFixtureLoader.LoadDefinition("calculated-values-definition.json");
+    var definition = FormSchemaFixtureLoader.LoadDefinition("calculated-values-definition.json");
 
-    IReadOnlyList<FormSchemaColumn> columns = FormDefinitionFlattener.Flatten(definition);
+    var columns = FormDefinitionFlattener.Flatten(definition);
 
     columns.Single(c => c.Key == "totalAmount").Kind.Should().Be(FormSchemaColumnKind.Calculated);
   }

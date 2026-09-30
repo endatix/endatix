@@ -57,7 +57,7 @@ The **Submissions** section says it is prefilled from the filters on the submiss
 | Field | What it does |
 | --- | --- |
 | **Export format** | Which of the workspace's configured formats to download. Grouped by **Submissions** (response data) and **Codebook** (metadata only) when both exist. See [Where Formats Come From](#where-formats-come-from). |
-| **Completion** | **Completed**, **Incomplete**, or **All**. Copied from the grid's Complete filter: only complete rows become **Completed**, only incomplete rows become **Incomplete**, and no selection (or both) becomes **All**. **Incomplete** and **All** include drafts. Endatix updates those drafts in the export structure before the download, which can take a moment. A draft can still change after the file is downloaded. Deleted submissions are not included. |
+| **Completion** | **Completed**, **Incomplete**, or **All**. Copied from the grid's Complete filter: only complete rows become **Completed**, only incomplete rows become **Incomplete**, and no selection (or both) becomes **All**. **Incomplete** and **All** include drafts. The export panel updates those drafts in the export structure before the download, which can take a moment. A draft can still change after the file is downloaded. Deleted submissions are not included. |
 | **Include test submissions** | Copied from the grid's Submission Type filter. It is off when the grid shows production submissions only. It is on when the grid has no type filter, shows tests only, or shows both. See [Submission Type](/docs/end-users/submissions/viewing-submissions#filter-by-complete-status-and-submission-type). |
 | **Created at**, **Modified at**, **Started at**, **Completed at** | Optional date ranges, copied from the matching grid filters. **Created at** is when the submission was created, including prefilled ones nobody has opened. **Modified at** is when it was last changed. **Started at** is when the respondent first saved an answer. **Completed at** is when they submitted the form, and it only appears when **Completion** includes completed submissions. |
 
@@ -115,10 +115,19 @@ To hand that PDF to someone who has no Hub account, generate an **Export PDF** s
 
 * **Prepare is per form, not per user.** Once anyone prepares a form for export, every user exporting that form skips the prepare step.
 * **The panel starts from the grid.** Completion, test submissions, and the four date ranges are copied from the filters already on the Submissions page. Clear a grid filter before you open the panel if you do not want it in the file.
-* **Incomplete and All refresh drafts before the download.** Completed exports use the submissions already prepared. A draft that changes after you download the file is not in that file. Deleted submissions are never included.
+* **The export panel refreshes drafts before an Incomplete or All download.** Completed exports use the submissions already prepared. A draft that changes after you download the file is not in that file. Deleted submissions are never included.
 * **Refreshing drafts needs permission to edit the form.** Without that permission the download still runs, and incomplete submissions stay as of their last update. If only some drafts can be updated in one export, the file still downloads and the panel says so.
 * **A codebook has no rows to filter.** Completion, test-submission, and date filters apply only to Submissions formats.
 * **Full recompile discards export history.** It rebuilds the export structure from the form's current questions only. A question that was removed or renamed loses its column history in future exports.
+
+:::warning[Data list multi-select is one column of ids]
+A checkbox or multi-select whose choices are written on the form becomes one column per choice. A **Multi-Select Dropdown** backed by a data list has no choices on the form, so the selected ids stay in a single column and are not replaced with labels. If the form was already prepared, use **Rebuild reporting data…** once so that column is added.
+
+```text
+questionCities
+val1,val2,val3
+```
+:::
 
 ## Related Documentation
 
