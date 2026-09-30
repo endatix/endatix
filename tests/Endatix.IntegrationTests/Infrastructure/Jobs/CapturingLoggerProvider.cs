@@ -31,7 +31,8 @@ internal sealed class CapturingLoggerProvider : ILoggerProvider
         {
             if (IsEnabled(logLevel))
             {
-                entries.Enqueue((logLevel, formatter(state, exception)));
+                var message = formatter(state, exception);
+                entries.Enqueue((logLevel, exception is null ? message : $"{message} {exception}"));
             }
         }
     }

@@ -2,7 +2,9 @@ using Endatix.Infrastructure.FeatureFlags;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using OpenFeature;
 using OpenFeature.Hosting;
 using OpenFeature.Hosting.Providers.Memory;
@@ -13,7 +15,8 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// <summary>
 /// Endatix-side wiring for the <c>Endatix.Outbox.Engine</c> relay (Stage 1: in-process, webhook delivery, no
 /// DAPR). Registers the engine relay loop, binds <see cref="OutboxOptions"/> from <c>Endatix:Outbox</c>, the
-/// composite integration-event publisher (webhooks + module subscribers), and the OpenFeature gate provider. The per-provider claim store
+/// integration-event publisher (the composite of inline subscribers, or the job queue when
+/// <c>Endatix:Outbox:DeliverToJobQueue</c> is on), and the OpenFeature gate provider. The per-provider claim store
 /// (<c>AddSqlOutboxClaimStore</c>) is registered by the active persistence builder, because the dialect and
 /// connection type are provider-specific.
 /// </summary>
@@ -21,28 +24,55 @@ public static class OutboxRelayServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the in-process outbox relay: the engine loop + gate, <see cref="OutboxOptions"/> bound from
-    /// the <c>Endatix:Outbox</c> config section, the composite <see cref="IIntegrationEventPublisher"/>, and the
-    /// OpenFeature provider seeding the <c>outbox-relay-in-process</c> flag.
+    /// the <c>Endatix:Outbox</c> config section, the <see cref="IIntegrationEventPublisher"/> the delivery switch
+    /// selects, the startup check that guards that switch, and the OpenFeature provider seeding the <c>outbox-relay-in-process</c> flag.
     /// Safe to call multiple times (e.g. once per DbContext persistence registration).
     /// </summary>
     public static IServiceCollection AddEndatixOutboxRelay(this IServiceCollection services)
     {
-        var relayAlreadyRegistered = services.Any(descriptor =>
-            descriptor.ServiceType == typeof(IHostedService)
-            && descriptor.ImplementationType == typeof(OutboxRelayBackgroundService));
-
-        if (relayAlreadyRegistered)
+        if (IsRelayRegistered(services))
         {
             return services;
         }
 
-        services.AddOutboxRelay();
+        AddGatedRelay(services);
         services.AddOptions<OutboxOptions>().BindConfiguration("Endatix:Outbox");
+        services.AddOptions<OutboxDeliveryOptions>().BindConfiguration(OutboxDeliveryOptions.SectionName);
         services.AddScoped<IOutboxIntegrationEventHandler, WebHookOutboxIntegrationEventHandler>();
-        services.AddScoped<IIntegrationEventPublisher, CompositeIntegrationEventPublisher>();
+        AddSelectedPublisher(services);
+        services.AddMetrics();
         services.AddEndatixOpenFeature();
 
         return services;
+    }
+
+    private static bool IsRelayRegistered(IServiceCollection services) =>
+        services.Any(descriptor =>
+            descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType == typeof(OutboxRelayBackgroundService));
+
+    // Hosted services start in registration order, and the relay starts claiming as soon as it starts, so the check
+    // that refuses to lose inline handlers' work must be registered ahead of it.
+    private static void AddGatedRelay(IServiceCollection services)
+    {
+        services.AddHostedService<OutboxSubscriptionsStartupCheck>();
+        services.AddOutboxRelay(serviceProvider => ActivatorUtilities.CreateInstance<EndatixOutboxRelayGate>(
+            serviceProvider,
+            ActivatorUtilities.CreateInstance<OpenFeatureOutboxRelayGate>(serviceProvider)));
+        services.AddSingleton<EndatixOutboxRelayGate.PauseState>();
+    }
+
+    // One publisher per host, chosen once: the relay either runs every inline handler itself or hands each message
+    // to the job queue. The two never both deliver the same message.
+    private static void AddSelectedPublisher(IServiceCollection services)
+    {
+        services.AddScoped<CompositeIntegrationEventPublisher>();
+        services.AddScoped<JobQueueIntegrationEventPublisher>();
+        services.TryAddSingleton<OutboxSubscriptions>();
+        services.AddScoped<IIntegrationEventPublisher>(serviceProvider =>
+            serviceProvider.GetRequiredService<IOptions<OutboxDeliveryOptions>>().Value.DeliverToJobQueue
+                ? serviceProvider.GetRequiredService<JobQueueIntegrationEventPublisher>()
+                : serviceProvider.GetRequiredService<CompositeIntegrationEventPublisher>());
     }
 
     /// <summary>
