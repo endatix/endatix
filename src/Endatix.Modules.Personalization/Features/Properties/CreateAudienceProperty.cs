@@ -5,7 +5,6 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Personalization.Contracts;
 using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
-using Endatix.Modules.Personalization.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Personalization.Features.Properties;
@@ -44,62 +43,109 @@ internal sealed class CreateAudiencePropertyHandler(
         CreateAudiencePropertyCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        Result gate = await GateAsync(request, cancellationToken);
+        if (!gate.IsSuccess)
         {
-            return Result.Unauthorized("Tenant context is required.");
+            return TenantFormGate.MapFailure<AudiencePropertyDto>(gate);
         }
 
-        Result formResult = await FormAudienceGuard.EnsureFormExistsAsync(
-            forms, request.FormId, cancellationToken);
-        if (!formResult.IsSuccess)
+        Result<AudienceProperty> created = await CreateAsync(request, cancellationToken);
+        return created.IsSuccess
+            ? Result.Success(ToDto(created.Value!))
+            : TenantFormGate.MapFailure<AudiencePropertyDto>(created);
+    }
+
+    private async Task<Result> GateAsync(
+        CreateAudiencePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        Result formGate = await TenantFormGate.EnsureAsync(
+            new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
+        if (!formGate.IsSuccess)
         {
-            return Result.NotFound(formResult.Errors.ToArray());
+            return formGate;
         }
 
-        if (!AudienceDataTypeCodes.IsKnown(request.DataType))
-        {
-            return Result.Invalid(new ValidationError(
+        return AudienceDataTypeCodes.IsKnown(request.DataType)
+            ? Result.Success()
+            : Result.Invalid(new ValidationError(
                 $"Unknown audience data type '{request.DataType}'."));
+    }
+
+    private async Task<Result<AudienceProperty>> CreateAsync(
+        CreateAudiencePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        Result slug = SlugOrInvalid(request.Name);
+        if (!slug.IsSuccess)
+        {
+            return TenantFormGate.MapFailure<AudienceProperty>(slug);
         }
 
-        string variableName;
+        string variableName = AudienceProperty.Slugify(request.Name);
+        Result unique = await EnsureUniqueAsync(request.FormId, variableName, cancellationToken);
+        if (!unique.IsSuccess)
+        {
+            return TenantFormGate.MapFailure<AudienceProperty>(unique);
+        }
+
+        AudienceProperty property = await PersistAsync(request, cancellationToken);
+        return Result.Success(property);
+    }
+
+    private static Result SlugOrInvalid(string name)
+    {
         try
         {
-            variableName = AudienceProperty.Slugify(request.Name);
+            _ = AudienceProperty.Slugify(name);
+            return Result.Success();
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
-            return Result.Invalid(new ValidationError(ex.Message));
+            return Result.Invalid(new ValidationError("Name does not yield a variable name."));
         }
+    }
 
+    private async Task<Result> EnsureUniqueAsync(
+        long formId,
+        string variableName,
+        CancellationToken cancellationToken)
+    {
         bool nameTaken = await db.AudienceProperties.AnyAsync(
-            property => property.FormId == request.FormId
-                && property.VariableName == variableName,
+            property => property.FormId == formId && property.VariableName == variableName,
             cancellationToken);
-        if (nameTaken)
-        {
-            return Result.Conflict(
-                $"An audience property with variable name '{variableName}' already exists on this form.");
-        }
+        return nameTaken
+            ? Result.Conflict(
+                $"An audience property with variable name '{variableName}' already exists on this form.")
+            : Result.Success();
+    }
 
-        int nextSort = await db.AudienceProperties
-            .Where(property => property.FormId == request.FormId)
-            .Select(property => (int?)property.SortOrder)
-            .MaxAsync(cancellationToken) ?? -1;
-
-        AudienceProperty property = new(
+    private async Task<AudienceProperty> PersistAsync(
+        CreateAudiencePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        int sortOrder = await NextSortAsync(request.FormId, cancellationToken);
+        AudienceProperty property = new(new AudiencePropertyCreateArgs(
             request.TenantId,
             request.FormId,
             request.Name,
             request.DataType,
-            nextSort + 1,
+            sortOrder,
             request.ChoicesJson,
-            request.AllowsOther);
+            request.AllowsOther));
 
         db.AudienceProperties.Add(property);
         await db.SaveChangesAsync(cancellationToken);
+        return property;
+    }
 
-        return Result.Success(ToDto(property));
+    private async Task<int> NextSortAsync(long formId, CancellationToken cancellationToken)
+    {
+        int? max = await db.AudienceProperties
+            .Where(property => property.FormId == formId)
+            .Select(property => (int?)property.SortOrder)
+            .MaxAsync(cancellationToken);
+        return (max ?? -1) + 1;
     }
 
     internal static AudiencePropertyDto ToDto(AudienceProperty property) => new(

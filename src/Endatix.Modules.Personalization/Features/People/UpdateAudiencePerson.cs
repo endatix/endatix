@@ -4,7 +4,6 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
-using Endatix.Modules.Personalization.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Personalization.Features.People;
@@ -27,58 +26,60 @@ internal sealed class UpdateAudiencePersonHandler(
         UpdateAudiencePersonCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        Result gate = await GateAsync(request, cancellationToken);
+        if (!gate.IsSuccess)
         {
-            return Result.Unauthorized("Tenant context is required.");
+            return TenantFormGate.MapFailure<AudiencePersonDto>(gate);
         }
 
-        Result formResult = await FormAudienceGuard.EnsureFormExistsAsync(
-            forms, request.FormId, cancellationToken);
-        if (!formResult.IsSuccess)
-        {
-            return Result.NotFound(formResult.Errors.ToArray());
-        }
+        AudienceMembership membership = await db.AudienceMemberships.FirstAsync(
+            row => row.Id == request.MembershipId && row.FormId == request.FormId,
+            cancellationToken);
+        await PersistValuesAsync(request, membership.Id, cancellationToken);
+        return Result.Success(await ToDtoAsync(membership, cancellationToken));
+    }
 
-        AudienceMembership? membership = await db.AudienceMemberships
-            .FirstOrDefaultAsync(
-                row => row.Id == request.MembershipId && row.FormId == request.FormId,
-                cancellationToken);
-
-        if (membership is null)
-        {
-            return Result.NotFound("Audience membership not found.");
-        }
-
-        Result propertyCheck = await AudiencePropertyValuesWriter.ValidatePropertyIdsAsync(
-            db, request.FormId, request.Values.Keys, cancellationToken);
-        if (!propertyCheck.IsSuccess)
-        {
-            return Result.Invalid(propertyCheck.ValidationErrors.ToArray());
-        }
-
+    private async Task PersistValuesAsync(
+        UpdateAudiencePersonCommand request,
+        long membershipId,
+        CancellationToken cancellationToken)
+    {
         await AudiencePropertyValuesWriter.UpsertAsync(
-            db, request.TenantId, membership.Id, request.Values, cancellationToken);
+            new AudienceValueWrite(db, request.TenantId, membershipId, request.Values),
+            cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+    }
 
-        AudienceMember? member = await db.AudienceMembers
-            .FirstOrDefaultAsync(row => row.Id == membership.AudienceMemberId, cancellationToken);
-
-        if (member is null)
+    private async Task<Result> GateAsync(
+        UpdateAudiencePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        Result formGate = await TenantFormGate.EnsureAsync(
+            new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
+        if (!formGate.IsSuccess)
         {
-            return Result.NotFound("Audience member not found.");
+            return formGate;
         }
 
+        bool exists = await db.AudienceMemberships.AnyAsync(
+            row => row.Id == request.MembershipId && row.FormId == request.FormId,
+            cancellationToken);
+        return exists
+            ? await AudiencePropertyValuesWriter.ValidatePropertyIdsAsync(
+                new PropertyIdCheck(db, request.FormId, request.Values.Keys.ToList()),
+                cancellationToken)
+            : Result.NotFound("Audience membership not found.");
+    }
+
+    private async Task<AudiencePersonDto> ToDtoAsync(
+        AudienceMembership membership,
+        CancellationToken cancellationToken)
+    {
+        AudienceMember member = await db.AudienceMembers
+            .FirstAsync(row => row.Id == membership.AudienceMemberId, cancellationToken);
         Dictionary<long, string> allValues = await db.AudiencePropertyValues
             .Where(value => value.AudienceMembershipId == membership.Id)
-            .ToDictionaryAsync(
-                value => value.AudiencePropertyId,
-                value => value.Value,
-                cancellationToken);
-
-        return Result.Success(new AudiencePersonDto(
-            membership.Id,
-            member.Id,
-            member.Identifier,
-            allValues));
+            .ToDictionaryAsync(value => value.AudiencePropertyId, value => value.Value, cancellationToken);
+        return new AudiencePersonDto(membership.Id, member.Id, member.Identifier, allValues);
     }
 }

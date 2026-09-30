@@ -12,21 +12,18 @@ public sealed class AudiencePropertyValue : BaseEntity, IAggregateRoot, ITenantO
 {
     private AudiencePropertyValue() { }
 
-    public AudiencePropertyValue(
-        long tenantId,
-        long audienceMembershipId,
-        long audiencePropertyId,
-        string value)
+    public AudiencePropertyValue(AudiencePropertyValueCreateArgs args)
     {
-        Guard.Against.NegativeOrZero(tenantId);
-        Guard.Against.NegativeOrZero(audienceMembershipId);
-        Guard.Against.NegativeOrZero(audiencePropertyId);
-        Guard.Against.Null(value);
+        Guard.Against.Null(args);
+        Guard.Against.NegativeOrZero(args.TenantId);
+        Guard.Against.NegativeOrZero(args.AudienceMembershipId);
+        Guard.Against.NegativeOrZero(args.AudiencePropertyId);
+        Guard.Against.Null(args.Value);
 
-        TenantId = tenantId;
-        AudienceMembershipId = audienceMembershipId;
-        AudiencePropertyId = audiencePropertyId;
-        Value = value;
+        TenantId = args.TenantId;
+        AudienceMembershipId = args.AudienceMembershipId;
+        AudiencePropertyId = args.AudiencePropertyId;
+        Value = args.Value;
     }
 
     public long TenantId { get; private set; }

@@ -16,31 +16,25 @@ public sealed class AudienceProperty : BaseEntity, IAggregateRoot, ITenantOwned
 
     private AudienceProperty() { }
 
-    public AudienceProperty(
-        long tenantId,
-        long formId,
-        string name,
-        string dataType,
-        int sortOrder,
-        string? choicesJson = null,
-        bool allowsOther = false)
+    public AudienceProperty(AudiencePropertyCreateArgs args)
     {
-        Guard.Against.NegativeOrZero(tenantId);
-        Guard.Against.NegativeOrZero(formId);
-        Guard.Against.NullOrWhiteSpace(name);
-        if (!AudienceDataTypeCodes.IsKnown(dataType))
+        Guard.Against.Null(args);
+        Guard.Against.NegativeOrZero(args.TenantId);
+        Guard.Against.NegativeOrZero(args.FormId);
+        Guard.Against.NullOrWhiteSpace(args.Name);
+        if (!AudienceDataTypeCodes.IsKnown(args.DataType))
         {
-            throw new ArgumentException($"Unknown audience data type '{dataType}'.", nameof(dataType));
+            throw new ArgumentException($"Unknown audience data type '{args.DataType}'.", nameof(args));
         }
 
-        TenantId = tenantId;
-        FormId = formId;
-        Name = name.Trim();
+        TenantId = args.TenantId;
+        FormId = args.FormId;
+        Name = args.Name.Trim();
         VariableName = Slugify(Name);
-        DataType = dataType;
-        SortOrder = sortOrder;
-        ChoicesJson = choicesJson;
-        AllowsOther = allowsOther;
+        DataType = args.DataType;
+        SortOrder = args.SortOrder;
+        ChoicesJson = args.ChoicesJson;
+        AllowsOther = args.AllowsOther;
     }
 
     public long TenantId { get; private set; }

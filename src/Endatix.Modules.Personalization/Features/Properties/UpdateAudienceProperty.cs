@@ -4,7 +4,6 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
-using Endatix.Modules.Personalization.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Personalization.Features.Properties;
@@ -28,38 +27,53 @@ internal sealed class UpdateAudiencePropertyHandler(
         UpdateAudiencePropertyCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        Result gate = await TenantFormGate.EnsureAsync(
+            new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
+        if (!gate.IsSuccess)
         {
-            return Result.Unauthorized("Tenant context is required.");
+            return TenantFormGate.MapFailure<AudiencePropertyDto>(gate);
         }
 
-        Result formResult = await FormAudienceGuard.EnsureFormExistsAsync(
-            forms, request.FormId, cancellationToken);
-        if (!formResult.IsSuccess)
+        return await UpdateAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<AudiencePropertyDto>> UpdateAsync(
+        UpdateAudiencePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        Result<AudienceProperty> loaded = await LoadAsync(request, cancellationToken);
+        if (!loaded.IsSuccess)
         {
-            return Result.NotFound(formResult.Errors.ToArray());
+            return TenantFormGate.MapFailure<AudiencePropertyDto>(loaded);
         }
 
-        AudienceProperty? property = await db.AudienceProperties
-            .FirstOrDefaultAsync(
-                row => row.Id == request.PropertyId && row.FormId == request.FormId,
-                cancellationToken);
-
-        if (property is null)
+        Result apply = ApplyEdits(loaded.Value!, request);
+        if (!apply.IsSuccess)
         {
-            return Result.NotFound("Audience property not found.");
+            return TenantFormGate.MapFailure<AudiencePropertyDto>(apply);
         }
 
-        if (request.Name is not null)
+        await db.SaveChangesAsync(cancellationToken);
+        return Result.Success(CreateAudiencePropertyHandler.ToDto(loaded.Value!));
+    }
+
+    private async Task<Result<AudienceProperty>> LoadAsync(
+        UpdateAudiencePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        AudienceProperty? property = await db.AudienceProperties.FirstOrDefaultAsync(
+            row => row.Id == request.PropertyId && row.FormId == request.FormId,
+            cancellationToken);
+        return property is null
+            ? Result.NotFound("Audience property not found.")
+            : Result.Success(property);
+    }
+
+    private static Result ApplyEdits(AudienceProperty property, UpdateAudiencePropertyCommand request)
+    {
+        if (request.Name is not null && !TryRename(property, request.Name))
         {
-            try
-            {
-                property.Rename(request.Name);
-            }
-            catch (ArgumentException ex)
-            {
-                return Result.Invalid(new ValidationError(ex.Message));
-            }
+            return Result.Invalid(new ValidationError("Name is required."));
         }
 
         if (request.SortOrder is not null)
@@ -67,7 +81,19 @@ internal sealed class UpdateAudiencePropertyHandler(
             property.Reorder(request.SortOrder.Value);
         }
 
-        await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(CreateAudiencePropertyHandler.ToDto(property));
+        return Result.Success();
+    }
+
+    private static bool TryRename(AudienceProperty property, string name)
+    {
+        try
+        {
+            property.Rename(name);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 }

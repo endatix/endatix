@@ -8,12 +8,12 @@ public class AudiencePropertyTests
     [Fact]
     public void Constructor_SlugifiesVariableName_FromName()
     {
-        AudienceProperty property = new(
-            tenantId: 1,
-            formId: 10,
-            name: "First Name!",
-            dataType: AudienceDataTypeCodes.Text,
-            sortOrder: 0);
+        AudienceProperty property = new(new AudiencePropertyCreateArgs(
+            TenantId: 1,
+            FormId: 10,
+            Name: "First Name!",
+            DataType: AudienceDataTypeCodes.Text,
+            SortOrder: 0));
 
         property.VariableName.Should().Be("first_name");
         property.Name.Should().Be("First Name!");
@@ -22,12 +22,12 @@ public class AudiencePropertyTests
     [Fact]
     public void Rename_ChangesName_Only()
     {
-        AudienceProperty property = new(
-            tenantId: 1,
-            formId: 10,
-            name: "Email",
-            dataType: AudienceDataTypeCodes.Text,
-            sortOrder: 0);
+        AudienceProperty property = new(new AudiencePropertyCreateArgs(
+            TenantId: 1,
+            FormId: 10,
+            Name: "Email",
+            DataType: AudienceDataTypeCodes.Text,
+            SortOrder: 0));
 
         string originalVariable = property.VariableName;
 

@@ -4,7 +4,6 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
-using Endatix.Modules.Personalization.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Personalization.Features.Properties;
@@ -24,28 +23,37 @@ internal sealed class DeleteAudiencePropertyHandler(
         DeleteAudiencePropertyCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        Result gate = await TenantFormGate.EnsureAsync(
+            new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
+        if (!gate.IsSuccess)
         {
-            return Result.Unauthorized("Tenant context is required.");
+            return TenantFormGate.MapFailure<string>(gate);
         }
 
-        Result formResult = await FormAudienceGuard.EnsureFormExistsAsync(
-            forms, request.FormId, cancellationToken);
-        if (!formResult.IsSuccess)
+        Result<AudienceProperty> loaded = await LoadAsync(request, cancellationToken);
+        if (!loaded.IsSuccess)
         {
-            return Result.NotFound(formResult.Errors.ToArray());
+            return TenantFormGate.MapFailure<string>(loaded);
         }
 
-        AudienceProperty? property = await db.AudienceProperties
-            .FirstOrDefaultAsync(
-                row => row.Id == request.PropertyId && row.FormId == request.FormId,
-                cancellationToken);
+        await SoftDeleteAsync(loaded.Value!, cancellationToken);
+        return Result.Success(loaded.Value!.Id.ToString());
+    }
 
-        if (property is null)
-        {
-            return Result.NotFound("Audience property not found.");
-        }
+    private async Task<Result<AudienceProperty>> LoadAsync(
+        DeleteAudiencePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        AudienceProperty? property = await db.AudienceProperties.FirstOrDefaultAsync(
+            row => row.Id == request.PropertyId && row.FormId == request.FormId,
+            cancellationToken);
+        return property is null
+            ? Result.NotFound("Audience property not found.")
+            : Result.Success(property);
+    }
 
+    private async Task SoftDeleteAsync(AudienceProperty property, CancellationToken cancellationToken)
+    {
         List<AudiencePropertyValue> values = await db.AudiencePropertyValues
             .Where(value => value.AudiencePropertyId == property.Id)
             .ToListAsync(cancellationToken);
@@ -57,6 +65,5 @@ internal sealed class DeleteAudiencePropertyHandler(
 
         property.Delete();
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(property.Id.ToString());
     }
 }

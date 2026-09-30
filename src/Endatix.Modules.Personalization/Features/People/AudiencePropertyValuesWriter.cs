@@ -11,26 +11,18 @@ namespace Endatix.Modules.Personalization.Features.People;
 internal static class AudiencePropertyValuesWriter
 {
     public static async Task<Result> ValidatePropertyIdsAsync(
-        IPersonalizationDbContext db,
-        long formId,
-        IEnumerable<long>? propertyIds,
+        PropertyIdCheck check,
         CancellationToken cancellationToken)
     {
-        if (propertyIds is null)
+        if (check.PropertyIds.Count == 0)
         {
             return Result.Success();
         }
 
-        List<long> ids = propertyIds.Distinct().ToList();
-        if (ids.Count == 0)
-        {
-            return Result.Success();
-        }
-
-        int known = await db.AudienceProperties
-            .CountAsync(
-                property => property.FormId == formId && ids.Contains(property.Id),
-                cancellationToken);
+        List<long> ids = check.PropertyIds.Distinct().ToList();
+        int known = await check.Db.AudienceProperties.CountAsync(
+            property => property.FormId == check.FormId && ids.Contains(property.Id),
+            cancellationToken);
 
         return known == ids.Count
             ? Result.Success()
@@ -39,34 +31,56 @@ internal static class AudiencePropertyValuesWriter
     }
 
     public static async Task UpsertAsync(
-        IPersonalizationDbContext db,
-        long tenantId,
-        long membershipId,
-        IReadOnlyDictionary<long, string> values,
+        AudienceValueWrite write,
         CancellationToken cancellationToken)
     {
-        if (values.Count == 0)
+        if (write.Values.Count == 0)
         {
             return;
         }
 
-        HashSet<long> propertyIds = values.Keys.ToHashSet();
-        Dictionary<long, AudiencePropertyValue> existing = await db.AudiencePropertyValues
-            .Where(value => value.AudienceMembershipId == membershipId
+        HashSet<long> propertyIds = write.Values.Keys.ToHashSet();
+        Dictionary<long, AudiencePropertyValue> existing = await write.Db.AudiencePropertyValues
+            .Where(value => value.AudienceMembershipId == write.MembershipId
                 && propertyIds.Contains(value.AudiencePropertyId))
             .ToDictionaryAsync(value => value.AudiencePropertyId, cancellationToken);
 
-        foreach ((long propertyId, string value) in values)
+        foreach ((long propertyId, string value) in write.Values)
         {
-            if (existing.TryGetValue(propertyId, out AudiencePropertyValue? cell))
-            {
-                cell.SetValue(value);
-            }
-            else
-            {
-                db.AudiencePropertyValues.Add(
-                    new AudiencePropertyValue(tenantId, membershipId, propertyId, value));
-            }
+            ApplyCell(write, existing, new KeyValuePair<long, string>(propertyId, value));
         }
     }
+
+    private static void ApplyCell(
+        AudienceValueWrite write,
+        Dictionary<long, AudiencePropertyValue> existing,
+        KeyValuePair<long, string> cellValue)
+    {
+        if (existing.TryGetValue(cellValue.Key, out AudiencePropertyValue? cell))
+        {
+            cell.SetValue(cellValue.Value);
+            return;
+        }
+
+        write.Db.AudiencePropertyValues.Add(
+            new AudiencePropertyValue(new AudiencePropertyValueCreateArgs(
+                write.TenantId, write.MembershipId, cellValue.Key, cellValue.Value)));
+    }
 }
+
+/// <summary>
+/// Inputs for validating property ids against a form.
+/// </summary>
+internal sealed record PropertyIdCheck(
+    IPersonalizationDbContext Db,
+    long FormId,
+    IReadOnlyCollection<long> PropertyIds);
+
+/// <summary>
+/// Inputs for upserting property value cells.
+/// </summary>
+internal sealed record AudienceValueWrite(
+    IPersonalizationDbContext Db,
+    long TenantId,
+    long MembershipId,
+    IReadOnlyDictionary<long, string> Values);

@@ -4,7 +4,6 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
-using Endatix.Modules.Personalization.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Personalization.Features.People;
@@ -24,28 +23,37 @@ internal sealed class DeleteAudiencePersonHandler(
         DeleteAudiencePersonCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        Result gate = await TenantFormGate.EnsureAsync(
+            new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
+        if (!gate.IsSuccess)
         {
-            return Result.Unauthorized("Tenant context is required.");
+            return TenantFormGate.MapFailure<string>(gate);
         }
 
-        Result formResult = await FormAudienceGuard.EnsureFormExistsAsync(
-            forms, request.FormId, cancellationToken);
-        if (!formResult.IsSuccess)
+        Result<AudienceMembership> loaded = await LoadAsync(request, cancellationToken);
+        if (!loaded.IsSuccess)
         {
-            return Result.NotFound(formResult.Errors.ToArray());
+            return TenantFormGate.MapFailure<string>(loaded);
         }
 
-        AudienceMembership? membership = await db.AudienceMemberships
-            .FirstOrDefaultAsync(
-                row => row.Id == request.MembershipId && row.FormId == request.FormId,
-                cancellationToken);
+        await SoftDeleteAsync(loaded.Value!, cancellationToken);
+        return Result.Success(loaded.Value!.Id.ToString());
+    }
 
-        if (membership is null)
-        {
-            return Result.NotFound("Audience membership not found.");
-        }
+    private async Task<Result<AudienceMembership>> LoadAsync(
+        DeleteAudiencePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        AudienceMembership? membership = await db.AudienceMemberships.FirstOrDefaultAsync(
+            row => row.Id == request.MembershipId && row.FormId == request.FormId,
+            cancellationToken);
+        return membership is null
+            ? Result.NotFound("Audience membership not found.")
+            : Result.Success(membership);
+    }
 
+    private async Task SoftDeleteAsync(AudienceMembership membership, CancellationToken cancellationToken)
+    {
         List<AudiencePropertyValue> values = await db.AudiencePropertyValues
             .Where(value => value.AudienceMembershipId == membership.Id)
             .ToListAsync(cancellationToken);
@@ -57,6 +65,5 @@ internal sealed class DeleteAudiencePersonHandler(
 
         membership.Delete();
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(membership.Id.ToString());
     }
 }

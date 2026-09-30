@@ -4,7 +4,6 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
-using Endatix.Modules.Personalization.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Personalization.Features.People;
@@ -27,66 +26,106 @@ internal sealed class CreateAudiencePersonHandler(
         CreateAudiencePersonCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        Result gate = await GateAsync(request, cancellationToken);
+        if (!gate.IsSuccess)
         {
-            return Result.Unauthorized("Tenant context is required.");
+            return TenantFormGate.MapFailure<AudiencePersonDto>(gate);
         }
 
-        Result formResult = await FormAudienceGuard.EnsureFormExistsAsync(
-            forms, request.FormId, cancellationToken);
-        if (!formResult.IsSuccess)
+        return await CreateAsync(request, cancellationToken);
+    }
+
+    private async Task<Result> GateAsync(
+        CreateAudiencePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        Result formGate = await TenantFormGate.EnsureAsync(
+            new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
+        if (!formGate.IsSuccess)
         {
-            return Result.NotFound(formResult.Errors.ToArray());
+            return formGate;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Identifier))
-        {
-            return Result.Invalid(new ValidationError("Identifier is required."));
-        }
+        return string.IsNullOrWhiteSpace(request.Identifier)
+            ? Result.Invalid(new ValidationError("Identifier is required."))
+            : await ValidateValuesAsync(request, cancellationToken);
+    }
 
-        string normalized = AudienceMember.Normalize(request.Identifier);
-
-        AudienceMember? member = await db.AudienceMembers
-            .FirstOrDefaultAsync(
-                row => row.TenantId == request.TenantId && row.Identifier == normalized,
-                cancellationToken);
-
-        if (member is null)
-        {
-            member = new AudienceMember(request.TenantId, normalized);
-            db.AudienceMembers.Add(member);
-            await db.SaveChangesAsync(cancellationToken);
-        }
-
-        bool alreadyOnForm = await db.AudienceMemberships.AnyAsync(
-            membership => membership.FormId == request.FormId
-                && membership.AudienceMemberId == member.Id,
+    private Task<Result> ValidateValuesAsync(
+        CreateAudiencePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyCollection<long> propertyIds =
+            request.Values?.Keys.ToList() ?? (IReadOnlyCollection<long>)[];
+        return AudiencePropertyValuesWriter.ValidatePropertyIdsAsync(
+            new PropertyIdCheck(db, request.FormId, propertyIds),
             cancellationToken);
-        if (alreadyOnForm)
+    }
+
+    private async Task<Result<AudiencePersonDto>> CreateAsync(
+        CreateAudiencePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        AudienceMember member = await FindOrCreateMemberAsync(request, cancellationToken);
+        Result membershipGate = await EnsureNotOnFormAsync(request.FormId, member.Id, cancellationToken);
+        if (!membershipGate.IsSuccess)
         {
-            return Result.Conflict("This person is already on this form's audience.");
+            return TenantFormGate.MapFailure<AudiencePersonDto>(membershipGate);
         }
 
-        Result propertyCheck = await AudiencePropertyValuesWriter.ValidatePropertyIdsAsync(
-            db, request.FormId, request.Values?.Keys, cancellationToken);
-        if (!propertyCheck.IsSuccess)
-        {
-            return Result.Invalid(propertyCheck.ValidationErrors.ToArray());
-        }
+        AudienceMembership membership = await AddMembershipAsync(request, member, cancellationToken);
+        IReadOnlyDictionary<long, string> values = request.Values ?? new Dictionary<long, string>();
+        await WriteValuesAsync(new AudienceValueWrite(db, request.TenantId, membership.Id, values), cancellationToken);
+        return Result.Success(new AudiencePersonDto(
+            membership.Id, member.Id, member.Identifier, values));
+    }
 
+    private async Task<Result> EnsureNotOnFormAsync(
+        long formId,
+        long memberId,
+        CancellationToken cancellationToken)
+    {
+        bool alreadyOnForm = await db.AudienceMemberships.AnyAsync(
+            membership => membership.FormId == formId && membership.AudienceMemberId == memberId,
+            cancellationToken);
+        return alreadyOnForm
+            ? Result.Conflict("This person is already on this form's audience.")
+            : Result.Success();
+    }
+
+    private async Task<AudienceMembership> AddMembershipAsync(
+        CreateAudiencePersonCommand request,
+        AudienceMember member,
+        CancellationToken cancellationToken)
+    {
         AudienceMembership membership = new(request.TenantId, request.FormId, member.Id);
         db.AudienceMemberships.Add(membership);
         await db.SaveChangesAsync(cancellationToken);
+        return membership;
+    }
 
-        IReadOnlyDictionary<long, string> values = request.Values ?? new Dictionary<long, string>();
-        await AudiencePropertyValuesWriter.UpsertAsync(
-            db, request.TenantId, membership.Id, values, cancellationToken);
+    private async Task WriteValuesAsync(AudienceValueWrite write, CancellationToken cancellationToken)
+    {
+        await AudiencePropertyValuesWriter.UpsertAsync(write, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+    }
 
-        return Result.Success(new AudiencePersonDto(
-            membership.Id,
-            member.Id,
-            member.Identifier,
-            values));
+    private async Task<AudienceMember> FindOrCreateMemberAsync(
+        CreateAudiencePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        string normalized = AudienceMember.Normalize(request.Identifier);
+        AudienceMember? member = await db.AudienceMembers.FirstOrDefaultAsync(
+            row => row.TenantId == request.TenantId && row.Identifier == normalized,
+            cancellationToken);
+        if (member is not null)
+        {
+            return member;
+        }
+
+        member = new AudienceMember(request.TenantId, normalized);
+        db.AudienceMembers.Add(member);
+        await db.SaveChangesAsync(cancellationToken);
+        return member;
     }
 }

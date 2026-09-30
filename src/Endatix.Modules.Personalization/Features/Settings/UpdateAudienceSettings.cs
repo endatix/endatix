@@ -20,6 +20,20 @@ internal sealed class UpdateAudienceSettingsHandler(IPersonalizationDbContext db
         UpdateAudienceSettingsCommand request,
         CancellationToken cancellationToken)
     {
+        Result gate = await ValidateAsync(request, cancellationToken);
+        if (!gate.IsSuccess)
+        {
+            return TenantFormGate.MapFailure<AudienceSettingsDto>(gate);
+        }
+
+        AudienceSettings settings = await UpsertAsync(request, cancellationToken);
+        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind));
+    }
+
+    private async Task<Result> ValidateAsync(
+        UpdateAudienceSettingsCommand request,
+        CancellationToken cancellationToken)
+    {
         if (request.TenantId <= 0)
         {
             return Result.Unauthorized("Tenant context is required.");
@@ -31,17 +45,25 @@ internal sealed class UpdateAudienceSettingsHandler(IPersonalizationDbContext db
                 $"Unknown identifier kind '{request.IdentifierKind}'."));
         }
 
-        bool hasMembers = await db.AudienceMembers
-            .AnyAsync(member => member.TenantId == request.TenantId, cancellationToken);
-        if (hasMembers)
-        {
-            return Result.Conflict(
-                "The match key cannot change after audience members exist for this tenant.");
-        }
+        return await HasNoMembersAsync(request.TenantId, cancellationToken);
+    }
 
+    private async Task<Result> HasNoMembersAsync(long tenantId, CancellationToken cancellationToken)
+    {
+        bool hasMembers = await db.AudienceMembers
+            .AnyAsync(member => member.TenantId == tenantId, cancellationToken);
+        return hasMembers
+            ? Result.Conflict(
+                "The match key cannot change after audience members exist for this tenant.")
+            : Result.Success();
+    }
+
+    private async Task<AudienceSettings> UpsertAsync(
+        UpdateAudienceSettingsCommand request,
+        CancellationToken cancellationToken)
+    {
         AudienceSettings? settings = await db.AudienceSettings
             .FirstOrDefaultAsync(row => row.TenantId == request.TenantId, cancellationToken);
-
         if (settings is null)
         {
             settings = new AudienceSettings(request.TenantId, request.IdentifierKind);
@@ -53,6 +75,6 @@ internal sealed class UpdateAudienceSettingsHandler(IPersonalizationDbContext db
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind));
+        return settings;
     }
 }

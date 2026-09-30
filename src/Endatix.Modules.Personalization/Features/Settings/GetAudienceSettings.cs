@@ -29,16 +29,24 @@ internal sealed class GetAudienceSettingsHandler(IPersonalizationDbContext db)
             return Result.Unauthorized("Tenant context is required.");
         }
 
-        AudienceSettings? settings = await db.AudienceSettings
-            .FirstOrDefaultAsync(row => row.TenantId == request.TenantId, cancellationToken);
+        AudienceSettings settings = await LoadOrCreateAsync(request.TenantId, cancellationToken);
+        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind));
+    }
 
-        if (settings is null)
+    private async Task<AudienceSettings> LoadOrCreateAsync(
+        long tenantId,
+        CancellationToken cancellationToken)
+    {
+        AudienceSettings? settings = await db.AudienceSettings
+            .FirstOrDefaultAsync(row => row.TenantId == tenantId, cancellationToken);
+        if (settings is not null)
         {
-            settings = new AudienceSettings(request.TenantId, AudienceIdentifierKindCodes.Email);
-            db.AudienceSettings.Add(settings);
-            await db.SaveChangesAsync(cancellationToken);
+            return settings;
         }
 
-        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind));
+        settings = new AudienceSettings(tenantId, AudienceIdentifierKindCodes.Email);
+        db.AudienceSettings.Add(settings);
+        await db.SaveChangesAsync(cancellationToken);
+        return settings;
     }
 }

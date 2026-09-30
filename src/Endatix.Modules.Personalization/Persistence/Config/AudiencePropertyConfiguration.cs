@@ -15,26 +15,30 @@ internal sealed class AudiencePropertyConfiguration : IEntityTypeConfiguration<A
     public void Configure(EntityTypeBuilder<AudienceProperty> builder)
     {
         builder.ToTable("AudienceProperties");
+        ConfigureKeys(builder);
+        ConfigureStrings(builder);
+        builder.Property(property => property.SortOrder).IsRequired();
+        builder.Property(property => property.AllowsOther).IsRequired();
+        builder.HasIndex(property => new { property.TenantId, property.FormId })
+            .HasDatabaseName("IX_AudienceProperties_Form");
+    }
 
+    private static void ConfigureKeys(EntityTypeBuilder<AudienceProperty> builder)
+    {
         builder.Property(property => property.TenantId).IsRequired();
         builder.Property(property => property.FormId).IsRequired();
+    }
 
+    private static void ConfigureStrings(EntityTypeBuilder<AudienceProperty> builder)
+    {
         builder.Property(property => property.VariableName)
             .HasMaxLength(DataSchemaConstants.MAX_SLUG_LENGTH)
             .IsRequired();
-
         builder.Property(property => property.Name)
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
-
         builder.Property(property => property.DataType)
             .HasMaxLength(DataTypeMaxLength)
             .IsRequired();
-
-        builder.Property(property => property.SortOrder).IsRequired();
-        builder.Property(property => property.AllowsOther).IsRequired();
-
-        builder.HasIndex(property => new { property.TenantId, property.FormId })
-            .HasDatabaseName("IX_AudienceProperties_Form");
     }
 }

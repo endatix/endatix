@@ -2,9 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
-using Endatix.Modules.Personalization.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Personalization.Features.Properties;
@@ -24,20 +22,21 @@ internal sealed class ListAudiencePropertiesHandler(
         ListAudiencePropertiesQuery request,
         CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        Result gate = await TenantFormGate.EnsureAsync(
+            new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
+        if (!gate.IsSuccess)
         {
-            return Result.Unauthorized("Tenant context is required.");
+            return TenantFormGate.MapFailure<IReadOnlyList<AudiencePropertyDto>>(gate);
         }
 
-        Result formResult = await FormAudienceGuard.EnsureFormExistsAsync(
-            forms, request.FormId, cancellationToken);
-        if (!formResult.IsSuccess)
-        {
-            return Result.NotFound(formResult.Errors.ToArray());
-        }
+        return Result.Success(await LoadAsync(request.FormId, cancellationToken));
+    }
 
-        List<AudiencePropertyDto> properties = await db.AudienceProperties
-            .Where(property => property.FormId == request.FormId)
+    private async Task<IReadOnlyList<AudiencePropertyDto>> LoadAsync(
+        long formId,
+        CancellationToken cancellationToken) =>
+        await db.AudienceProperties
+            .Where(property => property.FormId == formId)
             .OrderBy(property => property.SortOrder)
             .ThenBy(property => property.Id)
             .Select(property => new AudiencePropertyDto(
@@ -51,7 +50,4 @@ internal sealed class ListAudiencePropertiesHandler(
                 property.ChoicesJson,
                 property.AllowsOther))
             .ToListAsync(cancellationToken);
-
-        return Result.Success<IReadOnlyList<AudiencePropertyDto>>(properties);
-    }
 }
