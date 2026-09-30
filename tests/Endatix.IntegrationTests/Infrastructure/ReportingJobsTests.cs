@@ -131,7 +131,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    public async Task Flatten_of_a_submission_deleted_before_it_ran_completes_and_leaves_no_row()
+    public async Task Flatten_of_a_submission_deleted_before_it_ran_completes_and_marks_its_row_deleted()
     {
         // Arrange — the submission was flattened once, then deleted without its own cleanup having run yet.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
@@ -146,11 +146,39 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await host.InsertMessageAsync(new OutboxRow(910, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
         var finished = await WaitForJobAsync(host, new ExpectedJob("910:ReportingFlattenSubmission", status => status is 3 or 4 or 5), ct);
 
-        // Assert — it succeeds on its first attempt instead of retrying, and no row is left for the deleted submission.
+        // Assert — it succeeds on its first attempt instead of retrying, and the row is kept, marked deleted.
         finished.Should().BeTrue();
         (await JobAsync(host, "910:ReportingFlattenSubmission", ct)).Should().Be((3, 1));
         (await host.Database.CountAsync(
-            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId}""", ct))
+            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId} AND "IsDeleted" = true""", ct))
+            .Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Flatten_of_a_submission_that_never_existed_retries_and_then_dead_letters()
+    {
+        // Arrange — two attempts, a second apart, so the job gives up quickly.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartHostAsync(reporting: true, ct, new Dictionary<string, string?>
+        {
+            ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:MaxAttempts"] = "2",
+            ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:BackoffBaseSeconds"] = "1",
+            ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:BackoffCapSeconds"] = "1",
+        });
+        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-missing-flatten", ct);
+        await WaitForSeedingJobsAsync(host, ct);
+        var neverExisted = submissionId + 1_000_000;
+
+        // Act
+        await host.InsertMessageAsync(new OutboxRow(911, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, neverExisted)), ct);
+        var finished = await WaitForJobAsync(host, new ExpectedJob("911:ReportingFlattenSubmission", status => status is 3 or 4 or 5), ct);
+
+        // Assert — the miss is retried, then shows as dead-lettered, and no row is created for it.
+        finished.Should().BeTrue();
+        (await JobAsync(host, "911:ReportingFlattenSubmission", ct)).Should().Be((5, 2));
+        (await host.Database.CountAsync(
+            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {neverExisted}""", ct))
             .Should().Be(0);
     }
 

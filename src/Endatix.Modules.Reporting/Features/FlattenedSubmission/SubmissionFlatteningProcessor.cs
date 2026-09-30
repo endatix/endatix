@@ -16,10 +16,14 @@ namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 /// <remarks>
 /// <para>
 /// Flattens run as independent jobs, so they can overlap, retry, and finish in any order relative to each other and
-/// to the deletion syncs. Two rules keep the read model right whatever the order. A submission that is gone —
-/// missing, soft-deleted, or on a deleted form or definition — leaves no row: the flatten removes its row, if any,
-/// and succeeds. And every write carries the submission's revision and lands only when the row was not written from
-/// a newer one, so an older flatten finishing last changes nothing.
+/// to the deletion syncs. Every write carries the submission's revision and lands only when the row was not written
+/// from a newer one, so an older flatten finishing last changes nothing.
+/// </para>
+/// <para>
+/// A submission that cannot be read never gets a row. When it was soft-deleted in the requested tenant and form, an
+/// existing row is marked deleted and the flatten succeeds; any other miss throws, so it is retried and then reported
+/// as failed. A submission deleted after it was read loses the row this flatten wrote, as its deletion sync would
+/// have removed it.
 /// </para>
 /// </remarks>
 internal sealed class SubmissionFlatteningProcessor(
@@ -41,7 +45,7 @@ internal sealed class SubmissionFlatteningProcessor(
         var submission = await ReadSubmissionAsync(key, cancellationToken);
         if (submission is null)
         {
-            await RemoveRowOfGoneSubmissionAsync(key, cancellationToken);
+            await HandleMissingSubmissionAsync(key, cancellationToken);
             return;
         }
 
@@ -52,9 +56,8 @@ internal sealed class SubmissionFlatteningProcessor(
         }
     }
 
-    // Read before any write, so a submission that is already gone never gets a row. The query filters hide a
-    // soft-deleted submission, and its required form and definition joins hide one whose form or definition was
-    // deleted; a failure to read throws and is retried rather than taken for gone.
+    // Read before any write, so a submission that cannot be read never gets a row, and a row never stays in
+    // Processing for it. The query filters hide a soft-deleted submission; a failure to read throws and is retried.
     private Task<Submission?> ReadSubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken) =>
         submissionRepository.SingleOrDefaultAsync(
             new SubmissionWithDefinitionAndFormSpec(key.FormId, key.SubmissionId),
@@ -106,26 +109,45 @@ internal sealed class SubmissionFlatteningProcessor(
         return FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);
     }
 
-    // A deletion whose cleanup ran between this flatten's read and its write would otherwise leave the row behind.
-    // The deletion is committed before its cleanup runs, so reading again after the write sees it.
+    // A soft-delete after the submission was queued or paged mirrors onto an existing row. Anything else — never
+    // existed, or another tenant's or form's — throws, so a job retries and then dead-letters, and a backfill counts
+    // it as failed, instead of hiding it.
+    private async Task HandleMissingSubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
+    {
+        var state = await submissionRepository.SingleOrDefaultAsync(
+            new SubmissionDeletionStateSpec(key.SubmissionId),
+            cancellationToken);
+        var deletedHere = state is { IsDeleted: true } && state.TenantId == key.TenantId && state.FormId == key.FormId;
+        if (!deletedHere)
+        {
+            throw new InvalidOperationException(
+                $"Submission {key.SubmissionId} for form {key.FormId} was not found while flattening.");
+        }
+
+        var row = await flattenedSubmissionRepository.GetBySubmissionIdAsync(key.TenantId, key.SubmissionId, cancellationToken);
+        if (row is not null)
+        {
+            row.MarkDeleted();
+            await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
+        }
+    }
+
+    // A deletion whose sync ran between this flatten's read and its write would otherwise leave the row behind. The
+    // deletion is committed before its sync runs, so reading again after the write sees it, and the row is removed
+    // as the sync would have removed it.
     private async Task RemoveRowIfDeletedMeanwhileAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
     {
-        if (!await submissionRepository.AnyAsync(
+        if (await submissionRepository.AnyAsync(
                 new SubmissionWithDefinitionAndFormSpec(key.FormId, key.SubmissionId),
                 cancellationToken))
         {
-            await RemoveRowOfGoneSubmissionAsync(key, cancellationToken);
+            logger.LogInformation("Flattened submission {SubmissionId} for form {FormId}", key.SubmissionId, key.FormId);
             return;
         }
 
-        logger.LogInformation("Flattened submission {SubmissionId} for form {FormId}", key.SubmissionId, key.FormId);
-    }
-
-    private async Task RemoveRowOfGoneSubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
-    {
         var removed = await flattenedSubmissionRepository.DeleteBySubmissionAsync(key, cancellationToken);
         logger.LogInformation(
-            "Submission {SubmissionId} of form {FormId} is gone; removed {Removed} flattened row(s) instead of flattening it",
+            "Submission {SubmissionId} of form {FormId} was deleted while it was flattened; removed {Removed} flattened row(s)",
             key.SubmissionId,
             key.FormId,
             removed);

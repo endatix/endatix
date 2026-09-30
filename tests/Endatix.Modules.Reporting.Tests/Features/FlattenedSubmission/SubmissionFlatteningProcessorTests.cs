@@ -52,18 +52,67 @@ public class SubmissionFlatteningProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_SubmissionGone_RemovesItsRowAndSucceeds()
+    public async Task ProcessAsync_SubmissionSoftDeletedInItsForm_MarksItsRowDeletedAndSucceeds()
     {
-        // Arrange — deleted before this flatten, or before its retry.
-        GivenSubmission(null);
+        // Arrange — soft-deleted before this flatten, or before its retry.
+        FlattenedSubmissionRow row = new(SubmissionId, TenantId, FormId);
+        row.MarkProcessed("""{"q1":"a"}""", DateTime.UtcNow);
+        GivenMissingSubmission(new SubmissionDeletionState(TenantId, FormId, IsDeleted: true), row);
 
         // Act
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
-        // Assert — no row is created for it, and any it had is removed.
-        await _rows.Received(1).DeleteBySubmissionAsync(new FlattenedSubmissionKey(TenantId, FormId, SubmissionId), Arg.Any<CancellationToken>());
+        // Assert — the row is kept and marked deleted, never created, flattened or removed.
+        row.IsDeleted.Should().BeTrue();
+        row.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed, "the row must not be left in Processing");
+        await _rows.Received(1).SaveAsync(row, Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().EnsureExistsAsync(default, default);
+        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
         await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, default);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_SubmissionSoftDeletedWithoutRow_WritesNothing()
+    {
+        // Arrange
+        GivenMissingSubmission(new SubmissionDeletionState(TenantId, FormId, IsDeleted: true), row: null);
+
+        // Act
+        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _rows.DidNotReceiveWithAnyArgs().EnsureExistsAsync(default, default);
+        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
+    }
+
+    [Theory]
+    [InlineData("never existed")]
+    [InlineData("deleted in another form")]
+    [InlineData("deleted in another tenant")]
+    [InlineData("not deleted but not readable here")]
+    public async Task ProcessAsync_SubmissionNotDeletedInThisForm_ThrowsWithoutTouchingRows(string situation)
+    {
+        // Arrange
+        SubmissionDeletionState? state = situation switch
+        {
+            "never existed" => null,
+            "deleted in another form" => new SubmissionDeletionState(TenantId, FormId: 999, IsDeleted: true),
+            "deleted in another tenant" => new SubmissionDeletionState(TenantId: 2, FormId, IsDeleted: true),
+            _ => new SubmissionDeletionState(TenantId, FormId, IsDeleted: false),
+        };
+        FlattenedSubmissionRow row = new(SubmissionId, TenantId, FormId);
+        GivenMissingSubmission(state, row);
+
+        // Act
+        var act = () => Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert — the job retries and then dead-letters; the read model is left as it was.
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*was not found*");
+        row.IsDeleted.Should().BeFalse();
+        await _rows.DidNotReceiveWithAnyArgs().EnsureExistsAsync(default, default);
+        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
     }
 
     [Fact]
@@ -78,8 +127,9 @@ public class SubmissionFlatteningProcessorTests
         // Act
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
-        // Assert
+        // Assert — the row is removed as the deletion's own sync would have removed it.
         await _rows.Received(1).DeleteBySubmissionAsync(new FlattenedSubmissionKey(TenantId, FormId, SubmissionId), Arg.Any<CancellationToken>());
+        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
     }
 
     [Fact]
@@ -194,6 +244,13 @@ public class SubmissionFlatteningProcessorTests
         _submissions
             .SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
+
+    private void GivenMissingSubmission(SubmissionDeletionState? state, FlattenedSubmissionRow? row)
+    {
+        GivenSubmission(null);
+        _submissions.SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>()).Returns(state);
+        _rows.GetBySubmissionIdAsync(TenantId, SubmissionId, Arg.Any<CancellationToken>()).Returns(row);
+    }
 
     private void GivenSchema()
     {

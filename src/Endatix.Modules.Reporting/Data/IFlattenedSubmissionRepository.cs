@@ -60,7 +60,7 @@ public interface IFlattenedSubmissionRepository
 
     /// <summary>
     /// Hard-deletes the flattened submission row of a submission of the given form, when there is one. Used when a
-    /// flatten finds its submission gone, so it removes only the row it would have written.
+    /// flatten finds its submission deleted after it wrote the row, so it removes only the row it wrote.
     /// </summary>
     /// <returns>The number of rows deleted.</returns>
     Task<int> DeleteBySubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken);
