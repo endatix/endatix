@@ -1,6 +1,7 @@
 using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Modules.Jobs.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Endatix.Modules.Jobs.Persistence;
@@ -21,6 +22,9 @@ public interface IJobsDbContext : ITenantDbContext
     /// The context's database, through which enqueueing opens the transaction the scheduler joins.
     /// </summary>
     DatabaseFacade Database { get; }
+
+    /// <summary>Lets enqueueing drop rows a failed insert left tracked before it tries again.</summary>
+    ChangeTracker ChangeTracker { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

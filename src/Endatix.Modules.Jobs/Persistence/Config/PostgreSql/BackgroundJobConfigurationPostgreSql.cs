@@ -17,6 +17,9 @@ namespace Endatix.Modules.Jobs.Persistence.Config.PostgreSql;
 [ApplyConfigurationFor<JobsPostgreSqlDbContext>]
 internal sealed class BackgroundJobConfigurationPostgreSql : IEntityTypeConfiguration<BackgroundJob>
 {
+    /// <summary>The unique index behind idempotent enqueue; the queue recognises a collision by this name.</summary>
+    public const string DedupKeyIndexName = "IX_BackgroundJobs_DedupKey";
+
     public void Configure(EntityTypeBuilder<BackgroundJob> builder)
     {
         builder.Property(job => job.PayloadJson)
@@ -30,5 +33,15 @@ internal sealed class BackgroundJobConfigurationPostgreSql : IEntityTypeConfigur
         // rule belongs to the data as well as the code.
         builder.ToTable(table => table.HasCheckConstraint(
             "CK_BackgroundJobs_TenantId", $"{tenantId} > 0"));
+
+        HasDedupKeyIndex(builder);
     }
+
+    // The guarantee behind idempotent enqueue: a redelivered fan-out cannot insert a second row for the same unit
+    // of work, however the two enqueues interleave. Filtered, so callers without a key pay nothing.
+    private static void HasDedupKeyIndex(EntityTypeBuilder<BackgroundJob> builder) =>
+        builder.HasIndex(job => new { job.TenantId, job.JobType, job.DedupKey })
+            .IsUnique()
+            .HasDatabaseName(DedupKeyIndexName)
+            .HasFilter($"\"{nameof(BackgroundJob.DedupKey)}\" IS NOT NULL");
 }

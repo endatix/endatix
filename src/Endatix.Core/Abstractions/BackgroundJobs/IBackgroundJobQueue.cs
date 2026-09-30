@@ -29,7 +29,11 @@ public interface IBackgroundJobQueue
     /// <summary>
     /// Enqueues one job, eligible to run immediately.
     /// </summary>
-    /// <returns>The job id, which clients poll for status.</returns>
+    /// <returns>
+    /// The job id, which clients poll for status. When the request's <see cref="BackgroundJobRequest.DedupKey"/>
+    /// is already taken for its tenant and job type, the id of that existing job, whatever its status, and
+    /// nothing new is scheduled.
+    /// </returns>
     Task<long> EnqueueAsync(BackgroundJobRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -40,7 +44,10 @@ public interface IBackgroundJobQueue
     /// This exists for fan-out: the outbox relay turns one event into one job per subscriber
     /// inside its tick and must complete in milliseconds, which N separate transactions would not.
     /// </remarks>
-    /// <returns>The job ids, in the order the requests were supplied.</returns>
+    /// <returns>
+    /// The job ids, in the order the requests were supplied. They are not necessarily new or distinct: a request
+    /// whose dedup key is already taken, or repeated within the batch, gets the id of the one job for that key.
+    /// </returns>
     Task<IReadOnlyList<long>> EnqueueManyAsync(
         IReadOnlyList<BackgroundJobRequest> requests,
         CancellationToken cancellationToken = default);

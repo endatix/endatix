@@ -15,6 +15,8 @@ internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<Back
     private const int ERROR_MESSAGE_MAX_LENGTH = 2048;
     private const int TRACE_ID_MAX_LENGTH = 128;
 
+    public const int DEDUP_KEY_MAX_LENGTH = BackgroundJob.DedupKeyMaxLength;
+
     public void Configure(EntityTypeBuilder<BackgroundJob> builder)
     {
         builder.ToTable("BackgroundJobs");
@@ -46,6 +48,9 @@ internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<Back
 
         builder.Property(job => job.TraceId)
             .HasMaxLength(TRACE_ID_MAX_LENGTH);
+
+        builder.Property(job => job.DedupKey)
+            .HasMaxLength(DEDUP_KEY_MAX_LENGTH);
 
         builder.Property(job => job.AttemptCount)
             .IsRequired();

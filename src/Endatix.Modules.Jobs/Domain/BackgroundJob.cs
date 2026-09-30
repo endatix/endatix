@@ -67,6 +67,38 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         AttemptCount = 0;
     }
 
+    /// <summary>
+    /// Creates the job <paramref name="request"/> asks for, eligible to run at <paramref name="nextAttemptAt"/>,
+    /// under the dedup key the request carries.
+    /// </summary>
+    public static BackgroundJob FromRequest(BackgroundJobRequest request, DateTime nextAttemptAt, string? traceId)
+    {
+        Guard.Against.Null(request);
+        if (DedupKeyError(request.DedupKey) is { } error)
+        {
+            throw new ArgumentException(error, nameof(request));
+        }
+
+        return new BackgroundJob(
+            request.JobType,
+            request.PayloadJson,
+            request.TenantId,
+            nextAttemptAt,
+            request.CreatedByUserId,
+            request.ExpiresAt,
+            traceId)
+        {
+            DedupKey = string.IsNullOrWhiteSpace(request.DedupKey) ? null : request.DedupKey,
+        };
+    }
+
+    // Refused here, naming the limit, rather than by the database as a truncation error that fails every other job
+    // in the same batch without saying which key was too long.
+    private static string? DedupKeyError(string? dedupKey) =>
+        dedupKey is { Length: > DedupKeyMaxLength }
+            ? $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}."
+            : null;
+
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>
     public string JobType { get; private set; } = null!;
 
@@ -130,6 +162,16 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// the async gap renders as one distributed trace.
     /// </summary>
     public string? TraceId { get; private set; }
+
+    /// <summary>
+    /// The caller's identity for the unit of work, unique within a tenant and job type, or <c>null</c> when
+    /// the caller does not deduplicate. A second enqueue of the same key returns this job instead of creating
+    /// another.
+    /// </summary>
+    public string? DedupKey { get; private set; }
+
+    /// <summary>The longest dedup key a job row holds: an outbox message id and a subscriber key fit well inside.</summary>
+    public const int DedupKeyMaxLength = 200;
 
     /// <summary>Whether this job has reached a state it can never leave.</summary>
     public bool IsTerminal => Status is JobStatus.Completed
