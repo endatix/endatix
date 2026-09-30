@@ -421,6 +421,51 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
+  public void Flatten_TagboxWithoutChoicesAndOtherItem_KeepsValuesColumnAndOtherText()
+  {
+    const string definitionJson = """
+      {"pages":[{"name":"page1","elements":[{"type":"tagbox","name":"questionCities","choicesLazyLoadEnabled":true,"showOtherItem":true}]}]}
+      """;
+    using var definition = JsonDocument.Parse(definitionJson);
+
+    var columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+
+    columns.Select(column => (column.Key, column.Kind)).Should().Equal(
+      ("questionCities", FormSchemaColumnKind.Simple),
+      ("questionCities__other_text", FormSchemaColumnKind.CheckboxOtherText));
+  }
+
+  [Fact]
+  public void Flatten_LoopTagboxWithoutChoicesAndOtherItem_KeepsValuesColumnAndOtherText()
+  {
+    const string definitionJson = """
+      {
+        "pages": [{
+          "name": "page1",
+          "elements": [
+            { "type": "checkbox", "name": "brands", "choices": ["nike"] },
+            {
+              "type": "paneldynamic",
+              "name": "brandLoop",
+              "loopSource": ["brands"],
+              "templateElements": [
+                { "type": "tagbox", "name": "cities", "choicesLazyLoadEnabled": true, "showOtherItem": true }
+              ]
+            }
+          ]
+        }]
+      }
+      """;
+    using var definition = JsonDocument.Parse(definitionJson);
+
+    var columns = FormDefinitionFlattener.Flatten(definition.RootElement);
+
+    columns.Should().Contain(c => c.Key == "brandLoop__nike__cities" && c.Kind == FormSchemaColumnKind.LoopSource);
+    columns.Should().Contain(c =>
+      c.Key == "brandLoop__nike__cities__other_text" && c.Kind == FormSchemaColumnKind.CheckboxOtherText);
+  }
+
+  [Fact]
   public void Flatten_DeepNestedPanels_CollectsInnerElements()
   {
     // Arrange

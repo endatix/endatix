@@ -13,17 +13,17 @@ public sealed class ShojiCodebookGeneratorTests
     public void Generate_WithAllQuestionsSchema_ProducesExpectedShojiCodebook()
     {
         // Arrange
-        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
-        JsonElement expectedShojiCodebook = FormSchemaFixtureLoader.LoadAllQuestionsExpectedShojiCodebook();
+        var definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        var expectedShojiCodebook = FormSchemaFixtureLoader.LoadAllQuestionsExpectedShojiCodebook();
         FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        var compiled = compiler.CompilePersisted(definitionJson);
 
         // Act
-        string actualShojiCodebook = ShojiCodebookGenerator.Generate(
+        var actualShojiCodebook = ShojiCodebookGenerator.Generate(
             compiled.FlatteningMapJson,
             compiled.CodebookJson,
             ExportFormatSettings.InterimCrunchKeySeparator);
-        using JsonDocument actualDocument = JsonDocument.Parse(actualShojiCodebook);
+        using var actualDocument = JsonDocument.Parse(actualShojiCodebook);
 
         // Assert
         FormSchemaFixtureAssertions.AssertJsonMatchesExpected(
@@ -33,19 +33,40 @@ public sealed class ShojiCodebookGeneratorTests
     }
 
     [Fact]
+    public void Generate_TagboxWithoutChoices_WritesTextVariableForValuesColumn()
+    {
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[{"type":"tagbox","name":"questionCities","title":"Cities","choicesLazyLoadEnabled":true}]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        using var document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        var table = document.RootElement.GetProperty("body").GetProperty("table");
+
+        table.GetProperty("metadata").GetProperty("questionCities").GetProperty("type").GetString()
+            .Should().Be("text");
+        table.GetProperty("order").EnumerateArray().Select(e => e.GetString())
+            .Should().Contain("questionCities");
+    }
+
+    [Fact]
     public void Generate_WithDatasetMetadata_WritesBodyNameAndDescription()
     {
-        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
-        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
 
-        using JsonDocument document = JsonDocument.Parse(
+        using var document = JsonDocument.Parse(
             ShojiCodebookGenerator.Generate(
                 compiled.FlatteningMapJson,
                 compiled.CodebookJson,
                 ExportFormatSettings.InterimCrunchKeySeparator,
                 datasetName: "ACME Wave 1",
                 datasetDescription: "Panel export for ACME"));
-        JsonElement body = document.RootElement.GetProperty("body");
+        var body = document.RootElement.GetProperty("body");
 
         body.GetProperty("name").GetString().Should().Be("ACME Wave 1");
         body.GetProperty("description").GetString().Should().Be("Panel export for ACME");
@@ -54,15 +75,15 @@ public sealed class ShojiCodebookGeneratorTests
     [Fact]
     public void Generate_WithoutDatasetMetadata_KeepsDefaultBodyNameAndDescription()
     {
-        string definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
-        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
 
-        using JsonDocument document = JsonDocument.Parse(
+        using var document = JsonDocument.Parse(
             ShojiCodebookGenerator.Generate(
                 compiled.FlatteningMapJson,
                 compiled.CodebookJson,
                 ExportFormatSettings.InterimCrunchKeySeparator));
-        JsonElement body = document.RootElement.GetProperty("body");
+        var body = document.RootElement.GetProperty("body");
 
         body.GetProperty("name").GetString().Should().Be("Form export");
         body.GetProperty("description").GetString().Should().Be("Shoji codebook metadata");
@@ -72,17 +93,17 @@ public sealed class ShojiCodebookGeneratorTests
     public void Generate_Order_FollowsSystemColumnsThenSurveyAppearance()
     {
         // Arrange
-        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        var definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
         FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        var compiled = compiler.CompilePersisted(definitionJson);
 
         // Act
-        using JsonDocument document = JsonDocument.Parse(
+        using var document = JsonDocument.Parse(
             ShojiCodebookGenerator.Generate(
                 compiled.FlatteningMapJson,
                 compiled.CodebookJson,
                 ExportFormatSettings.InterimCrunchKeySeparator));
-        List<string> order = document.RootElement
+        var order = document.RootElement
             .GetProperty("body")
             .GetProperty("table")
             .GetProperty("order")
@@ -118,23 +139,23 @@ public sealed class ShojiCodebookGeneratorTests
     public void Generate_EmitsNativeCrunchEnvelopeWithFlatMetadataAndUniqueStringNames()
     {
         // Arrange
-        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        var definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
         FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        var compiled = compiler.CompilePersisted(definitionJson);
 
         // Act
-        using JsonDocument document = JsonDocument.Parse(
+        using var document = JsonDocument.Parse(
             ShojiCodebookGenerator.Generate(
                 compiled.FlatteningMapJson,
                 compiled.CodebookJson,
                 ExportFormatSettings.InterimCrunchKeySeparator));
-        JsonElement root = document.RootElement;
+        var root = document.RootElement;
 
         // Assert
         root.GetProperty("element").GetString().Should().Be("shoji:entity");
-        JsonElement table = root.GetProperty("body").GetProperty("table");
+        var table = root.GetProperty("body").GetProperty("table");
         table.GetProperty("element").GetString().Should().Be("crunch:table");
-        JsonElement metadata = table.GetProperty("metadata");
+        var metadata = table.GetProperty("metadata");
 
         metadata.TryGetProperty("version", out _).Should().BeFalse();
         metadata.TryGetProperty("variables", out _).Should().BeFalse();
@@ -143,9 +164,9 @@ public sealed class ShojiCodebookGeneratorTests
         metadata.GetProperty("qDropdown").GetProperty("name").ValueKind.Should().Be(JsonValueKind.String);
 
         HashSet<string> names = new(StringComparer.Ordinal);
-        foreach (JsonProperty variable in metadata.EnumerateObject())
+        foreach (var variable in metadata.EnumerateObject())
         {
-            string name = variable.Value.GetProperty("name").GetString()!;
+            var name = variable.Value.GetProperty("name").GetString()!;
             names.Add(name).Should().BeTrue($"display name '{name}' must be unique");
         }
     }
@@ -154,17 +175,17 @@ public sealed class ShojiCodebookGeneratorTests
     public void Generate_MatrixValueOnlyRows_SubvariableNamesFallBackToRowValue()
     {
         // Arrange — reproduces endatix#914: value-only / blank-text matrix rows.
-        string definitionJson = FormSchemaFixtureLoader.LoadText("matrix-value-only-rows-definition.json");
+        var definitionJson = FormSchemaFixtureLoader.LoadText("matrix-value-only-rows-definition.json");
         FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        var compiled = compiler.CompilePersisted(definitionJson);
 
         // Act
-        using JsonDocument document = JsonDocument.Parse(
+        using var document = JsonDocument.Parse(
             ShojiCodebookGenerator.Generate(
                 compiled.FlatteningMapJson,
                 compiled.CodebookJson,
                 ExportFormatSettings.InterimCrunchKeySeparator));
-        JsonElement p7 = document.RootElement
+        var p7 = document.RootElement
             .GetProperty("body")
             .GetProperty("table")
             .GetProperty("metadata")
@@ -195,30 +216,30 @@ public sealed class ShojiCodebookGeneratorTests
     public void Generate_MatrixEmptyRowLabel_FallsBackToMatrixRowValue()
     {
         // Arrange — defense in depth for pre-fix persisted artifacts with blank rowLabel.
-        string definitionJson = FormSchemaFixtureLoader.LoadText("matrix-value-only-rows-definition.json");
-        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var definitionJson = FormSchemaFixtureLoader.LoadText("matrix-value-only-rows-definition.json");
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
 
-        System.Text.Json.Nodes.JsonObject root =
+        var root =
             System.Text.Json.Nodes.JsonNode.Parse(compiled.CodebookJson)!.AsObject();
-        System.Text.Json.Nodes.JsonObject columns = root["columns"]!.AsObject();
-        foreach (KeyValuePair<string, System.Text.Json.Nodes.JsonNode?> column in columns)
+        var columns = root["columns"]!.AsObject();
+        foreach (var column in columns)
         {
-            System.Text.Json.Nodes.JsonObject columnObject = column.Value!.AsObject();
+            var columnObject = column.Value!.AsObject();
             columnObject["rowLabel"] = new System.Text.Json.Nodes.JsonObject
             {
                 ["default"] = string.Empty,
             };
         }
 
-        string mutatedCodebookJson = root.ToJsonString();
+        var mutatedCodebookJson = root.ToJsonString();
 
         // Act
-        using JsonDocument document = JsonDocument.Parse(
+        using var document = JsonDocument.Parse(
             ShojiCodebookGenerator.Generate(
                 compiled.FlatteningMapJson,
                 mutatedCodebookJson,
                 ExportFormatSettings.InterimCrunchKeySeparator));
-        List<string> names = document.RootElement
+        var names = document.RootElement
             .GetProperty("body")
             .GetProperty("table")
             .GetProperty("metadata")
@@ -243,16 +264,16 @@ public sealed class ShojiCodebookGeneratorTests
     {
         // Arrange — Crunch rejects subvariable aliases with trailing spaces
         // ("Expected column P11--Visitando...  not found" when CSV headers are trimmed).
-        string definitionJson = FormSchemaFixtureLoader.LoadText("trailing-whitespace-choices-definition.json");
-        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var definitionJson = FormSchemaFixtureLoader.LoadText("trailing-whitespace-choices-definition.json");
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
 
         // Act
-        using JsonDocument document = JsonDocument.Parse(
+        using var document = JsonDocument.Parse(
             ShojiCodebookGenerator.Generate(
                 compiled.FlatteningMapJson,
                 compiled.CodebookJson,
                 ExportFormatSettings.InterimCrunchKeySeparator));
-        JsonElement metadata = document.RootElement
+        var metadata = document.RootElement
             .GetProperty("body")
             .GetProperty("table")
             .GetProperty("metadata");
@@ -275,7 +296,7 @@ public sealed class ShojiCodebookGeneratorTests
             item.Alias == item.Alias.Trim() && item.Name == item.Name.Trim());
 
         // Assert — matrix row aliases and category names are trimmed
-        List<string> p4Aliases = metadata
+        var p4Aliases = metadata
             .GetProperty("P4")
             .GetProperty("subvariables")
             .EnumerateArray()
@@ -284,7 +305,7 @@ public sealed class ShojiCodebookGeneratorTests
         p4Aliases.Should().Equal("P4--Colchones", "P4--Almohadas");
 
         // Whitespace-valued row must still resolve distinct display text via FindMatrixRowElement.
-        string colchonesLabel = metadata
+        var colchonesLabel = metadata
             .GetProperty("P4")
             .GetProperty("subvariables")
             .EnumerateArray()
@@ -293,7 +314,7 @@ public sealed class ShojiCodebookGeneratorTests
             .GetString()!;
         colchonesLabel.Should().Be("Mattresses (display)");
 
-        List<string> p4Categories = metadata
+        var p4Categories = metadata
             .GetProperty("P4")
             .GetProperty("categories")
             .EnumerateArray()
@@ -312,7 +333,7 @@ public sealed class ShojiCodebookGeneratorTests
             .NotContain(key => key != key.Trim());
 
         // Assert — persisted codebook column rowLabel keeps the distinct SurveyJS text
-        using JsonDocument codebook = JsonDocument.Parse(compiled.CodebookJson);
+        using var codebook = JsonDocument.Parse(compiled.CodebookJson);
         codebook.RootElement
             .GetProperty("columns")
             .GetProperty("P4__Colchones")

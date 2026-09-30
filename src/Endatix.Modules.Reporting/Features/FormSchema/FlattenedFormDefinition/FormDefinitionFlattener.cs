@@ -571,9 +571,8 @@ internal static class FormDefinitionFlattener
         }
 
         // Data-list and other lazy multi-selects have no choices on the form.
-        // One column keeps the selected values instead of dropping the question.
-        if (choiceCount == 0 &&
-            !collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        // One column keeps the selected values (including "other") instead of dropping them.
+        if (choiceCount == 0)
         {
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 name,
@@ -581,6 +580,17 @@ internal static class FormDefinitionFlattener
                 collected.Element.GetSurveyJsTitle(name),
                 "string",
                 SourceQuestion: name));
+
+            if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+            {
+                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                    ExportPathBuilder.ChoiceOtherTextKey(name),
+                    FormSchemaColumnKind.CheckboxOtherText,
+                    $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
+                    "string",
+                    SourceQuestion: name));
+            }
+
             return;
         }
 
@@ -1376,16 +1386,10 @@ internal static class FormDefinitionFlattener
                 template, childName, value, text, keyPrefix, loopPath, columns, seenKeys, limits);
         }
 
-        if (choiceCount == 0 &&
-            !template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        if (choiceCount == 0)
         {
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                ExportPathBuilder.Join([.. keyPrefix, childName]),
-                FormSchemaColumnKind.LoopSource,
-                template.GetSurveyJsTitle(childName),
-                "string",
-                SourceQuestion: childName,
-                LoopPath: loopPath));
+            EmitLoopSourceSingleSelectColumn(
+                template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
             return;
         }
 
