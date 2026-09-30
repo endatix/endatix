@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(ReportingDbContext))]
-    [Migration("20260929090000_AddFlattenedSubmissionSourceRevision")]
+    [Migration("20260930070117_AddFlattenedSubmissionSourceRevision")]
     partial class AddFlattenedSubmissionSourceRevision
     {
         /// <inheritdoc />
@@ -101,6 +101,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("SourceModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<long?>("SourceRevision")
