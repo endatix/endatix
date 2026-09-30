@@ -1,0 +1,26 @@
+using Endatix.Modules.Personalization.Features.People;
+
+namespace Endatix.Modules.Personalization.Endpoints.Audience.People;
+
+/// <summary>
+/// Wire model for a person on a form's audience.
+/// </summary>
+public sealed class AudiencePersonResponse
+{
+    public long MembershipId { get; init; }
+
+    public long AudienceMemberId { get; init; }
+
+    public string Identifier { get; init; } = string.Empty;
+
+    public IReadOnlyDictionary<long, string> Values { get; init; } =
+        new Dictionary<long, string>();
+
+    internal static AudiencePersonResponse FromDto(AudiencePersonDto dto) => new()
+    {
+        MembershipId = dto.MembershipId,
+        AudienceMemberId = dto.AudienceMemberId,
+        Identifier = dto.Identifier,
+        Values = dto.Values,
+    };
+}

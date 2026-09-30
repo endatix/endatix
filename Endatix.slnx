@@ -23,6 +23,8 @@
     <Project Path="src/Endatix.Hosting/Endatix.Hosting.csproj" />
     <Project Path="src/Endatix.Infrastructure/Endatix.Infrastructure.csproj" />
     <Project Path="src/Endatix.Modules.Jobs/Endatix.Modules.Jobs.csproj" />
+    <Project Path="src/Endatix.Modules.Personalization.Contracts/Endatix.Modules.Personalization.Contracts.csproj" />
+    <Project Path="src/Endatix.Modules.Personalization/Endatix.Modules.Personalization.csproj" />
     <Project Path="src/Endatix.Modules.Reporting.Contracts/Endatix.Modules.Reporting.Contracts.csproj" />
     <Project Path="src/Endatix.Modules.Reporting/Endatix.Modules.Reporting.csproj" />
     <Project Path="src/Endatix.Persistence.PostgreSql/Endatix.Persistence.PostgreSql.csproj" />
@@ -38,6 +40,7 @@
     <Project Path="tests/Endatix.IntegrationTests.Shared/Endatix.IntegrationTests.Shared.csproj" />
     <Project Path="tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj" />
     <Project Path="tests/Endatix.Modules.Jobs.Tests/Endatix.Modules.Jobs.Tests.csproj" />
+    <Project Path="tests/Endatix.Modules.Personalization.Tests/Endatix.Modules.Personalization.Tests.csproj" />
     <Project Path="tests/Endatix.Modules.Reporting.Tests/Endatix.Modules.Reporting.Tests.csproj" />
   </Folder>
 </Solution>

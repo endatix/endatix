@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Endatix.Modules.Personalization.Contracts</PackageId>
+    <Title>Endatix - Personalization Module Contracts</Title>
+    <Description>
+      Public contracts for the Endatix Personalization module: audience property data types and
+      wire codes. Domain and persistence stay in Endatix.Modules.Personalization.
+
+      $(EndatixPlatformDescription)
+    </Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RootNamespace>Endatix.Modules.Personalization.Contracts</RootNamespace>
+  </PropertyGroup>
+
+</Project>

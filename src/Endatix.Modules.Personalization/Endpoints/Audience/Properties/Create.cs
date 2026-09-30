@@ -1,0 +1,96 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Common;
+using Endatix.Modules.Personalization.Contracts;
+using Endatix.Modules.Personalization.Features.Properties;
+using FastEndpoints;
+using FluentValidation;
+using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+
+namespace Endatix.Modules.Personalization.Endpoints.Audience.Properties;
+
+/// <summary>
+/// Creates an audience property on a form.
+/// </summary>
+public sealed class Create(
+    IMediator mediator,
+    ITenantContext tenantContext)
+    : Endpoint<CreateAudiencePropertyRequest, Results<Created<AudiencePropertyResponse>, ProblemHttpResult>>
+{
+    public override void Configure()
+    {
+        Post("forms/{formId}/audience/properties");
+        Permissions(Actions.Forms.Edit);
+        Summary(summary =>
+        {
+            summary.Summary = "Create audience property";
+            summary.Description =
+                "Creates a property. VariableName is derived from Name at create and never changes.";
+            summary.Responses[201] = "Property created.";
+            summary.Responses[400] = "Invalid input.";
+            summary.Responses[404] = "Form not found.";
+            summary.Responses[409] = "Variable name already exists on this form.";
+        });
+        Description(builder => builder
+            .Produces<AudiencePropertyResponse>(StatusCodes.Status201Created, "application/json")
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(409));
+    }
+
+    public override async Task<Results<Created<AudiencePropertyResponse>, ProblemHttpResult>> ExecuteAsync(
+        CreateAudiencePropertyRequest request,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(
+            new CreateAudiencePropertyCommand(
+                tenantContext.TenantId,
+                request.FormId,
+                request.Name!,
+                request.DataType!,
+                request.ChoicesJson,
+                request.AllowsOther),
+            ct);
+
+        return TypedResultsBuilder
+            .MapResult(result, AudiencePropertyResponse.FromDto)
+            .SetTypedResults<Created<AudiencePropertyResponse>, ProblemHttpResult>();
+    }
+}
+
+/// <summary>
+/// Validator for create audience property.
+/// </summary>
+public sealed class CreateAudiencePropertyValidator : Validator<CreateAudiencePropertyRequest>
+{
+    public CreateAudiencePropertyValidator()
+    {
+        RuleFor(request => request.FormId).GreaterThan(0);
+        RuleFor(request => request.Name)
+            .NotEmpty()
+            .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
+        RuleFor(request => request.DataType)
+            .NotEmpty()
+            .Must(AudienceDataTypeCodes.IsKnown!)
+            .WithMessage("Unknown audience data type.");
+    }
+}
+
+/// <summary>
+/// Request to create an audience property.
+/// </summary>
+public sealed class CreateAudiencePropertyRequest
+{
+    public long FormId { get; init; }
+
+    public string? Name { get; init; }
+
+    public string? DataType { get; init; }
+
+    public string? ChoicesJson { get; init; }
+
+    public bool AllowsOther { get; init; }
+}

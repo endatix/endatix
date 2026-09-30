@@ -208,6 +208,24 @@ public class FeatureFlagCatalogueTests
     }
 
     [Fact]
+    public void Definitions_PersonalizationModule_IsDeploymentScoped()
+    {
+        // Arrange
+        var personalizationModule = FeatureFlagCatalogue.FindByConfigKey(
+            Endatix.Framework.FeatureFlags.FeatureFlags.PersonalizationModule);
+
+        // Act
+        var scope = personalizationModule?.Scope;
+
+        // Assert
+        personalizationModule.Should().NotBeNull();
+        personalizationModule!.Key.Should().Be("personalization-module");
+        scope.Should().Be(
+            FeatureFlagScope.Deployment,
+            "ShouldRegister reads it at startup, where no tenant or user exists");
+    }
+
+    [Fact]
     public void Definitions_MultiTenancy_IsDeploymentScoped()
     {
         // Arrange
