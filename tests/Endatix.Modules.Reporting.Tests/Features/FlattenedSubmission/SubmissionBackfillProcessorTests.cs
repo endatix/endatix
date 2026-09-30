@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Tests.Shared;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmission;
@@ -21,8 +22,10 @@ public sealed class SubmissionBackfillProcessorTests
     public async Task BackfillFormAsync_WithAlreadyProcessedRow_SkipsWithoutFlattening()
     {
         const long submissionId = 10;
-        FlattenedSubmissionRow existing = new(submissionId, TenantId, FormId);
-        existing.MarkProcessed("""{"q1":"a"}""", _flattenedVersionAt);
+        var existing = FlattenedRows.Processed(
+            new FlattenedSubmissionKey(TenantId, FormId, submissionId),
+            """{"q1":"a"}""",
+            _flattenedVersionAt);
 
         var submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
@@ -58,8 +61,10 @@ public sealed class SubmissionBackfillProcessorTests
     public async Task BackfillFormAsync_WithForce_ReprocessesProcessedRow()
     {
         const long submissionId = 10;
-        FlattenedSubmissionRow existing = new(submissionId, TenantId, FormId);
-        existing.MarkProcessed("""{"q1":"a"}""", _flattenedVersionAt);
+        var existing = FlattenedRows.Processed(
+            new FlattenedSubmissionKey(TenantId, FormId, submissionId),
+            """{"q1":"a"}""",
+            _flattenedVersionAt);
 
         var submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
@@ -196,8 +201,10 @@ public sealed class SubmissionBackfillProcessorTests
     public async Task BackfillFormAsync_WhenSubmissionIsNewerThanFlatten_Reprocesses()
     {
         const long submissionId = 10;
-        FlattenedSubmissionRow existing = new(submissionId, TenantId, FormId);
-        existing.MarkProcessed("""{"q1":"draft"}""", _flattenedVersionAt);
+        var existing = FlattenedRows.Processed(
+            new FlattenedSubmissionKey(TenantId, FormId, submissionId),
+            """{"q1":"draft"}""",
+            _flattenedVersionAt);
 
         var submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
@@ -264,8 +271,10 @@ public sealed class SubmissionBackfillProcessorTests
         // Arrange: the draft was saved after the worker read it, but before the worker saved the
         // row, so the row's own ModifiedAt (worker clock, set last) is newer than the submission.
         const long submissionId = 10;
-        FlattenedSubmissionRow existing = new(submissionId, TenantId, FormId);
-        existing.MarkProcessed("""{"q1":"old draft"}""", _flattenedVersionAt);
+        var existing = FlattenedRows.Processed(
+            new FlattenedSubmissionKey(TenantId, FormId, submissionId),
+            """{"q1":"old draft"}""",
+            _flattenedVersionAt);
         var savedDuringFlatten = _flattenedVersionAt.AddMilliseconds(200);
         existing.ModifiedAt.Should().BeAfter(savedDuringFlatten);
 
@@ -291,8 +300,10 @@ public sealed class SubmissionBackfillProcessorTests
     {
         // Arrange
         const long submissionId = 10;
-        FlattenedSubmissionRow existing = new(submissionId, TenantId, FormId);
-        existing.MarkProcessed("""{"q1":"a"}""", _flattenedVersionAt);
+        var existing = FlattenedRows.Processed(
+            new FlattenedSubmissionKey(TenantId, FormId, submissionId),
+            """{"q1":"a"}""",
+            _flattenedVersionAt);
 
         (var processor, var flatteningProcessor) =
             CreateProcessorFor(existing, Candidate(submissionId, modifiedAt: _flattenedVersionAt));
@@ -315,8 +326,10 @@ public sealed class SubmissionBackfillProcessorTests
     {
         // Arrange: a row processed before SourceModifiedAt existed has no source stamp to compare.
         const long submissionId = 10;
-        FlattenedSubmissionRow existing = new(submissionId, TenantId, FormId);
-        existing.MarkProcessed("""{"q1":"a"}""", _flattenedVersionAt);
+        var existing = FlattenedRows.Processed(
+            new FlattenedSubmissionKey(TenantId, FormId, submissionId),
+            """{"q1":"a"}""",
+            _flattenedVersionAt);
         typeof(FlattenedSubmissionRow)
             .GetProperty(nameof(FlattenedSubmissionRow.SourceModifiedAt))!
             .SetValue(existing, null);

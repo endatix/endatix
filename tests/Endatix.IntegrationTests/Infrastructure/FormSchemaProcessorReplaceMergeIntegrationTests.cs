@@ -266,16 +266,17 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             compiled.CodebookJson,
             compiled.LocalesJson);
         reportingDb.FormSchemas.Add(schema);
-
-        FlattenedSubmission formRow = new(submissionId: seed.FormId + 1000, TenantId, seed.FormId);
-        formRow.MarkProcessed("""{"keep":"x"}""", DateTime.UtcNow);
-        reportingDb.FlattenedSubmissions.Add(formRow);
-
-        FlattenedSubmission otherFormRow = new(OtherFormFlattenedSubmissionId, TenantId, formId: seed.FormId + 99);
-        otherFormRow.MarkProcessed("""{"other":true}""", DateTime.UtcNow);
-        reportingDb.FlattenedSubmissions.Add(otherFormRow);
-
         await reportingDb.SaveChangesAsync(cancellationToken);
+
+        FlattenedRowSeed rows = new(reportingDb);
+        await rows.ProcessedAsync(
+            new FlattenedSubmissionKey(TenantId, seed.FormId, SubmissionId: seed.FormId + 1000),
+            """{"keep":"x"}""",
+            cancellationToken);
+        await rows.ProcessedAsync(
+            new FlattenedSubmissionKey(TenantId, seed.FormId + 99, OtherFormFlattenedSubmissionId),
+            """{"other":true}""",
+            cancellationToken);
     }
 
     private static async Task SeedSubmissionAsync(

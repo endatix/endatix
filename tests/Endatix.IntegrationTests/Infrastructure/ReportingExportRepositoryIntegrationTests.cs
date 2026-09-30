@@ -5,7 +5,6 @@ using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -281,10 +280,10 @@ public sealed class ReportingExportRepositoryIntegrationTests
         var seed = await SeedExportFixtureAsync(cancellationToken);
 
         await using var reportingDb = CreateReportingDbContext();
-        var day1 = await reportingDb.FlattenedSubmissions
-            .SingleAsync(row => row.SubmissionId == seed.ProductionDay1Id, cancellationToken);
-        day1.MarkFailed("flatten failed");
-        await reportingDb.SaveChangesAsync(cancellationToken);
+        await new FlattenedRowSeed(reportingDb).FailedAsync(
+            new FlattenedSubmissionKey(TenantId, seed.FormId, seed.ProductionDay1Id),
+            "flatten failed",
+            cancellationToken);
 
         await using var appDb = CreateAppDbContext();
         var repository = CreateRepository(reportingDb, appDb);
@@ -475,14 +474,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
             createdAt: Day3, startedAt: Day3, completedAt: Day4, cancellationToken);
 
         await using var reportingDb = CreateReportingDbContext();
+        FlattenedRowSeed rows = new(reportingDb);
         foreach (var submissionId in new[] { productionDay1Id, productionDay2Id, productionDay3Id, testDay3Id })
         {
-            FlattenedSubmission row = new(submissionId, TenantId, formId);
-            row.MarkProcessed($$"""{"submissionId":{{submissionId}}}""", DateTime.UtcNow);
-            reportingDb.FlattenedSubmissions.Add(row);
+            await rows.ProcessedAsync(
+                new FlattenedSubmissionKey(TenantId, formId, submissionId),
+                $$"""{"submissionId":{{submissionId}}}""",
+                cancellationToken);
         }
-
-        await reportingDb.SaveChangesAsync(cancellationToken);
         return new SeededExportFixture(
             formId,
             formDefinitionId,

@@ -68,13 +68,9 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         await schemaRepository.SaveAsync(targetSchema, cancellationToken);
         await schemaRepository.SaveAsync(otherSchema, cancellationToken);
 
-        FlattenedSubmission targetRow = new(submissionId: 5001, TenantId, FormId);
-        targetRow.MarkProcessed("""{"q1":"a"}""", DateTime.UtcNow);
-        FlattenedSubmission otherRow = new(submissionId: 5002, TenantId, OtherFormId);
-        otherRow.MarkProcessed("""{"q1":"b"}""", DateTime.UtcNow);
-        dbContext.FlattenedSubmissions.Add(targetRow);
-        dbContext.FlattenedSubmissions.Add(otherRow);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        FlattenedRowSeed rows = new(dbContext);
+        await rows.ProcessedAsync(new(TenantId, FormId, SubmissionId: 5001), """{"q1":"a"}""", cancellationToken);
+        await rows.ProcessedAsync(new(TenantId, OtherFormId, SubmissionId: 5002), """{"q1":"b"}""", cancellationToken);
 
         SyncFormDeletionOutboxHandler handler = new(
             schemaRepository,

@@ -10,6 +10,7 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Tests.Shared;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -55,8 +56,10 @@ public class SubmissionFlatteningProcessorTests
     public async Task ProcessAsync_SubmissionSoftDeletedInItsForm_MarksItsRowDeletedAndSucceeds()
     {
         // Arrange — soft-deleted before this flatten, or before its retry.
-        FlattenedSubmissionRow row = new(SubmissionId, TenantId, FormId);
-        row.MarkProcessed("""{"q1":"a"}""", DateTime.UtcNow);
+        var row = FlattenedRows.Processed(
+            new FlattenedSubmissionKey(TenantId, FormId, SubmissionId),
+            """{"q1":"a"}""",
+            DateTime.UtcNow);
         GivenMissingSubmission(new SubmissionDeletionState(TenantId, FormId, IsDeleted: true), row);
 
         // Act

@@ -26,25 +26,6 @@ internal sealed class FlattenedSubmissionRepository(
     }
 
     /// <inheritdoc />
-    public async Task<FlattenedSubmission> GetOrCreateAsync(
-        long tenantId,
-        long submissionId,
-        long formId,
-        CancellationToken cancellationToken)
-    {
-        var existing = await GetBySubmissionIdAsync(tenantId, submissionId, cancellationToken);
-        if (existing is not null)
-        {
-            return existing;
-        }
-
-        FlattenedSubmission created = new(submissionId, tenantId, formId);
-        await dbContext.FlattenedSubmissions.AddAsync(created, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        return created;
-    }
-
-    /// <inheritdoc />
     public async Task SaveAsync(FlattenedSubmission flattenedSubmission, CancellationToken cancellationToken)
     {
         await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -5,7 +5,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -42,8 +41,8 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
         ReportingUnitOfWork unitOfWork = new(dbContext);
 
-        await repository.GetOrCreateAsync(TenantId, SubmissionId, FormId, cancellationToken);
-        await repository.GetOrCreateAsync(TenantId, SubmissionId + 1, FormId, cancellationToken);
+        await repository.EnsureExistsAsync(new FlattenedSubmissionKey(TenantId, FormId, SubmissionId), cancellationToken);
+        await repository.EnsureExistsAsync(new FlattenedSubmissionKey(TenantId, FormId, SubmissionId + 1), cancellationToken);
 
         SyncSubmissionDeletionOutboxHandler handler = new(
             repository,
@@ -71,13 +70,9 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
         ReportingUnitOfWork unitOfWork = new(dbContext);
 
-        FlattenedSubmission softDeleted = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
+        await new FlattenedRowSeed(dbContext).SoftDeletedAsync(
+            new FlattenedSubmissionKey(TenantId, FormId, SubmissionId),
             cancellationToken);
-        softDeleted.MarkDeleted();
-        await repository.SaveAsync(softDeleted, cancellationToken);
 
         SyncSubmissionDeletionOutboxHandler handler = new(
             repository,

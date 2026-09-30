@@ -2,7 +2,6 @@ using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +17,8 @@ public sealed class FlattenedSubmissionRepositoryTests
     private const long OtherTenantId = 2;
     private const long FormId = 100;
     private const long SubmissionId = 500;
-    private const string ProcessedDataJson = """{"firstName":"Ada"}""";
+    // In the form PostgreSQL returns a jsonb value, which is how the conditional write stores it.
+    private const string ProcessedDataJson = """{"firstName": "Ada"}""";
 
     private readonly DbIntegrationFixture _fixture;
 
@@ -47,95 +47,99 @@ public sealed class FlattenedSubmissionRepositoryTests
     [Fact]
     public async Task GetBySubmissionIdAsync_WithOtherTenant_ReturnsNull()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
-        await repository.GetOrCreateAsync(TenantId, SubmissionId, FormId, cancellationToken);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
 
+        // Act
         var otherTenantResult = await repository.GetBySubmissionIdAsync(
             OtherTenantId,
             SubmissionId,
             cancellationToken);
-
-        otherTenantResult.Should().BeNull();
         var tenantResult = await repository.GetBySubmissionIdAsync(
             TenantId,
             SubmissionId,
             cancellationToken);
+
+        // Assert
+        otherTenantResult.Should().BeNull();
         tenantResult.Should().NotBeNull();
         tenantResult!.TenantId.Should().Be(TenantId);
     }
 
     [Fact]
-    public async Task GetOrCreateAsync_OnSecondCall_ReturnsExistingRow()
+    public async Task EnsureExistsAsync_OnSecondCall_KeepsTheOneRow()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
 
-        var created = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
-            cancellationToken);
-        var existing = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
-            cancellationToken);
+        // Act
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
 
-        existing.SubmissionId.Should().Be(created.SubmissionId);
-        (await dbContext.FlattenedSubmissions.CountAsync(cancellationToken)).Should().Be(1);
+        // Assert
+        var row = await dbContext.FlattenedSubmissions.SingleAsync(cancellationToken);
+        row.SubmissionId.Should().Be(SubmissionId);
+        row.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Pending);
     }
 
     [Fact]
-    public async Task SaveAsync_WhenMarkProcessed_PersistsState()
+    public async Task TryMarkProcessedAsync_OnExistingRow_PersistsProcessedState()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
-        var row = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        var sourceModifiedAt = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var landed = await repository.TryMarkProcessedAsync(
+            new FlattenedRevision(TenantId, SubmissionId, Revision: 3, sourceModifiedAt),
+            ProcessedDataJson,
             cancellationToken);
 
-        row.MarkProcessed(ProcessedDataJson, DateTime.UtcNow);
-        await repository.SaveAsync(row, cancellationToken);
-
+        // Assert
+        landed.Should().BeTrue();
         var persisted = await repository.GetBySubmissionIdAsync(
             TenantId,
             SubmissionId,
             cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
+        persisted.Integration.ProcessedAt.Should().NotBeNull();
         persisted.DataJson.Should().Be(ProcessedDataJson);
+        persisted.SourceRevision.Should().Be(3);
+        persisted.SourceModifiedAt.Should().Be(sourceModifiedAt);
         persisted.IsDeleted.Should().BeFalse();
     }
 
     [Fact]
     public async Task SaveAsync_WhenMarkDeleted_PersistsAndExcludesFromQueries()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
-        var row = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
-            cancellationToken);
-
+        var row = await new FlattenedRowSeed(dbContext).PendingAsync(KeyOf(SubmissionId), cancellationToken);
         row.MarkDeleted();
+
+        // Act
         await repository.SaveAsync(row, cancellationToken);
 
+        // Assert
         row.IsDeleted.Should().BeTrue();
         var persisted = await dbContext.FlattenedSubmissions
             .IgnoreQueryFilters()
@@ -159,28 +163,10 @@ public sealed class FlattenedSubmissionRepositoryTests
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
 
-        var active = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
-            cancellationToken);
-        active.MarkProcessed(ProcessedDataJson, DateTime.UtcNow);
-        await repository.SaveAsync(active, cancellationToken);
-
-        var softDeleted = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId + 1,
-            FormId,
-            cancellationToken);
-        softDeleted.MarkDeleted();
-        await repository.SaveAsync(softDeleted, cancellationToken);
-
-        var otherForm = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId + 2,
-            formId: FormId + 1,
-            cancellationToken);
-        await repository.SaveAsync(otherForm, cancellationToken);
+        FlattenedRowSeed rows = new(dbContext);
+        await rows.ProcessedAsync(KeyOf(SubmissionId), ProcessedDataJson, cancellationToken);
+        await rows.SoftDeletedAsync(KeyOf(SubmissionId + 1), cancellationToken);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId + 2, formId: FormId + 1), cancellationToken);
 
         // Act
         var deleted = await repository.DeleteByFormIdAsync(TenantId, FormId, cancellationToken);
@@ -200,32 +186,23 @@ public sealed class FlattenedSubmissionRepositoryTests
     [Fact]
     public async Task DeleteBySubmissionIdAsync_RemovesTargetIncludingSoftDeleted()
     {
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
 
-        var softDeleted = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
-            cancellationToken);
-        softDeleted.MarkDeleted();
-        await repository.SaveAsync(softDeleted, cancellationToken);
+        await new FlattenedRowSeed(dbContext).SoftDeletedAsync(KeyOf(SubmissionId), cancellationToken);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId + 1), cancellationToken);
 
-        var other = await repository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId + 1,
-            FormId,
-            cancellationToken);
-        await repository.SaveAsync(other, cancellationToken);
-
+        // Act
         var deleted = await repository.DeleteBySubmissionIdAsync(
             TenantId,
             SubmissionId,
             cancellationToken);
 
+        // Assert
         deleted.Should().Be(1);
         (await dbContext.FlattenedSubmissions
                 .IgnoreQueryFilters()
@@ -236,6 +213,9 @@ public sealed class FlattenedSubmissionRepositoryTests
                 .CountAsync(row => row.SubmissionId == SubmissionId + 1, cancellationToken))
             .Should().Be(1);
     }
+
+    private static FlattenedSubmissionKey KeyOf(long submissionId, long formId = FormId) =>
+        new(TenantId, formId, submissionId);
 
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {
