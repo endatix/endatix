@@ -24,7 +24,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
             // Exclude soft-deleted rows from legacy SQL export (reporting flag-off path).
             // New script version — older migrations still ReadEmbeddedSqlScript(v3) at runtime.
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v4.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v4.sql", GetType().Assembly));
         }
 
         /// <inheritdoc />
@@ -51,7 +51,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 unique: true,
                 filter: "[RestrictionKey] IS NOT NULL");
 
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v3.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v3.sql", GetType().Assembly));
         }
     }
 }

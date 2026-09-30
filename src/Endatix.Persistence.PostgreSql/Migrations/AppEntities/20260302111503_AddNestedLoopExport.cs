@@ -11,13 +11,13 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            var buildColumnPathScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/build_column_path_with_jsonpath.sql");
+            var buildColumnPathScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/build_column_path_with_jsonpath.sql", GetType().Assembly);
             migrationBuilder.Sql(buildColumnPathScript);
 
-            var exportNestedLoopsScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql");
+            var exportNestedLoopsScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql", GetType().Assembly);
             migrationBuilder.Sql(exportNestedLoopsScript);
 
-            var exportShojiScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_metadata_shoji.sql");
+            var exportShojiScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_metadata_shoji.sql", GetType().Assembly);
             migrationBuilder.Sql(exportShojiScript);
 
             migrationBuilder.Sql(@"

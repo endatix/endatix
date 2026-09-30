@@ -12,11 +12,11 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
-            var buildColumnPathScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/build_column_path_with_jsonpath.sql");
+            var buildColumnPathScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/build_column_path_with_jsonpath.sql", GetType().Assembly);
             migrationBuilder.Sql(buildColumnPathScript);
 
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint);");
-            var exportNestedLoopsScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql");
+            var exportNestedLoopsScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql", GetType().Assembly);
             migrationBuilder.Sql(exportNestedLoopsScript);
         }
 

@@ -14,16 +14,18 @@ public static class MigrationBuilderExtensions
     /// </summary>
     /// <param name="migrationBuilder">The migration builder instance</param>
     /// <param name="scriptPath">The path to the SQL script relative to the Scripts folder (e.g., "Functions/export_form_submissions.sql")</param>
-    /// <param name="assembly">The assembly containing the embedded resource. If null, uses the calling assembly.</param>
+    /// <param name="assembly">
+    /// The assembly containing the embedded resource; in a migration, <c>GetType().Assembly</c>. It is not worked out
+    /// from the call stack, because once the runtime inlines a migration's code the caller it finds is not the
+    /// migration.
+    /// </param>
     /// <returns>The SQL script content</returns>
     /// <exception cref="FileNotFoundException">Thrown when the script file is not found</exception>
     /// <exception cref="InvalidOperationException">Thrown when the script content is invalid</exception>
-    public static string ReadEmbeddedSqlScript(this MigrationBuilder migrationBuilder, string scriptPath, Assembly? assembly = null)
+    public static string ReadEmbeddedSqlScript(this MigrationBuilder migrationBuilder, string scriptPath, Assembly assembly)
     {
         Guard.Against.Null(migrationBuilder, nameof(migrationBuilder));
-        
-        assembly ??= Assembly.GetCallingAssembly();
-        
+
         return ScriptReader.ReadSqlScript(scriptPath, assembly);
     }
 } 
