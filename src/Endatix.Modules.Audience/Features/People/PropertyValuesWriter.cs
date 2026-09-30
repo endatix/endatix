@@ -65,7 +65,7 @@ internal static class PropertyValuesWriter
     /// Stages value cells for a membership that has none yet. Empty values add nothing. Does not save.
     /// </summary>
     public static void AddAll(PropertyValueWrite write) =>
-        Apply(write, new Dictionary<long, PropertyValue>());
+        Upsert(write, new Dictionary<long, PropertyValue>());
 
     /// <summary>
     /// Updates, clears or adds each cell. Does not save.
@@ -75,7 +75,7 @@ internal static class PropertyValuesWriter
         CancellationToken cancellationToken)
     {
         Dictionary<long, PropertyValue> existing = await LoadCellsAsync(write, cancellationToken);
-        Apply(write, existing);
+        Upsert(write, existing);
     }
 
     /// <summary>
@@ -86,11 +86,12 @@ internal static class PropertyValuesWriter
         values.Where(pair => pair.Value.Length > 0).ToDictionary(pair => pair.Key, pair => pair.Value);
 
     /// <summary>
-    /// An empty value soft-deletes the cell, so a read never sees an empty cell. Cells are written
-    /// in property-id order, so two requests touching the same cells lock them in the same order
-    /// and cannot deadlock.
+    /// Updates, clears or adds each cell against cells already loaded (keyed by property id), as
+    /// the CSV import does. An empty value soft-deletes the cell, so a read never sees an empty
+    /// cell. Cells are written in property-id order, so two requests touching the same cells lock
+    /// them in the same order and cannot deadlock. Does not save.
     /// </summary>
-    private static void Apply(PropertyValueWrite write, IReadOnlyDictionary<long, PropertyValue> existing)
+    public static void Upsert(PropertyValueWrite write, IReadOnlyDictionary<long, PropertyValue> existing)
     {
         foreach ((long propertyId, string value) in write.Values.OrderBy(pair => pair.Key))
         {

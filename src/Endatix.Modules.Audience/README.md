@@ -22,6 +22,7 @@ Database schema: `audience`
 | `Members` | One person per tenant + match key. `Identifier` keeps the value as entered; `NormalizedIdentifier` is the unique match key. Emails must be one valid address and use the same normalizer as app users; external ids keep their case |
 | `Memberships` | Person on one form |
 | `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). A stored value is never empty: saving `""` clears (soft-deletes) the cell |
+| `Imports` | One row per confirmed CSV import: counts, file name, who ran it |
 
 ## API (directory)
 
@@ -32,6 +33,7 @@ Database schema: `audience`
 | PATCH/DELETE | `forms/{formId}/audience/properties/{propertyId}` | Rename/reorder / delete |
 | GET/POST | `forms/{formId}/audience/people` | List (page ≤ 5,000) / add |
 | PUT/DELETE | `forms/{formId}/audience/people/{membershipId}` | Edit values / remove from this form only |
+| POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported, not written |
 
 Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`.
 
