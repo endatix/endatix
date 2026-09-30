@@ -115,6 +115,7 @@ internal sealed class FlattenedSubmissionRepository(
                 .SetProperty(row => row.Integration.LastError, (string?)null)
                 .SetProperty(row => row.IsDeleted, false)
                 .SetProperty(row => row.SourceRevision, write.Revision)
+                .SetProperty(row => row.SourceModifiedAt, write.SourceModifiedAt)
                 .SetProperty(row => row.ModifiedAt, now),
             cancellationToken);
     }
@@ -132,6 +133,7 @@ internal sealed class FlattenedSubmissionRepository(
                 .SetProperty(row => row.Integration.ProcessedAt, (DateTime?)null)
                 .SetProperty(row => row.Integration.LastError, (string?)null)
                 .SetProperty(row => row.SourceRevision, write.Revision)
+                .SetProperty(row => row.SourceModifiedAt, (DateTime?)null)
                 .SetProperty(row => row.ModifiedAt, now),
             cancellationToken);
     }

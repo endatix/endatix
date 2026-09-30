@@ -42,9 +42,10 @@ public class SubmissionFlatteningProcessorTests
 
         // Assert
         await _rows.Received(1).EnsureExistsAsync(new FlattenedSubmissionKey(TenantId, FormId, SubmissionId), Arg.Any<CancellationToken>());
-        await _rows.Received(1).TryMarkProcessingAsync(new FlattenedRevision(TenantId, SubmissionId, 4), Arg.Any<CancellationToken>());
+        FlattenedRevision write = new(TenantId, SubmissionId, 4, submission.ModifiedAt ?? submission.CreatedAt);
+        await _rows.Received(1).TryMarkProcessingAsync(write, Arg.Any<CancellationToken>());
         await _rows.Received(1).TryMarkProcessedAsync(
-            new FlattenedRevision(TenantId, SubmissionId, 4),
+            write,
             Arg.Is<string>(json => json.Contains("firstName")),
             Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
@@ -101,10 +102,11 @@ public class SubmissionFlatteningProcessorTests
     public async Task ProcessAsync_NewerRevisionWrittenMeanwhile_LeavesTheNewerData()
     {
         // Arrange — the row accepts this revision as processing, but a newer flatten writes before this one does.
-        GivenSubmission(CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 2));
+        var submission = CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 2);
+        GivenSubmission(submission);
         GivenSchema();
-        _rows.TryMarkProcessingAsync(new FlattenedRevision(TenantId, SubmissionId, 2), Arg.Any<CancellationToken>()).Returns(true);
-        _rows.TryMarkProcessedAsync(new FlattenedRevision(TenantId, SubmissionId, 2), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        _rows.TryMarkProcessingAsync(WriteOf(submission), Arg.Any<CancellationToken>()).Returns(true);
+        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var act = () => Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
@@ -128,7 +130,7 @@ public class SubmissionFlatteningProcessorTests
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         // Assert
-        await _rows.Received(1).TryMarkSkippedAsync(new FlattenedRevision(TenantId, SubmissionId, submission.Revision), Arg.Any<CancellationToken>());
+        await _rows.Received(1).TryMarkSkippedAsync(WriteOf(submission), Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
     }
 
@@ -164,7 +166,7 @@ public class SubmissionFlatteningProcessorTests
 
         // Assert
         await _rows.Received(1).TryMarkFailedAsync(
-            new FlattenedRevision(TenantId, SubmissionId, submission.Revision),
+            WriteOf(submission),
             "Submission tenant or form does not match the flatten request.",
             Arg.Any<CancellationToken>());
         await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, default);
@@ -184,6 +186,9 @@ public class SubmissionFlatteningProcessorTests
 
         return submission;
     }
+
+    private static FlattenedRevision WriteOf(Submission submission) =>
+        new(TenantId, SubmissionId, submission.Revision, submission.ModifiedAt ?? submission.CreatedAt);
 
     private void GivenSubmission(Submission? submission) =>
         _submissions

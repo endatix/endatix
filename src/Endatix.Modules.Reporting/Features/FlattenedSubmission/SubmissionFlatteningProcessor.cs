@@ -148,7 +148,8 @@ internal sealed class SubmissionFlatteningProcessor(
     /// <summary>One flatten of a submission, as it was read for its row.</summary>
     private sealed record FlattenRun(FlattenedSubmissionKey Key, Submission Submission, bool IncludeIncomplete)
     {
-        public FlattenedRevision Write => new(Key.TenantId, Key.SubmissionId, Submission.Revision);
+        public FlattenedRevision Write =>
+            new(Key.TenantId, Key.SubmissionId, Submission.Revision, Submission.ModifiedAt ?? Submission.CreatedAt);
 
         public bool Mismatched => Submission.TenantId != Key.TenantId || Submission.FormId != Key.FormId;
     }
