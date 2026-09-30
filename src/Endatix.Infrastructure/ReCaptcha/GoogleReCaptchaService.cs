@@ -3,6 +3,8 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.ReCaptcha;
@@ -15,15 +17,19 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
     private readonly IReCaptchaHttpClient _reCaptchaClient;
     private readonly ReCaptchaOptions _options;
     private readonly IUserContext _userContext;
+    private readonly ILogger<GoogleReCaptchaService> _logger;
+
     public GoogleReCaptchaService(
         IReCaptchaHttpClient reCaptchaClient,
         IOptions<ReCaptchaOptions> options,
-        IUserContext userContext)
+        IUserContext userContext,
+        ILogger<GoogleReCaptchaService>? logger = null)
     {
         _reCaptchaClient = reCaptchaClient;
         _options = options.Value;
         IsEnabled = _options.IsEnabled && AreReCaptchaOptionsValid(_options);
         _userContext = userContext;
+        _logger = logger ?? NullLogger<GoogleReCaptchaService>.Instance;
     }
 
 
@@ -84,15 +90,38 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
 
         if (!reCaptchaToken.Success)
         {
-            return ReCaptchaVerificationResult.InvalidResponse(0.0, reCaptchaToken.Action, reCaptchaToken.ErrorCodes ?? []);
+            return Rejected(reCaptchaToken);
         }
 
         if (reCaptchaToken.Score < _options.MinimumScore)
         {
-            return ReCaptchaVerificationResult.InvalidResponse(reCaptchaToken.Score, reCaptchaToken.Action, [ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW, $"{reCaptchaToken.Score} < {_options.MinimumScore}"]);
+            return ScoreTooLow(reCaptchaToken);
         }
 
         return ReCaptchaVerificationResult.Success(reCaptchaToken.Score, reCaptchaToken.Action);
+    }
+
+    private ReCaptchaVerificationResult Rejected(GoogleReCaptchaResponse token)
+    {
+        var errorCodes = token.ErrorCodes ?? [];
+        _logger.LogWarning(
+            "reCAPTCHA siteverify rejected the token. Action: {Action}. ErrorCodes: {ErrorCodes}",
+            token.Action ?? ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE,
+            string.Join(",", errorCodes));
+        return ReCaptchaVerificationResult.InvalidResponse(0.0, token.Action, errorCodes);
+    }
+
+    private ReCaptchaVerificationResult ScoreTooLow(GoogleReCaptchaResponse token)
+    {
+        _logger.LogWarning(
+            "reCAPTCHA score {Score} is below minimum {MinimumScore}. Action: {Action}",
+            token.Score,
+            _options.MinimumScore,
+            token.Action ?? ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE);
+        return ReCaptchaVerificationResult.InvalidResponse(
+            token.Score,
+            token.Action,
+            [ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW, $"{token.Score} < {_options.MinimumScore}"]);
     }
 
     public bool IsEnabled { get; }

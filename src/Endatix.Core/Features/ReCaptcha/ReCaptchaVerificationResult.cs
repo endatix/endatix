@@ -41,21 +41,27 @@ public record ReCaptchaVerificationResult
     }
 
 
-    public static ReCaptchaVerificationResult Success(double score, string action)
+    public static ReCaptchaVerificationResult Success(double score, string? action)
     {
-        return new ReCaptchaVerificationResult(true, score, action, Array.Empty<string>());
+        return new ReCaptchaVerificationResult(true, score, ActionOrNone(action), Array.Empty<string>());
     }
 
 
-    public static ReCaptchaVerificationResult InvalidResponse(double achievedScore, string action, string[]? errorMessages)
+    public static ReCaptchaVerificationResult InvalidResponse(double achievedScore, string? action, string[]? errorMessages)
     {
-        return new ReCaptchaVerificationResult(false, achievedScore, action, errorMessages ?? Array.Empty<string>());
+        return new ReCaptchaVerificationResult(false, achievedScore, ActionOrNone(action), errorMessages ?? Array.Empty<string>());
     }
 
-    public static ReCaptchaVerificationResult InvalidResponse(double achievedScore, string action, string errorMessage)
+    public static ReCaptchaVerificationResult InvalidResponse(double achievedScore, string? action, string errorMessage)
     {
-        return new ReCaptchaVerificationResult(false, achievedScore, action, [errorMessage]);
+        return new ReCaptchaVerificationResult(false, achievedScore, ActionOrNone(action), [errorMessage]);
     }
+
+    /// <summary>
+    /// Google omits <c>action</c> on many <c>success: false</c> siteverify payloads.
+    /// </summary>
+    private static string ActionOrNone(string? action) =>
+        string.IsNullOrEmpty(action) ? ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE : action;
 
     public static ReCaptchaVerificationResult NotEnabled()
     {
