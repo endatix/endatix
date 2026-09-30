@@ -14,6 +14,17 @@ namespace Endatix.Infrastructure.ReCaptcha;
 /// </summary>
 internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
 {
+    /// <summary>
+    /// siteverify error codes that mean our configuration or request is wrong, not the visitor's token.
+    /// Everything else (expired, duplicate or forged tokens) is expected traffic.
+    /// </summary>
+    private static readonly HashSet<string> _configurationErrorCodes = new(StringComparer.Ordinal)
+    {
+        "missing-input-secret",
+        "invalid-input-secret",
+        "bad-request",
+    };
+
     private readonly IReCaptchaHttpClient _reCaptchaClient;
     private readonly ReCaptchaOptions _options;
     private readonly IUserContext _userContext;
@@ -98,23 +109,47 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
             return ScoreTooLow(reCaptchaToken);
         }
 
+        if (string.IsNullOrEmpty(reCaptchaToken.Action))
+        {
+            return ActionMissing(reCaptchaToken);
+        }
+
         return ReCaptchaVerificationResult.Success(reCaptchaToken.Score, reCaptchaToken.Action);
     }
 
     private ReCaptchaVerificationResult Rejected(GoogleReCaptchaResponse token)
     {
         var errorCodes = token.ErrorCodes ?? [];
-        _logger.LogWarning(
-            "reCAPTCHA siteverify rejected the token. Action: {Action}. ErrorCodes: {ErrorCodes}",
-            token.Action ?? ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE,
-            string.Join(",", errorCodes));
+        var action = token.Action ?? ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE;
+        var joinedCodes = string.Join(",", errorCodes);
+        if (errorCodes.Any(_configurationErrorCodes.Contains))
+        {
+            _logger.LogReCaptchaConfigurationError(action, joinedCodes);
+        }
+        else
+        {
+            _logger.LogReCaptchaTokenRejected(action, joinedCodes);
+        }
+
         return ReCaptchaVerificationResult.InvalidResponse(0.0, token.Action, errorCodes);
+    }
+
+    /// <summary>
+    /// v3 always returns <c>action</c> with a successful token. Without it the token was not
+    /// issued by <c>grecaptcha.execute</c> for this site key (for example a v2 key), so it is rejected.
+    /// </summary>
+    private ReCaptchaVerificationResult ActionMissing(GoogleReCaptchaResponse token)
+    {
+        _logger.LogReCaptchaActionMissing(token.Hostname);
+        return ReCaptchaVerificationResult.InvalidResponse(
+            token.Score,
+            ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE,
+            ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING);
     }
 
     private ReCaptchaVerificationResult ScoreTooLow(GoogleReCaptchaResponse token)
     {
-        _logger.LogWarning(
-            "reCAPTCHA score {Score} is below minimum {MinimumScore}. Action: {Action}",
+        _logger.LogReCaptchaScoreTooLow(
             token.Score,
             _options.MinimumScore,
             token.Action ?? ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE);
