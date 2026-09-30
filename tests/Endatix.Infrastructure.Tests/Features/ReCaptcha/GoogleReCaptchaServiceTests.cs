@@ -1,10 +1,13 @@
+using System.Net;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Framework.Logging;
 using Endatix.Infrastructure.ReCaptcha;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NSubstitute;
 
 namespace Endatix.Infrastructure.Tests.Features.ReCaptcha;
 
@@ -142,6 +145,101 @@ public class GoogleReCaptchaServiceTests
     }
 
     [Fact]
+    public async Task VerifyTokenAsync_ReturnsInvalidResponse_WhenGoogleOmitsAction()
+    {
+        // Arrange
+        _options.Value.Returns(_defaultOptions);
+        var reCaptchaHttpClient = new StubReCaptchaHttpClient(GoogleReCaptchaResponses.RejectedWithoutAction());
+        var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
+
+        // Act
+        var result = await service.VerifyTokenAsync("sometoken", CancellationToken.None);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, result.Action);
+        Assert.Contains("invalid-input-response", result.ErrorCodes);
+    }
+
+    [Fact]
+    public async Task VerifyTokenAsync_DoesNotThrow_WhenSiteverifyJsonOmitsAction()
+    {
+        // Arrange
+        _options.Value.Returns(_defaultOptions);
+        var json = """{"success":false,"error-codes":["invalid-input-response"]}""";
+        var httpClient = new ReCaptchaHttpClient(
+            new HttpClient(new FixedStatusHandler(HttpStatusCode.OK, json)),
+            NullLogger<ReCaptchaHttpClient>.Instance);
+        var service = new GoogleReCaptchaService(httpClient, _options, _userContext);
+
+        // Act
+        var result = await service.VerifyTokenAsync("sometoken", CancellationToken.None);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, result.Action);
+        Assert.Contains("invalid-input-response", result.ErrorCodes);
+    }
+
+    [Fact]
+    public async Task VerifyTokenAsync_ReturnsActionMissing_WhenSuccessfulTokenHasNoAction()
+    {
+        // Arrange
+        _options.Value.Returns(_defaultOptions);
+        var reCaptchaHttpClient = new StubReCaptchaHttpClient(GoogleReCaptchaResponses.SuccessWithoutAction());
+        var logger = new RecordingLogger<GoogleReCaptchaService>();
+        var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext, logger);
+
+        // Act
+        var result = await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, result.Action);
+        Assert.Contains(ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING, result.ErrorCodes);
+        Assert.Equal([(LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMissing)], logger.Entries);
+    }
+
+    [Theory]
+    [InlineData("timeout-or-duplicate", LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
+    [InlineData("invalid-input-response", LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
+    [InlineData("missing-input-response", LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
+    [InlineData("invalid-input-secret", LogLevel.Warning, EndatixEventIds.ReCaptcha.TokenRejectedConfigurationError)]
+    [InlineData("missing-input-secret", LogLevel.Warning, EndatixEventIds.ReCaptcha.TokenRejectedConfigurationError)]
+    [InlineData("bad-request", LogLevel.Warning, EndatixEventIds.ReCaptcha.TokenRejectedConfigurationError)]
+    public async Task VerifyTokenAsync_LogsRejection_AtWarningOnlyForConfigurationErrors(string errorCode, LogLevel expectedLevel, int expectedEventId)
+    {
+        // Arrange
+        _options.Value.Returns(_defaultOptions);
+        var rejected = new GoogleReCaptchaResponse(false, default, null, 0.0, null, [errorCode]);
+        var logger = new RecordingLogger<GoogleReCaptchaService>();
+        var service = new GoogleReCaptchaService(new StubReCaptchaHttpClient(rejected), _options, _userContext, logger);
+
+        // Act
+        var result = await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal([(expectedLevel, expectedEventId)], logger.Entries);
+    }
+
+    [Fact]
+    public async Task VerifyTokenAsync_LogsScoreTooLow_AtInformation()
+    {
+        // Arrange
+        _options.Value.Returns(_defaultOptions);
+        var logger = new RecordingLogger<GoogleReCaptchaService>();
+        var service = new GoogleReCaptchaService(
+            new StubReCaptchaHttpClient(GoogleReCaptchaResponses.ScoreTooLow(0.1)), _options, _userContext, logger);
+
+        // Act
+        await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal([(LogLevel.Information, EndatixEventIds.ReCaptcha.ScoreTooLow)], logger.Entries);
+    }
+
+    [Fact]
     public async Task VerifyTokenAsync_ReturnsInvalidResponse_WhenHttpResponseIsNotSuccess()
     {
         // Arrange
@@ -257,7 +355,7 @@ public class GoogleReCaptchaServiceTests
         var context = new SubmissionVerificationContext(form, false, null, null);
 
         // Act
-        var result = await service.ValidateReCaptchaAsync(context, default);
+        var result = await service.ValidateReCaptchaAsync(context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -276,7 +374,7 @@ public class GoogleReCaptchaServiceTests
         var context = new SubmissionVerificationContext(form, submissionIsComplete, null, null);
 
         // Act
-        var result = await service.ValidateReCaptchaAsync(context, default);
+        var result = await service.ValidateReCaptchaAsync(context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -301,7 +399,7 @@ public class GoogleReCaptchaServiceTests
         var validationContext = new SubmissionVerificationContext(formWithRecaptcha, false, null, null);
 
         // Act
-        var result = await service.ValidateReCaptchaAsync(validationContext, default);
+        var result = await service.ValidateReCaptchaAsync(validationContext, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -321,7 +419,7 @@ public class GoogleReCaptchaServiceTests
         var validationContext = new SubmissionVerificationContext(form, isComplete, null, token);
 
         // Act
-        var result = await service.ValidateReCaptchaAsync(validationContext, default);
+        var result = await service.ValidateReCaptchaAsync(validationContext, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -348,7 +446,7 @@ public class GoogleReCaptchaServiceTests
         var validationContext = new SubmissionVerificationContext(form, isComplete, null, token);
 
         // Act
-        var result = await service.ValidateReCaptchaAsync(validationContext, default);
+        var result = await service.ValidateReCaptchaAsync(validationContext, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -372,7 +470,7 @@ public class GoogleReCaptchaServiceTests
         var validationContext = new SubmissionVerificationContext(form, false, null, token);
 
         // Act
-        var result = await service.ValidateReCaptchaAsync(validationContext, default);
+        var result = await service.ValidateReCaptchaAsync(validationContext, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -398,6 +496,10 @@ internal static class GoogleReCaptchaResponses
 {
     public static GoogleReCaptchaResponse Success(double score = 1.0) => new(true, DateTime.UtcNow, "localhost", score, "form_submit", null);
     public static GoogleReCaptchaResponse InvalidResponse() => new(false, DateTime.UtcNow, "localhost", 0.0, "form_submit", ["invalid_response"]);
+
+    public static GoogleReCaptchaResponse RejectedWithoutAction() =>
+        new(false, default, null, 0.0, null, ["invalid-input-response", "timeout-or-duplicate"]);
+    public static GoogleReCaptchaResponse SuccessWithoutAction() => new(true, DateTime.UtcNow, "localhost", 0.9, null, null);
     public static GoogleReCaptchaResponse ScoreTooLow(double score = 0.3) => new(true, DateTime.UtcNow, "localhost", score, "form_submit", null);
 }
 
@@ -405,4 +507,23 @@ internal static class StubForm
 {
     public static Form Create(long tenantId) =>
         Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "TestForm"));
+}
+
+internal sealed class FixedStatusHandler(HttpStatusCode statusCode, string content) : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        => Task.FromResult(new HttpResponseMessage(statusCode) { Content = new StringContent(content) });
+}
+
+/// <summary>Captures the level and EventId of every log call so tests can assert on them.</summary>
+internal sealed class RecordingLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, int EventId)> Entries { get; } = [];
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        => Entries.Add((logLevel, eventId.Id));
 }
