@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Quartz;
 
 namespace Endatix.Modules.Jobs.Endpoints;
@@ -23,6 +24,8 @@ internal static class QuartzDashboard
     public const string ApiPath = "/quartz-api";
     public const string AuthorizationPolicy = "PlatformAdmin";
 
+    private const string AttachedStoreDiscoveryType = "Quartz.Configuration.AttachedStoreDiscovery";
+
     private static readonly string _endatixJobClass = typeof(BackgroundJobExecution).FullName!;
 
     public static IServiceCollection AddJobsDashboard(this IServiceCollection services, IConfiguration configuration)
@@ -37,6 +40,7 @@ internal static class QuartzDashboard
         var readOnly = !options.Dashboard.AllowWrites;
         services.AddQuartzHttpApi(api => ConfigureApi(api, readOnly));
         services.AddQuartzDashboard(dashboard => ConfigureDashboard(dashboard, readOnly));
+        RemoveAttachedStoreDiscovery(services);
         services.AddSingleton<IStartupFilter, MapDashboardAfterApplication>();
 
         return services;
@@ -56,6 +60,26 @@ internal static class QuartzDashboard
         dashboard.AuthorizationPolicy = AuthorizationPolicy;
         dashboard.IsJobTypeAllowed = IsEndatixJobClass;
     }
+
+    // Quartz's hosted service for the databases QuartzDashboardOptions.AttachStore points the dashboard at. We attach
+    // none, so it has nothing to do, and its StopAsync is not safe against the host being stopped twice at once, which
+    // WebApplicationFactory does (https://github.com/dotnet/aspnetcore/issues/40271). Calling AttachStore in
+    // ConfigureDashboard would need it back.
+    private static void RemoveAttachedStoreDiscovery(IServiceCollection services)
+    {
+        foreach (var descriptor in services.Where(IsAttachedStoreDiscovery).ToList())
+        {
+            services.Remove(descriptor);
+        }
+    }
+
+    // The type is internal to Quartz, so it is matched by name. Quartz registers it through a factory, and a factory
+    // descriptor carries its implementation type only as the factory delegate's return type.
+    internal static bool IsAttachedStoreDiscovery(ServiceDescriptor descriptor) =>
+        descriptor.ServiceType == typeof(IHostedService)
+        && !descriptor.IsKeyedService
+        && (descriptor.ImplementationType ?? descriptor.ImplementationFactory?.GetType().GenericTypeArguments[^1])?.FullName
+            == AttachedStoreDiscoveryType;
 
     // The job type arrives as the name the caller wrote, with or without its assembly. A bare prefix match would
     // also admit any other type whose name merely starts with this one's.
