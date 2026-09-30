@@ -1,6 +1,7 @@
 using Endatix.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Quartz;
 using Quartz.Impl;
@@ -59,27 +60,43 @@ internal static class QuartzRegistration
             .Build();
 
     /// <summary>
-    /// The one-off trigger of job row <paramref name="jobId"/>. Its key is the job id, its only data is the job
-    /// id, and it carries the job type's execution group and retry policy. The payload and anything secret stay
-    /// on the row.
+    /// The one-off trigger <paramref name="spec"/> describes. Its key is the job id, its only data is the job id, and
+    /// it carries the job type's execution group and retry policy. The payload and anything secret stay on the row.
     /// </summary>
-    public static ITrigger TriggerFor(long jobId, string jobType, BackgroundJobTypePolicy policy)
+    public static ITrigger TriggerFor(JobTriggerSpec spec)
     {
-        var id = jobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var id = spec.JobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(id, jobType)
-            .ForJob(JobKeyFor(jobType))
-            .WithExecutionGroup(jobType)
-            .UsingJobData(BackgroundJobExecution.JobIdKey, id)
-            .StartNow();
-
-        var retryPolicy = BackgroundJobRetryPolicy.ToQuartz(policy);
-        if (retryPolicy is not null)
+            .WithIdentity(id, spec.JobType)
+            .ForJob(JobKeyFor(spec.JobType))
+            .WithExecutionGroup(spec.JobType)
+            .UsingJobData(BackgroundJobExecution.JobIdKey, id);
+        trigger = spec.StartAt is { } at ? trigger.StartAt(at) : trigger.StartNow();
+        if (spec.Reclaim)
         {
-            trigger = trigger.WithRetryPolicy(retryPolicy);
+            trigger = trigger.UsingJobData(BackgroundJobExecution.ReclaimKey, bool.TrueString);
         }
 
-        return trigger.Build();
+        return WithRetryPolicy(trigger, spec.Policy).Build();
+    }
+
+    /// <summary>
+    /// Registers the one scheduler job class and what it runs each attempt through. The scheduler resolves a job in
+    /// a scope of its own, so the wrapper's parts are scoped; a host may supply its own metrics sink.
+    /// </summary>
+    public static IServiceCollection AddJobExecution(this IServiceCollection services)
+    {
+        services.AddScoped<BackgroundJobExecution>();
+        services.AddScoped<JobAttemptClaimer>();
+        services.AddScoped<JobHandlerRunner>();
+        services.AddScoped<JobOutcomeRecorder>();
+        services.AddScoped<UnrecordedJobRefire>();
+        services.AddScoped<JobLifecycleMetrics>();
+        services.AddSingleton<JobsShutdownSignal>();
+        services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
+        services.AddMetrics();
+        services.TryAddSingleton<IJobMetrics, MeterJobMetrics>();
+        return services;
     }
 
     public static IServiceCollection AddJobsScheduler(this IServiceCollection services, IConfiguration configuration)
@@ -88,63 +105,10 @@ internal static class QuartzRegistration
             ?? new BackgroundJobsOptions();
         var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
-        services.AddScoped<BackgroundJobExecution>();
+        services.AddJobExecution();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
-
-        services.AddQuartz(SchedulerName, quartz =>
-        {
-            quartz.ConfigureScheduler(scheduler =>
-            {
-                scheduler.InstanceName = SchedulerName;
-                if (string.IsNullOrWhiteSpace(options.Clustering.InstanceId))
-                {
-                    scheduler.GenerateInstanceId = true;
-                }
-                else
-                {
-                    scheduler.InstanceId = options.Clustering.InstanceId;
-                }
-
-                scheduler.IdleWaitTime = TimeSpan.FromSeconds(options.IdleWaitTimeSeconds);
-
-                // The wrapper re-parents each run onto the trace stored on the job row, so the trigger needs no
-                // trace data of its own and carries nothing but the job id.
-                scheduler.PropagateTraceContext = false;
-
-                // A handler cancelled by shutdown would be recorded as finished and never run again, so shutdown
-                // never cancels a running job through the scheduler.
-                scheduler.ShutdownJobInterruption = ShutdownJobInterruption.Never;
-            });
-
-            if (options.RunInProcess)
-            {
-                quartz.UseDefaultThreadPool();
-            }
-            else
-            {
-                quartz.UseThreadPool<ZeroSizeThreadPool>();
-            }
-
-            quartz.UsePersistentStore(store =>
-            {
-                store.UsePostgres(connectionString);
-                store.UseSystemTextJsonSerializer();
-                store.ConfigureStore(ado =>
-                {
-                    ado.TablePrefix = TablePrefix;
-                    ado.StoreJobDataAsStrings = true;
-                    ado.SchemaProvisioning = SchemaProvisioning.Validate;
-                    ado.AcceptEnlistedTransactions = true;
-                });
-                store.UseClustering(clustering =>
-                {
-                    clustering.CheckinInterval = TimeSpan.FromSeconds(options.Clustering.CheckinIntervalSeconds);
-                    clustering.CheckinMisfireThreshold =
-                        TimeSpan.FromSeconds(options.Clustering.CheckinMisfireThresholdSeconds);
-                });
-            });
-        });
+        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, connectionString));
 
         // Sized from the registry, which only exists once the container is built.
         services.AddOptions<ThreadPoolOptions>(SchedulerName)
@@ -153,7 +117,90 @@ internal static class QuartzRegistration
 
         return services;
     }
+
+    private static void ConfigureQuartz(
+        IQuartzBuilder quartz,
+        BackgroundJobsOptions options,
+        string connectionString)
+    {
+        quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
+        quartz.AddTriggerListener<JobTriggerListener>();
+
+        if (options.RunInProcess)
+        {
+            quartz.UseDefaultThreadPool();
+        }
+        else
+        {
+            quartz.UseThreadPool<ZeroSizeThreadPool>();
+        }
+
+        quartz.UsePersistentStore(store => ConfigureStore(store, options, connectionString));
+    }
+
+    private static void ConfigureScheduler(QuartzSchedulerOptions scheduler, BackgroundJobsOptions options)
+    {
+        scheduler.InstanceName = SchedulerName;
+        SetInstanceId(scheduler, options.Clustering.InstanceId);
+        scheduler.IdleWaitTime = TimeSpan.FromSeconds(options.IdleWaitTimeSeconds);
+
+        // The wrapper re-parents each run onto the trace stored on the job row, so the trigger needs no trace data
+        // of its own and carries nothing but the job id.
+        scheduler.PropagateTraceContext = false;
+
+        // A handler cancelled by shutdown would be recorded as finished and never run again, so shutdown never
+        // cancels a running job through the scheduler.
+        scheduler.ShutdownJobInterruption = ShutdownJobInterruption.Never;
+    }
+
+    // A node configured without an id gets one generated at startup.
+    private static void SetInstanceId(QuartzSchedulerOptions scheduler, string? instanceId)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId))
+        {
+            scheduler.GenerateInstanceId = true;
+            return;
+        }
+
+        scheduler.InstanceId = instanceId;
+    }
+
+    private static void ConfigureStore(IPersistentStoreBuilder store, BackgroundJobsOptions options, string connectionString)
+    {
+        store.UsePostgres(connectionString);
+        store.UseSystemTextJsonSerializer();
+        store.ConfigureStore(ado =>
+        {
+            ado.TablePrefix = TablePrefix;
+            ado.StoreJobDataAsStrings = true;
+            ado.SchemaProvisioning = SchemaProvisioning.Validate;
+            ado.AcceptEnlistedTransactions = true;
+        });
+        store.UseClustering(clustering =>
+        {
+            clustering.CheckinInterval = TimeSpan.FromSeconds(options.Clustering.CheckinIntervalSeconds);
+            clustering.CheckinMisfireThreshold =
+                TimeSpan.FromSeconds(options.Clustering.CheckinMisfireThresholdSeconds);
+        });
+    }
+
+    private static TriggerBuilder<IJob> WithRetryPolicy(TriggerBuilder<IJob> trigger, BackgroundJobTypePolicy policy) =>
+        BackgroundJobRetryPolicy.ToQuartz(policy) is { } retryPolicy ? trigger.WithRetryPolicy(retryPolicy) : trigger;
 }
+
+/// <param name="JobId">The job row the trigger fires.</param>
+/// <param name="JobType">The job type whose durable scheduler job the trigger points at.</param>
+/// <param name="Policy">The job type's policy, which the trigger's retry policy follows.</param>
+/// <param name="StartAt">When the trigger first fires; now when <see langword="null"/>.</param>
+/// <param name="Reclaim">
+/// Whether the firing takes the job over from an attempt whose outcome could not be written.
+/// </param>
+internal sealed record JobTriggerSpec(
+    long JobId,
+    string JobType,
+    BackgroundJobTypePolicy Policy,
+    DateTimeOffset? StartAt = null,
+    bool Reclaim = false);
 
 /// <param name="PoolSize">How many jobs this node runs at once, across every job type.</param>
 internal sealed record JobsSchedulerPlan(int PoolSize);

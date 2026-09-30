@@ -37,6 +37,14 @@ public sealed class BackgroundJobsOptions
     /// </summary>
     public int CancellationPollSeconds { get; set; } = 10;
 
+    /// <summary>
+    /// How long a stopping host waits for running jobs to finish. A job still running when the wait ends is left
+    /// as it is, with nothing recorded, and runs again on the next node to check in. The host's own shutdown timeout
+    /// (<c>HostOptions.ShutdownTimeout</c>, 30 seconds by default) also bounds the wait, so a longer value needs a
+    /// longer host timeout to take effect.
+    /// </summary>
+    public int ShutdownWaitSeconds { get; set; } = 30;
+
     public int MaxRuntimeMinutes { get; set; } = 60;
 
     public int MaxAttempts { get; set; } = 3;

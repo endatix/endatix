@@ -36,11 +36,8 @@ Every job has exactly one row and one Quartz trigger, keyed by the job's id; the
 nothing but that id.
 
 > [!NOTE]
-> **In this release execution is incomplete.** Enqueueing writes the row and its trigger in one
-> transaction, and a firing claims the job and runs its handler, but nothing records how the attempt
-> ended yet: the row stays `Processing`, and a failed attempt is not retried. Per-job-type concurrency
-> caps are configured but not yet enforced. Keep `Endatix:FeatureFlags:JobsModule` off until job
-> execution ships.
+> **In this release per-job-type concurrency caps are configured but not yet enforced**: a node
+> runs any job type it has a handler for on any free thread.
 
 ## Module layout
 
@@ -175,6 +172,57 @@ Each job type the host has a handler for gets one durable Quartz job, which requ
 so a job cut off by a stopped or crashed node runs again on another. Every node sharing the
 store must run the same Quartz version, and nodes' clocks must agree within about a second.
 
+### Execution
+
+`BackgroundJobExecution` is the only Quartz job class. It only orchestrates each firing, through
+one class per step:
+
+1. **Claims** the row (`JobAttemptClaimer`) with a compare-and-swap from `Pending`/`Retrying` to
+   `Processing` that increments `AttemptCount`. When Quartz reports a recovered firing, or the
+   firing was scheduled to take over an attempt that left its row unsettled, it re-claims the row
+   from `Processing`, fenced on the attempt it read, and dead-letters a job that has no attempt left
+   instead. A claim that changes nothing ends the firing. A take-over firing with no retry policy is
+   the job's only trigger, so a claim that throws there re-fires the job rather than ending it.
+2. **Runs the handler** (`JobHandlerRunner`) in its own DI scope, under an `Endatix.Jobs` activity
+   whose parent is the trace captured at enqueue, with one token linked from the runtime ceiling
+   (`MaxRuntimeMinutes`), the cancellation watcher and the host's shutdown.
+3. **Records the outcome** (`JobOutcomeRecorder`) with one write fenced on the claimed attempt,
+   tried again a few times if it throws, and records the lifecycle metrics only when it lands.
+   A firing whose outcome still cannot be written is re-fired shortly by `UnrecordedJobRefire`.
+   A recovered firing has no retry policy, so a retry it needs gets a trigger of its own, stored
+   before the row says `Retrying`:
+
+| Handler | Row | Quartz |
+|---------|-----|--------|
+| returns success | `Completed` | done |
+| returns a failure `Result` | `Failed`, with its message | done, no retry |
+| throws, attempts left | `Retrying` | the trigger's retry policy schedules the next attempt |
+| throws, attempts left, on a recovered firing | `Retrying` | a trigger of the job's own runs the next attempt |
+| as above, but that trigger cannot be stored | stays `Processing`, nothing written | fires again 5 s later and re-claims the row |
+| throws, attempts spent | `DeadLettered`, with a safe message | done |
+| row set to `Canceled` meanwhile | stays `Canceled` | done |
+| host stopped waiting for it | stays `Processing`, nothing written | re-run on the next node to check in |
+| its node stopped during the last attempt | `DeadLettered` when recovered, the handler not run again | done |
+| row taken over by another attempt meanwhile | left to that attempt | done; the handler's token is cancelled |
+| its outcome cannot be written (tried 4 times) | stays `Processing` | fires again 5 s later and re-claims the row |
+
+A re-fire is a trigger too, and storing it can fail. While the scheduler is stopping it refuses
+every new trigger but still completes the firings it waits for, which would delete the job's last
+trigger; the firing is held instead until the scheduler lets go of it, and the next node to check
+in recovers it. A re-fire that fails on a node that keeps running is logged at `Error`: the row
+stays `Processing`, and nothing runs it again unless that node stops before the firing completes.
+
+The row's `AttemptCount`, not Quartz's retry counter, decides dead-lettering: a run recovered after
+a crash consumes an attempt Quartz never counts. Exception text never reaches `ErrorMessage`.
+After Quartz schedules a retry, `NextAttemptAt` mirrors the trigger's next fire time.
+
+**Shutdown.** A stopping host gives running jobs `ShutdownWaitSeconds` to finish and record their
+outcome. Jobs still running then are left as they are: their handlers are told to stop, nothing is
+recorded, and Quartz re-runs them on the next node to check in.
+
+**Cancellation.** Setting a row to `Canceled` reaches a running handler through the wrapper's
+watcher, which re-reads the status every `CancellationPollSeconds`, on whichever node runs the job.
+
 `IJobMetrics` is public so a host can replace it. The default records on the `Endatix.Jobs`
 meter (`JobsModule.MeterName`), and `EndatixTelemetryBuilder` subscribes the host's metrics
 pipeline to it.
@@ -193,6 +241,7 @@ Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{Job
 | `RunInProcess` | `true` | Whether this host executes jobs |
 | `IdleWaitTimeSeconds` | `2` | How long an idle node waits before looking for jobs another node scheduled |
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
+| `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type) |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |

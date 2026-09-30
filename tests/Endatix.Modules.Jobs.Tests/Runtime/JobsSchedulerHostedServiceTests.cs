@@ -54,5 +54,6 @@ public sealed class JobsSchedulerHostedServiceTests
             new ConfigurationBuilder().Build(),
             JobHandlerRegistry.Build([]),
             Options.Create(new BackgroundJobsOptions()),
+            new JobsShutdownSignal(),
             NullLogger<JobsSchedulerHostedService>.Instance);
 }

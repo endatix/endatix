@@ -20,13 +20,13 @@ public class BackgroundJobStateRepositorySubstitutionTests
         var utcNow = new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc);
         var cancellationToken = TestContext.Current.CancellationToken;
         var repository = Substitute.For<IBackgroundJobStateRepository>();
-        repository.TryCompleteAsync(42, 1, utcNow, cancellationToken).Returns(false);
+        repository.TryCompleteAsync(new AttemptRef(42, 1), utcNow, cancellationToken).Returns(false);
 
         // Act
-        var owned = await repository.TryCompleteAsync(42, 1, utcNow, cancellationToken);
+        var owned = await repository.TryCompleteAsync(new AttemptRef(42, 1), utcNow, cancellationToken);
 
         // Assert
         owned.Should().BeFalse();
-        await repository.Received(1).TryCompleteAsync(42, 1, utcNow, cancellationToken);
+        await repository.Received(1).TryCompleteAsync(new AttemptRef(42, 1), utcNow, cancellationToken);
     }
 }
