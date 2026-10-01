@@ -1,0 +1,165 @@
+{
+  "realm": "endatix",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "verifyEmail": false,
+  "roles": {
+    "client": {
+      "endatix-hub": [
+        { "name": "admin", "description": "Maps to the Endatix Admin role" },
+        {
+          "name": "creator",
+          "description": "Maps to the Endatix Creator role"
+        },
+        {
+          "name": "respondent",
+          "description": "Maps to the Endatix Respondent role"
+        }
+      ]
+    }
+  },
+  "users": [
+    {
+      "username": "external@endatix.com",
+      "email": "external@endatix.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        { "type": "password", "value": "admin@2", "temporary": false }
+      ]
+    },
+    {
+      "username": "external-admin@endatix.com",
+      "email": "external-admin@endatix.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "External",
+      "lastName": "Admin",
+      "credentials": [
+        { "type": "password", "value": "admin@2", "temporary": false }
+      ],
+      "clientRoles": { "endatix-hub": ["admin"] }
+    },
+    {
+      "username": "external-creator@endatix.com",
+      "email": "external-creator@endatix.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "External",
+      "lastName": "Creator",
+      "credentials": [
+        { "type": "password", "value": "admin@2", "temporary": false }
+      ],
+      "clientRoles": { "endatix-hub": ["creator"] }
+    },
+    {
+      "username": "respondent@endatix.com",
+      "email": "respondent@endatix.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "External",
+      "lastName": "Respondent",
+      "credentials": [
+        { "type": "password", "value": "admin@2", "temporary": false }
+      ],
+      "clientRoles": { "endatix-hub": ["respondent"] }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "endatix-hub",
+      "name": "Endatix Hub",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "endatix-dev-hub-client-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "http://localhost:3000",
+      "redirectUris": ["http://localhost:3000/api/auth/callback/keycloak"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3000/signin",
+        "standard.token.exchange.enabled": "true",
+        "client.use.lightweight.access.token.enabled": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "lightweight.claim": "true"
+          }
+        },
+        {
+          "name": "audience-endatix-app",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "endatix-app",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "lightweight.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-endatix-hub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "endatix-hub",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "lightweight.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "mobile-app",
+      "name": "Mobile app",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "audience-endatix-hub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "endatix-hub",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

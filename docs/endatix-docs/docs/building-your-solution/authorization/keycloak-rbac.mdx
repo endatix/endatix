@@ -1,15 +1,12 @@
 ---
 title: Keycloak RBAC
-description: Set up role-based access control for Endatix using Keycloak - covers realm roles, client scopes, JWT token introspection, and permission mapping.
+description: Map Keycloak client roles onto Endatix roles with lightweight access tokens and token introspection.
 sidebar_position: 1
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 # Keycloak RBAC
 
-This guide walks you through setting up role-based access control (RBAC) with Keycloak using lightweight JWT tokens and token introspection. This approach provides smaller token sizes, reduced cookie sizes, and better PII protection.
+This guide maps Keycloak client roles onto Endatix roles. The API keeps the access token small and loads roles from the Keycloak token introspection endpoint. Introspection runs only when `Authorization.RoleMappings` has at least one entry.
 
 :::info[Concepts]
 For a general overview of external authorization concepts and benefits, see the [External Authorization guide](/docs/guides/external-authorization).
@@ -20,6 +17,21 @@ For a general overview of external authorization concepts and benefits, see the 
 - Keycloak authentication already configured (see [Keycloak Setup](/docs/building-your-solution/authentication/keycloak))
 - Admin access to Keycloak realm
 - Endatix API and Endatix Hub running
+
+## Dev realm
+
+The [Endatix API](https://github.com/endatix/endatix) realm file already defines client roles on `endatix-hub` and assigns them. Password for each user is `admin@2`.
+
+| User | Client role | Endatix role |
+| --- | --- | --- |
+| `external-admin@endatix.com` | `admin` | `Admin` |
+| `external-creator@endatix.com` | `creator` | `Creator` |
+| `respondent@endatix.com` | `respondent` | `Respondent` |
+| `external@endatix.com` | none | none beyond `Authenticated` |
+
+`external-admin@endatix.com` is on `endatix.com`. The dev realm turns on **Always use lightweight access token** for `endatix-hub`. Hub stores that access token in the session cookie, so the JWT stays small: `sub`, `aud`, issuer, expiry, and session id. Email, name, and client roles stay out of the JWT. The API reads roles from token introspection.
+
+A password grant for `external-admin@endatix.com` against client `endatix-hub` returns a JWT whose `aud` is `endatix-hub` and `endatix-app`, with no `resource_access`. Introspection of that same token returns `resource_access.endatix-hub.roles` `["admin"]`. Both audiences have to be in the JWT. The API checks `endatix-app`, and Keycloak introspection stays inactive unless `endatix-hub` is in `aud`. On Keycloak 26 the mapper switch is **Add to lightweight access token** (`lightweight.claim`). The older `include.in.lightweight.access.token` flag is ignored, so `aud` and `sub` disappear from the JWT and the API rejects the call.
 
 ## Introduction
 
@@ -32,12 +44,11 @@ This guide covers:
 
 ### Why Lightweight Tokens?
 
-Lightweight JWT tokens offer several benefits:
+Lightweight access tokens keep the JWT small:
 
-- **Smaller token size**: Reduces HTTP header and cookie sizes
-- **PII protection**: Sensitive information is not included in the token
-- **Better performance**: Smaller tokens mean faster transmission
-- **Enhanced security**: Authorization data retrieved via secure introspection endpoint
+- The Hub session cookie stays under browser size limits when a user has many client roles
+- Email and name are not copied into every API request
+- Role checks go through the introspection endpoint, which is where enterprise role sets belong
 
 ## Lightweight Token Overview
 
@@ -67,22 +78,16 @@ Role and permission information is excluded from the lightweight token and retri
 You can also use Keycloak client policies to conditionally enable lightweight tokens. See the [Keycloak documentation](https://www.keycloak.org/docs/latest/server_admin/#_using_lightweight_access_token) for details.
 :::
 
-## Step 2: Configure Protocol Mappers for Token Introspection
+## Step 2: Keep `sub` and `aud` in the lightweight token
 
-To ensure role information is available via token introspection, you need to configure protocol mappers:
+Keycloak 26 leaves **Add to lightweight access token** off on protocol mappers. Turn it on only for the claims the API reads from the JWT itself.
 
-1. In Keycloak Admin Console, go to **"Client Scopes"**
-2. Select the **"Roles"** scope
-3. Go to the **"Mappers"** tab
-4. Find or add the **"audience resolve"** mapper:
-   - If it doesn't exist, click **"Add mapper"** → **"By configuration"**
-   - Select **"Audience Resolve"**
-5. Ensure the mapper is added to the lightweight access token by turning the toggle **On**
-6. Click **"Save"**
+1. Open client `endatix-hub`, **Client scopes**, **Dedicated scopes**, **Mappers**.
+2. For each audience mapper (`endatix-app` and `endatix-hub`), turn **Add to lightweight access token** on. Leave **Add to token introspection** on.
+3. Add a mapper **By configuration**, type **Subject (sub)**, and turn **Add to lightweight access token** on. The default `sub` mapper on the `basic` client scope does not add `sub` to a lightweight token, and the API requires that claim.
+4. Leave the client-roles mapper out of the lightweight token. Turn **Add to token introspection** on so `resource_access.endatix-hub.roles` is returned by `POST /realms/{realm}/protocol/openid-connect/token/introspect`.
 
-:::info[Why Roles Scope?]
-The audience resolve mapper is used to fill the `aud` claim in the access token based on applied client roles. This is essential for token exchange scenarios and proper token validation.
-:::
+The dev realm already has these mappers. A decoded access token contains `sub` and `aud`, and does not contain `resource_access` or `email`.
 
 ## Step 3: Configure Client Roles
 
@@ -91,7 +96,7 @@ For token introspection to return role information, users must have client roles
 1. Go to **"Clients"** in Keycloak
 2. Click on your client (e.g., `endatix-hub`)
 3. Go to the **"Roles"** tab
-4. Create client-specific roles (e.g., `admin`, `manager`, `panelist`)
+4. Create client-specific roles. The dev realm uses `admin`, `creator`, and `respondent`.
 5. Assign these roles to users:
    - Go to **"Users"** → Select a user
    - Go to **"Role Mappings"** tab
@@ -123,16 +128,16 @@ Update your `appsettings.json` to include the Authorization section:
         "Keycloak": {
           "Enabled": true,
           "DefaultTenantId": 1,
-          "Audience": "your-audience",
-          "Issuer": "http://localhost:8080/realms/endatix",
+          "Audience": "endatix-app",
+          "Issuer": "http://127.0.0.1:8080/realms/endatix",
           "RequireHttpsMetadata": false,
-          "ClientId": "your-client-id",
-          "ClientSecret": "your-client-secret",
+          "ClientId": "endatix-hub",
+          "ClientSecret": "endatix-dev-hub-client-secret",
           "Authorization": {
             "RoleMappings": {
-              "admin": "admin",
-              "manager": "creator",
-              "org manager": "platformAdmin"
+              "admin": "Admin",
+              "creator": "Creator",
+              "respondent": "Respondent"
             },
             "RolesPath": "resource_access.{ClientId}.roles"
           }
@@ -147,8 +152,8 @@ Update your `appsettings.json` to include the Authorization section:
 
 **Authorization Section:**
 - **RoleMappings**: Maps Keycloak roles to Endatix application roles
-  - Key: Keycloak role name (as it appears in introspection response)
-  - Value: Endatix application role name
+  - Key: Keycloak role name (as it appears in the introspection response)
+  - Value: Endatix role name (`Admin`, `Creator`, `Respondent`, or `PlatformAdmin`)
 - **RolesPath**: JSON path to roles in the token introspection response
   - Use `{ClientId}` placeholder which will be replaced with your actual ClientId
   - Example: `"resource_access.endatix-hub.roles"` (if ClientId is `endatix-hub`)
@@ -164,7 +169,7 @@ Update your `appsettings.json` to include the Authorization section:
 ### Get an Access Token
 
 1. First, obtain a lightweight access token from Keycloak using your preferred method (OAuth flow, direct access grant, etc.). 
-2. You can go to you Endatix API and request `/api/auth/me` endpoint with the token in the Authorization header.
+2. Call `GET /api/auth/me` on the Endatix API with the token in the Authorization header.
 
 ```bash
 curl --location 'https://{{ENDATIX_API_URL}}/api/auth/me' \
@@ -173,17 +178,18 @@ curl --location 'https://{{ENDATIX_API_URL}}/api/auth/me' \
 
 The response should be like this:
 
+`GET /api/auth/me` returns `AuthorizationData`. Roles are Endatix role names after `RoleMappings`, plus `Authenticated`. A user with only the Keycloak role `admin` looks like this. `isAdmin` is true because the mapped role is `Admin`. `permissions` come from those roles. There is no email field.
+
 ```json
 {
   "userId": "0f6d8b28-e761-4033-8e84-2ddebecec49c",
   "tenantId": 1,
-  "email": "user@example.com",
+  "roles": ["Authenticated", "Admin"],
+  "permissions": ["access.authenticated", "access.apps.hub"],
   "isAdmin": true,
-  "roles": ["admin", "manager", "creator"],
-  "permissions": ["read", "write", "delete"],
   "cachedAt": "2025-01-01T00:00:00Z",
-  "expiresAt": "2025-01-01T00:00:00Z",
-  "eTag": "1234567890",
+  "expiresAt": "2025-01-01T00:05:00Z",
+  "eTag": "1234567890"
 }
 ```
 

@@ -54,20 +54,20 @@ S3/RustFS has no legacy `S3_*` environment variable support in Hub. Use the cano
 
 ### Step 1: Get the RustFS Docker Container Running
 
-From the root of the Endatix API project run the following command
+From the root of the [Endatix API](https://github.com/endatix/endatix) repository:
 
 ```bash
-RUSTFS_ACCESS_KEY=rustfsadmin RUSTFS_SECRET_KEY=rustfsadmin docker compose -f docker-compose.rustfs.yml up
+docker compose -f docker/docker-compose.rustfs.yml up
 ```
 
-The RustFS compose file is collocated with the main Endatix `docker-compose.yml`, so local infrastructure stays in one place. It can run by itself for local Hub development or be combined with the main docker compose stack later if you also configure Hub with a browser-reachable `STORAGE_S3_ENDPOINT`.
+The file is `docker/docker-compose.rustfs.yml`, next to the other local compose files. It starts its own project named `endatix` and does not join the API stack in `docker/docker-compose.yaml`. Default access key and secret are `rustfsadmin`. Override them with `RUSTFS_ACCESS_KEY` and `RUSTFS_SECRET_KEY` if you change the Hub `STORAGE_S3_*` values.
 
 The local compose uses RustFS single-node single-disk mode (`/data`) to avoid the local erasure-coding disk check. By default it persists data in a Docker named volume for a quick first run. For durable local testing, prefer a host directory that maps to a real disk:
 
 ```bash
 sudo mkdir -p /mnt/rustfs/data
 sudo chown -R 10001:10001 /mnt/rustfs/data
-RUSTFS_DATA_PATH=/mnt/rustfs/data RUSTFS_ACCESS_KEY=rustfsadmin RUSTFS_SECRET_KEY=rustfsadmin docker compose -f docker-compose.rustfs.yml up
+RUSTFS_DATA_PATH=/mnt/rustfs/data docker compose -f docker/docker-compose.rustfs.yml up
 ```
 
 This is equivalent to the RustFS Docker guidance to mount `/mnt/rustfs/data:/data`. RustFS runs as the non-root `rustfs` user with id `10001`, so bind-mounted host directories must be owned by `10001` or the container can fail with permission errors. Use multiple RustFS volume paths only when they map to distinct physical disks.
