@@ -49,20 +49,26 @@ internal sealed class JobAttemptClaimer(
         DateTime utcNow,
         CancellationToken cancellationToken)
     {
-        var lastAttempt = new AttemptRef(firing.JobId, PolicyFor(firing.JobType).MaxAttempts);
-        var failure = new AttemptFailure(BackgroundJobMessages.StoppedOnLastAttempt, utcNow);
+        var policy = PolicyFor(firing.JobType);
+        var lastAttempt = new AttemptRef(firing.JobId, policy.MaxAttempts);
+        var failure = new AttemptFailure(BackgroundJobMessages.StoppedOnLastAttempt, utcNow, policy.Retention);
         var deadLettered = await scopeFactory.WithStateRepositoryAsync(
             repository => repository.TryDeadLetterSpentAsync(lastAttempt, failure, cancellationToken));
         if (deadLettered)
         {
-            logger.LogWarning(
-                "Background job {JobId} of type {JobType} stopped during its last attempt and was dead-lettered",
-                firing.JobId,
-                firing.JobType);
-            metrics.Record(JobLifecycleEvent.DeadLettered, firing.JobType);
+            ReportDeadLettered(firing);
         }
 
         return deadLettered;
+    }
+
+    private void ReportDeadLettered(JobFiring firing)
+    {
+        logger.LogWarning(
+            "Background job {JobId} of type {JobType} stopped during its last attempt and was dead-lettered",
+            firing.JobId,
+            firing.JobType);
+        metrics.Record(JobLifecycleEvent.DeadLettered, firing.JobType);
     }
 }
 

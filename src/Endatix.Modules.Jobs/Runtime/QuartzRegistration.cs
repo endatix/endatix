@@ -33,6 +33,13 @@ internal static class QuartzRegistration
 
     public const string TablePrefix = "jobs.qrtz_";
 
+    /// <summary>The scheduler job group of maintenance jobs such as retention, apart from job types.</summary>
+    public const string MaintenanceJobGroup = "endatix-maintenance";
+
+    // One thread beyond the job types' caps, for retention, so it never waits behind them and never takes their
+    // slots.
+    private const int MaintenanceThreads = 1;
+
     /// <summary>
     /// What the scheduler is sized to from this host's job types. The pool holds every job type's full cap at
     /// once, so a backlog in one job type never takes a thread another type is entitled to.
@@ -112,12 +119,13 @@ internal static class QuartzRegistration
         services.AddJobExecution();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
+        services.AddScoped<JobRetentionJob>();
         services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, connectionString));
 
         // Sized from the registry, which only exists once the container is built.
         services.AddOptions<ThreadPoolOptions>(SchedulerName)
             .Configure<JobHandlerRegistry, IOptions<BackgroundJobsOptions>>((threadPool, registry, jobsOptions) =>
-                threadPool.MaxConcurrency = Build(registry.JobTypes, jobsOptions.Value).PoolSize);
+                threadPool.MaxConcurrency = Build(registry.JobTypes, jobsOptions.Value).PoolSize + MaintenanceThreads);
 
         return services;
     }
@@ -128,6 +136,7 @@ internal static class QuartzRegistration
         string connectionString)
     {
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
+        AddRetentionJob(quartz, options.Retention);
         quartz.AddTriggerListener<JobTriggerListener>();
         quartz.AddTriggerListener<JobMisfireListener>();
         quartz.UseExecutionLimits(ConfigureExecutionLimits);
@@ -185,7 +194,27 @@ internal static class QuartzRegistration
             limits.ForGroup(group, cap);
         }
 
+        limits.ForGroup(JobRetentionJob.Group, MaintenanceThreads);
         limits.ForOtherGroups(0);
+    }
+
+    // Retention runs on one node at a time, in a group of its own so no job type's backlog delays it.
+    private static void AddRetentionJob(IQuartzBuilder quartz, BackgroundJobsRetentionOptions? retention)
+    {
+        quartz.AddJob<JobRetentionJob>(job => job.WithIdentity(JobRetentionJob.Group, MaintenanceJobGroup).StoreDurably());
+
+        // Parsing an invalid expression here would throw before the options validator can say which key is wrong;
+        // without the trigger, the validator fails startup with that message instead.
+        if (retention?.Cron is not { } cron || !CronExpression.TryParse(cron, out _))
+        {
+            return;
+        }
+
+        quartz.AddTrigger(trigger => trigger
+            .WithIdentity(JobRetentionJob.Group, MaintenanceJobGroup)
+            .ForJob(JobRetentionJob.Group, MaintenanceJobGroup)
+            .WithExecutionGroup(JobRetentionJob.Group)
+            .WithCronSchedule(cron));
     }
 
     private static void ConfigureStore(IPersistentStoreBuilder store, BackgroundJobsOptions options, string connectionString)

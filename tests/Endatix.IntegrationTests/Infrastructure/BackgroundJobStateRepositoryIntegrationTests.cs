@@ -42,6 +42,10 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     // Stamped on every seeded row, so a write that touches ModifiedAt is detectable.
     private static readonly DateTime SeededModifiedAt = Now.AddDays(-1);
 
+    private static readonly TimeSpan Retention = TimeSpan.FromDays(7);
+
+    private static readonly JobFinish FinishedNow = new(Now, Retention);
+
     private static readonly TimeSpan LockWaitTimeout = TimeSpan.FromSeconds(30);
 
     [Fact]
@@ -155,7 +159,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
         // Act
         var notRecovering = await repository.TryClaimAsync(ClaimOf(jobId), cancellationToken);
         var recovered = await repository.TryClaimAsync(ClaimOf(jobId) with { Recovering = true }, cancellationToken);
-        var deadRunCompleted = await repository.TryCompleteAsync(new AttemptRef(jobId, 1), Now, cancellationToken);
+        var deadRunCompleted = await repository.TryCompleteAsync(new AttemptRef(jobId, 1), FinishedNow, cancellationToken);
 
         // Assert — the presumed-dead run's attempt is fenced off, so it can no longer record an outcome.
         notRecovering.Should().BeNull();
@@ -192,6 +196,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
         job.AttemptCount.Should().Be(3);
         job.ErrorMessage.Should().Be(RetryMessage);
         job.CompletedAt.Should().Be(Now);
+        job.ExpiresAt.Should().Be(Now + Retention);
     }
 
     [Fact]

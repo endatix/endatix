@@ -56,7 +56,7 @@ public sealed partial class BackgroundJobExecutionTests
         repository
             .TryClaimAsync(ClaimOfJob(recovering: false), Arg.Any<CancellationToken>())
             .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 1, null, JobStatus.Processing));
-        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
+        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>()).Returns(true);
         await using var provider = Services(repository, observed);
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
 
@@ -66,7 +66,8 @@ public sealed partial class BackgroundJobExecutionTests
         // Assert — the handler scopes its queries by the context's tenant, and nothing made tenant A ambient.
         observed.ContextTenantId.Should().Be(TenantA);
         observed.AmbientTenantId.Should().Be(0);
-        await repository.Received(1).TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), CancellationToken.None);
+        await repository.Received(1).TryCompleteAsync(
+            new AttemptRef(JobId, 1), Arg.Is<JobFinish>(finish => finish.Retention == TimeSpan.FromDays(7)), CancellationToken.None);
     }
 
     [Fact]
@@ -105,7 +106,7 @@ public sealed partial class BackgroundJobExecutionTests
         repository
             .TryClaimAsync(ClaimOfJob(recovering: true), Arg.Any<CancellationToken>())
             .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 2, null, JobStatus.Processing));
-        repository.TryCompleteAsync(new AttemptRef(JobId, 2), Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
+        repository.TryCompleteAsync(new AttemptRef(JobId, 2), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>()).Returns(true);
         await using var provider = Services(repository, observed);
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
 
@@ -114,7 +115,7 @@ public sealed partial class BackgroundJobExecutionTests
 
         // Assert
         observed.ContextTenantId.Should().Be(TenantA);
-        await repository.Received(1).TryCompleteAsync(new AttemptRef(JobId, 2), Arg.Any<DateTime>(), CancellationToken.None);
+        await repository.Received(1).TryCompleteAsync(new AttemptRef(JobId, 2), Arg.Any<JobFinish>(), CancellationToken.None);
     }
 
     [Fact]
@@ -126,7 +127,7 @@ public sealed partial class BackgroundJobExecutionTests
         repository
             .TryClaimAsync(ClaimOfJob(recovering: false), Arg.Any<CancellationToken>())
             .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 1, null, JobStatus.Processing));
-        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
+        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>()).Returns(true);
         await using var provider = Services(repository, observed);
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
 
@@ -135,7 +136,8 @@ public sealed partial class BackgroundJobExecutionTests
 
         // Assert — recorded, so recovery does not run the finished work again.
         provider.GetRequiredService<JobsShutdownSignal>().IsRaised.Should().BeTrue();
-        await repository.Received(1).TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), CancellationToken.None);
+        await repository.Received(1).TryCompleteAsync(
+            new AttemptRef(JobId, 1), Arg.Is<JobFinish>(finish => finish.Retention == TimeSpan.FromDays(7)), CancellationToken.None);
     }
 
     [Fact]
@@ -207,7 +209,7 @@ public sealed partial class BackgroundJobExecutionTests
     {
         // Arrange
         var repository = ClaimingRepository(attempt: 1);
-        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>())
             .Returns(_ => throw new TimeoutException("The database did not answer."), _ => Task.FromResult(true));
         await using var provider = Services(repository, new ObservedRun());
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
@@ -217,7 +219,7 @@ public sealed partial class BackgroundJobExecutionTests
         await execution.Execute(context, TestContext.Current.CancellationToken);
 
         // Assert
-        await repository.Received(2).TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), CancellationToken.None);
+        await repository.Received(2).TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<JobFinish>(), CancellationToken.None);
         provider.GetRequiredService<IJobMetrics>().Received(1).Record(JobLifecycleEvent.Completed, ProbeJobType);
         context.Scheduler.ReceivedCalls().Should().BeEmpty();
     }
@@ -227,7 +229,7 @@ public sealed partial class BackgroundJobExecutionTests
     {
         // Arrange
         var repository = ClaimingRepository(attempt: 1);
-        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new TimeoutException("The database did not answer."));
         await using var provider = Services(repository, new ObservedRun());
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
@@ -242,7 +244,7 @@ public sealed partial class BackgroundJobExecutionTests
 
         // Assert — the firing trigger itself fires again, marked to take over the row this attempt left Processing.
         await repository.Received(JobOutcomeRecorder.WriteRetryDelays.Length + 1)
-            .TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), CancellationToken.None);
+            .TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<JobFinish>(), CancellationToken.None);
         rescheduled.Should().NotBeNull();
         rescheduled.Key.Should().Be(context.Trigger.Key);
         rescheduled.JobDataMap.GetString(BackgroundJobExecution.ReclaimKey).Should().Be(bool.TrueString);
@@ -254,7 +256,7 @@ public sealed partial class BackgroundJobExecutionTests
     {
         // Arrange — the host stops as the handler succeeds, and the write that follows fails.
         var repository = ClaimingRepository(attempt: 1);
-        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+        repository.TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new TimeoutException("The database did not answer."));
         await using var provider = Services(repository, new ObservedRun { RaiseShutdown = true });
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
@@ -264,7 +266,8 @@ public sealed partial class BackgroundJobExecutionTests
         await execution.Execute(context, TestContext.Current.CancellationToken);
 
         // Assert — no further tries and no rescheduling on a scheduler that has stopped.
-        await repository.Received(1).TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<DateTime>(), CancellationToken.None);
+        await repository.Received(1).TryCompleteAsync(
+            new AttemptRef(JobId, 1), Arg.Is<JobFinish>(finish => finish.Retention == TimeSpan.FromDays(7)), CancellationToken.None);
         context.Scheduler.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -276,7 +279,7 @@ public sealed partial class BackgroundJobExecutionTests
         repository
             .TryClaimAsync(ClaimOfJob(recovering: true), Arg.Any<CancellationToken>())
             .Returns(new ClaimedJob(JobId, ProbeJobType, TenantA, "{}", 2, null, JobStatus.Processing));
-        repository.TryCompleteAsync(new AttemptRef(JobId, 2), Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(true);
+        repository.TryCompleteAsync(new AttemptRef(JobId, 2), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>()).Returns(true);
         await using var provider = Services(repository, new ObservedRun());
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
         var context = JobTriggerFiringOf(JobId);
@@ -292,7 +295,7 @@ public sealed partial class BackgroundJobExecutionTests
         // Assert
         await repository.Received(1)
             .TryClaimAsync(ClaimOfJob(recovering: true), Arg.Any<CancellationToken>());
-        await repository.Received(1).TryCompleteAsync(new AttemptRef(JobId, 2), Arg.Any<DateTime>(), CancellationToken.None);
+        await repository.Received(1).TryCompleteAsync(new AttemptRef(JobId, 2), Arg.Any<JobFinish>(), CancellationToken.None);
     }
 
     [Fact]

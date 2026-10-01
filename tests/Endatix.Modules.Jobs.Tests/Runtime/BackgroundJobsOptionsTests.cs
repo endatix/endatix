@@ -64,6 +64,20 @@ public class BackgroundJobsOptionsTests
         },
     };
 
+    public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidRetentionValues => new()
+    {
+        {
+            "retention cron not a cron expression",
+            new() { ["Retention:Cron"] = "every quarter hour" },
+            ["Retention:Cron"]
+        },
+        {
+            "retention batch size below 1",
+            new() { ["Retention:BatchSize"] = "0" },
+            ["Retention:BatchSize"]
+        },
+    };
+
     [Fact]
     public void Bind_EmptyConfiguration_UsesDocumentedDefaults()
     {
@@ -81,6 +95,11 @@ public class BackgroundJobsOptionsTests
         options.Clustering.CheckinMisfireThresholdSeconds.Should().Be(7.5);
         options.Clustering.InstanceId.Should().BeNull();
         options.RetentionDays.Should().Be(7);
+        options.Retention.Cron.Should().Be("0 0/15 * * * ?");
+        options.Retention.BatchSize.Should().Be(1000);
+        options.Retention.MaxBatchesPerRun.Should().Be(50);
+        options.MisfireThresholdSeconds.Should().Be(60);
+        options.ShutdownWaitSeconds.Should().Be(30);
         options.MaxRuntimeMinutes.Should().Be(60);
         options.MaxAttempts.Should().Be(3);
         options.BackoffBaseSeconds.Should().Be(30);
@@ -172,6 +191,7 @@ public class BackgroundJobsOptionsTests
 
     [Theory]
     [MemberData(nameof(InvalidValues))]
+    [MemberData(nameof(InvalidRetentionValues))]
     public void Validate_InvalidValue_FailsNamingKey(
         string caseId,
         Dictionary<string, string?> section,

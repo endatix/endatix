@@ -68,6 +68,11 @@ public sealed class BackgroundJobsOptions
     public int RetentionDays { get; set; } = 7;
 
     /// <summary>
+    /// How finished job rows are collected once their retention has passed.
+    /// </summary>
+    public BackgroundJobsRetentionOptions Retention { get; set; } = new();
+
+    /// <summary>
     /// The scheduler's operator dashboard. Off unless enabled.
     /// </summary>
     public BackgroundJobsDashboardOptions Dashboard { get; set; } = new();
@@ -139,6 +144,21 @@ public sealed class BackgroundJobTypeOptions
     public int? MaxConcurrency { get; set; }
 
     public int? RetentionDays { get; set; }
+}
+
+/// <summary>
+/// Bound from <c>Endatix:BackgroundJobs:Retention</c>.
+/// </summary>
+public sealed class BackgroundJobsRetentionOptions
+{
+    /// <summary>When the retention job runs, as a Quartz cron expression. Every 15 minutes by default.</summary>
+    public string Cron { get; set; } = "0 0/15 * * * ?";
+
+    /// <summary>Rows deleted per statement, so one run never holds a long lock.</summary>
+    public int BatchSize { get; set; } = 1000;
+
+    /// <summary>Batches one run deletes at most; the rest wait for the next run.</summary>
+    public int MaxBatchesPerRun { get; set; } = 50;
 }
 
 /// <summary>

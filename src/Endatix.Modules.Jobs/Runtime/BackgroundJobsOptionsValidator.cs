@@ -18,6 +18,8 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
     private const double CheckinCeilingSeconds = 300;
     private const int OneHourInSeconds = 3600;
     private const int TenYearsInDays = 3650;
+    private const int MaxRetentionBatchSize = 100_000;
+    private const int MaxRetentionBatches = 10_000;
     private const int OneDayInMinutes = 1440;
     private const int OneDayInSeconds = 86_400;
 
@@ -27,6 +29,7 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
         List<string> failures = [];
 
         ValidateHostSettings(options, failures);
+        ValidateRetention(options, failures);
         ValidateJobTypeDefaults(options, failures);
         foreach (var (jobType, overrides) in options.JobTypes.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
@@ -53,6 +56,16 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
             options.Clustering?.CheckinMisfireThresholdSeconds,
             ClusteringKey(nameof(BackgroundJobsClusteringOptions.CheckinMisfireThresholdSeconds)),
             failures);
+    }
+
+    private static void ValidateRetention(BackgroundJobsOptions options, List<string> failures)
+    {
+        RequireInRange(options.Retention?.BatchSize, RetentionKey(nameof(BackgroundJobsRetentionOptions.BatchSize)), MaxRetentionBatchSize, failures);
+        RequireInRange(options.Retention?.MaxBatchesPerRun, RetentionKey(nameof(BackgroundJobsRetentionOptions.MaxBatchesPerRun)), MaxRetentionBatches, failures);
+        if (options.Retention?.Cron is not { } cron || !Quartz.CronExpression.TryParse(cron, out _))
+        {
+            failures.Add($"{RetentionKey(nameof(BackgroundJobsRetentionOptions.Cron))} must be a valid Quartz cron expression, but is '{options.Retention?.Cron}'.");
+        }
     }
 
     // The global values every job type falls back to.
@@ -160,6 +173,9 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
 
     private static string GlobalKey(string optionName) =>
         $"{BackgroundJobsOptions.SectionName}:{optionName}";
+
+    private static string RetentionKey(string optionName) =>
+        $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.Retention)}:{optionName}";
 
     private static string ClusteringKey(string optionName) =>
         $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.Clustering)}:{optionName}";

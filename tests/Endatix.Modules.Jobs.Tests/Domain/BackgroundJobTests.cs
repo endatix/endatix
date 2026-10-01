@@ -13,6 +13,8 @@ public class BackgroundJobTests
 {
     private static readonly DateTime Now = new(2026, 8, 14, 12, 0, 0, DateTimeKind.Utc);
 
+    private static readonly TimeSpan Retention = TimeSpan.FromDays(3);
+
     private static BackgroundJob NewJob() =>
         new("SubmissionExport", """{"formId":"1"}""", tenantId: 7, nextAttemptAt: Now);
 
@@ -296,11 +298,39 @@ public class BackgroundJobTests
         }
 
         // Act
-        job.Cancel(Now);
+        job.Cancel(Now, Retention);
 
         // Assert
         job.Status.Should().Be(JobStatus.Canceled);
         job.IsTerminal.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Cancel_WithoutExpiry_ExpiresAfterRetention()
+    {
+        // Arrange
+        var job = new BackgroundJob("SubmissionExport", "{}", tenantId: 5, nextAttemptAt: Now);
+
+        // Act
+        job.Cancel(Now, Retention);
+
+        // Assert — the retention job collects only rows with an expiry.
+        job.CompletedAt.Should().Be(Now);
+        job.ExpiresAt.Should().Be(Now + Retention);
+    }
+
+    [Fact]
+    public void Cancel_WithCallerExpiry_KeepsIt()
+    {
+        // Arrange
+        var expiresAt = Now.AddDays(30);
+        var job = new BackgroundJob("SubmissionExport", "{}", tenantId: 5, nextAttemptAt: Now, expiresAt: expiresAt);
+
+        // Act
+        job.Cancel(Now, Retention);
+
+        // Assert
+        job.ExpiresAt.Should().Be(expiresAt);
     }
 
     [Fact]
@@ -311,7 +341,7 @@ public class BackgroundJobTests
         job.Complete(Now);
 
         // Act
-        var act = () => job.Cancel(Now);
+        var act = () => job.Cancel(Now, Retention);
 
         // Assert — terminal states are immutable.
         act.Should().Throw<InvalidOperationException>();

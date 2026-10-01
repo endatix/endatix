@@ -40,7 +40,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
             reader => reader.GetInt64(0),
             cancellationToken);
         var triggerNames = await database.QueryAsync(
-            "SELECT trigger_name FROM jobs.qrtz_triggers",
+            "SELECT trigger_name FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'",
             reader => reader.GetString(0),
             cancellationToken);
         pendingRows.Should().BeEquivalentTo(jobIds);
@@ -82,7 +82,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
         // Assert
         await enqueue.Should().ThrowAsync<Exception>();
         var rows = await database.CountAsync("""SELECT count(*) FROM jobs."BackgroundJobs" """, cancellationToken);
-        var triggers = await database.CountAsync("SELECT count(*) FROM jobs.qrtz_triggers", cancellationToken);
+        var triggers = await database.CountAsync("SELECT count(*) FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'", cancellationToken);
         rows.Should().Be(0);
         triggers.Should().Be(0);
     }

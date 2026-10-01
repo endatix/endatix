@@ -39,14 +39,15 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
 
     public Task<bool> TryCompleteAsync(
         AttemptRef attempt,
-        DateTime utcNow,
+        JobFinish finish,
         CancellationToken cancellationToken = default) =>
         UpdateFencedAsync(
             attempt,
             setters => setters
                 .SetProperty(job => job.Status, JobStatus.Completed)
                 .SetProperty(job => job.ProgressPercentage, 100)
-                .SetProperty(job => job.CompletedAt, (DateTime?)utcNow)
+                .SetProperty(job => job.CompletedAt, (DateTime?)finish.UtcNow)
+                .SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? finish.ExpiresAt)
                 // A success must not keep showing an earlier attempt's failure.
                 .SetProperty(job => job.ErrorMessage, (string?)null),
             cancellationToken);
@@ -63,7 +64,8 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             setters => setters
                 .SetProperty(job => job.Status, JobStatus.Failed)
                 .SetProperty(job => job.ErrorMessage, message)
-                .SetProperty(job => job.CompletedAt, (DateTime?)failure.UtcNow),
+                .SetProperty(job => job.CompletedAt, (DateTime?)failure.UtcNow)
+                .SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? failure.ExpiresAt),
             cancellationToken);
     }
 
@@ -82,7 +84,8 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
                 setters => setters
                     .SetProperty(job => job.Status, JobStatus.DeadLettered)
                     .SetProperty(job => job.ErrorMessage, message)
-                    .SetProperty(job => job.CompletedAt, (DateTime?)failure.UtcNow),
+                    .SetProperty(job => job.CompletedAt, (DateTime?)failure.UtcNow)
+                    .SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? failure.ExpiresAt),
                 cancellationToken);
 
         return affected == 1;
@@ -161,6 +164,18 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             .Select(job => new JobAttemptState(job.Status, job.AttemptCount))
             .FirstOrDefaultAsync(cancellationToken);
 
+    public async Task<int> DeleteExpiredAsync(DateTime utcNow, int batchSize, CancellationToken cancellationToken = default) =>
+        await dbContext.BackgroundJobs
+            .Where(job => (job.Status == JobStatus.Completed
+                    || job.Status == JobStatus.Failed
+                    || job.Status == JobStatus.DeadLettered
+                    || job.Status == JobStatus.Canceled)
+                && job.ExpiresAt != null
+                && job.ExpiresAt < utcNow)
+            .OrderBy(job => job.ExpiresAt)
+            .Take(batchSize)
+            .ExecuteDeleteAsync(cancellationToken);
+
     public async Task<bool> TryMirrorNextAttemptAsync(
         long jobId,
         DateTime nextAttemptAt,
@@ -176,25 +191,27 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         RetryableFailure failure)
     {
         var message = StorableErrorMessage(failure.Failure.ErrorMessage);
-        var outOfAttempts = claimedAttempt >= failure.MaxAttempts;
-        var utcNow = failure.Failure.UtcNow;
-        var nextAttemptAt = failure.NextAttemptAt;
-
-        return setters =>
-        {
-            setters.SetProperty(job => job.ErrorMessage, message);
-
-            if (outOfAttempts)
-            {
-                setters.SetProperty(job => job.Status, JobStatus.DeadLettered);
-                setters.SetProperty(job => job.CompletedAt, (DateTime?)utcNow);
-                return;
-            }
-
-            setters.SetProperty(job => job.Status, JobStatus.Retrying);
-            setters.SetProperty(job => job.NextAttemptAt, nextAttemptAt);
-        };
+        return claimedAttempt >= failure.MaxAttempts
+            ? DeadLetteredSetters(message, failure.Failure)
+            : RetryingSetters(message, failure.NextAttemptAt);
     }
+
+    private static Action<UpdateSettersBuilder<BackgroundJob>> DeadLetteredSetters(string message, AttemptFailure failure)
+    {
+        var utcNow = failure.UtcNow;
+        var expiresAt = failure.ExpiresAt;
+        return setters => setters
+            .SetProperty(job => job.ErrorMessage, message)
+            .SetProperty(job => job.Status, JobStatus.DeadLettered)
+            .SetProperty(job => job.CompletedAt, (DateTime?)utcNow)
+            .SetProperty(job => job.ExpiresAt, job => job.ExpiresAt ?? expiresAt);
+    }
+
+    private static Action<UpdateSettersBuilder<BackgroundJob>> RetryingSetters(string message, DateTime nextAttemptAt) =>
+        setters => setters
+            .SetProperty(job => job.ErrorMessage, message)
+            .SetProperty(job => job.Status, JobStatus.Retrying)
+            .SetProperty(job => job.NextAttemptAt, nextAttemptAt);
 
     private async Task<bool> UpdateFencedAsync(
         AttemptRef attempt,

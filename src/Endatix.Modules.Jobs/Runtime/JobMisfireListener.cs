@@ -43,9 +43,20 @@ internal sealed class JobMisfireListener : ITriggerListener
 
     public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
+        // Maintenance such as retention is not a job type and has no backlog; its late run is not this warning.
+        if (trigger.JobKey.Group != QuartzRegistration.JobGroup)
+        {
+            return default;
+        }
+
         var jobType = trigger.JobKey.Name;
         _misfired.Add(1, new KeyValuePair<string, object?>("job_type", jobType));
+        WarnOncePerThreshold(trigger, jobType);
+        return default;
+    }
 
+    private void WarnOncePerThreshold(ITrigger trigger, string jobType)
+    {
         var window = _windows.GetOrAdd(jobType, _ => new WarningWindow());
         if (window.TryReport(_dateTimeProvider.UtcNow, _warningInterval, out var misfires))
         {
@@ -55,8 +66,6 @@ internal sealed class JobMisfireListener : ITriggerListener
                 jobType,
                 misfires);
         }
-
-        return default;
     }
 
     /// <summary>The misfires of one job type since its last warning, and when that warning was written.</summary>

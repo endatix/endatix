@@ -191,6 +191,14 @@ Each job type the host has a handler for gets one durable Quartz job, which requ
 so a job cut off by a stopped or crashed node runs again on another. Every node sharing the
 store must run the same Quartz version, and nodes' clocks must agree within about a second.
 
+### Retention
+
+`JobRetentionJob` runs on the `Retention:Cron` schedule, on one node at a time, in an execution
+group of its own with one thread beyond the job types' caps. Each run deletes finished rows whose
+`ExpiresAt` has passed, `BatchSize` at a time, for at most `MaxBatchesPerRun` batches. It never
+deletes a row that is not finished. Every terminal write sets `ExpiresAt` to its time plus the job
+type's `RetentionDays` when the row has none. Quartz deletes its own finished triggers.
+
 ### Execution
 
 `BackgroundJobExecution` is the only Quartz job class. It only orchestrates each firing, through
@@ -268,7 +276,8 @@ Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{Job
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type) |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |
-| `RetentionDays` | `7` | How long a finished job's row is kept (per type) |
+| `RetentionDays` | `7` | How long a finished job's row is kept (per type); stamped as `ExpiresAt` when it finishes |
+| `Retention:Cron` / `BatchSize` / `MaxBatchesPerRun` | `0 0/15 * * * ?` / `1000` / `50` | When the retention job runs and how much one run deletes |
 | `JobTypes:{JobType}:MaxConcurrency` | `1` | Jobs of this type one node runs at once; `0` declines the type |
 | `Clustering:CheckinIntervalSeconds` / `CheckinMisfireThresholdSeconds` | `7.5` / `7.5` | A node silent for their sum is presumed dead |
 | `Dashboard:Enabled` / `Dashboard:AllowWrites` | `false` / `false` | The operator dashboard, for platform admins |

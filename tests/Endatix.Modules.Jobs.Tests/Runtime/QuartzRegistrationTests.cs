@@ -15,6 +15,26 @@ public sealed class QuartzRegistrationTests
     ];
 
     [Fact]
+    public void AddJobsScheduler_InvalidRetentionCron_LeavesTheErrorToOptionsValidation()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=jobs",
+                ["Endatix:BackgroundJobs:Retention:Cron"] = "every 15 minutes",
+            })
+            .Build();
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+
+        // Act
+        var register = () => services.AddJobsScheduler(configuration);
+
+        // Assert — registration succeeds, and startup fails later with the validator's message naming the key.
+        register.Should().NotThrow();
+    }
+
+    [Fact]
     public void Build_RegisteredJobTypes_PoolSizeIsSumOfCaps()
     {
         // Arrange

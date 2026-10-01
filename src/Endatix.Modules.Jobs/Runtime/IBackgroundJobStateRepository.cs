@@ -26,6 +26,12 @@ internal interface IBackgroundJobStateRepository
     Task<JobAttemptState?> ReadAttemptAsync(long jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Deletes up to <paramref name="batchSize"/> finished rows whose <c>ExpiresAt</c> has passed, oldest first,
+    /// and returns how many it deleted. A row that is not finished is never deleted, whatever its expiry.
+    /// </summary>
+    Task<int> DeleteExpiredAsync(DateTime utcNow, int batchSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Records when the scheduler will run a <c>Retrying</c> job next, for the status endpoint to show.
     /// </summary>
     Task<bool> TryMirrorNextAttemptAsync(
@@ -33,7 +39,11 @@ internal interface IBackgroundJobStateRepository
         DateTime nextAttemptAt,
         CancellationToken cancellationToken = default);
 
-    Task<bool> TryCompleteAsync(AttemptRef attempt, DateTime utcNow, CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// Every terminal write stamps <c>ExpiresAt</c> with its time plus the job type's retention when the row has
+    /// none, so no finished row escapes the retention job.
+    /// </remarks>
+    Task<bool> TryCompleteAsync(AttemptRef attempt, JobFinish finish, CancellationToken cancellationToken = default);
 
     Task<bool> TryFailAsync(AttemptRef attempt, AttemptFailure failure, CancellationToken cancellationToken = default);
 
