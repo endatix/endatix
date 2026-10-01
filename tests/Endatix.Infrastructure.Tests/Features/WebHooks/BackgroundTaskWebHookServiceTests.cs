@@ -5,6 +5,7 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.WebHooks;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Endatix.Infrastructure.Tests.Features.WebHooks;
@@ -41,7 +42,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
         var message = CreateTestWebHookMessage(WebHookOperation.FormCreated);
 
         // Act
@@ -63,7 +64,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
         var message = CreateTestWebHookMessage(WebHookOperation.FormCreated);
 
         // Act
@@ -91,7 +92,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
         var message = CreateTestWebHookMessage(WebHookOperation.FormUpdated);
 
         // Act
@@ -110,7 +111,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
         var message = CreateTestWebHookMessage(WebHookOperation.FormDeleted);
 
         // Act
@@ -128,7 +129,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(nullTenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
         var message = CreateTestWebHookMessage(WebHookOperation.FormEnabledStateChanged);
 
         // Act
@@ -172,7 +173,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
         var message = CreateTestWebHookMessage(WebHookOperation.FormCreated);
 
         // Act
@@ -193,7 +194,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
         var message = CreateTestWebHookMessage(WebHookOperation.FormCreated);
         var cancellationToken = new CancellationToken();
 
@@ -220,7 +221,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
 
         var operation = snakeCaseEvent switch
         {
@@ -278,7 +279,7 @@ public class BackgroundTaskWebHookServiceTests
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 
-        var service = new BackgroundTaskWebHookService(_logger, _backgroundQueue, new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, Microsoft.Extensions.Logging.Abstractions.NullLogger<WebHookEventConfigReader>.Instance), _webHookServer);
+        var service = CreateService();
         var message = CreateTestWebHookMessage(WebHookOperation.SubmissionCompleted);
 
         // Act
@@ -351,6 +352,13 @@ public class BackgroundTaskWebHookServiceTests
         form.UpdateWebHookSettings(webHookConfig);
         return form;
     }
+
+    private BackgroundTaskWebHookService CreateService() =>
+        new(
+            _logger,
+            _backgroundQueue,
+            new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance),
+            _webHookServer);
 
     private class TestPayload
     {
