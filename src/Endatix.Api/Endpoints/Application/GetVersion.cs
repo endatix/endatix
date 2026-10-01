@@ -7,9 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace Endatix.Api.Endpoints.Application;
 
 /// <summary>
-/// Returns the API release version to a signed-in Hub user.
-/// The version is the assembly informational version with any SourceLink
-/// commit suffix removed, so it matches the GitHub release tag.
+/// Release version for a signed-in Hub user. SourceLink's <c>+commit</c> suffix is removed so the value matches the GitHub tag.
 /// </summary>
 public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionResponse>>
 {
@@ -43,7 +41,6 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
     }
 }
 
-/// <summary>API release version, without a SourceLink commit suffix.</summary>
 public sealed record ProductVersionResponse(string Version);
 
 public static class ReleaseVersion
