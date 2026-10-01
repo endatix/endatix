@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
@@ -38,10 +39,7 @@ public sealed class FormSchemaProviderIntegrationTests
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        formsRepository
-            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
-            .Returns(CreateFormDefinition());
+        IFormsRepository formsRepository = CreateFormsRepository();
 
         await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
         await using AppDbContext appDbContext = CreateAppDbContext();
@@ -76,10 +74,7 @@ public sealed class FormSchemaProviderIntegrationTests
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        formsRepository
-            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
-            .Returns(CreateFormDefinition());
+        IFormsRepository formsRepository = CreateFormsRepository();
 
         await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
         await using AppDbContext appDbContext = CreateAppDbContext();
@@ -148,6 +143,19 @@ public sealed class FormSchemaProviderIntegrationTests
             appDbContext,
             new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
+    }
+
+    // The form is read as its definition and still exists after the compile wrote its schema.
+    private static IFormsRepository CreateFormsRepository()
+    {
+        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(CreateFormDefinition());
+        formsRepository
+            .AnyAsync(Arg.Any<FormSpecifications.ById>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        return formsRepository;
     }
 
     private static FormDefinition CreateFormDefinition()

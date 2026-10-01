@@ -58,6 +58,8 @@ On every compile path (outbox `form.definition.updated`, manual `POST .../report
 
 Test submissions alone do **not** force merge. This is a defensive bridge until Form Publish makes publish the controlled compile moment.
 
+A form deleted after a compile read it loses the schema that compile wrote, hard-deleted as its deletion sync removes it.
+
 ## Registration
 
 Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. Capabilities: `IEndatixModule`, `IHasFeatureFlag`, `IHasDbMigrations`, `IHasFastEndpoints` (serializers/OpenAPI tags via `ConfigureFastEndpoints`). Do **not** also `Api.ScanAssemblies` this assembly. `ReportingPersistence.ConfigureDbContextOptions` sets both namespaces, but **runtime requires PostgreSQL** until [#813](https://github.com/endatix/endatix/issues/813) (no SQL Server migrations; auto-migrate does not create `reporting`). Disabled by default until:
