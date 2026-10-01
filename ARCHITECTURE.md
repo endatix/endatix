@@ -89,12 +89,24 @@ Monolith features and modules follow the same vertical-slice mindset at differen
 
 ## Module packaging (Contracts vs domain)
 
-Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules: **domain stays inside the module**; **Contracts is the only intentional outward face**.
+Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules. Each module is two projects. **`Endatix.Modules.{Name}` is private.** **`Endatix.Modules.{Name}.Contracts` is the only assembly another module, the host, or a background job may reference.**
 
-| Package                            | Put here                                                                                          | Do **not** put here                                                          |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `Endatix.Modules.{Name}.Contracts` | DTOs, commands, queries, integration events, **wire codes** (e.g. status strings for filters/API) | Domain entities, value objects, EF types, handlers                           |
-| `Endatix.Modules.{Name}`           | `Domain/`, `Persistence/`, `Features/`, `{Name}Module.cs`                                         | HTTP models owned by `Endatix.Api` unless the module ships its own endpoints |
+| Belongs in Contracts | Stays in the module |
+| --- | --- |
+| Named payload records and event-type strings another process deserializes | The domain event class (`IIntegrationEvent`) |
+| Read DTOs and wire codes (status strings used by filters or HTTP) | Aggregate, value objects, entity error rules |
+| A command or query **only when another module calls it** | Slice commands, queries, validators, and handlers |
+| | `Persistence/`, `{Name}Module.cs`, and the module's own endpoints |
+
+Contracts must not reference domain entities, EF types, or handlers. The module references Contracts. Nothing else references the module project.
+
+**Integration events.** The wire shape and the in-process event are different types.
+
+- The payload is a named record in Contracts: ids, plus the minimum non-personal data a subscriber needs. If the subscriber loads the row by id, the payload is that id. Email, company, and free-text comments stay on the aggregate.
+- The event-type string (`saas.signup.submitted`) lives next to that record.
+- The domain event stays in the module (`Domain/Events`). When the id is assigned at save, the event holds the aggregate and `GetPayload()` copies fields into the Contracts record at capture. Contracts cannot take that entity reference. When the id already exists at raise time, the domain event can carry the id directly; it still stays in the module.
+
+**Reference.** Reporting puts status codes and read DTOs in Contracts and `SubmissionIntegrationState` in the module (below). SaaS.Management uses the same split for waitlist events: `SignupSubmittedPayload` in Contracts, `SignupSubmittedEvent` in the module.
 
 **Reporting example (`SubmissionIntegrationState`):**
 
@@ -384,7 +396,7 @@ Apply these rules in **Core entities** (`Submission`, `Form`, …). Application 
 3. **Pair revision + event** — use a private `RegisterRevisedDomainEvent(...)` helper that calls `IncrementRevision()` then `RegisterDomainEvent(...)`. Do **not** override `RegisterDomainEvent` globally — some events intentionally skip the bump (e.g. `form.created` at revision 1, `submission.deleted`).
 4. **Encapsulate reporting triggers on the aggregate** — e.g. `Form.UpdateActiveDefinitionSchema` and `Form.SetActiveFormDefinition` raise `FormDefinitionUpdatedEvent`; handlers call those methods instead of separate notify methods. Keep the split explicit: `SetActiveFormDefinition` changes which definition row is active (pointer swap); `UpdateActiveDefinitionSchema` mutates the current active row's JSON/draft status. Do not pass constructed clones to `SetActiveFormDefinition` to effect schema edits.
 5. **Use `[Flags]` enums for multi-field changes** — accumulate `SubmissionChangeKinds` inline when several fields can change in one operation; subscribers filter with domain masks (`SubmissionChangeKindsMasks.SubmissionData`, `AffectsSubmissionData()`).
-6. **Capture payload values deliberately** — integration event constructors should capture **revision at raise time** (`private readonly long _revision = aggregate.Revision`) so multiple events in one transaction keep distinct revisions. Prefer reading **live aggregate state in `GetPayload()`** for IDs: by the time capture runs (inside `SaveChanges`) the EF `OnAdd` generator has already stamped a real `Id`. Do not freeze `Id` in an event constructor at `new Entity()` / `Create(args)` time — it is still `0` there.
+6. **Capture payload values deliberately** — integration event constructors should capture **revision at raise time** (`private readonly long _revision = aggregate.Revision`) so multiple events in one transaction keep distinct revisions. Prefer reading **live aggregate state in `GetPayload()`** for IDs: by the time capture runs (inside `SaveChanges`) the EF `OnAdd` generator has already stamped a real `Id`. Do not freeze `Id` in an event constructor at `new Entity()` / `Create(args)` time — it is still `0` there. Where the event class and the payload record live: [Module packaging](#module-packaging-contracts-vs-domain).
 
 ### Entity Ids (snowflake)
 
