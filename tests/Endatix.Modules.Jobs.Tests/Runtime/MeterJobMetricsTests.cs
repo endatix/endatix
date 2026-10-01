@@ -41,8 +41,6 @@ public sealed class MeterJobMetricsTests : IDisposable
         { JobLifecycleEvent.RetryScheduled, "retry_scheduled" },
         { JobLifecycleEvent.DeadLettered, "dead_lettered" },
         { JobLifecycleEvent.Canceled, "canceled" },
-        { JobLifecycleEvent.Reaped, "reaped" },
-        { JobLifecycleEvent.OfferRejected, "offer_rejected" },
         { JobLifecycleEvent.Abandoned, "abandoned" },
     };
 
@@ -65,9 +63,6 @@ public sealed class MeterJobMetricsTests : IDisposable
         // Assert
         _published.Select(instrument => $"{instrument.Meter.Name}/{instrument.Name}").Should().BeEquivalentTo(
             "Endatix.Jobs/endatix.jobs.events",
-            "Endatix.Jobs/endatix.jobs.queue.depth",
-            "Endatix.Jobs/endatix.jobs.backlog.count",
-            "Endatix.Jobs/endatix.jobs.backlog.oldest_wait",
             "Endatix.Jobs/endatix.jobs.duration");
     }
 
@@ -105,62 +100,6 @@ public sealed class MeterJobMetricsTests : IDisposable
 
         // Assert
         _measurements.Should().ContainSingle().Which.Tags["endatix.job.event"].Should().Be(expected);
-    }
-
-    [Fact]
-    public void ObserveQueueDepth_Depth_RecordsUntaggedGauge()
-    {
-        // Arrange
-        var metrics = CreateMetrics();
-
-        // Act
-        metrics.ObserveQueueDepth(7);
-
-        // Assert
-        var measurement = _measurements.Should().ContainSingle().Subject;
-        measurement.Instrument.Should().BeOfType<Gauge<int>>()
-            .Which.Name.Should().Be("endatix.jobs.queue.depth");
-        measurement.Instrument.Unit.Should().Be("{job}");
-        measurement.Value.Should().Be(7);
-        measurement.Tags.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void ObserveBacklog_CountAndWait_RecordsCountAndWaitInSecondsTaggedWithType()
-    {
-        // Arrange
-        var metrics = CreateMetrics();
-
-        // Act
-        metrics.ObserveBacklog("Orphan", 3, TimeSpan.FromMinutes(20));
-
-        // Assert
-        _measurements.Should().HaveCount(2);
-        var count = _measurements.Should().ContainSingle(m => m.Instrument.Name == "endatix.jobs.backlog.count").Subject;
-        count.Instrument.Should().BeOfType<Gauge<int>>();
-        count.Instrument.Unit.Should().Be("{job}");
-        count.Value.Should().Be(3);
-        count.Tags.Should().BeEquivalentTo(new Dictionary<string, object?> { ["endatix.job.type"] = "Orphan" });
-        var oldestWait = _measurements.Should()
-            .ContainSingle(m => m.Instrument.Name == "endatix.jobs.backlog.oldest_wait").Subject;
-        oldestWait.Instrument.Should().BeOfType<Gauge<double>>();
-        oldestWait.Instrument.Unit.Should().Be("s");
-        oldestWait.Value.Should().Be(1200d);
-        oldestWait.Tags.Should().BeEquivalentTo(new Dictionary<string, object?> { ["endatix.job.type"] = "Orphan" });
-    }
-
-    [Fact]
-    public void ObserveBacklog_Instruments_DescribeAggregationByMax()
-    {
-        // Arrange / Act
-        CreateMetrics();
-
-        // Assert — every sweeper instance reports the same cluster-wide rows, so a sum would multiply the backlog.
-        _published.Where(instrument => instrument.Name.StartsWith("endatix.jobs.backlog.", StringComparison.Ordinal))
-            .Should().HaveCount(2)
-            .And.OnlyContain(instrument =>
-                instrument.Description!.Contains("every instance", StringComparison.OrdinalIgnoreCase)
-                && instrument.Description.Contains("max", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -209,12 +148,10 @@ public sealed class MeterJobMetricsTests : IDisposable
 
         // Act
         metrics.Record(JobLifecycleEvent.Completed, "Test.Echo");
-        metrics.ObserveQueueDepth(7);
-        metrics.ObserveBacklog("Orphan", 3, TimeSpan.FromMinutes(20));
         metrics.ObserveDuration("Test.Echo", TimeSpan.FromSeconds(1), JobAttemptOutcome.Completed);
 
         // Assert — a tenant id per series would grow without bound.
-        _measurements.Should().HaveCount(5);
+        _measurements.Should().HaveCount(2);
         _measurements.SelectMany(measurement => measurement.Tags.Keys)
             .Should().NotContain(key => key.Contains("tenant", StringComparison.OrdinalIgnoreCase));
     }

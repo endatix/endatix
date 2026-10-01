@@ -26,10 +26,9 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// job apply the configured default for the job type.
 /// </param>
 /// <param name="DedupKey">
-/// Optional identity of the unit of work within a tenant and job type, meant to let the queue recognise
-/// the same work enqueued twice. The queue does not deduplicate on it yet, so a caller must not rely on a
-/// repeated key being rejected or merged. It must name the work, not the attempt, so it never contains a
-/// timestamp or a counter.
+/// Optional identity of the unit of work, unique within a tenant and job type. Enqueueing the same key
+/// again does not create a second job: it returns the id of the job that already exists, and schedules
+/// nothing. It must name the work, not the attempt, so it never contains a timestamp or a counter.
 /// </param>
 public sealed record BackgroundJobRequest(
     string JobType,

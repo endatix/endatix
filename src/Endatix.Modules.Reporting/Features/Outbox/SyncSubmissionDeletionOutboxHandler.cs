@@ -15,38 +15,37 @@ internal sealed class SyncSubmissionDeletionOutboxHandler(
     IReportingUnitOfWork unitOfWork,
     ILogger<SyncSubmissionDeletionOutboxHandler> logger) : IOutboxIntegrationEventHandler
 {
-    /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes { get; } = [SubmissionDeletedEvent.EventTypeName];
+    public static readonly IReadOnlyCollection<string> HandledEventTypes = [SubmissionDeletedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public async Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
+    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
+
+    /// <inheritdoc />
+    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
+        ProcessAsync(Parse(message), message.Id, cancellationToken);
+
+    /// <summary>Reads the work from the message; throws <see cref="InvalidOperationException"/> when it cannot.</summary>
+    public static Input Parse(IOutboxMessage message)
     {
         using var document = JsonDocument.Parse(message.Payload);
         var payload = document.RootElement;
 
-        var tenantId = message.GetRequiredTenantId(payload);
-        var submissionId = message.GetRequiredIdProp(payload, "submissionId");
-
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            var deleted = await flattenedSubmissionRepository.DeleteBySubmissionIdAsync(
-                tenantId,
-                submissionId,
-                cancellationToken);
-
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            logger.LogInformation(
-                "Cleaned reporting flattened submission {SubmissionId} (deleted={Deleted}, outboxMessageId={OutboxMessageId})",
-                submissionId,
-                deleted,
-                message.Id);
-        }
-        catch
-        {
-            await unitOfWork.RollbackTransactionAsync(CancellationToken.None);
-            throw;
-        }
+        return new Input(message.GetRequiredTenantId(payload), message.GetRequiredIdProp(payload, "submissionId"));
     }
+
+    public async Task ProcessAsync(Input input, long outboxMessageId, CancellationToken cancellationToken)
+    {
+        var (tenantId, submissionId) = input;
+        var deleted = await unitOfWork.InTransactionAsync(
+            () => flattenedSubmissionRepository.DeleteBySubmissionIdAsync(tenantId, submissionId, cancellationToken),
+            cancellationToken);
+
+        logger.LogInformation(
+            "Cleaned reporting flattened submission {SubmissionId} (deleted={Deleted}, outboxMessageId={OutboxMessageId})",
+            submissionId,
+            deleted,
+            outboxMessageId);
+    }
+
+    public sealed record Input(long TenantId, long SubmissionId);
 }

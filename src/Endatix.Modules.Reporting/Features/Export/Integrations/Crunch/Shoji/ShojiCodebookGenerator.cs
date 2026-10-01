@@ -505,7 +505,7 @@ internal static class ShojiCodebookGenerator
         {
             if (writtenVariables.Contains(questionEntry.Key) ||
                 !TryGetExportShape(questionEntry.Value, out var exportShape) ||
-                exportShape != FormSchemaCodebookExportShape.Scalar.Name)
+                !IsScalarWritableExportShape(exportShape))
             {
                 continue;
             }
@@ -1209,6 +1209,12 @@ internal static class ShojiCodebookGenerator
 
         return grouped;
     }
+
+    // A multi-select without choices on the form (e.g. data-list tagbox) is flattened to one
+    // Simple column of selected values; it is not grouped, so it ships as a text variable.
+    private static bool IsScalarWritableExportShape(string exportShape) =>
+        exportShape == FormSchemaCodebookExportShape.Scalar.Name ||
+        exportShape == FormSchemaCodebookExportShape.MultipleResponse.Name;
 
     private static bool HasScalarFlatteningColumn(MergedFormSchema flatteningMap, string questionName) =>
         flatteningMap.Columns.Any(column =>

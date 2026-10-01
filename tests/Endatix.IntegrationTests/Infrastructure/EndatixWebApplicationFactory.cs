@@ -31,6 +31,9 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
     {
         EndatixWebApplicationFactoryConfiguration.ConfigureCommon(builder, _connectionString, _provider);
     }
+
+    // Factories derived through WithWebHostBuilder build their hosts through this method too.
+    protected override IHost CreateHost(IHostBuilder builder) => new StopOnceHost(base.CreateHost(builder));
 }
 
 internal static class EndatixWebApplicationFactoryConfiguration

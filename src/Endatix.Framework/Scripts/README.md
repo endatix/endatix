@@ -31,7 +31,7 @@ public partial class MyMigration : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        var script = migrationBuilder.ReadEmbeddedSqlScript("Functions/my_function.sql");
+        var script = migrationBuilder.ReadEmbeddedSqlScript("Functions/my_function.sql", GetType().Assembly);
         migrationBuilder.Sql(script);
     }
 
@@ -53,6 +53,9 @@ Both persistence projects are already configured with:
 - Use lowercase with underscores: `export_form_submissions.sql`
 - Store database-specific scripts in appropriate persistence projects
 - Prefer the `migrationBuilder.ReadEmbeddedSqlScript()` extension method
+- Pass the migration's own assembly (`GetType().Assembly`). The reader does not work it out from the call
+  stack: once the runtime has inlined a migration's code, the caller on the stack is Entity Framework, and the
+  script is looked up in the wrong assembly.
 
 ## Error Handling
 

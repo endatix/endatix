@@ -36,6 +36,9 @@ public static class EndatixEventIds
 
         public const int WebhooksStart = 4000;
         public const int WebhooksEnd = 4999;
+
+        public const int ReCaptchaStart = 5000;
+        public const int ReCaptchaEnd = 5099;
     }
 
     /// <summary>Generic operation lifecycle (Framework <c>EndatixLoggerExtensions</c>).</summary>
@@ -185,6 +188,26 @@ public static class EndatixEventIds
             TelemetrySkippedNoExporter,
             LoggingConfigured,
             LegacySerilogSectionDetected
+        ];
+    }
+
+    /// <summary>reCAPTCHA token verification (Infrastructure <c>ReCaptchaLoggerExtensions</c>).</summary>
+    public static class ReCaptcha
+    {
+        public const int TokenRejected = Ranges.ReCaptchaStart;
+        public const int TokenRejectedConfigurationError = 5001;
+        public const int ScoreTooLow = 5002;
+        public const int ActionMissing = 5003;
+
+        public const int RangeStart = Ranges.ReCaptchaStart;
+        public const int RangeEnd = Ranges.ReCaptchaEnd;
+
+        public static readonly int[] All =
+        [
+            TokenRejected,
+            TokenRejectedConfigurationError,
+            ScoreTooLow,
+            ActionMissing
         ];
     }
 

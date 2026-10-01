@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Endatix.Modules.Jobs.Persistence.Config;
 
 /// <summary>
-/// Provider-agnostic mapping for <see cref="BackgroundJob"/>. The JSON column type and the two hot
-/// filtered indexes are provider-specific — see the PostgreSql configuration.
+/// Provider-agnostic mapping for <see cref="BackgroundJob"/>. The JSON column type and the tenant check
+/// are provider-specific — see the PostgreSql configuration.
 /// </summary>
 internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<BackgroundJob>
 {
@@ -14,6 +14,8 @@ internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<Back
     private const int STATUS_MESSAGE_MAX_LENGTH = 512;
     private const int ERROR_MESSAGE_MAX_LENGTH = 2048;
     private const int TRACE_ID_MAX_LENGTH = 128;
+
+    public const int DEDUP_KEY_MAX_LENGTH = BackgroundJob.DedupKeyMaxLength;
 
     public void Configure(EntityTypeBuilder<BackgroundJob> builder)
     {
@@ -46,6 +48,9 @@ internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<Back
 
         builder.Property(job => job.TraceId)
             .HasMaxLength(TRACE_ID_MAX_LENGTH);
+
+        builder.Property(job => job.DedupKey)
+            .HasMaxLength(DEDUP_KEY_MAX_LENGTH);
 
         builder.Property(job => job.AttemptCount)
             .IsRequired();

@@ -4,9 +4,14 @@ using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
+using Endatix.Modules.Jobs.Endpoints;
 using Endatix.Modules.Jobs.Features;
 using Endatix.Modules.Jobs.Persistence;
+using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Jobs;
 
@@ -24,14 +29,18 @@ namespace Endatix.Modules.Jobs;
 /// the queue. That is what allows API and worker roles to be deployed separately from the same image.
 /// </para>
 /// <para>
-/// This module registers persistence and enqueueing. It contains no component that executes jobs, so
-/// on its own it leaves enqueued rows in <c>Pending</c>.
+/// The job rows live in the <c>jobs</c> schema, and so do the tables of the scheduler that fires them.
+/// <c>Endatix:BackgroundJobs:RunInProcess</c> decides whether this host executes jobs or only schedules
+/// them.
 /// </para>
 /// </remarks>
 public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpoints
 {
     /// <summary>A metrics pipeline exports this module's metrics only once it subscribes to this meter.</summary>
     public const string MeterName = "Endatix.Jobs";
+
+    /// <summary>A tracing pipeline sees job execution only once it subscribes to this activity source.</summary>
+    public const string ActivitySourceName = "Endatix.Jobs";
 
     public static readonly JobsModule Instance = new();
 
@@ -43,23 +52,43 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        // Reaching here means the flag is on, so the host asked for background jobs and has to be
-        // told it cannot have them, rather than discovering it when the first enqueue fails.
-        if (!DatabaseProviderResolver.IsPostgreSql(builder.Configuration))
+        RequirePostgreSql(builder.Configuration);
+        AddPersistence(builder);
+        builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
+        AddValidatedOptions(builder.Services);
+
+        builder.Services.AddSingleton(JobHandlerRegistry.Build);
+        builder.Services.AddJobsScheduler(builder.Configuration);
+        builder.Services.AddHostedService<JobsSchedulerHostedService>();
+        builder.Services.AddJobsDashboard(builder.Configuration);
+    }
+
+    // Reaching here means the flag is on, so the host asked for background jobs and has to be told it cannot have
+    // them, rather than discovering it when the first enqueue fails.
+    private static void RequirePostgreSql(IConfiguration configuration)
+    {
+        if (!DatabaseProviderResolver.IsPostgreSql(configuration))
         {
             throw new InvalidOperationException(
                 $"The Background Jobs module requires PostgreSQL. Either set the connection string " +
                 $"setting 'DefaultConnection_DbProvider' to 'postgresql', or turn off " +
                 $"'Endatix:FeatureFlags:{FeatureFlags.JobsModule}'.");
         }
+    }
 
-        // Consumers see the context only as IJobsDbContext, so nothing downstream branches on the
-        // provider.
-        builder.AddDbContextWithMigrations<JobsPostgreSqlDbContext>(
-            JobsPersistence.ConfigureDbContextOptions);
-        builder.Services.AddScoped<IJobsDbContext>(sp =>
-            sp.GetRequiredService<JobsPostgreSqlDbContext>());
+    // Consumers see the context only as IJobsDbContext, so nothing downstream branches on the provider.
+    private static void AddPersistence(EndatixModuleBuilder builder)
+    {
+        builder.AddDbContextWithMigrations<JobsPostgreSqlDbContext>(JobsPersistence.ConfigureDbContextOptions);
+        builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsPostgreSqlDbContext>());
+    }
 
-        builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
+    private static void AddValidatedOptions(IServiceCollection services)
+    {
+        services.AddOptions<BackgroundJobsOptions>()
+            .BindConfiguration(BackgroundJobsOptions.SectionName)
+            .ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<BackgroundJobsOptions>, BackgroundJobsOptionsValidator>());
     }
 }

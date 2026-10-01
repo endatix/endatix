@@ -8,18 +8,18 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </remarks>
 internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<BackgroundJobsOptions>
 {
-    // A heartbeat can land a beat late under load. Leaving room for three intervals keeps a slow but healthy job
-    // from being presumed lost.
-    private const int MinimumHeartbeatsBeforeStuck = 3;
-
     // Every value is bounded above as well as below. A value far above these does not tune the queue: it breaks
     // the timers and date arithmetic that run jobs, or asks one process for more work than it can carry, and the
     // host is better off failing to start than running with it. A job type's override is bounded like the global
     // value it replaces.
     private const int MaxAttemptsCeiling = 10;
     private const int MaxConcurrencyCeiling = 1000;
-    private const int SweepBatchSizeCeiling = 10_000;
+    private const int IdleWaitCeilingSeconds = 300;
+    private const double CheckinCeilingSeconds = 300;
     private const int OneHourInSeconds = 3600;
+    private const int TenYearsInDays = 3650;
+    private const int MaxRetentionBatchSize = 100_000;
+    private const int MaxRetentionBatches = 10_000;
     private const int OneDayInMinutes = 1440;
     private const int OneDayInSeconds = 86_400;
 
@@ -28,26 +28,9 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
     {
         List<string> failures = [];
 
-        RequireInRange(options.MaxConcurrency, GlobalKey(nameof(options.MaxConcurrency)), MaxConcurrencyCeiling, failures);
-        RequireInRange(options.SweepIntervalSeconds, GlobalKey(nameof(options.SweepIntervalSeconds)), OneHourInSeconds, failures);
-        RequireInRange(options.SweepBatchSize, GlobalKey(nameof(options.SweepBatchSize)), SweepBatchSizeCeiling, failures);
-        RequireInRange(options.StuckJobThresholdMinutes, GlobalKey(nameof(options.StuckJobThresholdMinutes)), OneDayInMinutes, failures);
-        RequireInRange(options.HeartbeatIntervalSeconds, GlobalKey(nameof(options.HeartbeatIntervalSeconds)), OneHourInSeconds, failures);
-        RequireInRange(options.MaxRuntimeMinutes, GlobalKey(nameof(options.MaxRuntimeMinutes)), OneDayInMinutes, failures);
-        RequireInRange(options.MaxAttempts, GlobalKey(nameof(options.MaxAttempts)), MaxAttemptsCeiling, failures);
-        RequireInRange(options.BackoffBaseSeconds, GlobalKey(nameof(options.BackoffBaseSeconds)), OneDayInSeconds, failures);
-        RequireInRange(options.BackoffCapSeconds, GlobalKey(nameof(options.BackoffCapSeconds)), OneDayInSeconds, failures);
-        RequireInRange(options.BacklogWarningMinutes, GlobalKey(nameof(options.BacklogWarningMinutes)), OneDayInMinutes, failures);
-
-        RequireStuckThresholdSpansHeartbeats(options, failures);
-
-        RequireCapNotBelowBase(
-            options.BackoffBaseSeconds,
-            GlobalKey(nameof(options.BackoffBaseSeconds)),
-            options.BackoffCapSeconds,
-            GlobalKey(nameof(options.BackoffCapSeconds)),
-            failures);
-
+        ValidateHostSettings(options, failures);
+        ValidateRetention(options, failures);
+        ValidateJobTypeDefaults(options, failures);
         foreach (var (jobType, overrides) in options.JobTypes.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             ValidateJobType(options, jobType, overrides, failures);
@@ -56,6 +39,48 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
         return failures.Count is 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
+    }
+
+    private static void ValidateHostSettings(BackgroundJobsOptions options, List<string> failures)
+    {
+        RequireInRange(options.IdleWaitTimeSeconds, GlobalKey(nameof(options.IdleWaitTimeSeconds)), IdleWaitCeilingSeconds, failures);
+        RequireInRange(options.CancellationPollSeconds, GlobalKey(nameof(options.CancellationPollSeconds)), OneHourInSeconds, failures);
+        RequireInRange(options.RetentionDays, GlobalKey(nameof(options.RetentionDays)), TenYearsInDays, failures);
+        RequireInRange(options.MisfireThresholdSeconds, GlobalKey(nameof(options.MisfireThresholdSeconds)), OneHourInSeconds, failures);
+        RequireInRange(options.ShutdownWaitSeconds, GlobalKey(nameof(options.ShutdownWaitSeconds)), OneHourInSeconds, failures);
+        RequirePositiveSeconds(
+            options.Clustering?.CheckinIntervalSeconds,
+            ClusteringKey(nameof(BackgroundJobsClusteringOptions.CheckinIntervalSeconds)),
+            failures);
+        RequirePositiveSeconds(
+            options.Clustering?.CheckinMisfireThresholdSeconds,
+            ClusteringKey(nameof(BackgroundJobsClusteringOptions.CheckinMisfireThresholdSeconds)),
+            failures);
+    }
+
+    private static void ValidateRetention(BackgroundJobsOptions options, List<string> failures)
+    {
+        RequireInRange(options.Retention?.BatchSize, RetentionKey(nameof(BackgroundJobsRetentionOptions.BatchSize)), MaxRetentionBatchSize, failures);
+        RequireInRange(options.Retention?.MaxBatchesPerRun, RetentionKey(nameof(BackgroundJobsRetentionOptions.MaxBatchesPerRun)), MaxRetentionBatches, failures);
+        if (options.Retention?.Cron is not { } cron || !Quartz.CronExpression.TryParse(cron, out _))
+        {
+            failures.Add($"{RetentionKey(nameof(BackgroundJobsRetentionOptions.Cron))} must be a valid Quartz cron expression, but is '{options.Retention?.Cron}'.");
+        }
+    }
+
+    // The global values every job type falls back to.
+    private static void ValidateJobTypeDefaults(BackgroundJobsOptions options, List<string> failures)
+    {
+        RequireInRange(options.MaxRuntimeMinutes, GlobalKey(nameof(options.MaxRuntimeMinutes)), OneDayInMinutes, failures);
+        RequireInRange(options.MaxAttempts, GlobalKey(nameof(options.MaxAttempts)), MaxAttemptsCeiling, failures);
+        RequireInRange(options.BackoffBaseSeconds, GlobalKey(nameof(options.BackoffBaseSeconds)), OneDayInSeconds, failures);
+        RequireInRange(options.BackoffCapSeconds, GlobalKey(nameof(options.BackoffCapSeconds)), OneDayInSeconds, failures);
+        RequireCapNotBelowBase(
+            options.BackoffBaseSeconds,
+            GlobalKey(nameof(options.BackoffBaseSeconds)),
+            options.BackoffCapSeconds,
+            GlobalKey(nameof(options.BackoffCapSeconds)),
+            failures);
     }
 
     private static void ValidateJobType(
@@ -73,6 +98,15 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
         RequireInRange(overrides.MaxRuntimeMinutes, JobTypeKey(jobType, nameof(overrides.MaxRuntimeMinutes)), OneDayInMinutes, failures);
         RequireInRange(overrides.BackoffBaseSeconds, JobTypeKey(jobType, nameof(overrides.BackoffBaseSeconds)), OneDayInSeconds, failures);
         RequireInRange(overrides.BackoffCapSeconds, JobTypeKey(jobType, nameof(overrides.BackoffCapSeconds)), OneDayInSeconds, failures);
+        RequireInRange(overrides.RetentionDays, JobTypeKey(jobType, nameof(overrides.RetentionDays)), TenYearsInDays, failures);
+
+        // Zero is a real setting: it keeps this node from running the type while it still enqueues it.
+        RequireInRange(
+            overrides.MaxConcurrency,
+            JobTypeKey(jobType, nameof(overrides.MaxConcurrency)),
+            MaxConcurrencyCeiling,
+            failures,
+            minimum: 0);
 
         // With neither value overridden the pair is the global one, which has already been checked.
         if (overrides.BackoffBaseSeconds is null && overrides.BackoffCapSeconds is null)
@@ -94,11 +128,11 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
             failures);
     }
 
-    private static void RequireInRange(int? value, string key, int maximum, List<string> failures)
+    private static void RequireInRange(int? value, string key, int maximum, List<string> failures, int minimum = 1)
     {
-        if (value < 1)
+        if (value < minimum)
         {
-            failures.Add($"{key} must be at least 1, but is {value}.");
+            failures.Add($"{key} must be at least {minimum}, but is {value}.");
         }
         else if (value > maximum)
         {
@@ -106,24 +140,15 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
         }
     }
 
-    private static void RequireStuckThresholdSpansHeartbeats(BackgroundJobsOptions options, List<string> failures)
+    private static void RequirePositiveSeconds(double? value, string key, List<string> failures)
     {
-        // A value below 1 has already been reported, and comparing it would only add a confusing second message.
-        if (options.StuckJobThresholdMinutes < 1 || options.HeartbeatIntervalSeconds < 1)
+        if (value is null)
         {
-            return;
+            failures.Add($"{key} is required.");
         }
-
-        // Widened to long because a large threshold in seconds overflows int.
-        var thresholdSeconds = options.StuckJobThresholdMinutes * 60L;
-        var requiredSeconds = MinimumHeartbeatsBeforeStuck * (long)options.HeartbeatIntervalSeconds;
-
-        if (thresholdSeconds < requiredSeconds)
+        else if (!(value > 0) || value > CheckinCeilingSeconds)
         {
-            failures.Add(
-                $"{GlobalKey(nameof(options.StuckJobThresholdMinutes))} ({options.StuckJobThresholdMinutes} minutes) " +
-                $"must span at least {MinimumHeartbeatsBeforeStuck} times " +
-                $"{GlobalKey(nameof(options.HeartbeatIntervalSeconds))} ({options.HeartbeatIntervalSeconds} seconds).");
+            failures.Add($"{key} must be greater than 0 and at most {CheckinCeilingSeconds}, but is {value}.");
         }
     }
 
@@ -148,6 +173,12 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
 
     private static string GlobalKey(string optionName) =>
         $"{BackgroundJobsOptions.SectionName}:{optionName}";
+
+    private static string RetentionKey(string optionName) =>
+        $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.Retention)}:{optionName}";
+
+    private static string ClusteringKey(string optionName) =>
+        $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.Clustering)}:{optionName}";
 
     private static string JobTypeKey(string jobType, string optionName) =>
         $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.JobTypes)}:{jobType}:{optionName}";

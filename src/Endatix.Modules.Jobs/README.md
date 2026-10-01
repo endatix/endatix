@@ -23,35 +23,30 @@ The module is registered automatically by `EndatixBuilder.UseDefaults()` — no 
 
 ## What it is
 
-The `BackgroundJobs` table **is** the queue. Enqueueing is a single insert. Retry state —
-attempt count, next attempt time, and the terminal statuses — lives on the job row, so no
-second system can disagree with it about what a job is doing.
+Two stores in one `jobs` schema, with one job each:
 
-> [!IMPORTANT]
-> This package currently provides **persistence and enqueueing**. It also contains an internal
-> job state repository, which nothing uses yet, and the public `IJobDispatchStrategy` and
-> `IJobMetrics` extension points, which enqueueing calls only when a host registers them. No
-> runner or sweeper is hosted, so enqueued jobs stay `Pending`. The
-> state machine, the handler contract, and the schema below describe the full design and are
-> what execution will be built against. Cancelling a job and reporting a running
-> job's progress through conditional writes is tracked in
-> [endatix/endatix#1061](https://github.com/endatix/endatix/issues/1061).
+- The `BackgroundJobs` table is the **record** of every job: tenant, status, progress, attempts,
+  error, trace and retention. It is what `GET jobs/{jobId}` reads, and the only place a job's
+  state lives.
+- [Quartz.NET](https://www.quartz-scheduler.net/) 4.2.2, clustered through the same database
+  (tables `jobs.qrtz_*`), is the **queue**: it decides when and on which node a job runs, retries
+  it on its trigger's policy, and re-runs the work of a node that stopped.
 
-Work that outlives a request belongs here: exporting a large submission set, delivering a
-webhook to one endpoint, backfilling or purging tenant data.
+Every job has exactly one row and one Quartz trigger, keyed by the job's id; the trigger carries
+nothing but that id.
 
 ## Module layout
 
 | Namespace | Contents |
 |-----------|----------|
-| `Endatix.Core.Abstractions.BackgroundJobs` | `IBackgroundJobQueue`, `IBackgroundJobHandler`, `BackgroundJobRequest`, `JobStatus` — referenced by anything that enqueues or handles |
+| `Endatix.Core.Abstractions.BackgroundJobs` | `IBackgroundJobQueue`, `IBackgroundJobHandler`, `BackgroundJobHandler<TPayload>`, `IBackgroundJobPayload`, `BackgroundJobRequest`, `BackgroundJobPayloadSerializer`, `JobStatus` — referenced by anything that enqueues or handles, and free of any Quartz type |
 | `Endatix.Modules.Jobs.Domain` | `BackgroundJob` entity and its state machine |
-| `Endatix.Modules.Jobs.Persistence` | `jobs`-schema contexts, EF configuration, migrations |
+| `Endatix.Modules.Jobs.Persistence` | `jobs`-schema contexts, EF configuration, migrations (including Quartz's tables) |
 | `Endatix.Modules.Jobs.Features` | `BackgroundJobQueue` |
-| `Endatix.Modules.Jobs.Runtime` | `BackgroundJobsOptions`, the internal job state repository, and the `IJobDispatchStrategy` and `IJobMetrics` seams with their defaults — see [Runtime](#runtime) |
+| `Endatix.Modules.Jobs.Runtime` | `BackgroundJobsOptions`, the Quartz registration, the handler registry, the job wrapper, the job state repository and `IJobMetrics` |
 
 The abstractions live in `Endatix.Core` rather than here so that assemblies which cannot
-reference this module — `Endatix.Infrastructure`, most notably — can still enqueue.
+reference this module — `Endatix.Infrastructure`, most notably — can still enqueue and handle.
 
 ## Schema
 
@@ -60,9 +55,17 @@ Database schema: `jobs`
 | Table | Purpose |
 |-------|---------|
 | `BackgroundJobs` | One row per unit of work: type, payload, tenant, status, progress, retry state |
+| `qrtz_*` | Quartz.NET's clustered job store: durable jobs, triggers, fired triggers, node check-ins, locks |
 
 The schema carries its own `__EFMigrationsHistory`, so job migrations advance independently
-of app-schema migrations.
+of app-schema migrations. Quartz's tables are created by the `jobs` migrations only, from the
+PostgreSQL script embedded in the referenced Quartz.NET version, so a fresh database always gets
+the schema that version expects. Quartz validates them at startup (`SchemaProvisioning.Validate`)
+and never creates them, so a node whose tables are missing or outdated fails to start. A Quartz
+upgrade that changes its schema also ships a `jobs` migration, for databases created before it.
+That migration must be idempotent (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, and
+so on): a database created after the upgrade already has the new schema from
+`InitialBackgroundJobs` when it runs.
 
 ### Status
 
@@ -72,26 +75,37 @@ and `Retrying` → `Processing`. A job cancelled before it is claimed never runs
 | Status | Meaning | Terminal |
 |--------|---------|----------|
 | `Pending` | Enqueued, never started | no |
-| `Processing` | Claimed by a runner; a heartbeat is expected | no |
-| `Retrying` | An attempt failed retryably; waiting for its next attempt time | no |
+| `Processing` | Claimed by the job wrapper on the node Quartz fired it on | no |
+| `Retrying` | An attempt failed retryably; waiting for its next attempt | no |
 | `Completed` | Success | yes |
 | `Failed` | Deterministic failure — retrying cannot help | yes |
 | `DeadLettered` | Retryable failure that exhausted its attempt budget | yes |
-| `Canceled` | Cancelled by a user or by host shutdown | yes |
+| `Canceled` | Cancelled by a user | yes |
 
 `Failed` and `DeadLettered` are separate because one status cannot express both "do not
 retry this" and "retried and gave up", and operators need to tell them apart.
 
-`Pending` and `Retrying` both mean *eligible to run at `NextAttemptAt`*, so a single query
-dispatches either.
-
 ## Enqueueing
 
+Feature code builds a request from a typed payload:
+
 ```csharp
+public sealed record SubmissionExportPayload(long FormId, long ExportFormatId) : IBackgroundJobPayload
+{
+    // Persisted on the row and in Quartz's job keys: never change it.
+    public static string JobType => "SubmissionExport";
+}
+
 var jobId = await backgroundJobQueue.EnqueueAsync(
-    new BackgroundJobRequest("SubmissionExport", payloadJson, tenantId, userId),
+    BackgroundJobRequest.Create(new SubmissionExportPayload(formId, formatId), tenantId, userId),
     cancellationToken);
 ```
+
+**Idempotent enqueue.** A request may carry a `DedupKey` naming its unit of work — for a fan-out,
+`{outboxMessageId}:{subscriber}`. It is unique per tenant and job type (a filtered unique index,
+`IX_BackgroundJobs_DedupKey`), and enqueueing a key that already exists returns the existing job's
+id without a second row or trigger, even when two enqueues race. Requests without a key never
+collide. It names the work, never the attempt: no timestamps or counters in it.
 
 Use `EnqueueManyAsync` for fan-out — one job per webhook endpoint, say. The batch commits in
 a single transaction, so a partial fan-out cannot deliver to some destinations and silently
@@ -100,19 +114,30 @@ drop the rest.
 > [!IMPORTANT]
 > Enqueueing is **not** transactionally joined to app-schema writes: jobs live on their own
 > `DbContext`, which cannot enlist in an `AppDbContext` transaction. To commit a domain change
-> and a job together, raise a domain event and enqueue from the outbox handler — the outbox
-> already guarantees the event survives the business transaction.
+> and a job together, raise a domain event and enqueue from the outbox — the outbox already
+> guarantees the event survives the business transaction.
 
 ## Writing a handler
 
-> [!NOTE]
-> Nothing executes handlers yet (see above), so an implementation registered today will not be
-> invoked. The contract is documented here because it is what handlers will be held to, and
-> because the obligations below are far cheaper to honour while a handler is being written than
-> to retrofit.
+Derive from `BackgroundJobHandler<TPayload>` and register it with
+`services.AddBackgroundJobHandler<THandler, TPayload>()`, which keys it by job type so a job run
+builds only its own handler. The job type comes from the payload; handlers may live in any
+assembly. Two handlers declaring the same job type fail startup.
 
-Implement `IBackgroundJobHandler` and register it in DI. Routing is by `JobType`, and handlers
-may live in any assembly.
+```csharp
+internal sealed class SubmissionExportJobHandler(..., ILogger<SubmissionExportJobHandler> logger)
+    : BackgroundJobHandler<SubmissionExportPayload>(logger)
+{
+    protected override Task<Result> ExecuteAsync(
+        BackgroundJobContext job, SubmissionExportPayload payload, CancellationToken cancellationToken) => ...;
+}
+```
+
+Payload rules: the job type is a string literal declared once, on the payload; a payload
+written by one release must deserialize in the next (adding an optional property is fine;
+renaming, removing or retyping one is a new job type); keep payloads thin — ids plus the
+minimum non-personal data. Input that cannot be read ends the job `Failed` without a retry, and the
+base class logs why through the logger it is given.
 
 Four obligations, each invisible until it hurts in production:
 
@@ -127,40 +152,136 @@ Four obligations, each invisible until it hurts in production:
    `IServiceScopeFactory`; a change tracker held for minutes accumulates every row streamed
    through it.
 
+Handlers never reference a Quartz type.
+
 ## Runtime
 
-`IJobDispatchStrategy` and `IJobMetrics` are public so that a host can replace them. Enqueueing
-uses them in this order:
+Every host that registers the module builds a Quartz scheduler named `endatix-jobs` against
+the shared store. `Endatix:BackgroundJobs:RunInProcess` decides what it does with it:
 
-1. Commit the rows.
-2. If a strategy is registered, `TryOffer` each job id in request order. This is a latency
-   optimisation only: a refused or failed offer leaves the job for the sweeper.
-3. If metrics are registered, record `Enqueued` for each job, then `OfferRejected` for each
-   refusal.
+| `RunInProcess` | The host |
+|----------------|----------|
+| `true` (default) | Enqueues and **executes** jobs |
+| `false` | Enqueues only: its scheduler has no threads and is never started |
 
-`false` from `TryOffer` means the strategy refused the job for back-pressure, and is counted as
-`OfferRejected`. A throw is a bug in the strategy: it is logged at Warning and
-swallowed, and is not counted as a refusal. Neither reaches the caller, whose rows are already committed.
+That is what allows API and worker roles to be deployed separately from the same image.
 
-The module registers neither seam yet, and no runner is hosted, so rows stay `Pending` even if
-they are offered into a channel.
+**Each job type is its own Quartz execution group**, capped per node at
+`JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
+capped at `0`, so a node never takes a job it cannot run; the job waits for a node that can. The
+thread pool holds every registered job type's full cap at once, so it is sized as the sum of the
+caps, and there is no global concurrency setting. Trigger acquisition is narrowed to the groups
+with a free slot on the node, so a backlog of one job type never holds up another. If a node ever
+fires a job type it has no handler for, the wrapper declines it without touching the row and
+offers the trigger again 30 seconds later.
 
-The default strategy queues at most `MaxConcurrency × 25` job ids, a multiplier fixed on purpose:
-anything beyond stays in the database for the next sweep.
+**Backlog warning.** A job that waited past `MisfireThresholdSeconds` for a slot increments
+`endatix.jobs.misfired` (tag `job_type`), and again at every threshold while it waits. The warning
+`Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of
+this type misfired since the last warning.` is logged at most once per job type per threshold. A job type no running node can handle shows up here:
+deploy the module that handles it.
 
-The default metrics record on the `Endatix.Jobs` meter (`JobsModule.MeterName`), and
-`EndatixTelemetryBuilder` subscribes the host's metrics pipeline to it.
+**Dashboard.** With `Dashboard:Enabled`, the Quartz dashboard is served at `/quartz` and its HTTP
+API at `/quartz-api`, both behind the `PlatformAdmin` policy and read-only unless
+`Dashboard:AllowWrites` is set. It is an operator tool: a caller that may write can schedule jobs
+on the host, and it shows every tenant's triggers. Even with writes on, only Endatix's own job
+class may be named.
+
+Each job type the host has a handler for gets one durable Quartz job, which requests recovery,
+so a job cut off by a stopped or crashed node runs again on another. Every node sharing the
+store must run the same Quartz version, and nodes' clocks must agree within about a second.
+
+### Retention
+
+`JobRetentionJob` runs on the `Retention:Cron` schedule, on one node at a time, in an execution
+group of its own with one thread beyond the job types' caps. Each run deletes finished rows whose
+`ExpiresAt` has passed, `BatchSize` at a time, for at most `MaxBatchesPerRun` batches. It never
+deletes a row that is not finished. Every terminal write sets `ExpiresAt` to its time plus the job
+type's `RetentionDays` when the row has none. Quartz deletes its own finished triggers.
+
+### Execution
+
+`BackgroundJobExecution` is the only Quartz job class. It only orchestrates each firing, through
+one class per step:
+
+1. **Admits the firing** (`JobFiringAdmission`). A firing that carries no job id, as one an
+   operator fires by hand from the dashboard does, is ignored. A job type this host has no handler
+   for is declined without touching the row, and its trigger is offered again 30 seconds later.
+2. **Claims** the row (`JobAttemptClaimer`) with a compare-and-swap from `Pending`/`Retrying` to
+   `Processing` that increments `AttemptCount`. When Quartz reports a recovered firing, or the
+   firing was scheduled to take over an attempt that left its row unsettled, it re-claims the row
+   from `Processing`, fenced on the attempt it read, and dead-letters a job that has no attempt left
+   instead. A claim that changes nothing ends the firing. A take-over firing with no retry policy is
+   the job's only trigger, so a claim that throws there re-fires the job rather than ending it.
+3. **Runs the handler** (`JobHandlerRunner`) in its own DI scope, under an `Endatix.Jobs` activity
+   whose parent is the trace captured at enqueue, with one token linked from the runtime ceiling
+   (`MaxRuntimeMinutes`), the cancellation watcher and the host's shutdown.
+4. **Records the outcome** (`JobOutcomeRecorder`) with one write fenced on the claimed attempt,
+   tried again a few times if it throws, and records the lifecycle metrics only when it lands.
+   A firing whose outcome still cannot be written is re-fired shortly by `UnrecordedJobRefire`.
+   A recovered firing has no retry policy, so a retry it needs gets a trigger of its own, stored
+   before the row says `Retrying`:
+
+| Handler | Row | Quartz |
+|---------|-----|--------|
+| returns success | `Completed` | done |
+| returns a failure `Result` | `Failed`, with its message | done, no retry |
+| throws, attempts left | `Retrying` | the trigger's retry policy schedules the next attempt |
+| throws, attempts left, on a recovered firing | `Retrying` | a trigger of the job's own runs the next attempt |
+| as above, but that trigger cannot be stored | stays `Processing`, nothing written | fires again 5 s later and re-claims the row |
+| throws, attempts spent | `DeadLettered`, with a safe message | done |
+| row set to `Canceled` meanwhile | stays `Canceled` | done |
+| host stopped waiting for it | stays `Processing`, nothing written | re-run on the next node to check in |
+| its node stopped during the last attempt | `DeadLettered` when recovered, the handler not run again | done |
+| row taken over by another attempt meanwhile | left to that attempt | done; the handler's token is cancelled |
+| its outcome cannot be written (tried 4 times) | stays `Processing` | fires again 5 s later and re-claims the row |
+
+A re-fire is a trigger too, and storing it can fail. While the scheduler is stopping it refuses
+every new trigger but still completes the firings it waits for, which would delete the job's last
+trigger; the firing is held instead until the scheduler lets go of it, and the next node to check
+in recovers it. A re-fire that fails on a node that keeps running is logged at `Error`: the row
+stays `Processing`, and nothing runs it again unless that node stops before the firing completes.
+
+The row's `AttemptCount`, not Quartz's retry counter, decides dead-lettering: a run recovered after
+a crash consumes an attempt Quartz never counts. Exception text never reaches `ErrorMessage`.
+After Quartz schedules a retry, `NextAttemptAt` mirrors the trigger's next fire time.
+
+**Shutdown.** A stopping host gives running jobs `ShutdownWaitSeconds` to finish and record their
+outcome. Jobs still running then are left as they are: their handlers are told to stop, nothing is
+recorded, and Quartz re-runs them on the next node to check in.
+
+**Cancellation.** Setting a row to `Canceled` reaches a running handler through the wrapper's
+watcher, which re-reads the status every `CancellationPollSeconds`, on whichever node runs the job.
+
+`IJobMetrics` is public so a host can replace it. The default records on the `Endatix.Jobs`
+meter (`JobsModule.MeterName`), and `EndatixTelemetryBuilder` subscribes the host's metrics
+pipeline to it.
 
 | Instrument | Type | Unit | Tags |
 |------------|------|------|------|
 | `endatix.jobs.events` | counter | `{event}` | `endatix.job.type`, `endatix.job.event` |
-| `endatix.jobs.queue.depth` | gauge | `{job}` | — |
-| `endatix.jobs.backlog.count` | gauge | `{job}` | `endatix.job.type` |
-| `endatix.jobs.backlog.oldest_wait` | gauge | `s` | `endatix.job.type` |
 | `endatix.jobs.duration` | histogram | `s` | `endatix.job.type`, `endatix.job.outcome` |
 
-Every instance reports the same cluster-wide backlog, so aggregate the two backlog gauges across
-instances with max, not sum.
+## Configuration
+
+Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{JobType}`:
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `RunInProcess` | `true` | Whether this host executes jobs |
+| `IdleWaitTimeSeconds` | `2` | How long an idle node waits before looking for jobs another node scheduled |
+| `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
+| `MisfireThresholdSeconds` | `60` | How long a due job may wait for a slot before the backlog warning |
+| `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
+| `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
+| `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type) |
+| `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |
+| `RetentionDays` | `7` | How long a finished job's row is kept (per type); stamped as `ExpiresAt` when it finishes |
+| `Retention:Cron` / `BatchSize` / `MaxBatchesPerRun` | `0 0/15 * * * ?` / `1000` / `50` | When the retention job runs and how much one run deletes |
+| `JobTypes:{JobType}:MaxConcurrency` | `1` | Jobs of this type one node runs at once; `0` declines the type |
+| `Clustering:CheckinIntervalSeconds` / `CheckinMisfireThresholdSeconds` | `7.5` / `7.5` | A node silent for their sum is presumed dead |
+| `Dashboard:Enabled` / `Dashboard:AllowWrites` | `false` / `false` | The operator dashboard, for platform admins |
+| `Clustering:InstanceId` | generated | This node's identity; set only to a value no other running node uses |
 
 ## Registration
 
@@ -172,41 +293,29 @@ Gated by `Endatix:FeatureFlags:JobsModule`, **off by default**. The module owns 
 and its own migrations, so registering it where nothing enqueues would create a schema no code
 writes to.
 
-> [!IMPORTANT]
-> The flag has to be turned on in the same release that moves webhook delivery onto the queue.
-> Left off, upgrading hosts lose fan-out with no error to explain it.
-
-Whether a given process *executes* jobs is a separate, configuration-level question — which is
-what allows API and worker roles to be deployed separately from the same image.
-
 ## Migrations
 
 **PostgreSQL is currently the only supported provider.** With the flag off — the default —
 nothing is registered and other providers are unaffected. With the flag on and a different
-provider configured, the host fails at startup naming the constraint, rather than deferring the
-failure to whichever call site enqueues first.
+provider configured, the host fails at startup naming the constraint.
 
-A second provider therefore has to exist by the time a feature depends on the queue.
+Persistence is **provider-split**: `JobsPostgreSqlDbContext` derives from `JobsDbContextBase`
+and owns its migrations and model snapshot under `Persistence/Migrations/PostgreSql`. EF Core
+keeps one model snapshot per context type, so adding a provider means adding a derived context,
+its own design-time factory, its own `Config/<Provider>/` configuration and its own migrations
+folder — never reusing an existing one.
 
-Persistence is nonetheless **provider-split**: `JobsPostgreSqlDbContext` derives from
-`JobsDbContextBase` and owns its migrations and model snapshot under
-`Persistence/Migrations/PostgreSql`.
+The migrations were reset once, in the change that moved scheduling onto Quartz, to a single
+`InitialBackgroundJobs` migration. v0.7.6 and the canaries before this change shipped the earlier
+ones (`AddBackgroundJobs`, `RequireRealTenantOnBackgroundJobs`), and EF cannot upgrade a database
+from them: it would try to create `jobs."BackgroundJobs"` again and fail. Any database where
+`Endatix:FeatureFlags:JobsModule` was turned on under those releases needs `DROP SCHEMA jobs CASCADE`
+once before upgrading. That deletes every job row and the schema's migration history. Those rows
+never ran, because no release executed jobs, and they cannot be carried over, because each job now
+needs a Quartz trigger as well as its row. Back up `jobs."BackgroundJobs"` first if you need a
+record of them. From here on `jobs` migrations are append-only.
 
-This is not stylistic. EF Core keeps **one model snapshot per context type**, so generating
-two providers' migrations against a single shared context makes the second generation
-overwrite the first's snapshot — after which the next migration for the first provider diffs
-against the wrong model and emits nonsense. Adding a provider therefore means adding a derived
-context, its own design-time factory, its own `Config/<Provider>/` entity configuration and its
-own migrations folder — never reusing an existing one.
-
-Run the commands from the repository root.
-
-> [!NOTE]
-> Always use `Endatix.WebHost` as the startup project. The design-time factories pin their own
-> provider, so `ConnectionStrings:DefaultConnection_DbProvider` does not affect which
-> migrations are generated — but a valid `ConnectionStrings:DefaultConnection` must be present.
-
-### PostgreSQL
+Run the commands from the repository root, with `Endatix.WebHost` as the startup project.
 
 ```bash
 dotnet ef migrations add <Name> \
@@ -217,3 +326,8 @@ dotnet ef migrations add <Name> \
 ```
 
 Migrations apply automatically at startup when `Endatix:Data:EnableAutoMigrations` is enabled.
+
+## Third-party licence
+
+Quartz.NET is Apache-2.0 licensed. Its licence text ships in `THIRD-PARTY-NOTICES`, both in
+this package and in the API image (`/app/THIRD-PARTY-NOTICES`).

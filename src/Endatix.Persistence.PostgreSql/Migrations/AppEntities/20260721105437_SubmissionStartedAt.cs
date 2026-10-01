@@ -45,16 +45,16 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             // at runtime; mutating v1 in place breaks empty-DB migrates before StartedAt exists.
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint, bigint, int);");
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v2.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v2.sql", GetType().Assembly));
 
             // Helper used by nested_loops / metadata_shoji (CREATE OR REPLACE — safe if already present).
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/build_column_path_with_jsonpath.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/build_column_path_with_jsonpath.sql", GetType().Assembly));
 
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint);");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint, bigint, int);");
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v2.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v2.sql", GetType().Assembly));
 
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_metadata_shoji.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_metadata_shoji.sql", GetType().Assembly));
         }
 
         /// <inheritdoc />
@@ -67,11 +67,11 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             // Restore pre-StartedAt return shapes (v1) so exports remain executable after rollback.
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint);");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions(bigint, bigint, int);");
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v1.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v1.sql", GetType().Assembly));
 
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint);");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS export_form_submissions_nested_loops(bigint, bigint, int);");
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_nested_loops_v1.sql", GetType().Assembly));
         }
     }
 }

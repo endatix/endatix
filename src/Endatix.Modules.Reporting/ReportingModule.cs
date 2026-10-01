@@ -10,6 +10,7 @@ using Endatix.Core.Abstractions.Exporting;
 using Endatix.Modules.Reporting.Configuration;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.BackgroundJobs;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Capabilities;
 using Endatix.Modules.Reporting.Features.Export.FormSchema;
@@ -77,11 +78,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IFormSchemaProvider, FormSchemaProvider>();
         builder.Services.AddScoped<ISubmissionFlatteningProcessor, SubmissionFlatteningProcessor>();
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
-        builder.Services.AddScoped<IOutboxIntegrationEventHandler, CompileFormSchemaOutboxHandler>();
-        builder.Services.AddScoped<IOutboxIntegrationEventHandler, FlattenSubmissionOutboxHandler>();
-        builder.Services.AddScoped<IOutboxIntegrationEventHandler, SyncSubmissionDeletionOutboxHandler>();
-        builder.Services.AddScoped<IOutboxIntegrationEventHandler, SyncFormDeletionOutboxHandler>();
-        builder.Services.AddScoped<IOutboxIntegrationEventHandler, SeedDefaultExportFormatsOutboxHandler>();
+        builder.Services.AddReportingOutboxWork();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
     }
 }

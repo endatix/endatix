@@ -100,6 +100,12 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("SourceModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("SourceRevision")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 

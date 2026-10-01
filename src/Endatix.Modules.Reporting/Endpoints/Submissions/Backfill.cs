@@ -29,8 +29,9 @@ public sealed class Backfill(
         {
             summary.Summary = "Backfill flattened submissions";
             summary.Description =
-                "Processes a batch of completed submissions into the reporting read model. " +
-                "Repeat with nextAfterSubmissionId until hasMore is false. Idempotent unless force is true.";
+                "Processes a batch of submissions into the reporting read model. " +
+                "completionScope defaults to completed. Repeat with nextAfterSubmissionId until hasMore is false. " +
+                "An unchanged processed row is skipped unless force is true.";
             summary.Responses[200] = "Backfill batch completed.";
             summary.Responses[400] = "Invalid input data.";
             summary.Responses[404] = "Form not found.";
@@ -51,7 +52,8 @@ public sealed class Backfill(
             TenantId: tenantContext.TenantId,
             BatchSize: request.BatchSize ?? DefaultBatchSize,
             AfterSubmissionId: request.AfterSubmissionId,
-            Force: request.Force);
+            Force: request.Force,
+            Completion: request.CompletionScope ?? SubmissionBackfillCompletion.Completed);
 
         var result = await mediator.Send(command, ct);
 
@@ -93,6 +95,10 @@ public sealed class BackfillSubmissionsValidator : Validator<BackfillSubmissions
         RuleFor(request => request.AfterSubmissionId)
             .GreaterThan(0)
             .When(request => request.AfterSubmissionId.HasValue);
+
+        RuleFor(request => request.CompletionScope)
+            .IsInEnum()
+            .When(request => request.CompletionScope.HasValue);
     }
 }
 
@@ -108,6 +114,11 @@ public sealed class BackfillSubmissionsRequest
     public long? AfterSubmissionId { get; init; }
 
     public bool Force { get; init; }
+
+    /// <summary>
+    /// Which submissions to page. Omitted means completed only.
+    /// </summary>
+    public SubmissionBackfillCompletion? CompletionScope { get; init; }
 }
 
 /// <summary>

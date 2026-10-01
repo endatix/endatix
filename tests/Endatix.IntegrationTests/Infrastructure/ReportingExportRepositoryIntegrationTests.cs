@@ -5,7 +5,6 @@ using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -39,14 +38,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_ExcludesTestSubmissionsByDefault()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(IncludeTestSubmissions: false),
@@ -58,14 +57,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_WhenIncludeTest_ReturnsAllRows()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(IncludeTestSubmissions: true),
@@ -81,15 +80,15 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_FiltersByCreatedAtRange_ExclusiveBefore()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
         // Day2 inclusive lower bound, Day3 exclusive upper bound → only production Day2 row.
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
@@ -103,15 +102,15 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_FiltersByCompletedAtRange_ExclusiveBefore()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
         // Production Day1 completed Day2, Day2 completed Day3; Day3 incomplete; test completed Day4.
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
@@ -125,14 +124,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_FiltersBySubmissionIdRange()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
@@ -147,15 +146,15 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_CombinesFiltersWithAnd()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
         // Created on/after Day2, production only, id ≤ production Day3 → Day2 and Day3 production rows.
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
@@ -170,14 +169,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_WhenIsCompleteTrue_ReturnsOnlyCompleted()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(IncludeTestSubmissions: false, IsComplete: true),
@@ -189,14 +188,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_WhenIsCompleteFalse_ReturnsOnlyIncomplete()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(IncludeTestSubmissions: false, IsComplete: false),
@@ -208,15 +207,15 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_WhenCreatedToExclusiveBound_ExcludesRowAtBound()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
         // CreatedTo is exclusive: Day2 row created at Day2 must be excluded.
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
@@ -230,15 +229,15 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_WhenCompletedAtNull_ExcludesFromCompletedAtRange()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
         // Incomplete Day3 has null CompletedAt and must never match a completed-at range.
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
@@ -253,19 +252,19 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_ExcludesSoftDeletedFlattenedRows()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        FlattenedSubmission day2 = await reportingDb.FlattenedSubmissions
+        await using var reportingDb = CreateReportingDbContext();
+        var day2 = await reportingDb.FlattenedSubmissions
             .SingleAsync(row => row.SubmissionId == seed.ProductionDay2Id, cancellationToken);
         day2.MarkDeleted();
         await reportingDb.SaveChangesAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(IncludeTestSubmissions: false),
@@ -277,19 +276,19 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_ExcludesNonProcessedFlattenedRows()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        FlattenedSubmission day1 = await reportingDb.FlattenedSubmissions
-            .SingleAsync(row => row.SubmissionId == seed.ProductionDay1Id, cancellationToken);
-        day1.MarkFailed("flatten failed");
-        await reportingDb.SaveChangesAsync(cancellationToken);
+        await using var reportingDb = CreateReportingDbContext();
+        await new FlattenedRowSeed(reportingDb).FailedAsync(
+            new FlattenedSubmissionKey(TenantId, seed.FormId, seed.ProductionDay1Id),
+            "flatten failed",
+            cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(IncludeTestSubmissions: false),
@@ -301,14 +300,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task HasExportableRowsAsync_WhenFiltersMatchNothing_ReturnsFalse()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        bool hasRows = await repository.HasExportableRowsAsync(
+        var hasRows = await repository.HasExportableRowsAsync(
             TenantId,
             seed.FormId,
             new ExportQueryOptions(
@@ -322,14 +321,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task HasExportableRowsAsync_WhenRowsExist_ReturnsTrue()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        bool hasRows = await repository.HasExportableRowsAsync(
+        var hasRows = await repository.HasExportableRowsAsync(
             TenantId,
             seed.FormId,
             new ExportQueryOptions(IncludeTestSubmissions: false),
@@ -341,14 +340,14 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task HasCompletedSubmissionsAsync_WhenCompletedExist_ReturnsTrue()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        bool hasCompleted = await repository.HasCompletedSubmissionsAsync(
+        var hasCompleted = await repository.HasCompletedSubmissionsAsync(
             TenantId,
             seed.FormId,
             cancellationToken);
@@ -359,15 +358,15 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_ProjectsStartedAtFromCoreSubmission()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
         List<FlattenedExportRow> rows = [];
-        await foreach (FlattenedExportRow row in repository.StreamFlattenedSubmissionsAsync(
+        await foreach (var row in repository.StreamFlattenedSubmissionsAsync(
                            TenantId,
                            seed.FormId,
                            new ExportQueryOptions(IncludeTestSubmissions: false),
@@ -385,15 +384,15 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_FiltersByStartedAtRange_ExclusiveBefore()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
         // Day2 inclusive lower bound, Day3 exclusive upper bound → only production Day2 row.
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
@@ -407,10 +406,10 @@ public sealed class ReportingExportRepositoryIntegrationTests
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_WhenStartedAtNull_ExcludesFromStartedAtRange()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        SeededExportFixture seed = await SeedExportFixtureAsync(cancellationToken);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
+        await using var appDb = CreateAppDbContext();
         // Clear start on incomplete production Day3 — range filters must exclude null StartedAt.
         await appDb.Submissions
             .Where(row => row.Id == seed.ProductionDay3Id)
@@ -418,10 +417,10 @@ public sealed class ReportingExportRepositoryIntegrationTests
                 updates => updates.SetProperty(row => row.StartedAt, (DateTime?)null),
                 cancellationToken);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        ReportingExportRepository repository = CreateRepository(reportingDb, appDb);
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
 
-        List<long> ids = await CollectIdsAsync(
+        var ids = await CollectIdsAsync(
             repository,
             seed.FormId,
             new ExportQueryOptions(
@@ -438,13 +437,13 @@ public sealed class ReportingExportRepositoryIntegrationTests
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
-        await using AppDbContext appDb = CreateAppDbContext();
+        await using var appDb = CreateAppDbContext();
         Tenant tenant = new("export-filter-tenant", "tnntexpf") { Id = TenantId };
         appDb.Set<Tenant>().Add(tenant);
         await appDb.SaveChangesAsync(cancellationToken);
 
         // Two-step form+definition save avoids Form ↔ ActiveDefinition circular insert.
-        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Export filter form"));
+        var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Export filter form"));
         appDb.Forms.Add(form);
         await appDb.SaveChangesAsync(cancellationToken);
 
@@ -453,36 +452,36 @@ public sealed class ReportingExportRepositoryIntegrationTests
         appDb.Set<FormDefinition>().Add(definition);
         await appDb.SaveChangesAsync(cancellationToken);
 
-        long formId = form.Id;
-        long formDefinitionId = definition.Id;
+        var formId = form.Id;
+        var formDefinitionId = definition.Id;
 
         // Seed matrix (ids assigned by AppDbContext):
         // production Day1 / started Day1 / completed Day2
         // production Day2 / started Day2 / completed Day3
         // production Day3 / started Day3 / incomplete
         // test Day3 / started Day3 / completed Day4
-        long productionDay1Id = await SeedSubmissionAsync(
+        var productionDay1Id = await SeedSubmissionAsync(
             appDb, formId, formDefinitionId, isTest: false, isComplete: true,
             createdAt: Day1, startedAt: Day1, completedAt: Day2, cancellationToken);
-        long productionDay2Id = await SeedSubmissionAsync(
+        var productionDay2Id = await SeedSubmissionAsync(
             appDb, formId, formDefinitionId, isTest: false, isComplete: true,
             createdAt: Day2, startedAt: Day2, completedAt: Day3, cancellationToken);
-        long productionDay3Id = await SeedSubmissionAsync(
+        var productionDay3Id = await SeedSubmissionAsync(
             appDb, formId, formDefinitionId, isTest: false, isComplete: false,
             createdAt: Day3, startedAt: Day3, completedAt: null, cancellationToken);
-        long testDay3Id = await SeedSubmissionAsync(
+        var testDay3Id = await SeedSubmissionAsync(
             appDb, formId, formDefinitionId, isTest: true, isComplete: true,
             createdAt: Day3, startedAt: Day3, completedAt: Day4, cancellationToken);
 
-        await using ReportingDbContext reportingDb = CreateReportingDbContext();
-        foreach (long submissionId in new[] { productionDay1Id, productionDay2Id, productionDay3Id, testDay3Id })
+        await using var reportingDb = CreateReportingDbContext();
+        FlattenedRowSeed rows = new(reportingDb);
+        foreach (var submissionId in new[] { productionDay1Id, productionDay2Id, productionDay3Id, testDay3Id })
         {
-            FlattenedSubmission row = new(submissionId, TenantId, formId);
-            row.MarkProcessed($$"""{"submissionId":{{submissionId}}}""");
-            reportingDb.FlattenedSubmissions.Add(row);
+            await rows.ProcessedAsync(
+                new FlattenedSubmissionKey(TenantId, formId, submissionId),
+                $$"""{"submissionId":{{submissionId}}}""",
+                cancellationToken);
         }
-
-        await reportingDb.SaveChangesAsync(cancellationToken);
         return new SeededExportFixture(
             formId,
             formDefinitionId,
@@ -503,7 +502,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
         DateTime? completedAt,
         CancellationToken cancellationToken)
     {
-        Submission submission = Submission.Create(new SubmissionCreateArgs(
+        var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TenantId,
             FormId: formId,
             FormDefinitionId: formDefinitionId,
@@ -513,7 +512,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
 
         appDb.Submissions.Add(submission);
         await appDb.SaveChangesAsync(cancellationToken);
-        long submissionId = submission.Id;
+        var submissionId = submission.Id;
 
         // OwnsOne Status uses shared static instances; clear tracking before the next Add.
         appDb.ChangeTracker.Clear();
@@ -538,7 +537,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
         CancellationToken cancellationToken)
     {
         List<long> ids = [];
-        await foreach (FlattenedExportRow row in repository.StreamFlattenedSubmissionsAsync(
+        await foreach (var row in repository.StreamFlattenedSubmissionsAsync(
                            TenantId,
                            formId,
                            options,
@@ -567,7 +566,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
     {
         IntegrationTenantContext tenantContext = new(TenantId);
 
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
+        var optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
         return new ReportingDbContext(optionsBuilder.Options, tenantContext);

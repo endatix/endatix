@@ -15,15 +15,15 @@ public sealed class BackfillSubmissionsHandlerTests
     [Fact]
     public async Task Handle_WhenFormMissing_ReturnsNotFound()
     {
-        IRepository<Form> formsRepository = Substitute.For<IRepository<Form>>();
+        var formsRepository = Substitute.For<IRepository<Form>>();
         formsRepository
             .SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
             .Returns((Form?)null);
 
-        ISubmissionBackfillProcessor backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
+        var backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
         BackfillSubmissionsHandler handler = new(formsRepository, backfillProcessor);
 
-        Result<SubmissionBackfillResult> result = await handler.Handle(
+        var result = await handler.Handle(
             new BackfillSubmissionsCommand(FormId, TenantId),
             TestContext.Current.CancellationToken);
 
@@ -35,18 +35,18 @@ public sealed class BackfillSubmissionsHandlerTests
     [Fact]
     public async Task Handle_WhenFormBelongsToOtherTenant_ReturnsNotFound()
     {
-        Form form = Form.Create(new FormCreateArgs(TenantId: OtherTenantId, Name: "Other tenant form"));
+        var form = Form.Create(new FormCreateArgs(TenantId: OtherTenantId, Name: "Other tenant form"));
         form.Id = FormId;
 
-        IRepository<Form> formsRepository = Substitute.For<IRepository<Form>>();
+        var formsRepository = Substitute.For<IRepository<Form>>();
         formsRepository
             .SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(form);
 
-        ISubmissionBackfillProcessor backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
+        var backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
         BackfillSubmissionsHandler handler = new(formsRepository, backfillProcessor);
 
-        Result<SubmissionBackfillResult> result = await handler.Handle(
+        var result = await handler.Handle(
             new BackfillSubmissionsCommand(FormId, TenantId),
             TestContext.Current.CancellationToken);
 
@@ -58,7 +58,7 @@ public sealed class BackfillSubmissionsHandlerTests
     [Fact]
     public async Task Handle_WhenFormExists_DelegatesToBackfillProcessor()
     {
-        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Test form"));
+        var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Test form"));
         form.Id = FormId;
         SubmissionBackfillResult backfillResult = new(
             FormId,
@@ -70,12 +70,12 @@ public sealed class BackfillSubmissionsHandlerTests
             NextAfterSubmissionId: null,
             FailedSubmissionIds: []);
 
-        IRepository<Form> formsRepository = Substitute.For<IRepository<Form>>();
+        var formsRepository = Substitute.For<IRepository<Form>>();
         formsRepository
             .SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(form);
 
-        ISubmissionBackfillProcessor backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
+        var backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
         backfillProcessor
             .BackfillFormAsync(
                 TenantId,
@@ -86,11 +86,39 @@ public sealed class BackfillSubmissionsHandlerTests
 
         BackfillSubmissionsHandler handler = new(formsRepository, backfillProcessor);
 
-        Result<SubmissionBackfillResult> result = await handler.Handle(
+        var result = await handler.Handle(
             new BackfillSubmissionsCommand(FormId, TenantId, BatchSize: 50, Force: true),
             TestContext.Current.CancellationToken);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(backfillResult);
+    }
+
+    [Theory]
+    [InlineData(SubmissionBackfillCompletion.Completed)]
+    [InlineData(SubmissionBackfillCompletion.Incomplete)]
+    public async Task Handle_PassesCompletionScopeToBackfillProcessor(SubmissionBackfillCompletion completion)
+    {
+        // Arrange
+        var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Test form"));
+        form.Id = FormId;
+        var formsRepository = Substitute.For<IRepository<Form>>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(form);
+        var backfillProcessor = Substitute.For<ISubmissionBackfillProcessor>();
+        BackfillSubmissionsHandler handler = new(formsRepository, backfillProcessor);
+
+        // Act
+        await handler.Handle(
+            new BackfillSubmissionsCommand(FormId, TenantId, Completion: completion),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        await backfillProcessor.Received(1).BackfillFormAsync(
+            TenantId,
+            FormId,
+            Arg.Is<SubmissionBackfillOptions>(options => options.Completion == completion),
+            Arg.Any<CancellationToken>());
     }
 }

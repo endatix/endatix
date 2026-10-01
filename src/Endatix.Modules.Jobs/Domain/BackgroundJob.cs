@@ -16,16 +16,20 @@ namespace Endatix.Modules.Jobs.Domain;
 /// Implements <see cref="ITenantOwned"/> deliberately, unlike <see cref="OutboxMessage"/>. Every job
 /// row belongs to a real tenant, so the global filter gives tenant-scoped reads for free on the
 /// request path — and because the ambient tenant resolves to 0 outside a request, the filter is
-/// permissive there, which is exactly what lets the sweeper scan every tenant's eligible jobs with no
-/// special casing. Do <b>not</b> "fix" this by giving background services a tenant scope: it would
-/// blind the sweeper.
+/// permissive there, which is what lets the job wrapper read any tenant's row by id with no special
+/// casing. Do <b>not</b> "fix" this by giving background services a tenant scope: the wrapper would
+/// no longer find the jobs it is asked to run.
 /// </para>
 /// <para>
 /// The transition methods below are the readable, guarded expression of the state machine and are
-/// what the tests exercise. The runner's hot paths — claim, heartbeat, progress — deliberately bypass
-/// them with <c>ExecuteUpdateAsync</c>, because a tracked entity write would race the heartbeat and
-/// drag <see cref="BaseEntity.ModifiedAt"/> along with it. Both paths must agree on the rules, which
-/// is why the rules live here.
+/// what the tests exercise. The job wrapper's writes — claim, outcome, progress — deliberately bypass
+/// them with <c>ExecuteUpdateAsync</c>, because a tracked entity write could not be fenced on the
+/// claimed attempt and would drag <see cref="BaseEntity.ModifiedAt"/> along with it. Both paths must
+/// agree on the rules, which is why the rules live here.
+/// </para>
+/// <para>
+/// The row is the job's record, not its schedule: the scheduler decides when a job runs, and this row
+/// says what state it is in.
 /// </para>
 /// </remarks>
 public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
@@ -62,6 +66,38 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         Status = JobStatus.Pending;
         AttemptCount = 0;
     }
+
+    /// <summary>
+    /// Creates the job <paramref name="request"/> asks for, eligible to run at <paramref name="nextAttemptAt"/>,
+    /// under the dedup key the request carries.
+    /// </summary>
+    public static BackgroundJob FromRequest(BackgroundJobRequest request, DateTime nextAttemptAt, string? traceId)
+    {
+        Guard.Against.Null(request);
+        if (DedupKeyError(request.DedupKey) is { } error)
+        {
+            throw new ArgumentException(error, nameof(request));
+        }
+
+        return new BackgroundJob(
+            request.JobType,
+            request.PayloadJson,
+            request.TenantId,
+            nextAttemptAt,
+            request.CreatedByUserId,
+            request.ExpiresAt,
+            traceId)
+        {
+            DedupKey = string.IsNullOrWhiteSpace(request.DedupKey) ? null : request.DedupKey,
+        };
+    }
+
+    // Refused here, naming the limit, rather than by the database as a truncation error that fails every other job
+    // in the same batch without saying which key was too long.
+    private static string? DedupKeyError(string? dedupKey) =>
+        dedupKey is { Length: > DedupKeyMaxLength }
+            ? $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}."
+            : null;
 
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>
     public string JobType { get; private set; } = null!;
@@ -101,17 +137,10 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     public DateTime? CompletedAt { get; private set; }
 
     /// <summary>
-    /// When the row and any artifact it produced become collectable by the retention sweeper. Past
+    /// When the row and any artifact it produced become collectable by the retention job. Past
     /// this point a download returns <c>410</c>.
     /// </summary>
     public DateTime? ExpiresAt { get; private set; }
-
-    /// <summary>
-    /// Liveness signal, bumped by the <em>runner</em> on a timer for as long as the handler runs — not
-    /// by handler progress. Deliberately separate from <see cref="BaseEntity.ModifiedAt"/>, which the
-    /// DbContext stamps on every tracked write and so cannot mean "the worker is still alive".
-    /// </summary>
-    public DateTime? HeartbeatAt { get; private set; }
 
     /// <summary>
     /// Attempts <em>started</em>, incremented once per <see cref="Claim"/>. Counting at claim rather
@@ -122,8 +151,9 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     public int AttemptCount { get; private set; }
 
     /// <summary>
-    /// Earliest time this job may run. Set to now at enqueue, and to now + backoff on a retryable
-    /// failure. With <see cref="Status"/> it forms the whole eligibility predicate.
+    /// When the next attempt is due, mirrored from the scheduler so the status endpoint can show it. Set
+    /// to now at enqueue and to the retry time after a retryable failure. Nothing polls this column: the
+    /// scheduler decides when the job actually runs.
     /// </summary>
     public DateTime NextAttemptAt { get; private set; }
 
@@ -133,48 +163,35 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// </summary>
     public string? TraceId { get; private set; }
 
+    /// <summary>
+    /// The caller's identity for the unit of work, unique within a tenant and job type, or <c>null</c> when
+    /// the caller does not deduplicate. A second enqueue of the same key returns this job instead of creating
+    /// another.
+    /// </summary>
+    public string? DedupKey { get; private set; }
+
+    /// <summary>The longest dedup key a job row holds: an outbox message id and a subscriber key fit well inside.</summary>
+    public const int DedupKeyMaxLength = 200;
+
     /// <summary>Whether this job has reached a state it can never leave.</summary>
     public bool IsTerminal => Status is JobStatus.Completed
         or JobStatus.Failed
         or JobStatus.DeadLettered
         or JobStatus.Canceled;
 
-    /// <summary>Whether this job is eligible to be claimed at <paramref name="utcNow"/>.</summary>
-    public bool IsEligible(DateTime utcNow) =>
-        Status is JobStatus.Pending or JobStatus.Retrying && NextAttemptAt <= utcNow;
-
     /// <summary>
-    /// Takes ownership of the job for execution and consumes an attempt. Refuses a job whose backoff
-    /// has not yet elapsed.
+    /// Takes ownership of the job for execution and consumes an attempt.
     /// </summary>
     public void Claim(DateTime utcNow)
     {
         EnsureStatus(nameof(Claim), JobStatus.Pending, JobStatus.Retrying);
 
-        // The eligibility predicate has to hold here as well as in the compare-and-swap that claims
-        // the row in the database. If only the SQL enforced it, an in-memory caller could start a
-        // retry early and the two paths would disagree about when a job may run.
-        if (NextAttemptAt > utcNow)
-        {
-            throw new InvalidOperationException(
-                $"Cannot claim a background job before its next attempt is due ({NextAttemptAt:O}).");
-        }
-
         Status = JobStatus.Processing;
         AttemptCount++;
         StartedAt ??= utcNow;
-        HeartbeatAt = utcNow;
     }
 
-    /// <summary>Proves the executing process is still alive.</summary>
-    public void Heartbeat(DateTime utcNow)
-    {
-        EnsureStatus(nameof(Heartbeat), JobStatus.Processing);
-
-        HeartbeatAt = utcNow;
-    }
-
-    /// <summary>Records user-facing progress. Not a liveness signal — see <see cref="Heartbeat"/>.</summary>
+    /// <summary>Records user-facing progress. Not a liveness signal: the scheduler detects dead nodes.</summary>
     public void ReportProgress(int progressPercentage, string? statusMessage = null)
     {
         EnsureStatus(nameof(ReportProgress), JobStatus.Processing);
@@ -222,7 +239,6 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         Status = JobStatus.Retrying;
         NextAttemptAt = nextAttemptAt;
         ErrorMessage = errorMessage;
-        HeartbeatAt = null;
     }
 
     /// <summary>
@@ -241,15 +257,17 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// <summary>
     /// Cancels the job. From <see cref="JobStatus.Pending"/> or <see cref="JobStatus.Retrying"/> this
     /// is the whole operation, because a claim will refuse it. From
-    /// <see cref="JobStatus.Processing"/> the runner observes the status on its next heartbeat and
-    /// trips the handler's cancellation token.
+    /// <see cref="JobStatus.Processing"/> the job wrapper's cancellation watcher observes the status and
+    /// trips the handler's cancellation token. Like every terminal write, it gives a row with no expiry one of
+    /// <paramref name="retention"/> from now, so the retention job collects cancelled rows too.
     /// </summary>
-    public void Cancel(DateTime utcNow)
+    public void Cancel(DateTime utcNow, TimeSpan retention)
     {
         EnsureStatus(nameof(Cancel), JobStatus.Pending, JobStatus.Retrying, JobStatus.Processing);
 
         Status = JobStatus.Canceled;
         CompletedAt = utcNow;
+        ExpiresAt ??= utcNow + retention;
     }
 
     /// <summary>Sets the retention deadline for this job and any artifact it produced.</summary>
@@ -260,7 +278,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
 
     // Terminal statuses are immutable, and the non-terminal ones each admit only specific successors.
     // Guarding here means an out-of-order call is a loud failure in a test rather than a silently
-    // corrupt row that the sweeper later reasons about incorrectly.
+    // corrupt row that a later write reasons about incorrectly.
     private void EnsureStatus(string operation, params JobStatus[] allowed)
     {
         if (!allowed.Contains(Status))

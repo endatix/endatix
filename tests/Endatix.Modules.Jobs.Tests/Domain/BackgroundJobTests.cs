@@ -13,6 +13,8 @@ public class BackgroundJobTests
 {
     private static readonly DateTime Now = new(2026, 8, 14, 12, 0, 0, DateTimeKind.Utc);
 
+    private static readonly TimeSpan Retention = TimeSpan.FromDays(3);
+
     private static BackgroundJob NewJob() =>
         new("SubmissionExport", """{"formId":"1"}""", tenantId: 7, nextAttemptAt: Now);
 
@@ -62,6 +64,33 @@ public class BackgroundJobTests
     }
 
     [Fact]
+    public void FromRequest_DedupKeyLongerThanColumn_Throws()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest(
+            "SubmissionExport", "{}", TenantId: 5, DedupKey: new string('k', BackgroundJob.DedupKeyMaxLength + 1));
+
+        // Act
+        var act = () => BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        act.Should().Throw<ArgumentException>().WithParameterName("request");
+    }
+
+    [Fact]
+    public void FromRequest_BlankDedupKey_StoresNoKey()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: "  ");
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.DedupKey.Should().BeNull();
+    }
+
+    [Fact]
     public void Constructor_TenantIdZero_Throws()
     {
         // Arrange
@@ -74,34 +103,7 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void IsEligible_PendingAndDue_ReturnsTrue()
-    {
-        // Arrange
-        var job = NewJob();
-
-        // Act
-        var eligible = job.IsEligible(Now);
-
-        // Assert
-        eligible.Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsEligible_BackoffNotElapsed_ReturnsFalse()
-    {
-        // Arrange
-        var job = ClaimedJob();
-        job.Reschedule(Now.AddMinutes(5));
-
-        // Act
-        var eligible = job.IsEligible(Now);
-
-        // Assert
-        eligible.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Claim_PendingJob_ConsumesAnAttemptAndStartsHeartbeat()
+    public void Claim_PendingJob_ConsumesAnAttempt()
     {
         // Arrange
         var job = NewJob();
@@ -113,7 +115,6 @@ public class BackgroundJobTests
         job.Status.Should().Be(JobStatus.Processing);
         job.AttemptCount.Should().Be(1);
         job.StartedAt.Should().Be(Now);
-        job.HeartbeatAt.Should().Be(Now);
     }
 
     [Fact]
@@ -133,20 +134,18 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void Claim_BeforeBackoffElapsed_Throws()
+    public void Claim_RetryingBeforeItsNextAttempt_Succeeds()
     {
-        // Arrange — a job waiting out a retry backoff.
+        // Arrange — the scheduler fires a retry when it is due, so the entity does not second-guess the time.
         var job = ClaimedJob();
         job.Reschedule(Now.AddMinutes(5));
 
         // Act
-        var act = () => job.Claim(Now);
+        job.Claim(Now);
 
-        // Assert — the entity must refuse for the same reason the claim query would not match it,
-        // so an early retry cannot be started in memory and consume an attempt.
-        act.Should().Throw<InvalidOperationException>();
-        job.Status.Should().Be(JobStatus.Retrying);
-        job.AttemptCount.Should().Be(1);
+        // Assert
+        job.Status.Should().Be(JobStatus.Processing);
+        job.AttemptCount.Should().Be(2);
     }
 
     [Fact]
@@ -266,20 +265,6 @@ public class BackgroundJobTests
     }
 
     [Fact]
-    public void Reschedule_ProcessingJob_ClearsHeartbeat()
-    {
-        // Arrange
-        var job = ClaimedJob();
-
-        // Act
-        job.Reschedule(Now.AddSeconds(30));
-
-        // Assert — a waiting job has no live worker, so a stale heartbeat must not linger and make
-        // the stale-reaper treat it as an abandoned in-flight job.
-        job.HeartbeatAt.Should().BeNull();
-    }
-
-    [Fact]
     public void DeadLetter_ProcessingJob_IsTerminalAndDistinctFromFailed()
     {
         // Arrange
@@ -313,11 +298,39 @@ public class BackgroundJobTests
         }
 
         // Act
-        job.Cancel(Now);
+        job.Cancel(Now, Retention);
 
         // Assert
         job.Status.Should().Be(JobStatus.Canceled);
         job.IsTerminal.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Cancel_WithoutExpiry_ExpiresAfterRetention()
+    {
+        // Arrange
+        var job = new BackgroundJob("SubmissionExport", "{}", tenantId: 5, nextAttemptAt: Now);
+
+        // Act
+        job.Cancel(Now, Retention);
+
+        // Assert — the retention job collects only rows with an expiry.
+        job.CompletedAt.Should().Be(Now);
+        job.ExpiresAt.Should().Be(Now + Retention);
+    }
+
+    [Fact]
+    public void Cancel_WithCallerExpiry_KeepsIt()
+    {
+        // Arrange
+        var expiresAt = Now.AddDays(30);
+        var job = new BackgroundJob("SubmissionExport", "{}", tenantId: 5, nextAttemptAt: Now, expiresAt: expiresAt);
+
+        // Act
+        job.Cancel(Now, Retention);
+
+        // Assert
+        job.ExpiresAt.Should().Be(expiresAt);
     }
 
     [Fact]
@@ -328,7 +341,7 @@ public class BackgroundJobTests
         job.Complete(Now);
 
         // Act
-        var act = () => job.Cancel(Now);
+        var act = () => job.Cancel(Now, Retention);
 
         // Assert — terminal states are immutable.
         act.Should().Throw<InvalidOperationException>();
@@ -339,15 +352,14 @@ public class BackgroundJobTests
     {
         // Arrange
         var job = ClaimedJob();
-        var heartbeatBefore = job.HeartbeatAt;
 
         // Act
         job.ReportProgress(45, "Processing 4,500 of 10,000 rows");
 
-        // Assert — progress is a user-facing courtesy, never the liveness signal.
+        // Assert — progress is a user-facing courtesy and leaves the job's state alone.
         job.ProgressPercentage.Should().Be(45);
         job.StatusMessage.Should().Be("Processing 4,500 of 10,000 rows");
-        job.HeartbeatAt.Should().Be(heartbeatBefore);
+        job.Status.Should().Be(JobStatus.Processing);
     }
 
     [Theory]
@@ -373,35 +385,6 @@ public class BackgroundJobTests
 
         // Act
         var act = () => job.ReportProgress(10);
-
-        // Assert
-        act.Should().Throw<InvalidOperationException>();
-    }
-
-    [Fact]
-    public void Heartbeat_ProcessingJob_AdvancesLivenessWithoutTouchingProgress()
-    {
-        // Arrange
-        var job = ClaimedJob();
-        job.ReportProgress(20);
-        var later = Now.AddSeconds(30);
-
-        // Act
-        job.Heartbeat(later);
-
-        // Assert — a handler that reports nothing for minutes must still read as alive.
-        job.HeartbeatAt.Should().Be(later);
-        job.ProgressPercentage.Should().Be(20);
-    }
-
-    [Fact]
-    public void Heartbeat_PendingJob_Throws()
-    {
-        // Arrange
-        var job = NewJob();
-
-        // Act
-        var act = () => job.Heartbeat(Now);
 
         // Assert
         act.Should().Throw<InvalidOperationException>();

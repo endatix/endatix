@@ -8,4 +8,5 @@ public sealed record BackfillSubmissionsCommand(
     long TenantId,
     int BatchSize = 100,
     long? AfterSubmissionId = null,
-    bool Force = false) : ICommand<Result<SubmissionBackfillResult>>;
+    bool Force = false,
+    SubmissionBackfillCompletion Completion = SubmissionBackfillCompletion.Completed) : ICommand<Result<SubmissionBackfillResult>>;

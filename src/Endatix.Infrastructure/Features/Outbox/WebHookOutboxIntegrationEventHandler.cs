@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Endatix.Core.Features.WebHooks;
-using Endatix.Infrastructure.Utils;
+using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
 
@@ -14,14 +14,7 @@ internal sealed class WebHookOutboxIntegrationEventHandler(
     ILogger<WebHookOutboxIntegrationEventHandler> logger) : IOutboxIntegrationEventHandler
 {
     private static readonly IReadOnlyDictionary<string, WebHookOperation> _operationsByEventType =
-        new[]
-        {
-            WebHookOperation.FormCreated,
-            WebHookOperation.FormUpdated,
-            WebHookOperation.FormEnabledStateChanged,
-            WebHookOperation.SubmissionCompleted,
-            WebHookOperation.FormDeleted,
-        }.ToDictionary(operation => StringUtils.ToDottedEventType(operation.EventName), StringComparer.Ordinal);
+        WebHookEvents.OperationsByEventType;
 
     private static readonly IReadOnlyCollection<string> _handledEventTypes =
         _operationsByEventType.Keys.ToArray();

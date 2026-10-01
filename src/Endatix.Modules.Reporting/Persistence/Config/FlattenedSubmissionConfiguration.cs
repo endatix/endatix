@@ -22,6 +22,8 @@ internal sealed class FlattenedSubmissionConfiguration : IEntityTypeConfiguratio
             .IsRequired(false);
         builder.Property(x => x.IsDeleted).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
+        builder.Property(x => x.SourceModifiedAt).IsRequired(false);
+        builder.Property(x => x.SourceRevision).IsRequired(false);
 
         builder.ComplexProperty(x => x.Integration, cp =>
         {

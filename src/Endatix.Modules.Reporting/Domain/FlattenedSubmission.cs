@@ -48,38 +48,25 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// </summary>
     public bool IsDeleted { get; private set; }
 
+    /// <summary>
+    /// The <see cref="Endatix.Core.Entities.Submission.Revision"/> the row was last written from, or <c>null</c>
+    /// before the first flatten recorded one. Writes from an older revision than this are refused, so flattens of
+    /// one submission that finish out of order cannot put older data over newer.
+    /// </summary>
+    public long? SourceRevision { get; }
+
     public DateTime CreatedAt { get; private set; }
 
     public DateTime? ModifiedAt { get; private set; }
 
-    public void MarkProcessing()
-    {
-        Integration.MarkProcessing();
-        ModifiedAt = DateTime.UtcNow;
-    }
-
-    public void MarkProcessed(string dataJson)
-    {
-        Guard.Against.NullOrEmpty(dataJson);
-
-        DataJson = dataJson;
-        Integration.MarkProcessed();
-        IsDeleted = false;
-        ModifiedAt = DateTime.UtcNow;
-    }
-
-    public void MarkFailed(string? error)
-    {
-        Integration.MarkFailed(error);
-        ModifiedAt = DateTime.UtcNow;
-    }
-
-    public void MarkSkipped()
-    {
-        DataJson = null;
-        Integration.MarkSkipped();
-        ModifiedAt = DateTime.UtcNow;
-    }
+    /// <summary>
+    /// The source submission's own <c>ModifiedAt ?? CreatedAt</c> for the version in <see cref="DataJson"/>.
+    /// Backfill compares it with the submission's current stamp to tell whether the row is stale:
+    /// both values come from the same writer, unlike <see cref="ModifiedAt"/>, which the reporting
+    /// worker sets after it has read the submission. Null until processed, and for rows processed
+    /// before this was stored — those are reprocessed on the next backfill.
+    /// </summary>
+    public DateTime? SourceModifiedAt { get; private set; }
 
     public void MarkDeleted()
     {

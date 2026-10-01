@@ -106,7 +106,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 column: "ShortUrl",
                 unique: true);
 
-            var script = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_tenant_signup_email_templates.sql");
+            var script = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_tenant_signup_email_templates.sql", GetType().Assembly);
             migrationBuilder.Sql(script);
         }
 

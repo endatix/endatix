@@ -106,6 +106,37 @@ public class ReCaptchaHttpClientTests
     }
 
     [Fact]
+    public async Task ReturnsSuccess_WhenGoogleRejectsWithoutAction()
+    {
+        // Arrange — Google often omits action, hostname, score, and challenge_ts on success:false
+        var json = """{"success":false,"error-codes":["invalid-input-response","timeout-or-duplicate"]}""";
+        var client = CreateClient(new StatusCodeHandler(HttpStatusCode.OK, json));
+
+        // Act
+        var result = await client.GetTokenValidationResponseAsync("token", "secret", CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.Success);
+        Assert.Null(result.Value.Action);
+        Assert.Contains("invalid-input-response", result.Value.ErrorCodes!);
+    }
+
+    [Fact]
+    public async Task ReturnsError_WhenGoogleReturnsTooManyRequests()
+    {
+        // Arrange
+        var client = CreateClient(new StatusCodeHandler(HttpStatusCode.TooManyRequests, """{"error":"quota"}"""));
+
+        // Act
+        var result = await client.GetTokenValidationResponseAsync("token", "secret", CancellationToken.None);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains("rejected the request", result.Errors.FirstOrDefault());
+    }
+
+    [Fact]
     public async Task ReturnsSuccess_WhenValid()
     {
         // Arrange

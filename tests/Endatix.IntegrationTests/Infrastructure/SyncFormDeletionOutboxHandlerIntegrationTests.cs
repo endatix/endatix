@@ -39,16 +39,16 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
     public async Task HandleAsync_DeletesFormSchemaAndFlattenedRowsForFormOnly()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using var dbContext = CreateContext(TenantId);
         ReportingUnitOfWork unitOfWork = new(dbContext);
         FormSchemaRepository schemaRepository = new(dbContext, unitOfWork);
         FlattenedSubmissionRepository flattenedRepository = new(dbContext, unitOfWork);
 
         FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(
+        var compiled = compiler.CompilePersisted(
             """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1"}]}]}""");
 
         FormSchema targetSchema = new(
@@ -68,13 +68,9 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         await schemaRepository.SaveAsync(targetSchema, cancellationToken);
         await schemaRepository.SaveAsync(otherSchema, cancellationToken);
 
-        FlattenedSubmission targetRow = new(submissionId: 5001, TenantId, FormId);
-        targetRow.MarkProcessed("""{"q1":"a"}""");
-        FlattenedSubmission otherRow = new(submissionId: 5002, TenantId, OtherFormId);
-        otherRow.MarkProcessed("""{"q1":"b"}""");
-        dbContext.FlattenedSubmissions.Add(targetRow);
-        dbContext.FlattenedSubmissions.Add(otherRow);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        FlattenedRowSeed rows = new(dbContext);
+        await rows.ProcessedAsync(new(TenantId, FormId, SubmissionId: 5001), """{"q1":"a"}""", cancellationToken);
+        await rows.ProcessedAsync(new(TenantId, OtherFormId, SubmissionId: 5002), """{"q1":"b"}""", cancellationToken);
 
         SyncFormDeletionOutboxHandler handler = new(
             schemaRepository,
@@ -108,10 +104,10 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
     [Fact]
     public async Task HandleAsync_WhenNoReportingRows_SucceedsAsNoOp()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using var dbContext = CreateContext(TenantId);
         ReportingUnitOfWork unitOfWork = new(dbContext);
         SyncFormDeletionOutboxHandler handler = new(
             new FormSchemaRepository(dbContext, unitOfWork),
@@ -134,7 +130,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
+        var optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
         return new ReportingDbContext(optionsBuilder.Options, tenantContext);
@@ -142,10 +138,10 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
 
     private static IOutboxMessage CreateMessage()
     {
-        Form form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "to-delete"));
+        var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "to-delete"));
         form.Id = FormId;
-        object payloadObject = new FormDeletedEvent(form).GetPayload();
-        string payload = JsonSerializer.Serialize(
+        var payloadObject = new FormDeletedEvent(form).GetPayload();
+        var payload = JsonSerializer.Serialize(
             payloadObject,
             payloadObject.GetType(),
             new JsonSerializerOptions(JsonSerializerDefaults.Web));

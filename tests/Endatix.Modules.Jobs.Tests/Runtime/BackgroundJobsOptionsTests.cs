@@ -1,6 +1,7 @@
-using System.Globalization;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.Configuration;
+using Endatix.Framework.Modules;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
@@ -10,21 +11,34 @@ public class BackgroundJobsOptionsTests
     public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidValues => new()
     {
         {
-            "concurrency below 1",
-            new() { ["MaxConcurrency"] = "0" },
-            ["MaxConcurrency"]
+            "job type concurrency below 0",
+            new() { ["JobTypes:X:MaxConcurrency"] = "-1" },
+            ["JobTypes:X:MaxConcurrency"]
         },
         {
-            "concurrency above its upper bound",
-            new() { ["MaxConcurrency"] = "1001" },
-            ["MaxConcurrency"]
+            "job type concurrency above its upper bound",
+            new() { ["JobTypes:X:MaxConcurrency"] = "1001" },
+            ["JobTypes:X:MaxConcurrency"]
         },
         {
-            // Three five-minute heartbeats overrun a ten-minute stuck threshold. Either value can be the one to
-            // fix, so the message has to name both.
-            "stuck threshold shorter than three heartbeats",
-            new() { ["HeartbeatIntervalSeconds"] = "300", ["StuckJobThresholdMinutes"] = "10" },
-            ["HeartbeatIntervalSeconds", "StuckJobThresholdMinutes"]
+            "idle wait below 1",
+            new() { ["IdleWaitTimeSeconds"] = "0" },
+            ["IdleWaitTimeSeconds"]
+        },
+        {
+            "cancellation poll below 1",
+            new() { ["CancellationPollSeconds"] = "0" },
+            ["CancellationPollSeconds"]
+        },
+        {
+            "check-in interval not positive",
+            new() { ["Clustering:CheckinIntervalSeconds"] = "0" },
+            ["Clustering:CheckinIntervalSeconds"]
+        },
+        {
+            "retention below 1 day",
+            new() { ["JobTypes:X:RetentionDays"] = "0" },
+            ["JobTypes:X:RetentionDays"]
         },
         {
             "backoff cap below base",
@@ -50,6 +64,20 @@ public class BackgroundJobsOptionsTests
         },
     };
 
+    public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidRetentionValues => new()
+    {
+        {
+            "retention cron not a cron expression",
+            new() { ["Retention:Cron"] = "every quarter hour" },
+            ["Retention:Cron"]
+        },
+        {
+            "retention batch size below 1",
+            new() { ["Retention:BatchSize"] = "0" },
+            ["Retention:BatchSize"]
+        },
+    };
+
     [Fact]
     public void Bind_EmptyConfiguration_UsesDocumentedDefaults()
     {
@@ -61,11 +89,17 @@ public class BackgroundJobsOptionsTests
 
         // Assert
         options.RunInProcess.Should().BeTrue();
-        options.MaxConcurrency.Should().Be(4);
-        options.SweepIntervalSeconds.Should().Be(10);
-        options.SweepBatchSize.Should().Be(200);
-        options.StuckJobThresholdMinutes.Should().Be(10);
-        options.HeartbeatIntervalSeconds.Should().Be(30);
+        options.IdleWaitTimeSeconds.Should().Be(2);
+        options.CancellationPollSeconds.Should().Be(10);
+        options.Clustering.CheckinIntervalSeconds.Should().Be(7.5);
+        options.Clustering.CheckinMisfireThresholdSeconds.Should().Be(7.5);
+        options.Clustering.InstanceId.Should().BeNull();
+        options.RetentionDays.Should().Be(7);
+        options.Retention.Cron.Should().Be("0 0/15 * * * ?");
+        options.Retention.BatchSize.Should().Be(1000);
+        options.Retention.MaxBatchesPerRun.Should().Be(50);
+        options.MisfireThresholdSeconds.Should().Be(60);
+        options.ShutdownWaitSeconds.Should().Be(30);
         options.MaxRuntimeMinutes.Should().Be(60);
         options.MaxAttempts.Should().Be(3);
         options.BackoffBaseSeconds.Should().Be(30);
@@ -157,6 +191,7 @@ public class BackgroundJobsOptionsTests
 
     [Theory]
     [MemberData(nameof(InvalidValues))]
+    [MemberData(nameof(InvalidRetentionValues))]
     public void Validate_InvalidValue_FailsNamingKey(
         string caseId,
         Dictionary<string, string?> section,
@@ -188,49 +223,86 @@ public class BackgroundJobsOptionsTests
         result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
     }
 
-    [Fact]
-    public void Bind_BacklogWarningMinutes_DefaultsTo15AndIgnoresPerTypeKey()
+    [Theory]
+    [InlineData("SweepIntervalSeconds")]
+    [InlineData("MaxConcurrency")]
+    [InlineData("HeartbeatIntervalSeconds")]
+    [InlineData("BacklogWarningMinutes")]
+    public void Bind_RemovedKey_BindsToNothingAndStartupSucceeds(string removedKey)
     {
-        // Arrange — the backlog threshold describes the sweeper rather than a kind of job, so a per-type key for it
-        // is not an override. With no global key alongside it, nothing may bind over the default.
-        var emptySection = new Dictionary<string, string?>();
-        var perTypeKeyOnly = new Dictionary<string, string?> { ["JobTypes:X:BacklogWarningMinutes"] = "5" };
-        var validator = new BackgroundJobsOptionsValidator();
+        // Arrange — keys the scheduler made obsolete may linger in deployed configuration and must stay harmless.
+        using var provider = ModuleProvider(new() { [removedKey] = "4" });
 
         // Act
-        var fromEmptySection = Bind(emptySection);
-        var fromPerTypeKey = Bind(perTypeKeyOnly);
-        var result = validator.Validate(Options.DefaultName, fromPerTypeKey);
+        var validate = () => provider.GetRequiredService<IStartupValidator>().Validate();
 
         // Assert
-        fromEmptySection.BacklogWarningMinutes.Should().Be(15);
-        result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
-        fromPerTypeKey.BacklogWarningMinutes.Should().Be(15);
+        validate.Should().NotThrow();
+        typeof(BackgroundJobsOptions).GetProperty(removedKey).Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(0, false)]
-    [InlineData(-5, false)]
-    [InlineData(1, true)]
-    public void Validate_BacklogWarningMinutes_RequiresPositiveInteger(int minutes, bool expectedValid)
+    [Fact]
+    public void Validate_NegativeJobTypeMaxConcurrency_FailsStartupNamingMaxConcurrency()
     {
         // Arrange
-        var options = Bind(new() { ["BacklogWarningMinutes"] = minutes.ToString(CultureInfo.InvariantCulture) });
+        using var provider = ModuleProvider(new() { ["JobTypes:X:MaxConcurrency"] = "-1" });
+
+        // Act
+        var thrown = Record.Exception(() => provider.GetRequiredService<IStartupValidator>().Validate());
+
+        // Assert — the scheduler's pool size reads the same options, so startup can report the failure more than
+        // once; every report is the same validation failure.
+        thrown.Should().NotBeNull();
+        var failures = thrown is AggregateException aggregate ? aggregate.Flatten().InnerExceptions : [thrown];
+        failures.Should().NotBeEmpty().And.AllBeOfType<OptionsValidationException>();
+        failures.Should().OnlyContain(failure => failure.Message.Contains("MaxConcurrency"));
+    }
+
+    [Fact]
+    public void ResolvePolicy_NoMaxConcurrencyOverride_DefaultsToOne()
+    {
+        // Arrange
+        var options = Bind(new() { ["JobTypes:WebHookDelivery:MaxConcurrency"] = "4" });
+
+        // Act
+        var overridden = options.ResolvePolicy("WebHookDelivery");
+        var unset = options.ResolvePolicy("SubmissionExport");
+
+        // Assert
+        overridden.MaxConcurrency.Should().Be(4);
+        unset.MaxConcurrency.Should().Be(1);
+    }
+
+    [Fact]
+    public void Validate_ZeroJobTypeMaxConcurrency_Succeeds()
+    {
+        // Arrange — zero keeps a node from running a job type it still enqueues.
+        var options = Bind(new() { ["JobTypes:X:MaxConcurrency"] = "0" });
         var validator = new BackgroundJobsOptionsValidator();
 
         // Act
         var result = validator.Validate(Options.DefaultName, options);
 
         // Assert
-        if (expectedValid)
-        {
-            result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
-        }
-        else
-        {
-            result.Failed.Should().BeTrue();
-            result.FailureMessage.Should().Contain(FullKey("BacklogWarningMinutes"));
-        }
+        result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
+    }
+
+    // The module's own registration, as a host runs it, so the test sees what startup validation sees.
+    private static ServiceProvider ModuleProvider(Dictionary<string, string?> section)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(section.Select(entry => KeyValuePair.Create(FullKey(entry.Key), entry.Value)))
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] =
+                    "Host=localhost;Database=endatix;Username=endatix;Password=endatix",
+                ["ConnectionStrings:DefaultConnection_DbProvider"] = "postgresql",
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        JobsModule.Instance.ConfigureServices(new EndatixModuleBuilder(services, configuration));
+        return services.BuildServiceProvider();
     }
 
     /// <summary>

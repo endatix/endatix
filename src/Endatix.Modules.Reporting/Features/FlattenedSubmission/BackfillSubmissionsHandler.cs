@@ -28,7 +28,8 @@ public sealed class BackfillSubmissionsHandler(
         SubmissionBackfillOptions options = new(
             BatchSize: request.BatchSize,
             AfterSubmissionId: request.AfterSubmissionId,
-            Force: request.Force);
+            Force: request.Force,
+            Completion: request.Completion);
 
         var result = await backfillProcessor.BackfillFormAsync(
             request.TenantId,

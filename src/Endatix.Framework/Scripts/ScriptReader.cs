@@ -13,16 +13,15 @@ public static class ScriptReader
     /// Reads a SQL script from embedded resources.
     /// </summary>
     /// <param name="scriptPath">The path to the SQL script relative to the Scripts folder (e.g., "Functions/export_form_submissions.sql")</param>
-    /// <param name="assembly">The assembly containing the embedded resource. If null, uses the calling assembly.</param>
+    /// <param name="assembly">The assembly containing the embedded resource.</param>
     /// <returns>The SQL script content</returns>
     /// <exception cref="FileNotFoundException">Thrown when the script file is not found</exception>
     /// <exception cref="InvalidOperationException">Thrown when the script content is invalid</exception>
-    public static string ReadSqlScript(string scriptPath, Assembly? assembly = null)
+    public static string ReadSqlScript(string scriptPath, Assembly assembly)
     {
         Guard.Against.NullOrWhiteSpace(scriptPath, nameof(scriptPath));
-        
-        assembly ??= Assembly.GetCallingAssembly();
-        
+        Guard.Against.Null(assembly);
+
         // Normalize the path to use dots instead of slashes for resource names
         var resourceName = $"{assembly.GetName().Name}.Scripts.{scriptPath.Replace('/', '.').Replace('\\', '.')}";
         
@@ -57,12 +56,12 @@ public static class ScriptReader
     /// <summary>
     /// Gets all available SQL script resource names from the specified assembly.
     /// </summary>
-    /// <param name="assembly">The assembly to search. If null, uses the calling assembly.</param>
+    /// <param name="assembly">The assembly to search.</param>
     /// <returns>Collection of SQL script resource names</returns>
-    public static IEnumerable<string> GetAvailableScripts(Assembly? assembly = null)
+    public static IEnumerable<string> GetAvailableScripts(Assembly assembly)
     {
-        assembly ??= Assembly.GetCallingAssembly();
-        
+        Guard.Against.Null(assembly);
+
         return assembly.GetManifestResourceNames()
             .Where(name => name.Contains(".Scripts.") && name.EndsWith(".sql"))
             .Select(name => name.Replace($"{assembly.GetName().Name}.Scripts.", "").Replace('.', '/'))

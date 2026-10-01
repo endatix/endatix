@@ -33,10 +33,10 @@ public sealed class BackfillTests
         _mediator.Send(Arg.Any<BackfillSubmissionsCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
-        Results<Ok<BackfillSubmissionsResponse>, ProblemHttpResult> response =
+        var response =
             await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
-        ProblemHttpResult? problem = response.Result as ProblemHttpResult;
+        var problem = response.Result as ProblemHttpResult;
         problem.Should().NotBeNull();
         problem!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
@@ -66,10 +66,10 @@ public sealed class BackfillTests
         _mediator.Send(Arg.Any<BackfillSubmissionsCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(backfillResult));
 
-        Results<Ok<BackfillSubmissionsResponse>, ProblemHttpResult> response =
+        var response =
             await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
-        Ok<BackfillSubmissionsResponse>? ok = response.Result as Ok<BackfillSubmissionsResponse>;
+        var ok = response.Result as Ok<BackfillSubmissionsResponse>;
         ok.Should().NotBeNull();
         ok!.Value!.FormId.Should().Be(formId);
         ok.Value.Processed.Should().Be(20);
@@ -85,4 +85,47 @@ public sealed class BackfillTests
                 command.Force),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCompletionScopeOmitted_SendsCompleted()
+    {
+        // Arrange
+        BackfillSubmissionsRequest request = new() { FormId = 100 };
+        _mediator.Send(Arg.Any<BackfillSubmissionsCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(EmptyBatch(100)));
+
+        // Act
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<BackfillSubmissionsCommand>(command =>
+                command.Completion == SubmissionBackfillCompletion.Completed),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithIncompleteScope_SendsIncomplete()
+    {
+        // Arrange
+        BackfillSubmissionsRequest request = new()
+        {
+            FormId = 100,
+            CompletionScope = SubmissionBackfillCompletion.Incomplete,
+        };
+        _mediator.Send(Arg.Any<BackfillSubmissionsCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(EmptyBatch(100)));
+
+        // Act
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<BackfillSubmissionsCommand>(command =>
+                command.Completion == SubmissionBackfillCompletion.Incomplete),
+            Arg.Any<CancellationToken>());
+    }
+
+    private static SubmissionBackfillResult EmptyBatch(long formId) =>
+        new(formId, Scanned: 0, Processed: 0, Skipped: 0, Failed: 0, HasMore: false, NextAfterSubmissionId: null, FailedSubmissionIds: []);
 }

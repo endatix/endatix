@@ -73,6 +73,38 @@ public sealed class BackgroundJobHandlerTests
         logCall[3].Should().BeAssignableTo<System.Text.Json.JsonException>();
     }
 
+    [Fact]
+    public async Task ExecuteAsync_PayloadTypeReaderCannotBind_ReturnsFailureWithoutCallingHandler()
+    {
+        // Arrange — the input is exactly what enqueueing wrote, yet the type can never be read back.
+        var handler = new UnbindableHandler(NullLogger.Instance);
+        var payloadJson = BackgroundJobPayloadSerializer.Serialize(new UnbindablePayload(7));
+        var job = new BackgroundJobContext(1, UnbindablePayload.JobType, 5, payloadJson, 1);
+
+        // Act
+        var result = await handler.ExecuteAsync(job, CancellationToken.None);
+
+        // Assert — a failure, which the job records on its first attempt, rather than a throw that would retry.
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be("The job's input could not be read (Unbindable).");
+        handler.Calls.Should().Be(0);
+    }
+
+    private sealed class UnbindableHandler(ILogger logger) : BackgroundJobHandler<UnbindablePayload>(logger)
+    {
+        public int Calls { get; private set; }
+
+        protected override Task<Result> ExecuteAsync(
+            BackgroundJobContext job,
+            UnbindablePayload payload,
+            CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(Result.Success());
+        }
+    }
+
     private sealed class RecordingHandler(ILogger logger) : BackgroundJobHandler<TestPayload>(logger)
     {
         public List<TestPayload> Received { get; } = [];

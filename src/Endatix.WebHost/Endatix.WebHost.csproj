@@ -9,6 +9,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Third-party licences (Quartz.NET is Apache-2.0) ship with the app, including the image the release
+         builds with PublishContainer, which does not use the Dockerfile. The Dockerfile's build stage has only
+         src/, so it copies the file itself. -->
+    <None Include="../../THIRD-PARTY-NOTICES" Link="THIRD-PARTY-NOTICES" CopyToPublishDirectory="PreserveNewest"
+          Condition="Exists('../../THIRD-PARTY-NOTICES')" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

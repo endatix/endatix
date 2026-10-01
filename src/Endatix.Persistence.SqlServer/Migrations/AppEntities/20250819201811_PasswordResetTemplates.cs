@@ -11,10 +11,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            var addForgotEmailInsertScript = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_forgot_password_template.sql");
+            var addForgotEmailInsertScript = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_forgot_password_template.sql", GetType().Assembly);
             migrationBuilder.Sql(addForgotEmailInsertScript);
 
-            var addPasswordChangedEmailInsertScript = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_password_changed_template.sql");
+            var addPasswordChangedEmailInsertScript = migrationBuilder.ReadEmbeddedSqlScript("Data/insert_password_changed_template.sql", GetType().Assembly);
             migrationBuilder.Sql(addPasswordChangedEmailInsertScript);
         }
 

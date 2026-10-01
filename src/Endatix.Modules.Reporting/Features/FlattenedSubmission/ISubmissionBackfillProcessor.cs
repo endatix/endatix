@@ -18,7 +18,8 @@ public interface ISubmissionBackfillProcessor
 public sealed record SubmissionBackfillOptions(
     int BatchSize = 100,
     long? AfterSubmissionId = null,
-    bool Force = false);
+    bool Force = false,
+    SubmissionBackfillCompletion Completion = SubmissionBackfillCompletion.Completed);
 
 /// <summary>
 /// Result of a single backfill batch.

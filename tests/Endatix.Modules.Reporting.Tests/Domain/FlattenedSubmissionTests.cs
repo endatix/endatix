@@ -16,39 +16,17 @@ public class FlattenedSubmissionTests
     }
 
     [Fact]
-    public void MarkProcessed_SetsDataAndProcessedStatus()
+    public void ToIntegrationSnapshot_OnPendingRow_DelegatesToIntegration()
     {
+        // Arrange
         var row = new FlattenedSubmission(1, 10, 100);
 
-        row.MarkProcessed("{\"q1\":\"yes\"}");
-
-        row.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
-        row.DataJson.Should().Be("{\"q1\":\"yes\"}");
-        row.Integration.ProcessedAt.Should().NotBeNull();
-        row.Integration.LastError.Should().BeNull();
-    }
-
-    [Fact]
-    public void MarkFailed_StoresTruncatedError()
-    {
-        var row = new FlattenedSubmission(1, 10, 100);
-        var error = new string('x', 2500);
-
-        row.MarkFailed(error);
-
-        row.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Failed);
-        row.Integration.LastError.Should().HaveLength(SubmissionIntegrationState.MaxErrorLength);
-    }
-
-    [Fact]
-    public void ToIntegrationSnapshot_DelegatesToIntegration()
-    {
-        var row = new FlattenedSubmission(1, 10, 100);
-        row.MarkProcessed("{\"q1\":\"yes\"}");
-
+        // Act
         var snapshot = row.ToIntegrationSnapshot();
 
-        snapshot.Status.Should().Be(SubmissionIntegrationStatusCodes.Processed);
-        snapshot.ProcessedAt.Should().NotBeNull();
+        // Assert
+        snapshot.Status.Should().Be(SubmissionIntegrationStatusCodes.Pending);
+        snapshot.LastAttemptAt.Should().Be(row.Integration.LastAttemptAt);
+        snapshot.ProcessedAt.Should().BeNull();
     }
 }

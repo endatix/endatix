@@ -27,7 +27,8 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
     private const long FormId = 100;
     private const long FormDefinitionId = 200;
     private const long SubmissionId = 500;
-    private const string ProcessedDataJson = """{"firstName":"Ada"}""";
+    // In the form PostgreSQL returns a jsonb value, which is how the conditional write stores it.
+    private const string ProcessedDataJson = """{"firstName": "Ada"}""";
     private const string SimpleDefinitionJson = """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1","title":"Question 1"}]}]}""";
     private const string SimpleSubmissionJson = """{"q1":"hello"}""";
 
@@ -41,32 +42,29 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
     [Fact]
     public async Task BackfillFormAsync_WithProcessedRow_IsIdempotentSkip()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FlattenedSubmissionRepository flattenedSubmissionRepository = CreateRepository(dbContext);
-        FlattenedSubmission row = await flattenedSubmissionRepository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
+        await using var dbContext = CreateContext(TenantId);
+        var flattenedSubmissionRepository = CreateRepository(dbContext);
+        await new FlattenedRowSeed(dbContext).ProcessedAsync(
+            new FlattenedSubmissionKey(TenantId, FormId, SubmissionId),
+            ProcessedDataJson,
             cancellationToken);
-        row.MarkProcessed(ProcessedDataJson);
-        await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
 
-        IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
+        var submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
-            .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), cancellationToken)
-            .Returns([SubmissionId]);
+            .ListAsync(Arg.Any<SubmissionBackfillPageSpec>(), cancellationToken)
+            .Returns([new SubmissionBackfillCandidate(SubmissionId, null, DateTime.UtcNow.AddDays(-1))]);
 
-        ISubmissionFlatteningProcessor flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
         SubmissionBackfillProcessor processor = new(
             submissionRepository,
             flattenedSubmissionRepository,
             flatteningProcessor,
             NullLogger<SubmissionBackfillProcessor>.Instance);
 
-        SubmissionBackfillResult result = await processor.BackfillFormAsync(
+        var result = await processor.BackfillFormAsync(
             TenantId,
             FormId,
             new SubmissionBackfillOptions(),
@@ -77,7 +75,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         await flatteningProcessor.DidNotReceive()
             .ProcessAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
 
-        FlattenedSubmission? persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
+        var persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
             TenantId,
             SubmissionId,
             cancellationToken);
@@ -89,23 +87,23 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
     [Fact]
     public async Task BackfillFormAsync_WithUnflattenedRow_ProcessesAndPersistsFlatData()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FlattenedSubmissionRepository flattenedSubmissionRepository = CreateRepository(dbContext);
-        FormSchemaRepository formSchemaRepository = CreateSchemaRepository(dbContext);
+        await using var dbContext = CreateContext(TenantId);
+        var flattenedSubmissionRepository = CreateRepository(dbContext);
+        var formSchemaRepository = CreateSchemaRepository(dbContext);
         await SeedSimpleFormSchemaAsync(formSchemaRepository, cancellationToken);
 
-        Submission submission = CreateSubmission(SimpleSubmissionJson, isComplete: true);
-        IRepository<Submission> submissionRepository = CreateSubmissionRepository(submission);
+        var submission = CreateSubmission(SimpleSubmissionJson, isComplete: true);
+        var submissionRepository = CreateSubmissionRepository(submission);
 
-        SubmissionBackfillProcessor processor = CreateBackfillProcessor(
+        var processor = CreateBackfillProcessor(
             submissionRepository,
             flattenedSubmissionRepository,
             formSchemaRepository);
 
-        SubmissionBackfillResult result = await processor.BackfillFormAsync(
+        var result = await processor.BackfillFormAsync(
             TenantId,
             FormId,
             new SubmissionBackfillOptions(),
@@ -115,7 +113,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         result.Skipped.Should().Be(0);
         result.Failed.Should().Be(0);
 
-        FlattenedSubmission? persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
+        var persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
             TenantId,
             SubmissionId,
             cancellationToken);
@@ -123,26 +121,26 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         persisted!.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
         persisted.DataJson.Should().NotBeNullOrWhiteSpace();
 
-        using JsonDocument actualDocument = JsonDocument.Parse(persisted.DataJson!);
+        using var actualDocument = JsonDocument.Parse(persisted.DataJson!);
         actualDocument.RootElement.GetProperty("q1").GetString().Should().Be("hello");
     }
 
     [Fact]
     public async Task BackfillFormAsync_WithAllQuestionsSubmission_ProducesGoldenFlatOutput()
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        string definitionJson = AllQuestionsReportingFixtureLoader.LoadDefinitionText();
-        string submissionJson = AllQuestionsReportingFixtureLoader.LoadSubmissionText();
-        JsonElement expectedFlat = AllQuestionsReportingFixtureLoader.LoadExpectedFlat();
+        var definitionJson = AllQuestionsReportingFixtureLoader.LoadDefinitionText();
+        var submissionJson = AllQuestionsReportingFixtureLoader.LoadSubmissionText();
+        var expectedFlat = AllQuestionsReportingFixtureLoader.LoadExpectedFlat();
 
         FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
+        var compiled = compiler.CompilePersisted(definitionJson);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
-        FlattenedSubmissionRepository flattenedSubmissionRepository = CreateRepository(dbContext);
-        FormSchemaRepository formSchemaRepository = CreateSchemaRepository(dbContext);
+        await using var dbContext = CreateContext(TenantId);
+        var flattenedSubmissionRepository = CreateRepository(dbContext);
+        var formSchemaRepository = CreateSchemaRepository(dbContext);
         FormSchema formSchema = new(
             TenantId,
             FormId,
@@ -151,15 +149,15 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
             compiled.CodebookJson);
         await formSchemaRepository.SaveAsync(formSchema, cancellationToken);
 
-        Submission submission = CreateSubmission(submissionJson, isComplete: true);
-        IRepository<Submission> submissionRepository = CreateSubmissionRepository(submission);
+        var submission = CreateSubmission(submissionJson, isComplete: true);
+        var submissionRepository = CreateSubmissionRepository(submission);
 
-        SubmissionBackfillProcessor processor = CreateBackfillProcessor(
+        var processor = CreateBackfillProcessor(
             submissionRepository,
             flattenedSubmissionRepository,
             formSchemaRepository);
 
-        SubmissionBackfillResult result = await processor.BackfillFormAsync(
+        var result = await processor.BackfillFormAsync(
             TenantId,
             FormId,
             new SubmissionBackfillOptions(),
@@ -168,14 +166,14 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         result.Processed.Should().Be(1);
         result.Failed.Should().Be(0);
 
-        FlattenedSubmission? persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
+        var persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
             TenantId,
             SubmissionId,
             cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
 
-        using JsonDocument actualDocument = JsonDocument.Parse(persisted.DataJson!);
+        using var actualDocument = JsonDocument.Parse(persisted.DataJson!);
         ReportingJsonAssertions.AssertJsonElementMatches(
             actualDocument.RootElement,
             expectedFlat,
@@ -187,7 +185,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         CancellationToken cancellationToken)
     {
         FormSchemaCompiler compiler = new();
-        FormSchemaCompileResult compiled = compiler.CompilePersisted(SimpleDefinitionJson);
+        var compiled = compiler.CompilePersisted(SimpleDefinitionJson);
         FormSchema formSchema = new(
             TenantId,
             FormId,
@@ -199,7 +197,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
 
     private static Submission CreateSubmission(string jsonData, bool isComplete)
     {
-        Submission submission = Submission.Create(new SubmissionCreateArgs(
+        var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TenantId,
             FormId: FormId,
             FormDefinitionId: FormDefinitionId,
@@ -211,13 +209,16 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
 
     private static IRepository<Submission> CreateSubmissionRepository(Submission submission)
     {
-        IRepository<Submission> submissionRepository = Substitute.For<IRepository<Submission>>();
+        var submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
-            .ListAsync(Arg.Any<CompletedSubmissionIdsForBackfillSpec>(), Arg.Any<CancellationToken>())
-            .Returns([submission.Id]);
+            .ListAsync(Arg.Any<SubmissionBackfillPageSpec>(), Arg.Any<CancellationToken>())
+            .Returns([new SubmissionBackfillCandidate(submission.Id, null, DateTime.UtcNow.AddDays(-1))]);
         submissionRepository
             .SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
+        submissionRepository
+            .AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         return submissionRepository;
     }
 
@@ -252,7 +253,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
+        var optionsBuilder =
             ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
 
         return new ReportingDbContext(optionsBuilder.Options, tenantContext);

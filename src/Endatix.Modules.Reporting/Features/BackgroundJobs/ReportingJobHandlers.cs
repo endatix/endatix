@@ -1,0 +1,141 @@
+using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Modules.Reporting.Features.Outbox;
+using Endatix.Outbox.Engine;
+using Microsoft.Extensions.Logging;
+
+namespace Endatix.Modules.Reporting.Features.BackgroundJobs;
+
+/// <summary>Compiles a form's schema after its definition changed.</summary>
+internal sealed class CompileFormSchemaJobHandler(
+    IRepository<OutboxMessage> outboxMessages,
+    CompileFormSchemaOutboxHandler work,
+    ILogger<CompileFormSchemaJobHandler> logger) : ReportingOutboxJobHandler<ReportingCompileFormSchemaPayload>(outboxMessages, logger)
+{
+    protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
+    {
+        if (!TryParse(() => CompileFormSchemaOutboxHandler.Parse(message), out var input))
+        {
+            return Failure(MessageUnreadable);
+        }
+
+        if (input!.TenantId != job.TenantId)
+        {
+            return Failure(OtherTenant);
+        }
+
+        await work.ProcessAsync(input, cancellationToken);
+        return Result.Success();
+    }
+}
+
+/// <summary>Flattens a completed or updated submission into the Reporting read model.</summary>
+internal sealed class FlattenSubmissionJobHandler(
+    IRepository<OutboxMessage> outboxMessages,
+    FlattenSubmissionOutboxHandler work,
+    ILogger<FlattenSubmissionJobHandler> logger) : ReportingOutboxJobHandler<ReportingFlattenSubmissionPayload>(outboxMessages, logger)
+{
+    protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
+    {
+        if (!TryParse(() => FlattenSubmissionOutboxHandler.Parse(message, logger), out var input))
+        {
+            return Failure(MessageUnreadable);
+        }
+
+        // A change that does not touch the submission's data has nothing to flatten; the job is done.
+        return input is null ? Result.Success() : await FlattenForJobTenantAsync(job, input, cancellationToken);
+    }
+
+    private async Task<Result> FlattenForJobTenantAsync(
+        BackgroundJobContext job,
+        FlattenSubmissionOutboxHandler.Input input,
+        CancellationToken cancellationToken)
+    {
+        if (input.TenantId != job.TenantId)
+        {
+            return Failure(OtherTenant);
+        }
+
+        await work.ProcessAsync(input, cancellationToken);
+        return Result.Success();
+    }
+}
+
+/// <summary>Provisions the default export formats of a new tenant.</summary>
+/// <remarks>
+/// The outbox row is app-level, so it is read under no tenant, and the job belongs to the tenant being created,
+/// which is the tenant the payload names.
+/// </remarks>
+internal sealed class SeedDefaultExportFormatsJobHandler(
+    IRepository<OutboxMessage> outboxMessages,
+    SeedDefaultExportFormatsOutboxHandler work,
+    ILogger<SeedDefaultExportFormatsJobHandler> logger) : ReportingOutboxJobHandler<ReportingSeedDefaultExportFormatsPayload>(outboxMessages, logger)
+{
+    private const long AppLevelTenantId = 0;
+
+    protected override long MessageTenantId(BackgroundJobContext job) => AppLevelTenantId;
+
+    protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
+    {
+        if (!TryParse(() => SeedDefaultExportFormatsOutboxHandler.Parse(message), out var tenantId))
+        {
+            return Failure(MessageUnreadable);
+        }
+
+        if (tenantId != job.TenantId)
+        {
+            return Failure(OtherTenant);
+        }
+
+        await work.ProcessAsync(tenantId, cancellationToken);
+        return Result.Success();
+    }
+}
+
+/// <summary>Removes a deleted form's Reporting rows.</summary>
+internal sealed class SyncFormDeletionJobHandler(
+    IRepository<OutboxMessage> outboxMessages,
+    SyncFormDeletionOutboxHandler work,
+    ILogger<SyncFormDeletionJobHandler> logger) : ReportingOutboxJobHandler<ReportingSyncFormDeletionPayload>(outboxMessages, logger)
+{
+    protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
+    {
+        if (!TryParse(() => SyncFormDeletionOutboxHandler.Parse(message), out var input))
+        {
+            return Failure(MessageUnreadable);
+        }
+
+        if (input!.TenantId != job.TenantId)
+        {
+            return Failure(OtherTenant);
+        }
+
+        await work.ProcessAsync(input, message.Id, cancellationToken);
+        return Result.Success();
+    }
+}
+
+/// <summary>Removes a deleted submission's flattened row.</summary>
+internal sealed class SyncSubmissionDeletionJobHandler(
+    IRepository<OutboxMessage> outboxMessages,
+    SyncSubmissionDeletionOutboxHandler work,
+    ILogger<SyncSubmissionDeletionJobHandler> logger) : ReportingOutboxJobHandler<ReportingSyncSubmissionDeletionPayload>(outboxMessages, logger)
+{
+    protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
+    {
+        if (!TryParse(() => SyncSubmissionDeletionOutboxHandler.Parse(message), out var input))
+        {
+            return Failure(MessageUnreadable);
+        }
+
+        if (input!.TenantId != job.TenantId)
+        {
+            return Failure(OtherTenant);
+        }
+
+        await work.ProcessAsync(input, message.Id, cancellationToken);
+        return Result.Success();
+    }
+}
