@@ -200,6 +200,35 @@ public sealed class SubmissionBackfillScopeIntegrationTests
         refreshed.DataJson.Should().Contain("saved mid-flatten");
     }
 
+    [Fact]
+    public async Task Backfill_SkipsACompletedSubmissionWhoseRowAFlattenJobWrote()
+    {
+        // Arrange — the flatten job's path writes the row through the revision-guarded writes.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedAsync(cancellationToken);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var backfill = await CreateBackfillProcessorAsync(appDb, reportingDb, seed, cancellationToken);
+        await CreateFlatteningProcessor(appDb, reportingDb)
+            .ProcessAsync(TenantId, seed.FormId, seed.Completed1, cancellationToken);
+
+        // Act
+        var result = await backfill.BackfillFormAsync(TenantId, seed.FormId, new SubmissionBackfillOptions(), cancellationToken);
+
+        // Assert
+        reportingDb.ChangeTracker.Clear();
+        var row = await reportingDb.FlattenedSubmissions.SingleAsync(
+            flattened => flattened.SubmissionId == seed.Completed1,
+            cancellationToken);
+        var submission = await appDb.Submissions.AsNoTracking().SingleAsync(
+            source => source.Id == seed.Completed1,
+            cancellationToken);
+        row.SourceModifiedAt.Should().Be(submission.ModifiedAt ?? submission.CreatedAt);
+        row.SourceRevision.Should().Be(submission.Revision);
+        result.Skipped.Should().Be(1, "the job's write stored the stamp the backfill compares with");
+        result.Processed.Should().Be(1, "only the submission no flatten wrote yet is processed");
+    }
+
     private async Task<SeededForms> SeedAsync(CancellationToken cancellationToken)
     {
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
@@ -279,20 +308,21 @@ public sealed class SubmissionBackfillScopeIntegrationTests
             new FormSchema(TenantId, seed.FormId, seed.DefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson),
             cancellationToken);
 
-        var submissionRepository = CreateSubmissionRepository(appDb);
-        FlattenedSubmissionRepository flattenedRepository = new(reportingDb, new ReportingUnitOfWork(reportingDb));
-        SubmissionFlatteningProcessor flatteningProcessor = new(
-            submissionRepository,
-            flattenedRepository,
-            new FormSchemaProvider(schemaRepository, Substitute.For<IFormSchemaProcessor>()),
-            NullLogger<SubmissionFlatteningProcessor>.Instance);
-
         return new SubmissionBackfillProcessor(
-            submissionRepository,
-            flattenedRepository,
-            flatteningProcessor,
+            CreateSubmissionRepository(appDb),
+            new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
+            CreateFlatteningProcessor(appDb, reportingDb),
             NullLogger<SubmissionBackfillProcessor>.Instance);
     }
+
+    private static SubmissionFlatteningProcessor CreateFlatteningProcessor(AppDbContext appDb, ReportingDbContext reportingDb) =>
+        new(
+            CreateSubmissionRepository(appDb),
+            new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
+            new FormSchemaProvider(
+                new FormSchemaRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
+                Substitute.For<IFormSchemaProcessor>()),
+            NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     private static EfRepository<Submission> CreateSubmissionRepository(AppDbContext appDb) =>
         new(appDb, new EndatixSpecificationEvaluator([]));

@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -12,6 +13,9 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// Compiles and persists the export schema for a form definition.
 /// Uses replace mode when forced via <c>replace</c> or when the form has no real (non-test) submissions; otherwise merge.
 /// </summary>
+/// <remarks>
+/// A form deleted while it is compiled loses the schema this compile wrote, as its deletion sync removes it.
+/// </remarks>
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
     IFormSchemaRepository schemaRepository,
@@ -78,6 +82,11 @@ internal sealed class FormSchemaProcessor(
                     formDefinition.JsonData,
                     existingSchema,
                     cancellationToken);
+            }
+
+            if (await RemoveSchemaIfFormDeletedMeanwhileAsync(tenantId, formId, cancellationToken))
+            {
+                return;
             }
 
             logger.LogInformation(
@@ -187,6 +196,28 @@ internal sealed class FormSchemaProcessor(
         }
 
         await schemaRepository.SaveAsync(existingSchema, cancellationToken);
+    }
+
+    // A form deleted after this compile read it would keep the schema the compile wrote, when its deletion sync ran
+    // in between. The deletion is committed before its sync runs, so reading again after the write sees it, and the
+    // schema is removed as the sync would have removed it.
+    private async Task<bool> RemoveSchemaIfFormDeletedMeanwhileAsync(
+        long tenantId,
+        long formId,
+        CancellationToken cancellationToken)
+    {
+        // Read through the same query filters as the definition, so a soft-deleted form is not found.
+        if (await formsRepository.AnyAsync(new FormSpecifications.ById(formId), cancellationToken))
+        {
+            return false;
+        }
+
+        var removed = await schemaRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
+        logger.LogInformation(
+            "Form {FormId} was deleted while its schema was compiled; removed {Removed} form schema row(s)",
+            formId,
+            removed);
+        return true;
     }
 
     private Task<int> CountRealSubmissionsAsync(

@@ -27,7 +27,8 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
     private const long FormId = 100;
     private const long FormDefinitionId = 200;
     private const long SubmissionId = 500;
-    private const string ProcessedDataJson = """{"firstName":"Ada"}""";
+    // In the form PostgreSQL returns a jsonb value, which is how the conditional write stores it.
+    private const string ProcessedDataJson = """{"firstName": "Ada"}""";
     private const string SimpleDefinitionJson = """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1","title":"Question 1"}]}]}""";
     private const string SimpleSubmissionJson = """{"q1":"hello"}""";
 
@@ -46,13 +47,10 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
 
         await using var dbContext = CreateContext(TenantId);
         var flattenedSubmissionRepository = CreateRepository(dbContext);
-        var row = await flattenedSubmissionRepository.GetOrCreateAsync(
-            TenantId,
-            SubmissionId,
-            FormId,
+        await new FlattenedRowSeed(dbContext).ProcessedAsync(
+            new FlattenedSubmissionKey(TenantId, FormId, SubmissionId),
+            ProcessedDataJson,
             cancellationToken);
-        row.MarkProcessed(ProcessedDataJson, DateTime.UtcNow);
-        await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
 
         var submissionRepository = Substitute.For<IRepository<Submission>>();
         submissionRepository
@@ -218,6 +216,9 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         submissionRepository
             .SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
+        submissionRepository
+            .AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         return submissionRepository;
     }
 

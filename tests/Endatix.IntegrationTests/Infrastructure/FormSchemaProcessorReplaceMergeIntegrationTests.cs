@@ -1,12 +1,15 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Infrastructure.Repositories;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -68,10 +71,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
-        var formsRepository = Substitute.For<IFormsRepository>();
-        formsRepository
-            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
-            .Returns(currentDefinition);
+        var formsRepository = FormsRepositoryReading(currentDefinition);
 
         await using var reportingDb = CreateReportingDbContext();
         await using var appDb = CreateAppDbContext();
@@ -111,10 +111,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
-        var formsRepository = Substitute.For<IFormsRepository>();
-        formsRepository
-            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
-            .Returns(currentDefinition);
+        var formsRepository = FormsRepositoryReading(currentDefinition);
 
         await using var reportingDb = CreateReportingDbContext();
         await using var appDb = CreateAppDbContext();
@@ -145,10 +142,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
-        var formsRepository = Substitute.For<IFormsRepository>();
-        formsRepository
-            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
-            .Returns(currentDefinition);
+        var formsRepository = FormsRepositoryReading(currentDefinition);
 
         await using var reportingDb = CreateReportingDbContext();
         await using var appDb = CreateAppDbContext();
@@ -179,10 +173,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         await SeedReportingStateWithOrphanAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithoutOrphan) { Id = seed.FormDefinitionId };
-        var formsRepository = Substitute.For<IFormsRepository>();
-        formsRepository
-            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), cancellationToken)
-            .Returns(currentDefinition);
+        var formsRepository = FormsRepositoryReading(currentDefinition);
 
         await using var reportingDb = CreateReportingDbContext();
         await using var appDb = CreateAppDbContext();
@@ -212,6 +203,64 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             .IgnoreQueryFilters()
             .CountAsync(row => row.SubmissionId == OtherFormFlattenedSubmissionId, cancellationToken);
         otherFormRows.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Compile_removes_its_schema_when_the_form_is_deleted_while_it_compiles()
+    {
+        // Arrange — the form is deleted, and its deletion synced, between the compile's read and its write.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedFormAsync(seedRealSubmission: false, seedTestSubmission: false, cancellationToken);
+
+        await using var reportingDb = CreateReportingDbContext();
+        await using var appDb = CreateAppDbContext();
+        FormsRepository forms = new(appDb, new AppUnitOfWork(appDb), new EndatixSpecificationEvaluator([]));
+        var formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                var definition = await forms.SingleOrDefaultAsync(
+                    call.Arg<DefinitionByFormAndDefinitionIdSpec>(),
+                    cancellationToken);
+                await DeleteFormAndSyncAsync(seed.FormId, cancellationToken);
+                return definition;
+            });
+        formsRepository
+            .AnyAsync(Arg.Any<FormSpecifications.ById>(), Arg.Any<CancellationToken>())
+            .Returns(call => forms.AnyAsync(call.Arg<FormSpecifications.ById>(), cancellationToken));
+        var processor = CreateProcessor(formsRepository, reportingDb, appDb);
+
+        // Act
+        await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken: cancellationToken);
+
+        // Assert
+        reportingDb.ChangeTracker.Clear();
+        var schemas = await reportingDb.FormSchemas
+            .CountAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
+        schemas.Should().Be(0);
+    }
+
+    // Deletes the form as the API does, then removes its Reporting rows as its deletion sync does.
+    private async Task DeleteFormAndSyncAsync(long formId, CancellationToken cancellationToken)
+    {
+        await using (var appDb = CreateAppDbContext())
+        {
+            var form = await appDb.Forms
+                .Include(form => form.FormDefinitions)
+                .SingleAsync(form => form.Id == formId, cancellationToken);
+            form.Delete();
+            await appDb.SaveChangesAsync(cancellationToken);
+        }
+
+        await using var reportingDb = CreateReportingDbContext();
+        ReportingUnitOfWork unitOfWork = new(reportingDb);
+        SyncFormDeletionOutboxHandler sync = new(
+            new FormSchemaRepository(reportingDb, unitOfWork),
+            new FlattenedSubmissionRepository(reportingDb, unitOfWork),
+            unitOfWork,
+            NullLogger<SyncFormDeletionOutboxHandler>.Instance);
+        await sync.ProcessAsync(new SyncFormDeletionOutboxHandler.Input(TenantId, formId), outboxMessageId: 0, cancellationToken);
     }
 
     private async Task<SeededForm> SeedFormAsync(
@@ -266,16 +315,17 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             compiled.CodebookJson,
             compiled.LocalesJson);
         reportingDb.FormSchemas.Add(schema);
-
-        FlattenedSubmission formRow = new(submissionId: seed.FormId + 1000, TenantId, seed.FormId);
-        formRow.MarkProcessed("""{"keep":"x"}""", DateTime.UtcNow);
-        reportingDb.FlattenedSubmissions.Add(formRow);
-
-        FlattenedSubmission otherFormRow = new(OtherFormFlattenedSubmissionId, TenantId, formId: seed.FormId + 99);
-        otherFormRow.MarkProcessed("""{"other":true}""", DateTime.UtcNow);
-        reportingDb.FlattenedSubmissions.Add(otherFormRow);
-
         await reportingDb.SaveChangesAsync(cancellationToken);
+
+        FlattenedRowSeed rows = new(reportingDb);
+        await rows.ProcessedAsync(
+            new FlattenedSubmissionKey(TenantId, seed.FormId, SubmissionId: seed.FormId + 1000),
+            """{"keep":"x"}""",
+            cancellationToken);
+        await rows.ProcessedAsync(
+            new FlattenedSubmissionKey(TenantId, seed.FormId + 99, OtherFormFlattenedSubmissionId),
+            """{"other":true}""",
+            cancellationToken);
     }
 
     private static async Task SeedSubmissionAsync(
@@ -295,6 +345,19 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         appDb.Submissions.Add(submission);
         await appDb.SaveChangesAsync(cancellationToken);
         appDb.ChangeTracker.Clear();
+    }
+
+    // The form is read as the given definition and still exists after the compile wrote its schema.
+    private static IFormsRepository FormsRepositoryReading(FormDefinition definition)
+    {
+        var formsRepository = Substitute.For<IFormsRepository>();
+        formsRepository
+            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(definition);
+        formsRepository
+            .AnyAsync(Arg.Any<FormSpecifications.ById>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        return formsRepository;
     }
 
     private static FormSchemaProcessor CreateProcessor(
