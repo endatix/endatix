@@ -4,7 +4,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace Endatix.Api.Endpoints.Admin.Version;
+namespace Endatix.Api.Endpoints.Application;
 
 /// <summary>
 /// Returns the API release version to a signed-in Hub user.
@@ -15,7 +15,7 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
 {
     public override void Configure()
     {
-        Get("/version");
+        Get("system/version");
         Permissions(Actions.Access.Hub);
         Summary(s =>
         {

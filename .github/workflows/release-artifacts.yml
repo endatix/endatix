@@ -22,7 +22,28 @@ on:
     types: [published]
 
 jobs:
+  version-matches-tag:
+    name: Tag matches Directory.Build.props
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: 🔍 Checkout the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: ✅ Compare tag to Version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          tag="${TAG#v}"
+          file="$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' Directory.Build.props | head -1)"
+          if [ "$tag" != "$file" ]; then
+            echo "::error::tag ${TAG} does not match Directory.Build.props Version ${file}. Run Prepare release version, then tag that commit."
+            exit 1
+          fi
+
   promote:
+    needs: version-matches-tag
     if: ${{ !github.event.release.prerelease }}
     permissions:
       contents: read

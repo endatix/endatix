@@ -1,6 +1,6 @@
-using Endatix.Api.Endpoints.Admin.Version;
+using Endatix.Api.Endpoints.Application;
 
-namespace Endatix.Api.Tests.Endpoints.Admin.Version;
+namespace Endatix.Api.Tests.Endpoints.Application;
 
 public class ReleaseVersionTests
 {
