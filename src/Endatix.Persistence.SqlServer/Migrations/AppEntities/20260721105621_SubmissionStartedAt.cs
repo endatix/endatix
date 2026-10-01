@@ -42,14 +42,14 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
             // Use a new script version — older migrations still ReadEmbeddedSqlScript(v2)
             // at runtime; mutating v2 in place breaks SubmitterEntity on empty DBs.
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v3.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v3.sql", GetType().Assembly));
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             // Restore pre-StartedAt procedure shape before dropping the column.
-            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v2.sql"));
+            migrationBuilder.Sql(migrationBuilder.ReadEmbeddedSqlScript("Procedures/export_form_submissions_v2.sql", GetType().Assembly));
 
             migrationBuilder.DropColumn(
                 name: "StartedAt",

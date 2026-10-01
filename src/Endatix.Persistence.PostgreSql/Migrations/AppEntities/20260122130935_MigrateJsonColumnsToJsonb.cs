@@ -99,7 +99,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             ");
 
             // Recreate export_form_submissions function to work with jsonb columns (without casts)
-            var exportFunctionScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v1.sql");
+            var exportFunctionScript = migrationBuilder.ReadEmbeddedSqlScript("Functions/export_form_submissions_v1.sql", GetType().Assembly);
             migrationBuilder.Sql(exportFunctionScript);
         }
 
