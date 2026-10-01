@@ -1,3 +1,4 @@
+using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 
@@ -16,13 +17,16 @@ internal static class FlattenedRows
         DateTime sourceModifiedAt)
     {
         FlattenedSubmission row = new(key.SubmissionId, key.TenantId, key.FormId);
-        row.Integration.MarkProcessed();
+        var processedAt = DateTime.UtcNow;
+        Set(row.Integration, nameof(SubmissionIntegrationState.Code), SubmissionIntegrationStatusCodes.Processed);
+        Set(row.Integration, nameof(SubmissionIntegrationState.LastAttemptAt), processedAt);
+        Set(row.Integration, nameof(SubmissionIntegrationState.ProcessedAt), processedAt);
         Set(row, nameof(FlattenedSubmission.DataJson), dataJson);
         Set(row, nameof(FlattenedSubmission.SourceModifiedAt), sourceModifiedAt);
         Set(row, nameof(FlattenedSubmission.ModifiedAt), DateTime.UtcNow);
         return row;
     }
 
-    private static void Set(FlattenedSubmission row, string property, object? value) =>
-        typeof(FlattenedSubmission).GetProperty(property)!.SetValue(row, value);
+    private static void Set(object target, string property, object? value) =>
+        target.GetType().GetProperty(property)!.SetValue(target, value);
 }

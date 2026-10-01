@@ -37,27 +37,45 @@ public class SubmissionIntegrationStateTests
     }
 
     [Fact]
-    public void MarkFailed_TruncatesError()
+    public void TruncateError_OverMaxLength_KeepsMaxLengthPrefix()
     {
-        var state = SubmissionIntegrationState.CreatePending(DateTime.UtcNow);
+        // Arrange
+        var error = new string('x', SubmissionIntegrationState.MaxErrorLength) + "tail";
 
-        state.MarkFailed(new string('x', 2500));
+        // Act
+        var stored = SubmissionIntegrationState.TruncateError(error);
 
-        state.LastError.Should().HaveLength(SubmissionIntegrationState.MaxErrorLength);
-        state.Code.Should().Be(SubmissionIntegrationStatusCodes.Failed);
+        // Assert
+        stored.Should().Be(new string('x', SubmissionIntegrationState.MaxErrorLength));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void TruncateError_WithBlankError_ReturnsNull(string? error)
+    {
+        // Act
+        var stored = SubmissionIntegrationState.TruncateError(error);
+
+        // Assert
+        stored.Should().BeNull();
     }
 
     [Fact]
-    public void ToSnapshot_MapsAllFields()
+    public void ToSnapshot_OnPendingState_MapsAllFields()
     {
-        var state = SubmissionIntegrationState.CreatePending(DateTime.UtcNow);
-        state.MarkProcessed();
+        // Arrange
+        var attemptedAt = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+        var state = SubmissionIntegrationState.CreatePending(attemptedAt);
 
+        // Act
         var snapshot = state.ToSnapshot();
 
-        snapshot.Status.Should().Be(SubmissionIntegrationStatusCodes.Processed);
-        snapshot.ProcessedAt.Should().NotBeNull();
-        snapshot.LastAttemptAt.Should().NotBeNull();
+        // Assert
+        snapshot.Status.Should().Be(SubmissionIntegrationStatusCodes.Pending);
+        snapshot.LastAttemptAt.Should().Be(attemptedAt);
+        snapshot.ProcessedAt.Should().BeNull();
         snapshot.LastError.Should().BeNull();
     }
 }

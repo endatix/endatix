@@ -31,36 +31,6 @@ public sealed class SubmissionIntegrationState
             LastAttemptAt = attemptedAt,
         };
 
-    public void MarkProcessing()
-    {
-        Code = SubmissionIntegrationStatusCodes.Processing;
-        LastAttemptAt = DateTime.UtcNow;
-        LastError = null;
-    }
-
-    public void MarkProcessed()
-    {
-        Code = SubmissionIntegrationStatusCodes.Processed;
-        LastError = null;
-        LastAttemptAt = DateTime.UtcNow;
-        ProcessedAt = DateTime.UtcNow;
-    }
-
-    public void MarkFailed(string? error)
-    {
-        Code = SubmissionIntegrationStatusCodes.Failed;
-        LastError = TruncateError(error);
-        LastAttemptAt = DateTime.UtcNow;
-    }
-
-    public void MarkSkipped()
-    {
-        Code = SubmissionIntegrationStatusCodes.Skipped;
-        LastError = null;
-        LastAttemptAt = DateTime.UtcNow;
-        ProcessedAt = null;
-    }
-
     public bool IsTerminal =>
         Code is SubmissionIntegrationStatusCodes.Processed
             or SubmissionIntegrationStatusCodes.Failed

@@ -2,6 +2,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -125,6 +126,96 @@ public sealed class FlattenedSubmissionRepositoryTests
     }
 
     [Fact]
+    public async Task TryMarkProcessingAsync_AfterFailedWrite_ClearsLastError()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        await repository.TryMarkFailedAsync(WriteOf(revision: 1), "flatten failed", cancellationToken);
+
+        // Act
+        var landed = await repository.TryMarkProcessingAsync(WriteOf(revision: 1), cancellationToken);
+
+        // Assert
+        landed.Should().BeTrue();
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        persisted.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processing);
+        persisted.Integration.LastError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TryMarkProcessedAsync_AfterFailedWrite_ClearsLastError()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        await repository.TryMarkFailedAsync(WriteOf(revision: 1), "flatten failed", cancellationToken);
+
+        // Act
+        var landed = await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedDataJson, cancellationToken);
+
+        // Assert
+        landed.Should().BeTrue();
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        persisted.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
+        persisted.Integration.LastError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TryMarkSkippedAsync_AfterProcessedWrite_ClearsProcessedAt()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedDataJson, cancellationToken);
+
+        // Act
+        var landed = await repository.TryMarkSkippedAsync(WriteOf(revision: 2), cancellationToken);
+
+        // Assert
+        landed.Should().BeTrue();
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        persisted.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Skipped);
+        persisted.Integration.ProcessedAt.Should().BeNull();
+        persisted.Integration.LastError.Should().BeNull();
+        persisted.DataJson.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TryMarkFailedAsync_WithErrorOverMaxLength_StoresTruncatedError()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        var error = new string('x', SubmissionIntegrationState.MaxErrorLength + 500);
+
+        // Act
+        var landed = await repository.TryMarkFailedAsync(WriteOf(revision: 1), error, cancellationToken);
+
+        // Assert
+        landed.Should().BeTrue();
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        persisted.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Failed);
+        persisted.Integration.LastError.Should().Be(error[..SubmissionIntegrationState.MaxErrorLength]);
+    }
+
+    [Fact]
     public async Task SaveAsync_WhenMarkDeleted_PersistsAndExcludesFromQueries()
     {
         // Arrange
@@ -212,6 +303,18 @@ public sealed class FlattenedSubmissionRepositoryTests
                 .IgnoreQueryFilters()
                 .CountAsync(row => row.SubmissionId == SubmissionId + 1, cancellationToken))
             .Should().Be(1);
+    }
+
+    private static FlattenedRevision WriteOf(long revision) =>
+        new(TenantId, SubmissionId, revision, new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc));
+
+    private static async Task<FlattenedSubmission> ReadRowAsync(
+        FlattenedSubmissionRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var row = await repository.GetBySubmissionIdAsync(TenantId, SubmissionId, cancellationToken);
+        row.Should().NotBeNull();
+        return row;
     }
 
     private static FlattenedSubmissionKey KeyOf(long submissionId, long formId = FormId) =>
