@@ -71,6 +71,26 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
     }
 
 
+    /// <summary>
+    /// Sends the webhook once and reports the status the endpoint answered. Unlike
+    /// <see cref="FireWebHookAsync{T}"/> it handles nothing: a transport failure or timeout throws, so the caller
+    /// decides what a failure means.
+    /// </summary>
+    internal async Task<System.Net.HttpStatusCode> SendAsync<T>(
+        WebHookMessage<T> message,
+        TaskInstructions instructions,
+        CancellationToken token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, instructions.Uri)
+        {
+            Content = CreateContent(message),
+        };
+        AddWebHookHeaders(request, message, instructions);
+
+        using var response = await httpClient.SendAsync(request, token);
+        return response.StatusCode;
+    }
+
     private StringContent CreateContent<T>(WebHookMessage<T> message)
     {
         var options = new JsonSerializerOptions();

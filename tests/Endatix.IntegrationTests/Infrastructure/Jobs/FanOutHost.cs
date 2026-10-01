@@ -47,6 +47,11 @@ internal sealed class FanOutHost : IAsyncDisposable
                 builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
                 builder.UseSetting("Endatix:FeatureFlags:JobsModule", setup.JobsModule.ToString());
                 builder.UseSetting("Endatix:BackgroundJobs:IdleWaitTimeSeconds", "1");
+                foreach (var (key, value) in setup.Settings)
+                {
+                    builder.UseSetting(key, value);
+                }
+
                 builder.ConfigureTestServices(services =>
                 {
                     services.RemoveAll<IOutboxIntegrationEventHandler>();
@@ -95,6 +100,9 @@ internal sealed record FanOutHostSetup(bool DeliverToJobQueue, Action<IServiceCo
 {
     /// <summary>Whether the Jobs module is on.</summary>
     public bool JobsModule { get; init; } = true;
+
+    /// <summary>Further configuration the test sets on the host.</summary>
+    public IReadOnlyDictionary<string, string?> Settings { get; init; } = new Dictionary<string, string?>();
 }
 
 /// <summary>An outbox message row a test inserts for the relay to claim.</summary>
