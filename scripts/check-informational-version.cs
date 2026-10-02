@@ -65,11 +65,16 @@ namespace Endatix.Scripts
             }
 
             var constructor = reader.GetMemberReference((MemberReferenceHandle)attribute.Constructor);
+            if (constructor.Parent.Kind != HandleKind.TypeReference)
+            {
+                return null;
+            }
+
             var type = reader.GetTypeReference((TypeReferenceHandle)constructor.Parent);
             return reader.GetString(type.Name);
         }
 
-        private static string StringArgument(MetadataReader reader, CustomAttribute attribute)
+        private static string? StringArgument(MetadataReader reader, CustomAttribute attribute)
         {
             var blob = reader.GetBlobReader(attribute.Value);
             blob.ReadUInt16();

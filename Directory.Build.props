@@ -1,22 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
     <PropertyGroup>
-        <!-- Local-dev placeholder only, never bumped by hand: every CI and release build passes
-             -p:Version=<version from the tag> (scripts/release-prepare.sh).
+        <!-- Local-dev placeholder, never bumped by hand. The release pipeline stamps
+             -p:Version from the tag (scripts/release-prepare.sh). Other CI builds do not.
              InformationalVersion is deliberately NOT set — it defaults to the effective
              Version (+ source commit SHA via SourceLink). -->
         <Version>0.0.0-local</Version>
     </PropertyGroup>
 
-    <!-- Builds outside the release pipeline (local, forks, branch deploys) say where they come from
-         instead of the placeholder. On a release line (main, hotfix/*, or a tag checkout that names
-         no branch) sitting exactly on a release tag, the version is that tag. Anything else, a
-         feature branch on a tagged commit included, records its branch; GET /api/system/version then
-         shows branch and commit (SourceLink appends the commit to InformationalVersion).
-         Package and assembly versions stay put. No git: only the placeholder remains. -->
-    <Target Name="ResolveLocalVersion" BeforeTargets="GetAssemblyVersion" Condition="'$(Version)' == '0.0.0-local'">
-        <Exec Command="git rev-parse --abbrev-ref HEAD"
+    <!-- Only Endatix.Api is read by GET /api/system/version. A git checkout that is not a
+         release reports its branch; a release line (main, hotfix/*, or a detached tag checkout)
+         sitting exactly on a clean v* tag reports that tag. A dirty tree is not that release.
+         No git (the Dockerfile, a CI build that does not pass -p:Version): version stays null
+         and there is no branch. SourceLink appends the commit when it has one. -->
+    <Target Name="ResolveLocalVersion" BeforeTargets="GetAssemblyVersion"
+            Condition="'$(Version)' == '0.0.0-local' And '$(MSBuildProjectName)' == 'Endatix.Api'">
+        <Exec Command="git symbolic-ref --short -q HEAD 2&gt;/dev/null"
               WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true"
+              IgnoreStandardErrorWarningFormat="true"
               StandardOutputImportance="low" StandardErrorImportance="low">
             <Output TaskParameter="ConsoleOutput" PropertyName="_LocalGitBranch" />
             <Output TaskParameter="ExitCode" PropertyName="_LocalGitBranchExitCode" />
@@ -24,20 +25,20 @@
         <PropertyGroup>
             <_LocalGitBranch Condition="'$(_LocalGitBranchExitCode)' != '0'"></_LocalGitBranch>
             <!-- Detached GitHub Actions checkout. A tag ref is not a branch: GITHUB_REF_NAME is the tag. -->
-            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == 'HEAD' And '$(GITHUB_REF_TYPE)' == 'branch' And '$(GITHUB_HEAD_REF)' != ''">$(GITHUB_HEAD_REF)</_LocalGitBranch>
-            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == 'HEAD' And '$(GITHUB_REF_TYPE)' == 'branch'">$(GITHUB_REF_NAME)</_LocalGitBranch>
-            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == 'HEAD'"></_LocalGitBranch>
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == '' And '$(GITHUB_REF_TYPE)' == 'branch' And '$(GITHUB_HEAD_REF)' != ''">$(GITHUB_HEAD_REF)</_LocalGitBranch>
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == '' And '$(GITHUB_REF_TYPE)' == 'branch'">$(GITHUB_REF_NAME)</_LocalGitBranch>
             <_LocalGitBranch>$(_LocalGitBranch.Trim())</_LocalGitBranch>
-            <_LocalIsReleaseLine Condition="'$(_LocalGitBranch)' == '' Or '$(_LocalGitBranch)' == 'main' Or $(_LocalGitBranch.StartsWith('hotfix/'))">true</_LocalIsReleaseLine>
+            <_LocalIsReleaseLine Condition="'$(_LocalGitBranch)' == '' Or $(_LocalGitBranch.Equals('main')) Or $(_LocalGitBranch.StartsWith('hotfix/'))">true</_LocalIsReleaseLine>
         </PropertyGroup>
         <Exec Condition="'$(_LocalIsReleaseLine)' == 'true'"
-              Command="git describe --tags --exact-match --match &quot;v[0-9]*&quot;"
+              Command="git describe --tags --exact-match --dirty --match &quot;v[0-9]*&quot; 2&gt;/dev/null"
               WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true"
+              IgnoreStandardErrorWarningFormat="true"
               StandardOutputImportance="low" StandardErrorImportance="low">
             <Output TaskParameter="ConsoleOutput" PropertyName="_LocalGitTag" />
             <Output TaskParameter="ExitCode" PropertyName="_LocalGitTagExitCode" />
         </Exec>
-        <PropertyGroup Condition="'$(_LocalGitTagExitCode)' == '0' And '$(_LocalGitTag)' != ''">
+        <PropertyGroup Condition="'$(_LocalGitTagExitCode)' == '0' And '$(_LocalGitTag)' != '' And !$(_LocalGitTag.Contains('-dirty'))">
             <InformationalVersion>$(_LocalGitTag.Trim().TrimStart('v'))</InformationalVersion>
         </PropertyGroup>
         <ItemGroup Condition="'$(InformationalVersion)' == '' And '$(_LocalGitBranch)' != ''">

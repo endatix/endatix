@@ -12,6 +12,7 @@ namespace Endatix.Api.Endpoints.Application;
 /// </summary>
 public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionResponse>>
 {
+    private static readonly ProductVersionResponse Current = Read();
     public override void Configure()
     {
         Get("system/version");
@@ -30,7 +31,10 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
             .ProducesProblem(StatusCodes.Status403Forbidden));
     }
 
-    public override Task<Ok<ProductVersionResponse>> ExecuteAsync(CancellationToken ct)
+    public override Task<Ok<ProductVersionResponse>> ExecuteAsync(CancellationToken ct) =>
+        Task.FromResult(TypedResults.Ok(Current));
+
+    private static ProductVersionResponse Read()
     {
         var assembly = typeof(GetVersion).Assembly;
         var informational = assembly
@@ -38,10 +42,10 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
             ?.InformationalVersion;
         var branch = assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(a => a.Key == BuildIdentity.BranchMetadataKey)
+            .FirstOrDefault(attribute => attribute.Key == BuildIdentity.BranchMetadataKey)
             ?.Value;
 
-        return Task.FromResult(TypedResults.Ok(BuildIdentity.From(informational, branch)));
+        return BuildIdentity.From(informational, branch);
     }
 }
 
@@ -50,7 +54,7 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
 /// <param name="Commit">Full commit SHA, when the build recorded one.</param>
 public sealed record ProductVersionResponse(string? Version, string? Branch, string? Commit);
 
-public static class BuildIdentity
+internal static class BuildIdentity
 {
     /// <summary>Written by the <c>ResolveLocalVersion</c> target in <c>Directory.Build.props</c>.</summary>
     public const string BranchMetadataKey = "GitBranch";

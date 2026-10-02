@@ -1,3 +1,4 @@
+using System.Reflection;
 using Endatix.Api.Endpoints.Application;
 using FastEndpoints;
 
@@ -8,13 +9,24 @@ public class GetVersionTests
     private readonly GetVersion _endpoint = Factory.Create<GetVersion>();
 
     [Fact]
-    public async Task ExecuteAsync_ReturnsVersionWithoutCommitSuffix()
+    public async Task ExecuteAsync_CurrentAssembly_MatchesBuildIdentityAndDropsCommitSuffix()
     {
+        // Arrange
+        var assembly = typeof(GetVersion).Assembly;
+        var informational = assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+        var branch = assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute => attribute.Key == BuildIdentity.BranchMetadataKey)
+            ?.Value;
+        var expected = BuildIdentity.From(informational, branch);
+
         // Act
         var response = await _endpoint.ExecuteAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        response.Value.Should().NotBeNull();
+        response.Value.Should().Be(expected);
         (response.Value!.Version ?? string.Empty).Should().NotContain("+");
     }
 
@@ -25,6 +37,9 @@ public class GetVersionTests
     [InlineData("1.2.3-rc.1+abcdef", "1.2.3-rc.1", "abcdef")]
     public void From_ReleaseBuild_ReturnsVersionAndCommit(string informational, string version, string? commit)
     {
+        // Arrange
+        // informational is the theory input.
+
         // Act
         var identity = BuildIdentity.From(informational, branch: null);
 
@@ -39,12 +54,15 @@ public class GetVersionTests
     [InlineData("0.0.0-ci+abcdef")]
     public void From_BuildOutsideTheReleasePipeline_ReturnsBranchAndCommitWithoutVersion(string informational)
     {
+        // Arrange
+        const string branch = "feat/e1130-version-api";
+
         // Act
-        var identity = BuildIdentity.From(informational, branch: "feat/e1130-version-api");
+        var identity = BuildIdentity.From(informational, branch);
 
         // Assert
         identity.Version.Should().BeNull();
-        identity.Branch.Should().Be("feat/e1130-version-api");
+        identity.Branch.Should().Be(branch);
         identity.Commit.Should().Be("abcdef");
     }
 
@@ -54,8 +72,11 @@ public class GetVersionTests
     [InlineData("  ")]
     public void From_NoInformationalVersion_ReturnsNothing(string? informational)
     {
+        // Arrange
+        const string blankBranch = " ";
+
         // Act
-        var identity = BuildIdentity.From(informational, branch: " ");
+        var identity = BuildIdentity.From(informational, blankBranch);
 
         // Assert
         identity.Should().Be(new ProductVersionResponse(null, null, null));
