@@ -3,6 +3,7 @@ extern alias EndatixWebHost;
 using System.Net;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Shared;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -93,6 +94,24 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         (await TriggerStateAsync(jobId, cancellationToken)).Should().NotBe("PAUSED");
     }
 
+    [Fact]
+    public async Task Quartz_dashboard_gets_the_blazor_framework_script_it_needs_to_be_interactive()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var host = new DashboardHost(fixture, allowWrites: false);
+        using var client = host.CreateClient();
+
+        // Act
+        using var response = await client.GetAsync(new Uri("/_framework/blazor.web.js", UriKind.Relative), cancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (response.Content.Headers.ContentType?.MediaType).Should().Be("text/javascript");
+        (await response.Content.ReadAsStringAsync(cancellationToken)).Should().NotBeEmpty();
+    }
+
     private async Task<string?> TriggerStateAsync(long jobId, CancellationToken cancellationToken)
     {
         await using var connection = new NpgsqlConnection(fixture.Database.ConnectionString);
@@ -115,6 +134,9 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
                 {
                     builder.UseSetting("Endatix:BackgroundJobs:Dashboard:Enabled", "true");
                     builder.UseSetting("Endatix:BackgroundJobs:Dashboard:AllowWrites", allowWrites.ToString());
+                    // The host runs from build output, where no web root holds the assets yet: outside Development
+                    // only publish copies them there, so without this they are found by route but not on disk.
+                    builder.UseStaticWebAssets();
                 });
             Seed = new IntegrationSeedBuilder(_factory.Services);
         }
