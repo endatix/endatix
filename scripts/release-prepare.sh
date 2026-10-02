@@ -20,6 +20,14 @@ echo "──── Building at version ${VERSION} ────"
 dotnet restore
 dotnet build -c Release --no-restore -p:Version="${VERSION}"
 
+# GET /api/system/version reports this assembly's InformationalVersion. Fail here,
+# before anything ships, if the build did not stamp it with the release version.
+API_DLL="src/Endatix.Api/bin/Release/net10.0/Endatix.Api.dll"
+if ! grep -aqF "${VERSION}" "${API_DLL}"; then
+  echo "::error::${API_DLL} is not stamped with version ${VERSION}. Is -p:Version passed to dotnet build?" >&2
+  exit 1
+fi
+
 echo "──── Packing NuGet packages at version ${VERSION} ────"
 dotnet pack -c Release --no-build -p:Version="${VERSION}" -o build/packages/nuget
 

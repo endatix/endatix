@@ -7,7 +7,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace Endatix.Api.Endpoints.Application;
 
 /// <summary>
-/// Release version for a signed-in Hub user. SourceLink's <c>+commit</c> suffix is removed so the value matches the GitHub tag.
+/// What this API build is, for a signed-in Hub user: the release version when the build is a release,
+/// otherwise the branch and commit it was built from.
 /// </summary>
 public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionResponse>>
 {
@@ -18,7 +19,7 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
         Summary(s =>
         {
             s.Summary = "Get API version";
-            s.Description = "Returns the Endatix API release version for a signed-in Hub user.";
+            s.Description = "Returns the Endatix API release version, or the branch and commit of a build that is not a release, for a signed-in Hub user.";
             s.Responses[200] = "Version retrieved successfully.";
             s.Responses[401] = "Authentication required.";
             s.Responses[403] = "Hub access is required.";
@@ -35,24 +36,57 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
         var informational = assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion;
-        var version = ReleaseVersion.WithoutCommit(informational, assembly.GetName().Version);
+        var branch = assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(a => a.Key == BuildIdentity.BranchMetadataKey)
+            ?.Value;
 
-        return Task.FromResult(TypedResults.Ok(new ProductVersionResponse(version)));
+        return Task.FromResult(TypedResults.Ok(BuildIdentity.From(informational, branch)));
     }
 }
 
-public sealed record ProductVersionResponse(string Version);
+/// <param name="Version">Release version (matches the GitHub tag without <c>v</c>); null for a build that is not a release.</param>
+/// <param name="Branch">Branch the build came from; set only for builds outside the release pipeline.</param>
+/// <param name="Commit">Full commit SHA, when the build recorded one.</param>
+public sealed record ProductVersionResponse(string? Version, string? Branch, string? Commit);
 
-public static class ReleaseVersion
+public static class BuildIdentity
 {
-    public static string WithoutCommit(string? informationalVersion, System.Version? assemblyVersion)
+    /// <summary>Written by the <c>ResolveLocalVersion</c> target in <c>Directory.Build.props</c>.</summary>
+    public const string BranchMetadataKey = "GitBranch";
+
+    /// <summary>The placeholder in <c>Directory.Build.props</c>; never a release.</summary>
+    private const string LocalVersionPrefix = "0.0.0";
+
+    /// <summary>
+    /// Splits an InformationalVersion such as <c>0.8.0+abc123</c> (SourceLink appends the commit) into the
+    /// release version and the commit. The placeholder, CI validation builds (<c>0.0.0-*</c>) and a blank value
+    /// are not releases.
+    /// </summary>
+    public static ProductVersionResponse From(string? informationalVersion, string? branch)
     {
-        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        var (version, commit) = Split(informationalVersion);
+        var isRelease = version is not null && !version.StartsWith(LocalVersionPrefix, StringComparison.Ordinal);
+
+        return new ProductVersionResponse(
+            isRelease ? version : null,
+            NullIfBlank(branch),
+            commit);
+    }
+
+    private static (string? Version, string? Commit) Split(string? informationalVersion)
+    {
+        if (string.IsNullOrWhiteSpace(informationalVersion))
         {
-            var plus = informationalVersion.IndexOf('+', StringComparison.Ordinal);
-            return plus >= 0 ? informationalVersion[..plus] : informationalVersion;
+            return (null, null);
         }
 
-        return assemblyVersion?.ToString(3) ?? "unknown";
+        var plus = informationalVersion.IndexOf('+', StringComparison.Ordinal);
+        return plus >= 0
+            ? (NullIfBlank(informationalVersion[..plus]), NullIfBlank(informationalVersion[(plus + 1)..]))
+            : (informationalVersion.Trim(), null);
     }
+
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

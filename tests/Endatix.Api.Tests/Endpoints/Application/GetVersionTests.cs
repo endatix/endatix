@@ -15,47 +15,49 @@ public class GetVersionTests
 
         // Assert
         response.Value.Should().NotBeNull();
-        response.Value!.Version.Should().NotBeNullOrWhiteSpace();
-        response.Value.Version.Should().NotContain("+");
+        (response.Value!.Version ?? string.Empty).Should().NotContain("+");
     }
 
     [Theory]
-    [InlineData("0.7.7-canary.44+abcdef", "0.7.7-canary.44")]
-    [InlineData("0.7.7", "0.7.7")]
-    [InlineData("0.1.1-beta+abcdef", "0.1.1-beta")]
-    [InlineData("1.2.3-beta.2+abcdef", "1.2.3-beta.2")]
-    [InlineData("1.2.3-alpha.1+abcdef", "1.2.3-alpha.1")]
-    [InlineData("1.2.3-rc.1+abcdef", "1.2.3-rc.1")]
-    [InlineData("1.2.3-rc.1", "1.2.3-rc.1")]
-    public void WithoutCommit_StripsSourceLinkSuffix(string informational, string expected)
+    [InlineData("0.7.7-canary.44+abcdef", "0.7.7-canary.44", "abcdef")]
+    [InlineData("0.7.7", "0.7.7", null)]
+    [InlineData("0.8.1-hotfix.1+abcdef", "0.8.1-hotfix.1", "abcdef")]
+    [InlineData("1.2.3-rc.1+abcdef", "1.2.3-rc.1", "abcdef")]
+    public void From_ReleaseBuild_ReturnsVersionAndCommit(string informational, string version, string? commit)
     {
         // Act
-        var version = ReleaseVersion.WithoutCommit(informational, assemblyVersion: null);
+        var identity = BuildIdentity.From(informational, branch: null);
 
         // Assert
-        version.Should().Be(expected);
+        identity.Version.Should().Be(version);
+        identity.Commit.Should().Be(commit);
+        identity.Branch.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("0.0.0-local+abcdef")]
+    [InlineData("0.0.0-ci+abcdef")]
+    public void From_BuildOutsideTheReleasePipeline_ReturnsBranchAndCommitWithoutVersion(string informational)
+    {
+        // Act
+        var identity = BuildIdentity.From(informational, branch: "feat/e1130-version-api");
+
+        // Assert
+        identity.Version.Should().BeNull();
+        identity.Branch.Should().Be("feat/e1130-version-api");
+        identity.Commit.Should().Be("abcdef");
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("  ")]
-    public void WithoutCommit_BlankInformationalVersion_FallsBackToAssemblyVersion(string? informational)
+    public void From_NoInformationalVersion_ReturnsNothing(string? informational)
     {
         // Act
-        var version = ReleaseVersion.WithoutCommit(informational, new System.Version(0, 7, 7));
+        var identity = BuildIdentity.From(informational, branch: " ");
 
         // Assert
-        version.Should().Be("0.7.7");
-    }
-
-    [Fact]
-    public void WithoutCommit_NoVersionAtAll_ReturnsUnknown()
-    {
-        // Act
-        var version = ReleaseVersion.WithoutCommit(informationalVersion: null, assemblyVersion: null);
-
-        // Assert
-        version.Should().Be("unknown");
+        identity.Should().Be(new ProductVersionResponse(null, null, null));
     }
 }

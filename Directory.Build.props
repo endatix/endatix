@@ -1,11 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
     <PropertyGroup>
-        <!-- Local-dev fallback only: CI/release builds override with -p:Version=<computed>.
+        <!-- Local-dev placeholder only, never bumped by hand: every CI and release build passes
+             -p:Version=<version from the tag> (scripts/release-prepare.sh).
              InformationalVersion is deliberately NOT set — it defaults to the effective
              Version (+ source commit SHA via SourceLink). -->
-        <Version>0.1.1-beta</Version>
+        <Version>0.0.0-local</Version>
     </PropertyGroup>
+
+    <!-- Builds outside the release pipeline (local, forks, branch deploys) say where they come from
+         instead of the placeholder. On a release line (main, hotfix/*, or a tag checkout that names
+         no branch) sitting exactly on a release tag, the version is that tag. Anything else, a
+         feature branch on a tagged commit included, records its branch; GET /api/system/version then
+         shows branch and commit (SourceLink appends the commit to InformationalVersion).
+         Package and assembly versions stay put. No git: only the placeholder remains. -->
+    <Target Name="ResolveLocalVersion" BeforeTargets="GetAssemblyVersion" Condition="'$(Version)' == '0.0.0-local'">
+        <Exec Command="git rev-parse --abbrev-ref HEAD"
+              WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true"
+              StandardOutputImportance="low" StandardErrorImportance="low">
+            <Output TaskParameter="ConsoleOutput" PropertyName="_LocalGitBranch" />
+            <Output TaskParameter="ExitCode" PropertyName="_LocalGitBranchExitCode" />
+        </Exec>
+        <PropertyGroup>
+            <_LocalGitBranch Condition="'$(_LocalGitBranchExitCode)' != '0'"></_LocalGitBranch>
+            <!-- A detached checkout (GitHub Actions) names its branch only in the environment. -->
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == 'HEAD'">$(GITHUB_HEAD_REF)</_LocalGitBranch>
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == ''">$(GITHUB_REF_NAME)</_LocalGitBranch>
+            <_LocalGitBranch>$(_LocalGitBranch.Trim())</_LocalGitBranch>
+            <_LocalIsReleaseLine Condition="'$(_LocalGitBranch)' == '' Or '$(_LocalGitBranch)' == 'main' Or $(_LocalGitBranch.StartsWith('hotfix/'))">true</_LocalIsReleaseLine>
+        </PropertyGroup>
+        <Exec Condition="'$(_LocalIsReleaseLine)' == 'true'"
+              Command="git describe --tags --exact-match --match &quot;v[0-9]*&quot;"
+              WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true"
+              StandardOutputImportance="low" StandardErrorImportance="low">
+            <Output TaskParameter="ConsoleOutput" PropertyName="_LocalGitTag" />
+            <Output TaskParameter="ExitCode" PropertyName="_LocalGitTagExitCode" />
+        </Exec>
+        <PropertyGroup Condition="'$(_LocalGitTagExitCode)' == '0' And '$(_LocalGitTag)' != ''">
+            <InformationalVersion>$(_LocalGitTag.Trim().TrimStart('v'))</InformationalVersion>
+        </PropertyGroup>
+        <ItemGroup Condition="'$(InformationalVersion)' == '' And '$(_LocalGitBranch)' != ''">
+            <AssemblyMetadata Include="GitBranch" Value="$(_LocalGitBranch)" />
+        </ItemGroup>
+    </Target>
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
