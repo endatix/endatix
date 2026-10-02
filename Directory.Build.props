@@ -23,9 +23,10 @@
         </Exec>
         <PropertyGroup>
             <_LocalGitBranch Condition="'$(_LocalGitBranchExitCode)' != '0'"></_LocalGitBranch>
-            <!-- A detached checkout (GitHub Actions) names its branch only in the environment. -->
-            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == 'HEAD'">$(GITHUB_HEAD_REF)</_LocalGitBranch>
-            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == ''">$(GITHUB_REF_NAME)</_LocalGitBranch>
+            <!-- Detached GitHub Actions checkout. A tag ref is not a branch: GITHUB_REF_NAME is the tag. -->
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == 'HEAD' And '$(GITHUB_REF_TYPE)' == 'branch' And '$(GITHUB_HEAD_REF)' != ''">$(GITHUB_HEAD_REF)</_LocalGitBranch>
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == 'HEAD' And '$(GITHUB_REF_TYPE)' == 'branch'">$(GITHUB_REF_NAME)</_LocalGitBranch>
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == 'HEAD'"></_LocalGitBranch>
             <_LocalGitBranch>$(_LocalGitBranch.Trim())</_LocalGitBranch>
             <_LocalIsReleaseLine Condition="'$(_LocalGitBranch)' == '' Or '$(_LocalGitBranch)' == 'main' Or $(_LocalGitBranch.StartsWith('hotfix/'))">true</_LocalIsReleaseLine>
         </PropertyGroup>

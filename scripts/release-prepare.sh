@@ -20,13 +20,32 @@ echo "──── Building at version ${VERSION} ────"
 dotnet restore
 dotnet build -c Release --no-restore -p:Version="${VERSION}"
 
-# GET /api/system/version reports this assembly's InformationalVersion. Fail here,
-# before anything ships, if the build did not stamp it with the release version.
+# GET /api/system/version reports InformationalVersion with the SourceLink +commit removed.
+# The match is exact: 0.7.7 must not pass because 0.7.7-canary.44 is in the DLL.
 API_DLL="src/Endatix.Api/bin/Release/net10.0/Endatix.Api.dll"
-if ! grep -aqF "${VERSION}" "${API_DLL}"; then
-  echo "::error::${API_DLL} is not stamped with version ${VERSION}. Is -p:Version passed to dotnet build?" >&2
-  exit 1
-fi
+python3 - "${API_DLL}" "${VERSION}" <<'PY'
+import sys
+data = open(sys.argv[1], "rb").read()
+needle = sys.argv[2].encode()
+utf16 = sys.argv[2].encode("utf-16le")
+
+def exact(blob, token):
+    start = 0
+    while True:
+        i = blob.find(token, start)
+        if i < 0:
+            return False
+        before = blob[i - 1:i] if i else b""
+        after = blob[i + len(token):i + len(token) + 1]
+        if before not in b"0123456789." and after in (b"", b"+", b"\x00"):
+            return True
+        start = i + 1
+
+if exact(data, needle) or exact(data, utf16):
+    raise SystemExit(0)
+sys.stderr.write(f"::error::{sys.argv[1]} InformationalVersion is not {sys.argv[2]}\n")
+raise SystemExit(1)
+PY
 
 echo "──── Packing NuGet packages at version ${VERSION} ────"
 dotnet pack -c Release --no-build -p:Version="${VERSION}" -o build/packages/nuget
