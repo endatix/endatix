@@ -1,55 +1,74 @@
-// Release check: the InformationalVersion of an assembly, read the way the runtime reads it.
-// GET /api/system/version reports this value with SourceLink's +commit removed, so a release
-// build must carry exactly <version> or <version>+<commit>.
+// Release check: InformationalVersion, read the way the runtime reads it.
+// A release build must be exactly <version> or <version>+<commit> (SourceLink).
 //
 // Usage: dotnet run scripts/check-informational-version.cs -- <assembly.dll> <version>
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 
-if (args.Length != 2)
+return await InformationalVersionCheck.Run(args);
+
+internal static class InformationalVersionCheck
 {
-    Console.Error.WriteLine("usage: check-informational-version.cs <assembly.dll> <version>");
-    return 2;
-}
-
-var (path, expected) = (args[0], args[1]);
-var actual = ReadInformationalVersion(path);
-
-if (actual == expected || actual?.StartsWith(expected + "+", StringComparison.Ordinal) == true)
-{
-    Console.WriteLine($"{Path.GetFileName(path)} InformationalVersion: {actual}");
-    return 0;
-}
-
-Console.Error.WriteLine($"::error::{path} InformationalVersion is {actual ?? "missing"}, expected {expected}. Is -p:Version passed to dotnet build?");
-return 1;
-
-static string? ReadInformationalVersion(string path)
-{
-    using var stream = File.OpenRead(path);
-    using var pe = new PEReader(stream);
-    var reader = pe.GetMetadataReader();
-
-    foreach (var handle in reader.GetAssemblyDefinition().GetCustomAttributes())
+    public static async Task<int> Run(string[] args)
     {
-        var attribute = reader.GetCustomAttribute(handle);
+        if (args.Length != 2)
+        {
+            await Console.Error.WriteLineAsync("usage: check-informational-version.cs <assembly.dll> <version>");
+            return 2;
+        }
+
+        var actual = Read(args[0]);
+        if (Matches(actual, args[1]))
+        {
+            await Console.Out.WriteLineAsync($"{Path.GetFileName(args[0])} InformationalVersion: {actual}");
+            return 0;
+        }
+
+        await ReportMismatch(args[0], actual, args[1]);
+        return 1;
+    }
+
+    private static bool Matches(string? actual, string expected) =>
+        actual == expected || actual?.StartsWith(expected + "+", StringComparison.Ordinal) == true;
+
+    private static async Task ReportMismatch(string path, string? actual, string expected) =>
+        await Console.Error.WriteLineAsync(
+            $"::error::{path} InformationalVersion is {actual ?? "missing"}, expected {expected}. Is -p:Version passed to dotnet build?");
+
+    private static string? Read(string path)
+    {
+        using var stream = File.OpenRead(path);
+        using var pe = new PEReader(stream);
+        var reader = pe.GetMetadataReader();
+
+        foreach (var handle in reader.GetAssemblyDefinition().GetCustomAttributes())
+        {
+            var attribute = reader.GetCustomAttribute(handle);
+            if (AttributeName(reader, attribute) == "AssemblyInformationalVersionAttribute")
+            {
+                return StringArgument(reader, attribute);
+            }
+        }
+
+        return null;
+    }
+
+    private static string? AttributeName(MetadataReader reader, CustomAttribute attribute)
+    {
         if (attribute.Constructor.Kind != HandleKind.MemberReference)
         {
-            continue;
+            return null;
         }
 
         var constructor = reader.GetMemberReference((MemberReferenceHandle)attribute.Constructor);
         var type = reader.GetTypeReference((TypeReferenceHandle)constructor.Parent);
-        if (reader.GetString(type.Name) != "AssemblyInformationalVersionAttribute")
-        {
-            continue;
-        }
+        return reader.GetString(type.Name);
+    }
 
-        // Blob: prolog 0x0001, then the single string argument.
+    private static string StringArgument(MetadataReader reader, CustomAttribute attribute)
+    {
         var blob = reader.GetBlobReader(attribute.Value);
         blob.ReadUInt16();
         return blob.ReadSerializedString();
     }
-
-    return null;
 }
