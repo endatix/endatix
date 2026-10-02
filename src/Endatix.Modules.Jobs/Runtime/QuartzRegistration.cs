@@ -123,6 +123,7 @@ internal static class QuartzRegistration
         var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
         services.AddJobExecution();
+        services.AddSingleton<StoredDurableJobs>();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();

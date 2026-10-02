@@ -1,6 +1,9 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Quartz;
 
 namespace Endatix.IntegrationTests;
 
@@ -85,6 +88,38 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
         var triggers = await database.CountAsync("SELECT count(*) FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'", cancellationToken);
         rows.Should().Be(0);
         triggers.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Enqueue_stores_a_durable_job_again_when_it_was_deleted_after_an_earlier_enqueue()
+    {
+        // Arrange — the first enqueue stores the job type's durable job and the node remembers it; then it is deleted
+        // behind the node's back, with the trigger that pointed at it.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
+        await using var node = JobsTestNode.Create(
+            database.ConnectionString,
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
+        await node.StartAsync(cancellationToken);
+        await node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), cancellationToken);
+        var scheduler = await node.Services
+            .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
+            .GetScheduler(cancellationToken);
+        await scheduler.DeleteJob(QuartzRegistration.JobKeyFor(ProbePayload.JobType), cancellationToken);
+
+        // Act
+        var jobId = await node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), cancellationToken);
+
+        // Assert
+        var durableJobs = await database.CountAsync(
+            $"SELECT count(*) FROM jobs.qrtz_job_details WHERE job_name = '{ProbePayload.JobType}'", cancellationToken);
+        var triggerNames = await database.QueryAsync(
+            "SELECT trigger_name FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'",
+            reader => reader.GetString(0),
+            cancellationToken);
+        durableJobs.Should().Be(1);
+        triggerNames.Should().Equal(jobId.ToString());
     }
 
     [Fact]

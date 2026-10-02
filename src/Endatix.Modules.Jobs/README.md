@@ -192,8 +192,10 @@ on the host, and it shows every tenant's triggers. Even with writes on, only End
 class may be named.
 
 Each job type the host has a handler for gets one durable Quartz job, which requests recovery,
-so a job cut off by a stopped or crashed node runs again on another. Every node sharing the
-store must run the same Quartz version, and nodes' clocks must agree within about a second.
+so a job cut off by a stopped or crashed node runs again on another. A host enqueueing a job type
+checks once per process that its durable job is in the store, and stores it again if it has since
+been deleted. Every node sharing the store must run the same Quartz version, and nodes' clocks
+must agree within about a second.
 
 **Trigger lock.** Quartz serializes trigger state across the cluster through one row lock
 (`TRIGGER_ACCESS`). Enqueueing does not take it (`LockOnInsert` is off): on PostgreSQL a trigger is
