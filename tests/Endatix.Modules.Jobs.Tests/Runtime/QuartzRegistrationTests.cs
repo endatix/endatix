@@ -1,5 +1,11 @@
+using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Framework.Modules;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using Quartz;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
 
@@ -81,6 +87,47 @@ public sealed class QuartzRegistrationTests
         // Assert
         plan.PoolSize.Should().Be(1);
     }
+
+    [Fact]
+    public void AddJobsScheduler_Store_InsertsTriggersWithoutTheTriggerLock()
+    {
+        // Arrange
+        using var provider = SchedulerServices(new Dictionary<string, string?>(), "A");
+
+        // Act
+        var lockOnInsert = SchedulerOptions<AdoJobStoreOptions>(provider).LockOnInsert;
+
+        // Assert
+        lockOnInsert.Should().BeFalse();
+    }
+
+    // The module's own registration, with a handler registry of the given job types in place of the host's handlers.
+    private static ServiceProvider SchedulerServices(Dictionary<string, string?> settings, params string[] jobTypes)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=jobs",
+                ["ConnectionStrings:DefaultConnection_DbProvider"] = "postgresql",
+            })
+            .AddInMemoryCollection(settings)
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        JobsModule.Instance.ConfigureServices(new EndatixModuleBuilder(services, configuration));
+        services.Replace(ServiceDescriptor.Singleton(JobHandlerRegistry.Build(jobTypes.Select(Handler))));
+        return services.BuildServiceProvider();
+    }
+
+    private static IBackgroundJobHandler Handler(string jobType)
+    {
+        var handler = Substitute.For<IBackgroundJobHandler>();
+        handler.JobType.Returns(jobType);
+        return handler;
+    }
+
+    private static T SchedulerOptions<T>(IServiceProvider provider) where T : class =>
+        provider.GetRequiredService<IOptionsMonitor<T>>().Get(QuartzRegistration.SchedulerName);
 
     private static BackgroundJobsOptions Bind(Dictionary<string, string?> section)
     {

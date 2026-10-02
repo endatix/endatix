@@ -239,6 +239,10 @@ internal static class QuartzRegistration
         ado.StoreJobDataAsStrings = true;
         ado.SchemaProvisioning = SchemaProvisioning.Validate;
         ado.AcceptEnlistedTransactions = true;
+
+        // On PostgreSQL an uncommitted trigger is invisible to every node's acquisition, so enqueue need not hold the
+        // cluster-wide trigger lock until it commits; the deadlocks Quartz warns of without it are SQL Server's.
+        ado.LockOnInsert = false;
         ado.MisfireThreshold = TimeSpan.FromSeconds(options.MisfireThresholdSeconds);
 
         // A job that waited past the threshold for a slot is put back in line by the misfire pass, so a pass as rare
