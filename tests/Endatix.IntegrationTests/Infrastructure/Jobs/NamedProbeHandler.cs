@@ -17,15 +17,22 @@ internal sealed class NamedProbeHandler(string jobType, NamedProbeRuns runs) : I
 
     public async Task<Result> ExecuteAsync(BackgroundJobContext job, CancellationToken cancellationToken)
     {
-        runs.Started(job.JobId);
-        var input = System.Text.Json.JsonSerializer.Deserialize<NamedProbeInput>(
-            job.PayloadJson, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
-        if (input?.HoldMilliseconds > 0)
+        runs.Started(job.JobId, jobType);
+        try
         {
-            await Task.Delay(input.HoldMilliseconds, cancellationToken);
-        }
+            var input = System.Text.Json.JsonSerializer.Deserialize<NamedProbeInput>(
+                job.PayloadJson, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            if (input?.HoldMilliseconds > 0)
+            {
+                await Task.Delay(input.HoldMilliseconds, cancellationToken);
+            }
 
-        return Result.Success();
+            return Result.Success();
+        }
+        finally
+        {
+            runs.Finished(jobType);
+        }
     }
 
     public static BackgroundJobRequest Request(string jobType, int holdMilliseconds = 0, long tenantId = 5) =>
@@ -35,10 +42,38 @@ internal sealed class NamedProbeHandler(string jobType, NamedProbeRuns runs) : I
 internal sealed class NamedProbeRuns
 {
     private readonly ConcurrentDictionary<long, DateTime> _started = new();
+    private readonly Dictionary<string, (int Running, int Peak)> _concurrency = new(StringComparer.Ordinal);
+    private readonly Lock _concurrencyLock = new();
 
-    public void Started(long jobId) => _started.TryAdd(jobId, DateTime.UtcNow);
+    public void Started(long jobId, string jobType)
+    {
+        _started.TryAdd(jobId, DateTime.UtcNow);
+        lock (_concurrencyLock)
+        {
+            var (running, peak) = _concurrency.GetValueOrDefault(jobType);
+            _concurrency[jobType] = (running + 1, Math.Max(peak, running + 1));
+        }
+    }
+
+    public void Finished(string jobType)
+    {
+        lock (_concurrencyLock)
+        {
+            var (running, peak) = _concurrency[jobType];
+            _concurrency[jobType] = (running - 1, peak);
+        }
+    }
 
     public bool HasStarted(long jobId) => _started.ContainsKey(jobId);
 
     public int Count => _started.Count;
+
+    /// <summary>The most jobs of <paramref name="jobType"/> that ran at once.</summary>
+    public int PeakConcurrency(string jobType)
+    {
+        lock (_concurrencyLock)
+        {
+            return _concurrency.GetValueOrDefault(jobType).Peak;
+        }
+    }
 }

@@ -89,6 +89,23 @@ public sealed class QuartzRegistrationTests
     }
 
     [Fact]
+    public void AddJobsScheduler_RegisteredJobTypes_BatchSizeIsTheThreadPoolSize()
+    {
+        // Arrange — caps of three and one, plus the retention thread.
+        using var provider = SchedulerServices(
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:JobTypes:A:MaxConcurrency"] = "3" },
+            "A", "B");
+
+        // Act
+        var batchSize = SchedulerOptions<QuartzSchedulerOptions>(provider).MaxBatchSize;
+        var threads = SchedulerOptions<ThreadPoolOptions>(provider).MaxConcurrency;
+
+        // Assert
+        threads.Should().Be(5);
+        batchSize.Should().Be(threads);
+    }
+
+    [Fact]
     public void AddJobsScheduler_Store_InsertsTriggersWithoutTheTriggerLock()
     {
         // Arrange
