@@ -4,8 +4,11 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
-/// <summary>The input of a <see cref="NamedProbeHandler"/> job: how long it keeps its slot.</summary>
-internal sealed record NamedProbeInput(int HoldMilliseconds = 0);
+/// <summary>
+/// The input of a <see cref="NamedProbeHandler"/> job: how long it keeps its slot, and whether its first attempt
+/// keeps it until cancelled, as the attempt of a node that crashed does.
+/// </summary>
+internal sealed record NamedProbeInput(int HoldMilliseconds = 0, bool BlockFirstAttempt = false);
 
 /// <summary>
 /// A handler for any job type a test names — including the product's own, such as <c>WebHookDelivery</c> — that
@@ -22,11 +25,7 @@ internal sealed class NamedProbeHandler(string jobType, NamedProbeRuns runs) : I
         {
             var input = System.Text.Json.JsonSerializer.Deserialize<NamedProbeInput>(
                 job.PayloadJson, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
-            if (input?.HoldMilliseconds > 0)
-            {
-                await Task.Delay(input.HoldMilliseconds, cancellationToken);
-            }
-
+            await Task.Delay(HoldFor(input, job.AttemptCount), cancellationToken);
             return Result.Success();
         }
         finally
@@ -37,6 +36,18 @@ internal sealed class NamedProbeHandler(string jobType, NamedProbeRuns runs) : I
 
     public static BackgroundJobRequest Request(string jobType, int holdMilliseconds = 0, long tenantId = 5) =>
         new(jobType, $$"""{"holdMilliseconds":{{holdMilliseconds}}}""", tenantId);
+
+    /// <summary>A job whose first attempt blocks until cancelled, and whose later attempts hold for a while.</summary>
+    public static BackgroundJobRequest BlockingFirstAttempt(string jobType, int holdMilliseconds) =>
+        new(jobType, $$"""{"holdMilliseconds":{{holdMilliseconds}},"blockFirstAttempt":true}""", 5);
+
+    private static TimeSpan HoldFor(NamedProbeInput? input, int attempt) =>
+        input switch
+        {
+            { BlockFirstAttempt: true } when attempt == 1 => Timeout.InfiniteTimeSpan,
+            { HoldMilliseconds: > 0 } => TimeSpan.FromMilliseconds(input.HoldMilliseconds),
+            _ => TimeSpan.Zero,
+        };
 }
 
 internal sealed class NamedProbeRuns

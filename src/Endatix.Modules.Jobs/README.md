@@ -174,8 +174,10 @@ caps, and there is no global concurrency setting. Trigger acquisition reads, for
 free slot on the node, at most as many of its oldest triggers as it has free slots, so a backlog
 of one job type never holds up another. One acquisition takes up to a trigger per free thread
 (the scheduler's batch size is the pool size) and never more of a job type than its free slots.
-If a node ever fires a job type it has no handler for, the wrapper declines it without touching
-the row and offers the trigger again 30 seconds later.
+The triggers Quartz creates to recover a dead node's jobs carry no group; they are given their job
+type's when read for acquisition, so recovered jobs count against the cap like any other. If a
+node ever fires a job type it has no handler for, the wrapper declines it without touching the row
+and offers the trigger again 30 seconds later.
 
 **Backlog warning.** A job that waited past `MisfireThresholdSeconds` for a slot increments
 `endatix.jobs.misfired` (tag `job_type`), and again at every threshold while it waits. The warning

@@ -1,6 +1,8 @@
 using System.Data.Common;
 using System.Globalization;
 using Npgsql;
+using Quartz;
+using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -95,6 +97,32 @@ internal sealed class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDele
         }
 
         return orderBy;
+    }
+
+    /// <summary>
+    /// Reads the triggers <paramref name="triggerKeys"/> name, giving each trigger of an Endatix job that names no
+    /// execution group its job type's group.
+    /// </summary>
+    /// <remarks>
+    /// Acquisition reads the triggers it is about to fire through here. The triggers Quartz creates to recover a dead
+    /// node's jobs name no execution group: the acquisition query finds them through their job's name anyway, but
+    /// the scheduler counts a firing against the group its trigger names, so without one a recovered job would hold
+    /// a slot of its type without being counted in it, and the node would keep acquiring that type's triggers past
+    /// its cap.
+    /// </remarks>
+    public override async ValueTask<List<IOperableTrigger>> SelectTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        var triggers = await base.SelectTriggers(conn, triggerKeys, cancellationToken);
+        foreach (var trigger in triggers.Where(trigger =>
+                     trigger.ExecutionGroup is null && trigger.JobKey.Group == QuartzRegistration.JobGroup))
+        {
+            trigger.ExecutionGroup = trigger.JobKey.Name;
+        }
+
+        return triggers;
     }
 
     /// <inheritdoc />
