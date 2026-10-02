@@ -1,6 +1,6 @@
 ---
 title: "Background Processing"
-description: "Understand Endatix background processing, the transactional outbox pattern, and how to configure the in-process outbox relay."
+description: "Understand Endatix background processing: the transactional outbox, the in-process outbox relay, background jobs on Quartz.NET, and delivering outbox events as one job per subscriber."
 ---
 
 # Background Processing
@@ -69,7 +69,7 @@ At a high level:
 
 1. **Capture** — When a domain event occurs (for example, a submission is completed), Endatix appends an outbox message (event type, JSON payload, tenant) in the **same database transaction** that saves your data. This happens automatically — no extra configuration or code is involved.
 2. **Claim** — The relay (a background service named `OutboxRelayBackgroundService` — you will see it in the logs) polls the outbox table and claims rows with a time-bounded lease.
-3. **Publish** — The relay fans each message out to every registered outbox subscriber (`IOutboxIntegrationEventHandler`): webhooks, reporting flattening, and future modules. All matched handlers must succeed before the row is marked **Sent**.
+3. **Publish** — By default the relay runs every registered outbox subscriber (`IOutboxIntegrationEventHandler`) itself: webhooks, reporting flattening, and future modules. All matched handlers must succeed before the row is marked **Sent**. With [delivery to the job queue](#delivery-to-the-job-queue) on, it enqueues one background job per subscriber instead and marks the row **Sent** as soon as they are enqueued.
 4. **Complete** — Successful delivery marks the row **Sent**; failures reschedule until `MaxAttempts`.
 
 The relay engine itself lives in the [`Endatix.Outbox.Engine`](https://github.com/endatix/endatix-relay) package (published as [NuGet `Endatix.Outbox.Engine`](https://www.nuget.org/packages/Endatix.Outbox.Engine)). Endatix consumes that package and supplies Endatix-specific subscribers (webhooks, reporting) and EF schema mapping.
@@ -125,6 +125,7 @@ Add or customize the `Endatix:Outbox` section in `appsettings.json`. All setting
 "Endatix": {
   "Outbox": {
     "RunInProcess": true,
+    "DeliverToJobQueue": false,
     "PollIntervalSeconds": 5,
     "BatchSize": 50,
     "LeaseSeconds": 60,
@@ -138,6 +139,7 @@ Add or customize the `Endatix:Outbox` section in `appsettings.json`. All setting
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `RunInProcess` | When `true`, the API host runs the outbox relay loop. When `false`, the in-process relay is disabled so an external relay worker can take over (see the warning below). | `true` |
+| `DeliverToJobQueue` | When `true`, the relay delivers each message by enqueuing one background job per subscriber instead of running the subscribers itself. Read at startup. See [Delivery to the job queue](#delivery-to-the-job-queue). | `false` |
 | `PollIntervalSeconds` | How often the relay polls for pending outbox messages. Lower values reduce latency; higher values reduce database load. | `5` |
 | `BatchSize` | Maximum number of messages claimed per poll cycle. | `50` |
 | `LeaseSeconds` | Duration a claimed row is locked to this relay instance. If the worker crashes, the lease expires and another instance can reclaim the row. | `60` |
@@ -152,6 +154,116 @@ Do not set `RunInProcess` to `false` unless you are running your own relay worke
 :::note[Environment-specific tuning]
 Use `appsettings.Production.json` for production values. For example, you might increase `PollIntervalSeconds` on large databases or tighten `MaxAttempts` when endpoints are known to be best-effort.
 :::
+
+## Background jobs
+
+Background jobs run work that outlives a request — one webhook delivery, one Reporting update — each with its own retries and status. They are provided by the Jobs module, which is **PostgreSQL only** and off unless `Endatix:FeatureFlags:JobsModule` is `true`.
+
+Each job is a row in `jobs."BackgroundJobs"`, the record `GET jobs/{jobId}` reads, plus one trigger in [Quartz.NET](https://www.quartz-scheduler.net/) 4.2's clustered store in the same `jobs` schema. Enqueueing writes both in one transaction. Quartz decides when and on which node a job runs, retries it, and runs a stopped node's jobs again on another node. The `jobs` migrations create Quartz's tables; with automatic migrations off, apply them before you start the API, or startup fails with `Database schema validation failed under table prefix 'jobs.qrtz_'`.
+
+### Deployment profiles
+
+Every host that registers the Jobs module can enqueue. `Endatix:BackgroundJobs:RunInProcess` decides whether it also **executes** jobs:
+
+- **One process** — keep `RunInProcess` at `true`. The API enqueues and runs jobs.
+- **API and workers** — set `RunInProcess` to `false` on API instances and `true` on worker instances of the same image, all against the same database. API instances only enqueue; workers pick jobs up within `IdleWaitTimeSeconds`.
+
+Each job type is capped per node (`JobTypes:{JobType}:MaxConcurrency`), so a webhook backlog never takes a Reporting or export slot. A node never runs a job type it has no handler for; the job waits for a node that has it. Jobs recovered from a node that stopped do not count against their type's cap, so a type can briefly run more than its cap on the node that recovers them, never more than that node's thread pool.
+
+:::warning[Nodes' clocks must agree]
+Every node sharing the database must keep its clock within **1 second** of the others. A node judges a peer dead by comparing timestamps; a node whose clock runs behind can be presumed dead while it is healthy, and its running jobs run a second time. The first run is stopped within `CancellationPollSeconds` of the second starting, and records nothing.
+:::
+
+## Delivery to the job queue
+
+With `Endatix:Outbox:DeliverToJobQueue` set to `true`, the relay stops running subscribers inside its loop. For each message it enqueues **one background job per subscriber** — one per configured webhook endpoint, one per Reporting handler — and marks the message **Sent**. A failing webhook endpoint then retries and dead-letters on its own, without re-sending to the healthy endpoints or holding up Reporting.
+
+- **Requires the Jobs module.** `Endatix:Outbox:DeliverToJobQueue` requires PostgreSQL, because the Jobs module does. On SQL Server it must stay `false`. If the switch is on and the Jobs module is not registered, the relay pauses — messages stay **Pending** — and logs `The outbox relay is paused: Endatix:Outbox:DeliverToJobQueue is on but the Jobs module is not registered.`
+- **Every subscriber needs a job subscription.** Startup fails when an outbox handler handles an event its module has no job subscription for, naming the handler and the event. Custom modules and SaaS modules keep the switch off until every one of their inline handlers has a subscription.
+- **Relay hosts register every subscribing module.** Every host that runs the outbox relay must register every module that subscribes to outbox events, with the same module feature flags. A relay host without a module marks that module's events **Sent** without enqueuing its jobs, and nothing can detect it.
+- **Webhook attempts.** Each webhook job POSTs once per attempt, with no HTTP-level retries, so an endpoint receives at most `JobTypes:WebHookDelivery:MaxAttempts` requests for one event: 8 with the shipped `appsettings.json`, and the global `MaxAttempts` (3) on a host that sets neither. `X-Endatix-Hook-Id` is still the outbox message id.
+- **Redelivery is safe.** A message delivered twice — after a crash between enqueueing and marking it sent — enqueues nothing new: each job carries the dedup key `{outboxMessageId}:{subscriber}`.
+
+:::note[Release note]
+Webhooks delivered through the job queue retry and dead-letter **per endpoint**: one failing endpoint no longer causes re-delivery to the others.
+:::
+
+## Background jobs configuration reference
+
+All keys are under `Endatix:BackgroundJobs`. Per-job-type values go under `JobTypes:{JobType}`; a value a job type does not set falls back to the global one, except `MaxConcurrency`, which has no global key and falls back to `1`.
+
+```json
+"Endatix": {
+  "BackgroundJobs": {
+    "RunInProcess": true,
+    "JobTypes": {
+      "WebHookDelivery": { "MaxAttempts": 8, "MaxConcurrency": 4 }
+    }
+  }
+}
+```
+
+<Settings>
+<Setting name="Endatix:BackgroundJobs:RunInProcess" default="true">
+Whether this host executes jobs. `false` makes it enqueue only — its scheduler has no threads and never starts.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:IdleWaitTimeSeconds" default="2">
+How long an idle node waits before looking for jobs another node enqueued.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:CancellationPollSeconds" default="10">
+How often a running job re-reads its row to notice it was cancelled.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:MisfireThresholdSeconds" default="60">
+How long a due job may wait for a free slot before `endatix.jobs.misfired` counts it, again at every threshold while it waits. The backlog warning `Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of this type misfired since the last warning.` is logged at most once per job type per threshold.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:ShutdownWaitSeconds" default="30">
+How long a stopping host waits for running jobs. Jobs still running then record nothing and run again on the next node. The host's own shutdown timeout (`HostOptions.ShutdownTimeout`, 30 seconds by default) also bounds this wait, so a longer value needs a longer host timeout.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:MaxRuntimeMinutes" default="60">
+Ceiling on one attempt; the handler's token is cancelled when it passes. Per job type.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:MaxAttempts" default="3">
+Attempts before a job that keeps failing is dead-lettered. Per job type. A job whose node stops during its last attempt is dead-lettered when another node recovers it, rather than run again. Change a job type's value only when that type has no jobs waiting: raising it while jobs wait can leave a job `Retrying` with nothing scheduled to run it, which is logged as `The scheduler ran out of retries for background job …`.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:BackoffBaseSeconds" default="30">
+Wait before the first retry; each later retry waits twice as long. Per job type.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:BackoffCapSeconds" default="900">
+Longest wait between retries. Per job type.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:RetentionDays" default="7">
+Days a finished job's row is kept before the retention job deletes it. Per job type.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:JobTypes:{JobType}:MaxConcurrency" default="1">
+Jobs of this type one node runs at once. `0` keeps the node from running the type. The node's thread pool is the sum of these caps (at least 1), plus one thread for the retention job.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:Retention:Cron" default="0 0/15 * * * ?">
+When the retention job runs, as a Quartz cron expression. It runs on one node at a time.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:Retention:BatchSize" default="1000">
+Rows the retention job deletes per statement.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:Retention:MaxBatchesPerRun" default="50">
+Batches one retention run deletes at most.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:Dashboard:Enabled" default="false">
+Serves the Quartz dashboard at `/quartz` and its HTTP API at `/quartz-api`, to platform admins only. It shows every tenant's jobs.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:Dashboard:AllowWrites" default="false">
+Lets platform admins change schedules through the dashboard. Read-only otherwise. A caller who may write can schedule jobs on the host.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:Clustering:CheckinIntervalSeconds" default="7.5">
+How often a node records that it is alive.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:Clustering:CheckinMisfireThresholdSeconds" default="7.5">
+How late a check-in may be before the node is presumed dead; its running jobs then run again on another node.
+</Setting>
+<Setting name="Endatix:BackgroundJobs:Clustering:InstanceId" default="generated">
+This node's identity. Unset, it is generated from the host name and start time. Set it only to a value no other running node uses.
+</Setting>
+</Settings>
+
+The shipped `appsettings.json` sets these job types: `WebHookDelivery` (8 attempts, 5-minute runtime, 10–3600 s backoff, 3-day retention, 4 per node) and the five `Reporting*` types (5 attempts, 10-minute runtime, 10–600 s backoff, 3-day retention, 2 per node).
 
 ## Separate-Process Relay (Planned)
 

@@ -262,6 +262,21 @@ pipeline to it.
 | `endatix.jobs.events` | counter | `{event}` | `endatix.job.type`, `endatix.job.event` |
 | `endatix.jobs.duration` | histogram | `s` | `endatix.job.type`, `endatix.job.outcome` |
 
+## Outbox delivery to jobs
+
+With `Endatix:Outbox:DeliverToJobQueue` on (default `false`), the outbox relay delivers each message
+by enqueuing one job per subscriber — one `WebHookDelivery` job per configured endpoint, one job per
+Reporting handler — with the dedup key `{outboxMessageId}:{subscriber}`, and marks it sent. Modules
+register their subscriptions with `AddOutboxJobSubscription` next to their job handlers.
+
+- Every host that runs the outbox relay must register every module that subscribes to outbox
+  events, with the same module feature flags.
+- With the switch on and this module off, the relay pauses rather than lose messages.
+- Startup fails while an inline outbox handler's event has no job subscription from its module.
+- The switch needs PostgreSQL: on SQL Server it stays `false`.
+
+Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
+
 ## Configuration
 
 Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{JobType}`:
@@ -274,11 +289,11 @@ Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{Job
 | `MisfireThresholdSeconds` | `60` | How long a due job may wait for a slot before the backlog warning |
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
-| `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type) |
+| `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); change it only while the type has no jobs waiting, or a waiting job can be left `Retrying` with no trigger |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |
 | `RetentionDays` | `7` | How long a finished job's row is kept (per type); stamped as `ExpiresAt` when it finishes |
 | `Retention:Cron` / `BatchSize` / `MaxBatchesPerRun` | `0 0/15 * * * ?` / `1000` / `50` | When the retention job runs and how much one run deletes |
-| `JobTypes:{JobType}:MaxConcurrency` | `1` | Jobs of this type one node runs at once; `0` declines the type |
+| `JobTypes:{JobType}:MaxConcurrency` | `1` | Jobs of this type one node runs at once; `0` declines the type. Jobs recovered from a stopped node do not count against it, so the cap can be briefly exceeded, within the node's thread pool |
 | `Clustering:CheckinIntervalSeconds` / `CheckinMisfireThresholdSeconds` | `7.5` / `7.5` | A node silent for their sum is presumed dead |
 | `Dashboard:Enabled` / `Dashboard:AllowWrites` | `false` / `false` | The operator dashboard, for platform admins |
 | `Clustering:InstanceId` | generated | This node's identity; set only to a value no other running node uses |
