@@ -1,11 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
     <PropertyGroup>
-        <!-- Local-dev fallback only: CI/release builds override with -p:Version=<computed>.
+        <!-- Local-dev placeholder, never bumped by hand. The release pipeline stamps
+             -p:Version from the tag (scripts/release-prepare.sh). Other CI builds do not.
              InformationalVersion is deliberately NOT set — it defaults to the effective
              Version (+ source commit SHA via SourceLink). -->
-        <Version>0.1.1-beta</Version>
+        <Version>0.0.0-local</Version>
     </PropertyGroup>
+
+    <!-- Only Endatix.Api is read by GET /api/system/version. A git checkout that is not a
+         release reports its branch; a release line (main, hotfix/*, or a detached tag checkout)
+         sitting exactly on a clean v* tag reports that tag. A dirty tree is not that release.
+         No git (the Dockerfile, a CI build that does not pass -p:Version): version stays null
+         and there is no branch. SourceLink appends the commit when it has one. -->
+    <Target Name="ResolveLocalVersion" BeforeTargets="GetAssemblyVersion"
+            Condition="'$(Version)' == '0.0.0-local' And '$(MSBuildProjectName)' == 'Endatix.Api'">
+        <!-- Exec uses cmd.exe on Windows. /dev/null is not a path there, so the redirect fails and IgnoreExitCode hides it. -->
+        <PropertyGroup>
+            <_NullDevice Condition="$([MSBuild]::IsOSPlatform('Windows'))">nul</_NullDevice>
+            <_NullDevice Condition="'$(_NullDevice)' == ''">/dev/null</_NullDevice>
+        </PropertyGroup>
+        <Exec Command="git symbolic-ref --short -q HEAD 2&gt;$(_NullDevice)"
+              WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true"
+              IgnoreStandardErrorWarningFormat="true"
+              StandardOutputImportance="low" StandardErrorImportance="low">
+            <Output TaskParameter="ConsoleOutput" PropertyName="_LocalGitBranch" />
+            <Output TaskParameter="ExitCode" PropertyName="_LocalGitBranchExitCode" />
+        </Exec>
+        <PropertyGroup>
+            <_LocalGitBranch Condition="'$(_LocalGitBranchExitCode)' != '0'"></_LocalGitBranch>
+            <!-- Detached GitHub Actions checkout. A tag ref is not a branch: GITHUB_REF_NAME is the tag. -->
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == '' And '$(GITHUB_REF_TYPE)' == 'branch' And '$(GITHUB_HEAD_REF)' != ''">$(GITHUB_HEAD_REF)</_LocalGitBranch>
+            <_LocalGitBranch Condition="'$(_LocalGitBranch)' == '' And '$(GITHUB_REF_TYPE)' == 'branch'">$(GITHUB_REF_NAME)</_LocalGitBranch>
+            <_LocalGitBranch>$(_LocalGitBranch.Trim())</_LocalGitBranch>
+            <_LocalIsReleaseLine Condition="'$(_LocalGitBranch)' == '' Or $(_LocalGitBranch.Equals('main')) Or $(_LocalGitBranch.StartsWith('hotfix/'))">true</_LocalIsReleaseLine>
+        </PropertyGroup>
+        <Exec Condition="'$(_LocalIsReleaseLine)' == 'true'"
+              Command="git describe --tags --exact-match --dirty --match &quot;v[0-9]*&quot; 2&gt;$(_NullDevice)"
+              WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true"
+              IgnoreStandardErrorWarningFormat="true"
+              StandardOutputImportance="low" StandardErrorImportance="low">
+            <Output TaskParameter="ConsoleOutput" PropertyName="_LocalGitTag" />
+            <Output TaskParameter="ExitCode" PropertyName="_LocalGitTagExitCode" />
+        </Exec>
+        <PropertyGroup Condition="'$(_LocalGitTagExitCode)' == '0' And '$(_LocalGitTag)' != '' And !$(_LocalGitTag.Contains('-dirty'))">
+            <InformationalVersion>$(_LocalGitTag.Trim().TrimStart('v'))</InformationalVersion>
+        </PropertyGroup>
+        <ItemGroup Condition="'$(InformationalVersion)' == '' And '$(_LocalGitBranch)' != ''">
+            <AssemblyMetadata Include="GitBranch" Value="$(_LocalGitBranch)" />
+        </ItemGroup>
+    </Target>
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>

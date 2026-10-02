@@ -31,7 +31,10 @@ jobs:
     uses: endatix/release-workflows/.github/workflows/release-artifacts.yml@8e04473b8951790b94f7a4486e47d4e714dac9a3 # v1
     with:
       docker-image: ghcr.io/endatix/endatix-api
-      promotion: rebuild # NuGet versions are baked in — the image is rebuilt at the tag too
+      # NuGet versions are baked in, so the image is rebuilt at the tag too. This also
+      # keeps GET /api/system/version truthful: an image retag would serve a binary
+      # stamped with the canary version under the stable tag.
+      promotion: rebuild
       fetch-secrets: true # ENDATIX_DOCKERHUB_* via Infisical (prod)
       nuget-login: false # nuget.org auth happens in publish-nuget-org below
       upload-nuget-artifacts: true # hand the .nupkg files to that job

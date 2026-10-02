@@ -20,6 +20,12 @@ echo "──── Building at version ${VERSION} ────"
 dotnet restore
 dotnet build -c Release --no-restore -p:Version="${VERSION}"
 
+# GET /api/system/version reports InformationalVersion with the SourceLink +commit removed.
+# Read the attribute through System.Reflection.Metadata, as the runtime does: it must be exactly
+# VERSION or VERSION+commit, so 0.7.7 fails on a 0.7.7-canary.44 build.
+dotnet run scripts/check-informational-version.cs -- \
+  "src/Endatix.Api/bin/Release/net10.0/Endatix.Api.dll" "${VERSION}"
+
 echo "──── Packing NuGet packages at version ${VERSION} ────"
 dotnet pack -c Release --no-build -p:Version="${VERSION}" -o build/packages/nuget
 
