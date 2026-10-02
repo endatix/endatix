@@ -15,7 +15,12 @@
          and there is no branch. SourceLink appends the commit when it has one. -->
     <Target Name="ResolveLocalVersion" BeforeTargets="GetAssemblyVersion"
             Condition="'$(Version)' == '0.0.0-local' And '$(MSBuildProjectName)' == 'Endatix.Api'">
-        <Exec Command="git symbolic-ref --short -q HEAD 2&gt;/dev/null"
+        <!-- Exec uses cmd.exe on Windows. /dev/null is not a path there, so the redirect fails and IgnoreExitCode hides it. -->
+        <PropertyGroup>
+            <_NullDevice Condition="$([MSBuild]::IsOSPlatform('Windows'))">nul</_NullDevice>
+            <_NullDevice Condition="'$(_NullDevice)' == ''">/dev/null</_NullDevice>
+        </PropertyGroup>
+        <Exec Command="git symbolic-ref --short -q HEAD 2&gt;$(_NullDevice)"
               WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true"
               IgnoreStandardErrorWarningFormat="true"
               StandardOutputImportance="low" StandardErrorImportance="low">
@@ -31,7 +36,7 @@
             <_LocalIsReleaseLine Condition="'$(_LocalGitBranch)' == '' Or $(_LocalGitBranch.Equals('main')) Or $(_LocalGitBranch.StartsWith('hotfix/'))">true</_LocalIsReleaseLine>
         </PropertyGroup>
         <Exec Condition="'$(_LocalIsReleaseLine)' == 'true'"
-              Command="git describe --tags --exact-match --dirty --match &quot;v[0-9]*&quot; 2&gt;/dev/null"
+              Command="git describe --tags --exact-match --dirty --match &quot;v[0-9]*&quot; 2&gt;$(_NullDevice)"
               WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" IgnoreExitCode="true"
               IgnoreStandardErrorWarningFormat="true"
               StandardOutputImportance="low" StandardErrorImportance="low">
