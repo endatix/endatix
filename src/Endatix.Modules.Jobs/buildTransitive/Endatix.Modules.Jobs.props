@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- The Quartz dashboard this module maps is interactive Blazor, which needs the framework script
+         (_framework/blazor.web.js). Since .NET 10 that script is a static web asset the SDK adds only to an app that
+         declares it needs ASP.NET web assets, and it infers that only from the app's own .razor files, which an API
+         host has none of. NuGet imports this into every app that references the package; a project reference does
+         not, so Endatix.WebHost imports it itself. -->
+    <RequiresAspNetWebAssets Condition="'$(RequiresAspNetWebAssets)' == ''">true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+</Project>
