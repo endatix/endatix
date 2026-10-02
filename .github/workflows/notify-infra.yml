@@ -1,7 +1,7 @@
 # Tell endatix-infra which version was just released.
 #
 # scripts/release-publish.sh pushes the Helm chart at the release version, so by the time
-# a release is published, ghcr.io/endatix/charts/endatix-api:<version> exists. This workflow
+# this runs, ghcr.io/endatix/charts/endatix-api:<version> exists. This workflow
 # hands that version to endatix-infra, which pins it into the umbrella chart of whichever
 # environments track this component and commits; ArgoCD deploys from there.
 #
@@ -10,13 +10,27 @@
 # prereleases are NOT filtered here: canaries are exactly what a CI environment wants, and
 # it is not this repo's business which environments exist.
 #
-# Fires for every published release: canaries from main, hotfix builds, and stable
-# releases at the moment their draft is published.
+# Fires for every release: canaries from main and hotfix builds when published, stable
+# releases once release-artifacts.yml has pushed their chart (see WHEN IT FIRES).
+#
+# WHEN IT FIRES. Canaries and hotfix builds notify the moment their release is published:
+# semantic-release pushes their packages and chart before it creates the release. A stable
+# is different — release-artifacts.yml REBUILDS its packages and chart after a human
+# publishes the draft, so a notification at publish time pointed endatix-infra at a version that
+# did not exist yet (v0.7.8: the SaaS bump restored 2.5 min before the packages landed).
+# Stables therefore come through release-artifacts.yml, which calls this workflow with
+# after-promote: true once promote has pushed them to GitHub Packages and GHCR.
 name: Notify infra of release
 
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      after-promote:
+        description: Set by release-artifacts.yml once a stable's artifacts are pushed.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -31,6 +45,9 @@ concurrency:
 jobs:
   notify:
     name: Pin endatix-api ${{ github.event.release.tag_name }} in infra
+    # A prerelease notifies on publish; a stable only through release-artifacts.yml (above).
+    # Called from there, the event is still the release, so the tag below is the same.
+    if: inputs.after-promote || github.event.release.prerelease
     runs-on: ubuntu-latest
     # Matches the release pipeline's environment so the Infisical machine identity
     # authenticates on the same OIDC subject.

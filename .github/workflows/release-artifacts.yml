@@ -101,3 +101,30 @@ jobs:
             -k "$NUGET_API_KEY" \
             -s https://api.nuget.org/v3/index.json \
             --skip-duplicate
+
+  # Downstream notifications for a stable wait for promote: the packages and chart they
+  # point at are rebuilt by it, and do not exist when the release is published. GitHub
+  # Packages and GHCR are what endatix-saas and endatix-infra read; nuget.org is not, so
+  # these do not wait for publish-nuget-org. Prereleases notify from the same workflows
+  # directly on publish.
+  notify-saas:
+    name: Notify SaaS
+    needs: promote
+    if: ${{ !github.event.release.prerelease }}
+    permissions:
+      contents: read
+      id-token: write # OIDC for Infisical
+    uses: ./.github/workflows/notify-saas.yml
+    with:
+      after-promote: true
+
+  notify-infra:
+    name: Notify infra
+    needs: promote
+    if: ${{ !github.event.release.prerelease }}
+    permissions:
+      contents: read
+      id-token: write # OIDC for Infisical
+    uses: ./.github/workflows/notify-infra.yml
+    with:
+      after-promote: true
