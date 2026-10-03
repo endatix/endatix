@@ -2,7 +2,8 @@
 name: Feature
 about: New Endatix feature
 title: '[FEATURE] '
-labels: 'enhancement'
+labels: 'needs-triage'
+type: Feature
 assignees: ''
 ---
 
