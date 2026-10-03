@@ -24,6 +24,7 @@ internal interface IJobTriggerScheduler
 /// <inheritdoc cref="IJobTriggerScheduler" />
 internal sealed class QuartzJobTriggerScheduler(
     [FromKeyedServices(QuartzRegistration.SchedulerName)] ISchedulerFactory schedulerFactory,
+    StoredDurableJobs durableJobs,
     IOptions<BackgroundJobsOptions> options) : IJobTriggerScheduler
 {
     public async Task ScheduleAndCommitAsync(
@@ -33,31 +34,18 @@ internal sealed class QuartzJobTriggerScheduler(
     {
         // Built before enlisting: the scheduler refuses to be started for the first time inside an enlistment.
         var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
+        var jobTypes = jobs.Select(job => job.JobType).Distinct(StringComparer.Ordinal).ToList();
 
         // The enlistment flows with this async context only, so it is opened here, around both the scheduling
         // and the commit, and closed after the commit, when the scheduler is told about triggers it can see.
         using (scheduler.EnlistTransaction(transaction.GetDbTransaction()))
         {
-            await EnsureDurableJobsAsync(scheduler, jobs, cancellationToken);
+            await durableJobs.EnsureAsync(scheduler, jobTypes, cancellationToken);
             await ScheduleTriggersAsync(scheduler, jobs, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
-    }
 
-    // A job type is enqueued from any host, including one without its handler, so the durable job a trigger
-    // points at may not have been stored yet by a host that has one.
-    private static async Task EnsureDurableJobsAsync(
-        IScheduler scheduler,
-        IReadOnlyList<BackgroundJob> jobs,
-        CancellationToken cancellationToken)
-    {
-        foreach (var jobType in jobs.Select(job => job.JobType).Distinct(StringComparer.Ordinal))
-        {
-            if (!await scheduler.Exists(QuartzRegistration.JobKeyFor(jobType), cancellationToken))
-            {
-                await scheduler.AddJob(QuartzRegistration.DurableJobFor(jobType), AddJobOptions.Replacing, cancellationToken);
-            }
-        }
+        durableJobs.Remember(jobTypes);
     }
 
     private async Task ScheduleTriggersAsync(
@@ -68,9 +56,10 @@ internal sealed class QuartzJobTriggerScheduler(
         foreach (var job in jobs)
         {
             var policy = options.Value.ResolvePolicy(job.JobType);
-            await scheduler.ScheduleJob(
+            await durableJobs.ScheduleAsync(
+                scheduler,
                 QuartzRegistration.TriggerFor(new JobTriggerSpec(job.Id, job.JobType, policy)),
-                cancellationToken: cancellationToken);
+                cancellationToken);
         }
     }
 }

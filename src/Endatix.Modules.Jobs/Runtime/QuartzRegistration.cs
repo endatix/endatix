@@ -40,6 +40,12 @@ internal static class QuartzRegistration
     // slots.
     private const int MaintenanceThreads = 1;
 
+    // Triggers already due join a batch whatever the window; the window lets a trigger due a moment later, such as
+    // one enqueued by a node whose clock runs slightly ahead, join it rather than wait for a lock round of its own.
+    // A delayed trigger fires at most this early, which is nothing beside the seconds a retry backoff or a re-fire
+    // waits.
+    private static readonly TimeSpan BatchFireAheadWindow = TimeSpan.FromMilliseconds(100);
+
     /// <summary>
     /// What the scheduler is sized to from this host's job types. The pool holds every job type's full cap at
     /// once, so a backlog in one job type never takes a thread another type is entitled to.
@@ -117,18 +123,34 @@ internal static class QuartzRegistration
         var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
         services.AddJobExecution();
+        services.AddSingleton<StoredDurableJobs>();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
         services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, connectionString));
-
-        // Sized from the registry, which only exists once the container is built.
-        services.AddOptions<ThreadPoolOptions>(SchedulerName)
-            .Configure<JobHandlerRegistry, IOptions<BackgroundJobsOptions>>((threadPool, registry, jobsOptions) =>
-                threadPool.MaxConcurrency = Build(registry.JobTypes, jobsOptions.Value).PoolSize + MaintenanceThreads);
+        SizeToRegisteredJobTypes(services);
 
         return services;
     }
+
+    // Sized from the registry, which only exists once the container is built.
+    private static void SizeToRegisteredJobTypes(IServiceCollection services)
+    {
+        services.AddOptions<ThreadPoolOptions>(SchedulerName)
+            .Configure<JobHandlerRegistry, IOptions<BackgroundJobsOptions>>((threadPool, registry, jobsOptions) =>
+                threadPool.MaxConcurrency = ThreadCount(registry, jobsOptions.Value));
+
+        // An acquisition takes up to one trigger per free thread and fires them together, taking the cluster-wide
+        // trigger lock once to acquire and once to fire rather than once per trigger. Above a batch of one, Quartz
+        // takes the lock for every acquisition, so an idle node takes it once per idle wait. Execution limits still
+        // hold per job type: the driver delegate never returns more of a type's triggers than it has free slots.
+        services.AddOptions<QuartzSchedulerOptions>(SchedulerName)
+            .Configure<JobHandlerRegistry, IOptions<BackgroundJobsOptions>>((scheduler, registry, jobsOptions) =>
+                scheduler.MaxBatchSize = ThreadCount(registry, jobsOptions.Value));
+    }
+
+    private static int ThreadCount(JobHandlerRegistry registry, BackgroundJobsOptions options) =>
+        Build(registry.JobTypes, options).PoolSize + MaintenanceThreads;
 
     private static void ConfigureQuartz(
         IQuartzBuilder quartz,
@@ -160,6 +182,7 @@ internal static class QuartzRegistration
         scheduler.InstanceName = SchedulerName;
         SetInstanceId(scheduler, options.Clustering.InstanceId);
         scheduler.IdleWaitTime = TimeSpan.FromSeconds(options.IdleWaitTimeSeconds);
+        scheduler.BatchTriggerAcquisitionFireAheadTimeWindow = BatchFireAheadWindow;
 
         // The wrapper re-parents each run onto the trace stored on the job row, so the trigger needs no trace data
         // of its own and carries nothing but the job id.
@@ -239,6 +262,10 @@ internal static class QuartzRegistration
         ado.StoreJobDataAsStrings = true;
         ado.SchemaProvisioning = SchemaProvisioning.Validate;
         ado.AcceptEnlistedTransactions = true;
+
+        // On PostgreSQL an uncommitted trigger is invisible to every node's acquisition, so enqueue need not hold the
+        // cluster-wide trigger lock until it commits; the deadlocks Quartz warns of without it are SQL Server's.
+        ado.LockOnInsert = false;
         ado.MisfireThreshold = TimeSpan.FromSeconds(options.MisfireThresholdSeconds);
 
         // A job that waited past the threshold for a slot is put back in line by the misfire pass, so a pass as rare

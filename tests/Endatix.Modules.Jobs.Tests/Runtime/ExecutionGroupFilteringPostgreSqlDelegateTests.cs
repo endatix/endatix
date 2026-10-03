@@ -21,4 +21,17 @@ public sealed class ExecutionGroupFilteringPostgreSqlDelegateTests
         // Assert
         prepare.Should().Throw<InvalidOperationException>().WithMessage("*prepared outside trigger acquisition*");
     }
+
+    [Fact]
+    public void LimitEachGroupToItsFreeSlots_StatementWithoutTheBatchLimit_Throws()
+    {
+        // Arrange — a statement shaped unlike the scheduler's acquisition query.
+        const string statement = "SELECT t.trigger_name FROM jobs.qrtz_triggers t ORDER BY t.next_fire_time";
+
+        // Act
+        var rewrite = () => ExecutionGroupFilteringPostgreSqlDelegate.LimitEachGroupToItsFreeSlots(statement, 5);
+
+        // Assert
+        rewrite.Should().Throw<InvalidOperationException>().WithMessage("*cannot limit it per execution group*");
+    }
 }

@@ -170,10 +170,14 @@ That is what allows API and worker roles to be deployed separately from the same
 `JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
 capped at `0`, so a node never takes a job it cannot run; the job waits for a node that can. The
 thread pool holds every registered job type's full cap at once, so it is sized as the sum of the
-caps, and there is no global concurrency setting. Trigger acquisition is narrowed to the groups
-with a free slot on the node, so a backlog of one job type never holds up another. If a node ever
-fires a job type it has no handler for, the wrapper declines it without touching the row and
-offers the trigger again 30 seconds later.
+caps, and there is no global concurrency setting. Trigger acquisition reads, for each group with a
+free slot on the node, at most as many of its oldest triggers as it has free slots, so a backlog
+of one job type never holds up another. One acquisition takes up to a trigger per free thread
+(the scheduler's batch size is the pool size) and never more of a job type than its free slots.
+The triggers Quartz creates to recover a dead node's jobs carry no group; they are given their job
+type's when read for acquisition, so recovered jobs count against the cap like any other. If a
+node ever fires a job type it has no handler for, the wrapper declines it without touching the row
+and offers the trigger again 30 seconds later.
 
 **Backlog warning.** A job that waited past `MisfireThresholdSeconds` for a slot increments
 `endatix.jobs.misfired` (tag `job_type`), and again at every threshold while it waits. The warning
@@ -188,8 +192,16 @@ on the host, and it shows every tenant's triggers. Even with writes on, only End
 class may be named.
 
 Each job type the host has a handler for gets one durable Quartz job, which requests recovery,
-so a job cut off by a stopped or crashed node runs again on another. Every node sharing the
-store must run the same Quartz version, and nodes' clocks must agree within about a second.
+so a job cut off by a stopped or crashed node runs again on another. A host enqueueing a job type
+checks once per process that its durable job is in the store, and stores it again if it has since
+been deleted. Every node sharing the store must run the same Quartz version, and nodes' clocks
+must agree within about a second.
+
+**Trigger lock.** Quartz serializes trigger state across the cluster through one row lock
+(`TRIGGER_ACCESS`). Enqueueing does not take it (`LockOnInsert` is off): on PostgreSQL a trigger is
+invisible to every node's acquisition until its transaction commits. Each acquisition takes it once
+for its whole batch, and so does firing that batch; each firing takes it once more as it completes,
+and an idle node takes it once per idle wait.
 
 ### Retention
 
