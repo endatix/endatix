@@ -195,7 +195,7 @@ Public origin of this Hub, e.g. `https://hub.example.com`. Set it whenever Hub s
 `true` behind a reverse proxy, so Auth.js trusts the forwarded host headers.
 </Setting>
 <Setting name="ENDATIX_TRUSTED_PROXIES" default="empty">
-Comma-separated IPs and CIDRs of the proxies in front of Hub. When set, server-side API calls send one visitor address. When empty, Hub sends none, because a client-supplied `X-Forwarded-For` is not the socket. `0.0.0.0/0` and `::/0` are rejected. The API allowlist is separate: [Reverse proxy deployment](/docs/building-your-solution/deployment/reverse-proxy-deployment).
+Comma-separated IPs and CIDRs of the proxies in front of Hub. Empty is the safe default: Hub sends no visitor address, because it cannot see the socket once the browser already sent `X-Forwarded-For`. `0.0.0.0/0` and `::/0` are rejected. Steps for Nginx, Front Door, Cloudflare, and Static Web Apps are on [Reverse proxy deployment](/docs/building-your-solution/deployment/reverse-proxy-deployment).
 </Setting>
 </Settings>
 

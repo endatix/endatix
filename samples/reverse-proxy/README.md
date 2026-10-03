@@ -62,7 +62,7 @@ The sample sends these headers to preserve public request details:
 | Header | Purpose |
 | :--- | :--- |
 | `Host` | Keeps redirects and generated links on `localhost:8080`. |
-| `X-Forwarded-For` | Preserves the original client IP chain. |
+| `X-Forwarded-For` | The proxy appends the peer it saw. The API keeps the first untrusted address from the right. |
 | `X-Forwarded-Host` | Preserves the external host and port. |
 | `X-Forwarded-Proto` | Preserves the external scheme. |
 | `X-Forwarded-Prefix` | Documents the external path prefix for `/app` and `/api`. |
