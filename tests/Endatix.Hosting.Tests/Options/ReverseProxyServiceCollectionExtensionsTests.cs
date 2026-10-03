@@ -143,11 +143,13 @@ public class ReverseProxyServiceCollectionExtensionsTests
         context.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.8");
         context.Request.Headers["X-Forwarded-For"] = "1.2.3.4, 203.0.113.8";
         context.Request.Headers["X-Azure-ClientIP"] = "1.2.3.4";
+        context.Request.Headers["True-Client-IP"] = "1.2.3.4";
 
         ClientIpHeaderMiddleware.Normalize(context);
 
         context.Request.Headers["X-Forwarded-For"].ToString().Should().Be("203.0.113.8");
         context.Request.Headers.ContainsKey("X-Azure-ClientIP").Should().BeFalse();
+        context.Request.Headers.ContainsKey("True-Client-IP").Should().BeFalse();
     }
 
     private static ServiceProvider CreateServiceProvider(HostingOptions hostingOptions, bool isDevelopment)
