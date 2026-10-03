@@ -1,7 +1,7 @@
 ---
 
 title: Reverse Proxy Deployment
-description: Configure forwarded headers, scheme preservation, and TLS behavior when Endatix runs behind a reverse proxy.
+description: Turn on forwarded headers so public links stay on https, and rate limits use one visitor address from a proxy you listed.
 sidebar_position: 4
 
 ---
@@ -13,9 +13,9 @@ import diagramImageDark from "./reverse-proxy-deployment-dark.png";
 
 # Reverse Proxy Deployment
 
-Endatix can run behind a reverse proxy such as Nginx, Apache, Cloudflare, Azure Application Gateway, or a Kubernetes ingress. This page focuses on forwarded headers, scheme/host preservation, and TLS behavior at the API.
+When you finish, redirects and cookies use the public https host, and anonymous rate limits use one visitor address. Leaving the allowlists empty does not turn the visitor address on. `Endatix:Hub:HubBaseUrl` is the public Hub origin used in links. It is not a proxy address.
 
-If you need to serve the Hub or API under specific path prefixes (such as `/app` and `/api`), start with the [Subfolder Deployment](/docs/building-your-solution/deployment/subfolder-deployment) guide, then apply the reverse-proxy settings below. Hub needs `AUTH_URL` and usually `AUTH_TRUST_HOST=true` — [Hub environment variables](/docs/developers/hub/environment).
+If Hub or the API is served under a path prefix such as `/app` or `/api`, start with [Subfolder Deployment](/docs/building-your-solution/deployment/subfolder-deployment), then apply the settings below.
 
 <ThemedImage
   alt="Reverse proxy deployment diagram"
@@ -25,31 +25,31 @@ If you need to serve the Hub or API under specific path prefixes (such as `/app`
   }}
 />
 
-## Why Forwarded Headers Matter
+## What you can rely on
 
-Reverse proxies typically terminate TLS (HTTPS) and forward traffic to the internal applications over plain HTTP. Without forwarded headers, the Endatix API sees the internal request (e.g., `http://localhost:5000`) instead of the public request (e.g., `https://yourdomain.com`). 
+Two jobs stay separate. Host headers are not the client IP.
 
-Failing to pass these headers causes incorrect URL generation, broken Swagger documentation links, and authentication failures (as browsers will drop secure authorization cookies after cross-origin or cross-scheme redirects).
+- **Public URL.** `Host`, `X-Forwarded-Host`, and `X-Forwarded-Proto` tell the API the public host and scheme. The API applies them only when `Endatix:Hosting:ReverseProxy:Enabled` is true and the TCP peer is a known proxy (or Development trust-all is on). Azure Front Door overwrites host and proto. Without them the API sees the internal URL, share links break, and browsers drop secure cookies after a scheme change.
+- **Visitor address.** `X-Forwarded-For` is the only header used for the client IP. The proxy appends the peer it saw. The API reads from the right, skips proxies you listed, and keeps the first other address. It then replaces the header with that one address, so a caller cannot rotate the rate-limit bucket by prepending a fake hop.
 
-## Endatix Hub Configuration
+## What this setup does not do
 
+- `0.0.0.0/0` and `::/0` are rejected in both allowlists.
+- `X-Azure-ClientIP`, `CF-Connecting-IP`, `True-Client-IP`, and `X-Real-IP` do not win. The API removes them. `X-Azure-SocketIP` is not read. The appended `X-Forwarded-For` hop is the same fact.
+- Azure Static Web Apps `globalHeaders` do not pass a client IP. Those entries are response headers (cache, CORS) and they do not apply to API responses.
+- An empty `ENDATIX_TRUSTED_PROXIES` sends no visitor address. Hub cannot see the socket once the browser already sent `X-Forwarded-For`. A filled list is safe only when clients cannot reach Hub except through those proxies.
+- `TrustAllProxiesInDevelopment` trusts every peer, and only when the API environment is Development.
 
-When the Hub is behind a proxy, you must configure Auth.js to inherently trust the public host. For a single-domain `/app` subfolder setup, adjust your `.env.local` variables:
+## No proxy in front
 
-```env
-NEXT_PUBLIC_BASE_PATH=/app
-ENDATIX_BASE_URL=https://yourdomain.com
-ENDATIX_API_PREFIX=/api
-AUTH_URL=https://yourdomain.com/app/api/auth
-AUTH_TRUST_HOST=true
+Leave `Endatix:Hosting:ReverseProxy:Enabled` false and `ENDATIX_TRUSTED_PROXIES` empty. Rate limits use the connection IP. A caller-supplied `X-Forwarded-For` does not change the bucket. Stop here.
 
-```
+## API behind a proxy
 
-`AUTH_TRUST_HOST=true` is strictly required when Auth.js runs behind a reverse proxy. See the [Endatix JWT authentication guide](/docs/building-your-solution/authentication/endatix-jwt) for more details on Hub authentication settings.
-
-## Endatix API Configuration
-
-You must explicitly enable reverse-proxy hosting in your API's `appsettings.json` (or via environment variables):
+1. Set `Endatix:Hosting:ReverseProxy:Enabled` to `true`.
+2. Set `KnownProxies` or `KnownNetworks` to the proxy that opens the connection to the API, not to the visitor. An empty list keeps loopback only, so a cloud load balancer is an untrusted peer and the visitor address is dropped.
+3. Leave `TrustAllProxiesInDevelopment` true for local Development only.
+4. Confirm the proxy appends the peer it saw onto `X-Forwarded-For` and sets `X-Forwarded-Proto` to the public scheme. Use the recipe for your proxy below.
 
 ```json
 {
@@ -64,14 +64,21 @@ You must explicitly enable reverse-proxy hosting in your API's `appsettings.json
     }
   }
 }
-
 ```
 
-With this setting enabled, Endatix processes `X-Forwarded-*` headers early in the .NET middleware pipeline. In production the API trusts those headers only from `KnownProxies` and `KnownNetworks`. An empty list keeps the loopback defaults. `TrustAllProxiesInDevelopment` trusts every proxy in Development only. `0.0.0.0/0` and `::/0` are rejected. The client address is the first untrusted hop from the right of `X-Forwarded-For`, not the left-most value a caller prepended.
+HSTS and HTTPS redirection are off when the proxy is enabled, because TLS ends at the edge. To keep those policies on the API, set `Endatix:Hosting:UseHsts` and `Endatix:Hosting:UseHttpsRedirection` to `true`.
 
-`Endatix:Hub:HubBaseUrl` is the public Hub origin used in links. It is not a proxy address.
+`Program.cs` stays:
 
-Hub sends one visitor address on its server-side API calls when `ENDATIX_TRUSTED_PROXIES` lists the proxies in front of Hub. Leave that variable empty and Hub sends no visitor address: Next.js does not expose the socket once a client has set `X-Forwarded-For`.
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+builder.Host.ConfigureEndatix();
+
+var app = builder.Build();
+app.UseEndatix();
+
+app.Run();
+```
 
 <Settings>
 <Setting name="Endatix:Hosting:ReverseProxy:KnownProxies" default="[]">
@@ -85,49 +92,105 @@ Comma-separated IPs and CIDRs in front of Hub. Hub forwards one visitor address 
 </Setting>
 </Settings>
 
-By default, **HSTS and HTTPS redirection are disabled** when the proxy is enabled, as TLS is expected to be terminated at the edge. If the Endatix API must still own those security policies, explicitly set `Endatix:Hosting:UseHsts` and `Endatix:Hosting:UseHttpsRedirection` to `true`.
+## Hub behind a proxy
 
-Your `Program.cs` application startup can remain minimal:
+1. Set `AUTH_URL` to the public origin and `AUTH_TRUST_HOST=true` so sign-in uses the public host. For a single-domain `/app` setup:
 
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-builder.Host.ConfigureEndatix();
-
-var app = builder.Build();
-app.UseEndatix();
-
-app.Run();
+```env
+NEXT_PUBLIC_BASE_PATH=/app
+ENDATIX_BASE_URL=https://yourdomain.com
+ENDATIX_API_PREFIX=/api
+AUTH_URL=https://yourdomain.com/app/api/auth
+AUTH_TRUST_HOST=true
+ENDATIX_TRUSTED_PROXIES=10.0.0.0/8
 ```
 
-## Reverse Proxy Headers
+2. Set `ENDATIX_TRUSTED_PROXIES` to the proxies in front of Hub. Comma-separated IPs or CIDRs. `0.0.0.0/0` and `::/0` are rejected. The API allowlist is separate.
+3. Lock Hub so clients cannot skip that proxy. If they can, they can write `X-Forwarded-For` themselves and Hub will forward it. Hub does not check the socket.
 
-Your proxy must be configured to preserve the original public request details. Ensure the following headers are passed to both the Hub and the API:
+`AUTH_TRUST_HOST=true` is required for Auth.js behind a proxy. See [Endatix JWT authentication](/docs/building-your-solution/authentication/endatix-jwt).
 
-| Header | Purpose |
-| --- | --- |
-| `Host` | Keeps generated redirects and share links tied to the public host and port. |
-| `X-Forwarded-For` | The proxy appends the peer it saw. The API keeps the first untrusted address from the right. |
-| `X-Forwarded-Host` | Preserves the external host address. |
-| `X-Forwarded-Proto` | Preserves the external scheme (`http` or `https`). |
+## Nginx
 
-:::warning[Nginx Port Stripping & Redirects]
-If you are using **Nginx** for local development on a non-standard port (e.g., `localhost:8080`), you must use `proxy_set_header Host $http_host;` instead of `$host`. The `$host` variable strips the port, causing Next.js and .NET to issue broken redirects back to port `80`.
+Nginx's default proxy config sets `Host` to the internal upstream and does not send `X-Forwarded-For`. `X-Real-IP` is ignored.
 
-Additionally, Next.js automatically enforces trailing slashes (redirecting `/app` to `/app/`). To prevent Nginx from dropping the port during this redirect, ensure you add `absolute_redirect off;` to your Nginx `server` block.
-:::
+1. Append the peer Nginx saw, and keep the public host and port.
+2. On a non-standard port such as `localhost:8080`, use `$http_host`. `$host` strips the port and redirects land on port 80.
+3. Turn off absolute redirects so a trailing-slash redirect from `/app` to `/app/` keeps the port.
 
-## Local Reverse Proxy Sample
+```nginx
+proxy_set_header Host $http_host;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+absolute_redirect off;
+```
 
-The Endatix repository includes a ready-to-use local Nginx sample at [`/samples/reverse-proxy/`](https://github.com/endatix/endatix/tree/main/samples/reverse-proxy)
+## Azure Front Door
 
-Use this Docker Compose environment to test the exact public routing shape locally:
+Front Door appends the socket IP onto `X-Forwarded-For` and overwrites `X-Forwarded-Host` and `X-Forwarded-Proto`. It also sets `X-Azure-ClientIP`, which can differ from that socket. The API ignores `X-Azure-ClientIP`.
 
-* **Hub UI:** `http://localhost:8080/app/`
-* **API & Swagger:** `http://localhost:8080/api/`
+1. Put Front Door's backend ranges in `KnownNetworks` on the API, and the same ranges in `ENDATIX_TRUSTED_PROXIES` when Hub sits behind Front Door. In Azure the service tag is `AzureFrontDoor.Backend`. Use the current ranges from that tag, not `0.0.0.0/0`.
+2. If the origin is also reachable without Front Door, require header `X-Azure-FDID` with your Front Door resource id so only that instance can call the origin. On Static Web Apps that is `forwardingGateway.requiredHeaders`, in the recipe below.
 
-The sample's README includes the required Hub environment variables, the matching API configuration, and the startup commands.
+## Cloudflare
 
-## Related Docs
+Cloudflare appends the previous hop onto `X-Forwarded-For`. It also sets `CF-Connecting-IP`. The API ignores that header. A Worker can change `x-real-ip`, so do not switch the app to `CF-Connecting-IP` or Enterprise `True-Client-IP`.
 
-- [Subfolder Deployment](/docs/building-your-solution/deployment/subfolder-deployment)
-- [Self Hosting](/docs/building-your-solution/deployment/self-hosting)
+1. Put [Cloudflare's published IP ranges](https://www.cloudflare.com/ips/) in `KnownNetworks` and in `ENDATIX_TRUSTED_PROXIES`. Refresh the list when Cloudflare publishes new ranges.
+2. Leave Pseudo IPv4 off. The Overwrite Headers mode replaces `X-Forwarded-For` with a fake IPv4.
+
+## Azure Static Web Apps
+
+`globalHeaders` in `staticwebapp.config.json` does not set the visitor IP. Do not add `X-Forwarded-For` there.
+
+When Hub on Static Web Apps is reached through Azure Front Door:
+
+1. List the public host so redirects keep it.
+2. Require your Front Door id on every request.
+3. Set `ENDATIX_TRUSTED_PROXIES` to the proxies that appended the hop, as in the Front Door recipe.
+
+```json
+{
+  "forwardingGateway": {
+    "allowedForwardedHosts": ["yourdomain.com"],
+    "requiredHeaders": {
+      "X-Azure-FDID": "692a448c-2b5d-4e4d-9fcc-2bc4a6e2335f"
+    }
+  }
+}
+```
+
+Replace the id with the Front Door resource id from the Azure portal. Requests without that header are rejected by Static Web Apps.
+
+## Check the visitor address
+
+- Call the API directly and change `X-Forwarded-For` between attempts. The rate-limit bucket stays the connection IP.
+- Call through the proxy as two visitors. You get two buckets.
+- Prepend a fake address. The bucket stays the address the proxy appended.
+
+## Local reverse proxy sample
+
+The [reverse proxy sample](https://github.com/endatix/endatix/tree/main/samples/reverse-proxy) exposes Hub at `http://localhost:8080/app/` and the API at `http://localhost:8080/api/`. Its README has the Hub variables and the API configuration. Local Development trusts every proxy. In production set `KnownNetworks` to the proxy subnet.
+
+## See also
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/building-your-solution/deployment/subfolder-deployment"
+    title="Subfolder deployment"
+    description="Serve Hub and the API under /app and /api on one host."
+    icon="rocket"
+  />
+  <LinkCard
+    to="/docs/building-your-solution/deployment/self-hosting"
+    title="Self-hosting"
+    description="Run Hub and the API with Docker Compose or Kubernetes."
+    icon="server"
+  />
+  <LinkCard
+    to="/docs/developers/hub/environment"
+    title="Hub environment variables"
+    description="AUTH_URL, AUTH_TRUST_HOST, and ENDATIX_TRUSTED_PROXIES."
+    icon="dashboard"
+  />
+</CardGrid>
