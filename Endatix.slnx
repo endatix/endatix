@@ -9,6 +9,9 @@
     <Project Path="samples/Endatix.Samples.SelfHosted/Endatix.Samples.SelfHosted.csproj" />
     <Project Path="samples/Endatix.Samples.WebApp/Endatix.Samples.WebApp.csproj" />
   </Folder>
+  <Folder Name="/templates/">
+    <Project Path="templates/Endatix.Templates.csproj" />
+  </Folder>
   <Folder Name="/solution_items/">
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
