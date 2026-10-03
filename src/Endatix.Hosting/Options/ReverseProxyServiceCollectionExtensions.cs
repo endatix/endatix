@@ -1,3 +1,4 @@
+using System.Net;
 using Endatix.Framework.Configuration;
 using Endatix.Framework.Hosting;
 using Microsoft.AspNetCore.Builder;
@@ -34,9 +35,47 @@ internal static class ReverseProxyServiceCollectionExtensions
                 {
                     options.KnownIPNetworks.Clear();
                     options.KnownProxies.Clear();
+                    return;
                 }
+
+                ApplyKnownProxies(options, reverseProxy);
             });
 
         return services;
     }
+
+    internal const int ForwardLimit = 5;
+
+    private static void ApplyKnownProxies(ForwardedHeadersOptions options, ReverseProxyOptions reverseProxy)
+    {
+        foreach (var entry in Entries(reverseProxy.KnownProxies))
+        {
+            if (!IPAddress.TryParse(entry, out var address))
+            {
+                throw new InvalidOperationException($"KnownProxies value '{entry}' is not an IP address.");
+            }
+
+            options.KnownProxies.Add(address);
+        }
+
+        foreach (var entry in Entries(reverseProxy.KnownNetworks))
+        {
+            if (entry is "0.0.0.0/0" or "::/0")
+            {
+                throw new InvalidOperationException("KnownNetworks cannot contain 0.0.0.0/0 or ::/0.");
+            }
+
+            if (!System.Net.IPNetwork.TryParse(entry, out var network))
+            {
+                throw new InvalidOperationException($"KnownNetworks value '{entry}' is not a CIDR.");
+            }
+
+            options.KnownIPNetworks.Add(network);
+        }
+
+        options.ForwardLimit = ForwardLimit;
+    }
+
+    private static IEnumerable<string> Entries(IEnumerable<string>? values) =>
+        (values ?? []).Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim());
 }

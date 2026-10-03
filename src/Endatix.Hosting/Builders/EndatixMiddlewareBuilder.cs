@@ -57,6 +57,8 @@ public class EndatixMiddlewareBuilder
             UseForwardedHeaders();
         }
 
+        App.UseMiddleware<ClientIpHeaderMiddleware>();
+
         if (options.UseExceptionHandler)
         {
             UseExceptionHandler();
