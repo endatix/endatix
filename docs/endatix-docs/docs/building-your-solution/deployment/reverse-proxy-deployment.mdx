@@ -57,7 +57,9 @@ You must explicitly enable reverse-proxy hosting in your API's `appsettings.json
     "Hosting": {
       "ReverseProxy": {
         "Enabled": true,
-        "TrustAllProxiesInDevelopment": true
+        "TrustAllProxiesInDevelopment": true,
+        "KnownProxies": [],
+        "KnownNetworks": ["10.0.0.0/8"]
       }
     }
   }
@@ -65,7 +67,23 @@ You must explicitly enable reverse-proxy hosting in your API's `appsettings.json
 
 ```
 
-With this setting enabled, Endatix processes `X-Forwarded-*` headers early in the .NET middleware pipeline.
+With this setting enabled, Endatix processes `X-Forwarded-*` headers early in the .NET middleware pipeline. In production the API trusts those headers only from `KnownProxies` and `KnownNetworks`. An empty list keeps the loopback defaults. `TrustAllProxiesInDevelopment` trusts every proxy in Development only. `0.0.0.0/0` and `::/0` are rejected. The client address is the first untrusted hop from the right of `X-Forwarded-For`, not the left-most value a caller prepended.
+
+`Endatix:Hub:HubBaseUrl` is the public Hub origin used in links. It is not a proxy address.
+
+Hub sends one visitor address on its server-side API calls when `ENDATIX_TRUSTED_PROXIES` lists the proxies in front of Hub. Leave that variable empty and Hub sends no visitor address: Next.js does not expose the socket once a client has set `X-Forwarded-For`.
+
+<Settings>
+<Setting name="Endatix:Hosting:ReverseProxy:KnownProxies" default="[]">
+IP addresses of proxies allowed to supply `X-Forwarded-For`. Used only when `Enabled` is true and Development trust-all is not in effect.
+</Setting>
+<Setting name="Endatix:Hosting:ReverseProxy:KnownNetworks" default="[]">
+CIDRs of those proxies, such as a load balancer or ingress subnet. Do not use `0.0.0.0/0` or `::/0`.
+</Setting>
+<Setting name="ENDATIX_TRUSTED_PROXIES" default="empty">
+Comma-separated IPs and CIDRs in front of Hub. Hub forwards one visitor address only when this is set. See [Hub environment variables](/docs/developers/hub/environment).
+</Setting>
+</Settings>
 
 By default, **HSTS and HTTPS redirection are disabled** when the proxy is enabled, as TLS is expected to be terminated at the edge. If the Endatix API must still own those security policies, explicitly set `Endatix:Hosting:UseHsts` and `Endatix:Hosting:UseHttpsRedirection` to `true`.
 
@@ -88,7 +106,7 @@ Your proxy must be configured to preserve the original public request details. E
 | Header | Purpose |
 | --- | --- |
 | `Host` | Keeps generated redirects and share links tied to the public host and port. |
-| `X-Forwarded-For` | Preserves the original client IP chain. |
+| `X-Forwarded-For` | The proxy appends the peer it saw. The API keeps the first untrusted address from the right. |
 | `X-Forwarded-Host` | Preserves the external host address. |
 | `X-Forwarded-Proto` | Preserves the external scheme (`http` or `https`). |
 

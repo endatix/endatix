@@ -194,6 +194,9 @@ Public origin of this Hub, e.g. `https://hub.example.com`. Set it whenever Hub s
 <Setting name="AUTH_TRUST_HOST">
 `true` behind a reverse proxy, so Auth.js trusts the forwarded host headers.
 </Setting>
+<Setting name="ENDATIX_TRUSTED_PROXIES" default="empty">
+Comma-separated IPs and CIDRs of the proxies in front of Hub. When set, server-side API calls send one visitor address. When empty, Hub sends none, because a client-supplied `X-Forwarded-For` is not the socket. `0.0.0.0/0` and `::/0` are rejected. The API allowlist is separate: [Reverse proxy deployment](/docs/building-your-solution/deployment/reverse-proxy-deployment).
+</Setting>
 </Settings>
 
 Keycloak and Google add `AUTH_KEYCLOAK_*` and `AUTH_GOOGLE_*` — see [Authentication](/docs/building-your-solution/authentication/).

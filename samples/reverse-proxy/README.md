@@ -41,6 +41,8 @@ Enable reverse-proxy hosting for the API:
 
 With this setting, `app.UseEndatix()` processes forwarded headers before Endatix API middleware and disables app-level HSTS/HTTPS redirection by default. Let the public edge own TLS redirects and HSTS when TLS terminates there.
 
+Local Development trusts every proxy. In production set `KnownNetworks` to the proxy subnet (for this sample, the nginx container network) and leave `TrustAllProxiesInDevelopment` as a Development-only flag.
+
 Do not add `UsePathBase("/api")` for this sample. The proxy forwards `/api/*` to the API, and Endatix API routes already use the `api` route prefix.
 
 ## Run
