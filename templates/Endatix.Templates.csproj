@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Template packaging project. Content lives in endatix-api/ and is also
+       installable with: dotnet new install ./templates/endatix-api -->
+  <PropertyGroup>
+    <PackageId>Endatix.Templates</PackageId>
+    <Title>Endatix Templates</Title>
+    <Description>dotnet new templates for the Endatix API. Ships with Endatix.Hosting.</Description>
+    <PackageTags>endatix;templates;dotnet-new;aspnetcore</PackageTags>
+    <PackageType>Template</PackageType>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <IsPackable>true</IsPackable>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!-- No compile output; still need a TFM for the SDK. -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="**\*" />
+    <EmbeddedResource Remove="**\*" />
+    <None Remove="endatix-api\**\*" />
+    <!-- template.json is packed from the stamped copy below, so the nupkg default
+         matches -p:Version. The file in git stays the last stable for folder installs. -->
+    <Content Include="endatix-api\**\*"
+             Exclude="endatix-api\**\bin\**;endatix-api\**\obj\**;endatix-api\.template.config\template.json" />
+  </ItemGroup>
+
+  <Target Name="StampTemplateVersion" BeforeTargets="_GetPackageFiles">
+    <PropertyGroup>
+      <_StampedTemplate>$(IntermediateOutputPath)stamped-template.json</_StampedTemplate>
+    </PropertyGroup>
+    <Exec Command="perl -0pe 's/(&quot;EndatixVersion&quot;[\s\S]*?&quot;defaultValue&quot;: &quot;)[^&quot;]+/${1}$(Version)/' endatix-api/.template.config/template.json &gt; &quot;$(_StampedTemplate)&quot;" />
+    <ItemGroup>
+      <Content Include="$(_StampedTemplate)" Pack="true" PackagePath="content/endatix-api/.template.config/template.json" />
+    </ItemGroup>
+  </Target>
+
+</Project>
