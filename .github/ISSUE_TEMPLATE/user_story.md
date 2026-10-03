@@ -2,7 +2,8 @@
 name: User story
 about: Describe a user story for this feature
 title: '[FEATURE]'
-labels: 'enhancement'
+labels: 'needs-triage'
+type: Feature
 assignees: ''
 ---
 
