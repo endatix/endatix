@@ -18,6 +18,7 @@ internal sealed class ClientIpHeaderMiddleware(RequestDelegate next)
     {
         context.Request.Headers.Remove("X-Azure-ClientIP");
         context.Request.Headers.Remove("CF-Connecting-IP");
+        context.Request.Headers.Remove("True-Client-IP");
         context.Request.Headers.Remove("X-Real-IP");
 
         var remote = context.Connection.RemoteIpAddress;
