@@ -20,11 +20,25 @@
 # on every push — so each release here sets off a SaaS image build and a deployment. That
 # is the point (the image and the chart move together downstream), but it does mean an
 # Endatix release is never just an Endatix release.
+#
+# WHEN IT FIRES. Canaries and hotfix builds notify the moment their release is published:
+# semantic-release pushes their packages and chart before it creates the release. A stable
+# is different — release-artifacts.yml REBUILDS its packages and chart after a human
+# publishes the draft, so a notification at publish time pointed endatix-saas at a version that
+# did not exist yet (v0.7.8: the SaaS bump restored 2.5 min before the packages landed).
+# Stables therefore come through release-artifacts.yml, which calls this workflow with
+# after-promote: true once promote has pushed them to GitHub Packages and GHCR.
 name: Notify SaaS of release
 
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      after-promote:
+        description: Set by release-artifacts.yml once a stable's artifacts are pushed.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -39,6 +53,9 @@ concurrency:
 jobs:
   notify:
     name: Bump EndatixVersion to ${{ github.event.release.tag_name }} in endatix-saas
+    # A prerelease notifies on publish; a stable only through release-artifacts.yml (above).
+    # Called from there, the event is still the release, so the tag below is the same.
+    if: inputs.after-promote || github.event.release.prerelease
     runs-on: ubuntu-latest
     # Matches the release pipeline's environment so the Infisical machine identity
     # authenticates on the same OIDC subject.
