@@ -51,7 +51,7 @@ public static class FeatureFlags
     public const string JobsModule = "JobsModule";
 
     /// <summary>
-    /// Feature flag key for enabling the Personalization module (audience directory, later import/links).
+    /// Feature flag key for enabling the Audience module (directory, later import and links).
     /// </summary>
     public const string PersonalizationModule = "PersonalizationModule";
 

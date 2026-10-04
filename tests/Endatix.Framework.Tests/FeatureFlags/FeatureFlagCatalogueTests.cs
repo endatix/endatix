@@ -208,7 +208,7 @@ public class FeatureFlagCatalogueTests
     }
 
     [Fact]
-    public void Definitions_PersonalizationModule_IsDeploymentScoped()
+    public void Definitions_AudienceModule_IsDeploymentScoped()
     {
         // Arrange
         var personalizationModule = FeatureFlagCatalogue.FindByConfigKey(
