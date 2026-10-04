@@ -60,14 +60,15 @@ internal static class ReverseProxyServiceCollectionExtensions
 
         foreach (var entry in Entries(reverseProxy.KnownNetworks))
         {
-            if (entry is "0.0.0.0/0" or "::/0")
-            {
-                throw new InvalidOperationException("KnownNetworks cannot contain 0.0.0.0/0 or ::/0.");
-            }
-
             if (!System.Net.IPNetwork.TryParse(entry, out var network))
             {
                 throw new InvalidOperationException($"KnownNetworks value '{entry}' is not a CIDR.");
+            }
+
+            // Checked on the parsed prefix: "::0/0", "0.0.0.0/00" and "1.2.3.4/0" all parse to a /0.
+            if (network.PrefixLength == 0)
+            {
+                throw new InvalidOperationException($"KnownNetworks value '{entry}' trusts every address (/0).");
             }
 
             options.KnownIPNetworks.Add(network);

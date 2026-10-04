@@ -118,8 +118,13 @@ public class ReverseProxyServiceCollectionExtensionsTests
         options.ForwardLimit.Should().Be(ReverseProxyServiceCollectionExtensions.ForwardLimit);
     }
 
-    [Fact]
-    public void AddEndatixReverseProxy_WhenNetworkIsEveryone_Throws()
+    [Theory]
+    [InlineData("0.0.0.0/0")]
+    [InlineData("::/0")]
+    [InlineData("::0/0")]
+    [InlineData("0.0.0.0/00")]
+    [InlineData("1.2.3.4/0")]
+    public void AddEndatixReverseProxy_WhenNetworkIsEveryone_Throws(string everyone)
     {
         var act = () => CreateServiceProvider(
             new HostingOptions
@@ -128,7 +133,7 @@ public class ReverseProxyServiceCollectionExtensionsTests
                 {
                     Enabled = true,
                     TrustAllProxiesInDevelopment = false,
-                    KnownNetworks = ["0.0.0.0/0"]
+                    KnownNetworks = [everyone]
                 }
             },
             isDevelopment: false).GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;

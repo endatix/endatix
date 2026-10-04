@@ -48,6 +48,7 @@ Leave `Endatix:Hosting:ReverseProxy:Enabled` false and `ENDATIX_TRUSTED_PROXIES`
 
 1. Set `Endatix:Hosting:ReverseProxy:Enabled` to `true`.
 2. Set `KnownProxies` or `KnownNetworks` to the proxy that opens the connection to the API, not to the visitor. An empty list keeps loopback only, so a cloud load balancer is an untrusted peer and the visitor address is dropped.
+   When Hub calls the API from its server, Hub opens that connection. Add Hub's outbound address too, or every visitor who goes through Hub shares Hub's rate-limit bucket.
 3. Leave `TrustAllProxiesInDevelopment` true for local Development only.
 4. Confirm the proxy appends the peer it saw onto `X-Forwarded-For` and sets `X-Forwarded-Proto` to the public scheme. Use the recipe for your proxy below.
 
