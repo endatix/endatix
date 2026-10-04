@@ -80,6 +80,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         // they are captured to the outbox in ProcessEntities. Exclude the type from the model so EF
         // doesn't try to map the [NotMapped] DomainEvents collection as a keyless/related entity.
         builder.Ignore<DomainEventBase>();
+        builder.Ignore<CollectionStatus>();
 
         builder.ApplyEndatixQueryFilters(this);
 

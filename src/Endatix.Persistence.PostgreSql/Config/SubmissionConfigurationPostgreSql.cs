@@ -32,6 +32,14 @@ namespace Endatix.Persistence.PostgreSql.Config
                 .IsUnique()
                 .HasFilter(
                     $"\"{nameof(Submission.RestrictionKey)}\" IS NOT NULL AND \"{nameof(Submission.IsDeleted)}\" = false");
+
+            builder.HasIndex(s => new { s.FormId, s.CollectionStatus })
+                .HasDatabaseName("IX_Submissions_FormId_CollectionStatus")
+                .HasFilter($"\"{nameof(Submission.IsDeleted)}\" = false");
+
+            builder.HasIndex(s => s.ModifiedAt)
+                .HasDatabaseName("IX_Submissions_InProgress_ModifiedAt")
+                .HasFilter("\"CollectionStatus\" = 'in_progress' AND \"IsDeleted\" = false");
         }
     }
 }

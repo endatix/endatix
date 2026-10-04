@@ -10,37 +10,73 @@ namespace Endatix.Core.Specifications;
 internal static class SubmissionSpecificationExtensions
 {
     private const string STATUS_FIELD_NAME = "status";
+    private const string COLLECTION_STATUS_FIELD_NAME = "collectionStatus";
 
     internal static ISpecificationBuilder<Submission> WhereFormIdAndFilters(
         this ISpecificationBuilder<Submission> query,
         long formId,
         FilterParameters filterParams)
     {
-        query.Where(s => s.FormDefinition.FormId == formId);
+        query.Where(s => s.FormDefinition.FormId == formId && s.FormId == formId);
 
-        var statusFilters = filterParams.Criteria
-            .Where(c => c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase));
-        foreach (var statusFilter in statusFilters)
-        {
-            var statusCodes = statusFilter.Values.ToList();
-            query = statusFilter.Operator switch
-            {
-                ExpressionType.Equal => query.Where(s => statusCodes.Contains(s.Status.Code)),
-                ExpressionType.NotEqual => query.Where(s => !statusCodes.Contains(s.Status.Code)),
-                _ => throw new NotSupportedException($"Operator {statusFilter.Operator} is not supported for status filters.")
-            };
-        }
+        query = ApplyStatusFilter(query, filterParams);
+        query = ApplyCollectionStatusFilter(query, filterParams);
 
         var nonStatusFilters = new FilterParameters();
         filterParams.Criteria
             .Where(c =>
                 !c.Field.Equals(STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase) &&
+                !c.Field.Equals(COLLECTION_STATUS_FIELD_NAME, StringComparison.OrdinalIgnoreCase) &&
                 !SubmissionFilterFields.IsSubmitterProfileField(c.Field))
             .ToList()
             .ForEach(nonStatusFilters.AddFilter);
 
         return query.Filter(nonStatusFilters);
     }
+
+    private static ISpecificationBuilder<Submission> ApplyStatusFilter(
+        ISpecificationBuilder<Submission> query,
+        FilterParameters filterParams)
+    {
+        foreach (var statusFilter in FiltersFor(filterParams, STATUS_FIELD_NAME))
+        {
+            var codes = statusFilter.Values.ToList();
+            query = statusFilter.Operator switch
+            {
+                ExpressionType.Equal => query.Where(s => codes.Contains(s.Status.Code)),
+                ExpressionType.NotEqual => query.Where(s => !codes.Contains(s.Status.Code)),
+                _ => throw new NotSupportedException(
+                    $"Operator {statusFilter.Operator} is not supported for status filters.")
+            };
+        }
+
+        return query;
+    }
+
+    private static ISpecificationBuilder<Submission> ApplyCollectionStatusFilter(
+        ISpecificationBuilder<Submission> query,
+        FilterParameters filterParams)
+    {
+        foreach (var statusFilter in FiltersFor(filterParams, COLLECTION_STATUS_FIELD_NAME))
+        {
+            var codes = statusFilter.Values.ToList();
+            query = statusFilter.Operator switch
+            {
+                ExpressionType.Equal => query.Where(s => codes.Contains(s.CollectionStatus.Code)),
+                ExpressionType.NotEqual => query.Where(s => !codes.Contains(s.CollectionStatus.Code)),
+                _ => throw new NotSupportedException(
+                    $"Operator {statusFilter.Operator} is not supported for collectionStatus filters.")
+            };
+        }
+
+        return query;
+    }
+
+    private static IEnumerable<FilterCriterion> FiltersFor(
+        FilterParameters filterParams,
+        string fieldName) =>
+        filterParams.Criteria.Where(c =>
+            c.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
 
     internal static ISpecificationBuilder<Submission> ApplyListDateRanges(
         this ISpecificationBuilder<Submission> query,

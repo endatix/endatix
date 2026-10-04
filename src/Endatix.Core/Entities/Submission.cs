@@ -26,6 +26,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         Metadata = args.Metadata;
         IsTestSubmission = args.IsTestSubmission;
         Status = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
+        CollectionStatus = global::Endatix.Core.Entities.CollectionStatus.InProgress.CreateInstance();
 
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
@@ -124,6 +125,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public DateTime? CompletedAt { get; private set; }
     public Token? Token { get; private set; }
     public SubmissionStatus Status { get; private set; } = null!;
+    public CollectionStatus CollectionStatus { get; private set; } = null!;
 
     /// <summary>True when <see cref="StartedAt"/> has been recorded.</summary>
     public bool HasStarted => StartedAt is not null;
@@ -209,6 +211,10 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         RegisterRevisedDomainEvent(() => new SubmissionStatusChangedEvent(this, previousStatus));
     }
 
+    /// <summary>Owner or system void. Does not mark the interview complete.</summary>
+    public void Cancel() =>
+        SetCollectionStatus(global::Endatix.Core.Entities.CollectionStatus.Cancelled);
+
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
     public void IncrementRevision() => Revision++;
 
@@ -266,8 +272,26 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
             // false→true transition (ctor or Update); captured to outbox → submission.completed webhook
             RegisterRevisedDomainEvent(() => new SubmissionCompletedEvent(this));
+            SetCollectionStatus(global::Endatix.Core.Entities.CollectionStatus.Complete);
+            return;
+        }
+
+        if (!IsComplete && IsResumableCollection())
+        {
+            SetCollectionStatus(global::Endatix.Core.Entities.CollectionStatus.InProgress);
         }
     }
+
+    private bool IsResumableCollection()
+    {
+        var code = CollectionStatus?.Code;
+        return code is null
+            || code == CollectionStatusCodes.InProgress
+            || code == CollectionStatusCodes.Expired;
+    }
+
+    private void SetCollectionStatus(CollectionStatus status) =>
+        CollectionStatus = status.CreateInstance();
 
     public string? OwnerId => SubmitterId?.ToString() ?? SubmittedBy;
 
