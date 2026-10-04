@@ -55,11 +55,10 @@ internal sealed class ImportCsvHandler(
             return gate.ToErrorResult<ImportResultDto>();
         }
 
-        CsvFileParseResult parsed = CsvFileParser.Parse(request.CsvText);
-        string? fileError = FileError(parsed, request.IdentifierColumn);
-        return fileError is null
-            ? Result.Success(await ImportAsync(request, parsed.Rows, cancellationToken))
-            : Result.Invalid(new ValidationError(fileError));
+        Result<ImportInput> prepared = await PrepareAsync(request, cancellationToken);
+        return prepared.IsSuccess
+            ? Result.Success(await ImportAsync(request, prepared.Value!, cancellationToken))
+            : prepared.ToErrorResult<ImportResultDto>();
     }
 
     private async Task<Result> ValidateRequestAsync(
@@ -83,6 +82,38 @@ internal sealed class ImportCsvHandler(
             : Result.Success();
     }
 
+    /// <summary>
+    /// Parses the file and resolves the column mapping. Writes nothing, so a refused file or
+    /// mapping leaves the audience as it was.
+    /// </summary>
+    private async Task<Result<ImportInput>> PrepareAsync(
+        ImportCsvCommand request,
+        CancellationToken cancellationToken)
+    {
+        CsvFileParseResult parsed = CsvFileParser.Parse(request.CsvText);
+        string? fileError = FileError(parsed, request.IdentifierColumn);
+        if (fileError is not null)
+        {
+            return Result<ImportInput>.Invalid(new ValidationError(fileError));
+        }
+
+        List<Property> properties = await LoadPropertiesAsync(request.FormId, cancellationToken);
+        return MapColumns(request, parsed, properties);
+    }
+
+    private static Result<ImportInput> MapColumns(
+        ImportCsvCommand request,
+        CsvFileParseResult parsed,
+        IReadOnlyList<Property> properties)
+    {
+        string? mappingError = CsvColumnMapper.MappingError(properties, parsed.Headers, request.PropertyColumns);
+        return mappingError is null
+            ? Result.Success(new ImportInput(
+                parsed.Rows,
+                CsvColumnMapper.Build(properties, request.IdentifierColumn, request.PropertyColumns)))
+            : Result<ImportInput>.Invalid(new ValidationError(mappingError));
+    }
+
     private static string? FileError(CsvFileParseResult parsed, string identifierColumn)
     {
         if (!parsed.IsSuccess)
@@ -101,7 +132,7 @@ internal sealed class ImportCsvHandler(
     /// </summary>
     private async Task<ImportResultDto> ImportAsync(
         ImportCsvCommand request,
-        IReadOnlyList<IReadOnlyDictionary<string, string>> csvRows,
+        ImportInput input,
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
@@ -110,8 +141,7 @@ internal sealed class ImportCsvHandler(
             request.TenantId,
             request.FormId,
             await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken));
-        ImportRows rows = ImportRowReader.Read(
-            csvRows, await BuildMapAsync(request, cancellationToken), target.IdentifierKind);
+        ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.IdentifierKind);
         ImportTally tally = await StageAsync(new AudienceQuery(db, target, cancellationToken), rows.Accepted);
 
         AudienceImport summary = new(ToCreateArgs(request, tally, rows.Rejected.Count));
@@ -121,15 +151,10 @@ internal sealed class ImportCsvHandler(
         return ToDto(summary, rows.Rejected);
     }
 
-    private async Task<CsvColumnMap> BuildMapAsync(
-        ImportCsvCommand request,
-        CancellationToken cancellationToken)
-    {
-        List<Property> properties = await db.Properties
-            .Where(property => property.FormId == request.FormId)
+    private Task<List<Property>> LoadPropertiesAsync(long formId, CancellationToken cancellationToken) =>
+        db.Properties
+            .Where(property => property.FormId == formId)
             .ToListAsync(cancellationToken);
-        return CsvColumnMapper.Build(properties, request.IdentifierColumn, request.PropertyColumns);
-    }
 
     private static async Task<ImportTally> StageAsync(AudienceQuery query, IReadOnlyList<ImportRow> rows)
     {
@@ -166,3 +191,8 @@ internal sealed class ImportCsvHandler(
             summary.RejectedCount,
             rejected.Take(MaxReportedRejections).ToList());
 }
+
+/// <summary>
+/// A parsed file and the column mapping resolved against this form's properties.
+/// </summary>
+internal sealed record ImportInput(IReadOnlyList<CsvDataRow> Rows, CsvColumnMap Map);

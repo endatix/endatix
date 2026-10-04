@@ -20,8 +20,21 @@ public sealed class CsvFileParserTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Rows.Count);
-        Assert.Equal("a@example.com", result.Rows[0]["email"]);
-        Assert.Equal("Eng", result.Rows[0]["department"]);
+        Assert.Equal("a@example.com", result.Rows[0].Cells["email"]);
+        Assert.Equal("Eng", result.Rows[0].Cells["department"]);
+    }
+
+    [Fact]
+    public void Parse_BlankLineAndMultiLineCell_NumbersRowsAsASpreadsheetShowsThem()
+    {
+        // Arrange
+        const string csv = "email,note\na@example.com,one\n\nb@example.com,\"two\nlines\"\nc@example.com,three\n";
+
+        // Act
+        CsvFileParseResult result = CsvFileParser.Parse(csv);
+
+        // Assert
+        Assert.Equal([2, 4, 5], result.Rows.Select(row => row.RowNumber));
     }
 
     [Fact]

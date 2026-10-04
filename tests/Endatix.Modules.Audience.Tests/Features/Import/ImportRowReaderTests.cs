@@ -11,10 +11,10 @@ public sealed class ImportRowReaderTests
     public void Read_DuplicateIdentifier_RejectsLaterRowWithFileRowNumber()
     {
         // Arrange
-        List<IReadOnlyDictionary<string, string>> rows =
+        List<CsvDataRow> rows =
         [
-            Row("ada@example.com"),
-            Row(" ADA@example.com "),
+            Row(2, "ada@example.com"),
+            Row(3, " ADA@example.com "),
         ];
 
         // Act
@@ -30,7 +30,7 @@ public sealed class ImportRowReaderTests
     public void Read_BlankIdentifier_RejectsRow()
     {
         // Arrange
-        List<IReadOnlyDictionary<string, string>> rows = [Row("   ")];
+        List<CsvDataRow> rows = [Row(2, "   ")];
 
         // Act
         ImportRows result = ImportRowReader.Read(rows, EmailOnly, AudienceIdentifierKindCodes.Email);
@@ -44,7 +44,7 @@ public sealed class ImportRowReaderTests
     public void Read_ExternalIdsDifferingInCase_AcceptsBoth()
     {
         // Arrange
-        List<IReadOnlyDictionary<string, string>> rows = [Row("00Qx7"), Row("00QX7")];
+        List<CsvDataRow> rows = [Row(2, "00Qx7"), Row(3, "00QX7")];
 
         // Act
         ImportRows result = ImportRowReader.Read(rows, EmailOnly, AudienceIdentifierKindCodes.ExternalId);
@@ -54,6 +54,6 @@ public sealed class ImportRowReaderTests
         result.Rejected.Should().BeEmpty();
     }
 
-    private static IReadOnlyDictionary<string, string> Row(string email) =>
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["email"] = email };
+    private static CsvDataRow Row(int rowNumber, string email) =>
+        new(rowNumber, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["email"] = email });
 }

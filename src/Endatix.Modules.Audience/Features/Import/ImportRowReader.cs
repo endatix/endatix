@@ -8,18 +8,15 @@ namespace Endatix.Modules.Audience.Features.Import;
 /// </summary>
 internal static class ImportRowReader
 {
-    /// <summary>Row 1 is the header, so the first data row is row 2 in the file.</summary>
-    private const int FirstDataRowNumber = 2;
-
     public static ImportRows Read(
-        IReadOnlyList<IReadOnlyDictionary<string, string>> rows,
+        IReadOnlyList<CsvDataRow> rows,
         CsvColumnMap map,
         string identifierKind)
     {
         RowSorter sorter = new(map, identifierKind);
-        for (int index = 0; index < rows.Count; index++)
+        foreach (CsvDataRow row in rows)
         {
-            sorter.Add(rows[index], index + FirstDataRowNumber);
+            sorter.Add(row);
         }
 
         return new ImportRows(sorter.Accepted, sorter.Rejected);
@@ -33,18 +30,18 @@ internal static class ImportRowReader
 
         public List<ImportRejectionDto> Rejected { get; } = [];
 
-        public void Add(IReadOnlyDictionary<string, string> row, int rowNumber)
+        public void Add(CsvDataRow row)
         {
             string identifier = Member.Normalize(
-                row.GetValueOrDefault(map.IdentifierColumn) ?? string.Empty, identifierKind);
+                row.Cells.GetValueOrDefault(map.IdentifierColumn) ?? string.Empty, identifierKind);
             string? error = IdentifierError(identifier);
             if (error is not null)
             {
-                Rejected.Add(new ImportRejectionDto(rowNumber, error));
+                Rejected.Add(new ImportRejectionDto(row.RowNumber, error));
                 return;
             }
 
-            Accepted.Add(new ImportRow(identifier, CsvColumnMapper.ReadValues(map, row)));
+            Accepted.Add(new ImportRow(identifier, CsvColumnMapper.ReadValues(map, row.Cells)));
         }
 
         private string? IdentifierError(string identifier)

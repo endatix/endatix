@@ -33,7 +33,7 @@ Database schema: `audience`
 | PATCH/DELETE | `forms/{formId}/audience/properties/{propertyId}` | Rename/reorder / delete |
 | GET/POST | `forms/{formId}/audience/people` | List (page ≤ 5,000) / add |
 | PUT/DELETE | `forms/{formId}/audience/people/{membershipId}` | Edit values / remove from this form only |
-| POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported, not written |
+| POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400 |
 
 Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`.
 

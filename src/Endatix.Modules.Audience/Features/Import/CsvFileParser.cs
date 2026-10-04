@@ -45,7 +45,7 @@ internal static class CsvFileParser
 
     private static CsvFileParseResult ReadRows(CsvReader csv, string[] headers)
     {
-        List<IReadOnlyDictionary<string, string>> rows = [];
+        List<CsvDataRow> rows = [];
         while (csv.Read())
         {
             if (rows.Count >= ImportLimits.MaxRows)
@@ -54,13 +54,13 @@ internal static class CsvFileParser
                     $"CSV exceeds the maximum of {ImportLimits.MaxRows} data rows.");
             }
 
-            rows.Add(ReadRow(csv, headers));
+            rows.Add(new CsvDataRow(csv.Parser.Row, ReadCells(csv, headers)));
         }
 
         return CsvFileParseResult.Ok(headers, rows);
     }
 
-    private static IReadOnlyDictionary<string, string> ReadRow(CsvReader csv, string[] headers)
+    private static IReadOnlyDictionary<string, string> ReadCells(CsvReader csv, string[] headers)
     {
         Dictionary<string, string> row = new(StringComparer.OrdinalIgnoreCase);
         foreach (string header in headers)
@@ -76,13 +76,19 @@ internal sealed record CsvFileParseResult(
     bool IsSuccess,
     string? Error,
     IReadOnlyList<string> Headers,
-    IReadOnlyList<IReadOnlyDictionary<string, string>> Rows)
+    IReadOnlyList<CsvDataRow> Rows)
 {
     public static CsvFileParseResult Ok(
         IReadOnlyList<string> headers,
-        IReadOnlyList<IReadOnlyDictionary<string, string>> rows) =>
+        IReadOnlyList<CsvDataRow> rows) =>
         new(true, null, headers, rows);
 
     public static CsvFileParseResult Invalid(string error) =>
         new(false, error, [], []);
 }
+
+/// <summary>
+/// One CSV data record and the spreadsheet row it starts on. Blank lines count as rows and a
+/// quoted cell spanning several lines stays one row, as a spreadsheet shows the file.
+/// </summary>
+internal sealed record CsvDataRow(int RowNumber, IReadOnlyDictionary<string, string> Cells);

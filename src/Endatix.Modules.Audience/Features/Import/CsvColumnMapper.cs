@@ -22,6 +22,24 @@ internal static class CsvColumnMapper
             byVariable);
     }
 
+    /// <summary>
+    /// Refuses a mapping that names a property this form lacks or a column the file lacks, so a
+    /// typo cannot drop a whole column while the import reports success.
+    /// </summary>
+    public static string? MappingError(
+        IReadOnlyList<Property> properties,
+        IReadOnlyList<string> headers,
+        IReadOnlyDictionary<string, string>? propertyColumns)
+    {
+        HashSet<string> variables = properties
+            .Select(property => property.VariableName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> columns = headers.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return propertyColumns?
+            .Select(column => ColumnError(variables, columns, column))
+            .FirstOrDefault(error => error is not null);
+    }
+
     public static IReadOnlyDictionary<long, string> ReadValues(
         CsvColumnMap map,
         IReadOnlyDictionary<string, string> row)
@@ -29,6 +47,19 @@ internal static class CsvColumnMapper
         Dictionary<long, string> values = ReadSimpleValues(map, row);
         ApplyChoiceColumns(map, row, values);
         return values;
+    }
+
+    private static string? ColumnError(
+        HashSet<string> variables,
+        HashSet<string> columns,
+        KeyValuePair<string, string> column)
+    {
+        if (!variables.Contains(column.Key))
+        {
+            return $"This form has no audience property '{column.Key}'.";
+        }
+
+        return columns.Contains(column.Value) ? null : $"The CSV has no '{column.Value}' column.";
     }
 
     private static Dictionary<string, long> BuildSimpleColumns(
