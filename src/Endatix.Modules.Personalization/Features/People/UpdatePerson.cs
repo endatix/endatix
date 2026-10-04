@@ -32,7 +32,7 @@ internal sealed class UpdatePersonHandler(
             return loaded.ToErrorResult<PersonDto>();
         }
 
-        Membership membership = loaded.Value!;
+        Membership membership = loaded.Value;
         await PropertyValuesWriter.UpsertAsync(
             new PropertyValueWrite(db, request.TenantId, membership.Id, request.Values),
             cancellationToken);

@@ -67,6 +67,16 @@ public class PropertyTests
     }
 
     [Fact]
+    public void NameError_TooLong_ReturnsMessage()
+    {
+        string name = new('a', 101);
+
+        string? error = Property.NameError(name);
+
+        error.Should().Contain("100");
+    }
+
+    [Fact]
     public void Rename_BlankName_ThrowsDomainValidationException()
     {
         // Arrange

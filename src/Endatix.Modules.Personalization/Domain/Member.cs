@@ -11,12 +11,21 @@ namespace Endatix.Modules.Personalization.Domain;
 /// </summary>
 public sealed class Member : BaseEntity, IAggregateRoot, ITenantOwned
 {
-    private Member() { }
+    private Member()
+    {
+        Identifier = string.Empty;
+    }
 
     public Member(long tenantId, string identifier, string identifierKind)
     {
         Guard.Against.NegativeOrZero(tenantId);
         Guard.Against.NullOrWhiteSpace(identifier);
+        if (!AudienceIdentifierKindCodes.IsKnown(identifierKind))
+        {
+            throw new ArgumentException(
+                $"Unknown identifier kind '{identifierKind}'.",
+                nameof(identifierKind));
+        }
 
         TenantId = tenantId;
         Identifier = Normalize(identifier, identifierKind);
@@ -24,7 +33,7 @@ public sealed class Member : BaseEntity, IAggregateRoot, ITenantOwned
 
     public long TenantId { get; private set; }
 
-    public string Identifier { get; private set; } = null!;
+    public string Identifier { get; private set; }
 
     public long? SubmitterId { get; private set; }
 

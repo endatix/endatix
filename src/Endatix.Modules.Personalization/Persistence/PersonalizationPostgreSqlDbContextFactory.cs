@@ -20,7 +20,8 @@ public sealed class PersonalizationPostgreSqlDbContextFactory
         var optionsBuilder = new DbContextOptionsBuilder<PersonalizationPostgreSqlDbContext>();
         optionsBuilder.UseNpgsql(connectionString, dbOptions =>
         {
-            dbOptions.MigrationsAssembly(typeof(PersonalizationPostgreSqlDbContext).Assembly.GetName().Name!);
+            dbOptions.MigrationsAssembly(
+                PersonalizationPersistence.AssemblyName(typeof(PersonalizationPostgreSqlDbContext)));
             dbOptions.MigrationsHistoryTable(
                 HistoryRepository.DefaultTableName,
                 PersonalizationPersistence.Schema);

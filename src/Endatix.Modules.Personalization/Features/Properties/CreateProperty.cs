@@ -61,15 +61,31 @@ internal sealed class CreatePropertyHandler(
             return gate.ToErrorResult<PropertyDto>();
         }
 
-        string variableName = Property.Slugify(request.Name);
-        Result unique = await EnsureUniqueAsync(request.FormId, variableName, cancellationToken);
+        Result unique = await CheckUniqueAsync(request, cancellationToken);
         if (!unique.IsSuccess)
         {
             return unique.ToErrorResult<PropertyDto>();
         }
 
-        Property property = await PersistAsync(request, cancellationToken);
-        return Result<PropertyDto>.Created(PropertyDto.From(property));
+        return await CreateAsync(request, cancellationToken);
+    }
+
+    private async Task<Result> CheckUniqueAsync(
+        CreatePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        string variableName = Property.Slugify(request.Name);
+        return await EnsureUniqueAsync(request.FormId, variableName, cancellationToken);
+    }
+
+    private async Task<Result<PropertyDto>> CreateAsync(
+        CreatePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        Result<Property> saved = await PersistAsync(request, cancellationToken);
+        return saved.IsSuccess
+            ? Result<PropertyDto>.Created(PropertyDto.From(saved.Value))
+            : saved.ToErrorResult<PropertyDto>();
     }
 
     private async Task<Result> GateAsync(
@@ -109,12 +125,21 @@ internal sealed class CreatePropertyHandler(
             : Result.Success();
     }
 
-    private async Task<Property> PersistAsync(
+    private async Task<Result<Property>> PersistAsync(
+        CreatePropertyCommand request,
+        CancellationToken cancellationToken)
+    {
+        Property property = await BuildPropertyAsync(request, cancellationToken);
+        db.Properties.Add(property);
+        return await SavePropertyAsync(property, cancellationToken);
+    }
+
+    private async Task<Property> BuildPropertyAsync(
         CreatePropertyCommand request,
         CancellationToken cancellationToken)
     {
         int sortOrder = await NextSortAsync(request.FormId, cancellationToken);
-        Property property = new(new PropertyCreateArgs(
+        return new Property(new PropertyCreateArgs(
             request.TenantId,
             request.FormId,
             request.Name,
@@ -122,9 +147,24 @@ internal sealed class CreatePropertyHandler(
             sortOrder,
             request.ChoicesJson,
             request.AllowsOther));
+    }
 
-        db.Properties.Add(property);
-        await db.SaveChangesAsync(cancellationToken);
+    private async Task<Result<Property>> SavePropertyAsync(
+        Property property,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (UniqueIndexViolation.Is(
+            ex,
+            UniqueIndexViolation.PropertiesVariableName))
+        {
+            return Result.Conflict(
+                $"An audience property with variable name '{property.VariableName}' already exists on this form.");
+        }
+
         return property;
     }
 

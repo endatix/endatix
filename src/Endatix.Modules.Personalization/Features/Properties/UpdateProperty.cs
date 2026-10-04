@@ -47,14 +47,14 @@ internal sealed class UpdatePropertyHandler(
             return loaded.ToErrorResult<PropertyDto>();
         }
 
-        Result apply = ApplyEdits(loaded.Value!, request);
+        Result apply = ApplyEdits(loaded.Value, request);
         if (!apply.IsSuccess)
         {
             return apply.ToErrorResult<PropertyDto>();
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(PropertyDto.From(loaded.Value!));
+        return Result.Success(PropertyDto.From(loaded.Value));
     }
 
     private async Task<Result<Property>> LoadAsync(

@@ -30,6 +30,16 @@ public class MemberTests
         // Assert
         member.Identifier.Should().Be("CRM-00Qx7");
     }
+
+    [Theory]
+    [InlineData("Email")]
+    [InlineData("phone")]
+    public void Constructor_UnknownKind_Throws(string identifierKind)
+    {
+        Action act = () => new Member(tenantId: 1, "ada@example.com", identifierKind);
+
+        act.Should().Throw<ArgumentException>();
+    }
 }
 
 public class AudienceSettingsTests

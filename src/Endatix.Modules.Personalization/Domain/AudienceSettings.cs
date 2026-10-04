@@ -11,7 +11,10 @@ namespace Endatix.Modules.Personalization.Domain;
 /// </summary>
 public sealed class AudienceSettings : BaseEntity, IAggregateRoot, ITenantOwned
 {
-    private AudienceSettings() { }
+    private AudienceSettings()
+    {
+        IdentifierKind = string.Empty;
+    }
 
     public AudienceSettings(long tenantId, string identifierKind = AudienceIdentifierKindCodes.Email)
     {
@@ -27,7 +30,7 @@ public sealed class AudienceSettings : BaseEntity, IAggregateRoot, ITenantOwned
 
     public long TenantId { get; private set; }
 
-    public string IdentifierKind { get; private set; } = null!;
+    public string IdentifierKind { get; private set; }
 
     /// <summary>
     /// Changes the match key. Caller must ensure no <see cref="Member"/> exists yet.

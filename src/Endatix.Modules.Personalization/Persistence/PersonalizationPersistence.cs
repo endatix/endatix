@@ -15,7 +15,11 @@ public static class PersonalizationPersistence
     public static void ConfigureDbContextOptions(ModuleDbContextOptions options)
     {
         options.Schema = Schema;
-        options.MigrationsAssembly = typeof(PersonalizationDbContextBase).Assembly.GetName().Name!;
+        options.MigrationsAssembly = AssemblyName(typeof(PersonalizationDbContextBase));
         options.PostgreSqlMigrationsNamespace = MigrationsRootNamespace;
     }
+
+    internal static string AssemblyName(Type type) =>
+        type.Assembly.GetName().Name
+        ?? throw new InvalidOperationException("Audience assembly name is missing.");
 }

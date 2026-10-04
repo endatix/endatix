@@ -48,7 +48,7 @@ public sealed class Create(
             new CreatePersonCommand(
                 tenantContext.TenantId,
                 request.FormId,
-                request.Identifier!,
+                request.Identifier ?? string.Empty,
                 request.Values),
             ct);
 

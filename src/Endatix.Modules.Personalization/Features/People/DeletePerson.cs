@@ -36,8 +36,8 @@ internal sealed class DeletePersonHandler(
             return loaded.ToErrorResult<string>();
         }
 
-        await SoftDeleteAsync(loaded.Value!, cancellationToken);
-        return Result.Success(loaded.Value!.Id.ToString());
+        await SoftDeleteAsync(loaded.Value, cancellationToken);
+        return Result.Success(loaded.Value.Id.ToString());
     }
 
     private async Task<Result<Membership>> LoadAsync(

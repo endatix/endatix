@@ -52,7 +52,8 @@ internal sealed class ListPeopleHandler(
     {
         (int requestedPage, int pageSize) = ResolvePaging(request);
         IQueryable<Membership> query = db.Memberships
-            .Where(membership => membership.FormId == request.FormId);
+            .Where(membership => membership.FormId == request.FormId
+                && db.Members.Any(member => member.Id == membership.MemberId));
 
         int total = await query.CountAsync(cancellationToken);
         int page = Paged<PersonDto>.ResolvePage(requestedPage, pageSize, total);

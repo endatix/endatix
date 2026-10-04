@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
@@ -13,9 +14,17 @@ namespace Endatix.Modules.Personalization.Domain;
 /// </summary>
 public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
 {
-    private static readonly Regex NonSlug = new("[^a-z0-9]+", RegexOptions.Compiled);
+    private static readonly Regex NonSlug = new(
+        "[^a-z0-9]+",
+        RegexOptions.Compiled,
+        TimeSpan.FromMilliseconds(100));
 
-    private Property() { }
+    private Property()
+    {
+        VariableName = string.Empty;
+        Name = string.Empty;
+        DataType = string.Empty;
+    }
 
     public Property(PropertyCreateArgs args)
     {
@@ -43,12 +52,12 @@ public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
     public long FormId { get; private set; }
 
     /// <summary>Immutable export and piping key.</summary>
-    public string VariableName { get; private set; } = null!;
+    public string VariableName { get; private set; }
 
     /// <summary>Editable label.</summary>
-    public string Name { get; private set; } = null!;
+    public string Name { get; private set; }
 
-    public string DataType { get; private set; } = null!;
+    public string DataType { get; private set; }
 
     public int SortOrder { get; private set; }
 
@@ -66,16 +75,34 @@ public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
 
     public void Reorder(int sortOrder) => SortOrder = sortOrder;
 
-    public static string? NameError(string? name) =>
-        string.IsNullOrWhiteSpace(name) ? "Name is required." : null;
+    public static string? NameError(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "Name is required.";
+        }
+
+        return name.Trim().Length > DataSchemaConstants.MAX_NAME_LENGTH
+            ? $"Name must be at most {DataSchemaConstants.MAX_NAME_LENGTH} characters."
+            : null;
+    }
 
     /// <summary>
     /// Rejects a name that is blank or has no ASCII letter or digit, since the variable name is
     /// built from those characters only.
     /// </summary>
-    public static string? VariableNameError(string? name) =>
-        NameError(name)
-        ?? (SlugOf(name!).Length == 0 ? "Name must contain a letter or a digit (a-z, 0-9)." : null);
+    public static string? VariableNameError(string? name)
+    {
+        string? nameError = NameError(name);
+        if (nameError is not null || name is null)
+        {
+            return nameError;
+        }
+
+        return SlugOf(name).Length == 0
+            ? "Name must contain a letter or a digit (a-z, 0-9)."
+            : null;
+    }
 
     public static string Slugify(string name)
     {

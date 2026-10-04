@@ -6,6 +6,7 @@ using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Features.Settings;
 using Endatix.Modules.Personalization.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Personalization.Features.People;
 
@@ -33,6 +34,40 @@ internal sealed class CreatePersonHandler(
             return gate.ToErrorResult<PersonDto>();
         }
 
+        try
+        {
+            return await CreateLockedAsync(request, cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsMembershipRace(ex))
+        {
+            ((DbContext)db).ChangeTracker.Clear();
+            return await RetryLockedAsync(request, cancellationToken);
+        }
+    }
+
+    private static bool IsMembershipRace(DbUpdateException ex) =>
+        UniqueIndexViolation.Is(ex, UniqueIndexViolation.MembersIdentifier)
+        || UniqueIndexViolation.Is(ex, UniqueIndexViolation.MembershipsMember);
+
+    private async Task<Result<PersonDto>> CreateLockedAsync(
+        CreatePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction =
+            await MatchKeyLock.BeginAsync(db, request.TenantId, cancellationToken);
+        Result<PersonDto> created = await AddNewAsync(request, cancellationToken);
+        if (created.IsSuccess)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        return created;
+    }
+
+    private async Task<Result<PersonDto>> AddNewAsync(
+        CreatePersonCommand request,
+        CancellationToken cancellationToken)
+    {
         Member member = await FindOrAddMemberAsync(request, cancellationToken);
         Result notOnForm = await EnsureNotOnFormAsync(request.FormId, member.Id, cancellationToken);
         if (!notOnForm.IsSuccess)
@@ -42,6 +77,55 @@ internal sealed class CreatePersonHandler(
 
         return Result<PersonDto>.Created(await AddToFormAsync(request, member, cancellationToken));
     }
+
+    private async Task<Result<PersonDto>> RetryLockedAsync(
+        CreatePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction =
+            await MatchKeyLock.BeginAsync(db, request.TenantId, cancellationToken);
+        Result<PersonDto> created = await AddExistingAsync(request, cancellationToken);
+        if (created.IsSuccess)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        return created;
+    }
+
+    private async Task<Result<PersonDto>> AddExistingAsync(
+        CreatePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        Member? member = await FindMemberAsync(request, cancellationToken);
+        if (member is null)
+        {
+            return AlreadyOnForm();
+        }
+
+        Result notOnForm = await EnsureNotOnFormAsync(request.FormId, member.Id, cancellationToken);
+        return notOnForm.IsSuccess
+            ? await SaveMembershipAsync(request, member, cancellationToken)
+            : notOnForm.ToErrorResult<PersonDto>();
+    }
+
+    private async Task<Result<PersonDto>> SaveMembershipAsync(
+        CreatePersonCommand request,
+        Member member,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Result<PersonDto>.Created(await AddToFormAsync(request, member, cancellationToken));
+        }
+        catch (DbUpdateException ex) when (IsMembershipRace(ex))
+        {
+            return AlreadyOnForm();
+        }
+    }
+
+    private static Result<PersonDto> AlreadyOnForm() =>
+        Result.Conflict("This person is already on this form's audience.");
 
     private async Task<Result> GateAsync(
         CreatePersonCommand request,
@@ -119,5 +203,16 @@ internal sealed class CreatePersonHandler(
         member = new Member(request.TenantId, identifier, identifierKind);
         db.Members.Add(member);
         return member;
+    }
+
+    private async Task<Member?> FindMemberAsync(
+        CreatePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
+        string identifier = Member.Normalize(request.Identifier, identifierKind);
+        return await db.Members.FirstOrDefaultAsync(
+            row => row.TenantId == request.TenantId && row.Identifier == identifier,
+            cancellationToken);
     }
 }

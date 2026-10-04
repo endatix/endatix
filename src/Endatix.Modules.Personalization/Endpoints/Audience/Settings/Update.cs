@@ -43,7 +43,7 @@ public sealed class Update(
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new UpdateAudienceSettingsCommand(tenantContext.TenantId, request.IdentifierKind!),
+            new UpdateAudienceSettingsCommand(tenantContext.TenantId, request.IdentifierKind ?? string.Empty),
             ct);
 
         return TypedResultsBuilder
@@ -61,7 +61,7 @@ public sealed class UpdateAudienceSettingsValidator : Validator<UpdateAudienceSe
     {
         RuleFor(request => request.IdentifierKind)
             .NotEmpty()
-            .Must(AudienceIdentifierKindCodes.IsKnown!)
+            .Must(kind => AudienceIdentifierKindCodes.IsKnown(kind))
             .WithMessage("Identifier kind must be email or external_id.");
     }
 }

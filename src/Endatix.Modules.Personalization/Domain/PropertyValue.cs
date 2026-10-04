@@ -10,7 +10,10 @@ namespace Endatix.Modules.Personalization.Domain;
 /// </summary>
 public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
 {
-    private PropertyValue() { }
+    private PropertyValue()
+    {
+        Value = string.Empty;
+    }
 
     public PropertyValue(PropertyValueCreateArgs args)
     {
@@ -33,7 +36,7 @@ public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
     public long PropertyId { get; private set; }
 
     /// <summary>Canonical string. Multiple choice is a JSON array of choice keys.</summary>
-    public string Value { get; private set; } = null!;
+    public string Value { get; private set; }
 
     public void SetValue(string value)
     {

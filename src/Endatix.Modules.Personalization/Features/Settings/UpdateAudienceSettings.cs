@@ -4,6 +4,7 @@ using Endatix.Modules.Personalization.Contracts;
 using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Personalization.Features.Settings;
 
@@ -20,6 +21,17 @@ internal sealed class UpdateAudienceSettingsHandler(IPersonalizationDbContext db
         UpdateAudienceSettingsCommand request,
         CancellationToken cancellationToken)
     {
+        return request.TenantId <= 0
+            ? Result.Unauthorized("Tenant context is required.")
+            : await SaveLockedAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<AudienceSettingsDto>> SaveLockedAsync(
+        UpdateAudienceSettingsCommand request,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction =
+            await MatchKeyLock.BeginAsync(db, request.TenantId, cancellationToken);
         Result gate = await ValidateAsync(request, cancellationToken);
         if (!gate.IsSuccess)
         {
@@ -27,6 +39,7 @@ internal sealed class UpdateAudienceSettingsHandler(IPersonalizationDbContext db
         }
 
         AudienceSettings settings = await UpsertAsync(request, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Result.Success(new AudienceSettingsDto(settings.IdentifierKind));
     }
 
@@ -34,11 +47,6 @@ internal sealed class UpdateAudienceSettingsHandler(IPersonalizationDbContext db
         UpdateAudienceSettingsCommand request,
         CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
-        {
-            return Result.Unauthorized("Tenant context is required.");
-        }
-
         if (!AudienceIdentifierKindCodes.IsKnown(request.IdentifierKind))
         {
             return Result.Invalid(new ValidationError(

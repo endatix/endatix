@@ -51,8 +51,8 @@ public sealed class Create(
             new CreatePropertyCommand(
                 tenantContext.TenantId,
                 request.FormId,
-                request.Name!,
-                request.DataType!,
+                request.Name ?? string.Empty,
+                request.DataType ?? string.Empty,
                 string.IsNullOrEmpty(request.ChoicesJson) ? null : request.ChoicesJson,
                 request.AllowsOther),
             ct);
@@ -77,7 +77,7 @@ public sealed class CreateAudiencePropertyValidator : Validator<CreateAudiencePr
             .WithMessage((_, name) => Property.VariableNameError(name));
         RuleFor(request => request.DataType)
             .NotEmpty()
-            .Must(AudienceDataTypeCodes.IsKnown!)
+            .Must(kind => AudienceDataTypeCodes.IsKnown(kind))
             .WithMessage("Unknown audience data type.");
         RuleFor(request => request.ChoicesJson).ValidJsonString();
     }
