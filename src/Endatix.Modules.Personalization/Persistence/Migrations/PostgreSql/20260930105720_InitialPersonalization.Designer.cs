@@ -21,13 +21,13 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasDefaultSchema("personalization")
+                .HasDefaultSchema("audience")
                 .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Endatix.Modules.Personalization.Domain.AudienceMember", b =>
+            modelBuilder.Entity("Endatix.Modules.Personalization.Domain.Member", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -62,16 +62,16 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
 
                     b.HasIndex("TenantId", "Identifier")
                         .IsUnique()
-                        .HasDatabaseName("IX_AudienceMembers_Identifier")
+                        .HasDatabaseName("IX_Members_Identifier")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.ToTable("AudienceMembers", "personalization", t =>
+                    b.ToTable("Members", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_AudienceMembers_TenantId", "\"TenantId\" > 0");
+                            t.HasCheckConstraint("CK_Members_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
-            modelBuilder.Entity("Endatix.Modules.Personalization.Domain.AudienceMembership", b =>
+            modelBuilder.Entity("Endatix.Modules.Personalization.Domain.Membership", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -79,7 +79,7 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None)
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
 
-                    b.Property<long>("AudienceMemberId")
+                    b.Property<long>("MemberId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAt")
@@ -103,20 +103,20 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId")
-                        .HasDatabaseName("IX_AudienceMemberships_Form");
+                        .HasDatabaseName("IX_Memberships_Form");
 
-                    b.HasIndex("TenantId", "FormId", "AudienceMemberId")
+                    b.HasIndex("TenantId", "FormId", "MemberId")
                         .IsUnique()
-                        .HasDatabaseName("IX_AudienceMemberships_Member")
+                        .HasDatabaseName("IX_Memberships_Member")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.ToTable("AudienceMemberships", "personalization", t =>
+                    b.ToTable("Memberships", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_AudienceMemberships_TenantId", "\"TenantId\" > 0");
+                            t.HasCheckConstraint("CK_Memberships_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
-            modelBuilder.Entity("Endatix.Modules.Personalization.Domain.AudienceProperty", b =>
+            modelBuilder.Entity("Endatix.Modules.Personalization.Domain.Property", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -172,20 +172,20 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId")
-                        .HasDatabaseName("IX_AudienceProperties_Form");
+                        .HasDatabaseName("IX_Properties_Form");
 
                     b.HasIndex("TenantId", "FormId", "VariableName")
                         .IsUnique()
-                        .HasDatabaseName("IX_AudienceProperties_VariableName")
+                        .HasDatabaseName("IX_Properties_VariableName")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.ToTable("AudienceProperties", "personalization", t =>
+                    b.ToTable("Properties", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_AudienceProperties_TenantId", "\"TenantId\" > 0");
+                            t.HasCheckConstraint("CK_Properties_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
-            modelBuilder.Entity("Endatix.Modules.Personalization.Domain.AudiencePropertyValue", b =>
+            modelBuilder.Entity("Endatix.Modules.Personalization.Domain.PropertyValue", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -193,10 +193,10 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None)
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
 
-                    b.Property<long>("AudienceMembershipId")
+                    b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("AudiencePropertyId")
+                    b.Property<long>("PropertyId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAt")
@@ -220,17 +220,17 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AudienceMembershipId")
-                        .HasDatabaseName("IX_AudiencePropertyValues_Membership");
+                    b.HasIndex("MembershipId")
+                        .HasDatabaseName("IX_PropertyValues_Membership");
 
-                    b.HasIndex("AudienceMembershipId", "AudiencePropertyId")
+                    b.HasIndex("MembershipId", "PropertyId")
                         .IsUnique()
-                        .HasDatabaseName("IX_AudiencePropertyValues_Cell")
+                        .HasDatabaseName("IX_PropertyValues_Cell")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.ToTable("AudiencePropertyValues", "personalization", t =>
+                    b.ToTable("PropertyValues", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_AudiencePropertyValues_TenantId", "\"TenantId\" > 0");
+                            t.HasCheckConstraint("CK_PropertyValues_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
@@ -266,12 +266,12 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
 
                     b.HasIndex("TenantId")
                         .IsUnique()
-                        .HasDatabaseName("IX_AudienceSettings_Tenant")
+                        .HasDatabaseName("IX_Settings_Tenant")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.ToTable("AudienceSettings", "personalization", t =>
+                    b.ToTable("Settings", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_AudienceSettings_TenantId", "\"TenantId\" > 0");
+                            t.HasCheckConstraint("CK_Settings_TenantId", "\"TenantId\" > 0");
                         });
                 });
 #pragma warning restore 612, 618

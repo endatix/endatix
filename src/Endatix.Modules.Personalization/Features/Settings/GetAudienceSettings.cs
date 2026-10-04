@@ -1,14 +1,11 @@
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Modules.Personalization.Contracts;
-using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Personalization.Features.Settings;
 
 /// <summary>
-/// Reads the tenant audience match key, creating the default row when missing.
+/// Reads the tenant audience match key. A tenant without a settings row gets the email default.
 /// </summary>
 public sealed record GetAudienceSettingsQuery(long TenantId) : IQuery<Result<AudienceSettingsDto>>;
 
@@ -29,24 +26,7 @@ internal sealed class GetAudienceSettingsHandler(IPersonalizationDbContext db)
             return Result.Unauthorized("Tenant context is required.");
         }
 
-        AudienceSettings settings = await LoadOrCreateAsync(request.TenantId, cancellationToken);
-        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind));
-    }
-
-    private async Task<AudienceSettings> LoadOrCreateAsync(
-        long tenantId,
-        CancellationToken cancellationToken)
-    {
-        AudienceSettings? settings = await db.AudienceSettings
-            .FirstOrDefaultAsync(row => row.TenantId == tenantId, cancellationToken);
-        if (settings is not null)
-        {
-            return settings;
-        }
-
-        settings = new AudienceSettings(tenantId, AudienceIdentifierKindCodes.Email);
-        db.AudienceSettings.Add(settings);
-        await db.SaveChangesAsync(cancellationToken);
-        return settings;
+        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
+        return Result.Success(new AudienceSettingsDto(identifierKind));
     }
 }

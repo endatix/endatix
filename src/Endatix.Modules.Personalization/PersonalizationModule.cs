@@ -14,7 +14,7 @@ namespace Endatix.Modules.Personalization;
 /// </summary>
 /// <remarks>
 /// Gated by <see cref="FeatureFlags.PersonalizationModule"/> (off by default). Owns the
-/// <c>personalization</c> schema and its migrations. PostgreSQL first.
+/// <c>audience</c> schema and its migrations. PostgreSQL first.
 /// </remarks>
 public sealed class PersonalizationModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpoints
 {

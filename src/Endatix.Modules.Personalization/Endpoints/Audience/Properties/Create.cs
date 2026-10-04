@@ -1,8 +1,10 @@
+using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Common;
 using Endatix.Modules.Personalization.Contracts;
+using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Features.Properties;
 using FastEndpoints;
 using FluentValidation;
@@ -46,12 +48,12 @@ public sealed class Create(
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new CreateAudiencePropertyCommand(
+            new CreatePropertyCommand(
                 tenantContext.TenantId,
                 request.FormId,
                 request.Name!,
                 request.DataType!,
-                request.ChoicesJson,
+                string.IsNullOrEmpty(request.ChoicesJson) ? null : request.ChoicesJson,
                 request.AllowsOther),
             ct);
 
@@ -70,12 +72,14 @@ public sealed class CreateAudiencePropertyValidator : Validator<CreateAudiencePr
     {
         RuleFor(request => request.FormId).GreaterThan(0);
         RuleFor(request => request.Name)
-            .NotEmpty()
-            .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
+            .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH)
+            .Must(name => Property.VariableNameError(name) is null)
+            .WithMessage((_, name) => Property.VariableNameError(name));
         RuleFor(request => request.DataType)
             .NotEmpty()
             .Must(AudienceDataTypeCodes.IsKnown!)
             .WithMessage("Unknown audience data type.");
+        RuleFor(request => request.ChoicesJson).ValidJsonString();
     }
 }
 

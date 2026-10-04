@@ -42,7 +42,7 @@ public sealed class List(
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new ListAudiencePeopleQuery(
+            new ListPeopleQuery(
                 tenantContext.TenantId,
                 request.FormId,
                 request.Page,
@@ -54,7 +54,7 @@ public sealed class List(
             .SetTypedResults<Ok<Paged<AudiencePersonResponse>>, ProblemHttpResult>();
     }
 
-    private static Paged<AudiencePersonResponse> Map(Paged<AudiencePersonDto> paged) =>
+    private static Paged<AudiencePersonResponse> Map(Paged<PersonDto> paged) =>
         new(
             paged.Page,
             paged.PageSize,

@@ -6,27 +6,27 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Modules.Personalization.Domain;
 
 /// <summary>
-/// Places an <see cref="AudienceMember"/> on one form. Deleting this row removes the person from
+/// Places an <see cref="Member"/> on one form. Deleting this row removes the person from
 /// that form only.
 /// </summary>
-public sealed class AudienceMembership : BaseEntity, IAggregateRoot, ITenantOwned
+public sealed class Membership : BaseEntity, IAggregateRoot, ITenantOwned
 {
-    private AudienceMembership() { }
+    private Membership() { }
 
-    public AudienceMembership(long tenantId, long formId, long audienceMemberId)
+    public Membership(long tenantId, long formId, long memberId)
     {
         Guard.Against.NegativeOrZero(tenantId);
         Guard.Against.NegativeOrZero(formId);
-        Guard.Against.NegativeOrZero(audienceMemberId);
+        Guard.Against.NegativeOrZero(memberId);
 
         TenantId = tenantId;
         FormId = formId;
-        AudienceMemberId = audienceMemberId;
+        MemberId = memberId;
     }
 
     public long TenantId { get; private set; }
 
     public long FormId { get; private set; }
 
-    public long AudienceMemberId { get; private set; }
+    public long MemberId { get; private set; }
 }

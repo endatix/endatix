@@ -3,14 +3,32 @@ using Endatix.Modules.Personalization.Domain;
 
 namespace Endatix.Modules.Personalization.Tests.Domain;
 
-public class AudienceMemberTests
+public class MemberTests
 {
     [Fact]
-    public void Constructor_NormalizesIdentifier()
+    public void Constructor_EmailKind_TrimsAndLowerCasesIdentifier()
     {
-        AudienceMember member = new(tenantId: 1, identifier: "  Ada@Example.COM ");
+        // Arrange
+        const string identifier = "  Ada@Example.COM ";
 
+        // Act
+        Member member = new(tenantId: 1, identifier, AudienceIdentifierKindCodes.Email);
+
+        // Assert
         member.Identifier.Should().Be("ada@example.com");
+    }
+
+    [Fact]
+    public void Constructor_ExternalIdKind_TrimsAndKeepsCase()
+    {
+        // Arrange
+        const string identifier = " CRM-00Qx7 ";
+
+        // Act
+        Member member = new(tenantId: 1, identifier, AudienceIdentifierKindCodes.ExternalId);
+
+        // Assert
+        member.Identifier.Should().Be("CRM-00Qx7");
     }
 }
 

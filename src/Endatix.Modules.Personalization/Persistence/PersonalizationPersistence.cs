@@ -3,11 +3,11 @@ using Endatix.Infrastructure.Data;
 namespace Endatix.Modules.Personalization.Persistence;
 
 /// <summary>
-/// Persistence paths for the Personalization module (<c>personalization</c> schema).
+/// Persistence paths for the Personalization module (<c>audience</c> schema).
 /// </summary>
 public static class PersonalizationPersistence
 {
-    public const string Schema = "personalization";
+    public const string Schema = "audience";
 
     private const string MigrationsRootNamespace =
         "Endatix.Modules.Personalization.Persistence.Migrations";

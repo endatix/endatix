@@ -1,14 +1,15 @@
+using Endatix.Core.Exceptions;
 using Endatix.Modules.Personalization.Contracts;
 using Endatix.Modules.Personalization.Domain;
 
 namespace Endatix.Modules.Personalization.Tests.Domain;
 
-public class AudiencePropertyTests
+public class PropertyTests
 {
     [Fact]
     public void Constructor_SlugifiesVariableName_FromName()
     {
-        AudienceProperty property = new(new AudiencePropertyCreateArgs(
+        Property property = new(new PropertyCreateArgs(
             TenantId: 1,
             FormId: 10,
             Name: "First Name!",
@@ -22,7 +23,7 @@ public class AudiencePropertyTests
     [Fact]
     public void Rename_ChangesName_Only()
     {
-        AudienceProperty property = new(new AudiencePropertyCreateArgs(
+        Property property = new(new PropertyCreateArgs(
             TenantId: 1,
             FormId: 10,
             Name: "Email",
@@ -41,7 +42,7 @@ public class AudiencePropertyTests
     [Fact]
     public void Slugify_RejectsNameWithoutAlphanumerics()
     {
-        Action act = () => AudienceProperty.Slugify("!!!");
+        Action act = () => Property.Slugify("!!!");
 
         act.Should().Throw<ArgumentException>();
     }
@@ -52,6 +53,34 @@ public class AudiencePropertyTests
     [InlineData("Q1__Score", "q1_score")]
     public void Slugify_NormalizesExpectedShapes(string name, string expected)
     {
-        AudienceProperty.Slugify(name).Should().Be(expected);
+        Property.Slugify(name).Should().Be(expected);
+    }
+
+    [Fact]
+    public void VariableNameError_NameWithoutAsciiLetterOrDigit_ReturnsMessage()
+    {
+        // Act
+        string? error = Property.VariableNameError("!!!");
+
+        // Assert
+        error.Should().Be("Name must contain a letter or a digit (a-z, 0-9).");
+    }
+
+    [Fact]
+    public void Rename_BlankName_ThrowsDomainValidationException()
+    {
+        // Arrange
+        Property property = new(new PropertyCreateArgs(
+            TenantId: 1,
+            FormId: 10,
+            Name: "Email",
+            DataType: AudienceDataTypeCodes.Text,
+            SortOrder: 0));
+
+        // Act
+        Action act = () => property.Rename("   ");
+
+        // Assert
+        act.Should().Throw<DomainValidationException>().WithMessage("Name is required.*");
     }
 }

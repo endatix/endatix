@@ -16,10 +16,10 @@ public sealed class AudiencePersonResponse
     public IReadOnlyDictionary<long, string> Values { get; init; } =
         new Dictionary<long, string>();
 
-    internal static AudiencePersonResponse FromDto(AudiencePersonDto dto) => new()
+    internal static AudiencePersonResponse FromDto(PersonDto dto) => new()
     {
         MembershipId = dto.MembershipId,
-        AudienceMemberId = dto.AudienceMemberId,
+        AudienceMemberId = dto.MemberId,
         Identifier = dto.Identifier,
         Values = dto.Values,
     };

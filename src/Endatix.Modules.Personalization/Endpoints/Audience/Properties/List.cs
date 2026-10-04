@@ -39,7 +39,7 @@ public sealed class List(
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new ListAudiencePropertiesQuery(tenantContext.TenantId, request.FormId),
+            new ListPropertiesQuery(tenantContext.TenantId, request.FormId),
             ct);
 
         return TypedResultsBuilder
@@ -47,7 +47,7 @@ public sealed class List(
             .SetTypedResults<Ok<IReadOnlyList<AudiencePropertyResponse>>, ProblemHttpResult>();
     }
 
-    private static IReadOnlyList<AudiencePropertyResponse> Map(IReadOnlyList<AudiencePropertyDto> properties) =>
+    private static IReadOnlyList<AudiencePropertyResponse> Map(IReadOnlyList<PropertyDto> properties) =>
         properties.Select(AudiencePropertyResponse.FromDto).ToList();
 }
 

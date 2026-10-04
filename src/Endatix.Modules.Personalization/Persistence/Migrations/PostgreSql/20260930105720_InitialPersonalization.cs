@@ -12,11 +12,11 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
-                name: "personalization");
+                name: "audience");
 
             migrationBuilder.CreateTable(
-                name: "AudienceMembers",
-                schema: "personalization",
+                name: "Members",
+                schema: "audience",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
@@ -30,19 +30,19 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_AudienceMembers", x => x.Id);
-                    table.CheckConstraint("CK_AudienceMembers_TenantId", "\"TenantId\" > 0");
+                    table.PrimaryKey("PK_Members", x => x.Id);
+                    table.CheckConstraint("CK_Members_TenantId", "\"TenantId\" > 0");
                 });
 
             migrationBuilder.CreateTable(
-                name: "AudienceMemberships",
-                schema: "personalization",
+                name: "Memberships",
+                schema: "audience",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     FormId = table.Column<long>(type: "bigint", nullable: false),
-                    AudienceMemberId = table.Column<long>(type: "bigint", nullable: false),
+                    MemberId = table.Column<long>(type: "bigint", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -50,13 +50,13 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_AudienceMemberships", x => x.Id);
-                    table.CheckConstraint("CK_AudienceMemberships_TenantId", "\"TenantId\" > 0");
+                    table.PrimaryKey("PK_Memberships", x => x.Id);
+                    table.CheckConstraint("CK_Memberships_TenantId", "\"TenantId\" > 0");
                 });
 
             migrationBuilder.CreateTable(
-                name: "AudienceProperties",
-                schema: "personalization",
+                name: "Properties",
+                schema: "audience",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
@@ -76,19 +76,19 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_AudienceProperties", x => x.Id);
-                    table.CheckConstraint("CK_AudienceProperties_TenantId", "\"TenantId\" > 0");
+                    table.PrimaryKey("PK_Properties", x => x.Id);
+                    table.CheckConstraint("CK_Properties_TenantId", "\"TenantId\" > 0");
                 });
 
             migrationBuilder.CreateTable(
-                name: "AudiencePropertyValues",
-                schema: "personalization",
+                name: "PropertyValues",
+                schema: "audience",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
-                    AudienceMembershipId = table.Column<long>(type: "bigint", nullable: false),
-                    AudiencePropertyId = table.Column<long>(type: "bigint", nullable: false),
+                    MembershipId = table.Column<long>(type: "bigint", nullable: false),
+                    PropertyId = table.Column<long>(type: "bigint", nullable: false),
                     Value = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -97,13 +97,13 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_AudiencePropertyValues", x => x.Id);
-                    table.CheckConstraint("CK_AudiencePropertyValues_TenantId", "\"TenantId\" > 0");
+                    table.PrimaryKey("PK_PropertyValues", x => x.Id);
+                    table.CheckConstraint("CK_PropertyValues_TenantId", "\"TenantId\" > 0");
                 });
 
             migrationBuilder.CreateTable(
-                name: "AudienceSettings",
-                schema: "personalization",
+                name: "Settings",
+                schema: "audience",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
@@ -116,64 +116,64 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_AudienceSettings", x => x.Id);
-                    table.CheckConstraint("CK_AudienceSettings_TenantId", "\"TenantId\" > 0");
+                    table.PrimaryKey("PK_Settings", x => x.Id);
+                    table.CheckConstraint("CK_Settings_TenantId", "\"TenantId\" > 0");
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_AudienceMembers_Identifier",
-                schema: "personalization",
-                table: "AudienceMembers",
+                name: "IX_Members_Identifier",
+                schema: "audience",
+                table: "Members",
                 columns: new[] { "TenantId", "Identifier" },
                 unique: true,
                 filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AudienceMemberships_Form",
-                schema: "personalization",
-                table: "AudienceMemberships",
+                name: "IX_Memberships_Form",
+                schema: "audience",
+                table: "Memberships",
                 columns: new[] { "TenantId", "FormId" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_AudienceMemberships_Member",
-                schema: "personalization",
-                table: "AudienceMemberships",
-                columns: new[] { "TenantId", "FormId", "AudienceMemberId" },
+                name: "IX_Memberships_Member",
+                schema: "audience",
+                table: "Memberships",
+                columns: new[] { "TenantId", "FormId", "MemberId" },
                 unique: true,
                 filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AudienceProperties_Form",
-                schema: "personalization",
-                table: "AudienceProperties",
+                name: "IX_Properties_Form",
+                schema: "audience",
+                table: "Properties",
                 columns: new[] { "TenantId", "FormId" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_AudienceProperties_VariableName",
-                schema: "personalization",
-                table: "AudienceProperties",
+                name: "IX_Properties_VariableName",
+                schema: "audience",
+                table: "Properties",
                 columns: new[] { "TenantId", "FormId", "VariableName" },
                 unique: true,
                 filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AudiencePropertyValues_Cell",
-                schema: "personalization",
-                table: "AudiencePropertyValues",
-                columns: new[] { "AudienceMembershipId", "AudiencePropertyId" },
+                name: "IX_PropertyValues_Cell",
+                schema: "audience",
+                table: "PropertyValues",
+                columns: new[] { "MembershipId", "PropertyId" },
                 unique: true,
                 filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AudiencePropertyValues_Membership",
-                schema: "personalization",
-                table: "AudiencePropertyValues",
-                column: "AudienceMembershipId");
+                name: "IX_PropertyValues_Membership",
+                schema: "audience",
+                table: "PropertyValues",
+                column: "MembershipId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_AudienceSettings_Tenant",
-                schema: "personalization",
-                table: "AudienceSettings",
+                name: "IX_Settings_Tenant",
+                schema: "audience",
+                table: "Settings",
                 column: "TenantId",
                 unique: true,
                 filter: "\"IsDeleted\" = false");
@@ -183,24 +183,24 @@ namespace Endatix.Modules.Personalization.Persistence.Migrations.PostgreSql
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "AudienceMembers",
-                schema: "personalization");
+                name: "Members",
+                schema: "audience");
 
             migrationBuilder.DropTable(
-                name: "AudienceMemberships",
-                schema: "personalization");
+                name: "Memberships",
+                schema: "audience");
 
             migrationBuilder.DropTable(
-                name: "AudienceProperties",
-                schema: "personalization");
+                name: "Properties",
+                schema: "audience");
 
             migrationBuilder.DropTable(
-                name: "AudiencePropertyValues",
-                schema: "personalization");
+                name: "PropertyValues",
+                schema: "audience");
 
             migrationBuilder.DropTable(
-                name: "AudienceSettings",
-                schema: "personalization");
+                name: "Settings",
+                schema: "audience");
         }
     }
 }

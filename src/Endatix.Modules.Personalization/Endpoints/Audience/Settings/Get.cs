@@ -26,7 +26,7 @@ public sealed class Get(
             summary.Summary = "Get audience match key";
             summary.Description =
                 "Returns the tenant-wide audience identifier kind (email or external_id). " +
-                "Creates the default email row when none exists.";
+                "A tenant that never set it gets email.";
             summary.Responses[200] = "Settings retrieved.";
         });
         Description(builder => builder

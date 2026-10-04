@@ -25,7 +25,7 @@ public sealed class AudiencePropertyResponse
 
     public bool AllowsOther { get; init; }
 
-    internal static AudiencePropertyResponse FromDto(AudiencePropertyDto dto) => new()
+    internal static AudiencePropertyResponse FromDto(PropertyDto dto) => new()
     {
         Id = dto.Id,
         FormId = dto.FormId,

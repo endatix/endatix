@@ -13,15 +13,15 @@ Gated by `Endatix:FeatureFlags:PersonalizationModule` (off by default). Requires
 
 ## Schema
 
-Database schema: `personalization`
+Database schema: `audience`
 
 | Table | Purpose |
 |-------|---------|
-| `AudienceSettings` | One row per tenant: match key (`email` / `external_id`) |
-| `AudienceProperties` | Property definitions per form (`VariableName` immutable) |
-| `AudienceMembers` | One person per tenant + normalized identifier |
-| `AudienceMemberships` | Person on one form |
-| `AudiencePropertyValues` | Property cells on a membership |
+| `Settings` | One row per tenant: match key (`email` / `external_id`). No row means `email` |
+| `Properties` | Property definitions per form (`VariableName` immutable) |
+| `Members` | One person per tenant + identifier. Emails are lower-cased; external ids keep their case |
+| `Memberships` | Person on one form |
+| `PropertyValues` | Property cells on a membership |
 
 ## API (directory)
 

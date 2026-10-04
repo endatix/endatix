@@ -13,7 +13,7 @@ internal sealed class AudienceSettingsConfiguration : IEntityTypeConfiguration<A
 
     public void Configure(EntityTypeBuilder<AudienceSettings> builder)
     {
-        builder.ToTable("AudienceSettings");
+        builder.ToTable("Settings");
 
         builder.Property(settings => settings.TenantId).IsRequired();
 

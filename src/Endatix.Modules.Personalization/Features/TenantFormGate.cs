@@ -1,12 +1,11 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Modules.Personalization.Shared;
 
 namespace Endatix.Modules.Personalization.Features;
 
 /// <summary>
-/// Shared tenant + form existence gate for audience commands.
+/// Confirms a tenant context and that the form exists in it before audience work runs.
 /// </summary>
 internal static class TenantFormGate
 {
@@ -17,22 +16,11 @@ internal static class TenantFormGate
             return Result.Unauthorized("Tenant context is required.");
         }
 
-        Result formResult = await FormAudienceGuard.EnsureFormExistsAsync(
-            request.Forms, request.FormId, request.CancellationToken);
-        return formResult.IsSuccess
-            ? Result.Success()
-            : Result.NotFound(formResult.Errors.ToArray());
+        Form? form = await request.Forms.GetByIdAsync(request.FormId, request.CancellationToken);
+        return form is null
+            ? Result.NotFound("Form not found.")
+            : Result.Success();
     }
-
-    public static Result<T> MapFailure<T>(IResult failed) =>
-        failed.Status switch
-        {
-            ResultStatus.Unauthorized => Result.Unauthorized(failed.Errors.ToArray()),
-            ResultStatus.NotFound => Result.NotFound(failed.Errors.ToArray()),
-            ResultStatus.Invalid => Result.Invalid(failed.ValidationErrors.ToArray()),
-            ResultStatus.Conflict => Result.Conflict(failed.Errors.ToArray()),
-            _ => Result.Error(new ErrorList(failed.Errors)),
-        };
 }
 
 /// <summary>

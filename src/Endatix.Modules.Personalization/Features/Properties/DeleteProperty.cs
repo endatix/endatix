@@ -11,40 +11,40 @@ namespace Endatix.Modules.Personalization.Features.Properties;
 /// <summary>
 /// Soft-deletes a property and its value cells on this form.
 /// </summary>
-public sealed record DeleteAudiencePropertyCommand(long TenantId, long FormId, long PropertyId)
+public sealed record DeletePropertyCommand(long TenantId, long FormId, long PropertyId)
     : ICommand<Result<string>>;
 
-internal sealed class DeleteAudiencePropertyHandler(
+internal sealed class DeletePropertyHandler(
     IPersonalizationDbContext db,
     IRepository<Form> forms)
-    : ICommandHandler<DeleteAudiencePropertyCommand, Result<string>>
+    : ICommandHandler<DeletePropertyCommand, Result<string>>
 {
     public async Task<Result<string>> Handle(
-        DeleteAudiencePropertyCommand request,
+        DeletePropertyCommand request,
         CancellationToken cancellationToken)
     {
         Result gate = await TenantFormGate.EnsureAsync(
             new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
         if (!gate.IsSuccess)
         {
-            return TenantFormGate.MapFailure<string>(gate);
+            return gate.ToErrorResult<string>();
         }
 
-        Result<AudienceProperty> loaded = await LoadAsync(request, cancellationToken);
+        Result<Property> loaded = await LoadAsync(request, cancellationToken);
         if (!loaded.IsSuccess)
         {
-            return TenantFormGate.MapFailure<string>(loaded);
+            return loaded.ToErrorResult<string>();
         }
 
         await SoftDeleteAsync(loaded.Value!, cancellationToken);
         return Result.Success(loaded.Value!.Id.ToString());
     }
 
-    private async Task<Result<AudienceProperty>> LoadAsync(
-        DeleteAudiencePropertyCommand request,
+    private async Task<Result<Property>> LoadAsync(
+        DeletePropertyCommand request,
         CancellationToken cancellationToken)
     {
-        AudienceProperty? property = await db.AudienceProperties.FirstOrDefaultAsync(
+        Property? property = await db.Properties.FirstOrDefaultAsync(
             row => row.Id == request.PropertyId && row.FormId == request.FormId,
             cancellationToken);
         return property is null
@@ -52,13 +52,13 @@ internal sealed class DeleteAudiencePropertyHandler(
             : Result.Success(property);
     }
 
-    private async Task SoftDeleteAsync(AudienceProperty property, CancellationToken cancellationToken)
+    private async Task SoftDeleteAsync(Property property, CancellationToken cancellationToken)
     {
-        List<AudiencePropertyValue> values = await db.AudiencePropertyValues
-            .Where(value => value.AudiencePropertyId == property.Id)
+        List<PropertyValue> values = await db.PropertyValues
+            .Where(value => value.PropertyId == property.Id)
             .ToListAsync(cancellationToken);
 
-        foreach (AudiencePropertyValue value in values)
+        foreach (PropertyValue value in values)
         {
             value.Delete();
         }

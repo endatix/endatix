@@ -22,10 +22,10 @@ public abstract class PersonalizationDbContextBase : DbContext, IPersonalization
     }
 
     public DbSet<AudienceSettings> AudienceSettings => Set<AudienceSettings>();
-    public DbSet<AudienceProperty> AudienceProperties => Set<AudienceProperty>();
-    public DbSet<AudienceMember> AudienceMembers => Set<AudienceMember>();
-    public DbSet<AudienceMembership> AudienceMemberships => Set<AudienceMembership>();
-    public DbSet<AudiencePropertyValue> AudiencePropertyValues => Set<AudiencePropertyValue>();
+    public DbSet<Property> Properties => Set<Property>();
+    public DbSet<Member> Members => Set<Member>();
+    public DbSet<Membership> Memberships => Set<Membership>();
+    public DbSet<PropertyValue> PropertyValues => Set<PropertyValue>();
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
@@ -34,10 +34,10 @@ public abstract class PersonalizationDbContextBase : DbContext, IPersonalization
         modelBuilder.HasDefaultSchema(PersonalizationPersistence.Schema);
         modelBuilder.ApplyEndatixQueryFilters(this);
         modelBuilder.ApplyConfiguration(new AudienceSettingsConfiguration());
-        modelBuilder.ApplyConfiguration(new AudiencePropertyConfiguration());
-        modelBuilder.ApplyConfiguration(new AudienceMemberConfiguration());
-        modelBuilder.ApplyConfiguration(new AudienceMembershipConfiguration());
-        modelBuilder.ApplyConfiguration(new AudiencePropertyValueConfiguration());
+        modelBuilder.ApplyConfiguration(new PropertyConfiguration());
+        modelBuilder.ApplyConfiguration(new MemberConfiguration());
+        modelBuilder.ApplyConfiguration(new MembershipConfiguration());
+        modelBuilder.ApplyConfiguration(new PropertyValueConfiguration());
         ApplyProviderConfigurations(modelBuilder);
         modelBuilder.ApplySnowflakeIdValueGenerators();
         modelBuilder.ApplyModuleTableNames();

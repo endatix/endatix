@@ -15,12 +15,12 @@ internal sealed class AudienceSettingsConfigurationPostgreSql : IEntityTypeConfi
     public void Configure(EntityTypeBuilder<AudienceSettings> builder)
     {
         builder.ToTable(table => table.HasCheckConstraint(
-            "CK_AudienceSettings_TenantId",
+            "CK_Settings_TenantId",
             $"\"{nameof(AudienceSettings.TenantId)}\" > 0"));
 
         builder.HasIndex(settings => settings.TenantId)
             .IsUnique()
-            .HasDatabaseName("IX_AudienceSettings_Tenant")
+            .HasDatabaseName("IX_Settings_Tenant")
             .HasFilter($"\"{nameof(AudienceSettings.IsDeleted)}\" = false");
     }
 }

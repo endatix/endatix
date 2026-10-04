@@ -2,6 +2,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Common;
+using Endatix.Modules.Personalization.Domain;
 using Endatix.Modules.Personalization.Features.Properties;
 using FastEndpoints;
 using FluentValidation;
@@ -42,7 +43,7 @@ public sealed class Update(
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new UpdateAudiencePropertyCommand(
+            new UpdatePropertyCommand(
                 tenantContext.TenantId,
                 request.FormId,
                 request.PropertyId,
@@ -67,6 +68,8 @@ public sealed class UpdateAudiencePropertyValidator : Validator<UpdateAudiencePr
         RuleFor(request => request.PropertyId).GreaterThan(0);
         RuleFor(request => request.Name)
             .MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH)
+            .Must(name => Property.NameError(name) is null)
+            .WithMessage((_, name) => Property.NameError(name))
             .When(request => request.Name is not null);
         RuleFor(request => request)
             .Must(request => request.Name is not null || request.SortOrder is not null)

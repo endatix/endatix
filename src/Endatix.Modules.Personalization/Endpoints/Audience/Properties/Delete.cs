@@ -39,7 +39,7 @@ public sealed class Delete(
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new DeleteAudiencePropertyCommand(
+            new DeletePropertyCommand(
                 tenantContext.TenantId,
                 request.FormId,
                 request.PropertyId),

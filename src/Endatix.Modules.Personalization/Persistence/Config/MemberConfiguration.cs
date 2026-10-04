@@ -6,13 +6,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Endatix.Modules.Personalization.Persistence.Config;
 
 /// <summary>
-/// Provider-agnostic mapping for <see cref="AudienceMember"/>.
+/// Provider-agnostic mapping for <see cref="Member"/>.
 /// </summary>
-internal sealed class AudienceMemberConfiguration : IEntityTypeConfiguration<AudienceMember>
+internal sealed class MemberConfiguration : IEntityTypeConfiguration<Member>
 {
-    public void Configure(EntityTypeBuilder<AudienceMember> builder)
+    public void Configure(EntityTypeBuilder<Member> builder)
     {
-        builder.ToTable("AudienceMembers");
+        builder.ToTable("Members");
 
         builder.Property(member => member.TenantId).IsRequired();
 

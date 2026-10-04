@@ -45,7 +45,7 @@ public sealed class Create(
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new CreateAudiencePersonCommand(
+            new CreatePersonCommand(
                 tenantContext.TenantId,
                 request.FormId,
                 request.Identifier!,

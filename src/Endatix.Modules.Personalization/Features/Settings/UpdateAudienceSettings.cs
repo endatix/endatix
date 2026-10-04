@@ -23,7 +23,7 @@ internal sealed class UpdateAudienceSettingsHandler(IPersonalizationDbContext db
         Result gate = await ValidateAsync(request, cancellationToken);
         if (!gate.IsSuccess)
         {
-            return TenantFormGate.MapFailure<AudienceSettingsDto>(gate);
+            return gate.ToErrorResult<AudienceSettingsDto>();
         }
 
         AudienceSettings settings = await UpsertAsync(request, cancellationToken);
@@ -50,7 +50,7 @@ internal sealed class UpdateAudienceSettingsHandler(IPersonalizationDbContext db
 
     private async Task<Result> HasNoMembersAsync(long tenantId, CancellationToken cancellationToken)
     {
-        bool hasMembers = await db.AudienceMembers
+        bool hasMembers = await db.Members
             .AnyAsync(member => member.TenantId == tenantId, cancellationToken);
         return hasMembers
             ? Result.Conflict(

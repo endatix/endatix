@@ -10,10 +10,10 @@ namespace Endatix.Modules.Personalization.Persistence;
 public interface IPersonalizationDbContext : ITenantDbContext
 {
     DbSet<AudienceSettings> AudienceSettings { get; }
-    DbSet<AudienceProperty> AudienceProperties { get; }
-    DbSet<AudienceMember> AudienceMembers { get; }
-    DbSet<AudienceMembership> AudienceMemberships { get; }
-    DbSet<AudiencePropertyValue> AudiencePropertyValues { get; }
+    DbSet<Property> Properties { get; }
+    DbSet<Member> Members { get; }
+    DbSet<Membership> Memberships { get; }
+    DbSet<PropertyValue> PropertyValues { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

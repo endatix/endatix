@@ -30,7 +30,7 @@ public sealed class AudienceSettings : BaseEntity, IAggregateRoot, ITenantOwned
     public string IdentifierKind { get; private set; } = null!;
 
     /// <summary>
-    /// Changes the match key. Caller must ensure no <see cref="AudienceMember"/> exists yet.
+    /// Changes the match key. Caller must ensure no <see cref="Member"/> exists yet.
     /// </summary>
     public void SetIdentifierKind(string identifierKind)
     {

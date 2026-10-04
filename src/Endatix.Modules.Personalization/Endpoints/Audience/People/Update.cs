@@ -40,7 +40,7 @@ public sealed class Update(
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new UpdateAudiencePersonCommand(
+            new UpdatePersonCommand(
                 tenantContext.TenantId,
                 request.FormId,
                 request.MembershipId,
