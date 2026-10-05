@@ -30,6 +30,22 @@ public class SubmissionSpecificationExtensionsTests
     }
 
     [Fact]
+    public void WhereFormIdAndFilters_CollectionStatus_MatchesCaseInsensitivelyAndIgnoresOverLongCodes()
+    {
+        // Arrange
+        var overLong = new string('x', CollectionStatus.CODE_MAX_LENGTH + 1);
+        var equalSpec = new TestSubmissionSpec(10, [$"collectionStatus:IN_PROGRESS|{overLong}"]);
+        var notEqualSpec = new TestSubmissionSpec(10, [$"collectionStatus!:{overLong}"]);
+        var inProgress = CreateSubmission(10, SubmissionStatus.New, isComplete: false);
+        var complete = CreateSubmission(10, SubmissionStatus.New, isComplete: true);
+
+        // Act & Assert
+        Matches(equalSpec, inProgress).Should().BeTrue();
+        Matches(equalSpec, complete).Should().BeFalse();
+        Matches(notEqualSpec, complete).Should().BeTrue();
+    }
+
+    [Fact]
     public void SubmissionsByFormIdSpec_CreatedAtRange_AppliesDateFilters()
     {
         // Arrange

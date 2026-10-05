@@ -59,7 +59,9 @@ internal static class SubmissionSpecificationExtensions
     {
         foreach (var statusFilter in FiltersFor(filterParams, COLLECTION_STATUS_FIELD_NAME))
         {
+            // Over-long codes can never be stored, so they match nothing instead of throwing (500).
             var statuses = statusFilter.Values
+                .Where(code => code.Trim().Length <= CollectionStatus.CODE_MAX_LENGTH)
                 .Select(CollectionStatus.FromCode)
                 .ToList();
             query = statusFilter.Operator switch
