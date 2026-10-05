@@ -1,7 +1,6 @@
 using Endatix.Modules.Jobs.Domain;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -24,8 +23,7 @@ internal interface IJobTriggerScheduler
 /// <inheritdoc cref="IJobTriggerScheduler" />
 internal sealed class QuartzJobTriggerScheduler(
     [FromKeyedServices(QuartzRegistration.SchedulerName)] ISchedulerFactory schedulerFactory,
-    StoredDurableJobs durableJobs,
-    IOptions<BackgroundJobsOptions> options) : IJobTriggerScheduler
+    StoredDurableJobs durableJobs) : IJobTriggerScheduler
 {
     public async Task ScheduleAndCommitAsync(
         IDbContextTransaction transaction,
@@ -55,10 +53,9 @@ internal sealed class QuartzJobTriggerScheduler(
     {
         foreach (var job in jobs)
         {
-            var policy = options.Value.ResolvePolicy(job.JobType);
             await durableJobs.ScheduleAsync(
                 scheduler,
-                QuartzRegistration.TriggerFor(new JobTriggerSpec(job.Id, job.JobType, policy)),
+                QuartzRegistration.TriggerFor(new JobTriggerSpec(job.Id, job.JobType)),
                 cancellationToken);
         }
     }

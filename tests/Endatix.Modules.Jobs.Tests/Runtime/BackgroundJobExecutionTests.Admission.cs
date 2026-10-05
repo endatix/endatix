@@ -56,6 +56,21 @@ public sealed partial class BackgroundJobExecutionTests
     }
 
     [Fact]
+    public async Task Execute_UnknownJobTypeOnLegacyTriggerWithRetryPolicy_ReschedulesTheTriggerWithoutThePolicy()
+    {
+        // Arrange — a trigger an earlier version stored, with a scheduler retry policy, lands on a node without the
+        // handler.
+        var context = LegacyJobTriggerFiringOf(JobId);
+        context.JobDetail.Returns(QuartzRegistration.DurableJobFor("Orphan"));
+
+        // Act
+        var rescheduled = await DeclinedTriggerOfAsync(context);
+
+        // Assert
+        rescheduled.RetryPolicy.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Execute_UnknownJobTypeRecovered_MarksTheRescheduledTriggerToTakeTheJobOver()
     {
         // Arrange — Quartz recovered a dead node's firing onto a node without the handler.

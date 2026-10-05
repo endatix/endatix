@@ -40,5 +40,8 @@ internal readonly record struct AttemptFailure(string ErrorMessage, DateTime Utc
 /// </summary>
 /// <param name="Failure">The failure the row records either way.</param>
 /// <param name="MaxAttempts">The job type's attempt budget.</param>
-/// <param name="NextAttemptAt">When the next attempt is due, should one remain.</param>
+/// <param name="NextAttemptAt">
+/// When the next attempt's trigger fires, should one remain: the time that trigger was stored for, which the status
+/// endpoint shows.
+/// </param>
 internal readonly record struct RetryableFailure(AttemptFailure Failure, int MaxAttempts, DateTime NextAttemptAt);

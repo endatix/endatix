@@ -8,13 +8,11 @@ using Quartz;
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
-/// Keeps the job row in step with what the scheduler decided about its trigger.
+/// Checks that the job row agrees when a trigger's scheduler retries run out.
 /// </summary>
 /// <remarks>
-/// After a retry is scheduled it mirrors the trigger's next fire time to <c>NextAttemptAt</c>, so the status
-/// endpoint shows when the next attempt is due. When the scheduler's retry budget runs out it checks that the row
-/// agrees; the row, not the scheduler, decides dead-lettering, so a disagreement is logged and counted, never
-/// acted on.
+/// Only a trigger stored by an earlier version carries a scheduler retry policy. The row, not the scheduler, decides
+/// dead-lettering, so a disagreement is logged and counted, never acted on.
 /// </remarks>
 internal sealed class JobTriggerListener : ITriggerListener
 {
@@ -37,20 +35,6 @@ internal sealed class JobTriggerListener : ITriggerListener
 
     public string Name => "endatix-jobs-trigger-listener";
 
-    public async ValueTask TriggerComplete(
-        ITrigger trigger,
-        IJobExecutionContext context,
-        SchedulerInstruction triggerInstructionCode,
-        CancellationToken cancellationToken = default)
-    {
-        if (triggerInstructionCode == SchedulerInstruction.RetryTrigger
-            && JobIdOf(context) is { } jobId
-            && trigger.NextFireTimeUtc is { } nextFireTime)
-        {
-            await MirrorNextAttemptAsync(jobId, nextFireTime.UtcDateTime, cancellationToken);
-        }
-    }
-
     public async ValueTask TriggerRetriesExhausted(
         ITrigger trigger,
         IJobExecutionContext context,
@@ -60,20 +44,6 @@ internal sealed class JobTriggerListener : ITriggerListener
         if (JobIdOf(context) is { } jobId)
         {
             await CheckRowIsTerminalAsync(jobId, trigger.JobKey.Name, cancellationToken);
-        }
-    }
-
-    private async Task MirrorNextAttemptAsync(long jobId, DateTime nextAttemptAt, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _scopeFactory.WithStateRepositoryAsync(
-                repository => repository.TryMirrorNextAttemptAsync(jobId, nextAttemptAt, cancellationToken));
-        }
-        catch (Exception exception)
-        {
-            // The column is for display; the retry is already scheduled whatever it says.
-            _logger.LogWarning(exception, "Recording the next attempt time of background job {JobId} failed", jobId);
         }
     }
 

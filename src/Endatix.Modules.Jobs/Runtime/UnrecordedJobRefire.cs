@@ -6,12 +6,17 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
 /// Keeps a job from being left with no trigger when its firing ends: once a firing completes, the scheduler deletes
-/// the trigger that fired, so a row the firing did not settle needs a trigger the job wrapper stores itself.
+/// the trigger that fired, so a job that is to run again needs a trigger the job wrapper stores itself.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The usual answer is a re-fire: the job fires again shortly and re-claims the row, whose fenced writes settle it;
-/// if the row had in fact moved on, the re-claim finds nothing to take.
+/// A retry gets the job's own trigger, stored for the next attempt's time. Every other case is a re-fire: the job
+/// fires again shortly and re-claims the row, whose fenced writes settle it; if the row had in fact moved on, the
+/// re-claim finds nothing to take.
+/// </para>
+/// <para>
+/// Every trigger of a job has the same key, made from the job's id, so storing one replaces whichever the job had,
+/// and a job never has two.
 /// </para>
 /// <para>
 /// A stopping scheduler refuses every new trigger but still completes the firings it waits for. A firing that
@@ -96,13 +101,13 @@ internal sealed class UnrecordedJobRefire(
         }
     }
 
-    /// <summary>Re-fires a job that a firing taking it over could not claim.</summary>
+    /// <summary>Re-fires a job that its firing could not claim.</summary>
     public async Task RefireUnclaimedAsync(IJobExecutionContext context, ReclaimableJob job, Exception failure)
     {
-        logger.LogError(failure, "Background job {JobId} could not be taken over from the attempt that left it", job.JobId);
+        logger.LogError(failure, "Background job {JobId} could not be claimed", job.JobId);
         if (await TryRefireAsync(context, job) is { } fireAt)
         {
-            logger.LogWarning("Background job {JobId} is re-fired at {FireAt:O} to be taken over again", job.JobId, fireAt);
+            logger.LogWarning("Background job {JobId} is re-fired at {FireAt:O} to be claimed again", job.JobId, fireAt);
         }
     }
 
@@ -171,12 +176,12 @@ internal sealed class UnrecordedJobRefire(
     }
 }
 
-/// <summary>What a trigger for a job needs: the row it fires, the job type it runs as, and that type's policy.</summary>
-internal sealed record ReclaimableJob(long JobId, string JobType, BackgroundJobTypePolicy Policy)
+/// <summary>What a trigger for a job needs: the row it fires and the job type it runs as.</summary>
+internal sealed record ReclaimableJob(long JobId, string JobType)
 {
     /// <summary>The trigger of the job's next attempt, as enqueueing would have made it.</summary>
-    public JobTriggerSpec TriggerAt(DateTimeOffset fireAt) => new(JobId, JobType, Policy, fireAt);
+    public JobTriggerSpec TriggerAt(DateTimeOffset fireAt) => new(JobId, JobType, fireAt);
 
     /// <summary>A trigger that takes the job over from an attempt that left its row unsettled.</summary>
-    public JobTriggerSpec ReclaimAt(DateTimeOffset fireAt) => new(JobId, JobType, Policy, fireAt, Reclaim: true);
+    public JobTriggerSpec ReclaimAt(DateTimeOffset fireAt) => new(JobId, JobType, fireAt, Reclaim: true);
 }

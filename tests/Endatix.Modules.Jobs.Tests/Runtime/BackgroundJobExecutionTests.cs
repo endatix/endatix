@@ -13,38 +13,37 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 
 public sealed partial class BackgroundJobExecutionTests
 {
-    public static TheoryData<string, string, int, int, string, bool> Outcomes => new()
+    private const int MaxAttempts = 3;
+
+    // Attempt 4 of 3 is a throw past the budget after a recovery took an attempt of its own.
+    public static TheoryData<string, int, string> Outcomes => new()
     {
-        { "success", nameof(AttemptEnd.Succeeded), 1, 3, nameof(AttemptRowWrite.Completed), false },
-        { "failure result", nameof(AttemptEnd.ReturnedFailure), 1, 3, nameof(AttemptRowWrite.Failed), false },
-        { "throw with attempts left", nameof(AttemptEnd.Threw), 2, 3, nameof(AttemptRowWrite.Retrying), true },
-        { "throw on the last attempt", nameof(AttemptEnd.Threw), 3, 3, nameof(AttemptRowWrite.DeadLettered), false },
-        { "throw past the budget after a recovery", nameof(AttemptEnd.Threw), 4, 3, nameof(AttemptRowWrite.DeadLettered), false },
-        { "row canceled", nameof(AttemptEnd.Canceled), 1, 3, nameof(AttemptRowWrite.None), false },
-        { "host shutdown", nameof(AttemptEnd.HostShutdown), 1, 3, nameof(AttemptRowWrite.None), false },
-        { "attempt taken over", nameof(AttemptEnd.Superseded), 1, 3, nameof(AttemptRowWrite.None), false },
+        { nameof(AttemptEnd.Succeeded), 1, nameof(AttemptRowWrite.Completed) },
+        { nameof(AttemptEnd.ReturnedFailure), 1, nameof(AttemptRowWrite.Failed) },
+        { nameof(AttemptEnd.Threw), 2, nameof(AttemptRowWrite.Retrying) },
+        { nameof(AttemptEnd.Threw), 3, nameof(AttemptRowWrite.DeadLettered) },
+        { nameof(AttemptEnd.Threw), 4, nameof(AttemptRowWrite.DeadLettered) },
+        { nameof(AttemptEnd.Canceled), 1, nameof(AttemptRowWrite.None) },
+        { nameof(AttemptEnd.HostShutdown), 1, nameof(AttemptRowWrite.None) },
+        { nameof(AttemptEnd.Superseded), 1, nameof(AttemptRowWrite.None) },
     };
 
     [Theory]
     [MemberData(nameof(Outcomes))]
-    public void DecideOutcome_EachHandlerOutcome_ReturnsExpectedRowAndQuartzAction(
-        string caseId,
+    public void DecideOutcome_EachHandlerOutcome_ReturnsExpectedRowWrite(
         string endName,
         int attemptCount,
-        int maxAttempts,
-        string expectedRowName,
-        bool expectedRethrow)
+        string expectedRowName)
     {
-        // Arrange — the case id names the row of the outcome table under test.
-        _ = caseId;
+        // Arrange
         var end = Enum.Parse<AttemptEnd>(endName);
         var expectedRow = Enum.Parse<AttemptRowWrite>(expectedRowName);
 
         // Act
-        var decision = AttemptDecision.Decide(end, attemptCount, maxAttempts);
+        var write = AttemptDecision.Decide(end, attemptCount, MaxAttempts);
 
         // Assert
-        decision.Should().Be(new AttemptDecision(expectedRow, expectedRethrow));
+        write.Should().Be(expectedRow);
     }
 
     [Fact]
@@ -201,7 +200,81 @@ public sealed partial class BackgroundJobExecutionTests
         // Assert
         steps.Should().Equal("schedule trigger", "record retrying");
         scheduled!.Key.Should().Be(new TriggerKey(JobId.ToString(), ProbeJobType));
-        scheduled.RetryPolicy.Should().NotBeNull();
+        scheduled.RetryPolicy.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Execute_ThrowsWithAttemptsLeft_ReschedulesItsTriggerForTheNextAttemptBeforeRecordingRetry()
+    {
+        // Arrange
+        var now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
+        var steps = new List<string>();
+        var repository = RetryRecordingRepository(steps);
+        await using var provider = Services(repository, new ObservedRun { Throw = true });
+        provider.GetRequiredService<IDateTimeProvider>().UtcNow.Returns(now);
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = JobTriggerFiringOf(JobId);
+        var rescheduled = CaptureRescheduled(context, steps);
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert — the firing trigger itself waits for the next attempt, at the time the row shows, as an ordinary
+        // firing rather than a take-over.
+        steps.Should().Equal("schedule trigger", "record retrying");
+        rescheduled.Should().ContainSingle().Which.StartTimeUtc.Should().Be(now.AddSeconds(30));
+        rescheduled[0].JobDataMap.ContainsKey(BackgroundJobExecution.ReclaimKey).Should().BeFalse();
+        await repository.Received(1).RecordFailedAttemptAsync(
+            new AttemptRef(JobId, 1),
+            Arg.Is<RetryableFailure>(failure => failure.NextAttemptAt == now.AddSeconds(30).UtcDateTime),
+            CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Execute_LegacyTriggerWithRetryPolicyThrowsWithAttemptsLeft_ReturnsWithTheRetryOnATriggerWithoutPolicy()
+    {
+        // Arrange — the trigger was stored by an earlier version, with a scheduler retry policy.
+        var steps = new List<string>();
+        var repository = RetryRecordingRepository(steps);
+        await using var provider = Services(repository, new ObservedRun { Throw = true });
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = LegacyJobTriggerFiringOf(JobId);
+        var rescheduled = CaptureRescheduled(context, steps);
+
+        // Act
+        var act = async () => await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert — returning leaves the scheduler's policy nothing to retry, so the job's own trigger runs it once.
+        await act.Should().NotThrowAsync();
+        steps.Should().Equal("schedule trigger", "record retrying");
+        rescheduled.Should().ContainSingle().Which.RetryPolicy.Should().BeNull();
+    }
+
+    private static IBackgroundJobStateRepository RetryRecordingRepository(List<string> steps)
+    {
+        var repository = ClaimingRepository(attempt: 1);
+        repository
+            .RecordFailedAttemptAsync(new AttemptRef(JobId, 1), Arg.Any<RetryableFailure>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                steps.Add("record retrying");
+                return true;
+            });
+        return repository;
+    }
+
+    private static List<ITrigger> CaptureRescheduled(IJobExecutionContext context, List<string> steps)
+    {
+        var rescheduled = new List<ITrigger>();
+        context.Scheduler
+            .RescheduleJob(context.Trigger.Key, Arg.Any<ITrigger>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                rescheduled.Add(call.Arg<ITrigger>());
+                steps.Add("schedule trigger");
+                return new ValueTask<DateTimeOffset?>(DateTimeOffset.UtcNow);
+            });
+        return rescheduled;
     }
 
     [Fact]

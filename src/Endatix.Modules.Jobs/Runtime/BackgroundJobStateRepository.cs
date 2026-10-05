@@ -176,15 +176,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             .Take(batchSize)
             .ExecuteDeleteAsync(cancellationToken);
 
-    public async Task<bool> TryMirrorNextAttemptAsync(
-        long jobId,
-        DateTime nextAttemptAt,
-        CancellationToken cancellationToken = default) =>
-        await dbContext.BackgroundJobs
-            .Where(job => job.Id == jobId && job.Status == JobStatus.Retrying)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(job => job.NextAttemptAt, nextAttemptAt), cancellationToken)
-        == 1;
-
     // Neither branch changes the attempt count: the claim that started the attempt consumed it.
     private static Action<UpdateSettersBuilder<BackgroundJob>> FailedAttemptSetters(
         int claimedAttempt,

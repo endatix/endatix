@@ -71,9 +71,23 @@ internal static class JobExecutionTestHost
     public static IJobExecutionContext JobTriggerFiringOf(long jobId)
     {
         var context = FiringOf(jobId);
-        context.Trigger.Returns(QuartzRegistration.TriggerFor(
-            new JobTriggerSpec(jobId, ProbeJobType, new BackgroundJobsOptions().ResolvePolicy(ProbeJobType))));
+        context.Trigger.Returns(QuartzRegistration.TriggerFor(new JobTriggerSpec(jobId, ProbeJobType)));
         context.Scheduler.Returns(Substitute.For<IScheduler>());
+        return context;
+    }
+
+    // A firing of the job's trigger as an earlier version stored it, with a scheduler retry policy.
+    public static IJobExecutionContext LegacyJobTriggerFiringOf(long jobId)
+    {
+        var context = FiringOf(jobId);
+        context.Trigger.Returns(TriggerBuilder.Create()
+            .WithIdentity(jobId.ToString(), ProbeJobType)
+            .ForJob(QuartzRegistration.JobKeyFor(ProbeJobType))
+            .WithExecutionGroup(ProbeJobType)
+            .UsingJobData(BackgroundJobExecution.JobIdKey, jobId.ToString())
+            .WithRetryPolicy(RetryPolicy.Exponential(2, TimeSpan.FromSeconds(30), 2.0, TimeSpan.FromSeconds(900)))
+            .StartNow()
+            .Build());
         return context;
     }
 

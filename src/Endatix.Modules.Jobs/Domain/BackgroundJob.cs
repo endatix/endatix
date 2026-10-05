@@ -151,8 +151,8 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     public int AttemptCount { get; private set; }
 
     /// <summary>
-    /// When the next attempt is due, mirrored from the scheduler so the status endpoint can show it. Set
-    /// to now at enqueue and to the retry time after a retryable failure. Nothing polls this column: the
+    /// When the next attempt is due, so the status endpoint can show it. Set to now at enqueue and, after a
+    /// retryable failure, to the time the retry's trigger was stored for. Nothing polls this column: the
     /// scheduler decides when the job actually runs.
     /// </summary>
     public DateTime NextAttemptAt { get; private set; }

@@ -105,5 +105,5 @@ public sealed class StoredDurableJobsTests
     }
 
     private static ITrigger Trigger() =>
-        QuartzRegistration.TriggerFor(new JobTriggerSpec(42, JobType, new BackgroundJobsOptions().ResolvePolicy(JobType)));
+        QuartzRegistration.TriggerFor(new JobTriggerSpec(42, JobType));
 }

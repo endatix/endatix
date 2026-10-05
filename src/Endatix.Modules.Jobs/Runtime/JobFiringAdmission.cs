@@ -58,7 +58,8 @@ internal sealed class JobFiringAdmission(
     }
 
     // The trigger keeps all of the firing's data, and a firing that was taking the job over stays marked to, so
-    // its next claim can still take the row an earlier attempt left Processing.
+    // its next claim can still take the row an earlier attempt left Processing. It keeps no retry policy a trigger
+    // from an earlier version carried: the wrapper schedules every retry itself.
     private static ITrigger SameTriggerAt(IJobExecutionContext context, JobFiring firing, DateTimeOffset fireAgainAt)
     {
         var again = TriggerBuilder.Create()
@@ -73,8 +74,6 @@ internal sealed class JobFiringAdmission(
             again = again.UsingJobData(BackgroundJobExecution.ReclaimKey, bool.TrueString);
         }
 
-        return context.Trigger.RetryPolicy is { } retryPolicy
-            ? again.WithRetryPolicy(retryPolicy).Build()
-            : again.Build();
+        return again.Build();
     }
 }
