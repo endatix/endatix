@@ -24,7 +24,8 @@ public record SubmissionDto(
     long? SubmitterId,
     string? SubmitterDisplayId,
     string? SubmitterProfileSnapshot,
-    bool IsTestSubmission)
+    bool IsTestSubmission,
+    string CollectionStatus = CollectionStatusCodes.InProgress)
 {
     public long Id { get; init; } = Id;
     public bool IsComplete { get; init; } = IsComplete;
@@ -43,6 +44,7 @@ public record SubmissionDto(
     public string? SubmitterDisplayId { get; init; } = SubmitterDisplayId;
     public IReadOnlyDictionary<string, string>? SubmitterProfile { get; init; } = ParseSubmitterProfile(SubmitterProfileSnapshot);
     public bool IsTestSubmission { get; init; } = IsTestSubmission;
+    public string CollectionStatus { get; init; } = CollectionStatus;
 
     public static SubmissionDto FromSubmission(Submission submission)
     {
@@ -65,7 +67,8 @@ public record SubmissionDto(
             SubmitterId: submission.SubmitterId,
             SubmitterDisplayId: submission.SubmitterDisplayId,
             SubmitterProfileSnapshot: submission.SubmitterProfileSnapshot,
-            IsTestSubmission: submission.IsTestSubmission);
+            IsTestSubmission: submission.IsTestSubmission,
+            CollectionStatus: submission.CollectionStatus.Code);
     }
 
     private static IReadOnlyDictionary<string, string>? ParseSubmitterProfile(string? snapshot)

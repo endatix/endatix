@@ -86,6 +86,14 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
                statusBuilder.Ignore(s => s.Name);
            });
 
+        builder.Property(s => s.CollectionStatus)
+            .HasConversion(
+                status => status.Code,
+                code => CollectionStatus.FromCode(code))
+            .HasColumnName("CollectionStatus")
+            .HasMaxLength(CollectionStatus.CODE_MAX_LENGTH)
+            .IsRequired();
+
         builder.HasIndex(s => s.FormId);
         builder.HasIndex(s => s.FormDefinitionId);
         builder.HasIndex(s => s.SubmittedBy);

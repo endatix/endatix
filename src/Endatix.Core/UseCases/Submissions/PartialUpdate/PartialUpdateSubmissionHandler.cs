@@ -39,14 +39,21 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             ? JsonHelpers.MergeTopLevelObject(submission.Metadata, request.Metadata)
             : submission.Metadata;
 
-        submission.Update(
-            request.JsonData ?? submission.JsonData,
-            submission.FormDefinitionId,
-            submission.FormId,
-            request.IsComplete ?? submission.IsComplete,
-            request.CurrentPage ?? submission.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            mergedMetadata
-        );
+        try
+        {
+            submission.Update(
+                request.JsonData ?? submission.JsonData,
+                submission.FormDefinitionId,
+                submission.FormId,
+                request.IsComplete ?? submission.IsComplete,
+                request.CurrentPage ?? submission.CurrentPage ?? DEFAULT_CURRENT_PAGE,
+                mergedMetadata
+            );
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Invalid(new ValidationError("This submission cannot be completed."));
+        }
 
         if (!string.Equals(originalJson, submission.JsonData, StringComparison.Ordinal))
         {

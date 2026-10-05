@@ -24,7 +24,8 @@ public class SubmissionMapper
         SubmitterId = dto.SubmitterId?.ToString(),
         SubmitterDisplayId = dto.SubmitterDisplayId,
         SubmitterProfile = dto.SubmitterProfile,
-        IsTestSubmission = dto.IsTestSubmission
+        IsTestSubmission = dto.IsTestSubmission,
+        CollectionStatus = dto.CollectionStatus
     };
 
     public static T Map<T>(Submission submission) where T : SubmissionModel, new() => new T
@@ -46,7 +47,8 @@ public class SubmissionMapper
         SubmitterId = submission.SubmitterId?.ToString(),
         SubmitterDisplayId = submission.SubmitterDisplayId,
         SubmitterProfile = ParseSubmitterProfile(submission.SubmitterProfileSnapshot),
-        IsTestSubmission = submission.IsTestSubmission
+        IsTestSubmission = submission.IsTestSubmission,
+        CollectionStatus = submission.CollectionStatus.Code
     };
 
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)

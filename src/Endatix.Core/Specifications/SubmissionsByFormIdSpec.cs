@@ -51,7 +51,8 @@ public class SubmissionsByFormIdSpec : SubmissionsByFormIdFilteredSpecBase<Submi
             s.SubmitterId,
             s.SubmitterDisplayId,
             s.SubmitterProfileSnapshot,
-            s.IsTestSubmission
+            s.IsTestSubmission,
+            s.CollectionStatus.Code
         ));
     }
 

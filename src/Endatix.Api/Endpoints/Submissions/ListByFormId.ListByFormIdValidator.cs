@@ -14,6 +14,7 @@ public class ListByFormIdValidator : Validator<ListByFormIdRequest>
         { "id", typeof(long) },
         { "isComplete", typeof(bool) },
         { "status", typeof(string) },
+        { "collectionStatus", typeof(string) },
         { "jsonData", typeof(string) },
         { "formId", typeof(long) },
         { "formDefinitionId", typeof(long) },

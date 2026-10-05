@@ -193,6 +193,24 @@ public class ListByFormIdTests
     }
 
     [Fact]
+    public void Validator_CollectionStatusFilter_IsAccepted()
+    {
+        // Arrange
+        var validator = new ListByFormIdValidator(Options.Create(new SubmitterOptions()));
+        var request = new ListByFormIdRequest
+        {
+            FormId = 1,
+            Filter = ["collectionStatus:in_progress|complete", "collectionStatus!:cancelled"]
+        };
+
+        // Act
+        var validationResult = validator.Validate(request);
+
+        // Assert
+        validationResult.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
     public void Validator_CreatedAtFilter_IsRejected()
     {
         // Arrange

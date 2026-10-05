@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Common;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
+using CollectionStatusValue = Endatix.Core.Entities.CollectionStatus;
 
 namespace Endatix.Core.Entities;
 
@@ -26,6 +27,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         Metadata = args.Metadata;
         IsTestSubmission = args.IsTestSubmission;
         Status = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
+        CollectionStatus = CollectionStatusValue.InProgress.CreateInstance();
 
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
@@ -124,6 +126,8 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public DateTime? CompletedAt { get; private set; }
     public Token? Token { get; private set; }
     public SubmissionStatus Status { get; private set; } = null!;
+    public CollectionStatus CollectionStatus { get; private set; } =
+        CollectionStatusValue.InProgress;
 
     /// <summary>True when <see cref="StartedAt"/> has been recorded.</summary>
     public bool HasStarted => StartedAt is not null;
@@ -148,12 +152,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         Guard.Against.NegativeOrZero(formDefinitionId);
         Guard.Against.NegativeOrZero(formDefinitionFormId);
 
-        if (formDefinitionFormId != FormId)
-        {
-            throw new ArgumentException(
-                "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
-        }
-
+        EnsureUpdateAllowed(formDefinitionFormId, isComplete);
         EnsureStarted();
 
         var changeKind = SubmissionChangeKinds.None;
@@ -209,6 +208,10 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         RegisterRevisedDomainEvent(() => new SubmissionStatusChangedEvent(this, previousStatus));
     }
 
+    /// <summary>Owner or system void. Does not mark the interview complete.</summary>
+    public void Cancel() =>
+        SetCollectionStatus(CollectionStatusValue.Cancelled);
+
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
     public void IncrementRevision() => Revision++;
 
@@ -252,6 +255,21 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         public string? SubmittedBy => Id?.ToString() ?? DisplayId;
     }
 
+    private void EnsureUpdateAllowed(long formDefinitionFormId, bool isComplete)
+    {
+        if (formDefinitionFormId != FormId)
+        {
+            throw new ArgumentException(
+                "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
+        }
+
+        if (!IsComplete && isComplete && !IsResumableCollection())
+        {
+            throw new InvalidOperationException(
+                "Cannot complete a submission whose collection status is not resumable.");
+        }
+    }
+
     private void SetCompletionStatus(bool newIsCompleteValue)
     {
         if (!IsComplete && newIsCompleteValue)
@@ -266,8 +284,26 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
             // false→true transition (ctor or Update); captured to outbox → submission.completed webhook
             RegisterRevisedDomainEvent(() => new SubmissionCompletedEvent(this));
+            SetCollectionStatus(CollectionStatusValue.Complete);
+            return;
+        }
+
+        if (!IsComplete && IsResumableCollection())
+        {
+            SetCollectionStatus(CollectionStatusValue.InProgress);
         }
     }
+
+    private bool IsResumableCollection()
+    {
+        var code = CollectionStatus?.Code;
+        return code is null
+            || code == CollectionStatusCodes.InProgress
+            || code == CollectionStatusCodes.Expired;
+    }
+
+    private void SetCollectionStatus(CollectionStatus status) =>
+        CollectionStatus = status.CreateInstance();
 
     public string? OwnerId => SubmitterId?.ToString() ?? SubmittedBy;
 

@@ -619,6 +619,11 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("bigint")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None)
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+                    b.Property<string>("CollectionStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("CollectionStatus");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
@@ -694,6 +699,10 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.HasIndex("FormId");
 
+                    b.HasIndex("ModifiedAt")
+                        .HasDatabaseName("IX_Submissions_InProgress_ModifiedAt")
+                        .HasFilter("\"CollectionStatus\" = 'in_progress' AND \"IsDeleted\" = false");
+
                     b.HasIndex("RestrictionKey")
                         .IsUnique()
                         .HasDatabaseName("UX_Submissions_RestrictionKey")
@@ -712,6 +721,10 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("SubmitterProfileSnapshot"), new[] { "jsonb_path_ops" });
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("FormId", "CollectionStatus")
+                        .HasDatabaseName("IX_Submissions_FormId_CollectionStatus")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Submissions", (string)null);
                 });

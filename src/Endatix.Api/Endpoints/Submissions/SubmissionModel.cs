@@ -22,4 +22,5 @@ public class SubmissionModel
     public string? SubmitterDisplayId { get; set; }
     public IReadOnlyDictionary<string, string>? SubmitterProfile { get; set; }
     public bool IsTestSubmission { get; set; }
+    public string CollectionStatus { get; set; } = string.Empty;
 }
