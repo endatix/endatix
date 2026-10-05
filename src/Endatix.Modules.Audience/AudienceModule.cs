@@ -3,6 +3,8 @@ using Endatix.Api.Infrastructure;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Modules.Audience.Features.Forms;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +32,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
     {
         RequirePostgreSql(builder.Configuration);
         AddPersistence(builder);
+        builder.Services.AddScoped<IOutboxIntegrationEventHandler, DeleteFormAudienceOutboxHandler>();
     }
 
     private static void RequirePostgreSql(IConfiguration configuration)

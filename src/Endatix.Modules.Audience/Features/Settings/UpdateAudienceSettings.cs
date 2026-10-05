@@ -27,8 +27,27 @@ internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db)
         }
 
         return AudienceIdentifierKindCodes.IsKnown(request.IdentifierKind)
-            ? await SaveLockedAsync(request, cancellationToken)
+            ? await SaveAsync(request, cancellationToken)
             : Result.Invalid(new ValidationError($"Unknown identifier kind '{request.IdentifierKind}'."));
+    }
+
+    /// <summary>
+    /// Saving the current key returns it without the exclusive lock, so a settings form that
+    /// always saves does not stall person creates and imports. A real change takes the lock and
+    /// checks again under it.
+    /// </summary>
+    private async Task<Result<AudienceSettingsDto>> SaveAsync(
+        UpdateAudienceSettingsCommand request,
+        CancellationToken cancellationToken)
+    {
+        string current = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
+        if (current != request.IdentifierKind)
+        {
+            return await SaveLockedAsync(request, cancellationToken);
+        }
+
+        bool isLocked = await IdentifierKindReader.IsLockedAsync(db, request.TenantId, cancellationToken);
+        return Result.Success(new AudienceSettingsDto(current, isLocked));
     }
 
     private async Task<Result<AudienceSettingsDto>> SaveLockedAsync(
@@ -75,18 +94,10 @@ internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db)
     /// Members left over from removed people were normalized under the old key. They are on no
     /// form, so they are soft-deleted rather than matched under the new key.
     /// </summary>
-    private Task<int> RetireMembersAsync(long tenantId, CancellationToken cancellationToken)
-    {
-        DateTime now = DateTime.UtcNow;
-        return db.Members
+    private Task<int> RetireMembersAsync(long tenantId, CancellationToken cancellationToken) =>
+        db.Members
             .Where(member => member.TenantId == tenantId)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(member => member.IsDeleted, true)
-                    .SetProperty(member => member.DeletedAt, now)
-                    .SetProperty(member => member.ModifiedAt, now),
-                cancellationToken);
-    }
+            .SoftDeleteAllAsync(cancellationToken);
 
     private async Task<AudienceSettings> UpsertAsync(
         UpdateAudienceSettingsCommand request,

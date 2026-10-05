@@ -62,33 +62,51 @@ internal static class PropertyValuesWriter
             && db.Properties.Any(property => property.Id == value.PropertyId));
 
     /// <summary>
-    /// Stages value cells for a membership that has none yet. Does not save.
+    /// Stages value cells for a membership that has none yet. Empty values add nothing. Does not save.
     /// </summary>
-    public static void AddAll(PropertyValueWrite write)
-    {
-        foreach ((long propertyId, string value) in write.Values)
-        {
-            AddCell(write, propertyId, value);
-        }
-    }
+    public static void AddAll(PropertyValueWrite write) =>
+        Apply(write, new Dictionary<long, PropertyValue>());
 
     /// <summary>
-    /// Updates existing cells and stages missing ones. Does not save.
+    /// Updates, clears or adds each cell. Does not save.
     /// </summary>
     public static async Task UpsertAsync(
         PropertyValueWrite write,
         CancellationToken cancellationToken)
     {
         Dictionary<long, PropertyValue> existing = await LoadCellsAsync(write, cancellationToken);
-        foreach ((long propertyId, string value) in write.Values)
+        Apply(write, existing);
+    }
+
+    /// <summary>
+    /// The values a person ends up with after <paramref name="values"/> is written: empty ones
+    /// clear their cell, so they are left out.
+    /// </summary>
+    public static Dictionary<long, string> Stored(IReadOnlyDictionary<long, string> values) =>
+        values.Where(pair => pair.Value.Length > 0).ToDictionary(pair => pair.Key, pair => pair.Value);
+
+    /// <summary>
+    /// An empty value soft-deletes the cell, so a read never sees an empty cell. Cells are written
+    /// in property-id order, so two requests touching the same cells lock them in the same order
+    /// and cannot deadlock.
+    /// </summary>
+    private static void Apply(PropertyValueWrite write, IReadOnlyDictionary<long, PropertyValue> existing)
+    {
+        foreach ((long propertyId, string value) in write.Values.OrderBy(pair => pair.Key))
         {
-            if (existing.TryGetValue(propertyId, out PropertyValue? cell))
+            PropertyValue? cell = existing.GetValueOrDefault(propertyId);
+            if (cell is null)
+            {
+                AddCellUnlessEmpty(write, propertyId, value);
+            }
+            else if (value.Length == 0)
+            {
+                cell.Delete();
+            }
+            else
             {
                 cell.SetValue(value);
-                continue;
             }
-
-            AddCell(write, propertyId, value);
         }
     }
 
@@ -103,9 +121,14 @@ internal static class PropertyValuesWriter
             .ToDictionaryAsync(value => value.PropertyId, cancellationToken);
     }
 
-    private static void AddCell(PropertyValueWrite write, long propertyId, string value) =>
-        write.Db.PropertyValues.Add(new PropertyValue(new PropertyValueCreateArgs(
-            write.TenantId, write.MembershipId, propertyId, value)));
+    private static void AddCellUnlessEmpty(PropertyValueWrite write, long propertyId, string value)
+    {
+        if (value.Length > 0)
+        {
+            write.Db.PropertyValues.Add(new PropertyValue(new PropertyValueCreateArgs(
+                write.TenantId, write.MembershipId, propertyId, value)));
+        }
+    }
 }
 
 /// <summary>

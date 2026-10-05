@@ -21,7 +21,7 @@ Database schema: `audience`
 | `Properties` | Property definitions per form (`VariableName` immutable). Choice types need `ChoicesJson`, a JSON array of distinct keys; other types take no choices |
 | `Members` | One person per tenant + match key. `Identifier` keeps the value as entered; `NormalizedIdentifier` is the unique match key. Emails must be one valid address and use the same normalizer as app users; external ids keep their case |
 | `Memberships` | Person on one form |
-| `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). Empty clears the cell |
+| `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). A stored value is never empty: saving `""` clears (soft-deletes) the cell |
 
 ## API (directory)
 
@@ -38,15 +38,19 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
 ## Rules
 
 - **Match key.** Locked while any person is on any form's audience (`isLocked`). Saving the current
-  key is a no-op. A change soft-deletes members that are on no form, since they were matched under
+  key is a no-op and takes no lock. A change soft-deletes members that are on no form, since they were matched under
   the old key.
-- **Values by data type.** `number`: invariant decimal (`-12.5`, `1e3`). `boolean`: `true` or
+- **Values by data type.** `number`: invariant, no surrounding spaces, any finite double (`-12.5`, `1e3`, `1e29`). `boolean`: `true` or
   `false`. `date`: `YYYY-MM-DD`. `date_time`: ISO 8601 (`2026-10-05T09:30`, optional seconds and
   offset). `single_choice`: one key from `ChoicesJson`. `multiple_choice`: a JSON array of keys.
   `AllowsOther` accepts any key.
 - **Concurrency.** Person creates take a shared tenant lock; a match-key change takes it
   exclusively. The unique indexes settle create races (a second pass reuses the member; a duplicate
-  on one form is a 409). Two updates adding the same cell: the second pass overwrites. The people
+  on one form is a 409). The identifier is checked against the key read under the lock. Two
+  updates adding the same cell: the second pass overwrites. Cells are written in property-id order. The people
   list counts and reads in one snapshot.
 - **Deletes.** Removing a person deletes the membership and its cells; the member stays. Deleting a
   property soft-deletes its cells in one statement. Reads skip cells of deleted properties.
+- **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships
+  and properties; tenant members stay. Until it runs, the form's people still count toward the
+  match-key lock.

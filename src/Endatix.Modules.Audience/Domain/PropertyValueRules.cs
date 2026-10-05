@@ -10,6 +10,9 @@ namespace Endatix.Modules.Audience.Domain;
 /// </summary>
 internal static class PropertyValueRules
 {
+    private const NumberStyles CanonicalNumber =
+        NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent;
+
     private static readonly string[] DateTimeFormats =
     [
         "yyyy-MM-dd'T'HH:mmK",
@@ -119,10 +122,15 @@ internal static class PropertyValueRules
     private static bool IsAllowedChoice(Property property, string key) =>
         property.AllowsOther
         || property.DataListId is not null
-        || (ParseKeys(property.ChoicesJson)?.Contains(key, StringComparer.Ordinal) ?? false);
+        || property.ChoiceKeys().Contains(key);
 
+    /// <summary>
+    /// No surrounding whitespace, so the stored text is the number as written. <c>double</c>
+    /// covers large values; infinity (for example <c>1e400</c>) is refused.
+    /// </summary>
     private static bool IsNumber(string value) =>
-        decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _);
+        double.TryParse(value, CanonicalNumber, CultureInfo.InvariantCulture, out double number)
+        && double.IsFinite(number);
 
     private static bool IsDate(string value) =>
         DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);

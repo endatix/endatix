@@ -8,7 +8,8 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// The audience directory over HTTP on PostgreSQL: the races the unique indexes and the tenant
-/// match-key lock settle, the match-key rules, and value checks by data type.
+/// match-key lock settle, the match-key rules, and value checks by data type. The module is
+/// PostgreSQL-only, so every test skips on SQL Server.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -17,9 +18,10 @@ namespace Endatix.IntegrationTests;
 public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SeedPassword = "Password123!";
+    private static readonly TimeSpan OutboxWait = TimeSpan.FromSeconds(30);
 
     [Fact]
-    public async Task CreatePerson_EmailInMixedCase_KeepsCasingAndMatchesIgnoringCase()
+    public async Task Adding_a_person_keeps_the_email_as_entered()
     {
         // Arrange
         AudienceApi api = await AdminAsync();
@@ -27,19 +29,43 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
 
         // Act
         using HttpResponseMessage created = await api.AddPersonAsync(formId, "Ada@Example.com");
-        using HttpResponseMessage duplicate = await api.AddPersonAsync(formId, "ada@EXAMPLE.com");
-        using HttpResponseMessage invalid = await api.AddPersonAsync(formId, "John Smith");
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        JsonElement person = await api.ReadAsync(created);
-        Assert.Equal("Ada@Example.com", person.GetProperty("identifier").GetString());
+        Assert.Equal("Ada@Example.com", (await api.ReadAsync(created)).GetProperty("identifier").GetString());
+    }
+
+    [Fact]
+    public async Task Adding_the_same_email_in_other_casing_to_a_form_is_a_conflict()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        using HttpResponseMessage first = await api.AddPersonAsync(formId, "Ada@Example.com");
+
+        // Act
+        using HttpResponseMessage duplicate = await api.AddPersonAsync(formId, "ada@EXAMPLE.com");
+
+        // Assert
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+    }
+
+    [Fact]
+    public async Task Adding_a_person_with_an_invalid_email_is_rejected()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+
+        // Act
+        using HttpResponseMessage invalid = await api.AddPersonAsync(formId, "John Smith");
+
+        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
     }
 
     [Fact]
-    public async Task CreatePerson_ParallelOnSeveralForms_ReusesOneMember()
+    public async Task Adding_one_person_to_several_forms_in_parallel_reuses_one_member()
     {
         // Arrange
         AudienceApi api = await AdminAsync();
@@ -57,7 +83,7 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
     }
 
     [Fact]
-    public async Task CreatePerson_ParallelOnOneForm_CreatesOnceAndConflictsTheRest()
+    public async Task Adding_one_person_to_a_form_in_parallel_creates_once_and_conflicts_the_rest()
     {
         // Arrange
         AudienceApi api = await AdminAsync();
@@ -76,110 +102,198 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
     }
 
     [Fact]
-    public async Task UpdateSettings_MatchKey_FollowsLockRules()
-    {
-        // Arrange
-        CancellationToken ct = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await fixture.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
-        AudienceApi admin = new(await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct), ct);
-        AudienceApi creator = new(await world.AsAsync(TestPersona.Creator, cancellationToken: ct), ct);
-        long formId = await admin.CreateFormAsync();
-        using HttpResponseMessage added = await admin.AddPersonAsync(formId, "lock@example.com");
-        long membershipId = IdOf(await admin.ReadAsync(added), "membershipId");
-
-        // Act
-        using HttpResponseMessage sameKey = await admin.PutKeyAsync("email");
-        using HttpResponseMessage lockedChange = await admin.PutKeyAsync("external_id");
-        using HttpResponseMessage byCreator = await creator.PutKeyAsync("external_id");
-        using HttpResponseMessage removed = await admin.Client.DeleteAsync(
-            $"/api/forms/{formId}/audience/people/{membershipId}", ct);
-        JsonElement afterRemove = await admin.Client.GetFromJsonAsync<JsonElement>("/api/audience/settings", ct);
-        using HttpResponseMessage freeChange = await admin.PutKeyAsync("external_id");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, sameKey.StatusCode);
-        Assert.True((await admin.ReadAsync(sameKey)).GetProperty("isLocked").GetBoolean());
-        Assert.Equal(HttpStatusCode.Conflict, lockedChange.StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, byCreator.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
-        Assert.False(afterRemove.GetProperty("isLocked").GetBoolean());
-        Assert.Equal(HttpStatusCode.OK, freeChange.StatusCode);
-    }
-
-    [Fact]
-    public async Task UpdatePerson_ValuesByDataType_RejectsWrongTypeAndSettlesParallelCells()
+    public async Task Saving_the_current_match_key_with_people_on_a_form_succeeds()
     {
         // Arrange
         AudienceApi api = await AdminAsync();
-        long formId = await api.CreateFormAsync();
-        long propertyId = await api.CreatePropertyAsync(formId, new { name = "Age", dataType = "number" });
-        using HttpResponseMessage added = await api.AddPersonAsync(formId, "values@example.com");
-        string personUrl = $"/api/forms/{formId}/audience/people/{IdOf(await api.ReadAsync(added), "membershipId")}";
+        await api.AddPersonToNewFormAsync("lock@example.com");
 
         // Act
-        using HttpResponseMessage wrongType = await api.PutValueAsync(personUrl, propertyId, "abc");
-        HttpResponseMessage[] parallel = await Task.WhenAll(
-            Enumerable.Range(0, 6).Select(i => api.PutValueAsync(personUrl, propertyId, $"{40 + i}")));
+        using HttpResponseMessage response = await api.PutKeyAsync("email");
 
         // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, wrongType.StatusCode);
-        Assert.All(parallel, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
-        DisposeAll(parallel);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True((await api.ReadAsync(response)).GetProperty("isLocked").GetBoolean());
     }
 
     [Fact]
-    public async Task CreateProperty_ChoiceSettings_CheckedAgainstDataType()
+    public async Task Changing_the_match_key_with_people_on_a_form_is_a_conflict()
     {
         // Arrange
         AudienceApi api = await AdminAsync();
-        long formId = await api.CreateFormAsync();
-        string url = $"/api/forms/{formId}/audience/properties";
+        await api.AddPersonToNewFormAsync("lock@example.com");
 
         // Act
-        using HttpResponseMessage noChoices = await api.PostAsync(
-            url, new { name = "Plan", dataType = "single_choice" });
-        using HttpResponseMessage choicesOnText = await api.PostAsync(
-            url, new { name = "Note", dataType = "text", choicesJson = """["a"]""" });
-        using HttpResponseMessage valid = await api.PostAsync(
-            url, new { name = "Tier", dataType = "single_choice", choicesJson = """["basic","pro"]""" });
+        using HttpResponseMessage response = await api.PutKeyAsync("external_id");
 
         // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, noChoices.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, choicesOnText.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, valid.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
-    public async Task DeleteProperty_WithValues_RemovesThemFromThePeopleList()
+    public async Task Changing_the_match_key_as_a_creator_is_forbidden()
+    {
+        // Arrange
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi creator = await AsAsync(world, TestPersona.Creator);
+
+        // Act
+        using HttpResponseMessage response = await creator.PutKeyAsync("external_id");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Removing_the_last_person_unlocks_the_match_key()
     {
         // Arrange
         AudienceApi api = await AdminAsync();
-        long formId = await api.CreateFormAsync();
-        long propertyId = await api.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
-        using HttpResponseMessage added = await api.PostAsync(
-            $"/api/forms/{formId}/audience/people",
-            new { identifier = "city@example.com", values = new Dictionary<string, string> { [$"{propertyId}"] = "Sofia" } });
-        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        (long formId, long membershipId) = await api.AddPersonToNewFormAsync("lock@example.com");
+        using HttpResponseMessage removed = await api.Client.DeleteAsync(
+            $"/api/forms/{formId}/audience/people/{membershipId}", api.CancellationToken);
 
         // Act
-        using HttpResponseMessage deleted = await api.Client.DeleteAsync(
-            $"/api/forms/{formId}/audience/properties/{propertyId}", api.CancellationToken);
-        JsonElement page = await api.Client.GetFromJsonAsync<JsonElement>(
-            $"/api/forms/{formId}/audience/people", api.CancellationToken);
+        using HttpResponseMessage response = await api.PutKeyAsync("external_id");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False((await api.ReadAsync(response)).GetProperty("isLocked").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Deleting_a_form_with_people_unlocks_the_match_key()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        (long formId, _) = await api.AddPersonToNewFormAsync("gone@example.com");
+
+        // Act
+        using HttpResponseMessage deleted = await api.Client.DeleteAsync($"/api/forms/{formId}", api.CancellationToken);
+        bool unlocked = await api.WaitUntilUnlockedAsync(OutboxWait);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        Assert.True(unlocked, "The form.deleted outbox handler should remove the form's people.");
+    }
+
+    [Fact]
+    public async Task Saving_a_value_of_the_wrong_type_is_rejected()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        (string personUrl, long propertyId) = await api.PersonWithPropertyAsync(new { name = "Age", dataType = "number" });
+
+        // Act
+        using HttpResponseMessage response = await api.PutValueAsync(personUrl, propertyId, "abc");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Parallel_updates_adding_the_same_cell_all_succeed()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        (string personUrl, long propertyId) = await api.PersonWithPropertyAsync(new { name = "Age", dataType = "number" });
+
+        // Act
+        HttpResponseMessage[] responses = await Task.WhenAll(
+            Enumerable.Range(0, 6).Select(i => api.PutValueAsync(personUrl, propertyId, $"{40 + i}")));
+
+        // Assert
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+        DisposeAll(responses);
+    }
+
+    [Fact]
+    public async Task Saving_an_empty_value_clears_the_cell()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        (string personUrl, long propertyId) = await api.PersonWithPropertyAsync(new { name = "City", dataType = "text" });
+        using HttpResponseMessage saved = await api.PutValueAsync(personUrl, propertyId, "Sofia");
+
+        // Act
+        using HttpResponseMessage cleared = await api.PutValueAsync(personUrl, propertyId, "");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
+        Assert.Empty((await api.ReadAsync(cleared)).GetProperty("values").EnumerateObject());
+    }
+
+    [Theory]
+    [InlineData("single_choice", null)]
+    [InlineData("text", """["a"]""")]
+    public async Task Creating_a_property_with_choice_settings_that_do_not_fit_its_type_is_rejected(
+        string dataType,
+        string? choicesJson)
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+
+        // Act
+        using HttpResponseMessage response = await api.PostAsync(
+            $"/api/forms/{formId}/audience/properties", new { name = "Plan", dataType, choicesJson });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Creating_a_choice_property_with_keys_succeeds()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+
+        // Act
+        using HttpResponseMessage response = await api.PostAsync(
+            $"/api/forms/{formId}/audience/properties",
+            new { name = "Tier", dataType = "single_choice", choicesJson = """["basic","pro"]""" });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deleting_a_property_removes_its_values_from_the_people_list()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        (string personUrl, long propertyId) = await api.PersonWithPropertyAsync(new { name = "City", dataType = "text" });
+        using HttpResponseMessage saved = await api.PutValueAsync(personUrl, propertyId, "Sofia");
+        string formUrl = personUrl[..personUrl.IndexOf("/audience/", StringComparison.Ordinal)];
+
+        // Act
+        using HttpResponseMessage deleted = await api.Client.DeleteAsync(
+            $"{formUrl}/audience/properties/{propertyId}", api.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        JsonElement page = await api.Client.GetFromJsonAsync<JsonElement>($"{formUrl}/audience/people", api.CancellationToken);
         JsonElement person = Assert.Single(page.GetProperty("items").EnumerateArray());
         Assert.Empty(person.GetProperty("values").EnumerateObject());
     }
 
-    private async Task<AudienceApi> AdminAsync()
+    private async Task<IntegrationTestWorld> WorldAsync()
+    {
+        Assert.SkipWhen(
+            fixture.Provider != TestDatabaseProvider.PostgreSql,
+            "The audience module is PostgreSQL-only; it is not registered on this provider.");
+        return await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword },
+            TestContext.Current.CancellationToken);
+    }
+
+    private async Task<AudienceApi> AdminAsync() => await AsAsync(await WorldAsync(), TestPersona.TenantAdmin);
+
+    private static async Task<AudienceApi> AsAsync(IntegrationTestWorld world, TestPersona persona)
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await fixture.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
-        return new AudienceApi(await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct), ct);
+        return new AudienceApi(await world.AsAsync(persona, cancellationToken: ct), ct);
     }
 
     /// <summary>Ids may be sent as JSON strings (snowflake) or numbers.</summary>
@@ -225,6 +339,25 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
             return IdOf(await ReadAsync(response), "id");
         }
 
+        public async Task<(long FormId, long MembershipId)> AddPersonToNewFormAsync(string identifier)
+        {
+            long formId = await CreateFormAsync();
+            using HttpResponseMessage response = await AddPersonAsync(formId, identifier);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            return (formId, IdOf(await ReadAsync(response), "membershipId"));
+        }
+
+        /// <summary>A person on a new form that has one property; returns the person's URL.</summary>
+        public async Task<(string PersonUrl, long PropertyId)> PersonWithPropertyAsync(object property)
+        {
+            long formId = await CreateFormAsync();
+            long propertyId = await CreatePropertyAsync(formId, property);
+            using HttpResponseMessage response = await AddPersonAsync(formId, $"{Guid.NewGuid():N}@example.com");
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            long membershipId = IdOf(await ReadAsync(response), "membershipId");
+            return ($"/api/forms/{formId}/audience/people/{membershipId}", propertyId);
+        }
+
         public Task<HttpResponseMessage> AddPersonAsync(long formId, string identifier) =>
             PostAsync($"/api/forms/{formId}/audience/people", new { identifier });
 
@@ -242,5 +375,23 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
 
         public Task<JsonElement> ReadAsync(HttpResponseMessage response) =>
             response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
+
+        /// <summary>Polls the settings until the match key unlocks; outbox handlers run in the background.</summary>
+        public async Task<bool> WaitUntilUnlockedAsync(TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                JsonElement settings = await client.GetFromJsonAsync<JsonElement>("/api/audience/settings", cancellationToken);
+                if (!settings.GetProperty("isLocked").GetBoolean())
+                {
+                    return true;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+            }
+
+            return false;
+        }
     }
 }

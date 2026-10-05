@@ -48,6 +48,8 @@ public class PropertyValueRulesTests
     [Theory]
     [InlineData(AudienceDataTypeCodes.Number, "abc")]
     [InlineData(AudienceDataTypeCodes.Number, "1,5")]
+    [InlineData(AudienceDataTypeCodes.Number, " 42 ")]
+    [InlineData(AudienceDataTypeCodes.Number, "1e400")]
     [InlineData(AudienceDataTypeCodes.Boolean, "maybe")]
     [InlineData(AudienceDataTypeCodes.Boolean, "True")]
     [InlineData(AudienceDataTypeCodes.Date, "2026-13-45")]
@@ -70,6 +72,8 @@ public class PropertyValueRulesTests
     [InlineData(AudienceDataTypeCodes.Text, "anything")]
     [InlineData(AudienceDataTypeCodes.Number, "-12.5")]
     [InlineData(AudienceDataTypeCodes.Number, "1e3")]
+    [InlineData(AudienceDataTypeCodes.Number, "1e29")]
+    [InlineData(AudienceDataTypeCodes.Number, "123456789012345678901234567890")]
     [InlineData(AudienceDataTypeCodes.Boolean, "false")]
     [InlineData(AudienceDataTypeCodes.Date, "2026-10-05")]
     [InlineData(AudienceDataTypeCodes.DateTime, "2026-10-05T09:30")]
@@ -131,5 +135,19 @@ public class PropertyValueRulesTests
 
         // Assert
         error.Should().Be(expected);
+    }
+
+    [Fact]
+    public void ChoiceKeys_ChoiceProperty_ReturnsParsedKeys()
+    {
+        // Arrange
+        Property property = PropertyTests.PropertyOf(AudienceDataTypeCodes.SingleChoice, PlanChoices);
+
+        // Act
+        IReadOnlySet<string> keys = property.ChoiceKeys();
+
+        // Assert
+        keys.Should().BeEquivalentTo(["basic", "pro"]);
+        property.ChoiceKeys().Should().BeSameAs(keys);
     }
 }

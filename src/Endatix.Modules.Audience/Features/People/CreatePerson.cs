@@ -97,11 +97,22 @@ internal sealed class CreatePersonHandler(
         return created;
     }
 
+    /// <summary>
+    /// Reads the match key once, under the lock, so a key change cannot slip in between checking
+    /// the identifier and building the member.
+    /// </summary>
     private async Task<Result<PersonDto>> AddAsync(
         CreatePersonCommand request,
         CancellationToken cancellationToken)
     {
-        Member member = await FindOrAddMemberAsync(request, cancellationToken);
+        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
+        string? identifierError = Member.IdentifierError(request.Identifier, identifierKind);
+        if (identifierError is not null)
+        {
+            return Result.Invalid(new ValidationError(identifierError));
+        }
+
+        Member member = await FindOrAddMemberAsync(request, identifierKind, cancellationToken);
         bool onForm = await db.Memberships.AnyAsync(
             membership => membership.FormId == request.FormId && membership.MemberId == member.Id,
             cancellationToken);
@@ -124,13 +135,9 @@ internal sealed class CreatePersonHandler(
             return formGate;
         }
 
-        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        string? identifierError = Member.IdentifierError(request.Identifier, identifierKind);
-        return identifierError is null
-            ? await PropertyValuesWriter.ValidateAsync(
-                new PropertyValuesCheck(db, request.FormId, request.Values),
-                cancellationToken)
-            : Result.Invalid(new ValidationError(identifierError));
+        return await PropertyValuesWriter.ValidateAsync(
+            new PropertyValuesCheck(db, request.FormId, request.Values),
+            cancellationToken);
     }
 
     /// <summary>
@@ -149,14 +156,14 @@ internal sealed class CreatePersonHandler(
         IReadOnlyDictionary<long, string> values = request.Values ?? new Dictionary<long, string>();
         PropertyValuesWriter.AddAll(new PropertyValueWrite(db, request.TenantId, membership.Id, values));
         await db.SaveChangesAsync(cancellationToken);
-        return new PersonDto(membership.Id, member.Id, member.Identifier, values);
+        return new PersonDto(membership.Id, member.Id, member.Identifier, PropertyValuesWriter.Stored(values));
     }
 
     private async Task<Member> FindOrAddMemberAsync(
         CreatePersonCommand request,
+        string identifierKind,
         CancellationToken cancellationToken)
     {
-        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
         string normalized = Member.Normalize(request.Identifier, identifierKind, normalizer);
         Member? member = await db.Members.FirstOrDefaultAsync(
             row => row.TenantId == request.TenantId && row.NormalizedIdentifier == normalized,

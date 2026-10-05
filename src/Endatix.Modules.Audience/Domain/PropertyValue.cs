@@ -32,7 +32,7 @@ public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
         Guard.Against.NegativeOrZero(args.TenantId);
         Guard.Against.NegativeOrZero(args.MembershipId);
         Guard.Against.NegativeOrZero(args.PropertyId);
-        DomainValidationException.ThrowIfError(ValueError(args.Value), nameof(args));
+        DomainValidationException.ThrowIfError(StoredValueError(args.Value), nameof(args));
 
         TenantId = args.TenantId;
         MembershipId = args.MembershipId;
@@ -46,14 +46,22 @@ public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
 
     public long PropertyId { get; private set; }
 
-    /// <summary>Canonical string. Multiple choice is a JSON array of choice keys.</summary>
+    /// <summary>
+    /// Canonical, never empty: an empty input clears the cell (soft delete) instead. Multiple
+    /// choice is a JSON array of choice keys.
+    /// </summary>
     public string Value { get; private set; }
 
     public void SetValue(string value)
     {
-        DomainValidationException.ThrowIfError(ValueError(value), nameof(value));
+        DomainValidationException.ThrowIfError(StoredValueError(value), nameof(value));
         Value = value;
     }
+
+    private static string? StoredValueError(string? value) =>
+        value is { Length: 0 }
+            ? "A stored value cannot be empty; clear the cell instead."
+            : ValueError(value);
 
     public static string? ValueError(string? value)
     {

@@ -138,4 +138,27 @@ public class PropertyValueTests
         // Assert
         error.Should().Contain("4000");
     }
+
+    [Fact]
+    public void Constructor_EmptyValue_ThrowsDomainValidationException()
+    {
+        // Act
+        Action act = () => new PropertyValue(new PropertyValueCreateArgs(1, 2, 3, ""));
+
+        // Assert
+        act.Should().Throw<DomainValidationException>();
+    }
+
+    [Fact]
+    public void SetValue_EmptyValue_ThrowsDomainValidationException()
+    {
+        // Arrange
+        PropertyValue cell = new(new PropertyValueCreateArgs(1, 2, 3, "Sofia"));
+
+        // Act
+        Action act = () => cell.SetValue("");
+
+        // Assert
+        act.Should().Throw<DomainValidationException>();
+    }
 }

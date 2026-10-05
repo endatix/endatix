@@ -27,6 +27,8 @@ public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
         RegexOptions.Compiled,
         TimeSpan.FromMilliseconds(100));
 
+    private HashSet<string>? _choiceKeys;
+
     private Property()
     {
         VariableName = string.Empty;
@@ -82,6 +84,13 @@ public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
     public string? ChoicesJson { get; private set; }
 
     public bool AllowsOther { get; private set; }
+
+    /// <summary>
+    /// <see cref="ChoicesJson"/> parsed once per instance; it does not change after create.
+    /// </summary>
+    public IReadOnlySet<string> ChoiceKeys() =>
+        _choiceKeys ??= PropertyValueRules.ParseKeys(ChoicesJson)?.ToHashSet(StringComparer.Ordinal)
+            ?? new HashSet<string>(StringComparer.Ordinal);
 
     public void Rename(string name)
     {

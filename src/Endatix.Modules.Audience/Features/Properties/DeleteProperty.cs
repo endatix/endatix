@@ -61,15 +61,9 @@ internal sealed class DeletePropertyHandler(
     {
         await using IDbContextTransaction transaction =
             await ((DbContext)db).Database.BeginTransactionAsync(cancellationToken);
-        DateTime now = DateTime.UtcNow;
         await db.PropertyValues
             .Where(value => value.PropertyId == property.Id)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(value => value.IsDeleted, true)
-                    .SetProperty(value => value.DeletedAt, now)
-                    .SetProperty(value => value.ModifiedAt, now),
-                cancellationToken);
+            .SoftDeleteAllAsync(cancellationToken);
 
         property.Delete();
         await db.SaveChangesAsync(cancellationToken);
