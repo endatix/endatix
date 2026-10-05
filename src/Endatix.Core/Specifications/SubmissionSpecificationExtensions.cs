@@ -59,11 +59,13 @@ internal static class SubmissionSpecificationExtensions
     {
         foreach (var statusFilter in FiltersFor(filterParams, COLLECTION_STATUS_FIELD_NAME))
         {
-            var codes = statusFilter.Values.ToList();
+            var statuses = statusFilter.Values
+                .Select(CollectionStatus.FromCode)
+                .ToList();
             query = statusFilter.Operator switch
             {
-                ExpressionType.Equal => query.Where(s => codes.Contains(s.CollectionStatus.Code)),
-                ExpressionType.NotEqual => query.Where(s => !codes.Contains(s.CollectionStatus.Code)),
+                ExpressionType.Equal => query.Where(s => statuses.Contains(s.CollectionStatus)),
+                ExpressionType.NotEqual => query.Where(s => !statuses.Contains(s.CollectionStatus)),
                 _ => throw new NotSupportedException(
                     $"Operator {statusFilter.Operator} is not supported for collectionStatus filters.")
             };

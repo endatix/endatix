@@ -24,6 +24,19 @@ namespace Endatix.Persistence.SqlServer.Config
                 .IsUnique()
                 .HasFilter(
                     $"[{nameof(Submission.RestrictionKey)}] IS NOT NULL AND [{nameof(Submission.IsDeleted)}] = 0");
+
+            ConfigureCollectionStatusIndexes(builder);
+        }
+
+        private static void ConfigureCollectionStatusIndexes(EntityTypeBuilder<Submission> builder)
+        {
+            builder.HasIndex(s => new { s.FormId, s.CollectionStatus })
+                .HasDatabaseName("IX_Submissions_FormId_CollectionStatus")
+                .HasFilter($"[{nameof(Submission.IsDeleted)}] = 0");
+
+            builder.HasIndex(s => s.ModifiedAt)
+                .HasDatabaseName("IX_Submissions_InProgress_ModifiedAt")
+                .HasFilter("[CollectionStatus] = 'in_progress' AND [IsDeleted] = 0");
         }
     }
 }

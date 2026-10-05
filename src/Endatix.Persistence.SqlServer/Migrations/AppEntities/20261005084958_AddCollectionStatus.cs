@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
+namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     /// <inheritdoc />
     public partial class AddCollectionStatus : Migration
@@ -13,31 +13,38 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             migrationBuilder.AddColumn<string>(
                 name: "CollectionStatus",
                 table: "Submissions",
-                type: "character varying(32)",
+                type: "nvarchar(32)",
                 maxLength: 32,
                 nullable: false,
                 defaultValue: "");
 
             migrationBuilder.Sql("""
-                UPDATE "Submissions"
-                SET "CollectionStatus" = CASE WHEN "IsComplete" THEN 'complete' ELSE 'in_progress' END;
+                UPDATE [Submissions]
+                SET [CollectionStatus] = CASE WHEN [IsComplete] = 1 THEN N'complete' ELSE N'in_progress' END;
                 """);
 
             migrationBuilder.Sql("""
-                ALTER TABLE "Submissions" ALTER COLUMN "CollectionStatus" DROP DEFAULT;
+                DECLARE @default sysname;
+                SELECT @default = dc.name
+                FROM sys.default_constraints dc
+                INNER JOIN sys.columns c ON c.default_object_id = dc.object_id
+                WHERE dc.parent_object_id = OBJECT_ID(N'[Submissions]')
+                  AND c.name = N'CollectionStatus';
+                IF @default IS NOT NULL
+                    EXEC(N'ALTER TABLE [Submissions] DROP CONSTRAINT [' + @default + N']');
                 """);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Submissions_FormId_CollectionStatus",
                 table: "Submissions",
                 columns: new[] { "FormId", "CollectionStatus" },
-                filter: "\"IsDeleted\" = false");
+                filter: "[IsDeleted] = 0");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Submissions_InProgress_ModifiedAt",
                 table: "Submissions",
                 column: "ModifiedAt",
-                filter: "\"CollectionStatus\" = 'in_progress' AND \"IsDeleted\" = false");
+                filter: "[CollectionStatus] = 'in_progress' AND [IsDeleted] = 0");
         }
 
         /// <inheritdoc />
