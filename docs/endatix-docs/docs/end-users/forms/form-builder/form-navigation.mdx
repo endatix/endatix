@@ -4,6 +4,9 @@ description: Customize how users move through an Endatix form, including button 
 sidebar_label: Form Navigation
 ---
 
+import NavigationButtonsLight from "./navigation-buttons_light.webp";
+import NavigationButtonsDark from "./navigation-buttons_dark.webp";
+
 # **Form Navigation**
 
 The **Navigation** settings in Endatix Hub allow you to fine-tune the respondent's journey. By adjusting how navigation elements are positioned and what information is visible, you can create a more intuitive experience that reduces form abandonment.
@@ -26,12 +29,15 @@ To access these settings, select the **Navigation** icon in the **Property Grid*
 
 This section defines the core interactive elements and visual indicators that guide a respondent through your form. You can control where navigation buttons appear and whether users can go backward.
 
-<img src={require('./navigation-buttons.webp').default} className="legacy-screenshot" width="467" alt="Navigation buttons" />
-<br />
-<br />
+<Shot
+  alt="Navigation settings: show navigation buttons, alignment, the Previous Page button, and replacing Next with Complete when a complete trigger is met"
+  sources={{ light: NavigationButtonsLight, dark: NavigationButtonsDark }}
+/>
+
 
 * **Navigation buttons alignment**: Select where the main navigation controls (Next, Previous, Complete) are positioned on the page. Options include **Top**, **Bottom**, or **Top and bottom**.
 * **Show the "Previous Page" button**: Toggle this to allow or prevent respondents from returning to earlier questions to review or change their answers.
+* **Replace Next with Complete when a complete trigger is met**: Turn this on to replace Next with Complete as soon as a [Complete trigger](triggers)'s expression is true. Turn it off to leave Next in place until the respondent moves on. The form still completes then. The option is on when the form does not set it. Saving the form drops an explicit `true`, because that matches the default.
 
 ### **Button Text Customization**
 
@@ -265,6 +271,11 @@ These settings are stored in the survey JSON under the following properties:
             <td style={{ padding: '12px' }}>"Next Page" button text</td>
             <td style={{ padding: '12px' }}><code>pageNextText</code></td>
             <td style={{ padding: '12px' }}><code>"Next Page"</code></td>
+        </tr>
+        <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
+            <td style={{ padding: '12px' }}>Replace Next with Complete when a complete trigger is met</td>
+            <td style={{ padding: '12px' }}><code>edxChangeNavigationOnComplete</code></td>
+            <td style={{ padding: '12px' }}><code>true</code> | <code>false</code>. Omitted means <code>true</code>.</td>
         </tr>
         <tr style={{ backgroundColor: 'transparent' , borderBottom: '1px solid var(--ifm-contents-border-color)' }}>
             <td style={{ padding: '12px' }}>"Complete Survey" button text</td>
