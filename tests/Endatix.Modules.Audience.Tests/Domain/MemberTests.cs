@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Domain;
 
@@ -5,17 +6,20 @@ namespace Endatix.Modules.Audience.Tests.Domain;
 
 public class MemberTests
 {
+    private static readonly IValueNormalizer EmailNormalizer = new UpperInvariantNormalizer();
+
     [Fact]
-    public void Constructor_EmailKind_TrimsAndLowerCasesIdentifier()
+    public void Constructor_EmailKind_UsesValueNormalizer()
     {
         // Arrange
         const string identifier = "  Ada@Example.COM ";
 
         // Act
-        Member member = new(tenantId: 1, identifier, AudienceIdentifierKindCodes.Email);
+        Member member = new(new MemberCreateArgs(
+            1, identifier, AudienceIdentifierKindCodes.Email, EmailNormalizer));
 
         // Assert
-        member.Identifier.Should().Be("ada@example.com");
+        member.Identifier.Should().Be("ADA@EXAMPLE.COM");
     }
 
     [Fact]
@@ -25,7 +29,8 @@ public class MemberTests
         const string identifier = " CRM-00Qx7 ";
 
         // Act
-        Member member = new(tenantId: 1, identifier, AudienceIdentifierKindCodes.ExternalId);
+        Member member = new(new MemberCreateArgs(
+            1, identifier, AudienceIdentifierKindCodes.ExternalId, EmailNormalizer));
 
         // Assert
         member.Identifier.Should().Be("CRM-00Qx7");
@@ -36,9 +41,16 @@ public class MemberTests
     [InlineData("phone")]
     public void Constructor_UnknownKind_Throws(string identifierKind)
     {
-        Action act = () => new Member(tenantId: 1, "ada@example.com", identifierKind);
+        Action act = () => new Member(new MemberCreateArgs(
+            1, "ada@example.com", identifierKind, EmailNormalizer));
 
         act.Should().Throw<ArgumentException>();
+    }
+
+    private sealed class UpperInvariantNormalizer : IValueNormalizer
+    {
+        public string? Normalize(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
     }
 }
 

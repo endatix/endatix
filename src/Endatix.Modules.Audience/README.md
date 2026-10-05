@@ -19,7 +19,7 @@ Database schema: `audience`
 |-------|---------|
 | `Settings` | One row per tenant: match key (`email` / `external_id`). No row means `email` |
 | `Properties` | Property definitions per form (`VariableName` immutable) |
-| `Members` | One person per tenant + identifier. Emails are lower-cased; external ids keep their case |
+| `Members` | One person per tenant + identifier. Emails use the same normalizer as app users; external ids keep their case |
 | `Memberships` | Person on one form |
 | `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters |
 

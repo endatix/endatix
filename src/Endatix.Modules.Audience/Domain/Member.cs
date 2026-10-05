@@ -16,19 +16,21 @@ public sealed class Member : BaseEntity, IAggregateRoot, ITenantOwned
         Identifier = string.Empty;
     }
 
-    public Member(long tenantId, string identifier, string identifierKind)
+    public Member(MemberCreateArgs args)
     {
-        Guard.Against.NegativeOrZero(tenantId);
-        Guard.Against.NullOrWhiteSpace(identifier);
-        if (!AudienceIdentifierKindCodes.IsKnown(identifierKind))
+        Guard.Against.Null(args);
+        Guard.Against.NegativeOrZero(args.TenantId);
+        Guard.Against.NullOrWhiteSpace(args.Identifier);
+        Guard.Against.Null(args.Normalizer);
+        if (!AudienceIdentifierKindCodes.IsKnown(args.IdentifierKind))
         {
             throw new ArgumentException(
-                $"Unknown identifier kind '{identifierKind}'.",
-                nameof(identifierKind));
+                $"Unknown identifier kind '{args.IdentifierKind}'.",
+                nameof(args));
         }
 
-        TenantId = tenantId;
-        Identifier = Normalize(identifier, identifierKind);
+        TenantId = args.TenantId;
+        Identifier = Normalize(args.Identifier, args.IdentifierKind, args.Normalizer);
     }
 
     public long TenantId { get; private set; }
@@ -44,14 +46,31 @@ public sealed class Member : BaseEntity, IAggregateRoot, ITenantOwned
     }
 
     /// <summary>
-    /// Emails match case-insensitively. External ids keep their case, because source systems
-    /// such as CRMs treat <c>AbC</c> and <c>abc</c> as different records.
+    /// Emails use <see cref="IValueNormalizer"/>, the same rule as app users.
+    /// External ids keep their case, because source systems treat <c>AbC</c> and <c>abc</c>
+    /// as different records.
     /// </summary>
-    public static string Normalize(string identifier, string identifierKind)
+    public static string Normalize(
+        string identifier,
+        string identifierKind,
+        IValueNormalizer normalizer)
     {
+        Guard.Against.Null(normalizer);
         string trimmed = identifier.Trim();
-        return identifierKind == AudienceIdentifierKindCodes.Email
-            ? trimmed.ToLowerInvariant()
-            : trimmed;
+        if (identifierKind != AudienceIdentifierKindCodes.Email)
+        {
+            return trimmed;
+        }
+
+        return normalizer.Normalize(trimmed) ?? trimmed;
     }
 }
+
+/// <summary>
+/// Inputs for creating a <see cref="Member"/>.
+/// </summary>
+public sealed record MemberCreateArgs(
+    long TenantId,
+    string Identifier,
+    string IdentifierKind,
+    IValueNormalizer Normalizer);

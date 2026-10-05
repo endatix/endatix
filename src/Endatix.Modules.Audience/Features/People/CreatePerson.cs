@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -21,7 +22,8 @@ public sealed record CreatePersonCommand(
 
 internal sealed class CreatePersonHandler(
     IAudienceDbContext db,
-    IRepository<Form> forms)
+    IRepository<Form> forms,
+    IValueNormalizer normalizer)
     : ICommandHandler<CreatePersonCommand, Result<PersonDto>>
 {
     public async Task<Result<PersonDto>> Handle(
@@ -194,7 +196,7 @@ internal sealed class CreatePersonHandler(
         CancellationToken cancellationToken)
     {
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        string identifier = Member.Normalize(request.Identifier, identifierKind);
+        string identifier = Member.Normalize(request.Identifier, identifierKind, normalizer);
         Member? member = await db.Members.FirstOrDefaultAsync(
             row => row.TenantId == request.TenantId && row.Identifier == identifier,
             cancellationToken);
@@ -203,7 +205,8 @@ internal sealed class CreatePersonHandler(
             return member;
         }
 
-        member = new Member(request.TenantId, identifier, identifierKind);
+        member = new Member(new MemberCreateArgs(
+            request.TenantId, identifier, identifierKind, normalizer));
         db.Members.Add(member);
         return member;
     }
@@ -213,7 +216,7 @@ internal sealed class CreatePersonHandler(
         CancellationToken cancellationToken)
     {
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        string identifier = Member.Normalize(request.Identifier, identifierKind);
+        string identifier = Member.Normalize(request.Identifier, identifierKind, normalizer);
         return await db.Members.FirstOrDefaultAsync(
             row => row.TenantId == request.TenantId && row.Identifier == identifier,
             cancellationToken);
