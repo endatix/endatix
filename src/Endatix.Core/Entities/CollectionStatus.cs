@@ -5,6 +5,8 @@ namespace Endatix.Core.Entities;
 /// <summary>Built-in wire codes for <see cref="CollectionStatus"/>. Unknown codes stay legal.</summary>
 public static class CollectionStatusCodes
 {
+    public const string NotStarted = "not_started";
+    public const string Viewed = "viewed";
     public const string InProgress = "in_progress";
     public const string Complete = "complete";
     public const string ScreenOut = "screen_out";
@@ -23,6 +25,8 @@ public sealed record CollectionStatus
 
     private static readonly Dictionary<string, CollectionStatus> BuiltIn = new(StringComparer.Ordinal)
     {
+        [CollectionStatusCodes.NotStarted] = new("Not started", CollectionStatusCodes.NotStarted),
+        [CollectionStatusCodes.Viewed] = new("Viewed", CollectionStatusCodes.Viewed),
         [CollectionStatusCodes.InProgress] = new("In progress", CollectionStatusCodes.InProgress),
         [CollectionStatusCodes.Complete] = new("Complete", CollectionStatusCodes.Complete),
         [CollectionStatusCodes.ScreenOut] = new("Screened out", CollectionStatusCodes.ScreenOut),
@@ -32,6 +36,8 @@ public sealed record CollectionStatus
         [CollectionStatusCodes.Cancelled] = new("Cancelled", CollectionStatusCodes.Cancelled),
     };
 
+    public static readonly CollectionStatus NotStarted = BuiltIn[CollectionStatusCodes.NotStarted];
+    public static readonly CollectionStatus Viewed = BuiltIn[CollectionStatusCodes.Viewed];
     public static readonly CollectionStatus InProgress = BuiltIn[CollectionStatusCodes.InProgress];
     public static readonly CollectionStatus Complete = BuiltIn[CollectionStatusCodes.Complete];
     public static readonly CollectionStatus ScreenOut = BuiltIn[CollectionStatusCodes.ScreenOut];

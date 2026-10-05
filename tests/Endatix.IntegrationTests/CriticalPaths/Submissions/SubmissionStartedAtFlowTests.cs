@@ -122,6 +122,89 @@ public sealed class SubmissionStartedAtFlowTests
     }
 
     [Fact]
+    public async Task CreateOnBehalf_WhenIncomplete_IsNotStartedUntilFirstSave()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        IntegrationTestWorld world = await _fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword },
+            cancellationToken);
+
+        long tenantId = world.Tenants[0].Id;
+        await EnsureTenantSettingsAsync(world.Services, tenantId, includeLegacyCsvExport: false, cancellationToken);
+
+        using HttpClient client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
+        string formId = await CreateEnabledFormAsync(client, cancellationToken);
+
+        // Act — prefill on behalf of a respondent
+        HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            $"/api/forms/{formId}/submissions/onbehalf",
+            new { isComplete = false, jsonData = """{"q1":"prefill"}""" },
+            cancellationToken);
+        createResponse.EnsureSuccessStatusCode();
+        SubmissionApiModel created = await ReadSubmissionAsync(createResponse, cancellationToken);
+
+        // Assert — persisted as not_started, no start time
+        Assert.Equal(CollectionStatusCodes.NotStarted, created.CollectionStatus);
+        Assert.Null(created.StartedAt);
+        Assert.False(created.IsComplete);
+
+        HttpResponseMessage getResponse = await client.GetAsync(
+            $"/api/forms/{formId}/submissions/{created.Id}",
+            cancellationToken);
+        getResponse.EnsureSuccessStatusCode();
+        SubmissionApiModel fetched = await ReadSubmissionAsync(getResponse, cancellationToken);
+        Assert.Equal(CollectionStatusCodes.NotStarted, fetched.CollectionStatus);
+        Assert.Null(fetched.StartedAt);
+
+        Assert.Contains(created.Id, await ListIdsAsync(client, formId, "collectionStatus:not_started", cancellationToken));
+        Assert.DoesNotContain(created.Id, await ListIdsAsync(client, formId, "collectionStatus:in_progress", cancellationToken));
+
+        // Act — first content save
+        HttpResponseMessage updateResponse = await client.PatchAsJsonAsync(
+            $"/api/forms/{formId}/submissions/{created.Id}",
+            new { jsonData = """{"q1":"answer"}""", currentPage = 1, isComplete = false },
+            cancellationToken);
+        updateResponse.EnsureSuccessStatusCode();
+        SubmissionApiModel updated = await ReadSubmissionAsync(updateResponse, cancellationToken);
+
+        // Assert — now in progress with a start time
+        Assert.Equal(CollectionStatusCodes.InProgress, updated.CollectionStatus);
+        Assert.NotNull(updated.StartedAt);
+        Assert.Contains(created.Id, await ListIdsAsync(client, formId, "collectionStatus:in_progress", cancellationToken));
+        Assert.DoesNotContain(created.Id, await ListIdsAsync(client, formId, "collectionStatus:not_started", cancellationToken));
+    }
+
+    [Fact]
+    public async Task CreateOnBehalf_WhenComplete_IsComplete()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        IntegrationTestWorld world = await _fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword },
+            cancellationToken);
+
+        long tenantId = world.Tenants[0].Id;
+        await EnsureTenantSettingsAsync(world.Services, tenantId, includeLegacyCsvExport: false, cancellationToken);
+
+        using HttpClient client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
+        string formId = await CreateEnabledFormAsync(client, cancellationToken);
+
+        // Act
+        HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            $"/api/forms/{formId}/submissions/onbehalf",
+            new { isComplete = true, jsonData = """{"q1":"done"}""" },
+            cancellationToken);
+        createResponse.EnsureSuccessStatusCode();
+        SubmissionApiModel created = await ReadSubmissionAsync(createResponse, cancellationToken);
+
+        // Assert
+        Assert.Equal(CollectionStatusCodes.Complete, created.CollectionStatus);
+        Assert.True(created.IsComplete);
+        Assert.NotNull(created.StartedAt);
+    }
+
+    [Fact]
     public async Task ExportCsv_ViaLegacySqlFunction_IncludesStartedAtAndDurationSeconds()
     {
         // Arrange
@@ -273,6 +356,25 @@ public sealed class SubmissionStartedAtFlowTests
             ?? throw new InvalidOperationException("Form create response missing id.");
     }
 
+    private static async Task<List<string>> ListIdsAsync(
+        HttpClient client,
+        string formId,
+        string filter,
+        CancellationToken cancellationToken)
+    {
+        HttpResponseMessage response = await client.GetAsync(
+            $"/api/forms/{formId}/submissions?filter={Uri.EscapeDataString(filter)}",
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        return document.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("id").GetString()!)
+            .ToList();
+    }
+
     private static async Task<SubmissionApiModel> ReadSubmissionAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
@@ -290,5 +392,6 @@ public sealed class SubmissionStartedAtFlowTests
         public DateTime? StartedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string CollectionStatus { get; set; } = string.Empty;
     }
 }
