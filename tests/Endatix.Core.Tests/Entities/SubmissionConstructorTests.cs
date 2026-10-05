@@ -127,6 +127,7 @@ public class SubmissionConstructorTests
         submission.HasStarted.Should().BeTrue();
         submission.StartedAt.Should().NotBeNull();
         submission.CompletedAt.Should().BeNull();
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.InProgress);
     }
 
     [Fact]
@@ -142,6 +143,7 @@ public class SubmissionConstructorTests
 
         submission.HasStarted.Should().BeFalse();
         submission.StartedAt.Should().BeNull();
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.NotStarted);
     }
 
     [Fact]

@@ -33,6 +33,11 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
         SetCompletionStatus(args.IsComplete);
 
+        if (!args.IsComplete && !args.StartSubmission)
+        {
+            SetCollectionStatus(CollectionStatusValue.NotStarted);
+        }
+
         if (args.StartSubmission)
         {
             EnsureStarted();
@@ -298,6 +303,8 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     {
         var code = CollectionStatus?.Code;
         return code is null
+            || code == CollectionStatusCodes.NotStarted
+            || code == CollectionStatusCodes.Viewed
             || code == CollectionStatusCodes.InProgress
             || code == CollectionStatusCodes.Expired;
     }

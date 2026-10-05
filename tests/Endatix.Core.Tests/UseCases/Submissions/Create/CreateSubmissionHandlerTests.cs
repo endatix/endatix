@@ -1049,6 +1049,8 @@ public class CreateSubmissionHandlerTests
         result.Value.IsComplete.Should().BeFalse();
         result.Value.CompletedAt.Should().BeNull();
         result.Value.HasStarted.Should().Be(expectStartedAt);
+        result.Value.CollectionStatus.Code.Should().Be(
+            expectStartedAt ? CollectionStatusCodes.InProgress : CollectionStatusCodes.NotStarted);
         if (expectStartedAt)
         {
             result.Value.StartedAt.Should().NotBeNull();

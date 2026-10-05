@@ -1,3 +1,4 @@
+using System.Reflection;
 using Endatix.Core.Entities;
 
 namespace Endatix.Core.Tests.Entities;
@@ -24,7 +25,7 @@ public class CollectionStatusTests
 
     [Theory]
     [InlineData(true, CollectionStatusCodes.Complete)]
-    [InlineData(false, CollectionStatusCodes.InProgress)]
+    [InlineData(false, CollectionStatusCodes.NotStarted)]
     public void Create_DualWritesCollectionStatus(bool isComplete, string expected)
     {
         var submission = Submission.Create(new SubmissionCreateArgs(
@@ -72,4 +73,47 @@ public class CollectionStatusTests
         Assert.Equal("{}", submission.JsonData);
         Assert.Equal(CollectionStatusCodes.Cancelled, submission.CollectionStatus.Code);
     }
+
+    [Fact]
+    public void Create_WhenRespondentStarts_IsInProgress()
+    {
+        var submission = OpenSubmission(start: true);
+
+        Assert.Equal(CollectionStatusCodes.InProgress, submission.CollectionStatus.Code);
+        Assert.NotNull(submission.StartedAt);
+    }
+
+    [Fact]
+    public void Update_FromNotStarted_BecomesInProgress()
+    {
+        var submission = OpenSubmission(start: false);
+
+        submission.Update("{\"a\":1}", formDefinitionId: 3, formDefinitionFormId: 2, isComplete: false);
+
+        Assert.Equal(CollectionStatusCodes.InProgress, submission.CollectionStatus.Code);
+        Assert.NotNull(submission.StartedAt);
+        Assert.False(submission.IsComplete);
+    }
+
+    [Fact]
+    public void Update_FromViewed_BecomesInProgress()
+    {
+        var submission = OpenSubmission(start: false);
+        typeof(Submission).GetProperty(nameof(Submission.CollectionStatus))!
+            .SetValue(submission, CollectionStatus.Viewed);
+
+        submission.Update("{\"a\":1}", formDefinitionId: 3, formDefinitionFormId: 2, isComplete: false);
+
+        Assert.Equal(CollectionStatusCodes.InProgress, submission.CollectionStatus.Code);
+        Assert.NotNull(submission.StartedAt);
+    }
+
+    private static Submission OpenSubmission(bool start) =>
+        Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 2,
+            FormDefinitionId: 3,
+            JsonData: "{}",
+            IsComplete: false,
+            StartSubmission: start));
 }
