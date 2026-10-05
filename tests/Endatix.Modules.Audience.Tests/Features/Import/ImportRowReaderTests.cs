@@ -62,6 +62,21 @@ public sealed class ImportRowReaderTests
     }
 
     [Fact]
+    public void Read_IdentifierLongerThanTheColumn_RejectsRow()
+    {
+        // Arrange
+        string identifier = new string('a', 251) + "@x.com";
+        List<CsvDataRow> rows = [Row(2, identifier)];
+
+        // Act
+        ImportRows result = ImportRowReader.Read(rows, EmailOnly, EmailKey);
+
+        // Assert
+        result.Accepted.Should().BeEmpty();
+        result.Rejected.Should().ContainSingle().Which.RowNumber.Should().Be(2);
+    }
+
+    [Fact]
     public void Read_InvalidEmail_RejectsRowWithReason()
     {
         // Arrange

@@ -318,6 +318,39 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
     }
 
     [Fact]
+    public async Task Importing_without_the_identifier_column_writes_nothing()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+
+        // Act
+        using HttpResponseMessage response = await api.ImportAsync(formId, "name\nAda\n");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        JsonElement page = await api.Client.GetFromJsonAsync<JsonElement>(
+            $"/api/forms/{formId}/audience/people", api.CancellationToken);
+        Assert.Equal(0, page.GetProperty("totalRecords").GetInt32());
+    }
+
+    [Fact]
+    public async Task Changing_the_match_key_after_an_import_is_a_conflict()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        using HttpResponseMessage imported = await api.ImportAsync(formId, "email\nada@example.com\n");
+        Assert.Equal(HttpStatusCode.OK, imported.StatusCode);
+
+        // Act
+        using HttpResponseMessage response = await api.PutKeyAsync("external_id");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Parallel_imports_of_the_same_people_on_several_forms_all_succeed()
     {
         // Arrange

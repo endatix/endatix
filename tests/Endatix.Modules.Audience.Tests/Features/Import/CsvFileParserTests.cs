@@ -1,4 +1,5 @@
 using Endatix.Modules.Audience.Features.Import;
+using Endatix.Modules.Audience.Shared;
 
 namespace Endatix.Modules.Audience.Tests.Features.Import;
 
@@ -35,6 +36,22 @@ public sealed class CsvFileParserTests
 
         // Assert
         Assert.Equal([2, 4, 5], result.Rows.Select(row => row.RowNumber));
+    }
+
+    [Fact]
+    public void Parse_OverMaxDataRows_ReturnsInvalid()
+    {
+        // Arrange
+        string csv = "email\n" + string.Join(
+            '\n',
+            Enumerable.Range(0, ImportLimits.MaxRows + 1).Select(index => $"p{index}@example.com"));
+
+        // Act
+        CsvFileParseResult result = CsvFileParser.Parse(csv);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains("5000", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
