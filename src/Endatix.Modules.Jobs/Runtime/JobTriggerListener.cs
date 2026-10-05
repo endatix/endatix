@@ -8,11 +8,20 @@ using Quartz;
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
-/// Checks that the job row agrees when a trigger's scheduler retries run out.
+/// Takes over a job whose trigger ran out of scheduler retries while the job's row was unfinished.
 /// </summary>
 /// <remarks>
-/// Only a trigger stored by an earlier version carries a scheduler retry policy. The row, not the scheduler, decides
-/// dead-lettering, so a disagreement is logged and counted, never acted on.
+/// <para>
+/// Only a trigger stored by an earlier version carries a scheduler retry policy, and its retries run out only when a
+/// firing throws to the scheduler, which the job wrapper never means to do. The scheduler then deletes the trigger,
+/// and a row it leaves unfinished would never run again, so the job is re-fired to be taken over, and the
+/// disagreement is logged and counted.
+/// </para>
+/// <para>
+/// The re-fire is a trigger keyed by the job's id, as every trigger of the job is, so it replaces whatever trigger
+/// the job has rather than adding a second, however many nodes run this; and its claim is fenced on the row's
+/// attempt, so a take-over the row did not need changes nothing.
+/// </para>
 /// </remarks>
 internal sealed class JobTriggerListener : ITriggerListener
 {
@@ -30,7 +39,7 @@ internal sealed class JobTriggerListener : ITriggerListener
         _retriesExhaustedMismatches = meterFactory.Create(JobsModule.MeterName).CreateCounter<long>(
             "endatix.jobs.retries_exhausted_mismatch",
             unit: "{job}",
-            description: "Jobs whose scheduler retries ran out while their row was not yet terminal.");
+            description: "Jobs whose scheduler retries ran out while their row was not yet terminal, each then taken over.");
     }
 
     public string Name => "endatix-jobs-trigger-listener";
@@ -43,34 +52,61 @@ internal sealed class JobTriggerListener : ITriggerListener
     {
         if (JobIdOf(context) is { } jobId)
         {
-            await CheckRowIsTerminalAsync(jobId, trigger.JobKey.Name, cancellationToken);
+            await TakeOverIfUnfinishedAsync(context, new ReclaimableJob(jobId, trigger.JobKey.Name), cancellationToken);
         }
     }
 
-    private async Task CheckRowIsTerminalAsync(long jobId, string jobType, CancellationToken cancellationToken)
+    private async Task TakeOverIfUnfinishedAsync(
+        IJobExecutionContext context,
+        ReclaimableJob job,
+        CancellationToken cancellationToken)
+    {
+        if (!await ReportIfUnfinishedAsync(job, cancellationToken))
+        {
+            return;
+        }
+
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<UnrecordedJobRefire>().TakeOverAsync(context, job);
+    }
+
+    // Returns whether the job is to be taken over. A row that cannot be read is: taking over a finished row finds
+    // nothing to claim, while leaving an unfinished one would strand it.
+    private async Task<bool> ReportIfUnfinishedAsync(ReclaimableJob job, CancellationToken cancellationToken)
     {
         try
         {
-            var status = await _scopeFactory.WithStateRepositoryAsync(
-                repository => repository.ReadStatusAsync(jobId, cancellationToken));
-            if (status is { } current && !IsTerminal(current))
+            if (await ReadStatusAsync(job.JobId, cancellationToken) is not { } current || IsTerminal(current))
             {
-                ReportMismatch(jobId, jobType, current);
+                return false;
             }
+
+            ReportUnfinished(job, current);
+            return true;
         }
         catch (Exception readFailure)
         {
-            _logger.LogWarning(readFailure, "Checking background job {JobId} after its retries ran out failed", jobId);
+            ReportUnread(job, readFailure);
+            return true;
         }
     }
 
-    private void ReportMismatch(long jobId, string jobType, JobStatus status)
-    {
-        _retriesExhaustedMismatches.Add(1, new KeyValuePair<string, object?>("endatix.job.type", jobType));
+    private void ReportUnread(ReclaimableJob job, Exception readFailure) =>
         _logger.LogWarning(
-            "The scheduler ran out of retries for background job {JobId} of type {JobType}, whose row is still {Status}",
-            jobId,
-            jobType,
+            readFailure,
+            "Reading background job {JobId} after its scheduler retries ran out failed; the job is re-fired to be taken over in case its row is unfinished",
+            job.JobId);
+
+    private Task<JobStatus?> ReadStatusAsync(long jobId, CancellationToken cancellationToken) =>
+        _scopeFactory.WithStateRepositoryAsync(repository => repository.ReadStatusAsync(jobId, cancellationToken));
+
+    private void ReportUnfinished(ReclaimableJob job, JobStatus status)
+    {
+        _retriesExhaustedMismatches.Add(1, new KeyValuePair<string, object?>("endatix.job.type", job.JobType));
+        _logger.LogWarning(
+            "The scheduler ran out of retries for background job {JobId} of type {JobType}, whose row is still {Status}; the job is re-fired to be taken over",
+            job.JobId,
+            job.JobType,
             status);
     }
 

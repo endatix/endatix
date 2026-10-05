@@ -111,6 +111,18 @@ internal sealed class UnrecordedJobRefire(
         }
     }
 
+    /// <summary>
+    /// Re-fires a job whose firing ends with its row unfinished and nothing scheduled to run it, so the job is taken
+    /// over: a row left <c>Processing</c> is re-claimed, and any other unfinished row is claimed as usual.
+    /// </summary>
+    public async Task TakeOverAsync(IJobExecutionContext context, ReclaimableJob job)
+    {
+        if (await TryRefireAsync(context, job) is { } fireAt)
+        {
+            logger.LogWarning("Background job {JobId} is re-fired at {FireAt:O} to be taken over", job.JobId, fireAt);
+        }
+    }
+
     // Returns when the job fires again, or null when nothing was scheduled.
     private async Task<DateTimeOffset?> TryRefireAsync(IJobExecutionContext context, ReclaimableJob job)
     {

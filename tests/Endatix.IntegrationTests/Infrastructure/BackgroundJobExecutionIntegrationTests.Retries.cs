@@ -116,6 +116,30 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         retry.NextFireTime.Should().BeCloseTo(row.NextAttemptAt, TimeSpan.FromSeconds(1));
     }
 
+    [Fact]
+    public async Task Job_whose_scheduler_retries_run_out_while_its_row_is_unfinished_is_taken_over_and_completes()
+    {
+        // Arrange — the job's only trigger is one whose firings throw to the scheduler, with one retry, so the
+        // scheduler gives up on it and deletes it while the row is still Pending.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        var invocations = new ProbeInvocations();
+        await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, new(), ct);
+        var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
+        await ReplaceWithThrowingTriggerAsync(scheduleOnly, jobId, ct);
+
+        // Act
+        await using var worker = await StartNodeAsync(new(database, invocations), ct);
+        var row = await database.WaitForStatusAsync(new ExpectedJobStatus(jobId, JobStatus.Completed, RetryPatience), ct);
+
+        // Assert — a trigger of the job's own took it over and ran it.
+        row.Status.Should().Be(JobStatus.Completed);
+        row.AttemptCount.Should().Be(1);
+        invocations.CountFor(jobId).Should().Be(1);
+        (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
+    }
+
     private static Dictionary<string, string?> FastAttempts(int maxAttempts) => new()
     {
         [ProbeKey("MaxAttempts")] = maxAttempts.ToString(CultureInfo.InvariantCulture),
@@ -147,5 +171,24 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
             .StartNow()
             .Build();
         await scheduler.RescheduleJob(key, trigger, ct);
+    }
+
+    private static async Task ReplaceWithThrowingTriggerAsync(JobsTestNode node, long jobId, CancellationToken ct)
+    {
+        var scheduler = await SchedulerOfAsync(node, ct);
+        var id = jobId.ToString(CultureInfo.InvariantCulture);
+        await scheduler.UnscheduleJob(new TriggerKey(id, ProbePayload.JobType), ct);
+
+        // Named after the job type, as the job wrapper's durable job is, because the job type is read from the name.
+        var throwing = JobBuilder.Create<ThrowingJob>().WithIdentity(ProbePayload.JobType, "throwing").Build();
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity($"throwing-{id}", ProbePayload.JobType)
+            .ForJob(throwing)
+            .WithExecutionGroup(ProbePayload.JobType)
+            .UsingJobData(BackgroundJobExecution.JobIdKey, id)
+            .WithRetryPolicy(RetryPolicy.Fixed(1, TimeSpan.FromSeconds(1)))
+            .StartNow()
+            .Build();
+        await scheduler.ScheduleJob(throwing, trigger, default, ct);
     }
 }
