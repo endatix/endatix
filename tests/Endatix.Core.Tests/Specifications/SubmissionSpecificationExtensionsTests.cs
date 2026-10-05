@@ -36,13 +36,34 @@ public class SubmissionSpecificationExtensionsTests
         var overLong = new string('x', CollectionStatus.CODE_MAX_LENGTH + 1);
         var equalSpec = new TestSubmissionSpec(10, [$"collectionStatus:IN_PROGRESS|{overLong}"]);
         var notEqualSpec = new TestSubmissionSpec(10, [$"collectionStatus!:{overLong}"]);
-        var inProgress = CreateSubmission(10, SubmissionStatus.New, isComplete: false);
+        var inProgress = CreateSubmission(10, SubmissionStatus.New, isComplete: false, startSubmission: true);
+        var notStarted = CreateSubmission(10, SubmissionStatus.New, isComplete: false);
         var complete = CreateSubmission(10, SubmissionStatus.New, isComplete: true);
 
         // Act & Assert
         Matches(equalSpec, inProgress).Should().BeTrue();
+        Matches(equalSpec, notStarted).Should().BeFalse();
         Matches(equalSpec, complete).Should().BeFalse();
         Matches(notEqualSpec, complete).Should().BeTrue();
+    }
+
+    [Fact]
+    public void WhereFormIdAndFilters_CollectionStatus_SeparatesNotStartedFromInProgress()
+    {
+        // Arrange
+        var notStartedSpec = new TestSubmissionSpec(10, ["collectionStatus:not_started"]);
+        var openSpec = new TestSubmissionSpec(10, ["collectionStatus:not_started|viewed|in_progress"]);
+        var excludeNotStartedSpec = new TestSubmissionSpec(10, ["collectionStatus!:not_started"]);
+        var notStarted = CreateSubmission(10, SubmissionStatus.New, isComplete: false);
+        var inProgress = CreateSubmission(10, SubmissionStatus.New, isComplete: false, startSubmission: true);
+
+        // Act & Assert
+        Matches(notStartedSpec, notStarted).Should().BeTrue();
+        Matches(notStartedSpec, inProgress).Should().BeFalse();
+        Matches(openSpec, notStarted).Should().BeTrue();
+        Matches(openSpec, inProgress).Should().BeTrue();
+        Matches(excludeNotStartedSpec, notStarted).Should().BeFalse();
+        Matches(excludeNotStartedSpec, inProgress).Should().BeTrue();
     }
 
     [Fact]
@@ -152,7 +173,8 @@ public class SubmissionSpecificationExtensionsTests
         SubmissionStatus status,
         DateTime? createdAt = null,
         DateTime? completedAt = null,
-        bool isComplete = true)
+        bool isComplete = true,
+        bool startSubmission = false)
     {
         var formDefinition = new FormDefinition(SampleData.TENANT_ID);
         typeof(FormDefinition)
@@ -164,7 +186,8 @@ public class SubmissionSpecificationExtensionsTests
             FormId: formId,
             FormDefinitionId: 1,
             JsonData: "{}",
-            IsComplete: isComplete));
+            IsComplete: isComplete,
+            StartSubmission: startSubmission));
 
         typeof(Submission)
             .GetProperty(nameof(Submission.FormDefinition))!

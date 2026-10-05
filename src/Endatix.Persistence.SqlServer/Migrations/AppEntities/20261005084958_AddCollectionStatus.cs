@@ -20,7 +20,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
             migrationBuilder.Sql("""
                 UPDATE [Submissions]
-                SET [CollectionStatus] = CASE WHEN [IsComplete] = 1 THEN N'complete' ELSE N'in_progress' END;
+                SET [CollectionStatus] = CASE
+                    WHEN [IsComplete] = 1 THEN N'complete'
+                    WHEN [StartedAt] IS NULL THEN N'not_started'
+                    ELSE N'in_progress'
+                END;
                 """);
 
             migrationBuilder.Sql("""

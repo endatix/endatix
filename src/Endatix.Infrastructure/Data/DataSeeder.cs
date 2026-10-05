@@ -101,7 +101,9 @@ public class DataSeeder(ILogger<DataSeeder> logger)
             FormId: form.Id,
             FormDefinitionId: formDefinitionId ?? form.ActiveDefinition!.Id,
             JsonData: submissionInfo.JsonData.GetRawText(),
-            IsComplete: submissionInfo.IsComplete));
+            IsComplete: submissionInfo.IsComplete,
+            // Seed rows carry respondent answers: incomplete ones are in progress, not unengaged prefills.
+            StartSubmission: true));
 
         submission.UpdateStatus(SubmissionStatus.FromCode(submissionInfo.Status));
 

@@ -33,14 +33,14 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
         SetCompletionStatus(args.IsComplete);
 
-        if (!args.IsComplete && !args.StartSubmission)
-        {
-            SetCollectionStatus(CollectionStatusValue.NotStarted);
-        }
-
         if (args.StartSubmission)
         {
             EnsureStarted();
+        }
+        else if (!args.IsComplete)
+        {
+            // Created on behalf (prefill): no respondent engagement yet, StartedAt stays null.
+            SetCollectionStatus(CollectionStatusValue.NotStarted);
         }
     }
 
@@ -138,10 +138,18 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public bool HasStarted => StartedAt is not null;
 
     /// <summary>
-    /// Records first engagement once. Subsequent calls are no-ops.
+    /// Records first engagement once. Subsequent calls do not move <see cref="StartedAt"/>.
+    /// An unengaged row (<c>not_started</c> / <c>viewed</c>) moves to <c>in_progress</c>, so a
+    /// recorded start never sits next to an unengaged collection status. Terminal and custom
+    /// statuses are left alone.
     /// </summary>
     public void EnsureStarted(DateTime? at = null)
     {
+        if (IsUnengagedCollection())
+        {
+            SetCollectionStatus(CollectionStatusValue.InProgress);
+        }
+
         if (HasStarted)
         {
             return;
@@ -214,8 +222,17 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     }
 
     /// <summary>Owner or system void. Does not mark the interview complete.</summary>
-    public void Cancel() =>
+    /// <exception cref="InvalidOperationException">The submission is already complete.</exception>
+    public void Cancel()
+    {
+        // A complete row stays complete: cancelled with IsComplete true would contradict the dual-write.
+        if (IsComplete)
+        {
+            throw new InvalidOperationException("A complete submission cannot be cancelled.");
+        }
+
         SetCollectionStatus(CollectionStatusValue.Cancelled);
+    }
 
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
     public void IncrementRevision() => Revision++;
@@ -307,6 +324,13 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             || code == CollectionStatusCodes.Viewed
             || code == CollectionStatusCodes.InProgress
             || code == CollectionStatusCodes.Expired;
+    }
+
+    private bool IsUnengagedCollection()
+    {
+        var code = CollectionStatus?.Code;
+        return code == CollectionStatusCodes.NotStarted
+            || code == CollectionStatusCodes.Viewed;
     }
 
     private void SetCollectionStatus(CollectionStatus status) =>

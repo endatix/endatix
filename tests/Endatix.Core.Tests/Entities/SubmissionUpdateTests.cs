@@ -147,5 +147,6 @@ public class SubmissionUpdateTests
 
         // Assert
         submission.StartedAt.Should().Be(fixedStart);
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.InProgress);
     }
 }

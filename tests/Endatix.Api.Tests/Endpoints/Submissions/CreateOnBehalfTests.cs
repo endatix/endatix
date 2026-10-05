@@ -167,4 +167,74 @@ public class CreateOnBehalfTests
             Arg.Any<CancellationToken>()
         );
     }
+    [Theory]
+    [InlineData(null)]
+    [InlineData(false)]
+    public async Task ExecuteAsync_IncompleteOnBehalf_ReturnsNotStartedWithoutStartedAt(bool? isComplete)
+    {
+        // Arrange
+        var request = new CreateSubmissionOnBehalfRequest
+        {
+            FormId = 123,
+            JsonData = """{ "field": "prefill" }""",
+            IsComplete = isComplete
+        };
+        var submission = Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: request.JsonData!,
+            IsComplete: false,
+            StartSubmission: false));
+
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Submission>.Created(submission));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var created = response.Result as Created<SubmissionModel>;
+        created.Should().NotBeNull();
+        created!.Value!.CollectionStatus.Should().Be(CollectionStatusCodes.NotStarted);
+        created.Value.StartedAt.Should().BeNull();
+        created.Value.IsComplete.Should().BeFalse();
+        await _mediator.Received(1).Send(
+            Arg.Is<CreateSubmissionCommand>(cmd =>
+                cmd.IsComplete == isComplete &&
+                cmd.RequiredPermission == "submissions.create.onbehalf"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_CompleteOnBehalf_ReturnsComplete()
+    {
+        // Arrange
+        var request = new CreateSubmissionOnBehalfRequest
+        {
+            FormId = 123,
+            JsonData = """{ "field": "done" }""",
+            IsComplete = true
+        };
+        var submission = Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: request.JsonData!,
+            IsComplete: true,
+            StartSubmission: false));
+
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Submission>.Created(submission));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var created = response.Result as Created<SubmissionModel>;
+        created.Should().NotBeNull();
+        created!.Value!.CollectionStatus.Should().Be(CollectionStatusCodes.Complete);
+        created.Value.StartedAt.Should().NotBeNull();
+        created.Value.IsComplete.Should().BeTrue();
+    }
 }

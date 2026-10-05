@@ -20,7 +20,11 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 
             migrationBuilder.Sql("""
                 UPDATE "Submissions"
-                SET "CollectionStatus" = CASE WHEN "IsComplete" THEN 'complete' ELSE 'in_progress' END;
+                SET "CollectionStatus" = CASE
+                    WHEN "IsComplete" THEN 'complete'
+                    WHEN "StartedAt" IS NULL THEN 'not_started'
+                    ELSE 'in_progress'
+                END;
                 """);
 
             migrationBuilder.Sql("""
