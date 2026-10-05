@@ -76,6 +76,14 @@ public static class FeatureFlagCatalogue
             flagClass: FeatureFlagClass.Rollout,
             scope: FeatureFlagScope.Deployment),
 
+        // Deployment-scoped: owns a DbContext and migrations. Off until Hub/API slice is ready.
+        FeatureFlagDefinition.Boolean(
+            key: "personalization-module",
+            configKey: FeatureFlags.PersonalizationModule,
+            defaultValue: false,
+            flagClass: FeatureFlagClass.Rollout,
+            scope: FeatureFlagScope.Deployment),
+
         // Deployment-scoped: PlatformAdmin create/assume runs before a target-tenant context exists.
         FeatureFlagDefinition.Boolean(
             key: "multi-tenancy",

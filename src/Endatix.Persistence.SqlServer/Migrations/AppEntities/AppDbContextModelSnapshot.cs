@@ -620,7 +620,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bigint")
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None)
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
-
                     b.Property<string>("CollectionStatus")
                         .IsRequired()
                         .HasMaxLength(32)

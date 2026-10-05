@@ -1,0 +1,77 @@
+using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
+using Endatix.Core.Infrastructure.Domain;
+
+namespace Endatix.Modules.Audience.Domain;
+
+/// <summary>
+/// One property cell on a form membership.
+/// </summary>
+public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
+{
+    public const int VALUE_MAX_LENGTH = 4000;
+
+    /// <summary>
+    /// Database names of the unique indexes on <see cref="PropertyValue"/>.
+    /// </summary>
+    public static class UniqueConstraints
+    {
+        public const string CellPerMembership = "IX_PropertyValues_Cell";
+    }
+
+    private PropertyValue()
+    {
+        Value = string.Empty;
+    }
+
+    public PropertyValue(PropertyValueCreateArgs args)
+    {
+        Guard.Against.Null(args);
+        Guard.Against.NegativeOrZero(args.TenantId);
+        Guard.Against.NegativeOrZero(args.MembershipId);
+        Guard.Against.NegativeOrZero(args.PropertyId);
+        DomainValidationException.ThrowIfError(StoredValueError(args.Value), nameof(args));
+
+        TenantId = args.TenantId;
+        MembershipId = args.MembershipId;
+        PropertyId = args.PropertyId;
+        Value = args.Value;
+    }
+
+    public long TenantId { get; private set; }
+
+    public long MembershipId { get; private set; }
+
+    public long PropertyId { get; private set; }
+
+    /// <summary>
+    /// Canonical, never empty: an empty input clears the cell (soft delete) instead. Multiple
+    /// choice is a JSON array of choice keys.
+    /// </summary>
+    public string Value { get; private set; }
+
+    public void SetValue(string value)
+    {
+        DomainValidationException.ThrowIfError(StoredValueError(value), nameof(value));
+        Value = value;
+    }
+
+    private static string? StoredValueError(string? value) =>
+        value is { Length: 0 }
+            ? "A stored value cannot be empty; clear the cell instead."
+            : ValueError(value);
+
+    public static string? ValueError(string? value)
+    {
+        if (value is null)
+        {
+            return "Value is required.";
+        }
+
+        return value.Length > VALUE_MAX_LENGTH
+            ? $"Value must be at most {VALUE_MAX_LENGTH} characters."
+            : null;
+    }
+}
