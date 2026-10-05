@@ -10,9 +10,9 @@ namespace Endatix.Modules.Audience.Features.Settings;
 public sealed record GetAudienceSettingsQuery(long TenantId) : IQuery<Result<AudienceSettingsDto>>;
 
 /// <summary>
-/// Tenant match-key settings.
+/// Tenant match-key settings. <paramref name="IsLocked"/> is true while any person is on a form.
 /// </summary>
-public sealed record AudienceSettingsDto(string IdentifierKind);
+public sealed record AudienceSettingsDto(string IdentifierKind, bool IsLocked);
 
 internal sealed class GetAudienceSettingsHandler(IAudienceDbContext db)
     : IQueryHandler<GetAudienceSettingsQuery, Result<AudienceSettingsDto>>
@@ -27,6 +27,7 @@ internal sealed class GetAudienceSettingsHandler(IAudienceDbContext db)
         }
 
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        return Result.Success(new AudienceSettingsDto(identifierKind));
+        bool isLocked = await IdentifierKindReader.IsLockedAsync(db, request.TenantId, cancellationToken);
+        return Result.Success(new AudienceSettingsDto(identifierKind, isLocked));
     }
 }

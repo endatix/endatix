@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -19,7 +20,8 @@ public sealed record UpdatePersonCommand(
 
 internal sealed class UpdatePersonHandler(
     IAudienceDbContext db,
-    IRepository<Form> forms)
+    IRepository<Form> forms,
+    IUniqueConstraintViolationChecker violations)
     : ICommandHandler<UpdatePersonCommand, Result<PersonDto>>
 {
     public async Task<Result<PersonDto>> Handle(
@@ -32,12 +34,41 @@ internal sealed class UpdatePersonHandler(
             return loaded.ToErrorResult<PersonDto>();
         }
 
-        Membership membership = loaded.Value;
+        await UpsertWithRetryAsync(request, loaded.Value, cancellationToken);
+        return await ToDtoAsync(loaded.Value, cancellationToken);
+    }
+
+    /// <summary>
+    /// A parallel update can add the same cell first. It is committed by the time the index
+    /// refuses this one, so a second pass finds it and overwrites it instead of inserting.
+    /// </summary>
+    private async Task UpsertWithRetryAsync(
+        UpdatePersonCommand request,
+        Membership membership,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await UpsertAsync(request, membership, cancellationToken);
+        }
+        catch (DbUpdateException ex) when (violations.IsViolationOf(
+            ex,
+            PropertyValue.UniqueConstraints.CellPerMembership))
+        {
+            ((DbContext)db).ChangeTracker.Clear();
+            await UpsertAsync(request, membership, cancellationToken);
+        }
+    }
+
+    private async Task UpsertAsync(
+        UpdatePersonCommand request,
+        Membership membership,
+        CancellationToken cancellationToken)
+    {
         await PropertyValuesWriter.UpsertAsync(
             new PropertyValueWrite(db, request.TenantId, membership.Id, request.Values),
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        return await ToDtoAsync(membership, cancellationToken);
     }
 
     private async Task<Result<Membership>> LoadAsync(
@@ -51,7 +82,7 @@ internal sealed class UpdatePersonHandler(
             return formGate.ToErrorResult<Membership>();
         }
 
-        Membership? membership = await db.Memberships.FirstOrDefaultAsync(
+        Membership? membership = await db.Memberships.AsNoTracking().FirstOrDefaultAsync(
             row => row.Id == request.MembershipId && row.FormId == request.FormId,
             cancellationToken);
         return membership is null
@@ -64,15 +95,9 @@ internal sealed class UpdatePersonHandler(
         Membership membership,
         CancellationToken cancellationToken)
     {
-        Result propertyIds = await PropertyValuesWriter.ValidatePropertyIdsAsync(
-            new PropertyIdCheck(db, request.FormId, request.Values.Keys.ToList()),
+        Result values = await PropertyValuesWriter.ValidateAsync(
+            new PropertyValuesCheck(db, request.FormId, request.Values),
             cancellationToken);
-        if (!propertyIds.IsSuccess)
-        {
-            return propertyIds.ToErrorResult<Membership>();
-        }
-
-        Result values = PropertyValuesWriter.ValueResult(request.Values);
         return values.IsSuccess
             ? Result.Success(membership)
             : values.ToErrorResult<Membership>();
@@ -82,15 +107,15 @@ internal sealed class UpdatePersonHandler(
         Membership membership,
         CancellationToken cancellationToken)
     {
-        Member? member = await db.Members
+        Member? member = await db.Members.AsNoTracking()
             .FirstOrDefaultAsync(row => row.Id == membership.MemberId, cancellationToken);
         if (member is null)
         {
             return Result.NotFound("Audience member not found.");
         }
 
-        Dictionary<long, string> allValues = await db.PropertyValues
-            .Where(value => value.MembershipId == membership.Id)
+        Dictionary<long, string> allValues = await PropertyValuesWriter
+            .ActiveCells(db, [membership.Id])
             .ToDictionaryAsync(value => value.PropertyId, value => value.Value, cancellationToken);
         return new PersonDto(membership.Id, member.Id, member.Identifier, allValues);
     }

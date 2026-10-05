@@ -17,7 +17,7 @@ internal sealed class PropertyValueConfiguration : IEntityTypeConfiguration<Prop
         builder.Property(value => value.MembershipId).IsRequired();
         builder.Property(value => value.PropertyId).IsRequired();
         builder.Property(value => value.Value)
-            .HasMaxLength(PropertyValue.VALUE_MAX_LENGHT)
+            .HasMaxLength(PropertyValue.VALUE_MAX_LENGTH)
             .IsRequired();
     }
 }

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace Endatix.Modules.Audience.Features.Settings;
 
 /// <summary>
-/// Updates the tenant audience match key. Refused once any member exists.
+/// Updates the tenant audience match key. Refused while any person is on a form's audience.
 /// </summary>
 public sealed record UpdateAudienceSettingsCommand(long TenantId, string IdentifierKind)
     : ICommand<Result<AudienceSettingsDto>>;
@@ -21,9 +21,14 @@ internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db)
         UpdateAudienceSettingsCommand request,
         CancellationToken cancellationToken)
     {
-        return request.TenantId <= 0
-            ? Result.Unauthorized("Tenant context is required.")
-            : await SaveLockedAsync(request, cancellationToken);
+        if (request.TenantId <= 0)
+        {
+            return Result.Unauthorized("Tenant context is required.");
+        }
+
+        return AudienceIdentifierKindCodes.IsKnown(request.IdentifierKind)
+            ? await SaveLockedAsync(request, cancellationToken)
+            : Result.Invalid(new ValidationError($"Unknown identifier kind '{request.IdentifierKind}'."));
     }
 
     private async Task<Result<AudienceSettingsDto>> SaveLockedAsync(
@@ -31,39 +36,56 @@ internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db)
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
-            await MatchKeyLock.BeginAsync(db, request.TenantId, cancellationToken);
-        Result gate = await ValidateAsync(request, cancellationToken);
-        if (!gate.IsSuccess)
+            await MatchKeyLock.BeginExclusiveAsync(db, request.TenantId, cancellationToken);
+        Result<AudienceSettingsDto> saved = await ApplyAsync(request, cancellationToken);
+        if (saved.IsSuccess)
         {
-            return gate.ToErrorResult<AudienceSettingsDto>();
+            await transaction.CommitAsync(cancellationToken);
         }
 
-        AudienceSettings settings = await UpsertAsync(request, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind));
+        return saved;
     }
 
-    private async Task<Result> ValidateAsync(
+    /// <summary>
+    /// Saving the current key returns it unchanged. A different key is refused while people are
+    /// on a form; otherwise old members are retired and the key is saved.
+    /// </summary>
+    private async Task<Result<AudienceSettingsDto>> ApplyAsync(
         UpdateAudienceSettingsCommand request,
         CancellationToken cancellationToken)
     {
-        if (!AudienceIdentifierKindCodes.IsKnown(request.IdentifierKind))
+        string current = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
+        bool isLocked = await IdentifierKindReader.IsLockedAsync(db, request.TenantId, cancellationToken);
+        if (current == request.IdentifierKind)
         {
-            return Result.Invalid(new ValidationError(
-                $"Unknown identifier kind '{request.IdentifierKind}'."));
+            return Result.Success(new AudienceSettingsDto(current, isLocked));
         }
 
-        return await HasNoMembersAsync(request.TenantId, cancellationToken);
+        if (isLocked)
+        {
+            return Result.Conflict("The match key cannot change while people are on a form's audience.");
+        }
+
+        await RetireMembersAsync(request.TenantId, cancellationToken);
+        AudienceSettings settings = await UpsertAsync(request, cancellationToken);
+        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind, IsLocked: false));
     }
 
-    private async Task<Result> HasNoMembersAsync(long tenantId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Members left over from removed people were normalized under the old key. They are on no
+    /// form, so they are soft-deleted rather than matched under the new key.
+    /// </summary>
+    private Task<int> RetireMembersAsync(long tenantId, CancellationToken cancellationToken)
     {
-        bool hasMembers = await db.Members
-            .AnyAsync(member => member.TenantId == tenantId, cancellationToken);
-        return hasMembers
-            ? Result.Conflict(
-                "The match key cannot change after audience members exist for this tenant.")
-            : Result.Success();
+        DateTime now = DateTime.UtcNow;
+        return db.Members
+            .Where(member => member.TenantId == tenantId)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(member => member.IsDeleted, true)
+                    .SetProperty(member => member.DeletedAt, now)
+                    .SetProperty(member => member.ModifiedAt, now),
+                cancellationToken);
     }
 
     private async Task<AudienceSettings> UpsertAsync(

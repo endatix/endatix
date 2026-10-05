@@ -14,6 +14,14 @@ namespace Endatix.Modules.Audience.Domain;
 /// </summary>
 public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
 {
+    /// <summary>
+    /// Database names of the unique indexes on <see cref="Property"/>.
+    /// </summary>
+    public static class UniqueConstraints
+    {
+        public const string VariableNamePerForm = "IX_Properties_VariableName";
+    }
+
     private static readonly Regex NonSlug = new(
         "[^a-z0-9]+",
         RegexOptions.Compiled,
@@ -28,6 +36,19 @@ public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
 
     public Property(PropertyCreateArgs args)
     {
+        Validate(args);
+        TenantId = args.TenantId;
+        FormId = args.FormId;
+        Name = args.Name.Trim();
+        VariableName = SlugOf(Name);
+        DataType = args.DataType;
+        SortOrder = args.SortOrder;
+        ChoicesJson = args.ChoicesJson;
+        AllowsOther = args.AllowsOther;
+    }
+
+    private static void Validate(PropertyCreateArgs args)
+    {
         Guard.Against.Null(args);
         Guard.Against.NegativeOrZero(args.TenantId);
         Guard.Against.NegativeOrZero(args.FormId);
@@ -37,14 +58,9 @@ public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
             throw new ArgumentException($"Unknown audience data type '{args.DataType}'.", nameof(args));
         }
 
-        TenantId = args.TenantId;
-        FormId = args.FormId;
-        Name = args.Name.Trim();
-        VariableName = SlugOf(Name);
-        DataType = args.DataType;
-        SortOrder = args.SortOrder;
-        ChoicesJson = args.ChoicesJson;
-        AllowsOther = args.AllowsOther;
+        DomainValidationException.ThrowIfError(
+            ChoicesError(args.DataType, args.ChoicesJson, args.AllowsOther),
+            nameof(args));
     }
 
     public long TenantId { get; private set; }
@@ -74,6 +90,17 @@ public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
     }
 
     public void Reorder(int sortOrder) => SortOrder = sortOrder;
+
+    /// <summary>
+    /// Checks one cell value against this property's data type and choices.
+    /// </summary>
+    public string? ValueError(string value) => PropertyValueRules.ValueError(this, value);
+
+    /// <summary>
+    /// Choice types need a JSON array of distinct, non-blank keys. Other types take no choices.
+    /// </summary>
+    public static string? ChoicesError(string dataType, string? choicesJson, bool allowsOther) =>
+        PropertyValueRules.ChoicesError(dataType, choicesJson, allowsOther);
 
     public static string? NameError(string? name)
     {

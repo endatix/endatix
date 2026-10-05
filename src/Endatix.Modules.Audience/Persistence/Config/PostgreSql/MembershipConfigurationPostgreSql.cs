@@ -29,7 +29,7 @@ internal sealed class MembershipConfigurationPostgreSql : IEntityTypeConfigurati
                 membership.MemberId,
             })
             .IsUnique()
-            .HasDatabaseName("IX_Memberships_Member")
+            .HasDatabaseName(Membership.UniqueConstraints.MemberPerForm)
             .HasFilter($"\"{nameof(Membership.IsDeleted)}\" = false");
     }
 }

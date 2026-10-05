@@ -22,6 +22,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     Identifier = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    NormalizedIdentifier = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     SubmitterId = table.Column<long>(type: "bigint", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -124,7 +125,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                 name: "IX_Members_Identifier",
                 schema: "audience",
                 table: "Members",
-                columns: new[] { "TenantId", "Identifier" },
+                columns: new[] { "TenantId", "NormalizedIdentifier" },
                 unique: true,
                 filter: "\"IsDeleted\" = false");
 

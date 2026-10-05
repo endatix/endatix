@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -48,7 +49,8 @@ public sealed record PropertyDto(
 
 internal sealed class CreatePropertyHandler(
     IAudienceDbContext db,
-    IRepository<Form> forms)
+    IRepository<Form> forms,
+    IUniqueConstraintViolationChecker violations)
     : ICommandHandler<CreatePropertyCommand, Result<PropertyDto>>
 {
     public async Task<Result<PropertyDto>> Handle(
@@ -108,7 +110,7 @@ internal sealed class CreatePropertyHandler(
     private static string? InputError(CreatePropertyCommand request) =>
         Property.VariableNameError(request.Name)
         ?? (AudienceDataTypeCodes.IsKnown(request.DataType)
-            ? null
+            ? Property.ChoicesError(request.DataType, request.ChoicesJson, request.AllowsOther)
             : $"Unknown audience data type '{request.DataType}'.");
 
     private async Task<Result> EnsureUniqueAsync(
@@ -157,9 +159,9 @@ internal sealed class CreatePropertyHandler(
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException ex) when (UniqueIndexViolation.Is(
+        catch (DbUpdateException ex) when (violations.IsViolationOf(
             ex,
-            UniqueIndexViolation.PropertiesVariableName))
+            Property.UniqueConstraints.VariableNamePerForm))
         {
             return Result.Conflict(
                 $"An audience property with variable name '{property.VariableName}' already exists on this form.");

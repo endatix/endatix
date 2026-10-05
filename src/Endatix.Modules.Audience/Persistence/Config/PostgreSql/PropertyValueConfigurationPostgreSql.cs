@@ -20,7 +20,7 @@ internal sealed class PropertyValueConfigurationPostgreSql : IEntityTypeConfigur
 
         builder.HasIndex(value => new { value.TenantId, value.MembershipId, value.PropertyId })
             .IsUnique()
-            .HasDatabaseName("IX_PropertyValues_Cell")
+            .HasDatabaseName(PropertyValue.UniqueConstraints.CellPerMembership)
             .HasFilter($"\"{nameof(PropertyValue.IsDeleted)}\" = false");
 
         builder.HasIndex(value => new { value.TenantId, value.PropertyId })

@@ -49,14 +49,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Endatix:Data:SeedSampleData", "false");
         builder.UseSetting("Endatix:Data:SeedSampleForms", "false");
 
-        // Deployment-scoped and off by default, so the tenant management endpoints would 404 here.
-        builder.UseSetting("Endatix:FeatureFlags:MultiTenancy", "true");
-
-        // Jobs is PostgreSQL-only and fails startup deliberately on anything else, so the flag
-        // follows the provider this run is using. Tests that need the module skip on SQL Server.
-        builder.UseSetting(
-            "Endatix:FeatureFlags:JobsModule",
-            (provider == TestDatabaseProvider.PostgreSql).ToString());
+        ConfigureFeatureFlags(builder, provider);
 
         var auth = IntegrationTestAuthSettings.FromEnvironment();
         builder.UseSetting("Endatix:Auth:Providers:Keycloak:Enabled", "false");
@@ -74,5 +67,18 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
         builder.UseSetting("Logging:LogLevel:Microsoft", "Warning");
         builder.UseSetting("Logging:LogLevel:System", "Warning");
+    }
+
+    private static void ConfigureFeatureFlags(IWebHostBuilder builder, TestDatabaseProvider provider)
+    {
+        // Deployment-scoped and off by default, so the tenant management endpoints would 404 here.
+        builder.UseSetting("Endatix:FeatureFlags:MultiTenancy", "true");
+
+        // Jobs and the audience module are PostgreSQL-only and fail startup deliberately on
+        // anything else, so their flags follow the provider this run is using. Tests that need
+        // them skip on SQL Server.
+        string postgreSqlOnly = (provider == TestDatabaseProvider.PostgreSql).ToString();
+        builder.UseSetting("Endatix:FeatureFlags:JobsModule", postgreSqlOnly);
+        builder.UseSetting("Endatix:FeatureFlags:PersonalizationModule", postgreSqlOnly);
     }
 }

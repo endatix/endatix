@@ -21,4 +21,14 @@ internal static class IdentifierKindReader
             .FirstOrDefaultAsync(cancellationToken);
         return identifierKind ?? AudienceIdentifierKindCodes.Email;
     }
+
+    /// <summary>
+    /// The match key locks while any person is on any form's audience. A member removed from
+    /// every form does not count.
+    /// </summary>
+    public static Task<bool> IsLockedAsync(
+        IAudienceDbContext db,
+        long tenantId,
+        CancellationToken cancellationToken) =>
+        db.Memberships.AnyAsync(membership => membership.TenantId == tenantId, cancellationToken);
 }

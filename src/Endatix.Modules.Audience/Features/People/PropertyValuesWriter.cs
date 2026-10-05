@@ -10,36 +10,37 @@ namespace Endatix.Modules.Audience.Features.People;
 /// </summary>
 internal static class PropertyValuesWriter
 {
-    public static async Task<Result> ValidatePropertyIdsAsync(
-        PropertyIdCheck check,
+    /// <summary>
+    /// Checks that every property belongs to the form and that each value fits its property.
+    /// </summary>
+    public static async Task<Result> ValidateAsync(
+        PropertyValuesCheck check,
         CancellationToken cancellationToken)
     {
-        if (check.PropertyIds.Count == 0)
+        if (check.Values is null || check.Values.Count == 0)
         {
             return Result.Success();
         }
 
-        List<long> ids = check.PropertyIds.Distinct().ToList();
-        int known = await check.Db.Properties.CountAsync(
-            property => property.FormId == check.FormId && ids.Contains(property.Id),
-            cancellationToken);
+        List<long> ids = check.Values.Keys.ToList();
+        Dictionary<long, Property> properties = await check.Db.Properties
+            .AsNoTracking()
+            .Where(property => property.FormId == check.FormId && ids.Contains(property.Id))
+            .ToDictionaryAsync(property => property.Id, cancellationToken);
 
-        return known == ids.Count
-            ? Result.Success()
+        return properties.Count == ids.Count
+            ? ValueResult(check.Values, properties)
             : Result.Invalid(new ValidationError(
                 "One or more property ids do not belong to this form."));
     }
 
-    public static Result ValueResult(IReadOnlyDictionary<long, string>? values)
+    private static Result ValueResult(
+        IReadOnlyDictionary<long, string> values,
+        Dictionary<long, Property> properties)
     {
-        if (values is null)
+        foreach ((long propertyId, string value) in values)
         {
-            return Result.Success();
-        }
-
-        foreach (string value in values.Values)
-        {
-            string? error = PropertyValue.ValueError(value);
+            string? error = PropertyValue.ValueError(value) ?? properties[propertyId].ValueError(value);
             if (error is not null)
             {
                 return Result.Invalid(new ValidationError(error));
@@ -48,6 +49,17 @@ internal static class PropertyValuesWriter
 
         return Result.Success();
     }
+
+    /// <summary>
+    /// Cells of the given memberships whose property is still active. A cell written while its
+    /// property was being deleted stays out of every read.
+    /// </summary>
+    public static IQueryable<PropertyValue> ActiveCells(
+        IAudienceDbContext db,
+        IReadOnlyCollection<long> membershipIds) =>
+        db.PropertyValues.AsNoTracking().Where(value =>
+            membershipIds.Contains(value.MembershipId)
+            && db.Properties.Any(property => property.Id == value.PropertyId));
 
     /// <summary>
     /// Stages value cells for a membership that has none yet. Does not save.
@@ -97,12 +109,12 @@ internal static class PropertyValuesWriter
 }
 
 /// <summary>
-/// Inputs for validating property ids against a form.
+/// Inputs for validating property values against a form's properties.
 /// </summary>
-internal sealed record PropertyIdCheck(
+internal sealed record PropertyValuesCheck(
     IAudienceDbContext Db,
     long FormId,
-    IReadOnlyCollection<long> PropertyIds);
+    IReadOnlyDictionary<long, string>? Values);
 
 /// <summary>
 /// Inputs for writing property value cells on one membership.

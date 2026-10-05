@@ -18,9 +18,9 @@ internal sealed class MemberConfigurationPostgreSql : IEntityTypeConfiguration<M
             "CK_Members_TenantId",
             $"\"{nameof(Member.TenantId)}\" > 0"));
 
-        builder.HasIndex(member => new { member.TenantId, member.Identifier })
+        builder.HasIndex(member => new { member.TenantId, member.NormalizedIdentifier })
             .IsUnique()
-            .HasDatabaseName("IX_Members_Identifier")
+            .HasDatabaseName(Member.UniqueConstraints.IdentifierPerTenant)
             .HasFilter($"\"{nameof(Member.IsDeleted)}\" = false");
     }
 }

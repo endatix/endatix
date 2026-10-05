@@ -22,19 +22,21 @@ public sealed class Update(
     public override void Configure()
     {
         Put("audience/settings");
-        Permissions(Actions.Forms.Edit);
+        Permissions(Actions.Tenant.ManageSettings);
         Summary(summary =>
         {
             summary.Summary = "Update audience match key";
             summary.Description =
-                "Sets the tenant-wide audience identifier kind. Refused once any audience member exists.";
+                "Sets the tenant-wide audience identifier kind. Saving the current kind is a no-op. " +
+                "Refused while any person is on a form's audience.";
             summary.Responses[200] = "Settings updated.";
             summary.Responses[400] = "Invalid identifier kind.";
-            summary.Responses[409] = "Members already exist.";
+            summary.Responses[409] = "People are on a form's audience.";
         });
         Description(builder => builder
             .Produces<AudienceSettingsResponse>(200, "application/json")
             .ProducesProblem(400)
+            .ProducesProblem(403)
             .ProducesProblem(409));
     }
 
@@ -47,7 +49,7 @@ public sealed class Update(
             ct);
 
         return TypedResultsBuilder
-            .MapResult(result, dto => new AudienceSettingsResponse { IdentifierKind = dto.IdentifierKind })
+            .MapResult(result, AudienceSettingsResponse.FromDto)
             .SetTypedResults<Ok<AudienceSettingsResponse>, ProblemHttpResult>();
     }
 }

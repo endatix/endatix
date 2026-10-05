@@ -19,5 +19,9 @@ internal sealed class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.Property(member => member.Identifier)
             .HasMaxLength(DataSchemaConstants.MAX_EMAIL_LENGTH)
             .IsRequired();
+
+        builder.Property(member => member.NormalizedIdentifier)
+            .HasMaxLength(DataSchemaConstants.MAX_EMAIL_LENGTH)
+            .IsRequired();
     }
 }

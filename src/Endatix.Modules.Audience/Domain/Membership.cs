@@ -11,6 +11,14 @@ namespace Endatix.Modules.Audience.Domain;
 /// </summary>
 public sealed class Membership : BaseEntity, IAggregateRoot, ITenantOwned
 {
+    /// <summary>
+    /// Database names of the unique indexes on <see cref="Membership"/>.
+    /// </summary>
+    public static class UniqueConstraints
+    {
+        public const string MemberPerForm = "IX_Memberships_Member";
+    }
+
     private Membership() { }
 
     public Membership(long tenantId, long formId, long memberId)

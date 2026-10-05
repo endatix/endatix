@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.Properties;
 
@@ -52,18 +53,26 @@ internal sealed class DeletePropertyHandler(
             : Result.Success(property);
     }
 
+    /// <summary>
+    /// Soft-deletes every cell of the property in one statement, so a large audience is not
+    /// loaded into memory. The property and its cells go in one transaction.
+    /// </summary>
     private async Task SoftDeleteAsync(Property property, CancellationToken cancellationToken)
     {
-        List<PropertyValue> values = await db.PropertyValues
+        await using IDbContextTransaction transaction =
+            await ((DbContext)db).Database.BeginTransactionAsync(cancellationToken);
+        DateTime now = DateTime.UtcNow;
+        await db.PropertyValues
             .Where(value => value.PropertyId == property.Id)
-            .ToListAsync(cancellationToken);
-
-        foreach (PropertyValue value in values)
-        {
-            value.Delete();
-        }
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(value => value.IsDeleted, true)
+                    .SetProperty(value => value.DeletedAt, now)
+                    .SetProperty(value => value.ModifiedAt, now),
+                cancellationToken);
 
         property.Delete();
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 }

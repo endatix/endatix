@@ -80,7 +80,17 @@ public sealed class CreateAudiencePropertyValidator : Validator<CreateAudiencePr
             .Must(kind => AudienceDataTypeCodes.IsKnown(kind))
             .WithMessage("Unknown audience data type.");
         RuleFor(request => request.ChoicesJson).ValidJsonString();
+        RuleFor(request => request.ChoicesJson)
+            .Must((request, _) => ChoicesError(request) is null)
+            .When(request => AudienceDataTypeCodes.IsKnown(request.DataType))
+            .WithMessage((request, _) => ChoicesError(request));
     }
+
+    private static string? ChoicesError(CreateAudiencePropertyRequest request) =>
+        Property.ChoicesError(
+            request.DataType ?? string.Empty,
+            string.IsNullOrEmpty(request.ChoicesJson) ? null : request.ChoicesJson,
+            request.AllowsOther);
 }
 
 /// <summary>

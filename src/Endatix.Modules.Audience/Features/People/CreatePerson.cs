@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -23,7 +24,8 @@ public sealed record CreatePersonCommand(
 internal sealed class CreatePersonHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    IValueNormalizer normalizer)
+    IValueNormalizer normalizer,
+    IUniqueConstraintViolationChecker violations)
     : ICommandHandler<CreatePersonCommand, Result<PersonDto>>
 {
     public async Task<Result<PersonDto>> Handle(
@@ -36,28 +38,57 @@ internal sealed class CreatePersonHandler(
             return gate.ToErrorResult<PersonDto>();
         }
 
+        return await CreateWithRetryAsync(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// A parallel create can add the same person to the tenant first. That member is committed
+    /// by the time the index refuses this one, so a second pass finds and reuses it.
+    /// </summary>
+    private async Task<Result<PersonDto>> CreateWithRetryAsync(
+        CreatePersonCommand request,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            return await CreateLockedAsync(request, cancellationToken);
+            return await CreateOnFormAsync(request, cancellationToken);
         }
-        catch (DbUpdateException ex) when (IsMembershipRace(ex))
+        catch (DbUpdateException ex) when (violations.IsViolationOf(
+            ex,
+            Member.UniqueConstraints.IdentifierPerTenant))
         {
             ((DbContext)db).ChangeTracker.Clear();
-            return await RetryLockedAsync(request, cancellationToken);
+            return await CreateOnFormAsync(request, cancellationToken);
         }
     }
 
-    private static bool IsMembershipRace(DbUpdateException ex) =>
-        UniqueIndexViolation.Is(ex, UniqueIndexViolation.MembersIdentifier)
-        || UniqueIndexViolation.Is(ex, UniqueIndexViolation.MembershipsMember);
+    /// <summary>
+    /// Runs under the shared match-key lock, so creates on other forms are not blocked. A parallel
+    /// add of the same person to this form loses on the membership index and gets a conflict.
+    /// </summary>
+    private async Task<Result<PersonDto>> CreateOnFormAsync(
+        CreatePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await AddLockedAsync(request, cancellationToken);
+        }
+        catch (DbUpdateException ex) when (violations.IsViolationOf(
+            ex,
+            Membership.UniqueConstraints.MemberPerForm))
+        {
+            return AlreadyOnForm();
+        }
+    }
 
-    private async Task<Result<PersonDto>> CreateLockedAsync(
+    private async Task<Result<PersonDto>> AddLockedAsync(
         CreatePersonCommand request,
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
-            await MatchKeyLock.BeginAsync(db, request.TenantId, cancellationToken);
-        Result<PersonDto> created = await AddNewAsync(request, cancellationToken);
+            await MatchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
+        Result<PersonDto> created = await AddAsync(request, cancellationToken);
         if (created.IsSuccess)
         {
             await transaction.CommitAsync(cancellationToken);
@@ -66,64 +97,17 @@ internal sealed class CreatePersonHandler(
         return created;
     }
 
-    private async Task<Result<PersonDto>> AddNewAsync(
+    private async Task<Result<PersonDto>> AddAsync(
         CreatePersonCommand request,
         CancellationToken cancellationToken)
     {
         Member member = await FindOrAddMemberAsync(request, cancellationToken);
-        Result notOnForm = await EnsureNotOnFormAsync(request.FormId, member.Id, cancellationToken);
-        if (!notOnForm.IsSuccess)
-        {
-            return notOnForm.ToErrorResult<PersonDto>();
-        }
-
-        return Result<PersonDto>.Created(await AddToFormAsync(request, member, cancellationToken));
-    }
-
-    private async Task<Result<PersonDto>> RetryLockedAsync(
-        CreatePersonCommand request,
-        CancellationToken cancellationToken)
-    {
-        await using IDbContextTransaction transaction =
-            await MatchKeyLock.BeginAsync(db, request.TenantId, cancellationToken);
-        Result<PersonDto> created = await AddExistingAsync(request, cancellationToken);
-        if (created.IsSuccess)
-        {
-            await transaction.CommitAsync(cancellationToken);
-        }
-
-        return created;
-    }
-
-    private async Task<Result<PersonDto>> AddExistingAsync(
-        CreatePersonCommand request,
-        CancellationToken cancellationToken)
-    {
-        Member? member = await FindMemberAsync(request, cancellationToken);
-        if (member is null)
-        {
-            return AlreadyOnForm();
-        }
-
-        Result notOnForm = await EnsureNotOnFormAsync(request.FormId, member.Id, cancellationToken);
-        return notOnForm.IsSuccess
-            ? await SaveMembershipAsync(request, member, cancellationToken)
-            : notOnForm.ToErrorResult<PersonDto>();
-    }
-
-    private async Task<Result<PersonDto>> SaveMembershipAsync(
-        CreatePersonCommand request,
-        Member member,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return Result<PersonDto>.Created(await AddToFormAsync(request, member, cancellationToken));
-        }
-        catch (DbUpdateException ex) when (IsMembershipRace(ex))
-        {
-            return AlreadyOnForm();
-        }
+        bool onForm = await db.Memberships.AnyAsync(
+            membership => membership.FormId == request.FormId && membership.MemberId == member.Id,
+            cancellationToken);
+        return onForm
+            ? AlreadyOnForm()
+            : Result<PersonDto>.Created(await AddToFormAsync(request, member, cancellationToken));
     }
 
     private static Result<PersonDto> AlreadyOnForm() =>
@@ -140,23 +124,13 @@ internal sealed class CreatePersonHandler(
             return formGate;
         }
 
-        return string.IsNullOrWhiteSpace(request.Identifier)
-            ? Result.Invalid(new ValidationError("Identifier is required."))
-            : await ValidateValuesAsync(request, cancellationToken);
-    }
-
-    private async Task<Result> ValidateValuesAsync(
-        CreatePersonCommand request,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyCollection<long> propertyIds =
-            request.Values?.Keys.ToList() ?? (IReadOnlyCollection<long>)[];
-        Result ids = await PropertyValuesWriter.ValidatePropertyIdsAsync(
-            new PropertyIdCheck(db, request.FormId, propertyIds),
-            cancellationToken);
-        return ids.IsSuccess
-            ? PropertyValuesWriter.ValueResult(request.Values)
-            : ids;
+        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
+        string? identifierError = Member.IdentifierError(request.Identifier, identifierKind);
+        return identifierError is null
+            ? await PropertyValuesWriter.ValidateAsync(
+                new PropertyValuesCheck(db, request.FormId, request.Values),
+                cancellationToken)
+            : Result.Invalid(new ValidationError(identifierError));
     }
 
     /// <summary>
@@ -178,27 +152,14 @@ internal sealed class CreatePersonHandler(
         return new PersonDto(membership.Id, member.Id, member.Identifier, values);
     }
 
-    private async Task<Result> EnsureNotOnFormAsync(
-        long formId,
-        long memberId,
-        CancellationToken cancellationToken)
-    {
-        bool alreadyOnForm = await db.Memberships.AnyAsync(
-            membership => membership.FormId == formId && membership.MemberId == memberId,
-            cancellationToken);
-        return alreadyOnForm
-            ? Result.Conflict("This person is already on this form's audience.")
-            : Result.Success();
-    }
-
     private async Task<Member> FindOrAddMemberAsync(
         CreatePersonCommand request,
         CancellationToken cancellationToken)
     {
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        string identifier = Member.Normalize(request.Identifier, identifierKind, normalizer);
+        string normalized = Member.Normalize(request.Identifier, identifierKind, normalizer);
         Member? member = await db.Members.FirstOrDefaultAsync(
-            row => row.TenantId == request.TenantId && row.Identifier == identifier,
+            row => row.TenantId == request.TenantId && row.NormalizedIdentifier == normalized,
             cancellationToken);
         if (member is not null)
         {
@@ -206,19 +167,8 @@ internal sealed class CreatePersonHandler(
         }
 
         member = new Member(new MemberCreateArgs(
-            request.TenantId, identifier, identifierKind, normalizer));
+            request.TenantId, request.Identifier, identifierKind, normalizer));
         db.Members.Add(member);
         return member;
-    }
-
-    private async Task<Member?> FindMemberAsync(
-        CreatePersonCommand request,
-        CancellationToken cancellationToken)
-    {
-        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        string identifier = Member.Normalize(request.Identifier, identifierKind, normalizer);
-        return await db.Members.FirstOrDefaultAsync(
-            row => row.TenantId == request.TenantId && row.Identifier == identifier,
-            cancellationToken);
     }
 }

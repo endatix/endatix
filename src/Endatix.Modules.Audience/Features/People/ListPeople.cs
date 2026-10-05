@@ -1,3 +1,4 @@
+using System.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -6,6 +7,7 @@ using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Modules.Audience.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.People;
 
@@ -46,10 +48,16 @@ internal sealed class ListPeopleHandler(
         return Result.Success(await PageAsync(request, cancellationToken));
     }
 
+    /// <summary>
+    /// Counts and reads in one snapshot, so a person added between the two queries cannot make
+    /// the page larger than the total.
+    /// </summary>
     private async Task<Paged<PersonDto>> PageAsync(
         ListPeopleQuery request,
         CancellationToken cancellationToken)
     {
+        await using IDbContextTransaction snapshot = await ((DbContext)db).Database
+            .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
         (int requestedPage, int pageSize) = ResolvePaging(request);
         IQueryable<Membership> query = MembershipsOnForm(request.FormId);
 
@@ -109,9 +117,8 @@ internal sealed class ListPeopleHandler(
         HashSet<long> membershipIds,
         CancellationToken cancellationToken)
     {
-        var valueRows = await db.PropertyValues
-            .AsNoTracking()
-            .Where(value => membershipIds.Contains(value.MembershipId))
+        var valueRows = await PropertyValuesWriter
+            .ActiveCells(db, membershipIds)
             .Select(value => new { value.MembershipId, value.PropertyId, value.Value })
             .ToListAsync(cancellationToken);
 

@@ -11,7 +11,16 @@ namespace Endatix.Modules.Audience.Domain;
 /// </summary>
 public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
 {
-    public const int VALUE_MAX_LENGHT = 4000;
+    public const int VALUE_MAX_LENGTH = 4000;
+
+    /// <summary>
+    /// Database names of the unique indexes on <see cref="PropertyValue"/>.
+    /// </summary>
+    public static class UniqueConstraints
+    {
+        public const string CellPerMembership = "IX_PropertyValues_Cell";
+    }
+
     private PropertyValue()
     {
         Value = string.Empty;
@@ -53,8 +62,8 @@ public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
             return "Value is required.";
         }
 
-        return value.Length > VALUE_MAX_LENGHT
-            ? $"Value must be at most {VALUE_MAX_LENGHT} characters."
+        return value.Length > VALUE_MAX_LENGTH
+            ? $"Value must be at most {VALUE_MAX_LENGTH} characters."
             : null;
     }
 }

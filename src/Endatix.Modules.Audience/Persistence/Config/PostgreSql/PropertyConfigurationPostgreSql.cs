@@ -27,7 +27,7 @@ internal sealed class PropertyConfigurationPostgreSql : IEntityTypeConfiguration
 
         builder.HasIndex(property => new { property.TenantId, property.FormId, property.VariableName })
             .IsUnique()
-            .HasDatabaseName("IX_Properties_VariableName")
+            .HasDatabaseName(Property.UniqueConstraints.VariableNamePerForm)
             .HasFilter($"\"{nameof(Property.IsDeleted)}\" = false");
     }
 }

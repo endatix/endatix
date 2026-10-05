@@ -49,6 +49,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("NormalizedIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<long?>("SubmitterId")
                         .HasColumnType("bigint");
 
@@ -57,7 +62,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Identifier")
+                    b.HasIndex("TenantId", "NormalizedIdentifier")
                         .IsUnique()
                         .HasDatabaseName("IX_Members_Identifier")
                         .HasFilter("\"IsDeleted\" = false");

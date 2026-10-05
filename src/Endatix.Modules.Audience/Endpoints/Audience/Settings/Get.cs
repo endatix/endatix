@@ -26,7 +26,7 @@ public sealed class Get(
             summary.Summary = "Get audience match key";
             summary.Description =
                 "Returns the tenant-wide audience identifier kind (email or external_id). " +
-                "A tenant that never set it gets email.";
+                "A tenant that never set it gets email. isLocked is true while any person is on a form's audience.";
             summary.Responses[200] = "Settings retrieved.";
         });
         Description(builder => builder
@@ -40,7 +40,7 @@ public sealed class Get(
         var result = await mediator.Send(new GetAudienceSettingsQuery(tenantContext.TenantId), ct);
 
         return TypedResultsBuilder
-            .MapResult(result, dto => new AudienceSettingsResponse { IdentifierKind = dto.IdentifierKind })
+            .MapResult(result, AudienceSettingsResponse.FromDto)
             .SetTypedResults<Ok<AudienceSettingsResponse>, ProblemHttpResult>();
     }
 }
@@ -51,4 +51,13 @@ public sealed class Get(
 public sealed class AudienceSettingsResponse
 {
     public string IdentifierKind { get; init; } = string.Empty;
+
+    /// <summary>True while any person is on a form's audience. The match key cannot change then.</summary>
+    public bool IsLocked { get; init; }
+
+    internal static AudienceSettingsResponse FromDto(AudienceSettingsDto dto) => new()
+    {
+        IdentifierKind = dto.IdentifierKind,
+        IsLocked = dto.IsLocked,
+    };
 }
