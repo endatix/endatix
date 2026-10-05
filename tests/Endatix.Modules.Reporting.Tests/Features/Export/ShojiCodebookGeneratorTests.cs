@@ -79,6 +79,113 @@ public sealed class ShojiCodebookGeneratorTests
     }
 
     [Fact]
+    public void Generate_CalculatedValueIncludedInResult_WritesTextVariableAfterSystemColumns()
+    {
+        // Arrange
+        const string definitionJson = """
+            {
+              "pages":[{"name":"page1","elements":[{"type":"text","name":"qName"}]}],
+              "calculatedValues":[
+                {"name":"totalAmount","expression":"1 + 1","includeIntoResult":true},
+                {"name":"hiddenAmount","expression":"2 + 2","includeIntoResult":false}
+              ]
+            }
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var table = GenerateTable(compiled);
+        var metadata = table.GetProperty("metadata");
+        var order = ReadOrder(table);
+
+        // Assert
+        metadata.GetProperty("totalAmount").GetProperty("type").GetString().Should().Be("text");
+        order[order.IndexOf("SubmitterDisplayId") + 1].Should().Be("totalAmount");
+        order.IndexOf("totalAmount").Should().BeLessThan(order.IndexOf("qName"));
+        metadata.TryGetProperty("hiddenAmount", out _).Should().BeFalse();
+        order.Should().NotContain("hiddenAmount");
+    }
+
+    [Fact]
+    public void Generate_CalculatedValueNamedLikeGroupedQuestion_KeepsQuestionVariable()
+    {
+        // Arrange
+        const string definitionJson = """
+            {
+              "pages":[{"name":"page1","elements":[
+                {"type":"checkbox","name":"colors","title":"Colors","choices":["red","blue"]},
+                {"type":"matrix","name":"qMatrix","title":"Matrix","columns":["a","b"],"rows":["r1","r2"]}
+              ]}],
+              "calculatedValues":[
+                {"name":"colors","expression":"1","includeIntoResult":true},
+                {"name":"qMatrix","expression":"1","includeIntoResult":true}
+              ]
+            }
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var table = GenerateTable(compiled);
+        var metadata = table.GetProperty("metadata");
+        var order = ReadOrder(table);
+
+        // Assert
+        metadata.GetProperty("colors").GetProperty("type").GetString().Should().Be("multiple_response");
+        metadata.GetProperty("qMatrix").GetProperty("type").GetString().Should().Be("categorical_array");
+        order.Skip(10).Should().Equal("colors", "qMatrix");
+    }
+
+    [Fact]
+    public void Generate_CalculatedValueNamedLikeLeafAliasQuestion_WritesBothVariables()
+    {
+        // Arrange
+        const string definitionJson = """
+            {
+              "pages":[{"name":"page1","elements":[
+                {"type":"ranking","name":"qRanking","choices":["apple","pear"]},
+                {"type":"multipletext","name":"qMultipleText","items":[{"name":"phone"}]}
+              ]}],
+              "calculatedValues":[
+                {"name":"qRanking","expression":"1","includeIntoResult":true},
+                {"name":"qMultipleText","expression":"1","includeIntoResult":true}
+              ]
+            }
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var table = GenerateTable(compiled);
+        var metadata = table.GetProperty("metadata");
+        var order = ReadOrder(table);
+
+        // Assert
+        metadata.GetProperty("qRanking").GetProperty("type").GetString().Should().Be("text");
+        metadata.GetProperty("qMultipleText").GetProperty("type").GetString().Should().Be("text");
+        order.Skip(10).Take(2).Should().Equal("qRanking", "qMultipleText");
+        order.Should().Contain(["qRanking--apple", "qMultipleText--phone"]);
+    }
+
+    [Fact]
+    public void Generate_CalculatedValueNamedLikeQuestionTitle_KeepsQuestionDisplayName()
+    {
+        // Arrange
+        const string definitionJson = """
+            {
+              "pages":[{"name":"page1","elements":[{"type":"text","name":"qTotal","title":"totalAmount"}]}],
+              "calculatedValues":[{"name":"totalAmount","expression":"1","includeIntoResult":true}]
+            }
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var metadata = GenerateTable(compiled).GetProperty("metadata");
+
+        // Assert
+        metadata.GetProperty("qTotal").GetProperty("name").GetString().Should().Be("totalAmount");
+        metadata.GetProperty("totalAmount").GetProperty("name").GetString().Should().Be("totalAmount -- totalAmount");
+    }
+
+    [Fact]
     public void Generate_WithDatasetMetadata_WritesBodyNameAndDescription()
     {
         var definitionJson = FormSchemaFixtureLoader.LoadText("simple-definition.json");
@@ -369,4 +476,17 @@ public sealed class ShojiCodebookGeneratorTests
             .Should()
             .Be("Mattresses (display)");
     }
+
+    private static JsonElement GenerateTable(FormSchemaCompileResult compiled)
+    {
+        using var document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        return document.RootElement.GetProperty("body").GetProperty("table").Clone();
+    }
+
+    private static List<string> ReadOrder(JsonElement table) =>
+        table.GetProperty("order").EnumerateArray().Select(element => element.GetString()!).ToList();
 }

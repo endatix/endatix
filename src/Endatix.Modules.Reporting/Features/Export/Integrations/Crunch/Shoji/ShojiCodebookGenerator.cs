@@ -113,14 +113,7 @@ internal static class ShojiCodebookGenerator
         writer.WritePropertyName(ShojiCodebookPropertyNames.Metadata);
         writer.WriteStartObject();
         List<string> writtenAliases = [];
-        WriteShojiVariables(
-            writer,
-            args.FlatteningMap,
-            args.Questions,
-            args.GroupedColumnKeys,
-            args.CodebookColumns,
-            args.KeySeparator,
-            writtenAliases);
+        WriteShojiVariables(writer, args, writtenAliases);
         writer.WriteEndObject();
         WriteOrder(
             writer,
@@ -135,8 +128,9 @@ internal static class ShojiCodebookGenerator
     }
 
     /// <summary>
-    /// Survey-definition appearance order: system columns, then first Shoji alias for each
-    /// flattening-map column in compile order (page/element walk). Not SurveyJS visibleIndex.
+    /// Survey-definition appearance order: system columns, calculated values, then first Shoji
+    /// alias for each flattening-map column in compile order (page/element walk). Not SurveyJS
+    /// visibleIndex.
     /// </summary>
     private static List<string> BuildAppearanceOrder(
         MergedFormSchema flatteningMap,
@@ -149,6 +143,7 @@ internal static class ShojiCodebookGenerator
         HashSet<string> seen = new(StringComparer.Ordinal);
 
         order.AddRange(_systemColumnOrder.Where(alias => written.Contains(alias) && seen.Add(alias)));
+        order.AddRange(CalculatedValueAliases(flatteningMap, questions, keySeparator).Where(alias => written.Contains(alias) && seen.Add(alias)));
 
         foreach (var column in flatteningMap.Columns)
         {
@@ -259,15 +254,9 @@ internal static class ShojiCodebookGenerator
         writer.WriteEndArray();
     }
 
-    private static void WriteShojiVariables(
-        Utf8JsonWriter writer,
-        MergedFormSchema flatteningMap,
-        IReadOnlyDictionary<string, JsonElement> questions,
-        IReadOnlyDictionary<string, List<string>> groupedColumnKeys,
-        IReadOnlyDictionary<string, JsonElement> codebookColumns,
-        string keySeparator,
-        List<string> orderAliases)
+    private static void WriteShojiVariables(Utf8JsonWriter writer, ShojiCodebookWriteArgs args, List<string> orderAliases)
     {
+        var (flatteningMap, questions, groupedColumnKeys, codebookColumns, keySeparator, _, _) = args;
         HashSet<string> writtenVariables = new(StringComparer.Ordinal);
         HashSet<string> usedDisplayNames = new(StringComparer.Ordinal);
 
@@ -278,6 +267,12 @@ internal static class ShojiCodebookGenerator
         WriteGapLeafVariables(writer, flatteningMap, questions, codebookColumns, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
         WriteCheckboxOtherTextVariables(writer, flatteningMap, codebookColumns, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
         WriteLoopExpandedVariables(writer, flatteningMap, questions, codebookColumns, writtenVariables, usedDisplayNames, keySeparator, orderAliases);
+
+        // Last, so questions keep their names and aliases; Crunch orders variables by the order array.
+        foreach (var (alias, displayName) in CalculatedValueVariables(args))
+        {
+            WriteSystemText(writer, alias, displayName, writtenVariables, usedDisplayNames, orderAliases);
+        }
     }
 
     private static void WriteSystemVariables(
@@ -307,6 +302,38 @@ internal static class ShojiCodebookGenerator
         WriteSystemNumeric(writer, SubmissionExportRow.SystemColumns.SubmitterId, "Submitter ID", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemText(writer, SubmissionExportRow.SystemColumns.SubmitterDisplayId, "Submitter Display ID", writtenVariables, usedDisplayNames, orderAliases);
     }
+
+    // Calculated values sit between the system block and the questions. The CSV keeps them last;
+    // Crunch matches CSV columns to variables by alias, so the two orders may differ. A checkbox or
+    // matrix question claims its bare name as alias, so a calculated value of that name was never
+    // written and must not pull the question's variable up here.
+    private static IEnumerable<string> CalculatedValueAliases(
+        MergedFormSchema flatteningMap,
+        IReadOnlyDictionary<string, JsonElement> questions,
+        string keySeparator)
+    {
+        HashSet<string> questionAliases = flatteningMap.Columns
+            .Where(column => column.Kind is not FormSchemaColumnKind.Calculated)
+            .Select(column => ResolveShojiOrderAlias(column, questions, keySeparator))
+            .ToHashSet(StringComparer.Ordinal);
+
+        return CalculatedColumns(flatteningMap)
+            .Select(column => ExportKeyTransformer.Transform(column.Key, keySeparator))
+            .Where(alias => !questionAliases.Contains(alias));
+    }
+
+    private static IEnumerable<FormSchemaColumn> CalculatedColumns(MergedFormSchema flatteningMap) =>
+        flatteningMap.Columns.Where(column => column.Kind is FormSchemaColumnKind.Calculated && column.LoopPath is null);
+
+    // A custom variable can hold any value, so it is written as text.
+    private static IEnumerable<(string Alias, string DisplayName)> CalculatedValueVariables(ShojiCodebookWriteArgs args) =>
+        CalculatedColumns(args.FlatteningMap)
+            .Select(column =>
+            {
+                var alias = ExportKeyTransformer.Transform(column.Key, args.KeySeparator);
+                args.CodebookColumns.TryGetValue(column.Key, out var columnMetadata);
+                return (alias, ReadColumnTitle(columnMetadata, alias));
+            });
 
     private static bool TryTrackVariable(
         HashSet<string> writtenVariables,
