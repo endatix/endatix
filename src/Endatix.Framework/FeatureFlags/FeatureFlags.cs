@@ -51,6 +51,11 @@ public static class FeatureFlags
     public const string JobsModule = "JobsModule";
 
     /// <summary>
+    /// Feature flag key for enabling the Audience module (directory, later import and links).
+    /// </summary>
+    public const string PersonalizationModule = "PersonalizationModule";
+
+    /// <summary>
     /// Feature flag key for enabling multi-tenancy management (create/edit tenants, assume, switch, self-reg).
     /// Deployment-scoped: PlatformAdmin flows run without a target-tenant evaluation context.
     /// </summary>
