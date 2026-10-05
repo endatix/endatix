@@ -43,8 +43,7 @@ public sealed record ImportRejectionDto(int RowNumber, string Reason);
 internal sealed class ImportCsvHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    IValueNormalizer normalizer,
-    IUniqueConstraintViolationChecker violations)
+    ImportWriteSupport support)
     : ICommandHandler<ImportCsvCommand, Result<ImportResultDto>>
 {
     private const int MaxReportedRejections = 50;
@@ -101,9 +100,9 @@ internal sealed class ImportCsvHandler(
     }
 
     private bool IsAudienceRace(DbUpdateException ex) =>
-        violations.IsViolationOf(ex, Member.UniqueConstraints.IdentifierPerTenant)
-        || violations.IsViolationOf(ex, Membership.UniqueConstraints.MemberPerForm)
-        || violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership);
+        support.Violations.IsViolationOf(ex, Member.UniqueConstraints.IdentifierPerTenant)
+        || support.Violations.IsViolationOf(ex, Membership.UniqueConstraints.MemberPerForm)
+        || support.Violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership);
 
     private async Task<Result> ValidateRequestAsync(
         ImportCsvCommand request,
@@ -182,7 +181,7 @@ internal sealed class ImportCsvHandler(
         await using IDbContextTransaction transaction =
             await MatchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        ImportTarget target = new(request.TenantId, request.FormId, new ImportMatchKey(identifierKind, normalizer));
+        ImportTarget target = new(request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer));
         ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.MatchKey);
         ImportTally tally = await StageAsync(new AudienceQuery(db, target, cancellationToken), rows.Accepted);
 
@@ -238,3 +237,15 @@ internal sealed class ImportCsvHandler(
 /// A parsed file and the column mapping resolved against this form's properties.
 /// </summary>
 internal sealed record ImportInput(IReadOnlyList<CsvDataRow> Rows, CsvColumnMap Map);
+
+/// <summary>
+/// Identity normalizer and unique-index detection for one import.
+/// </summary>
+internal sealed class ImportWriteSupport(
+    IValueNormalizer normalizer,
+    IUniqueConstraintViolationChecker violations)
+{
+    public IValueNormalizer Normalizer { get; } = normalizer;
+
+    public IUniqueConstraintViolationChecker Violations { get; } = violations;
+}
