@@ -120,6 +120,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("NormalizedIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<long?>("SubmitterId")
                         .HasColumnType("bigint");
 
@@ -128,7 +133,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Identifier")
+                    b.HasIndex("TenantId", "NormalizedIdentifier")
                         .IsUnique()
                         .HasDatabaseName("IX_Members_Identifier")
                         .HasFilter("\"IsDeleted\" = false");
@@ -171,7 +176,8 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId")
-                        .HasDatabaseName("IX_Memberships_Form");
+                        .HasDatabaseName("IX_Memberships_Form")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "FormId", "MemberId")
                         .IsUnique()
@@ -240,7 +246,8 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId")
-                        .HasDatabaseName("IX_Properties_Form");
+                        .HasDatabaseName("IX_Properties_Form")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "FormId", "VariableName")
                         .IsUnique()
@@ -284,14 +291,16 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MembershipId")
-                        .HasDatabaseName("IX_PropertyValues_Membership");
+                    b.HasIndex("TenantId", "PropertyId")
+                        .HasDatabaseName("IX_PropertyValues_Property")
+                        .HasFilter("\"IsDeleted\" = false");
 
-                    b.HasIndex("MembershipId", "PropertyId")
+                    b.HasIndex("TenantId", "MembershipId", "PropertyId")
                         .IsUnique()
                         .HasDatabaseName("IX_PropertyValues_Cell")
                         .HasFilter("\"IsDeleted\" = false");

@@ -8,7 +8,7 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// The audience directory over HTTP on PostgreSQL: the races the unique indexes and the tenant
-/// match-key lock settle, the match-key rules, and value checks by data type. The module is
+/// match-key lock settle, the match-key rules, value checks by data type, and the CSV import. The module is
 /// PostgreSQL-only, so every test skips on SQL Server.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
@@ -278,6 +278,63 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
         Assert.Empty(person.GetProperty("values").EnumerateObject());
     }
 
+    [Fact]
+    public async Task Importing_an_existing_email_in_other_casing_matches_that_person()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        (long formId, _) = await api.AddPersonToNewFormAsync("Ada@Example.com");
+
+        // Act
+        using HttpResponseMessage response = await api.ImportAsync(formId, "email\nada@example.com\ncy@example.com\n");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement result = await api.ReadAsync(response);
+        // The row has no values, so the matched person is counted as skipped, not created.
+        Assert.Equal(1, result.GetProperty("skippedCount").GetInt32());
+        Assert.Equal(1, result.GetProperty("createdCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task Importing_bad_rows_rejects_them_with_their_row_numbers()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        await api.CreatePropertyAsync(formId, new { name = "Age", dataType = "number" });
+        const string csv = "email,Age\nada@example.com,36\nJohn Smith,40\nbob@example.com,forty\n";
+
+        // Act
+        using HttpResponseMessage response = await api.ImportAsync(
+            formId, csv, new Dictionary<string, string> { ["age"] = "Age" });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        int[] rejectedRows = (await api.ReadAsync(response)).GetProperty("rejections").EnumerateArray()
+            .Select(rejection => rejection.GetProperty("rowNumber").GetInt32())
+            .ToArray();
+        Assert.Equal([3, 4], rejectedRows);
+    }
+
+    [Fact]
+    public async Task Parallel_imports_of_the_same_people_on_several_forms_all_succeed()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long[] formIds = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => api.CreateFormAsync()));
+        string csv = "email\n" + string.Join("\n", Enumerable.Range(0, 50).Select(i => $"p{i}@example.com"));
+
+        // Act
+        HttpResponseMessage[] responses = await Task.WhenAll(formIds.Select(formId => api.ImportAsync(formId, csv)));
+
+        // Assert
+        Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+        JsonElement[] results = await Task.WhenAll(responses.Select(api.ReadAsync));
+        Assert.All(results, result => Assert.Equal(50, result.GetProperty("createdCount").GetInt32()));
+        DisposeAll(responses);
+    }
+
     private async Task<IntegrationTestWorld> WorldAsync()
     {
         Assert.SkipWhen(
@@ -357,6 +414,14 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
             long membershipId = IdOf(await ReadAsync(response), "membershipId");
             return ($"/api/forms/{formId}/audience/people/{membershipId}", propertyId);
         }
+
+        public Task<HttpResponseMessage> ImportAsync(
+            long formId,
+            string csv,
+            Dictionary<string, string>? propertyColumns = null) =>
+            PostAsync(
+                $"/api/forms/{formId}/audience/import",
+                new { csvText = csv, identifierColumn = "email", fileName = "people.csv", propertyColumns });
 
         public Task<HttpResponseMessage> AddPersonAsync(long formId, string identifier) =>
             PostAsync($"/api/forms/{formId}/audience/people", new { identifier });

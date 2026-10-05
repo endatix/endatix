@@ -1,3 +1,5 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -40,7 +42,9 @@ public sealed record ImportRejectionDto(int RowNumber, string Reason);
 
 internal sealed class ImportCsvHandler(
     IAudienceDbContext db,
-    IRepository<Form> forms)
+    IRepository<Form> forms,
+    IValueNormalizer normalizer,
+    IUniqueConstraintViolationChecker violations)
     : ICommandHandler<ImportCsvCommand, Result<ImportResultDto>>
 {
     private const int MaxReportedRejections = 50;
@@ -57,9 +61,49 @@ internal sealed class ImportCsvHandler(
 
         Result<ImportInput> prepared = await PrepareAsync(request, cancellationToken);
         return prepared.IsSuccess
-            ? Result.Success(await ImportAsync(request, prepared.Value!, cancellationToken))
+            ? await ImportWithRetryAsync(request, prepared.Value, cancellationToken)
             : prepared.ToErrorResult<ImportResultDto>();
     }
+
+    /// <summary>
+    /// A parallel add or import can win a unique index first. Its rows are committed by then, so
+    /// a second pass reloads them and matches instead of inserting. A second loss is a conflict.
+    /// </summary>
+    private async Task<Result<ImportResultDto>> ImportWithRetryAsync(
+        ImportCsvCommand request,
+        ImportInput input,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ImportAsync(request, input, cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsAudienceRace(ex))
+        {
+            ((DbContext)db).ChangeTracker.Clear();
+            return await ImportOnceMoreAsync(request, input, cancellationToken);
+        }
+    }
+
+    private async Task<Result<ImportResultDto>> ImportOnceMoreAsync(
+        ImportCsvCommand request,
+        ImportInput input,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ImportAsync(request, input, cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsAudienceRace(ex))
+        {
+            return Result.Conflict("The audience changed while the import ran. Run the import again.");
+        }
+    }
+
+    private bool IsAudienceRace(DbUpdateException ex) =>
+        violations.IsViolationOf(ex, Member.UniqueConstraints.IdentifierPerTenant)
+        || violations.IsViolationOf(ex, Membership.UniqueConstraints.MemberPerForm)
+        || violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership);
 
     private async Task<Result> ValidateRequestAsync(
         ImportCsvCommand request,
@@ -130,18 +174,16 @@ internal sealed class ImportCsvHandler(
     /// Stages every row and the import summary, then saves once: a database failure leaves no
     /// half-imported audience and no summary that disagrees with the rows written.
     /// </summary>
-    private async Task<ImportResultDto> ImportAsync(
+    private async Task<Result<ImportResultDto>> ImportAsync(
         ImportCsvCommand request,
         ImportInput input,
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
-            await MatchKeyLock.BeginAsync(db, request.TenantId, cancellationToken);
-        ImportTarget target = new(
-            request.TenantId,
-            request.FormId,
-            await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken));
-        ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.IdentifierKind);
+            await MatchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
+        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
+        ImportTarget target = new(request.TenantId, request.FormId, new ImportMatchKey(identifierKind, normalizer));
+        ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.MatchKey);
         ImportTally tally = await StageAsync(new AudienceQuery(db, target, cancellationToken), rows.Accepted);
 
         AudienceImport summary = new(ToCreateArgs(request, tally, rows.Rejected.Count));

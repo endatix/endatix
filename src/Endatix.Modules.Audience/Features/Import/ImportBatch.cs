@@ -15,7 +15,7 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 
     public void Stage(ImportRow row)
     {
-        Member member = existing.MembersByIdentifier.GetValueOrDefault(row.Identifier) ?? AddMember(row);
+        Member member = existing.MembersByMatchKey.GetValueOrDefault(row.NormalizedIdentifier) ?? AddMember(row);
         if (!existing.MembershipsByMemberId.TryGetValue(member.Id, out Membership? membership))
         {
             AddMembership(member, row.Values);
@@ -42,7 +42,8 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 
     private Member AddMember(ImportRow row)
     {
-        Member member = new(target.TenantId, row.Identifier, target.IdentifierKind);
+        Member member = new(new MemberCreateArgs(
+            target.TenantId, row.Identifier, target.MatchKey.IdentifierKind, target.MatchKey.Normalizer));
         db.Members.Add(member);
         return member;
     }
@@ -58,22 +59,23 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 /// <summary>
 /// The tenant, form and match key one import writes to.
 /// </summary>
-internal sealed record ImportTarget(long TenantId, long FormId, string IdentifierKind);
+internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey);
 
 /// <summary>
 /// Members, memberships and value cells that the import rows already match.
 /// </summary>
 internal sealed record ExistingAudience(
-    IReadOnlyDictionary<string, Member> MembersByIdentifier,
+    IReadOnlyDictionary<string, Member> MembersByMatchKey,
     IReadOnlyDictionary<long, Membership> MembershipsByMemberId,
     IReadOnlyDictionary<long, Dictionary<long, PropertyValue>> CellsByMembershipId)
 {
     public static async Task<ExistingAudience> LoadAsync(AudienceQuery query, IReadOnlyList<ImportRow> rows)
     {
-        List<string> identifiers = rows.Select(row => row.Identifier).ToList();
+        List<string> matchKeys = rows.Select(row => row.NormalizedIdentifier).ToList();
         Dictionary<string, Member> members = await query.Db.Members
-            .Where(member => member.TenantId == query.Target.TenantId && identifiers.Contains(member.Identifier))
-            .ToDictionaryAsync(member => member.Identifier, StringComparer.Ordinal, query.CancellationToken);
+            .Where(member => member.TenantId == query.Target.TenantId
+                && matchKeys.Contains(member.NormalizedIdentifier))
+            .ToDictionaryAsync(member => member.NormalizedIdentifier, StringComparer.Ordinal, query.CancellationToken);
         Dictionary<long, Membership> memberships = await LoadMembershipsAsync(query, members.Values);
         return new ExistingAudience(members, memberships, await LoadCellsAsync(query, memberships.Values));
     }
