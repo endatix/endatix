@@ -34,14 +34,21 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
 
         var originalJson = submission.JsonData;
 
-        submission.Update(
-            request.JsonData,
-            submission.FormDefinitionId,
-            submission.FormId,
-            request.IsComplete ?? DEFAULT_IS_COMPLETE,
-            request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            request.Metadata ?? DEFAULT_METADATA
-        );
+        try
+        {
+            submission.Update(
+                request.JsonData,
+                submission.FormDefinitionId,
+                submission.FormId,
+                request.IsComplete ?? DEFAULT_IS_COMPLETE,
+                request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
+                request.Metadata ?? DEFAULT_METADATA
+            );
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Invalid(new ValidationError("This submission cannot be completed."));
+        }
 
         if (!string.Equals(originalJson, request.JsonData, StringComparison.Ordinal))
         {

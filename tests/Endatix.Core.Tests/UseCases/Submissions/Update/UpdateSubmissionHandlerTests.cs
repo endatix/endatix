@@ -112,4 +112,31 @@ public class UpdateSubmissionHandlerTests
         // Assert
         await _versions.DidNotReceive().AddAsync(Arg.Any<SubmissionVersion>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_CancelledSubmissionCompleted_ReturnsInvalid()
+    {
+        // Arrange
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 2,
+            FormDefinitionId: 3,
+            JsonData: "{ }",
+            IsComplete: false));
+        submission.Cancel();
+        var request = new UpdateSubmissionCommand(1, 2, true, 1, "{ \"updated\": true }", "metadata");
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        submission.IsComplete.Should().BeFalse();
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.Cancelled);
+        await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
 }
