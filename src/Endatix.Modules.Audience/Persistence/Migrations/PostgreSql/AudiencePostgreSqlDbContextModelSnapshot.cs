@@ -100,7 +100,8 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId")
-                        .HasDatabaseName("IX_Memberships_Form");
+                        .HasDatabaseName("IX_Memberships_Form")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "FormId", "MemberId")
                         .IsUnique()
@@ -169,7 +170,8 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId")
-                        .HasDatabaseName("IX_Properties_Form");
+                        .HasDatabaseName("IX_Properties_Form")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "FormId", "VariableName")
                         .IsUnique()
@@ -218,11 +220,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PropertyId")
+                    b.HasIndex("TenantId", "PropertyId")
                         .HasDatabaseName("IX_PropertyValues_Property")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.HasIndex("MembershipId", "PropertyId")
+                    b.HasIndex("TenantId", "MembershipId", "PropertyId")
                         .IsUnique()
                         .HasDatabaseName("IX_PropertyValues_Cell")
                         .HasFilter("\"IsDeleted\" = false");

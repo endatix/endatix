@@ -21,6 +21,10 @@ internal sealed class PropertyConfigurationPostgreSql : IEntityTypeConfiguration
             "CK_Properties_TenantId",
             $"\"{nameof(Property.TenantId)}\" > 0"));
 
+        builder.HasIndex(property => new { property.TenantId, property.FormId })
+            .HasDatabaseName("IX_Properties_Form")
+            .HasFilter($"\"{nameof(Property.IsDeleted)}\" = false");
+
         builder.HasIndex(property => new { property.TenantId, property.FormId, property.VariableName })
             .IsUnique()
             .HasDatabaseName("IX_Properties_VariableName")

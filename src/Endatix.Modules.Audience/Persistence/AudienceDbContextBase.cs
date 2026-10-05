@@ -32,15 +32,15 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(AudiencePersistence.Schema);
-        modelBuilder.ApplyEndatixQueryFilters(this);
         modelBuilder.ApplyConfiguration(new AudienceSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new PropertyConfiguration());
         modelBuilder.ApplyConfiguration(new MemberConfiguration());
         modelBuilder.ApplyConfiguration(new MembershipConfiguration());
         modelBuilder.ApplyConfiguration(new PropertyValueConfiguration());
         ApplyProviderConfigurations(modelBuilder);
-        modelBuilder.ApplySnowflakeIdValueGenerators();
+        modelBuilder.ApplyEndatixQueryFilters(this);
         modelBuilder.ApplyModuleTableNames();
+        modelBuilder.ApplySnowflakeIdValueGenerators();
     }
 
     protected abstract void ApplyProviderConfigurations(ModelBuilder modelBuilder);

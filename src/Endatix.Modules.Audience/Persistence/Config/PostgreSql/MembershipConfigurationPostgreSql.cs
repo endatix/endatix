@@ -18,6 +18,10 @@ internal sealed class MembershipConfigurationPostgreSql : IEntityTypeConfigurati
             "CK_Memberships_TenantId",
             $"\"{nameof(Membership.TenantId)}\" > 0"));
 
+        builder.HasIndex(membership => new { membership.TenantId, membership.FormId })
+            .HasDatabaseName("IX_Memberships_Form")
+            .HasFilter($"\"{nameof(Membership.IsDeleted)}\" = false");
+
         builder.HasIndex(membership => new
             {
                 membership.TenantId,

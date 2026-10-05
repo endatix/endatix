@@ -18,12 +18,12 @@ internal sealed class PropertyValueConfigurationPostgreSql : IEntityTypeConfigur
             "CK_PropertyValues_TenantId",
             $"\"{nameof(PropertyValue.TenantId)}\" > 0"));
 
-        builder.HasIndex(value => new { value.MembershipId, value.PropertyId })
+        builder.HasIndex(value => new { value.TenantId, value.MembershipId, value.PropertyId })
             .IsUnique()
             .HasDatabaseName("IX_PropertyValues_Cell")
             .HasFilter($"\"{nameof(PropertyValue.IsDeleted)}\" = false");
 
-        builder.HasIndex(value => value.PropertyId)
+        builder.HasIndex(value => new { value.TenantId, value.PropertyId })
             .HasDatabaseName("IX_PropertyValues_Property")
             .HasFilter($"\"{nameof(PropertyValue.IsDeleted)}\" = false");
     }

@@ -132,7 +132,8 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                 name: "IX_Memberships_Form",
                 schema: "audience",
                 table: "Memberships",
-                columns: new[] { "TenantId", "FormId" });
+                columns: new[] { "TenantId", "FormId" },
+                filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Memberships_Member",
@@ -146,7 +147,8 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                 name: "IX_Properties_Form",
                 schema: "audience",
                 table: "Properties",
-                columns: new[] { "TenantId", "FormId" });
+                columns: new[] { "TenantId", "FormId" },
+                filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Properties_VariableName",
@@ -160,7 +162,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                 name: "IX_PropertyValues_Cell",
                 schema: "audience",
                 table: "PropertyValues",
-                columns: new[] { "MembershipId", "PropertyId" },
+                columns: new[] { "TenantId", "MembershipId", "PropertyId" },
                 unique: true,
                 filter: "\"IsDeleted\" = false");
 
@@ -168,7 +170,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                 name: "IX_PropertyValues_Property",
                 schema: "audience",
                 table: "PropertyValues",
-                column: "PropertyId",
+                columns: new[] { "TenantId", "PropertyId" },
                 filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
