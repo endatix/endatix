@@ -213,12 +213,14 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MembershipId")
-                        .HasDatabaseName("IX_PropertyValues_Membership");
+                    b.HasIndex("PropertyId")
+                        .HasDatabaseName("IX_PropertyValues_Property")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("MembershipId", "PropertyId")
                         .IsUnique()

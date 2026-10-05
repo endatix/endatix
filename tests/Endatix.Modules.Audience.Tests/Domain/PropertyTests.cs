@@ -94,3 +94,16 @@ public class PropertyTests
         act.Should().Throw<DomainValidationException>().WithMessage("Name is required.*");
     }
 }
+
+public class PropertyValueTests
+{
+    [Fact]
+    public void ValueError_TooLong_ReturnsMessage()
+    {
+        string value = new('a', PropertyValue.VALUE_MAX_LENGHT + 1);
+
+        string? error = PropertyValue.ValueError(value);
+
+        error.Should().Contain("4000");
+    }
+}

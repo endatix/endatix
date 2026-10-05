@@ -38,6 +38,7 @@ internal sealed class ListPropertiesHandler(
         CancellationToken cancellationToken)
     {
         List<Property> properties = await db.Properties
+            .AsNoTracking()
             .Where(property => property.FormId == formId)
             .OrderBy(property => property.SortOrder)
             .ThenBy(property => property.Id)

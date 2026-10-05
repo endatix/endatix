@@ -22,5 +22,9 @@ internal sealed class PropertyValueConfigurationPostgreSql : IEntityTypeConfigur
             .IsUnique()
             .HasDatabaseName("IX_PropertyValues_Cell")
             .HasFilter($"\"{nameof(PropertyValue.IsDeleted)}\" = false");
+
+        builder.HasIndex(value => value.PropertyId)
+            .HasDatabaseName("IX_PropertyValues_Property")
+            .HasFilter($"\"{nameof(PropertyValue.IsDeleted)}\" = false");
     }
 }

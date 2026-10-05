@@ -21,7 +21,7 @@ Database schema: `audience`
 | `Properties` | Property definitions per form (`VariableName` immutable) |
 | `Members` | One person per tenant + identifier. Emails are lower-cased; external ids keep their case |
 | `Memberships` | Person on one form |
-| `PropertyValues` | Property cells on a membership |
+| `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters |
 
 ## API (directory)
 

@@ -51,9 +51,7 @@ internal sealed class ListPeopleHandler(
         CancellationToken cancellationToken)
     {
         (int requestedPage, int pageSize) = ResolvePaging(request);
-        IQueryable<Membership> query = db.Memberships
-            .Where(membership => membership.FormId == request.FormId
-                && db.Members.Any(member => member.Id == membership.MemberId));
+        IQueryable<Membership> query = MembershipsOnForm(request.FormId);
 
         int total = await query.CountAsync(cancellationToken);
         int page = Paged<PersonDto>.ResolvePage(requestedPage, pageSize, total);
@@ -66,6 +64,11 @@ internal sealed class ListPeopleHandler(
         List<PersonDto> items = await MapPeopleAsync(rows, cancellationToken);
         return Paged<PersonDto>.FromPage(page, pageSize, total, items);
     }
+
+    private IQueryable<Membership> MembershipsOnForm(long formId) =>
+        db.Memberships.AsNoTracking().Where(membership =>
+            membership.FormId == formId
+            && db.Members.Any(member => member.Id == membership.MemberId));
 
     private static (int Page, int PageSize) ResolvePaging(ListPeopleQuery request)
     {
@@ -97,6 +100,7 @@ internal sealed class ListPeopleHandler(
     {
         HashSet<long> memberIds = rows.Select(row => row.MemberId).ToHashSet();
         return await db.Members
+            .AsNoTracking()
             .Where(member => memberIds.Contains(member.Id))
             .ToDictionaryAsync(member => member.Id, member => member.Identifier, cancellationToken);
     }
@@ -106,6 +110,7 @@ internal sealed class ListPeopleHandler(
         CancellationToken cancellationToken)
     {
         var valueRows = await db.PropertyValues
+            .AsNoTracking()
             .Where(value => membershipIds.Contains(value.MembershipId))
             .Select(value => new { value.MembershipId, value.PropertyId, value.Value })
             .ToListAsync(cancellationToken);

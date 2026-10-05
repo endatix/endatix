@@ -15,6 +15,7 @@ internal static class IdentifierKindReader
         CancellationToken cancellationToken)
     {
         string? identifierKind = await db.AudienceSettings
+            .AsNoTracking()
             .Where(settings => settings.TenantId == tenantId)
             .Select(settings => settings.IdentifierKind)
             .FirstOrDefaultAsync(cancellationToken);

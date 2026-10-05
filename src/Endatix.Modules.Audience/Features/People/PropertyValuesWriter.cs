@@ -30,6 +30,25 @@ internal static class PropertyValuesWriter
                 "One or more property ids do not belong to this form."));
     }
 
+    public static Result ValueResult(IReadOnlyDictionary<long, string>? values)
+    {
+        if (values is null)
+        {
+            return Result.Success();
+        }
+
+        foreach (string value in values.Values)
+        {
+            string? error = PropertyValue.ValueError(value);
+            if (error is not null)
+            {
+                return Result.Invalid(new ValidationError(error));
+            }
+        }
+
+        return Result.Success();
+    }
+
     /// <summary>
     /// Stages value cells for a membership that has none yet. Does not save.
     /// </summary>

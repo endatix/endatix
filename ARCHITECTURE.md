@@ -74,7 +74,7 @@ Monolith features and modules follow the same vertical-slice mindset at differen
 | **Public contracts** | API response DTOs in `Endatix.Api` endpoints             | `Endatix.Modules.*.Contracts` (DTOs, commands, queries, events, wire codes — not domain)          |
 | **Domain**           | Shared `Endatix.Core` entities                           | Module `Domain/` (e.g. `Agent`, `Conversation`)                                                   |
 | **Persistence**      | Shared `AppDbContext` / `AppIdentityDbContext`           | Module `Persistence/AgentsDbContext`                                                              |
-| **DI registration**  | `AddPlatformAdminFeatures()`                             | `{Name}Module` + `EndatixBuilder.UseModule()` (OSS Reporting/Jobs, SaaS Agents + SaaS.Management) |
+| **DI registration**  | `AddPlatformAdminFeatures()`                             | `{Name}Module` + `EndatixBuilder.UseModule()` (OSS Reporting/Jobs/Audience, SaaS Agents + SaaS.Management) |
 | **Reads**            | Concrete `List*` type → `ExecuteAsync` (no MediatR)      | Often MediatR handler + DbContext **inside the module** (still no Core interface)                 |
 | **Writes**           | MediatR + Core handler + port (`IRoleManagementService`) | MediatR command/handler in module                                                                 |
 | **Endpoints**        | `Endatix.Api/Endpoints/Admin/…`                          | FastEndpoints colocated in module `Features/*/…cs`                                                |
@@ -95,6 +95,8 @@ Follows [Modulith](https://github.com/foxminchan/Modulith)-style modules: **doma
 | ---------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `Endatix.Modules.{Name}.Contracts` | DTOs, commands, queries, integration events, **wire codes** (e.g. status strings for filters/API) | Domain entities, value objects, EF types, handlers                           |
 | `Endatix.Modules.{Name}`           | `Domain/`, `Persistence/`, `Features/`, `{Name}Module.cs`                                         | HTTP models owned by `Endatix.Api` unless the module ships its own endpoints |
+
+Every packable project needs a `README.md` next to the csproj. `Directory.Build.props` packs that file; the Canary pack fails with `NU5019` when it is missing. `Endatix.Modules.Audience.Contracts` is the example.
 
 **Reporting example (`SubmissionIntegrationState`):**
 
@@ -195,9 +197,9 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 }
 ```
 
-Host wiring: OSS `UseDefaults()` calls `UseModule(ReportingModule.Instance)` and `UseModule(JobsModule.Instance)`. `UseModule` scans MediatR on `Assembly`, invokes `ConfigureServices` at finalization, and **only if** the module implements `IHasFastEndpoints` registers FastEndpoints discovery (flag-off modules contribute nothing). Do **not** also call `Api.ScanAssemblies` from `Program` for that assembly — duplicate scan bypasses the flag.
+Host wiring: OSS `UseDefaults()` calls `UseModule(ReportingModule.Instance)`, `UseModule(JobsModule.Instance)`, and `UseModule(AudienceModule.Instance)`. `UseModule` scans MediatR on `Assembly`, invokes `ConfigureServices` at finalization, and **only if** the module implements `IHasFastEndpoints` registers FastEndpoints discovery (flag-off modules contribute nothing). Do **not** also call `Api.ScanAssemblies` from `Program` for that assembly — duplicate scan bypasses the flag.
 
-**Provider:** Reporting **requires PostgreSQL** until [#813](https://github.com/endatix/endatix/issues/813). `ReportingPersistence` still sets both namespaces, but there are no SQL Server migrations — a SQL Server host can register the module, and auto-migration then does not create schema `reporting`. Details: [Reporting README](src/Endatix.Modules.Reporting/README.md). Jobs, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only**: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder.
+**Provider:** Reporting **requires PostgreSQL** until [#813](https://github.com/endatix/endatix/issues/813). `ReportingPersistence` still sets both namespaces, but there are no SQL Server migrations — a SQL Server host can register the module, and auto-migration then does not create schema `reporting`. Details: [Reporting README](src/Endatix.Modules.Reporting/README.md). Jobs, Audience, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only**: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Audience uses schema `audience` and is gated by `FeatureFlags.PersonalizationModule` (catalogue key `personalization-module`); the module name is the sample frame, the flag is the product name. See [Audience README](src/Endatix.Modules.Audience/README.md). Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder.
 
 **Optimistic concurrency:** For aggregates that can be updated concurrently, use `long Revision` + `IsConcurrencyToken()` and bump `Revision` on `Modified` at save. Same CLR type and column on both providers. Do not use PostgreSQL `xmin` (`uint` / `IsRowVersion`) on dual-provider (or future dual-provider) modules — SQL Server `rowversion` is `byte[]`. Identity keeps `ConcurrencyStamp`. `Form`/`Submission.Revision` today is outbox/event pairing, not an EF concurrency token. Map `DbUpdateConcurrencyException` to HTTP 409. Unique indexes still cover insert uniqueness.
 
@@ -392,7 +394,7 @@ The `Id` is a client-assigned snowflake `long`, never a database `IDENTITY`/seri
 carries **no** data annotation — `ApplySnowflakeIdValueGenerators` is the single source of truth.
 
 - **Core:** `Form.Create(args)` leaves `Id == 0`; EF stamps it on `Add`. `Form.Create(long id, args)` (same on `Submission`; `FormDefinition.Create(long id, …)`) is for tests, imports, seeding. Handlers and infrastructure services take **no** `IIdGenerator` (only `DataSeeder` / design-time still hold one).
-- **Infrastructure:** `ApplySnowflakeIdValueGenerators` (last in `OnModelCreating`) sets every `long Id` PK to `ValueGeneratedOnAdd` + EF `HasValueGeneratorFactory<SnowflakeValueGeneratorFactory>` + store strategy `None`. Jobs is the reference order. The factory only constructs `SnowflakeValueGenerator` (the model is cached per context type). At `Add`, the generator resolves `IIdGenerator<long>` from the host (`AddDbContext` application services), else `SnowflakeIdGenerator`. Do not pass/`new` an `IIdGenerator` in `OnModelCreating`. OSS: App, Identity, Reporting, Jobs. SaaS `AgentsDbContext` must call the helper last (`IIdGenerator` is already in DI). `ApplySnowflakeIdValueGeneratorsTests` fails CI if a `long Id` PK is missing the generator or still IDENTITY/serial.
+- **Infrastructure:** `ApplySnowflakeIdValueGenerators` (last in `OnModelCreating`) sets every `long Id` PK to `ValueGeneratedOnAdd` + EF `HasValueGeneratorFactory<SnowflakeValueGeneratorFactory>` + store strategy `None`. Jobs is the reference order. The factory only constructs `SnowflakeValueGenerator` (the model is cached per context type). At `Add`, the generator resolves `IIdGenerator<long>` from the host (`AddDbContext` application services), else `SnowflakeIdGenerator`. Do not pass/`new` an `IIdGenerator` in `OnModelCreating`. OSS: App, Identity, Reporting, Jobs, Audience. SaaS `AgentsDbContext` must call the helper last (`IIdGenerator` is already in DI). `ApplySnowflakeIdValueGeneratorsTests` fails CI if a `long Id` PK is missing the generator or still IDENTITY/serial.
 - **Not Framework.** `ProcessEntities` / `ApplyEndatixEntityDefaults` stamp `CreatedAt` / `ModifiedAt` only.
 - **Tests:** NSubstitute `AddAsync` must stamp `Id` (`ci.Arg<T>().Id = SomeId`). Hand-built contexts need no Id factory.
 - **Seeding:** tenant catalogs `Add` per missing default and concede unique races one row at a time (a batch save would drop the rest of the catalog). No `HasData` for those. `DataSeeder` still uses `IIdGenerator` because the in-memory seed graph reads Ids before SaveChanges.
@@ -512,7 +514,7 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 
 **Data isolation (EF query filters)**
 
-`ApplyEndatixQueryFilters` registers two **named** EF 10 filters on every entity of `AppDbContext`, `ReportingDbContext` and `JobsDbContextBase`:
+`ApplyEndatixQueryFilters` registers two **named** EF 10 filters on every entity of `AppDbContext`, `ReportingDbContext`, `JobsDbContextBase`, and `AudienceDbContextBase`:
 
 | Name                                 | Applies to                | Predicate                               |
 | ------------------------------------ | ------------------------- | --------------------------------------- |

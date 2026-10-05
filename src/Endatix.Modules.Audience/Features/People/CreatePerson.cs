@@ -143,15 +143,18 @@ internal sealed class CreatePersonHandler(
             : await ValidateValuesAsync(request, cancellationToken);
     }
 
-    private Task<Result> ValidateValuesAsync(
+    private async Task<Result> ValidateValuesAsync(
         CreatePersonCommand request,
         CancellationToken cancellationToken)
     {
         IReadOnlyCollection<long> propertyIds =
             request.Values?.Keys.ToList() ?? (IReadOnlyCollection<long>)[];
-        return PropertyValuesWriter.ValidatePropertyIdsAsync(
+        Result ids = await PropertyValuesWriter.ValidatePropertyIdsAsync(
             new PropertyIdCheck(db, request.FormId, propertyIds),
             cancellationToken);
+        return ids.IsSuccess
+            ? PropertyValuesWriter.ValueResult(request.Values)
+            : ids;
     }
 
     /// <summary>

@@ -89,7 +89,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     MembershipId = table.Column<long>(type: "bigint", nullable: false),
                     PropertyId = table.Column<long>(type: "bigint", nullable: false),
-                    Value = table.Column<string>(type: "text", nullable: false),
+                    Value = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -165,10 +165,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                 filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PropertyValues_Membership",
+                name: "IX_PropertyValues_Property",
                 schema: "audience",
                 table: "PropertyValues",
-                column: "MembershipId");
+                column: "PropertyId",
+                filter: "\"IsDeleted\" = false");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Settings_Tenant",

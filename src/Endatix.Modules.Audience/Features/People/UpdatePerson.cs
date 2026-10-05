@@ -37,7 +37,7 @@ internal sealed class UpdatePersonHandler(
             new PropertyValueWrite(db, request.TenantId, membership.Id, request.Values),
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(await ToDtoAsync(membership, cancellationToken));
+        return await ToDtoAsync(membership, cancellationToken);
     }
 
     private async Task<Result<Membership>> LoadAsync(
@@ -67,17 +67,28 @@ internal sealed class UpdatePersonHandler(
         Result propertyIds = await PropertyValuesWriter.ValidatePropertyIdsAsync(
             new PropertyIdCheck(db, request.FormId, request.Values.Keys.ToList()),
             cancellationToken);
-        return propertyIds.IsSuccess
+        if (!propertyIds.IsSuccess)
+        {
+            return propertyIds.ToErrorResult<Membership>();
+        }
+
+        Result values = PropertyValuesWriter.ValueResult(request.Values);
+        return values.IsSuccess
             ? Result.Success(membership)
-            : propertyIds.ToErrorResult<Membership>();
+            : values.ToErrorResult<Membership>();
     }
 
-    private async Task<PersonDto> ToDtoAsync(
+    private async Task<Result<PersonDto>> ToDtoAsync(
         Membership membership,
         CancellationToken cancellationToken)
     {
-        Member member = await db.Members
-            .FirstAsync(row => row.Id == membership.MemberId, cancellationToken);
+        Member? member = await db.Members
+            .FirstOrDefaultAsync(row => row.Id == membership.MemberId, cancellationToken);
+        if (member is null)
+        {
+            return Result.NotFound("Audience member not found.");
+        }
+
         Dictionary<long, string> allValues = await db.PropertyValues
             .Where(value => value.MembershipId == membership.Id)
             .ToDictionaryAsync(value => value.PropertyId, value => value.Value, cancellationToken);

@@ -16,9 +16,8 @@ internal sealed class PropertyValueConfiguration : IEntityTypeConfiguration<Prop
         builder.Property(value => value.TenantId).IsRequired();
         builder.Property(value => value.MembershipId).IsRequired();
         builder.Property(value => value.PropertyId).IsRequired();
-        builder.Property(value => value.Value).IsRequired();
-
-        builder.HasIndex(value => value.MembershipId)
-            .HasDatabaseName("IX_PropertyValues_Membership");
+        builder.Property(value => value.Value)
+            .HasMaxLength(PropertyValue.VALUE_MAX_LENGHT)
+            .IsRequired();
     }
 }
