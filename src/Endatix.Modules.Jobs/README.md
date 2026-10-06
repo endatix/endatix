@@ -124,6 +124,12 @@ Derive from `BackgroundJobHandler<TPayload>` and register it with
 builds only its own handler. The job type comes from the payload; handlers may live in any
 assembly. Two handlers declaring the same job type fail startup.
 
+A job type that needs other settings than the global ones declares them at the same call, so every
+host runs it as tuned: `AddBackgroundJobHandler<THandler, TPayload>(new BackgroundJobTypeDefaults
+{ MaxAttempts = 8, MaxConcurrency = 4 })`. A handler registered by a factory declares them with
+`services.AddBackgroundJobTypeDefaults(jobType, defaults)`. A value left unset falls back to the
+global one ([Configuration](#configuration)).
+
 ```csharp
 internal sealed class SubmissionExportJobHandler(..., ILogger<SubmissionExportJobHandler> logger)
     : BackgroundJobHandler<SubmissionExportPayload>(logger)
@@ -300,7 +306,24 @@ pipeline to it.
 
 ## Configuration
 
-Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{JobType}`:
+Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{JobType}`. Each per-type
+setting resolves on its own, first match wins:
+
+1. `JobTypes:{JobType}:{Setting}` in the host's configuration (appsettings or environment variables,
+   such as `Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=10`);
+2. the default the job type declared when its handler was registered;
+3. the global `{Setting}`, configured or as in the table below (`MaxConcurrency` has no global
+   value: `1`).
+
+A declared default beats the global value even when the host configures it, so a value's effect never
+depends on whether another key is set, and a global value is the setting of the job types that declare
+none. The options validator checks the values each job type runs with, whichever step they came from.
+
+| Job type | MaxAttempts | MaxRuntimeMinutes | BackoffBaseSeconds / BackoffCapSeconds | RetentionDays | MaxConcurrency | Declared in |
+|----------|-------------|-------------------|----------------------------------------|---------------|----------------|-------------|
+| `WebHookDelivery` | 8 | 5 | 10 / 3600 | 3 | 4 | `Endatix.Infrastructure` |
+| `ReportingCompileFormSchema`, `ReportingFlattenSubmission`, `ReportingSeedDefaultExportFormats`, `ReportingSyncFormDeletion`, `ReportingSyncSubmissionDeletion` | 5 | 10 | 10 / 600 | 3 | 2 | `Endatix.Modules.Reporting` |
+| any other | global | global | global | global | 1 | — |
 
 | Key | Default | Purpose |
 |-----|---------|---------|
