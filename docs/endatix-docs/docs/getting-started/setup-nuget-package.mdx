@@ -8,6 +8,8 @@ description: Install Endatix.Templates, create an API with dotnet new endatix, a
 
 You finish with an Endatix API on `https://localhost:5001` that Hub can call at `http://localhost:3000`. The template writes the project, the development settings, and the first user. It does not start a database or Docker.
 
+`Endatix.Templates` is published with the Endatix API release: nuget.org for a stable release, GitHub Packages for a canary. Until that package is on the feed you use, create the host with [`dotnet new web`](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-new-sdk-templates#web) and [`dotnet add package Endatix.Hosting`](https://www.nuget.org/packages/Endatix.Hosting), then follow [Already have a project?](#already-have-a-project).
+
 Meet the [System Requirements](/docs/getting-started/system-requirements) first: the .NET 10 SDK, and either SQL Server or PostgreSQL (`pg_trgm` on PostgreSQL).
 
 ## Create the API
@@ -28,7 +30,7 @@ SQL Server default:
 Server=localhost;Database=endatix;User Id=sa;Password=yourStrong(!)Password;TrustServerCertificate=True;
 ```
 
-3. Run the API. The `https` profile listens on `https://localhost:5001` and `http://localhost:5000`, which is what Hub's `ENDATIX_BASE_URL` expects.
+3. Run the API. `dotnet run` uses the `https` profile (it is first in `launchSettings.json`): `https://localhost:5001` and `http://localhost:5000`, which is what Hub's `ENDATIX_BASE_URL` expects. `dotnet run --launch-profile http` is HTTP only.
 
 ```bash
 dotnet run

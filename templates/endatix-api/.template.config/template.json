@@ -28,6 +28,21 @@
           }
         }
       ]
+    },
+    "**/*.json": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [ "//#if" ],
+            "else": [ "//#else" ],
+            "elseif": [ "//#elseif" ],
+            "endif": [ "//#endif" ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
     }
   },
   "symbols": {
@@ -74,25 +89,6 @@
       "description": "Reference Endatix.SaaS.Management and register SaaSManagementModule. Off by default. Requires the commercial package and PostgreSQL.",
       "datatype": "bool",
       "defaultValue": "false"
-    },
-    "saasSettings": {
-      "type": "generated",
-      "generator": "switch",
-      "replaces": "SAAS_SETTINGS",
-      "parameters": {
-        "evaluator": "C++",
-        "datatype": "string",
-        "cases": [
-          {
-            "condition": "saasManagement",
-            "value": ",\n    \"FeatureFlags\": {\n      \"SaaSManagement\": true\n    },\n    \"SaaSManagement\": {\n      \"RejectedRetentionDays\": 45\n    }"
-          },
-          {
-            "condition": "!saasManagement",
-            "value": ""
-          }
-        ]
-      }
     },
     "EndatixVersion": {
       "type": "parameter",
