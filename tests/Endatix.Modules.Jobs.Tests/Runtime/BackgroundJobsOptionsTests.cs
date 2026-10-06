@@ -1,4 +1,6 @@
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Modules.Jobs.Runtime;
+using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.Extensions.Configuration;
 using Endatix.Framework.Modules;
 using Microsoft.Extensions.DependencyInjection;
@@ -113,8 +115,8 @@ public class BackgroundJobsOptionsTests
         var options = Bind(new() { ["JobTypes:WebHookDelivery:MaxAttempts"] = "8" });
 
         // Act
-        var overridden = options.ResolvePolicy("WebHookDelivery");
-        var notOverridden = options.ResolvePolicy("SubmissionExport");
+        var overridden = options.ResolvePolicy("WebHookDelivery", declared: null);
+        var notOverridden = options.ResolvePolicy("SubmissionExport", declared: null);
 
         // Assert — an override replaces only the key it sets; every other key, and every other job type, keeps the
         // global value.
@@ -130,7 +132,7 @@ public class BackgroundJobsOptionsTests
         var options = Bind(new() { ["JobTypes:webhookdelivery:MaxAttempts"] = "8" });
 
         // Act
-        var policy = options.ResolvePolicy("WebHookDelivery");
+        var policy = options.ResolvePolicy("WebHookDelivery", declared: null);
 
         // Assert — configuration keys are case-insensitive everywhere else, so an override written in another case
         // must apply rather than be silently ignored.
@@ -151,7 +153,7 @@ public class BackgroundJobsOptionsTests
         };
 
         // Act
-        var policy = options.ResolvePolicy("webhookdelivery");
+        var policy = options.ResolvePolicy("webhookdelivery", declared: null);
 
         // Assert
         policy.MaxAttempts.Should().Be(8);
@@ -199,7 +201,7 @@ public class BackgroundJobsOptionsTests
     {
         // Arrange
         var options = Bind(section);
-        var validator = new BackgroundJobsOptionsValidator();
+        var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.None);
 
         // Act
         var result = validator.Validate(Options.DefaultName, options);
@@ -214,7 +216,7 @@ public class BackgroundJobsOptionsTests
     {
         // Arrange — overrides for a job type whose handler is not deployed yet are not mistakes.
         var options = Bind(new() { ["JobTypes:UnknownType:MaxAttempts"] = "5" });
-        var validator = new BackgroundJobsOptionsValidator();
+        var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.None);
 
         // Act
         var result = validator.Validate(Options.DefaultName, options);
@@ -265,8 +267,8 @@ public class BackgroundJobsOptionsTests
         var options = Bind(new() { ["JobTypes:WebHookDelivery:MaxConcurrency"] = "4" });
 
         // Act
-        var overridden = options.ResolvePolicy("WebHookDelivery");
-        var unset = options.ResolvePolicy("SubmissionExport");
+        var overridden = options.ResolvePolicy("WebHookDelivery", declared: null);
+        var unset = options.ResolvePolicy("SubmissionExport", declared: null);
 
         // Assert
         overridden.MaxConcurrency.Should().Be(4);
@@ -278,7 +280,7 @@ public class BackgroundJobsOptionsTests
     {
         // Arrange — zero keeps a node from running a job type it still enqueues.
         var options = Bind(new() { ["JobTypes:X:MaxConcurrency"] = "0" });
-        var validator = new BackgroundJobsOptionsValidator();
+        var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.None);
 
         // Act
         var result = validator.Validate(Options.DefaultName, options);
@@ -287,8 +289,73 @@ public class BackgroundJobsOptionsTests
         result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
     }
 
+    [Fact]
+    public void Validate_DeclaredDefaultOutOfRange_FailsNamingTheKeyThatOverridesIt()
+    {
+        // Arrange
+        var options = Bind(new());
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { MaxAttempts = 11 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert — the operator learns the value came from code and which key replaces it.
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain(FullKey("JobTypes:X:MaxAttempts")).And.Contain("declared in code");
+    }
+
+    [Fact]
+    public void Validate_ConfiguredCapBelowDeclaredBase_FailsNamingBothSources()
+    {
+        // Arrange
+        var options = Bind(new() { ["JobTypes:X:BackoffCapSeconds"] = "60" });
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { BackoffBaseSeconds = 120 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert — the base in effect is the declared one, not the global 30 seconds the cap would clear.
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain($"{FullKey("JobTypes:X:BackoffCapSeconds")} (60)")
+            .And.Contain($"{FullKey("JobTypes:X:BackoffBaseSeconds")} (the job type's default, declared in code) (120)");
+    }
+
+    [Fact]
+    public void Validate_OutOfRangeDeclaredDefaultOverridden_Succeeds()
+    {
+        // Arrange — only the values a job type runs with are validated, and the override replaces the declared one.
+        var options = Bind(new() { ["JobTypes:X:MaxAttempts"] = "5" });
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { MaxAttempts = 11 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert
+        result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
+    }
+
+    [Fact]
+    public void Validate_DeclaredDefaultsAndNoConfiguration_StartupSucceeds()
+    {
+        // Arrange
+        using var provider = ModuleProvider(
+            new(),
+            services => services.AddBackgroundJobTypeDefaults("WebHookDelivery", DeclaredDefaults.Tuned));
+
+        // Act
+        var validate = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        // Assert
+        validate.Should().NotThrow();
+    }
+
     // The module's own registration, as a host runs it, so the test sees what startup validation sees.
-    private static ServiceProvider ModuleProvider(Dictionary<string, string?> section)
+    private static ServiceProvider ModuleProvider(
+        Dictionary<string, string?> section,
+        Action<IServiceCollection>? configureServices = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(section.Select(entry => KeyValuePair.Create(FullKey(entry.Key), entry.Value)))
@@ -302,6 +369,7 @@ public class BackgroundJobsOptionsTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         JobsModule.Instance.ConfigureServices(new EndatixModuleBuilder(services, configuration));
+        configureServices?.Invoke(services);
         return services.BuildServiceProvider();
     }
 

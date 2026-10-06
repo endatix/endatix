@@ -1,10 +1,11 @@
 using Ardalis.GuardClauses;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <remarks>
-/// <see cref="JobTypes"/> overrides the per-job-type values one at a time, so the runtime must read them through
-/// <see cref="ResolvePolicy"/>; reading the property itself ignores every override.
+/// <see cref="JobTypes"/> and the defaults a job type declares in code override the per-job-type values one at a
+/// time, so the runtime must read them through <see cref="ResolvePolicy"/>; reading the property itself ignores both.
 /// </remarks>
 public sealed class BackgroundJobsOptions
 {
@@ -14,7 +15,7 @@ public sealed class BackgroundJobsOptions
     public const string SectionName = "Endatix:BackgroundJobs";
 
     /// <summary>
-    /// The concurrency cap of a job type that sets none of its own.
+    /// The concurrency cap of a job type that neither the host nor the job type's own defaults set.
     /// </summary>
     public const int DefaultJobTypeMaxConcurrency = 1;
 
@@ -111,25 +112,34 @@ public sealed class BackgroundJobsOptions
 
     /// <summary>
     /// Resolves the policy for <paramref name="jobType"/>, taking each value from the job type's override when
-    /// it is set and from the global value otherwise.
+    /// it is set, then from the default the job type <paramref name="declared"/>, and from the global value
+    /// otherwise.
     /// </summary>
-    internal BackgroundJobTypePolicy ResolvePolicy(string jobType)
+    /// <remarks>
+    /// A declared default beats the global value even when the host configures the global one, so a value's effect
+    /// never depends on whether some other key happens to be set.
+    /// </remarks>
+    internal BackgroundJobTypePolicy ResolvePolicy(string jobType, BackgroundJobTypeDefaults? declared)
     {
-        var overrides = JobTypes.TryGetValue(jobType, out var jobTypeOptions) ? jobTypeOptions : null;
+        var configured = JobTypes.GetValueOrDefault(jobType) ?? new BackgroundJobTypeOptions();
+        var defaults = declared ?? new BackgroundJobTypeDefaults();
 
         return new BackgroundJobTypePolicy(
-            MaxAttempts: overrides?.MaxAttempts ?? MaxAttempts,
-            MaxRuntime: TimeSpan.FromMinutes(overrides?.MaxRuntimeMinutes ?? MaxRuntimeMinutes),
-            BackoffBase: TimeSpan.FromSeconds(overrides?.BackoffBaseSeconds ?? BackoffBaseSeconds),
-            BackoffCap: TimeSpan.FromSeconds(overrides?.BackoffCapSeconds ?? BackoffCapSeconds),
-            MaxConcurrency: overrides?.MaxConcurrency ?? DefaultJobTypeMaxConcurrency,
-            Retention: TimeSpan.FromDays(overrides?.RetentionDays ?? RetentionDays));
+            MaxAttempts: InEffect(configured.MaxAttempts, defaults.MaxAttempts, MaxAttempts),
+            MaxRuntime: TimeSpan.FromMinutes(InEffect(configured.MaxRuntimeMinutes, defaults.MaxRuntimeMinutes, MaxRuntimeMinutes)),
+            BackoffBase: TimeSpan.FromSeconds(InEffect(configured.BackoffBaseSeconds, defaults.BackoffBaseSeconds, BackoffBaseSeconds)),
+            BackoffCap: TimeSpan.FromSeconds(InEffect(configured.BackoffCapSeconds, defaults.BackoffCapSeconds, BackoffCapSeconds)),
+            MaxConcurrency: InEffect(configured.MaxConcurrency, defaults.MaxConcurrency, DefaultJobTypeMaxConcurrency),
+            Retention: TimeSpan.FromDays(InEffect(configured.RetentionDays, defaults.RetentionDays, RetentionDays)));
     }
+
+    private static int InEffect(int? configured, int? declared, int global) => configured ?? declared ?? global;
 }
 
 /// <summary>
 /// Overrides for one job type, bound from <c>Endatix:BackgroundJobs:JobTypes:{JobType}</c>. A value left unset
-/// falls back to the global value of the same name on <see cref="BackgroundJobsOptions"/>.
+/// falls back to the default the job type declares in code, then to the global value of the same name on
+/// <see cref="BackgroundJobsOptions"/>.
 /// </summary>
 public sealed class BackgroundJobTypeOptions
 {
@@ -143,7 +153,8 @@ public sealed class BackgroundJobTypeOptions
 
     /// <summary>
     /// How many jobs of this type one node runs at once. <c>0</c> stops this node from running the type at all.
-    /// Unset means <see cref="BackgroundJobsOptions.DefaultJobTypeMaxConcurrency"/>; there is no global value.
+    /// Unset means the job type's declared default, else <see cref="BackgroundJobsOptions.DefaultJobTypeMaxConcurrency"/>;
+    /// there is no global value.
     /// </summary>
     public int? MaxConcurrency { get; set; }
 
@@ -204,7 +215,8 @@ public sealed class BackgroundJobsClusteringOptions
 }
 
 /// <summary>
-/// The values in effect for one job type, once its overrides have fallen back to the global values.
+/// The values in effect for one job type, once its overrides have fallen back to its declared defaults and then to
+/// the global values.
 /// </summary>
 internal readonly record struct BackgroundJobTypePolicy(
     int MaxAttempts,
