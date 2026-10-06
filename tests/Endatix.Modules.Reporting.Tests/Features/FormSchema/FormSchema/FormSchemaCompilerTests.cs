@@ -3,7 +3,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 
-public class FormSchemaCompilerTests
+public partial class FormSchemaCompilerTests
 {
   [Fact]
   public void CompilePersisted_ReplaceMode_DropsHistoricalKeysAndChoices()

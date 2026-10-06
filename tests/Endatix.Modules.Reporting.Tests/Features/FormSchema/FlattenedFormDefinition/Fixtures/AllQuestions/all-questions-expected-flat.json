@@ -94,5 +94,6 @@
   "qLoop__other__qLoopBoolean": false,
   "qLoop__other__qLoopRating": 4,
   "qLoop__other__qLoopColor": "4",
-  "qLoop__other__qLoopColor__other_text": null
+  "qLoop__other__qLoopColor__other_text": null,
+  "qCalculatedTotal": 64
 }

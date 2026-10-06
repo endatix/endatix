@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -79,7 +80,7 @@ public sealed class ShojiCodebookGeneratorTests
     }
 
     [Fact]
-    public void Generate_CalculatedValueIncludedInResult_WritesTextVariableAfterSystemColumns()
+    public void Generate_SeveralCalculatedValues_KeepDefinitionOrderAfterSystemColumns()
     {
         // Arrange
         const string definitionJson = """
@@ -87,23 +88,44 @@ public sealed class ShojiCodebookGeneratorTests
               "pages":[{"name":"page1","elements":[{"type":"text","name":"qName"}]}],
               "calculatedValues":[
                 {"name":"totalAmount","expression":"1 + 1","includeIntoResult":true},
-                {"name":"hiddenAmount","expression":"2 + 2","includeIntoResult":false}
+                {"name":"averageAmount","expression":"2 + 2","includeIntoResult":true}
               ]
             }
             """;
         var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
 
         // Act
-        var table = GenerateTable(compiled);
-        var metadata = table.GetProperty("metadata");
-        var order = ReadOrder(table);
+        var order = ReadOrder(GenerateTable(compiled));
 
         // Assert
-        metadata.GetProperty("totalAmount").GetProperty("type").GetString().Should().Be("text");
-        order[order.IndexOf("SubmitterDisplayId") + 1].Should().Be("totalAmount");
-        order.IndexOf("totalAmount").Should().BeLessThan(order.IndexOf("qName"));
-        metadata.TryGetProperty("hiddenAmount", out _).Should().BeFalse();
-        order.Should().NotContain("hiddenAmount");
+        order.Skip(SubmissionExportRow.SystemColumns.Count).Should().Equal("totalAmount", "averageAmount", "qName");
+    }
+
+    [Fact]
+    public void Generate_CodebookCompiledBeforeCalculatedValuesWereModelled_WritesNoCalculatedVariable()
+    {
+        // Arrange
+        const string definitionJson = """
+            {
+              "pages":[{"name":"page1","elements":[{"type":"text","name":"qName"}]}],
+              "calculatedValues":[{"name":"totalAmount","expression":"1","includeIntoResult":true}]
+            }
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var staleCodebookJson = compiled.CodebookJson.Replace(
+            "\"exportShape\":\"calculated\"",
+            "\"exportShape\":\"scalar\"");
+
+        // Act
+        using var document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                staleCodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+
+        // Assert: the codebook decides; such a form needs a recompile (#1170).
+        staleCodebookJson.Should().NotBe(compiled.CodebookJson);
+        ReadOrder(document.RootElement.GetProperty("body").GetProperty("table")).Should().NotContain("totalAmount");
     }
 
     [Fact]
@@ -132,7 +154,7 @@ public sealed class ShojiCodebookGeneratorTests
         // Assert
         metadata.GetProperty("colors").GetProperty("type").GetString().Should().Be("multiple_response");
         metadata.GetProperty("qMatrix").GetProperty("type").GetString().Should().Be("categorical_array");
-        order.Skip(10).Should().Equal("colors", "qMatrix");
+        order.Skip(SubmissionExportRow.SystemColumns.Count).Should().Equal("colors", "qMatrix");
     }
 
     [Fact]
@@ -142,7 +164,7 @@ public sealed class ShojiCodebookGeneratorTests
         const string definitionJson = """
             {
               "pages":[{"name":"page1","elements":[
-                {"type":"ranking","name":"qRanking","choices":["apple","pear"]},
+                {"type":"ranking","name":"qRanking","title":"Rank the fruit","choices":["apple","pear"]},
                 {"type":"multipletext","name":"qMultipleText","items":[{"name":"phone"}]}
               ]}],
               "calculatedValues":[
@@ -160,8 +182,9 @@ public sealed class ShojiCodebookGeneratorTests
 
         // Assert
         metadata.GetProperty("qRanking").GetProperty("type").GetString().Should().Be("text");
+        metadata.GetProperty("qRanking").GetProperty("name").GetString().Should().Be("qRanking");
         metadata.GetProperty("qMultipleText").GetProperty("type").GetString().Should().Be("text");
-        order.Skip(10).Take(2).Should().Equal("qRanking", "qMultipleText");
+        order.Skip(SubmissionExportRow.SystemColumns.Count).Take(2).Should().Equal("qRanking", "qMultipleText");
         order.Should().Contain(["qRanking--apple", "qMultipleText--phone"]);
     }
 
@@ -243,7 +266,8 @@ public sealed class ShojiCodebookGeneratorTests
             .Select(element => element.GetString()!)
             .ToList();
 
-        // Assert — definition walk, not alphabetical / writer-phase order
+        // Assert — calculated values after the system columns, then the definition walk (not
+        // alphabetical / writer-phase order)
         order.Take(11).Should().Equal(
             "FormId",
             "Id",
@@ -256,7 +280,8 @@ public sealed class ShojiCodebookGeneratorTests
             "DurationSeconds",
             "SubmitterId",
             "SubmitterDisplayId");
-        order.Skip(11).Take(6).Should().Equal(
+        order.Skip(11).Take(7).Should().Equal(
+            "qCalculatedTotal",
             "qRadioGroup",
             "qRating",
             "qSlider",

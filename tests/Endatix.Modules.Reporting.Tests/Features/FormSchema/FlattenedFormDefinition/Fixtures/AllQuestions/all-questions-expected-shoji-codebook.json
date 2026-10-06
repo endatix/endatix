@@ -982,6 +982,12 @@
           "alias": "qLoop--sword--qLoopRating",
           "name": "Loop Question (Based on Brands) -- How much do you like it? -- Sword",
           "description": ""
+        },
+        "qCalculatedTotal": {
+          "type": "text",
+          "alias": "qCalculatedTotal",
+          "name": "qCalculatedTotal",
+          "description": ""
         }
       },
       "order": [
@@ -996,6 +1002,7 @@
         "DurationSeconds",
         "SubmitterId",
         "SubmitterDisplayId",
+        "qCalculatedTotal",
         "qRadioGroup",
         "qRating",
         "qSlider",

@@ -689,6 +689,14 @@
         "es": "\u00BFAcepta los t\u00E9rminos?"
       }
     },
+    "qCalculatedTotal": {
+      "parentKey": "qCalculatedTotal",
+      "surveyJsType": "calculatedvalue",
+      "exportShape": "calculated",
+      "title": {
+        "default": "qCalculatedTotal"
+      }
+    },
     "qComment": {
       "parentKey": "qComment",
       "surveyJsType": "comment",

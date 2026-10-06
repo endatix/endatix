@@ -103,5 +103,6 @@
   "qLoop__other__qLoopBoolean": "Q48_1",
   "qLoop__other__qLoopRating": "Q48_2",
   "qLoop__other__qLoopColor": "Q48_3",
-  "qLoop__other__qLoopColor__other_text": "Q49"
+  "qLoop__other__qLoopColor__other_text": "Q49",
+  "qCalculatedTotal": "Q50"
 }

@@ -32,6 +32,8 @@ internal sealed record FormSchemaCodebookExportShape
     public static readonly FormSchemaCodebookExportShape MatrixCell = new("matrix_cell");
     public static readonly FormSchemaCodebookExportShape File = new("file");
     public static readonly FormSchemaCodebookExportShape Scalar = new("scalar");
+    /// <summary>Calculated value saved to the survey results (one column, any value).</summary>
+    public static readonly FormSchemaCodebookExportShape Calculated = new("calculated");
 
     public static FormSchemaCodebookExportShape FromColumnKind(FormSchemaColumnKind kind) =>
         kind switch
@@ -42,6 +44,7 @@ internal sealed record FormSchemaCodebookExportShape
             FormSchemaColumnKind.RankingChoice => Ranking,
             FormSchemaColumnKind.MultipleTextItem => MultipleText,
             FormSchemaColumnKind.FileUpload => File,
+            FormSchemaColumnKind.Calculated => Calculated,
             _ => Scalar,
         };
 
