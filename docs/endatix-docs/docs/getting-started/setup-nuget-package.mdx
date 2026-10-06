@@ -94,7 +94,7 @@ builder.Host.ConfigureEndatix();
 
 var app = builder.Build();
 app.UseEndatix();
-app.Run();
+await app.RunAsync();
 ```
 
 Copy `ConnectionStrings` and `Endatix` from an app created with `dotnet new endatix`, or follow [Configuring Endatix](/docs/configuration/).

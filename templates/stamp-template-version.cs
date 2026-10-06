@@ -4,24 +4,25 @@ using System.Text.RegularExpressions;
 
 if (args.Length != 3)
 {
-    Console.Error.WriteLine("usage: stamp-template-version.cs <source> <dest> <version>");
+    await Console.Error.WriteLineAsync("usage: stamp-template-version.cs <source> <dest> <version>");
     return 2;
 }
 
 var source = args[0];
 var destination = args[1];
 var version = args[2];
-var json = File.ReadAllText(source);
+var json = await File.ReadAllTextAsync(source);
 var stamped = Regex.Replace(
     json,
     """("EndatixVersion"[\s\S]*?"defaultValue":\s*")[^"]+""",
     match => match.Groups[1].Value + version,
-    RegexOptions.CultureInvariant);
+    RegexOptions.CultureInvariant,
+    TimeSpan.FromSeconds(2));
 
 var expected = $"\"defaultValue\": \"{version}\"";
 if (!stamped.Contains(expected, StringComparison.Ordinal))
 {
-    Console.Error.WriteLine(
+    await Console.Error.WriteLineAsync(
         $"Stamped template.json does not set EndatixVersion defaultValue to {version}. Keep a defaultValue string on that symbol.");
     return 1;
 }
@@ -32,5 +33,5 @@ if (!string.IsNullOrEmpty(directory))
     Directory.CreateDirectory(directory);
 }
 
-File.WriteAllText(destination, stamped);
+await File.WriteAllTextAsync(destination, stamped);
 return 0;

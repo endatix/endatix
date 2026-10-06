@@ -18,4 +18,4 @@ var app = builder.Build();
 
 app.UseEndatix();
 
-app.Run();
+await app.RunAsync();

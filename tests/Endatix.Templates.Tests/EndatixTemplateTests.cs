@@ -28,6 +28,7 @@ public sealed class EndatixTemplateTests
 
         var program = await ReadAsync(Path.Combine(created.OutputDirectory, "Program.cs"));
         program.Should().Contain("ConfigureEndatix()");
+        program.Should().Contain("await app.RunAsync()");
         program.Should().NotContain("SaaSManagement");
     }
 
