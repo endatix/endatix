@@ -2,7 +2,10 @@
   "qRadioGroup": "email",
   "qRating": 4,
   "qSlider": 50,
-  "qRangeSlider": [80, 120],
+  "qRangeSlider": [
+    80,
+    120
+  ],
   "qDropdown": "sword",
   "questionSongs__1": 0,
   "questionSongs__2": 1,
