@@ -20,6 +20,7 @@ public enum ExportRequestFilters
     CompletionStatus = 1 << 6,
     StartedAtRange = 1 << 7,
     ModifiedAtRange = 1 << 8,
+    CollectionStatus = 1 << 9,
 }
 
 /// <summary>
@@ -39,7 +40,8 @@ public static class ExportRequestFilterSets
         ExportRequestFilters.CompletedAtRange |
         ExportRequestFilters.SubmissionIdRange |
         ExportRequestFilters.ColumnScope |
-        ExportRequestFilters.CompletionStatus;
+        ExportRequestFilters.CompletionStatus |
+        ExportRequestFilters.CollectionStatus;
 
     /// <summary>
     /// Native codebook streams the compiled multi-locale codebook as-is (no request filters).
@@ -66,6 +68,7 @@ public static class AllowedExportFilters
     public const string Locale = "locale";
     public const string ColumnScope = "columnScope";
     public const string CompletionStatus = "completionStatus";
+    public const string CollectionStatus = "collectionStatus";
 
     private static readonly (ExportRequestFilters Filter, string Name)[] _all =
     [
@@ -78,6 +81,7 @@ public static class AllowedExportFilters
         (ExportRequestFilters.Locale, Locale),
         (ExportRequestFilters.ColumnScope, ColumnScope),
         (ExportRequestFilters.CompletionStatus, CompletionStatus),
+        (ExportRequestFilters.CollectionStatus, CollectionStatus),
     ];
 
     /// <summary>

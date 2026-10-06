@@ -16,4 +16,5 @@ public sealed record ExportQueryOptions(
     UtcDateTimeRange Completed = default,
     long? MinSubmissionId = null,
     long? MaxSubmissionId = null,
-    bool? IsComplete = null);
+    bool? IsComplete = null,
+    IReadOnlyList<string>? CollectionStatuses = null);
