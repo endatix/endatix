@@ -204,6 +204,118 @@ public sealed class ReportingExportRepositoryIntegrationTests
         ids.Should().Equal(seed.ProductionDay3Id);
     }
 
+    [Theory]
+    [InlineData("complete")]
+    [InlineData("COMPLETE")]
+    public async Task StreamFlattenedSubmissionsAsync_WhenCollectionStatusComplete_ReturnsOnlyComplete(string code)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
+
+        var rows = await CollectRowsAsync(
+            repository,
+            seed.FormId,
+            new ExportQueryOptions(
+                IncludeTestSubmissions: false,
+                CollectionStatuses: [CollectionStatus.FromCode(code).Code]),
+            cancellationToken);
+
+        rows.Select(row => row.SubmissionId).Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id);
+        rows.Should().AllSatisfy(row => row.CollectionStatus.Should().Be(CollectionStatusCodes.Complete));
+    }
+
+    [Fact]
+    public async Task StreamFlattenedSubmissionsAsync_WhenSeveralCollectionStatuses_ReturnsAnyOfThem()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
+
+        var rows = await CollectRowsAsync(
+            repository,
+            seed.FormId,
+            new ExportQueryOptions(
+                IncludeTestSubmissions: false,
+                CollectionStatuses: [CollectionStatusCodes.NotStarted, CollectionStatusCodes.Complete]),
+            cancellationToken);
+
+        rows.Select(row => row.SubmissionId)
+            .Should().Equal(seed.ProductionDay1Id, seed.ProductionDay2Id, seed.ProductionDay3Id);
+        rows.Single(row => row.SubmissionId == seed.ProductionDay3Id).CollectionStatus
+            .Should().Be(CollectionStatusCodes.NotStarted);
+    }
+
+    [Fact]
+    public async Task StreamFlattenedSubmissionsAsync_WhenCollectionStatusMatchesNothing_ReturnsNoRows()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
+
+        var ids = await CollectIdsAsync(
+            repository,
+            seed.FormId,
+            new ExportQueryOptions(
+                IncludeTestSubmissions: false,
+                CollectionStatuses: [CollectionStatusCodes.InProgress, "panel_hold"]),
+            cancellationToken);
+
+        ids.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task StreamFlattenedSubmissionsAsync_WhenCollectionStatusAndIsComplete_CollectionStatusWins()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
+
+        var ids = await CollectIdsAsync(
+            repository,
+            seed.FormId,
+            new ExportQueryOptions(
+                IncludeTestSubmissions: false,
+                IsComplete: true,
+                CollectionStatuses: [CollectionStatusCodes.NotStarted]),
+            cancellationToken);
+
+        ids.Should().Equal(seed.ProductionDay3Id);
+    }
+
+    [Fact]
+    public async Task HasExportableRowsAsync_WhenCollectionStatusMatchesNothing_ReturnsFalse()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedExportFixtureAsync(cancellationToken);
+
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var repository = CreateRepository(reportingDb, appDb);
+
+        var hasRows = await repository.HasExportableRowsAsync(
+            TenantId,
+            seed.FormId,
+            new ExportQueryOptions(
+                IncludeTestSubmissions: false,
+                CollectionStatuses: [CollectionStatusCodes.Cancelled]),
+            cancellationToken);
+
+        hasRows.Should().BeFalse();
+    }
+
     [Fact]
     public async Task StreamFlattenedSubmissionsAsync_WhenCreatedToExclusiveBound_ExcludesRowAtBound()
     {
@@ -528,6 +640,25 @@ public sealed class ReportingExportRepositoryIntegrationTests
                 cancellationToken);
 
         return submissionId;
+    }
+
+    private static async Task<List<FlattenedExportRow>> CollectRowsAsync(
+        ReportingExportRepository repository,
+        long formId,
+        ExportQueryOptions options,
+        CancellationToken cancellationToken)
+    {
+        List<FlattenedExportRow> rows = [];
+        await foreach (var row in repository.StreamFlattenedSubmissionsAsync(
+                           TenantId,
+                           formId,
+                           options,
+                           cancellationToken))
+        {
+            rows.Add(row);
+        }
+
+        return rows;
     }
 
     private static async Task<List<long>> CollectIdsAsync(

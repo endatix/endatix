@@ -63,7 +63,8 @@ BEGIN
             s."Id",
             s."FormId",
             s."IsComplete",
-            s."CollectionStatus",
+            -- varchar(32) column; RETURNS TABLE declares text, and RETURN QUERY needs an exact match.
+            s."CollectionStatus"::text AS "CollectionStatus",
             s."CompletedAt",
             s."CreatedAt",
             s."ModifiedAt",

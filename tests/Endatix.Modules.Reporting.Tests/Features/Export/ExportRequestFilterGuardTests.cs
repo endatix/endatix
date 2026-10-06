@@ -72,6 +72,36 @@ public sealed class ExportRequestFilterGuardTests
     }
 
     [Fact]
+    public void GetDisallowedWireNames_WhenCodebookReceivesCollectionStatus_ReturnsCollectionStatus()
+    {
+        var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(
+            ExportRequestFilterSets.ShojiCodebook,
+            EmptyFilters() with { CollectionStatuses = ["complete"] });
+
+        disallowed.Should().Equal(AllowedExportFilters.CollectionStatus);
+    }
+
+    [Fact]
+    public void GetDisallowedWireNames_WhenSubmissionsReceivesCollectionStatus_ReturnsEmpty()
+    {
+        ExportRequestFilterGuard.GetDisallowedWireNames(
+                ExportRequestFilterSets.Submissions,
+                EmptyFilters() with { CollectionStatuses = ["complete", "not_started"] })
+            .Should()
+            .BeEmpty();
+    }
+
+    [Fact]
+    public void GetDisallowedWireNames_WhenCollectionStatusesEmpty_TreatsAsAbsent()
+    {
+        ExportRequestFilterGuard.GetDisallowedWireNames(
+                ExportRequestFilterSets.ShojiCodebook,
+                EmptyFilters() with { CollectionStatuses = [] })
+            .Should()
+            .BeEmpty();
+    }
+
+    [Fact]
     public void GetDisallowedWireNames_WhenSubmissionsReceivesLocale_ReturnsLocale()
     {
         var disallowed = ExportRequestFilterGuard.GetDisallowedWireNames(

@@ -48,7 +48,7 @@ public class SubmissionExportRow : IExportItem
         public const string FormId = nameof(SubmissionExportRow.FormId);
         public const string Id = nameof(SubmissionExportRow.Id);
         public const string IsComplete = nameof(SubmissionExportRow.IsComplete);
-        public const string CollectionStatus = "collectionStatus";
+        public const string CollectionStatus = nameof(SubmissionExportRow.CollectionStatus);
         public const string CreatedAt = nameof(SubmissionExportRow.CreatedAt);
         public const string ModifiedAt = nameof(SubmissionExportRow.ModifiedAt);
         public const string StartedAt = nameof(SubmissionExportRow.StartedAt);

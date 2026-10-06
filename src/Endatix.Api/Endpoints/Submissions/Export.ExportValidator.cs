@@ -42,6 +42,13 @@ public class ExportValidator : Validator<ExportRequest>
                .IsInEnum()
                .When(x => x.CompletionStatus.HasValue);
 
+          // A malformed filter must fail, not fall back to completionStatus and export more rows.
+          RuleFor(x => x.CollectionStatus)
+               .Must(HaveValidCollectionStatusCodes)
+               .WithMessage(
+                    $"CollectionStatus must be one or more pipe-separated codes of at most {Endatix.Core.Entities.CollectionStatus.CODE_MAX_LENGTH} characters.")
+               .When(x => x.CollectionStatus is not null);
+
           RuleFor(x => x)
                .Must(request => request.CompletionStatus is not ExportCompletionStatus.Incomplete ||
                                 (string.IsNullOrWhiteSpace(request.CompletedFrom) &&
@@ -75,5 +82,14 @@ public class ExportValidator : Validator<ExportRequest>
                .Distinct(StringComparer.OrdinalIgnoreCase)
                .ToList()
                .AsReadOnly();
+     }
+
+     private static bool HaveValidCollectionStatusCodes(string? raw)
+     {
+          var codes = (raw ?? string.Empty).Split(
+               '|',
+               StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+          return codes.Length > 0 &&
+                 codes.All(code => code.Length <= Endatix.Core.Entities.CollectionStatus.CODE_MAX_LENGTH);
      }
 }

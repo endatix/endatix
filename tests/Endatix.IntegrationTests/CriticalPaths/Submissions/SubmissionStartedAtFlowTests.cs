@@ -253,6 +253,7 @@ public sealed class SubmissionStartedAtFlowTests
         // Assert
         Assert.Contains("StartedAt", csv, StringComparison.Ordinal);
         Assert.Contains("DurationSeconds", csv, StringComparison.Ordinal);
+        Assert.Contains("CollectionStatus", csv, StringComparison.Ordinal);
         Assert.Contains("125", csv, StringComparison.Ordinal);
 
         // Also prove the SQL function projects StartedAt into the EF keyless row.
@@ -271,6 +272,7 @@ public sealed class SubmissionStartedAtFlowTests
         }
 
         Assert.Single(rows);
+        Assert.Equal(CollectionStatusCodes.Complete, rows[0].CollectionStatus);
         Assert.Equal(startedAt, rows[0].StartedAt);
         Assert.Equal(completedAt, rows[0].CompletedAt);
         Assert.Equal(125, SubmissionExportRow.CalculateDurationSeconds(rows[0].StartedAt, rows[0].CompletedAt));

@@ -161,6 +161,45 @@ public sealed class ExportValidatorTests
         result.ShouldHaveValidationErrorFor("CompletionStatus");
     }
 
+    [Theory]
+    [InlineData("complete")]
+    [InlineData("not_started|viewed")]
+    [InlineData(" In_Progress | | expired ")]
+    [InlineData("panel_hold")]
+    public async Task Validate_WhenCollectionStatusHasCodes_Passes(string collectionStatus)
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CollectionStatus = collectionStatus,
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldNotHaveValidationErrorFor(x => x.CollectionStatus);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("|")]
+    [InlineData(" | | ")]
+    [InlineData("complete|abcdefghijklmnopqrstuvwxyz0123456")]
+    public async Task Validate_WhenCollectionStatusHasNoValidCodes_Fails(string collectionStatus)
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormatId = 10,
+            CollectionStatus = collectionStatus,
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+
+        result.ShouldHaveValidationErrorFor(x => x.CollectionStatus);
+    }
+
     [Fact]
     public async Task Validate_WhenMinSubmissionIdGreaterThanMax_Fails()
     {

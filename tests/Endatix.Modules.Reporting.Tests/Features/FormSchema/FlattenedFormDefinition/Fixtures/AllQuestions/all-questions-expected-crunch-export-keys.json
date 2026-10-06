@@ -2,6 +2,7 @@
   "FormId": "FormId",
   "Id": "Id",
   "IsComplete": "IsComplete",
+  "CollectionStatus": "CollectionStatus",
   "CreatedAt": "CreatedAt",
   "ModifiedAt": "ModifiedAt",
   "StartedAt": "StartedAt",
