@@ -102,6 +102,10 @@ internal static class QuartzDashboard
             app.UseAntiforgery();
             app.UseEndpoints(endpoints =>
             {
+                // Since .NET 10 nothing else serves _framework/blazor.web.js, without which the dashboard renders but
+                // stays inert; the host maps no static files of its own. The assets are public framework and package
+                // files, so they carry no policy.
+                endpoints.MapStaticAssets();
                 endpoints.MapQuartzHttpApi(ApiPath).RequireAuthorization(AuthorizationPolicy);
                 endpoints.MapQuartzDashboard(DashboardPath).RequireAuthorization(AuthorizationPolicy);
             });
