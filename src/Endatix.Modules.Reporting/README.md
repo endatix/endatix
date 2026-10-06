@@ -57,6 +57,8 @@ Test submissions alone do **not** force merge. This is a defensive bridge until 
 
 Rebuilds of one form run one at a time. Each reads, compiles and saves the schema in one transaction holding a PostgreSQL advisory lock for that form (`FormSchemaRebuildLock`: the first 8 bytes of SHA-256 over a scope name, the tenant id and the form id), so a rebuild that waited merges onto what the one before it saved. Without it, two rebuilds that read the schema at once each saved only their own columns, and the revision still looked current.
 
+A flatten rebuilds the schema only for a submission on a definition newer than the schema's revision, or on an older one whose columns the schema lacks (a replace dropped them). A merge keeps every column, so an older definition is normally already in the schema; rebuilding from it would save the schema again for every such submission and put the older definition's labels and locales back.
+
 A form deleted after a compile read it loses the schema that compile wrote, hard-deleted as its deletion sync removes it.
 
 ## Registration

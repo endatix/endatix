@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Repositories;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
+using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
@@ -14,7 +15,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Rebuilds of one form's schema against PostgreSQL.
+/// Rebuilds of one form's schema against PostgreSQL: concurrent rebuilds, and flattens of submissions made on an
+/// older definition than the schema was last compiled from.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -41,6 +43,13 @@ public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixtu
     private const string AddsQuestionB = """
         { "pages": [ { "elements": [
           { "type": "text", "name": "q0", "title": "Base" },
+          { "type": "text", "name": "qb", "title": "Added by B" }
+        ] } ] }
+        """;
+
+    private const string RetitlesBase = """
+        { "pages": [ { "elements": [
+          { "type": "text", "name": "q0", "title": "Base, retitled" },
           { "type": "text", "name": "qb", "title": "Added by B" }
         ] } ] }
         """;
@@ -72,6 +81,26 @@ public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixtu
         schema.FormDefinitionRevision.Should().Be(form.DefinitionIds[2]);
     }
 
+    [Fact]
+    public async Task Flattening_a_submission_on_an_older_definition_keeps_the_schema_compiled_from_the_newer_one()
+    {
+        // Arrange
+        var form = await SeedFormAsync([BaseDefinition, RetitlesBase]);
+        await CompileAsync(form.FormId, form.DefinitionIds[0]);
+        await CompileAsync(form.FormId, form.DefinitionIds[1]);
+        var compiled = await ReadSchemaAsync(form.FormId);
+
+        // Act
+        await FlattenAsync(form.FormId, form.SubmissionId);
+
+        // Assert
+        var afterFlatten = await ReadSchemaAsync(form.FormId);
+        afterFlatten.ModifiedAt.Should().Be(compiled.ModifiedAt);
+        afterFlatten.Codebook.Should().Be(compiled.Codebook).And.Contain("Base, retitled");
+        var row = await ReadFlattenedAsync(form.SubmissionId);
+        row.DataJson.Should().Contain("first answer");
+    }
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     private Task CompileAsync(long formId, long formDefinitionId) =>
@@ -91,6 +120,25 @@ public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixtu
 
         await CreateProcessor(appDb, reportingDb, schemas)
             .ProcessAsync(TenantId, formId, formDefinitionId, cancellationToken: Cancellation);
+    }
+
+    private async Task FlattenAsync(long formId, long submissionId)
+    {
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        FormSchemaRepository schemas = new(reportingDb, new ReportingUnitOfWork(reportingDb));
+        FormSchemaProvider provider = new(
+            schemas,
+            CreateProcessor(appDb, reportingDb, schemas),
+            CreateFormsRepository(appDb),
+            new FormSchemaCompiler());
+        SubmissionFlatteningProcessor flattening = new(
+            new EfRepository<Submission>(appDb, new EndatixSpecificationEvaluator([])),
+            new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
+            provider,
+            NullLogger<SubmissionFlatteningProcessor>.Instance);
+
+        await flattening.ProcessAsync(TenantId, formId, submissionId, Cancellation);
     }
 
     private static FormSchemaProcessor CreateProcessor(
@@ -152,6 +200,13 @@ public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixtu
     {
         await using var reportingDb = CreateReportingDbContext();
         return await reportingDb.FormSchemas.AsNoTracking().SingleAsync(schema => schema.FormId == formId, Cancellation);
+    }
+
+    private async Task<FlattenedSubmission> ReadFlattenedAsync(long submissionId)
+    {
+        await using var reportingDb = CreateReportingDbContext();
+        return await reportingDb.FlattenedSubmissions.AsNoTracking()
+            .SingleAsync(row => row.SubmissionId == submissionId, Cancellation);
     }
 
     private AppDbContext CreateAppDbContext()

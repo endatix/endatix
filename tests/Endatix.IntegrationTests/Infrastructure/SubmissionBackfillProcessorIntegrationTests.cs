@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
@@ -227,7 +228,11 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         FlattenedSubmissionRepository flattenedSubmissionRepository,
         FormSchemaRepository formSchemaRepository)
     {
-        FormSchemaProvider schemaProvider = new(formSchemaRepository, Substitute.For<IFormSchemaProcessor>());
+        FormSchemaProvider schemaProvider = new(
+            formSchemaRepository,
+            Substitute.For<IFormSchemaProcessor>(),
+            Substitute.For<IFormsRepository>(),
+            new FormSchemaCompiler());
         SubmissionFlatteningProcessor flatteningProcessor = new(
             submissionRepository,
             flattenedSubmissionRepository,

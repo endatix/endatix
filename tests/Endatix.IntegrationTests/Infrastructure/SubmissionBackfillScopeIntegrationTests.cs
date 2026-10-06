@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
@@ -321,7 +322,9 @@ public sealed class SubmissionBackfillScopeIntegrationTests
             new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
             new FormSchemaProvider(
                 new FormSchemaRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
-                Substitute.For<IFormSchemaProcessor>()),
+                Substitute.For<IFormSchemaProcessor>(),
+                Substitute.For<IFormsRepository>(),
+                new FormSchemaCompiler()),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     private static EfRepository<Submission> CreateSubmissionRepository(AppDbContext appDb) =>

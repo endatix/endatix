@@ -140,7 +140,7 @@ public sealed class FormSchemaProviderIntegrationTests
             new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
 
-        return new FormSchemaProvider(schemaRepository, schemaProcessor);
+        return new FormSchemaProvider(schemaRepository, schemaProcessor, formsRepository, new FormSchemaCompiler());
     }
 
     // The form is read as its definition and still exists after the compile wrote its schema.
