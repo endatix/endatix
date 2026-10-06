@@ -253,8 +253,11 @@ one class per step:
 A re-fire is a trigger too, and storing it can fail. While the scheduler is stopping it refuses
 every new trigger but still completes the firings it waits for, which would delete the job's last
 trigger; the firing is held instead until the scheduler lets go of it, and the next node to check
-in recovers it. A re-fire that fails on a node that keeps running is logged at `Error`: the row
-stays `Processing`, and nothing runs it again unless that node stops before the firing completes.
+in recovers it. A re-fire that fails on a node that keeps running is logged at `Error`, then at
+most once a minute, and tried again, after a wait that doubles from 0.5 s up to 5 s, until it is
+stored; the firing does not complete before then, so the row is never left `Processing` with no
+trigger. Each try sets the trigger 5 s after that try, so one stored late is not a misfire. A held
+firing occupies a worker thread of its job type's cap until its trigger is stored.
 
 The row's `AttemptCount`, against the job type's `MaxAttempts` on the node that runs the attempt,
 decides dead-lettering, and the retry's backoff is that node's too. Nothing about retries is fixed

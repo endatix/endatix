@@ -17,6 +17,10 @@ internal static class JobExecutionTestHost
     public const long JobId = 42;
     public const string ProbeJobType = "TenantProbe";
 
+    // A refused trigger is tried again within a millisecond, so a test of a store that keeps failing stays fast.
+    public static readonly TriggerStoreBackoff QuickTriggerStoreRetries =
+        new(TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1));
+
     public static ServiceProvider Services(
         IBackgroundJobStateRepository repository,
         ObservedRun observed,
@@ -32,6 +36,7 @@ internal static class JobExecutionTestHost
         services.AddSingleton(Options.Create(options ?? new BackgroundJobsOptions()));
         services.AddSingleton(Substitute.For<IJobMetrics>());
         services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(NullLogger<>));
+        services.AddSingleton(QuickTriggerStoreRetries);
         services.AddJobExecution();
         return services.BuildServiceProvider();
     }

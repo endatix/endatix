@@ -1,5 +1,4 @@
 using System.Globalization;
-using Endatix.Core.Abstractions;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
@@ -10,7 +9,6 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </summary>
 internal sealed class JobFiringAdmission(
     JobHandlerRegistry registry,
-    IDateTimeProvider dateTimeProvider,
     UnrecordedJobRefire refire,
     ILogger<JobFiringAdmission> logger)
 {
@@ -46,8 +44,8 @@ internal sealed class JobFiringAdmission(
     // for a node that can run it.
     private async Task DeclineAsync(IJobExecutionContext context, JobFiring firing)
     {
-        var fireAgainAt = dateTimeProvider.UtcNow.Add(DeclineDelay);
-        if (await refire.TryKeepAsync(context, SameTriggerAt(context, firing, fireAgainAt), firing.JobId))
+        var again = new JobRefireTrigger(firing.JobId, DeclineDelay, fireAt => SameTriggerAt(context, firing, fireAt));
+        if (await refire.TryKeepAsync(context, again) is { } fireAgainAt)
         {
             logger.LogWarning(
                 "Background job {JobId} of type {JobType} fired on a node without its handler; offering it again at {FireAgainAt:O}",

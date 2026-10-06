@@ -140,6 +140,56 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Job_whose_trigger_stores_fail_for_a_while_is_still_retried_and_completes()
+    {
+        // Arrange — the retry's trigger and the first three tries of the re-fire that replaces it cannot be stored.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        var invocations = new ProbeInvocations();
+        var failures = new TriggerStoreFailures(stores: 4);
+        await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(3), ct);
+        var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.ThrowOnce), ct);
+
+        // Act
+        await using var worker = await StartNodeFailingTriggerStoresAsync(
+            new(database, invocations, FastAttempts(3)), failures, ct);
+        var row = await database.WaitForStatusAsync(new ExpectedJobStatus(jobId, JobStatus.Completed, RetryPatience), ct);
+
+        // Assert — the firing stayed open until a trigger was stored, and that trigger ran the next attempt.
+        row.Status.Should().Be(JobStatus.Completed);
+        row.AttemptCount.Should().Be(2);
+        invocations.CountFor(jobId).Should().Be(2);
+        failures.Remaining.Should().Be(0);
+        (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Job_whose_trigger_stores_fail_for_a_while_is_dead_lettered_at_its_last_attempt()
+    {
+        // Arrange — the handler always throws, and the first attempt's retry and re-fire cannot be stored for a while.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        var invocations = new ProbeInvocations();
+        var failures = new TriggerStoreFailures(stores: 4);
+        await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(2), ct);
+        var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Throw), ct);
+
+        // Act
+        await using var worker = await StartNodeFailingTriggerStoresAsync(
+            new(database, invocations, FastAttempts(2)), failures, ct);
+        var row = await database.WaitForStatusAsync(new ExpectedJobStatus(jobId, JobStatus.DeadLettered, RetryPatience), ct);
+
+        // Assert
+        row.Status.Should().Be(JobStatus.DeadLettered);
+        row.AttemptCount.Should().Be(2);
+        invocations.CountFor(jobId).Should().Be(2);
+        failures.Remaining.Should().Be(0);
+        (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
+    }
+
     private static Dictionary<string, string?> FastAttempts(int maxAttempts) => new()
     {
         [ProbeKey("MaxAttempts")] = maxAttempts.ToString(CultureInfo.InvariantCulture),
@@ -154,6 +204,24 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var node = JobsTestNode.Create(
             database.ConnectionString,
             new Dictionary<string, string?>(settings) { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
+        await node.StartAsync(ct);
+        return node;
+    }
+
+    // Only this node's stores spend the failures: the tests enqueue from another node, whose stores never fail.
+    private static async Task<JobsTestNode> StartNodeFailingTriggerStoresAsync(
+        ProbeNodeSetup setup,
+        TriggerStoreFailures failures,
+        CancellationToken ct)
+    {
+        var node = JobsTestNode.Create(
+            setup.Database.ConnectionString,
+            setup.Settings,
+            services =>
+            {
+                services.AddProbe(setup.Invocations);
+                FailingTriggerStoreDelegate.Register(services, failures);
+            });
         await node.StartAsync(ct);
         return node;
     }

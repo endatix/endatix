@@ -19,6 +19,12 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// and a job never has two.
 /// </para>
 /// <para>
+/// A re-fire's trigger is stored before its firing completes, because completing it first would delete the job's
+/// last trigger. One that cannot be stored while the scheduler runs is tried again, after a wait that grows to
+/// <see cref="TriggerStoreBackoff.Max"/>, until it is stored, each time for the delay from then, so it never lands in
+/// the past.
+/// </para>
+/// <para>
 /// A stopping scheduler refuses every new trigger but still completes the firings it waits for. A firing that
 /// cannot store its trigger then is held until the scheduler has let go of it, so it is not completed, and the next
 /// node to check in recovers it.
@@ -27,6 +33,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal sealed class UnrecordedJobRefire(
     IDateTimeProvider dateTimeProvider,
     JobsShutdownSignal shutdownSignal,
+    TriggerStoreBackoff backoff,
     ILogger<UnrecordedJobRefire> logger)
 {
     /// <summary>How long after its firing could not settle the row a job runs again.</summary>
@@ -53,20 +60,12 @@ internal sealed class UnrecordedJobRefire(
     }
 
     /// <summary>
-    /// Stores <paramref name="trigger"/> for a firing that leaves the job's row as it is, and returns whether it was
-    /// stored. A trigger that cannot be stored is handled as a re-fire's is: logged, and held while the scheduler
-    /// stops so the next node to check in recovers the firing.
+    /// Stores the trigger <paramref name="again"/> describes for a firing that leaves the job's row as it is, trying
+    /// again until it is stored, and returns when the job fires again; or <see langword="null"/> when the scheduler
+    /// stopped first and the firing was held for the next node to check in to recover.
     /// </summary>
-    public async Task<bool> TryKeepAsync(IJobExecutionContext context, ITrigger trigger, long jobId)
-    {
-        if (await TryScheduleAsync(context, trigger) is not { } failure)
-        {
-            return true;
-        }
-
-        await LeaveUnscheduledAsync(context.Scheduler, jobId, failure);
-        return false;
-    }
+    public Task<DateTimeOffset?> TryKeepAsync(IJobExecutionContext context, JobRefireTrigger again) =>
+        StoreOrHoldAsync(context, again);
 
     /// <summary>
     /// Schedules the attempt after <paramref name="attempt"/> on a trigger of the job's own, and returns whether it
@@ -132,27 +131,57 @@ internal sealed class UnrecordedJobRefire(
             return null;
         }
 
-        var fireAt = dateTimeProvider.UtcNow.Add(Delay);
-        if (await TryScheduleAsync(context, QuartzRegistration.TriggerFor(job.ReclaimAt(fireAt))) is not { } failure)
-        {
-            return fireAt;
-        }
-
-        await LeaveUnscheduledAsync(context.Scheduler, job.JobId, failure);
-        return null;
+        var reclaim = new JobRefireTrigger(job.JobId, Delay, fireAt => QuartzRegistration.TriggerFor(job.ReclaimAt(fireAt)));
+        return await StoreOrHoldAsync(context, reclaim);
     }
 
-    private async Task LeaveUnscheduledAsync(IScheduler scheduler, long jobId, Exception failure)
+    // Returns when the job fires again, or null when the scheduler let go of the firing before the trigger could be
+    // stored. Until one or the other, the firing stays open, so the trigger that fired is not deleted.
+    private async Task<DateTimeOffset?> StoreOrHoldAsync(IJobExecutionContext context, JobRefireTrigger again)
     {
-        if (!IsStopping(scheduler))
+        var unstored = new UnstoredTrigger(backoff);
+        while (true)
         {
-            logger.LogError(
-                failure,
-                "Background job {JobId} could not be re-fired; its row stays as it is, Processing if an attempt ran, and nothing will run it again unless its node stops before this firing completes",
-                jobId);
+            var fireAt = dateTimeProvider.UtcNow.Add(again.Delay);
+            if (await TryScheduleAsync(context, again.TriggerAt(fireAt)) is not { } failure)
+            {
+                return fireAt;
+            }
+
+            if (IsReleasing(context.Scheduler))
+            {
+                await HoldAsync(context.Scheduler, again.JobId, failure);
+                return null;
+            }
+
+            await WaitToTryAgainAsync(unstored, again.JobId, failure);
+        }
+    }
+
+    private async Task WaitToTryAgainAsync(UnstoredTrigger unstored, long jobId, Exception failure)
+    {
+        ReportUnstored(unstored, jobId, failure);
+
+        // A raised signal ends the wait early rather than throwing; the next failure then holds the firing.
+        await Task.Delay(unstored.NextWait, shutdownSignal.Token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+    }
+
+    private void ReportUnstored(UnstoredTrigger unstored, long jobId, Exception failure)
+    {
+        if (!unstored.RecordFailureAt(dateTimeProvider.UtcNow))
+        {
             return;
         }
 
+        logger.LogError(
+            failure,
+            "Background job {JobId} could not be re-fired after {Failures} tries; its firing stays open, holding its worker thread, and the trigger is tried again until it is stored",
+            jobId,
+            unstored.Failures);
+    }
+
+    private async Task HoldAsync(IScheduler scheduler, long jobId, Exception failure)
+    {
         logger.LogWarning(
             failure,
             "Background job {JobId} could not be re-fired while the scheduler stops; its firing is held until the scheduler lets go of it, and the next node to check in recovers it",
@@ -172,8 +201,9 @@ internal sealed class UnrecordedJobRefire(
         }
     }
 
-    private static bool IsStopping(IScheduler scheduler) =>
-        scheduler.Status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown;
+    // The scheduler refuses new triggers from here on, and lets go of its firings once it has stopped waiting for them.
+    private bool IsReleasing(IScheduler scheduler) =>
+        shutdownSignal.IsRaised || scheduler.Status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown;
 
     private static async Task ReplaceFiringAsync(IJobExecutionContext context, ITrigger trigger)
     {
@@ -196,4 +226,55 @@ internal sealed record ReclaimableJob(long JobId, string JobType)
 
     /// <summary>A trigger that takes the job over from an attempt that left its row unsettled.</summary>
     public JobTriggerSpec ReclaimAt(DateTimeOffset fireAt) => new(JobId, JobType, fireAt, Reclaim: true);
+}
+
+/// <summary>
+/// A trigger that fires a job again after <paramref name="Delay"/>, built for whatever time it is stored at, so a
+/// store tried again later still fires the delay after it lands.
+/// </summary>
+internal sealed record JobRefireTrigger(long JobId, TimeSpan Delay, Func<DateTimeOffset, ITrigger> TriggerAt);
+
+/// <summary>How long a firing waits before it tries again to store a trigger the scheduler refused.</summary>
+internal sealed record TriggerStoreBackoff(TimeSpan First, TimeSpan Max)
+{
+    // Far past any cap worth having, and far short of overflowing a TimeSpan.
+    private const int MaxDoublings = 16;
+
+    public static readonly TriggerStoreBackoff Default = new(TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(5));
+
+    /// <summary>The wait after the <paramref name="failures"/>-th refusal in a row: doubling, up to <see cref="Max"/>.</summary>
+    public TimeSpan After(int failures)
+    {
+        var doubled = First * Math.Pow(2, Math.Clamp(failures - 1, 0, MaxDoublings));
+        return doubled < Max ? doubled : Max;
+    }
+}
+
+/// <summary>
+/// The refusals one firing has met storing its trigger: how long to wait before the next try, and whether a refusal
+/// is due to be logged, which the first one is and the rest at most once per <see cref="LogInterval"/>, so a store
+/// that stays down does not flood the log.
+/// </summary>
+internal sealed class UnstoredTrigger(TriggerStoreBackoff backoff)
+{
+    internal static readonly TimeSpan LogInterval = TimeSpan.FromMinutes(1);
+
+    private DateTimeOffset? _loggedAt;
+
+    public int Failures { get; private set; }
+
+    public TimeSpan NextWait => backoff.After(Failures);
+
+    /// <summary>Counts a refusal at <paramref name="now"/>, and returns whether it is due to be logged.</summary>
+    public bool RecordFailureAt(DateTimeOffset now)
+    {
+        Failures++;
+        if (_loggedAt is { } loggedAt && now - loggedAt < LogInterval)
+        {
+            return false;
+        }
+
+        _loggedAt = now;
+        return true;
+    }
 }
