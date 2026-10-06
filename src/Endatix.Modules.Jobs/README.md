@@ -33,7 +33,7 @@ Two stores in one `jobs` schema, with one job each:
   re-runs the work of a node that stopped. A retry is a trigger the job wrapper stores itself.
 
 Every job has exactly one row and one Quartz trigger, keyed by the job's id; the trigger carries
-nothing but that id.
+nothing but that id and, on a re-fire, a reclaim flag.
 
 ## Module layout
 
@@ -193,9 +193,9 @@ deploy the module that handles it.
 
 **Dashboard.** With `Dashboard:Enabled`, the Quartz dashboard is served at `/quartz` and its HTTP
 API at `/quartz-api`, both behind the `PlatformAdmin` policy and read-only unless
-`Dashboard:AllowWrites` is set. It is an operator tool: a caller that may write can schedule jobs
-on the host, and it shows every tenant's triggers. Even with writes on, only Endatix's own job
-class may be named.
+`Dashboard:AllowWrites` is set. It is an operator tool: a caller that may write can trigger, pause
+or reschedule any tenant's jobs, and it shows every tenant's triggers. Even with writes on, only
+Endatix's own job class may be named.
 
 Each job type the host has a handler for gets one durable Quartz job, which requests recovery,
 so a job cut off by a stopped or crashed node runs again on another. A host enqueueing a job type
@@ -304,6 +304,22 @@ pipeline to it.
 | `endatix.jobs.duration` | histogram | `s` | `endatix.job.type`, `endatix.job.outcome` |
 | `endatix.jobs.retries_exhausted_mismatch` | counter | `{job}` | `endatix.job.type` |
 
+## Outbox delivery to jobs
+
+With `Endatix:Outbox:DeliverToJobQueue` on (default `false`), the outbox relay delivers each message
+by enqueuing one job per subscriber — one `WebHookDelivery` job per distinct enabled endpoint URL,
+one job per Reporting handler — with the dedup key `{outboxMessageId}:{subscriber}`, and marks it
+sent. Modules register their subscriptions with `AddOutboxJobSubscription` next to their job
+handlers.
+
+- Every host that runs the outbox relay must register every module that subscribes to outbox
+  events, with the same module feature flags.
+- With the switch on and this module off, the relay pauses rather than lose messages.
+- Startup fails while an inline outbox handler's event has no job subscription from its module.
+- The switch needs PostgreSQL: on SQL Server it stays `false`.
+
+Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
+
 ## Configuration
 
 Under `Endatix:BackgroundJobs`, with per-job-type settings under `JobTypes:{JobType}`.
@@ -312,7 +328,7 @@ Under `Endatix:BackgroundJobs`, with per-job-type settings under `JobTypes:{JobT
 its own, and the first of these that has a value is used:
 
 1. the job type's own key, `JobTypes:{JobType}:{Setting}`, in appsettings or an environment variable;
-2. the global key, `{Setting}`, if the host set it;
+2. the global key, `{Setting}`, if the host set it, even to its default value;
 3. the job type's default, declared in code when its handler was registered (the table below);
 4. the global default (the second table below).
 
@@ -340,6 +356,9 @@ Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=10
 
 The options validator checks the values each job type runs with, and names the key each one came
 from; a value from code is named by the `JobTypes` key that replaces it.
+A global backoff value is checked against each job type's values from code, so a global
+`BackoffBaseSeconds` of `700` fails startup for the Reporting types (cap `600`); set the job
+type's own key instead.
 
 | Job type | MaxAttempts | MaxRuntimeMinutes | BackoffBaseSeconds / BackoffCapSeconds | RetentionDays | MaxConcurrency | Declared in |
 |----------|-------------|-------------------|----------------------------------------|---------------|----------------|-------------|
