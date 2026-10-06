@@ -189,7 +189,7 @@ Session lifetime, in **minutes** — `900` is 15 hours, not 900 days. Shorten it
 Auth.js encryption key, separate from `SESSION_SECRET`. Generate with `npx auth secret`.
 </Setting>
 <Setting name="AUTH_URL">
-Public origin of this Hub, e.g. `https://hub.example.com`. Set it whenever Hub sits behind a proxy or an external identity provider is in play, or callbacks return to the internal hostname.
+Public origin of this Hub, e.g. `https://hub.example.com`. Required behind a reverse proxy (Azure Front Door, ingress, nginx, a load balancer). The scheme is the browser URL, and both the session cookie and logout use it. `https` stays secure even when the app receives HTTP. Without it, Hub falls back to the request protocol, which is the internal HTTP hop, and a client who can reach the origin can set `X-Forwarded-Proto`. A missed cookie is logged as `auth.logout` with `reason=session_cookie_missing` (Application Insights, or stdout when `TELEMETRY_CONSOLE_FALLBACK=true`).
 </Setting>
 <Setting name="AUTH_TRUST_HOST">
 `true` behind a reverse proxy, so Auth.js trusts the forwarded host headers.
