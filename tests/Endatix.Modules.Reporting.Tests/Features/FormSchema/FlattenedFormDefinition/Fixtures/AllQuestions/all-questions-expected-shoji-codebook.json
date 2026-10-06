@@ -38,6 +38,12 @@
             }
           ]
         },
+        "CollectionStatus": {
+          "type": "text",
+          "alias": "CollectionStatus",
+          "name": "Collection Status",
+          "description": ""
+        },
         "CreatedAt": {
           "type": "datetime",
           "alias": "CreatedAt",
@@ -982,6 +988,7 @@
         "FormId",
         "Id",
         "IsComplete",
+        "CollectionStatus",
         "CreatedAt",
         "ModifiedAt",
         "StartedAt",

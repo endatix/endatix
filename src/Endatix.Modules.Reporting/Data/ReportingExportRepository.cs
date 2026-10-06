@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts;
@@ -105,6 +106,7 @@ internal sealed class ReportingExportRepository(
                     SubmissionId: submission.Id,
                     FormId: submission.FormId,
                     IsComplete: submission.IsComplete,
+                    CollectionStatus: submission.CollectionStatus.Code,
                     CreatedAt: submission.CreatedAt,
                     ModifiedAt: submission.ModifiedAt,
                     StartedAt: submission.StartedAt,
@@ -166,7 +168,14 @@ internal sealed class ReportingExportRepository(
             .WhereUtcRange(submission => submission.StartedAt, options.Started)
             .WhereUtcRange(submission => submission.CompletedAt, options.Completed);
 
-        if (options.IsComplete is bool isComplete)
+        if (options.CollectionStatuses is { Count: > 0 } codes)
+        {
+            // Compare whole values: CollectionStatus is value-converted to its code column,
+            // so EF translates Contains(column) to IN (...), but not member access on .Code.
+            List<CollectionStatus> statuses = codes.Select(CollectionStatus.FromCode).ToList();
+            query = query.Where(submission => statuses.Contains(submission.CollectionStatus));
+        }
+        else if (options.IsComplete is bool isComplete)
         {
             query = query.Where(submission => submission.IsComplete == isComplete);
         }

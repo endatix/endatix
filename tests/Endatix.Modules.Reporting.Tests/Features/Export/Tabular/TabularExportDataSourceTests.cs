@@ -332,6 +332,7 @@ public sealed class TabularExportDataSourceTests
             SubmissionId: 10,
             FormId: FormId,
             IsComplete: true,
+            CollectionStatus: CollectionStatusCodes.Complete,
             CreatedAt: createdAt,
             ModifiedAt: modifiedAt,
             StartedAt: startedAt,
@@ -363,6 +364,7 @@ public sealed class TabularExportDataSourceTests
         SubmissionExportRow mappedRow = rows[0];
         mappedRow.Id.Should().Be(sourceRow.SubmissionId);
         mappedRow.FormId.Should().Be(sourceRow.FormId);
+        mappedRow.CollectionStatus.Should().Be(CollectionStatusCodes.Complete);
         mappedRow.CreatedAt.Should().Be(createdAt);
         mappedRow.ModifiedAt.Should().Be(modifiedAt);
         mappedRow.StartedAt.Should().Be(startedAt);

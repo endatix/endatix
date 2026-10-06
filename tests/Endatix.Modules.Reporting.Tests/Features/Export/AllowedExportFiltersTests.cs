@@ -22,7 +22,8 @@ public sealed class AllowedExportFiltersTests
             AllowedExportFilters.CompletedAtRange,
             AllowedExportFilters.SubmissionIdRange,
             AllowedExportFilters.ColumnScope,
-            AllowedExportFilters.CompletionStatus);
+            AllowedExportFilters.CompletionStatus,
+            AllowedExportFilters.CollectionStatus);
         names.Should().NotContain(AllowedExportFilters.Locale);
     }
 

@@ -237,6 +237,7 @@ internal static class ShojiCodebookGenerator
         SubmissionExportRow.SystemColumns.FormId,
         SubmissionExportRow.SystemColumns.Id,
         SubmissionExportRow.SystemColumns.IsComplete,
+        SubmissionExportRow.SystemColumns.CollectionStatus,
         SubmissionExportRow.SystemColumns.CreatedAt,
         SubmissionExportRow.SystemColumns.ModifiedAt,
         SubmissionExportRow.SystemColumns.StartedAt,
@@ -295,6 +296,9 @@ internal static class ShojiCodebookGenerator
             writtenVariables,
             usedDisplayNames,
             orderAliases);
+        // Text, not categorical: tenants may add codes beyond the built-in catalog.
+        // Same alias, name and type as export_form_metadata_shoji_v2 (legacy SQL path).
+        WriteSystemText(writer, SubmissionExportRow.SystemColumns.CollectionStatus, "Collection Status", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.CreatedAt, "Created At", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.ModifiedAt, "Modified At", writtenVariables, usedDisplayNames, orderAliases);
         WriteSystemDatetime(writer, SubmissionExportRow.SystemColumns.StartedAt, "Started At", writtenVariables, usedDisplayNames, orderAliases);

@@ -267,6 +267,7 @@ public partial class Export : Endpoint<ExportRequest>
         }
 
         var created = request.ToCreatedRange();
+        var collectionStatuses = ParseCollectionStatuses(request.CollectionStatus);
         var modified = request.ToModifiedRange();
         var started = request.ToStartedRange();
         var completed = request.ToCompletedRange();
@@ -292,7 +293,10 @@ public partial class Export : Endpoint<ExportRequest>
             Completed: completed,
             MinSubmissionId: request.MinSubmissionId,
             MaxSubmissionId: request.MaxSubmissionId,
-            IsComplete: MapCompletionStatusToIsComplete(request.CompletionStatus));
+            IsComplete: collectionStatuses is { Count: > 0 }
+                ? null
+                : MapCompletionStatusToIsComplete(request.CompletionStatus),
+            CollectionStatuses: collectionStatuses);
 
         return Result.Success(new ValidatedExportOperation(
             exportFormat.WireKey,
@@ -380,13 +384,31 @@ public partial class Export : Endpoint<ExportRequest>
             MaxSubmissionId: request.MaxSubmissionId,
             Locale: request.Locale,
             ColumnScope: NormalizeColumnScope(request.ColumnScope),
-            CompletionStatus: request.CompletionStatus);
+            CompletionStatus: request.CompletionStatus,
+            CollectionStatuses: ParseCollectionStatuses(request.CollectionStatus));
 
     private static string[]? NormalizeColumnScope(string[]? columnScope) =>
         columnScope is { Length: > 0 } ? columnScope : null;
 
     private static string? NormalizeLocale(string? locale) =>
         string.IsNullOrWhiteSpace(locale) ? null : locale.Trim();
+
+    private static IReadOnlyList<string>? ParseCollectionStatuses(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var codes = raw
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(code => code.Length <= CollectionStatus.CODE_MAX_LENGTH)
+            .Select(code => CollectionStatus.FromCode(code).Code)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return codes.Count == 0 ? null : codes;
+    }
 
     private static bool? MapCompletionStatusToIsComplete(ExportCompletionStatus? completionStatus) =>
         completionStatus switch

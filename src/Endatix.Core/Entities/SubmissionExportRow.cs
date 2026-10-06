@@ -10,6 +10,7 @@ public class SubmissionExportRow : IExportItem
     public long FormId { get; init; }
     public long Id { get; init; }
     public bool IsComplete { get; set; }
+    public string CollectionStatus { get; set; } = string.Empty;
     public DateTime CreatedAt { get; init; }
     public DateTime? ModifiedAt { get; init; }
     public DateTime? StartedAt { get; init; }
@@ -47,6 +48,7 @@ public class SubmissionExportRow : IExportItem
         public const string FormId = nameof(SubmissionExportRow.FormId);
         public const string Id = nameof(SubmissionExportRow.Id);
         public const string IsComplete = nameof(SubmissionExportRow.IsComplete);
+        public const string CollectionStatus = nameof(SubmissionExportRow.CollectionStatus);
         public const string CreatedAt = nameof(SubmissionExportRow.CreatedAt);
         public const string ModifiedAt = nameof(SubmissionExportRow.ModifiedAt);
         public const string StartedAt = nameof(SubmissionExportRow.StartedAt);
@@ -60,6 +62,7 @@ public class SubmissionExportRow : IExportItem
             FormId,
             Id,
             IsComplete,
+            CollectionStatus,
             CreatedAt,
             ModifiedAt,
             StartedAt,

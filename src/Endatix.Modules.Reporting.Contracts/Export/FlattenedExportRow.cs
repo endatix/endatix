@@ -7,6 +7,7 @@ public sealed record FlattenedExportRow(
     long SubmissionId,
     long FormId,
     bool IsComplete,
+    string CollectionStatus,
     DateTime CreatedAt,
     DateTime? ModifiedAt,
     DateTime? StartedAt,

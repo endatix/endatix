@@ -33,6 +33,31 @@ public sealed class ShojiCodebookGeneratorTests
     }
 
     [Fact]
+    public void Generate_WritesCollectionStatusAsTextSystemVariable()
+    {
+        // Arrange
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[{"type":"text","name":"qName"}]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        using var document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        var variable = document.RootElement
+            .GetProperty("body").GetProperty("table").GetProperty("metadata")
+            .GetProperty("CollectionStatus");
+
+        // Assert — same alias, name and type as the legacy export_form_metadata_shoji_v2
+        variable.GetProperty("type").GetString().Should().Be("text");
+        variable.GetProperty("alias").GetString().Should().Be("CollectionStatus");
+        variable.GetProperty("name").GetString().Should().Be("Collection Status");
+    }
+
+    [Fact]
     public void Generate_TagboxWithoutChoices_WritesTextVariableForValuesColumn()
     {
         const string definitionJson = """
@@ -112,10 +137,11 @@ public sealed class ShojiCodebookGeneratorTests
             .ToList();
 
         // Assert — definition walk, not alphabetical / writer-phase order
-        order.Take(10).Should().Equal(
+        order.Take(11).Should().Equal(
             "FormId",
             "Id",
             "IsComplete",
+            "CollectionStatus",
             "CreatedAt",
             "ModifiedAt",
             "StartedAt",
@@ -123,7 +149,7 @@ public sealed class ShojiCodebookGeneratorTests
             "DurationSeconds",
             "SubmitterId",
             "SubmitterDisplayId");
-        order.Skip(10).Take(6).Should().Equal(
+        order.Skip(11).Take(6).Should().Equal(
             "qRadioGroup",
             "qRating",
             "qSlider",

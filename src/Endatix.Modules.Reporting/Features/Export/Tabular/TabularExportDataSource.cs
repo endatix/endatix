@@ -240,7 +240,8 @@ internal sealed class TabularExportDataSource(
                 Completed: executionSettings.Completed,
                 MinSubmissionId: executionSettings.MinSubmissionId,
                 MaxSubmissionId: executionSettings.MaxSubmissionId,
-                IsComplete: executionSettings.IsComplete);
+                IsComplete: executionSettings.IsComplete,
+                CollectionStatuses: executionSettings.CollectionStatuses);
         }
 
         return new ExportQueryOptions(
@@ -369,6 +370,7 @@ internal sealed class TabularExportDataSource(
             FormId = row.FormId,
             Id = row.SubmissionId,
             IsComplete = row.IsComplete,
+            CollectionStatus = row.CollectionStatus,
             CreatedAt = row.CreatedAt,
             ModifiedAt = row.ModifiedAt,
             StartedAt = row.StartedAt,

@@ -1052,6 +1052,47 @@ public class ExportTests
     }
 
     [Fact]
+    public async Task HandleAsync_WithCsv_WhenCollectionStatus_PassesNormalizedCodesAndIgnoresCompletionStatus()
+    {
+        var formId = 1L;
+        var exportFormatId = 202L;
+        var tenantId = SampleData.TENANT_ID;
+        var request = new ExportRequest
+        {
+            FormId = formId,
+            ExportFormatId = exportFormatId,
+            CompletionStatus = ExportCompletionStatus.Completed,
+            CollectionStatus = " Not_Started | viewed |NOT_STARTED",
+        };
+
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
+        form.Id = formId;
+        var exporter = CreateMockExporter("csv", typeof(SubmissionExportRow));
+        var fileExport = new FileExport("text/csv", "submissions-1.csv");
+
+        _formsRepository.GetByIdAsync(formId, Arg.Any<CancellationToken>()).Returns(form);
+        _tenantContext.TenantId.Returns(tenantId);
+        _exportFormatRepository.GetByIdAsync(tenantId, exportFormatId, Arg.Any<CancellationToken>())
+            .Returns(CreateCsvExportFormatRecord(exportFormatId));
+        _exporterFactory.GetExporter("csv", typeof(SubmissionExportRow)).Returns(exporter);
+        exporter.GetHeadersAsync(Arg.Any<ExportOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+        _mediator.Send(Arg.Any<SubmissionsExportQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(fileExport));
+
+        await _reportingEndpoint.HandleAsync(request, CancellationToken.None);
+
+        _reportingEndpoint.HttpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+        await _mediator.Received(1).Send(
+            Arg.Is<SubmissionsExportQuery>(q =>
+                ((SubmissionExportExecutionSettings)q.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings])
+                    .IsComplete == null &&
+                ((SubmissionExportExecutionSettings)q.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings])
+                    .CollectionStatuses!.SequenceEqual(new[] { "not_started", "viewed" })),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task HandleAsync_WithCsv_WhenCompletionStatusAll_LeavesIsCompleteNull()
     {
         var formId = 1L;

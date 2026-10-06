@@ -27,6 +27,7 @@ public abstract class SubmissionExporterBase(
         [SubmissionExportRow.SystemColumns.FormId] = row => row.FormId,
         [SubmissionExportRow.SystemColumns.Id] = row => row.Id,
         [SubmissionExportRow.SystemColumns.IsComplete] = row => row.IsComplete,
+        [SubmissionExportRow.SystemColumns.CollectionStatus] = row => row.CollectionStatus,
         [SubmissionExportRow.SystemColumns.CreatedAt] = row => row.CreatedAt,
         [SubmissionExportRow.SystemColumns.ModifiedAt] = row => row.ModifiedAt,
         [SubmissionExportRow.SystemColumns.StartedAt] = row => row.StartedAt is null ? NOT_AVAILABLE_VALUE : row.StartedAt,

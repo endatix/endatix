@@ -80,6 +80,13 @@ public static class ExportRequestFilterGuard
             AllowedExportFilters.CompletionStatus,
             filters.CompletionStatus.HasValue);
 
+        AddWhenDisallowed(
+            disallowed,
+            allowed,
+            ExportRequestFilters.CollectionStatus,
+            AllowedExportFilters.CollectionStatus,
+            filters.CollectionStatuses is { Count: > 0 });
+
         return disallowed;
     }
 

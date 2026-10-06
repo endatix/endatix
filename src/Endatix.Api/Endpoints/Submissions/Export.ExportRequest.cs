@@ -32,6 +32,12 @@ public class ExportRequest : ICreatedRange, IModifiedRange, IStartedRange, IComp
     /// </summary>
     public ExportCompletionStatus? CompletionStatus { get; set; }
 
+    /// <summary>
+    /// Optional collection-status codes, pipe-separated. When set, this wins over
+    /// <see cref="CompletionStatus"/>.
+    /// </summary>
+    public string? CollectionStatus { get; set; }
+
     /// <inheritdoc />
     public string? CreatedFrom { get; set; }
 
