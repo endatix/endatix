@@ -67,11 +67,11 @@ public class SubmissionEventPayloadBehaviorFactsTests
     }
 
     [Fact]
-    public void SubmissionStatusChangedEvent_Payload_WithPreviousStatus_InheritsBaseAndSetsPreviousStatus()
+    public void SubmissionReviewStatusChangedEvent_Payload_WithPreviousStatus_InheritsBaseAndSetsPreviousStatus()
     {
         Submission submission = CreateCompleteSubmission();
 
-        SubmissionStatusChangedEvent.Payload payload = new(submission, revision: 4, SubmissionStatus.New);
+        SubmissionReviewStatusChangedEvent.Payload payload = new(submission, revision: 4, SubmissionStatus.New);
 
         payload.Should().BeAssignableTo<SubmissionCompletedEvent.Payload>();
         payload.PreviousStatus.Should().Be("new");
@@ -111,19 +111,19 @@ public class SubmissionEventPayloadBehaviorFactsTests
     }
 
     [Fact]
-    public void SubmissionStatusChangedEvent_GetPayload_OnWire_IncludesPreviousAndCurrentStatus()
+    public void SubmissionReviewStatusChangedEvent_GetPayload_OnWire_IncludesPreviousAndCurrentStatus()
     {
         Submission submission = CreateCompleteSubmission();
         submission.ClearDomainEvents();
         submission.UpdateStatus(SubmissionStatus.Approved);
 
-        SubmissionStatusChangedEvent statusChanged = submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single();
+        SubmissionReviewStatusChangedEvent statusChanged = submission.DomainEvents.OfType<SubmissionReviewStatusChangedEvent>().Single();
         JsonElement json = WirePayload(statusChanged.GetPayload());
 
         json.GetProperty("previousStatus").GetString().Should().Be("new");
         json.GetProperty("status").GetString().Should().Be("approved");
         json.TryGetProperty("changeKind", out _).Should().BeFalse();
-        statusChanged.GetPayload().Should().BeOfType<SubmissionStatusChangedEvent.Payload>();
+        statusChanged.GetPayload().Should().BeOfType<SubmissionReviewStatusChangedEvent.Payload>();
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
         [
             new SubmissionCompletedEvent.Payload(submission, revision: 2),
             submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single().GetPayload(),
-            submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single().GetPayload(),
+            submission.DomainEvents.OfType<SubmissionReviewStatusChangedEvent>().Single().GetPayload(),
         ];
 
         foreach (JsonElement json in payloads.Select(WirePayload))

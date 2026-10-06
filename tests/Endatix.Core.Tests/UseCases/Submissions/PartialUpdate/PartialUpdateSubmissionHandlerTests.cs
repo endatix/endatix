@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -294,5 +295,54 @@ public class PartialUpdateSubmissionHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value.Metadata.Should().Be(existingMetadata);
+    }
+
+    [Fact]
+    public async Task Handle_ScreenOut_PublishesCollectionEventAndNotCompleted()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", formId: 2, formDefinitionId: 3, isComplete: false) { Id = 1 };
+        var request = new PartialUpdateSubmissionCommand(1, 2, false, 0, "{ }", null, CollectionStatusCodes.ScreenOut);
+        _repository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.CollectionStatus.Code.Should().Be(CollectionStatusCodes.ScreenOut);
+        result.Value.IsComplete.Should().BeFalse();
+        await _mediator.Received(1).Publish(
+            Arg.Is<SubmissionCollectionStatusChangedEvent>(e => e.Submission.Id == 1),
+            Arg.Any<CancellationToken>());
+        await _mediator.DidNotReceive().Publish(Arg.Any<SubmissionCompletedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_Complete_PublishesCompletedAndNotCollectionEvent()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", formId: 2, formDefinitionId: 3, isComplete: false) { Id = 1 };
+        var request = new PartialUpdateSubmissionCommand(1, 2, true, 1, "{ }", null);
+        _repository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        await _mediator.Received(1).Publish(Arg.Any<SubmissionCompletedEvent>(), Arg.Any<CancellationToken>());
+        await _mediator.DidNotReceive().Publish(Arg.Any<SubmissionCollectionStatusChangedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_InProgress_PublishesNeitherEvent()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", formId: 2, formDefinitionId: 3, isComplete: false) { Id = 1 };
+        var request = new PartialUpdateSubmissionCommand(1, 2, false, 1, "{ \"a\": 1 }", null);
+        _repository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Ok);
+        await _mediator.DidNotReceive().Publish(Arg.Any<SubmissionCompletedEvent>(), Arg.Any<CancellationToken>());
+        await _mediator.DidNotReceive().Publish(Arg.Any<SubmissionCollectionStatusChangedEvent>(), Arg.Any<CancellationToken>());
     }
 }

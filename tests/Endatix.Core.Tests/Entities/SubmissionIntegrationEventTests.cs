@@ -194,7 +194,7 @@ public class SubmissionIntegrationEventTests
         // Assert
         submission.Status.Should().Be(SubmissionStatus.Approved);
         submission.Revision.Should().Be(revisionBefore + 1);
-        SubmissionStatusChangedEvent statusChanged = submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Should().ContainSingle().Subject;
+        SubmissionReviewStatusChangedEvent statusChanged = submission.DomainEvents.OfType<SubmissionReviewStatusChangedEvent>().Should().ContainSingle().Subject;
         statusChanged.PreviousStatus.Should().Be(SubmissionStatus.New);
     }
 

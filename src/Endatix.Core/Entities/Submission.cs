@@ -218,7 +218,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         // Clone so callers can pass catalog statics without sharing OwnsOne identity across aggregates
         Status = newStatus.CreateInstance();
 
-        RegisterRevisedDomainEvent(() => new SubmissionStatusChangedEvent(this, previousStatus));
+        RegisterRevisedDomainEvent(() => new SubmissionReviewStatusChangedEvent(this, previousStatus));
     }
 
     /// <summary>Owner or system void. Does not mark the interview complete.</summary>
@@ -238,6 +238,13 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     /// Ends the interview as screened out. Does not mark it complete and does not raise
     /// <c>submission.completed</c>. A later update is rejected.
     /// </summary>
+    /// <remarks>
+    /// Specialized writers stay until a second terminal code is added
+    /// (<c>quota_full</c>, <c>cancelled</c>, <c>expired</c>). Then fold them into
+    /// <c>ChangeCollectionStatus</c> so allowed edges, the no-op, and the single
+    /// integration event live in one place. One fact, one event: complete stays on
+    /// <c>SubmissionCompletedEvent</c> and must not also raise the collection event.
+    /// </remarks>
     public void ScreenOut()
     {
         if (IsComplete)

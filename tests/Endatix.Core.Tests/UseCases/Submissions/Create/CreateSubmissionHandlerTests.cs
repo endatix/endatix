@@ -116,6 +116,38 @@ public class CreateSubmissionHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ScreenOut_PublishesCollectionEventAndNotCompleted()
+    {
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        form.Id = 1;
+        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
+        form.AddFormDefinition(formDefinition);
+        form.SetActiveFormDefinition(formDefinition);
+        var request = new CreateSubmissionCommand(
+            FormId: 1,
+            JsonData: "{ }",
+            Metadata: null,
+            CurrentPage: 0,
+            IsComplete: false,
+            ReCaptchaToken: null,
+            RequiredPermission: "submissions.create",
+            CollectionOutcome: CollectionStatusCodes.ScreenOut);
+
+        _recaptchaService.ValidateReCaptchaAsync(Arg.Any<SubmissionVerificationContext>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _formsRepository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(form);
+
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value!.IsComplete.Should().BeFalse();
+        result.Value.CollectionStatus.Code.Should().Be(CollectionStatusCodes.ScreenOut);
+        await _mediator.Received(1).Publish(Arg.Any<SubmissionCollectionStatusChangedEvent>(), Arg.Any<CancellationToken>());
+        await _mediator.DidNotReceive().Publish(Arg.Any<SubmissionCompletedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_ValidRequest_GeneratesAndSetsToken()
     {
         // Arrange

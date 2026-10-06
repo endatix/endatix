@@ -28,6 +28,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
 
         var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
+        var alreadyScreenedOut = submission.CollectionStatus.Code == CollectionStatusCodes.ScreenOut;
         var isComplete = screenOut ? false : request.IsComplete;
         if (!submission.IsComplete && (isComplete ?? false))
         {
@@ -81,6 +82,11 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         if (mustPublishEvent)
         {
             await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
+        }
+
+        if (screenOut && !alreadyScreenedOut)
+        {
+            await mediator.Publish(new SubmissionCollectionStatusChangedEvent(submission), cancellationToken);
         }
 
         return Result.Success(submission);

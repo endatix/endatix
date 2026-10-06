@@ -109,7 +109,7 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
-    public void SubmissionStatusChangedEvent_getPayload_returns_status_changed_payload_type()
+    public void SubmissionReviewStatusChangedEvent_getPayload_returns_status_changed_payload_type()
     {
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: 1,
@@ -120,8 +120,8 @@ public class IntegrationEventPayloadTests
         submission.ClearDomainEvents();
         submission.UpdateStatus(SubmissionStatus.Approved);
 
-        submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single()
-            .GetPayload().Should().BeOfType<SubmissionStatusChangedEvent.Payload>();
+        submission.DomainEvents.OfType<SubmissionReviewStatusChangedEvent>().Single()
+            .GetPayload().Should().BeOfType<SubmissionReviewStatusChangedEvent.Payload>();
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
-    public void SubmissionStatusChangedEvent_includes_previous_and_new_status_with_revision()
+    public void SubmissionReviewStatusChangedEvent_includes_previous_and_new_status_with_revision()
     {
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: 1,
@@ -211,7 +211,7 @@ public class IntegrationEventPayloadTests
 
         submission.UpdateStatus(SubmissionStatus.Approved);
 
-        var statusChanged = submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single();
+        var statusChanged = submission.DomainEvents.OfType<SubmissionReviewStatusChangedEvent>().Single();
         var json = Payload(statusChanged.GetPayload());
 
         statusChanged.EventType.Should().Be("submission.status_changed");

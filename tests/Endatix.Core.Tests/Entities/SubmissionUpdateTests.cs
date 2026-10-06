@@ -165,6 +165,30 @@ public class SubmissionUpdateTests
     }
 
     [Fact]
+    public void ScreenOut_when_already_screened_out_does_not_raise_again()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        submission.ScreenOut();
+        submission.ClearDomainEvents();
+
+        submission.ScreenOut();
+
+        submission.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Complete_raises_completed_and_not_collection_status_changed()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+
+        submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 456, formDefinitionFormId: 123, isComplete: true);
+
+        submission.DomainEvents.Should().ContainSingle(e => e is SubmissionCompletedEvent);
+        submission.DomainEvents.Should().NotContain(e => e is SubmissionCollectionStatusChangedEvent);
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.Complete);
+    }
+
+    [Fact]
     public void Update_after_screen_out_throws()
     {
         var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);

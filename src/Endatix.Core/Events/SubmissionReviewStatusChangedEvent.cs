@@ -4,9 +4,10 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Core.Events;
 
 /// <summary>
-/// Raised when a submission's workflow status changes. Captured to the outbox for durable delivery.
+/// Raised when a submission's review status changes. Not a collection-status event.
+/// The wire name stays <c>submission.status_changed</c>.
 /// </summary>
-public sealed class SubmissionStatusChangedEvent(Submission submission, SubmissionStatus previousStatus)
+public sealed class SubmissionReviewStatusChangedEvent(Submission submission, SubmissionStatus previousStatus)
     : DomainEventBase, IIntegrationEvent
 {
     public const string EventTypeName = "submission.status_changed";

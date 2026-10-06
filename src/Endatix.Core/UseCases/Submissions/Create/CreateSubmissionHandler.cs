@@ -156,6 +156,10 @@ public class CreateSubmissionHandler(
         {
             await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
         }
+        else if (screenOut)
+        {
+            await mediator.Publish(new SubmissionCollectionStatusChangedEvent(submission), cancellationToken);
+        }
 
         return Result<Submission>.Created(submission);
     }
