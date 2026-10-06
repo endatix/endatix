@@ -189,7 +189,7 @@ Session lifetime, in **minutes** — `900` is 15 hours, not 900 days. Shorten it
 Auth.js encryption key, separate from `SESSION_SECRET`. Generate with `npx auth secret`.
 </Setting>
 <Setting name="AUTH_URL">
-Public origin of this Hub, e.g. `https://hub.example.com`. Set it whenever Hub sits behind a proxy or an external identity provider is in play, or callbacks return to the internal hostname.
+Public origin of this Hub, e.g. `https://hub.example.com`. Set it whenever Hub sits behind a proxy or an external identity provider is in play, or callbacks return to the internal hostname. The scheme must match the browser: `https` when Azure Front Door terminates TLS, even if App Service sees HTTP. Logout reads the session cookie from that scheme. A miss is logged as `auth.logout` with `reason=session_cookie_missing` (Application Insights, or stdout when `TELEMETRY_CONSOLE_FALLBACK=true`).
 </Setting>
 <Setting name="AUTH_TRUST_HOST">
 `true` behind a reverse proxy, so Auth.js trusts the forwarded host headers.
