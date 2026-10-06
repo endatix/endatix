@@ -16,6 +16,7 @@ public record PartialUpdateByAccessTokenCommand : ICommand<Result<Submission>>
     public int? CurrentPage { get; init; }
     public string? JsonData { get; init; }
     public string? Metadata { get; init; }
+    public string? CollectionOutcome { get; init; }
 
     public PartialUpdateByAccessTokenCommand(
         string accessToken,
@@ -23,7 +24,8 @@ public record PartialUpdateByAccessTokenCommand : ICommand<Result<Submission>>
         bool? isComplete,
         int? currentPage,
         string? jsonData,
-        string? metadata)
+        string? metadata,
+        string? collectionOutcome = null)
     {
         Guard.Against.NullOrEmpty(accessToken);
         Guard.Against.NegativeOrZero(formId);
@@ -39,5 +41,6 @@ public record PartialUpdateByAccessTokenCommand : ICommand<Result<Submission>>
         CurrentPage = currentPage;
         JsonData = jsonData;
         Metadata = metadata;
+        CollectionOutcome = collectionOutcome;
     }
 }

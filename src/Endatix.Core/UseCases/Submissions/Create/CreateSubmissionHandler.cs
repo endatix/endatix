@@ -102,12 +102,13 @@ public class CreateSubmissionHandler(
             submitterId is not null &&
             !canBypassSingleSubmissionLimit;
 
+        var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: activeDefinition!.TenantId,
             FormId: request.FormId,
             FormDefinitionId: activeDefinition.Id,
             JsonData: request.JsonData ?? DEFAULT_JSON_DATA,
-            IsComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
+            IsComplete: screenOut ? false : request.IsComplete ?? DEFAULT_IS_COMPLETE,
             CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             Metadata: request.Metadata ?? DEFAULT_METADATA,
             SubmitterId: submitterId,
@@ -120,6 +121,11 @@ public class CreateSubmissionHandler(
                 request.RequiredPermission,
                 Actions.Submissions.Create,
                 StringComparison.Ordinal)));
+
+        if (screenOut)
+        {
+            submission.ScreenOut();
+        }
 
         try
         {

@@ -50,7 +50,8 @@ public class PartialUpdateSubmissionByTokenHandler(
             IsComplete: request.IsComplete,
             CurrentPage: request.CurrentPage,
             JsonData: request.JsonData,
-            Metadata: request.Metadata);
+            Metadata: request.Metadata,
+            CollectionOutcome: request.CollectionOutcome);
 
         return await sender.Send(partialUpdateSubmissionCommand, cancellationToken);
     }

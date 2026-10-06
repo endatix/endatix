@@ -17,8 +17,9 @@ public record PartialUpdateSubmissionByTokenCommand : ICommand<Result<Submission
     public string? JsonData { get; init; }
     public string? Metadata { get; init; }
     public string? ReCaptchaToken { get; init; }
+    public string? CollectionOutcome { get; init; }
 
-    public PartialUpdateSubmissionByTokenCommand(string token, long formId, bool? isComplete, int? currentPage, string? jsonData, string? metadata, string? reCaptchaToken)
+    public PartialUpdateSubmissionByTokenCommand(string token, long formId, bool? isComplete, int? currentPage, string? jsonData, string? metadata, string? reCaptchaToken, string? collectionOutcome = null)
     {
         Guard.Against.NullOrEmpty(token);
         Guard.Against.NegativeOrZero(formId);
@@ -35,5 +36,6 @@ public record PartialUpdateSubmissionByTokenCommand : ICommand<Result<Submission
         JsonData = jsonData;
         Metadata = metadata;
         ReCaptchaToken = reCaptchaToken;
+        CollectionOutcome = collectionOutcome;
     }
 }

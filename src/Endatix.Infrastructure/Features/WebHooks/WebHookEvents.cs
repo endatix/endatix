@@ -15,6 +15,7 @@ internal static class WebHookEvents
             WebHookOperation.FormUpdated,
             WebHookOperation.FormEnabledStateChanged,
             WebHookOperation.SubmissionCompleted,
+            WebHookOperation.SubmissionCollectionStatusChanged,
             WebHookOperation.FormDeleted,
         }.ToDictionary(operation => StringUtils.ToDottedEventType(operation.EventName), StringComparer.Ordinal);
 }

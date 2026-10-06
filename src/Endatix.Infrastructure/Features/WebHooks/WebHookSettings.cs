@@ -109,6 +109,11 @@ public class WebHookSettings : IEndatixSettings
         public EventSetting SubmissionCompleted { get; set; } = new() { EventName = EventNames.SUBMISSION_COMPLETED };
 
         /// <summary>
+        /// Represents the settings for a collection-status change such as screen-out.
+        /// </summary>
+        public EventSetting SubmissionCollectionStatusChanged { get; set; } = new() { EventName = EventNames.SUBMISSION_COLLECTION_STATUS_CHANGED };
+
+        /// <summary>
         /// Represents the settings for the 'FormDeleted' event.
         /// </summary>
         public EventSetting FormDeleted { get; set; } = new() { EventName = EventNames.FORM_DELETED };

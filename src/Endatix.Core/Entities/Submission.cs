@@ -234,6 +234,26 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         SetCollectionStatus(CollectionStatusValue.Cancelled);
     }
 
+    /// <summary>
+    /// Ends the interview as screened out. Does not mark it complete and does not raise
+    /// <c>submission.completed</c>. A later update is rejected.
+    /// </summary>
+    public void ScreenOut()
+    {
+        if (IsComplete)
+        {
+            throw new InvalidOperationException("A complete submission cannot be screened out.");
+        }
+
+        if (CollectionStatus?.Code == CollectionStatusCodes.ScreenOut)
+        {
+            return;
+        }
+
+        SetCollectionStatus(CollectionStatusValue.ScreenOut);
+        RegisterRevisedDomainEvent(() => new SubmissionCollectionStatusChangedEvent(this));
+    }
+
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
     public void IncrementRevision() => Revision++;
 
@@ -283,6 +303,11 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         {
             throw new ArgumentException(
                 "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
+        }
+
+        if (CollectionStatus?.Code == CollectionStatusCodes.ScreenOut)
+        {
+            throw new InvalidOperationException("A screened-out submission cannot be changed.");
         }
 
         if (!IsComplete && isComplete && !IsResumableCollection())

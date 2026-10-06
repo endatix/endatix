@@ -33,6 +33,11 @@ public abstract class BaseSubmissionRequest
     /// Stringified metadata related to the form submission
     /// </summary>
     public string? Metadata { get; set; }
+
+    /// <summary>
+    /// <c>screen_out</c> when a screen-out trigger ends the interview. Ignored on a partial save.
+    /// </summary>
+    public string? CollectionOutcome { get; set; }
 }
 
 internal static class SubmissionRequestValidationExtensions

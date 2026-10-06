@@ -27,7 +27,9 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             return Result.NotFound("Form submission not found.");
         }
 
-        if (!submission.IsComplete && (request.IsComplete ?? false))
+        var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
+        var isComplete = screenOut ? false : request.IsComplete;
+        if (!submission.IsComplete && (isComplete ?? false))
         {
             mustPublishEvent = true;
         }
@@ -45,14 +47,21 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
                 request.JsonData ?? submission.JsonData,
                 submission.FormDefinitionId,
                 submission.FormId,
-                request.IsComplete ?? submission.IsComplete,
+                isComplete ?? submission.IsComplete,
                 request.CurrentPage ?? submission.CurrentPage ?? DEFAULT_CURRENT_PAGE,
                 mergedMetadata
             );
+            if (screenOut)
+            {
+                submission.ScreenOut();
+            }
         }
         catch (InvalidOperationException)
         {
-            return Result.Invalid(new ValidationError("This submission cannot be completed."));
+            var message = screenOut
+                ? "This submission cannot be changed."
+                : "This submission cannot be completed.";
+            return Result.Invalid(new ValidationError(message));
         }
 
         if (!string.Equals(originalJson, submission.JsonData, StringComparison.Ordinal))

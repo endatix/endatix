@@ -7,7 +7,7 @@ namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 /// <summary>
 /// Command for partially updating a form submission.
 /// </summary>
-public record PartialUpdateSubmissionCommand(long SubmissionId, long FormId, bool? IsComplete, int? CurrentPage, string? JsonData, string? Metadata) : ICommand<Result<Submission>>
+public record PartialUpdateSubmissionCommand(long SubmissionId, long FormId, bool? IsComplete, int? CurrentPage, string? JsonData, string? Metadata, string? CollectionOutcome = null) : ICommand<Result<Submission>>
 {
 
 }

@@ -49,7 +49,8 @@ public sealed class Create(IMediator mediator)
                 IsComplete: request.IsComplete,
                 ReCaptchaToken: request.ReCaptchaToken,
                 RequiredPermission: Actions.Submissions.Create,
-                SubmitterPrincipal: User),
+                SubmitterPrincipal: User,
+                CollectionOutcome: request.CollectionOutcome),
             ct);
 
         return TypedResultsBuilder

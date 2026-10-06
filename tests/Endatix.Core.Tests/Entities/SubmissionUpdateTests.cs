@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using static Endatix.Core.Tests.ErrorMessages;
 using static Endatix.Core.Tests.ErrorType;
 
@@ -148,5 +149,30 @@ public class SubmissionUpdateTests
         // Assert
         submission.StartedAt.Should().Be(fixedStart);
         submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.InProgress);
+    }
+
+    [Fact]
+    public void ScreenOut_sets_screen_out_and_leaves_IsComplete_false()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+
+        submission.ScreenOut();
+
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.ScreenOut);
+        submission.IsComplete.Should().BeFalse();
+        submission.DomainEvents.Should().ContainSingle(e => e is SubmissionCollectionStatusChangedEvent);
+        submission.DomainEvents.Should().NotContain(e => e is SubmissionCompletedEvent);
+    }
+
+    [Fact]
+    public void Update_after_screen_out_throws()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        submission.ScreenOut();
+
+        var act = () => submission.Update(SampleData.SUBMISSION_JSON_DATA_2, formDefinitionId: 456, formDefinitionFormId: 123, isComplete: false);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("A screened-out submission cannot be changed.");
     }
 }

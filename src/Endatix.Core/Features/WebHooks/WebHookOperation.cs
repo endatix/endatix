@@ -28,6 +28,11 @@ public record WebHookOperation
     public static readonly WebHookOperation SubmissionCompleted = new("submission_completed", nameof(Submission), ActionName.Updated);
 
     /// <summary>
+    /// Collection status changed to a terminal fielding outcome. Not raised for a normal complete.
+    /// </summary>
+    public static readonly WebHookOperation SubmissionCollectionStatusChanged = new("submission_collection_status_changed", nameof(Submission), ActionName.Updated);
+
+    /// <summary>
     /// A static instance of WebHookOperation representing a form deletion.
     /// </summary>
     public static readonly WebHookOperation FormDeleted = new("form_deleted", nameof(Form), ActionName.Deleted);
