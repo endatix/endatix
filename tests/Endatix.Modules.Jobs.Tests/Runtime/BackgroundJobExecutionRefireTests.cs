@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,10 +8,10 @@ using static Endatix.Modules.Jobs.Tests.Runtime.JobExecutionTestHost;
 namespace Endatix.Modules.Jobs.Tests.Runtime;
 
 /// <summary>
-/// The job wrapper when a firing that is the job's only trigger cannot settle the row: it re-fires the job, and
-/// while the scheduler stops it holds the firing for recovery.
+/// The job wrapper when a firing that is the job's only trigger cannot settle the row: it re-fires the job, trying
+/// until the re-fire is stored, and while the scheduler stops it holds the firing for recovery.
 /// </summary>
-public sealed class BackgroundJobExecutionRefireTests
+public sealed partial class BackgroundJobExecutionRefireTests
 {
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(5);
 
@@ -25,7 +26,7 @@ public sealed class BackgroundJobExecutionRefireTests
         var scheduled = new List<ITrigger>();
         context.Scheduler
             .ScheduleJob(Arg.Do<ITrigger>(scheduled.Add), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ => throw new JobPersistenceException("The database did not answer."), _ => Stored());
+            .Returns(_ => throw DatabaseDown(), _ => Stored());
 
         // Act
         await execution.Execute(context, TestContext.Current.CancellationToken);
@@ -34,30 +35,63 @@ public sealed class BackgroundJobExecutionRefireTests
         scheduled.Should().HaveCount(2);
         IsReclaim(scheduled[1]).Should().BeTrue();
         scheduled[1].Key.Should().Be(new TriggerKey(JobId.ToString(), ProbeJobType));
-        scheduled[1].RetryPolicy.Should().NotBeNull();
+        scheduled[1].RetryPolicy.Should().BeNull();
         await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default!, default);
         provider.GetRequiredService<IJobMetrics>().DidNotReceive()
             .Record(JobLifecycleEvent.RetryScheduled, Arg.Any<string>());
     }
 
     [Fact]
-    public async Task Execute_RecoveredRunThrowsAndNoTriggerCanBeScheduled_WritesNothingAndReturns()
+    public async Task Execute_RunningSchedulerRefusesEveryTrigger_KeepsFiringOpenUntilShutdownSignal()
     {
-        // Arrange
+        // Arrange — completing the firing would delete the job's only trigger and leave its row Processing.
         var repository = RecoveringRepository(attempt: 2);
         await using var provider = Services(repository, new ObservedRun { Throw = true });
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
         var context = RecoveryOf(JobId);
         RefuseEveryTrigger(context.Scheduler);
+        context.Scheduler.Status.Returns(SchedulerStatus.Running);
 
         // Act
-        var act = async () => await execution.Execute(context, TestContext.Current.CancellationToken);
+        var executing = execution.Execute(context, TestContext.Current.CancellationToken).AsTask();
+        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        var openUntilSignal = !executing.IsCompleted;
+        provider.GetRequiredService<JobsShutdownSignal>().Raise();
+        await executing.WaitAsync(Patience, TestContext.Current.CancellationToken);
 
-        // Assert
-        await act.Should().NotThrowAsync();
-        await context.Scheduler.Received(2)
-            .ScheduleJob(Arg.Any<ITrigger>(), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>());
+        // Assert — it kept trying the reclaim trigger, beyond the retry's and the reclaim's first tries.
+        openUntilSignal.Should().BeTrue();
+        executing.IsCompletedSuccessfully.Should().BeTrue();
+        context.Scheduler.ReceivedCalls()
+            .Count(call => call.GetMethodInfo().Name == nameof(IScheduler.ScheduleJob))
+            .Should().BeGreaterThan(2);
         await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task Execute_ReclaimTriggerRefusedTwiceThenStored_CompletesWithReclaimTriggerTimedFromItsLastTry()
+    {
+        // Arrange — the retry's trigger and the reclaim's first two tries are refused; the clock moves on each read.
+        await using var provider = Services(RecoveringRepository(attempt: 2), new ObservedRun { Throw = true });
+        var start = new DateTimeOffset(2026, 10, 6, 12, 0, 0, TimeSpan.Zero);
+        var reads = 0;
+        provider.GetRequiredService<IDateTimeProvider>().UtcNow.Returns(_ => start.AddSeconds(++reads));
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = RecoveryOf(JobId);
+        var scheduled = new List<ITrigger>();
+        context.Scheduler
+            .ScheduleJob(Arg.Do<ITrigger>(scheduled.Add), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
+            .Returns(_ => throw DatabaseDown(), _ => throw DatabaseDown(), _ => throw DatabaseDown(), _ => Stored());
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken).AsTask()
+            .WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        // Assert — each try is timed from when it was made, so the stored one is the latest.
+        scheduled.Should().HaveCount(4);
+        var reclaims = scheduled.Skip(1).ToList();
+        reclaims.Should().OnlyContain(trigger => IsReclaim(trigger));
+        reclaims.Select(trigger => trigger.StartTimeUtc).Should().BeInAscendingOrder().And.OnlyHaveUniqueItems();
     }
 
     [Fact]
@@ -120,7 +154,7 @@ public sealed class BackgroundJobExecutionRefireTests
         // Assert
         observed.ContextTenantId.Should().Be(-1);
         scheduled.Should().ContainSingle().Which.Should().Match<ITrigger>(trigger => IsReclaim(trigger));
-        scheduled[0].RetryPolicy.Should().NotBeNull();
+        scheduled[0].RetryPolicy.Should().BeNull();
     }
 
     [Fact]
@@ -145,27 +179,30 @@ public sealed class BackgroundJobExecutionRefireTests
     }
 
     [Fact]
-    public async Task Execute_ClaimFailsOnReclaimingFiringWithRetryPolicy_ThrowsForTheSchedulerToRetry()
+    public async Task Execute_ClaimFailsOnJobTriggerFiring_ReschedulesItsTriggerToReclaimWithoutThrowing()
     {
-        // Arrange — the scheduler retries a firing with a policy by itself, keeping the trigger's data.
+        // Arrange — the claim may have landed before it threw, so the next firing has to be able to take the row.
+        var observed = new ObservedRun();
         var repository = Substitute.For<IBackgroundJobStateRepository>();
-        repository.TryClaimAsync(ClaimOfJob(recovering: true), Arg.Any<CancellationToken>())
+        repository.TryClaimAsync(ClaimOfJob(recovering: false), Arg.Any<CancellationToken>())
             .Returns<Task<ClaimedJob?>>(_ => throw new TimeoutException("The database did not answer."));
-        await using var provider = Services(repository, new ObservedRun());
+        await using var provider = Services(repository, observed);
         var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
-        var context = JobTriggerFiringOf(JobId);
-        context.MergedJobDataMap.Returns(new JobDataMap
-        {
-            [BackgroundJobExecution.JobIdKey] = JobId.ToString(),
-            [BackgroundJobExecution.ReclaimKey] = bool.TrueString,
-        });
+        var context = LegacyJobTriggerFiringOf(JobId);
+        ITrigger? rescheduled = null;
+        context.Scheduler
+            .RescheduleJob(context.Trigger.Key, Arg.Do<ITrigger>(trigger => rescheduled = trigger), Arg.Any<CancellationToken>())
+            .Returns(DateTimeOffset.UtcNow);
 
         // Act
         var act = async () => await execution.Execute(context, TestContext.Current.CancellationToken);
 
-        // Assert
-        await act.Should().ThrowAsync<TimeoutException>();
-        context.Scheduler.ReceivedCalls().Should().BeEmpty();
+        // Assert — nothing is thrown for a retry policy to act on, and the job's trigger fires again to re-claim it.
+        await act.Should().NotThrowAsync();
+        observed.ContextTenantId.Should().Be(-1);
+        rescheduled.Should().NotBeNull();
+        IsReclaim(rescheduled).Should().BeTrue();
+        rescheduled.RetryPolicy.Should().BeNull();
     }
 
     private static IBackgroundJobStateRepository RecoveringRepository(int attempt)
@@ -189,7 +226,11 @@ public sealed class BackgroundJobExecutionRefireTests
     private static void RefuseEveryTrigger(IScheduler scheduler) =>
         scheduler
             .ScheduleJob(Arg.Any<ITrigger>(), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
-            .Returns<ValueTask<DateTimeOffset>>(_ => throw new SchedulerException("The Scheduler has been Shutdown."));
+            .Returns<ValueTask<DateTimeOffset>>(_ => throw DatabaseDown());
+
+    // Shaped as the scheduler reports a store the database could not take: its own exception, wrapping the cause.
+    private static JobPersistenceException DatabaseDown() =>
+        new("Couldn't store trigger: The database did not answer.", new TimeoutException("The database did not answer."));
 
     private static ValueTask<DateTimeOffset> Stored() => new(DateTimeOffset.UtcNow);
 

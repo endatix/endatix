@@ -45,6 +45,12 @@ internal static class ProbeBehaviours
     /// </summary>
     public const string BlockFirstThenThrowWhileStopping = "block-first-then-throw-while-stopping";
 
+    /// <summary>
+    /// Waits on its token on the first attempt and returns success once that is cancelled, as a handler that finishes
+    /// its work just as its node stops; succeeds on every later one.
+    /// </summary>
+    public const string FinishFirstAsNodeStops = "finish-first-as-node-stops";
+
     public const string FailureMessage = "Form 12 has no schema.";
 
     public const string SecretMessage = "Host=db;Password=secret";
@@ -65,11 +71,20 @@ internal sealed class ProbeJobHandler(
         CancellationToken cancellationToken)
     {
         invocations.Record(job);
-
-        switch (payload.Behaviour)
+        if (payload.Behaviour == ProbeBehaviours.Fail)
         {
-            case ProbeBehaviours.Fail:
-                return Result.Invalid(new ValidationError(ProbeBehaviours.FailureMessage));
+            return Result.Invalid(new ValidationError(ProbeBehaviours.FailureMessage));
+        }
+
+        await PlayAttemptAsync(job, payload.Behaviour, cancellationToken);
+        return Result.Success();
+    }
+
+    // Throws, waits or does nothing, as the behaviour says for this attempt; an attempt that returns succeeds.
+    private async Task PlayAttemptAsync(BackgroundJobContext job, string behaviour, CancellationToken cancellationToken)
+    {
+        switch (behaviour)
+        {
             case ProbeBehaviours.Throw:
             case ProbeBehaviours.ThrowOnce when job.AttemptCount == 1:
             case ProbeBehaviours.BlockFirstThenThrow when job.AttemptCount > 1:
@@ -77,14 +92,15 @@ internal sealed class ProbeJobHandler(
             case ProbeBehaviours.BlockFirstThenThrowWhileStopping when job.AttemptCount == 2:
                 await WaitForSchedulerToStopAsync(cancellationToken);
                 throw new InvalidOperationException(ProbeBehaviours.SecretMessage);
+            case ProbeBehaviours.FinishFirstAsNodeStops when job.AttemptCount == 1:
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+                return;
             case ProbeBehaviours.Block:
             case ProbeBehaviours.BlockFirst when job.AttemptCount == 1:
             case ProbeBehaviours.BlockFirstThenThrow when job.AttemptCount == 1:
             case ProbeBehaviours.BlockFirstThenThrowWhileStopping when job.AttemptCount == 1:
                 await BlockAsync(job, cancellationToken);
-                return Result.Success();
-            default:
-                return Result.Success();
+                return;
         }
     }
 

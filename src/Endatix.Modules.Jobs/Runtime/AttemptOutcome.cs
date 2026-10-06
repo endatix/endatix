@@ -33,26 +33,23 @@ internal enum AttemptRowWrite
     DeadLettered,
 }
 
-/// <param name="Row">The write that records the attempt.</param>
-/// <param name="Rethrow">
-/// Whether the wrapper throws to the scheduler so the trigger's retry policy schedules the next attempt. Every
-/// other outcome returns normally, so the scheduler schedules nothing more.
-/// </param>
-internal readonly record struct AttemptDecision(AttemptRowWrite Row, bool Rethrow)
+/// <summary>Decides what the wrapper writes to the row for an attempt.</summary>
+internal static class AttemptDecision
 {
     /// <summary>
-    /// Decides how an attempt is recorded. The row's attempt count, not the scheduler's retry counter, decides
-    /// dead-lettering, because a run recovered after a crash consumes an attempt the scheduler never counts.
+    /// Decides how an attempt is recorded. The row's attempt count, against the job type's attempt budget as this
+    /// node is configured now, decides dead-lettering, so a budget raised while a job waits gives it the attempts
+    /// it added.
     /// </summary>
-    public static AttemptDecision Decide(AttemptEnd end, int attemptCount, int maxAttempts) => end switch
+    public static AttemptRowWrite Decide(AttemptEnd end, int attemptCount, int maxAttempts) => end switch
     {
-        AttemptEnd.Succeeded => new(AttemptRowWrite.Completed, Rethrow: false),
-        AttemptEnd.ReturnedFailure => new(AttemptRowWrite.Failed, Rethrow: false),
-        AttemptEnd.Threw when attemptCount < maxAttempts => new(AttemptRowWrite.Retrying, Rethrow: true),
-        AttemptEnd.Threw => new(AttemptRowWrite.DeadLettered, Rethrow: false),
-        AttemptEnd.Canceled => new(AttemptRowWrite.None, Rethrow: false),
-        AttemptEnd.HostShutdown => new(AttemptRowWrite.None, Rethrow: false),
-        AttemptEnd.Superseded => new(AttemptRowWrite.None, Rethrow: false),
+        AttemptEnd.Succeeded => AttemptRowWrite.Completed,
+        AttemptEnd.ReturnedFailure => AttemptRowWrite.Failed,
+        AttemptEnd.Threw when attemptCount < maxAttempts => AttemptRowWrite.Retrying,
+        AttemptEnd.Threw => AttemptRowWrite.DeadLettered,
+        AttemptEnd.Canceled => AttemptRowWrite.None,
+        AttemptEnd.HostShutdown => AttemptRowWrite.None,
+        AttemptEnd.Superseded => AttemptRowWrite.None,
         _ => throw new ArgumentOutOfRangeException(nameof(end), end, null),
     };
 }

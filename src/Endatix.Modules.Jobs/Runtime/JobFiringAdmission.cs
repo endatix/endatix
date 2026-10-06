@@ -1,5 +1,4 @@
 using System.Globalization;
-using Endatix.Core.Abstractions;
 using Microsoft.Extensions.Logging;
 using Quartz;
 
@@ -10,7 +9,6 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </summary>
 internal sealed class JobFiringAdmission(
     JobHandlerRegistry registry,
-    IDateTimeProvider dateTimeProvider,
     UnrecordedJobRefire refire,
     ILogger<JobFiringAdmission> logger)
 {
@@ -46,8 +44,8 @@ internal sealed class JobFiringAdmission(
     // for a node that can run it.
     private async Task DeclineAsync(IJobExecutionContext context, JobFiring firing)
     {
-        var fireAgainAt = dateTimeProvider.UtcNow.Add(DeclineDelay);
-        if (await refire.TryKeepAsync(context, SameTriggerAt(context, firing, fireAgainAt), firing.JobId))
+        var again = new JobRefireTrigger(firing.JobId, DeclineDelay, fireAt => SameTriggerAt(context, firing, fireAt));
+        if (await refire.TryKeepAsync(context, again) is { } fireAgainAt)
         {
             logger.LogWarning(
                 "Background job {JobId} of type {JobType} fired on a node without its handler; offering it again at {FireAgainAt:O}",
@@ -58,7 +56,8 @@ internal sealed class JobFiringAdmission(
     }
 
     // The trigger keeps all of the firing's data, and a firing that was taking the job over stays marked to, so
-    // its next claim can still take the row an earlier attempt left Processing.
+    // its next claim can still take the row an earlier attempt left Processing. It keeps no retry policy a trigger
+    // from an earlier version carried: the wrapper schedules every retry itself.
     private static ITrigger SameTriggerAt(IJobExecutionContext context, JobFiring firing, DateTimeOffset fireAgainAt)
     {
         var again = TriggerBuilder.Create()
@@ -73,8 +72,6 @@ internal sealed class JobFiringAdmission(
             again = again.UsingJobData(BackgroundJobExecution.ReclaimKey, bool.TrueString);
         }
 
-        return context.Trigger.RetryPolicy is { } retryPolicy
-            ? again.WithRetryPolicy(retryPolicy).Build()
-            : again.Build();
+        return again.Build();
     }
 }

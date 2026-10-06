@@ -77,8 +77,12 @@ internal static class QuartzRegistration
 
     /// <summary>
     /// The one-off trigger <paramref name="spec"/> describes. Its key is the job id, its only data is the job id, and
-    /// it carries the job type's execution group and retry policy. The payload and anything secret stay on the row.
+    /// it carries the job type's execution group. The payload and anything secret stay on the row.
     /// </summary>
+    /// <remarks>
+    /// It carries no retry policy: the job wrapper schedules each retry on a trigger of its own, timed from the job
+    /// type's backoff as the node is configured when the attempt fails.
+    /// </remarks>
     public static ITrigger TriggerFor(JobTriggerSpec spec)
     {
         var id = spec.JobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -93,7 +97,7 @@ internal static class QuartzRegistration
             trigger = trigger.UsingJobData(BackgroundJobExecution.ReclaimKey, bool.TrueString);
         }
 
-        return WithRetryPolicy(trigger, spec.Policy).Build();
+        return trigger.Build();
     }
 
     /// <summary>
@@ -108,6 +112,10 @@ internal static class QuartzRegistration
         services.AddScoped<JobHandlerRunner>();
         services.AddScoped<JobOutcomeRecorder>();
         services.AddScoped<UnrecordedJobRefire>();
+        services.AddScoped<RefusedRefire>();
+        services.AddSingleton<StoredDurableJobs>();
+        // Added only if absent, so a test can make a refused trigger's next try come sooner.
+        services.TryAddSingleton(TriggerStoreBackoff.Default);
         services.AddScoped<JobLifecycleMetrics>();
         services.AddSingleton<JobsShutdownSignal>();
         services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
@@ -123,7 +131,6 @@ internal static class QuartzRegistration
         var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
         services.AddJobExecution();
-        services.AddSingleton<StoredDurableJobs>();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
@@ -272,14 +279,10 @@ internal static class QuartzRegistration
         // as the threshold itself could hold it up to a whole threshold longer.
         ado.MisfireHandlerFrequency = TimeSpan.FromSeconds(Math.Min(10, options.MisfireThresholdSeconds));
     }
-
-    private static TriggerBuilder<IJob> WithRetryPolicy(TriggerBuilder<IJob> trigger, BackgroundJobTypePolicy policy) =>
-        BackgroundJobRetryPolicy.ToQuartz(policy) is { } retryPolicy ? trigger.WithRetryPolicy(retryPolicy) : trigger;
 }
 
 /// <param name="JobId">The job row the trigger fires.</param>
 /// <param name="JobType">The job type whose durable scheduler job the trigger points at.</param>
-/// <param name="Policy">The job type's policy, which the trigger's retry policy follows.</param>
 /// <param name="StartAt">When the trigger first fires; now when <see langword="null"/>.</param>
 /// <param name="Reclaim">
 /// Whether the firing takes the job over from an attempt whose outcome could not be written.
@@ -287,7 +290,6 @@ internal static class QuartzRegistration
 internal sealed record JobTriggerSpec(
     long JobId,
     string JobType,
-    BackgroundJobTypePolicy Policy,
     DateTimeOffset? StartAt = null,
     bool Reclaim = false);
 

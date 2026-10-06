@@ -91,6 +91,19 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
         return affected == 1;
     }
 
+    // The attempt count stays as it is: no attempt is started, so none is counted.
+    public async Task<bool> TryDeadLetterAsync(
+        UnfinishedRow seen,
+        AttemptFailure failure,
+        CancellationToken cancellationToken = default)
+    {
+        var affected = await dbContext.BackgroundJobs
+            .Where(job => job.Id == seen.JobId && job.Status == seen.Status && job.AttemptCount == seen.AttemptCount)
+            .ExecuteUpdateAsync(DeadLetteredSetters(StorableErrorMessage(failure.ErrorMessage), failure), cancellationToken);
+
+        return affected == 1;
+    }
+
     public Task<bool> RecordFailedAttemptAsync(
         AttemptRef attempt,
         RetryableFailure failure,
@@ -175,15 +188,6 @@ internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : I
             .OrderBy(job => job.ExpiresAt)
             .Take(batchSize)
             .ExecuteDeleteAsync(cancellationToken);
-
-    public async Task<bool> TryMirrorNextAttemptAsync(
-        long jobId,
-        DateTime nextAttemptAt,
-        CancellationToken cancellationToken = default) =>
-        await dbContext.BackgroundJobs
-            .Where(job => job.Id == jobId && job.Status == JobStatus.Retrying)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(job => job.NextAttemptAt, nextAttemptAt), cancellationToken)
-        == 1;
 
     // Neither branch changes the attempt count: the claim that started the attempt consumed it.
     private static Action<UpdateSettersBuilder<BackgroundJob>> FailedAttemptSetters(

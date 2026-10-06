@@ -42,7 +42,7 @@ internal sealed class JobAttemptClaimer(
     }
 
     /// <summary>The policy attempts of <paramref name="jobType"/> run under.</summary>
-    public BackgroundJobTypePolicy PolicyFor(string jobType) => options.Value.ResolvePolicy(jobType);
+    private BackgroundJobTypePolicy PolicyFor(string jobType) => options.Value.ResolvePolicy(jobType);
 
     private async Task<bool> TryDeadLetterSpentAsync(
         JobFiring firing,
@@ -77,7 +77,7 @@ internal sealed class JobAttemptClaimer(
 /// <param name="JobType">The job type whose durable scheduler job fired.</param>
 /// <param name="Reclaiming">
 /// Whether the firing takes the job over from an attempt that did not end: a recovery of a dead node's firing, or
-/// a firing scheduled because an attempt's outcome could not be written.
+/// a re-fire scheduled because an earlier firing could not claim the row or record its outcome.
 /// </param>
 internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming)
 {
@@ -105,5 +105,5 @@ internal sealed record ClaimedAttempt(ClaimedJob Job, BackgroundJobTypePolicy Po
 {
     public AttemptRef Ref => new(Job.Id, Job.AttemptCount);
 
-    public ReclaimableJob Reclaimable => new(Job.Id, Job.JobType, Policy);
+    public ReclaimableJob Reclaimable => new(Job.Id, Job.JobType);
 }

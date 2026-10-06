@@ -14,7 +14,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "PostgreSql")]
-public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture fixture)
+public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture fixture)
 {
     private const string SkipReason =
         "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
@@ -260,13 +260,13 @@ public sealed class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture 
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var invocations = new ProbeInvocations();
-        var failures = new OutcomeWriteFailures(JobOutcomeRecorder.WriteRetryDelays.Length + 1);
+        var failures = new StateRepositoryFailures(completions: JobOutcomeRecorder.WriteRetryDelays.Length + 1);
         await using var node = JobsTestNode.Create(
             database.ConnectionString,
             configureServices: services =>
             {
                 services.AddProbe(invocations);
-                FailingOutcomeWrites.Register(services, failures);
+                FailingStateRepository.Register(services, failures);
             });
         await node.StartAsync(ct);
 

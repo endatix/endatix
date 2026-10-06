@@ -1,9 +1,17 @@
+using Endatix.Core.Abstractions.BackgroundJobs;
+
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
 /// One attempt of one job: what a fenced write matches the row on, so a caller that lost the job changes nothing.
 /// </summary>
 internal readonly record struct AttemptRef(long JobId, int AttemptCount);
+
+/// <summary>
+/// An unfinished job row as a firing that holds no claim on it last read it: what that firing's write is fenced on, so
+/// a row that changed since is left as it is.
+/// </summary>
+internal readonly record struct UnfinishedRow(long JobId, JobStatus Status, int AttemptCount);
 
 /// <summary>A claim of a job row for a new attempt.</summary>
 /// <param name="JobId">The row to claim.</param>
@@ -40,5 +48,8 @@ internal readonly record struct AttemptFailure(string ErrorMessage, DateTime Utc
 /// </summary>
 /// <param name="Failure">The failure the row records either way.</param>
 /// <param name="MaxAttempts">The job type's attempt budget.</param>
-/// <param name="NextAttemptAt">When the next attempt is due, should one remain.</param>
+/// <param name="NextAttemptAt">
+/// When the next attempt's trigger fires, should one remain: the time that trigger was stored for, which the status
+/// endpoint shows.
+/// </param>
 internal readonly record struct RetryableFailure(AttemptFailure Failure, int MaxAttempts, DateTime NextAttemptAt);

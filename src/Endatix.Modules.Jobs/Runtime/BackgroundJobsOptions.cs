@@ -52,11 +52,15 @@ public sealed class BackgroundJobsOptions
 
     public int MaxRuntimeMinutes { get; set; } = 60;
 
+    /// <summary>
+    /// Attempts before a job that keeps throwing is dead-lettered. The node running an attempt reads it when the
+    /// attempt ends, so a change also applies to jobs already waiting.
+    /// </summary>
     public int MaxAttempts { get; set; } = 3;
 
     /// <summary>
     /// Seconds before the first retry. Each later retry waits twice as long as the one before it, up to
-    /// <see cref="BackoffCapSeconds"/>.
+    /// <see cref="BackoffCapSeconds"/>. The node running an attempt reads it when the attempt fails.
     /// </summary>
     public int BackoffBaseSeconds { get; set; } = 30;
 

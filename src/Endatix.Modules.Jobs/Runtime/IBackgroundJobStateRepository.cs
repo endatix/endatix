@@ -31,14 +31,6 @@ internal interface IBackgroundJobStateRepository
     /// </summary>
     Task<int> DeleteExpiredAsync(DateTime utcNow, int batchSize, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Records when the scheduler will run a <c>Retrying</c> job next, for the status endpoint to show.
-    /// </summary>
-    Task<bool> TryMirrorNextAttemptAsync(
-        long jobId,
-        DateTime nextAttemptAt,
-        CancellationToken cancellationToken = default);
-
     /// <remarks>
     /// Every terminal write stamps <c>ExpiresAt</c> with its time plus the job type's retention when the row has
     /// none, so no finished row escapes the retention job.
@@ -56,6 +48,12 @@ internal interface IBackgroundJobStateRepository
         AttemptRef lastAttempt,
         AttemptFailure failure,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Dead-letters a job whose row is still exactly as <paramref name="seen"/> describes it. Returns
+    /// <see langword="false"/>, changing nothing, when the row has changed since.
+    /// </summary>
+    Task<bool> TryDeadLetterAsync(UnfinishedRow seen, AttemptFailure failure, CancellationToken cancellationToken = default);
 
     Task<bool> RecordFailedAttemptAsync(
         AttemptRef attempt,
