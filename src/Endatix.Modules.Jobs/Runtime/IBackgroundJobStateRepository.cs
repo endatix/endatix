@@ -49,6 +49,12 @@ internal interface IBackgroundJobStateRepository
         AttemptFailure failure,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Dead-letters a job whose row is still exactly as <paramref name="seen"/> describes it. Returns
+    /// <see langword="false"/>, changing nothing, when the row has changed since.
+    /// </summary>
+    Task<bool> TryDeadLetterAsync(UnfinishedRow seen, AttemptFailure failure, CancellationToken cancellationToken = default);
+
     Task<bool> RecordFailedAttemptAsync(
         AttemptRef attempt,
         RetryableFailure failure,

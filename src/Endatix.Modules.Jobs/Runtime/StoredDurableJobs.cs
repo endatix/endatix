@@ -71,7 +71,11 @@ internal sealed class StoredDurableJobs
         }
     }
 
-    private async Task<bool> StoreAgainIfMissingAsync(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken)
+    /// <summary>
+    /// Stores the durable job <paramref name="jobKey"/> names again when it is no longer in the store, and returns
+    /// whether it did. The job type is forgotten too, so the next enqueue looks for it in the store again.
+    /// </summary>
+    public async Task<bool> StoreAgainIfMissingAsync(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken)
     {
         if (await scheduler.Exists(jobKey, cancellationToken))
         {

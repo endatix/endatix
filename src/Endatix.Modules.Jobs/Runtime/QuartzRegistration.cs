@@ -112,6 +112,8 @@ internal static class QuartzRegistration
         services.AddScoped<JobHandlerRunner>();
         services.AddScoped<JobOutcomeRecorder>();
         services.AddScoped<UnrecordedJobRefire>();
+        services.AddScoped<RefusedRefire>();
+        services.AddSingleton<StoredDurableJobs>();
         // Added only if absent, so a test can make a refused trigger's next try come sooner.
         services.TryAddSingleton(TriggerStoreBackoff.Default);
         services.AddScoped<JobLifecycleMetrics>();
@@ -129,7 +131,6 @@ internal static class QuartzRegistration
         var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
         services.AddJobExecution();
-        services.AddSingleton<StoredDurableJobs>();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();

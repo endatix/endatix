@@ -242,6 +242,7 @@ one class per step:
 | returns a failure `Result` | `Failed`, with its message | done, no retry |
 | throws, attempts left | `Retrying` | a trigger of the job's own runs the next attempt after the backoff |
 | as above, but that trigger cannot be stored | stays `Processing`, nothing written | fires again 5 s later and re-claims the row |
+| as above, and the scheduler rejects the re-fire 3 times | `DeadLettered`, with a safe message | done |
 | throws, attempts spent | `DeadLettered`, with a safe message | done |
 | row set to `Canceled` meanwhile | stays `Canceled` | done |
 | host stopped waiting for it | stays `Processing`, nothing written | re-run on the next node to check in |
@@ -253,11 +254,19 @@ one class per step:
 A re-fire is a trigger too, and storing it can fail. While the scheduler is stopping it refuses
 every new trigger but still completes the firings it waits for, which would delete the job's last
 trigger; the firing is held instead until the scheduler lets go of it, and the next node to check
-in recovers it. A re-fire that fails on a node that keeps running is logged at `Error`, then at
-most once a minute, and tried again, after a wait that doubles from 0.5 s up to 5 s, until it is
-stored; the firing does not complete before then, so the row is never left `Processing` with no
-trigger. Each try sets the trigger 5 s after that try, so one stored late is not a misfire. A held
-firing occupies a worker thread of its job type's cap until its trigger is stored.
+in recovers it. Once the scheduler has let go, its job store is shut down and refuses every
+completion, so a firing that ends then leaves its trigger in place and stores nothing. A re-fire
+that fails on a node that keeps running is logged at `Error`, then at most once a minute, and tried
+again, after a wait that doubles from 0.5 s up to 5 s; the firing does not complete before then, so
+the row is never left `Processing` with no trigger. Each try sets the trigger 5 s after that try,
+so one stored late is not a misfire. A held firing occupies a worker thread of its job type's cap
+until its trigger is stored.
+
+A failure the database caused is tried until the trigger is stored. Any other refusal is tried 3
+times, with the job type's durable job stored again first if it has gone missing, and then the row
+is dead-lettered, if it is still as the firing left it, and the firing completes, so a rejection
+that will not clear does not hold a worker for good. Should that write fail too, the firing goes
+on trying as before.
 
 The row's `AttemptCount`, against the job type's `MaxAttempts` on the node that runs the attempt,
 decides dead-lettering, and the retry's backoff is that node's too. Nothing about retries is fixed

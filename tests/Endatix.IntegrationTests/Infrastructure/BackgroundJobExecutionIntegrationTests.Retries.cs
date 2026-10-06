@@ -148,7 +148,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var invocations = new ProbeInvocations();
-        var failures = new TriggerStoreFailures(stores: 4);
+        var failures = TriggerStoreFailures.DatabaseDown(stores: 4);
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(3), ct);
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.ThrowOnce), ct);
 
@@ -173,7 +173,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
         var invocations = new ProbeInvocations();
-        var failures = new TriggerStoreFailures(stores: 4);
+        var failures = TriggerStoreFailures.DatabaseDown(stores: 4);
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(2), ct);
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Throw), ct);
 

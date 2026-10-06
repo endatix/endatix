@@ -11,6 +11,9 @@ internal sealed class StateRepositoryFailures(int completions = 0, int claims = 
     private int _completions = completions;
     private int _claims = claims;
 
+    /// <summary>The completion failures not yet spent.</summary>
+    public int CompletionsRemaining => Math.Max(0, Volatile.Read(ref _completions));
+
     public bool TryConsumeCompletion() => Interlocked.Decrement(ref _completions) >= 0;
 
     public bool TryConsumeClaim() => Interlocked.Decrement(ref _claims) >= 0;
@@ -57,6 +60,9 @@ internal sealed class FailingStateRepository(IBackgroundJobStateRepository inner
     public Task<bool> TryDeadLetterSpentAsync(
         AttemptRef lastAttempt, AttemptFailure failure, CancellationToken cancellationToken = default) =>
         inner.TryDeadLetterSpentAsync(lastAttempt, failure, cancellationToken);
+
+    public Task<bool> TryDeadLetterAsync(UnfinishedRow seen, AttemptFailure failure, CancellationToken cancellationToken = default) =>
+        inner.TryDeadLetterAsync(seen, failure, cancellationToken);
 
     public Task<bool> RecordFailedAttemptAsync(
         AttemptRef attempt, RetryableFailure failure, CancellationToken cancellationToken = default) =>

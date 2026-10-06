@@ -11,7 +11,7 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 /// The job wrapper when a firing that is the job's only trigger cannot settle the row: it re-fires the job, trying
 /// until the re-fire is stored, and while the scheduler stops it holds the firing for recovery.
 /// </summary>
-public sealed class BackgroundJobExecutionRefireTests
+public sealed partial class BackgroundJobExecutionRefireTests
 {
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(5);
 
@@ -26,7 +26,7 @@ public sealed class BackgroundJobExecutionRefireTests
         var scheduled = new List<ITrigger>();
         context.Scheduler
             .ScheduleJob(Arg.Do<ITrigger>(scheduled.Add), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ => throw new JobPersistenceException("The database did not answer."), _ => Stored());
+            .Returns(_ => throw DatabaseDown(), _ => Stored());
 
         // Act
         await execution.Execute(context, TestContext.Current.CancellationToken);
@@ -81,7 +81,7 @@ public sealed class BackgroundJobExecutionRefireTests
         var scheduled = new List<ITrigger>();
         context.Scheduler
             .ScheduleJob(Arg.Do<ITrigger>(scheduled.Add), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ => throw Refused(), _ => throw Refused(), _ => throw Refused(), _ => Stored());
+            .Returns(_ => throw DatabaseDown(), _ => throw DatabaseDown(), _ => throw DatabaseDown(), _ => Stored());
 
         // Act
         await execution.Execute(context, TestContext.Current.CancellationToken).AsTask()
@@ -226,9 +226,11 @@ public sealed class BackgroundJobExecutionRefireTests
     private static void RefuseEveryTrigger(IScheduler scheduler) =>
         scheduler
             .ScheduleJob(Arg.Any<ITrigger>(), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
-            .Returns<ValueTask<DateTimeOffset>>(_ => throw Refused());
+            .Returns<ValueTask<DateTimeOffset>>(_ => throw DatabaseDown());
 
-    private static SchedulerException Refused() => new("The trigger could not be stored.");
+    // Shaped as the scheduler reports a store the database could not take: its own exception, wrapping the cause.
+    private static JobPersistenceException DatabaseDown() =>
+        new("Couldn't store trigger: The database did not answer.", new TimeoutException("The database did not answer."));
 
     private static ValueTask<DateTimeOffset> Stored() => new(DateTimeOffset.UtcNow);
 
