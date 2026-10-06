@@ -17,10 +17,16 @@ if ! [ -x "$(command -v openssl)" ]; then
   exit 1
 fi
 
+# Generated before writing because set -e ignores a failed command substitution
+# inside a heredoc, which would leave an empty value in the file.
+ADMIN_PASSWORD=$(openssl rand -hex 16)
+USER_PASSWORD=$(openssl rand -hex 12)
+CLIENT_SECRET=$(openssl rand -hex 32)
+
 cat > "$ENV_FILE" << EOF
-KC_BOOTSTRAP_ADMIN_PASSWORD=$(openssl rand -hex 16)
-KC_DEV_USER_PASSWORD=$(openssl rand -hex 12)
-KC_HUB_CLIENT_SECRET=$(openssl rand -hex 32)
+KC_BOOTSTRAP_ADMIN_PASSWORD=$ADMIN_PASSWORD
+KC_DEV_USER_PASSWORD=$USER_PASSWORD
+KC_HUB_CLIENT_SECRET=$CLIENT_SECRET
 EOF
 
 echo "Created $ENV_FILE:"
