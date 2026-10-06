@@ -14,7 +14,13 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// Uses replace mode when forced via <c>replace</c> or when the form has no real (non-test) submissions; otherwise merge.
 /// </summary>
 /// <remarks>
+/// <para>
+/// Rebuilds of one form run one after another: each reads, compiles and saves the schema under a lock held for its
+/// transaction, so each starts from what the one before it saved.
+/// </para>
+/// <para>
 /// A form deleted while it is compiled loses the schema this compile wrote, as its deletion sync removes it.
+/// </para>
 /// </remarks>
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
@@ -33,169 +39,120 @@ internal sealed class FormSchemaProcessor(
         bool replace = false,
         CancellationToken cancellationToken = default)
     {
-        DefinitionByFormAndDefinitionIdSpec spec = new(formId, formDefinitionId);
-        var formDefinition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
+        CompileTarget target = new(tenantId, formId, formDefinitionId);
+        var definitionJson = await ReadDefinitionJsonAsync(target, cancellationToken);
+        if (definitionJson is null)
+        {
+            return;
+        }
 
+        var realSubmissionCount = await CountRealSubmissionsAsync(tenantId, formId, cancellationToken);
+        SchemaRebuild rebuild = new(target, definitionJson, ChooseMode(replace, realSubmissionCount), replace);
+        await RebuildInTransactionAsync(rebuild, cancellationToken);
+
+        if (!await RemoveSchemaIfFormDeletedMeanwhileAsync(tenantId, formId, cancellationToken))
+        {
+            LogCompiled(rebuild, realSubmissionCount);
+        }
+    }
+
+    private static FormSchemaCompileMode ChooseMode(bool replace, int realSubmissionCount) =>
+        replace || realSubmissionCount == 0
+            ? FormSchemaCompileMode.Replace
+            : FormSchemaCompileMode.Merge;
+
+    private async Task<string?> ReadDefinitionJsonAsync(CompileTarget target, CancellationToken cancellationToken)
+    {
+        DefinitionByFormAndDefinitionIdSpec spec = new(target.FormId, target.FormDefinitionId);
+        var formDefinition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
         if (formDefinition is null)
         {
             logger.LogDebug(
                 "Skipping form schema compile for form {FormId}: form definition {FormDefinitionId} was not found",
-                formId,
-                formDefinitionId);
-            return;
+                target.FormId,
+                target.FormDefinitionId);
+            return null;
         }
 
-        if (formDefinition.TenantId != tenantId)
+        ThrowIfOtherTenant(target, formDefinition.TenantId);
+        return formDefinition.JsonData;
+    }
+
+    private static void ThrowIfOtherTenant(CompileTarget target, long definitionTenantId)
+    {
+        if (definitionTenantId != target.TenantId)
         {
             throw new InvalidOperationException(
-                $"Tenant mismatch while compiling form schema for form {formId}: expected {tenantId}, got {formDefinition.TenantId}.");
+                $"Tenant mismatch while compiling form schema for form {target.FormId}: expected {target.TenantId}, got {definitionTenantId}.");
         }
+    }
 
+    private async Task RebuildInTransactionAsync(SchemaRebuild rebuild, CancellationToken cancellationToken)
+    {
         try
         {
-            var existingSchema = await schemaRepository.GetByFormIdAsync(
-                tenantId,
-                formId,
-                cancellationToken);
-            var realSubmissionCount = await CountRealSubmissionsAsync(tenantId, formId, cancellationToken);
-            var compileMode = replace || realSubmissionCount == 0
-                ? FormSchemaCompileMode.Replace
-                : FormSchemaCompileMode.Merge;
-
-            if (compileMode == FormSchemaCompileMode.Replace)
-            {
-                await ReplaceAsync(
-                    tenantId,
-                    formId,
-                    formDefinitionId,
-                    formDefinition.JsonData,
-                    existingSchema,
-                    forceClearFlattenedRows: replace,
-                    cancellationToken);
-            }
-            else
-            {
-                await MergeAsync(
-                    tenantId,
-                    formId,
-                    formDefinitionId,
-                    formDefinition.JsonData,
-                    existingSchema,
-                    cancellationToken);
-            }
-
-            if (await RemoveSchemaIfFormDeletedMeanwhileAsync(tenantId, formId, cancellationToken))
-            {
-                return;
-            }
-
-            logger.LogInformation(
-                "Compiled form schema for form {FormId} (definition {FormDefinitionId}, compileMode={CompileMode}, replace={Replace}, realSubmissionCount={RealSubmissionCount})",
-                formId,
-                formDefinitionId,
-                compileMode,
-                replace,
-                realSubmissionCount);
+            await unitOfWork.InTransactionAsync(() => RebuildAsync(rebuild, cancellationToken), cancellationToken);
         }
         catch (SchemaCompilationLimitExceededException ex)
         {
             throw new InvalidOperationException(
-                $"Form schema compilation failed for form {formId}: {ex.LimitKind}.",
+                $"Form schema compilation failed for form {rebuild.Target.FormId}: {ex.LimitKind}.",
                 ex);
         }
     }
 
-    private async Task ReplaceAsync(
-        long tenantId,
-        long formId,
-        long formDefinitionId,
-        string definitionJson,
-        FormSchemaEntity? existingSchema,
-        bool forceClearFlattenedRows,
-        CancellationToken cancellationToken)
+    // Two rebuilds of one form that both read the schema before either saved would each save only their own columns,
+    // and the revision would still look current. The lock makes the second wait for the first to commit and then read
+    // what it saved, so it merges onto that.
+    private async Task RebuildAsync(SchemaRebuild rebuild, CancellationToken cancellationToken)
     {
+        var existingSchema = await schemaRepository.LockAndGetByFormIdAsync(
+            rebuild.Target.TenantId,
+            rebuild.Target.FormId,
+            cancellationToken);
         var compiled = compiler.CompilePersisted(
-            definitionJson,
-            mode: FormSchemaCompileMode.Replace);
-
-        await unitOfWork.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            await PersistAsync(tenantId, formId, formDefinitionId, existingSchema, compiled, cancellationToken);
-
-            if (forceClearFlattenedRows)
-            {
-                await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
-            }
-            else
-            {
-                // Count lives on App DB and cannot join this Reporting transaction; re-check
-                // immediately before delete so a concurrent first real submission is not wiped.
-                var realSubmissionCount = await CountRealSubmissionsAsync(tenantId, formId, cancellationToken);
-                if (realSubmissionCount == 0)
-                {
-                    await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
-                }
-            }
-
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
-        }
-        catch
-        {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
-            throw;
-        }
-    }
-
-    private async Task MergeAsync(
-        long tenantId,
-        long formId,
-        long formDefinitionId,
-        string definitionJson,
-        FormSchemaEntity? existingSchema,
-        CancellationToken cancellationToken)
-    {
-        var compiled = compiler.CompilePersisted(
-            definitionJson,
+            rebuild.DefinitionJson,
             existingSchema?.FlatteningMap,
             existingSchema?.Codebook,
-            FormSchemaCompileMode.Merge);
+            rebuild.Mode);
+        await schemaRepository.SaveAsync(ApplyCompiled(rebuild, existingSchema, compiled), cancellationToken);
 
-        await PersistAsync(tenantId, formId, formDefinitionId, existingSchema, compiled, cancellationToken);
+        if (rebuild.Mode == FormSchemaCompileMode.Replace)
+        {
+            await ClearFlattenedRowsAsync(rebuild, cancellationToken);
+        }
     }
 
-    private async Task PersistAsync(
-        long tenantId,
-        long formId,
-        long formDefinitionId,
+    // The revision only moves forward: a rebuild from an older definition keeps the newer one already compiled.
+    private static FormSchemaEntity ApplyCompiled(
+        SchemaRebuild rebuild,
         FormSchemaEntity? existingSchema,
-        FormSchemaCompileResult compiled,
-        CancellationToken cancellationToken)
+        FormSchemaCompileResult compiled)
     {
-        var revision = existingSchema is null
-            ? formDefinitionId
-            : Math.Max(existingSchema.FormDefinitionRevision, formDefinitionId);
-
+        var target = rebuild.Target;
         if (existingSchema is null)
         {
-            existingSchema = new FormSchemaEntity(
-                tenantId,
-                formId,
-                revision,
-                compiled.FlatteningMapJson,
-                compiled.CodebookJson,
-                compiled.LocalesJson);
-        }
-        else
-        {
-            existingSchema.UpdateSchema(
-                revision,
-                compiled.FlatteningMapJson,
-                compiled.CodebookJson,
-                compiled.LocalesJson);
+            return new FormSchemaEntity(target.TenantId, target.FormId, target.FormDefinitionId,
+                compiled.FlatteningMapJson, compiled.CodebookJson, compiled.LocalesJson);
         }
 
-        await schemaRepository.SaveAsync(existingSchema, cancellationToken);
+        var revision = Math.Max(existingSchema.FormDefinitionRevision, target.FormDefinitionId);
+        existingSchema.UpdateSchema(revision, compiled.FlatteningMapJson, compiled.CodebookJson, compiled.LocalesJson);
+        return existingSchema;
+    }
+
+    private async Task ClearFlattenedRowsAsync(SchemaRebuild rebuild, CancellationToken cancellationToken)
+    {
+        // Count lives on App DB and cannot join this Reporting transaction; re-check
+        // immediately before delete so a concurrent first real submission is not wiped.
+        if (rebuild.ForceReplace ||
+            await CountRealSubmissionsAsync(rebuild.Target.TenantId, rebuild.Target.FormId, cancellationToken) == 0)
+        {
+            await flattenedSubmissionRepository.DeleteByFormIdAsync(
+                rebuild.Target.TenantId,
+                rebuild.Target.FormId,
+                cancellationToken);
+        }
     }
 
     // A form deleted after this compile read it would keep the schema the compile wrote, when its deletion sync ran
@@ -220,6 +177,15 @@ internal sealed class FormSchemaProcessor(
         return true;
     }
 
+    private void LogCompiled(SchemaRebuild rebuild, int realSubmissionCount) =>
+        logger.LogInformation(
+            "Compiled form schema for form {FormId} (definition {FormDefinitionId}, compileMode={CompileMode}, replace={Replace}, realSubmissionCount={RealSubmissionCount})",
+            rebuild.Target.FormId,
+            rebuild.Target.FormDefinitionId,
+            rebuild.Mode,
+            rebuild.ForceReplace,
+            realSubmissionCount);
+
     private Task<int> CountRealSubmissionsAsync(
         long tenantId,
         long formId,
@@ -231,4 +197,16 @@ internal sealed class FormSchemaProcessor(
                               submission.FormId == formId &&
                               !submission.IsTestSubmission,
                 cancellationToken);
+
+    private sealed record CompileTarget(long TenantId, long FormId, long FormDefinitionId);
+
+    /// <summary>
+    /// One rebuild of a form's schema from one of its definitions. <c>ForceReplace</c>: replace was asked for, so
+    /// flattened rows are cleared even when the form has real submissions.
+    /// </summary>
+    private sealed record SchemaRebuild(
+        CompileTarget Target,
+        string DefinitionJson,
+        FormSchemaCompileMode Mode,
+        bool ForceReplace);
 }

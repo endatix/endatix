@@ -55,6 +55,8 @@ On every compile path (outbox `form.definition.updated`, manual `POST .../report
 
 Test submissions alone do **not** force merge. This is a defensive bridge until Form Publish makes publish the controlled compile moment.
 
+Rebuilds of one form run one at a time. Each reads, compiles and saves the schema in one transaction holding a PostgreSQL advisory lock for that form (`FormSchemaRebuildLock`: the first 8 bytes of SHA-256 over a scope name, the tenant id and the form id), so a rebuild that waited merges onto what the one before it saved. Without it, two rebuilds that read the schema at once each saved only their own columns, and the revision still looked current.
+
 A form deleted after a compile read it loses the schema that compile wrote, hard-deleted as its deletion sync removes it.
 
 ## Registration

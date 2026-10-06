@@ -44,8 +44,7 @@ public sealed class FormSchemaProviderIntegrationTests
         await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
         await using AppDbContext appDbContext = CreateAppDbContext();
         FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
-        FormSchemaProcessor schemaProcessor = CreateProcessor(formsRepository, schemaRepository, appDbContext);
-        FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
+        FormSchemaProvider provider = CreateProvider(formsRepository, dbContext, appDbContext);
 
         FormSchema? result = await provider.GetOrCompileAsync(
             TenantId,
@@ -78,9 +77,7 @@ public sealed class FormSchemaProviderIntegrationTests
 
         await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
         await using AppDbContext appDbContext = CreateAppDbContext();
-        FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
-        FormSchemaProcessor schemaProcessor = CreateProcessor(formsRepository, schemaRepository, appDbContext);
-        FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
+        FormSchemaProvider provider = CreateProvider(formsRepository, dbContext, appDbContext);
 
         FormSchema? first = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
         FormSchema? second = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
@@ -127,22 +124,23 @@ public sealed class FormSchemaProviderIntegrationTests
         return new FormSchemaRepository(dbContext, unitOfWork);
     }
 
-    private static FormSchemaProcessor CreateProcessor(
+    private static FormSchemaProvider CreateProvider(
         IFormsRepository formsRepository,
-        FormSchemaRepository schemaRepository,
+        ReportingDbContext dbContext,
         AppDbContext appDbContext)
     {
-        IFlattenedSubmissionRepository flattenedRepository = Substitute.For<IFlattenedSubmissionRepository>();
-        IReportingUnitOfWork unitOfWork = Substitute.For<IReportingUnitOfWork>();
-
-        return new FormSchemaProcessor(
+        ReportingUnitOfWork unitOfWork = new(dbContext);
+        FormSchemaRepository schemaRepository = new(dbContext, unitOfWork);
+        FormSchemaProcessor schemaProcessor = new(
             formsRepository,
             schemaRepository,
-            flattenedRepository,
+            Substitute.For<IFlattenedSubmissionRepository>(),
             unitOfWork,
             appDbContext,
             new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
+
+        return new FormSchemaProvider(schemaRepository, schemaProcessor);
     }
 
     // The form is read as its definition and still exists after the compile wrote its schema.

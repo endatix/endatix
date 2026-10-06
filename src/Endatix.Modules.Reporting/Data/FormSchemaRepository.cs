@@ -23,6 +23,23 @@ internal sealed class FormSchemaRepository(
     }
 
     /// <inheritdoc />
+    public async Task<FormSchema?> LockAndGetByFormIdAsync(
+        long tenantId,
+        long formId,
+        CancellationToken cancellationToken)
+    {
+        await FormSchemaRebuildLock.AcquireAsync(
+            dbContext.Database,
+            new FormSchemaLockTarget(tenantId, formId),
+            cancellationToken);
+
+        // A row this context already tracks would come back as it was first read, before the lock, and hide what the
+        // rebuild that held the lock saved; read it again instead.
+        DetachTracked(tenantId, formId);
+        return await GetByFormIdAsync(tenantId, formId, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task SaveAsync(FormSchema schema, CancellationToken cancellationToken)
     {
         if (schema.Id == default)
@@ -39,4 +56,14 @@ internal sealed class FormSchemaRepository(
             .IgnoreQueryFilters()
             .Where(schema => schema.TenantId == tenantId && schema.FormId == formId)
             .ExecuteDeleteAsync(cancellationToken);
+
+    private void DetachTracked(long tenantId, long formId)
+    {
+        var tracked = dbContext.FormSchemas.Local
+            .FirstOrDefault(schema => schema.TenantId == tenantId && schema.FormId == formId);
+        if (tracked is not null)
+        {
+            dbContext.Entry(tracked).State = EntityState.Detached;
+        }
+    }
 }
