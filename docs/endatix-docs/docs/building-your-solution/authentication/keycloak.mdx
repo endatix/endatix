@@ -15,10 +15,13 @@ Use the host `127.0.0.1` in every issuer URL. Keycloak copies the host from the 
 From the Endatix API repository root:
 
 ```bash
+docker/keycloak/generate-dev-env.sh
 docker compose -f docker/docker-compose.keycloak.yml up
 ```
 
-The compose file runs `quay.io/keycloak/keycloak:26.8` with `start-dev --import-realm` and binds `127.0.0.1:8080`. Admin console: `http://127.0.0.1:8080`, username `admin`, password `admin`.
+The script creates `docker/keycloak/.env` with random values for the admin password, the realm users' password, and the client secret. Git ignores that file. Without `openssl` or `bash`, copy `docker/keycloak/.env.example` to `.env` and set each value yourself. Compose refuses to start until the file exists.
+
+The compose file runs `quay.io/keycloak/keycloak:26.8` with `start-dev --import-realm` and binds `127.0.0.1:8080`. Admin console: `http://127.0.0.1:8080`, username `admin`, password `KC_BOOTSTRAP_ADMIN_PASSWORD`.
 
 The imported realm is [`docker/keycloak/endatix-realm.json`](https://github.com/endatix/endatix/blob/main/docker/keycloak/endatix-realm.json):
 
@@ -26,15 +29,17 @@ The imported realm is [`docker/keycloak/endatix-realm.json`](https://github.com/
 | --- | --- |
 | Realm | `endatix` |
 | Client | `endatix-hub` (confidential, standard flow, direct access grants) |
-| Client secret | `endatix-dev-hub-client-secret` |
+| Client secret | `KC_HUB_CLIENT_SECRET` from `docker/keycloak/.env` |
 | Redirect URI | `http://localhost:3000/api/auth/callback/keycloak` |
 | Post logout redirect URI | `http://localhost:3000/signin` |
 | Web origin | `http://localhost:3000` |
-| Users | `external@endatix.com` (no client role), `external-admin@endatix.com` (`admin`), `external-creator@endatix.com` (`creator`), `respondent@endatix.com` (`respondent`). Password `admin@2` |
+| Users | `external@endatix.com` (no client role), `external-admin@endatix.com` (`admin`), `external-creator@endatix.com` (`creator`), `respondent@endatix.com` (`respondent`). Password `KC_DEV_USER_PASSWORD` from `docker/keycloak/.env` |
+
+The realm file holds `${KC_DEV_USER_PASSWORD}` and `${KC_HUB_CLIENT_SECRET}` placeholders. Keycloak replaces them with the container's environment values when it imports the realm.
 
 Authorization services are off. Keycloak 26 does not ship the JavaScript policy provider, so a realm export that contains a policy of type `js` fails with `Couldn't find policy provider with type [js]`. Do not replace this file with an admin-console export: Keycloak writes the client secret as `**********`.
 
-`start-dev --import-realm` imports only when the realm is not already in the container volume. After you change the JSON, delete the volume and start again:
+`start-dev --import-realm` imports only when the realm is not already in the container volume. After you change the JSON or `docker/keycloak/.env`, delete the volume and start again:
 
 ```bash
 docker compose -f docker/docker-compose.keycloak.yml down -v
@@ -64,7 +69,7 @@ builder.Host.ConfigureEndatixWithDefaults(endatix =>
   "Issuer": "http://127.0.0.1:8080/realms/endatix",
   "DefaultTenantId": 1,
   "ClientId": "endatix-hub",
-  "ClientSecret": "endatix-dev-hub-client-secret"
+  "ClientSecret": "<KC_HUB_CLIENT_SECRET from docker/keycloak/.env>"
 }
 ```
 
@@ -81,7 +86,7 @@ authRegistry.register(new KeycloakAuthProvider());
 ```bash
 AUTH_KEYCLOAK_ENABLED=true
 AUTH_KEYCLOAK_CLIENT_ID=endatix-hub
-AUTH_KEYCLOAK_CLIENT_SECRET=endatix-dev-hub-client-secret
+AUTH_KEYCLOAK_CLIENT_SECRET=<KC_HUB_CLIENT_SECRET from docker/keycloak/.env>
 AUTH_KEYCLOAK_ISSUER=http://127.0.0.1:8080/realms/endatix
 AUTH_URL=http://localhost:3000
 ```
@@ -124,7 +129,7 @@ Client secret for that same introspection call.
 Keycloak client id. This realm uses `endatix-hub`.
 </Setting>
 <Setting name="AUTH_KEYCLOAK_CLIENT_SECRET" required>
-Client secret from the realm file, or from Clients → `endatix-hub` → Credentials if you created the client by hand.
+`KC_HUB_CLIENT_SECRET` from `docker/keycloak/.env`, or the secret from Clients → `endatix-hub` → Credentials if you created the client by hand.
 </Setting>
 <Setting name="AUTH_KEYCLOAK_ISSUER" required>
 Realm issuer. `http://127.0.0.1:8080/realms/endatix` for this compose file.
@@ -145,7 +150,7 @@ The dev realm already allows `http://localhost:3000/signin`. If you create the c
 ## Check the flow
 
 1. Open `http://localhost:3000`. The sign-in page shows **Sign in with Keycloak**.
-2. Sign in as `external@endatix.com` / `admin@2`. Hub returns to the dashboard.
+2. Sign in as `external@endatix.com` with `KC_DEV_USER_PASSWORD`. Hub returns to the dashboard.
 3. Sign out. The browser passes through `http://127.0.0.1:8080/realms/endatix/protocol/openid-connect/logout` and lands on `/signin`.
 4. Sign in again. Keycloak asks for credentials.
 

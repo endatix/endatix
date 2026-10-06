@@ -20,7 +20,7 @@ For a general overview of external authorization concepts and benefits, see the 
 
 ## Dev realm
 
-The [Endatix API](https://github.com/endatix/endatix) realm file already defines client roles on `endatix-hub` and assigns them. Password for each user is `admin@2`.
+The [Endatix API](https://github.com/endatix/endatix) realm file already defines client roles on `endatix-hub` and assigns them. Password for each user is `KC_DEV_USER_PASSWORD` from `docker/keycloak/.env`.
 
 | User | Client role | Endatix role |
 | --- | --- | --- |
@@ -132,7 +132,7 @@ Update your `appsettings.json` to include the Authorization section:
           "Issuer": "http://127.0.0.1:8080/realms/endatix",
           "RequireHttpsMetadata": false,
           "ClientId": "endatix-hub",
-          "ClientSecret": "endatix-dev-hub-client-secret",
+          "ClientSecret": "<KC_HUB_CLIENT_SECRET from docker/keycloak/.env>",
           "Authorization": {
             "RoleMappings": {
               "admin": "Admin",
