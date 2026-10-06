@@ -126,6 +126,7 @@ Account-facing failures must be **indistinguishable to the caller**: same status
 ## Testing
 
 - **Unit** — domain, handlers, validators, mappers, endpoint `ExecuteAsync` mapping; substitutes only.
+- **Sample forms** — [`src/Endatix.Infrastructure/Data/SeedData/Forms/`](src/Endatix.Infrastructure/Data/SeedData/Forms/). One JSON file per form, loaded in filename order, embedded by the `SeedData/Forms/**/*.json` glob. The age-gate screen-out sample is `20-age-gate.json`. The same survey schema is the Hub fixture `hub/lib/survey-features/screen-out/__tests__/fixtures/age-gate.json`.
 - **Integration** — HTTP + auth + DI + EF + real database (`WebApplicationFactory`, Testcontainers, Respawn; never an in-memory DB). Assert status, response contract and the persistence effect. Authenticate with synthetic JWT; Keycloak only in trait-scoped tests. Fixtures, traits and folders (`CriticalPaths/` · `FeatureFlows/` · `Infrastructure/`): [`tests/README.md`](tests/README.md).
 - **Naming:** class `{Sut}Tests`. Unit and persistence-integration methods are `UnitOfWork_Scenario_ExpectedBehavior` (`Constructor_NegativeOrZeroFormId_ThrowsArgumentException`, `GetByFormIdAsync_WithOtherTenant_ReturnsNull`). HTTP integration methods read as outcomes (`Create_tenant_as_tenant_admin_is_forbidden`).
 - Explicit `// Arrange` · `// Act` · `// Assert`; one behavior per test.
