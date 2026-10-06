@@ -1,4 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Reaches the Jobs module through project references, which don't apply its buildTransitive props. -->
+  <Import Project="../../src/Endatix.Modules.Jobs/buildTransitive/Endatix.Modules.Jobs.props" />
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
