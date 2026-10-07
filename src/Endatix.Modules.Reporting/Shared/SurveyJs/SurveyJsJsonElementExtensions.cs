@@ -279,6 +279,13 @@ internal static class SurveyJsJsonElementExtensions
         element.TryGetArrayProperty(SurveyJsPropertyNames.CalculatedValues, out calculatedValues);
 
     /// <summary>
+    /// Whether SurveyJS saves this calculated value with the submission. <c>includeIntoResult</c>
+    /// defaults to <c>false</c> and is omitted from the definition when false.
+    /// </summary>
+    public static bool IsIncludedInResult(this JsonElement calculatedValue) =>
+        calculatedValue.GetBooleanProperty(SurveyJsPropertyNames.IncludeIntoResult);
+
+    /// <summary>
     /// Attempts to retrieve the <c>loopSource</c> array property. Returns <c>true</c> with the array element on success.
     /// </summary>
     public static bool TryGetLoopSource(this JsonElement element, out JsonElement loopSource) =>

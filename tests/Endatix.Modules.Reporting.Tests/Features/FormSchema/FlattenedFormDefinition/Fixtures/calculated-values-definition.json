@@ -8,6 +8,8 @@
     }
   ],
   "calculatedValues": [
-    { "name": "totalAmount", "expression": "{itemQty} * {itemPrice}" }
+    { "name": "totalAmount", "expression": "{itemQty} * {itemPrice}", "includeIntoResult": true },
+    { "name": "itemCount", "expression": "{itemQty}" },
+    { "name": "itemCheck", "expression": "{itemPrice}", "includeIntoResult": false }
   ]
 }

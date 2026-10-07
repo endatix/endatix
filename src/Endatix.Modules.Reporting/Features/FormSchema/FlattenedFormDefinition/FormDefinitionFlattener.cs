@@ -110,7 +110,7 @@ internal static class FormDefinitionFlattener
         var count = 0;
         foreach (var calculatedValue in calculatedValues.EnumerateArray())
         {
-            if (!calculatedValue.GetBooleanProperty(SurveyJsPropertyNames.IncludeIntoResult, defaultValue: true))
+            if (!calculatedValue.IsIncludedInResult())
             {
                 continue;
             }
@@ -414,7 +414,7 @@ internal static class FormDefinitionFlattener
 
         foreach (var calculatedValue in calculatedValues.EnumerateArray())
         {
-            if (!calculatedValue.GetBooleanProperty(SurveyJsPropertyNames.IncludeIntoResult, defaultValue: true))
+            if (!calculatedValue.IsIncludedInResult())
             {
                 continue;
             }

@@ -154,4 +154,17 @@ public class SurveyJsJsonElementExtensionsTests
         found.Should().BeTrue();
         calculatedValues.GetArrayLength().Should().Be(1);
     }
+
+    [Theory]
+    [InlineData("""{ "name": "total", "includeIntoResult": true }""", true)]
+    [InlineData("""{ "name": "total", "includeIntoResult": false }""", false)]
+    [InlineData("""{ "name": "total" }""", false)]
+    public void IsIncludedInResult_FollowsSurveyJsDefault(string calculatedValueJson, bool expected)
+    {
+        using JsonDocument document = JsonDocument.Parse(calculatedValueJson);
+
+        bool included = document.RootElement.IsIncludedInResult();
+
+        included.Should().Be(expected);
+    }
 }
