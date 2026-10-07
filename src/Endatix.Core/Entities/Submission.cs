@@ -231,7 +231,68 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             throw new InvalidOperationException("A complete submission cannot be cancelled.");
         }
 
+        // Screen-out is a final outcome; cancelling would silently lose it.
+        if (IsScreenedOut)
+        {
+            throw new InvalidOperationException("A screened-out submission cannot be cancelled.");
+        }
+
         SetCollectionStatus(CollectionStatusValue.Cancelled);
+    }
+
+    /// <summary>True when the interview ended as screened out. A screened-out submission can't be changed.</summary>
+    public bool IsScreenedOut => CollectionStatus?.Code == CollectionStatusCodes.ScreenOut;
+
+    /// <summary>
+    /// Saves the respondent's last answers and ends the interview as screened out, checking first so a
+    /// rejected screen-out leaves the aggregate untouched. A repeat on a screened-out submission is a no-op.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The submission is complete, or its collection status is not resumable.</exception>
+    public void ScreenOut(string jsonData, long formDefinitionId, long formDefinitionFormId, int currentPage = 1, string? metadata = null)
+    {
+        EnsureScreenOutAllowed();
+        if (IsScreenedOut)
+        {
+            return;
+        }
+
+        Update(jsonData, formDefinitionId, formDefinitionFormId, isComplete: false, currentPage, metadata);
+        ScreenOut();
+    }
+
+    /// <summary>
+    /// Ends the interview as screened out. Does not mark it complete and does not raise
+    /// <c>submission.completed</c>. Records the start if none was recorded. A later update is rejected.
+    /// A repeat on a screened-out submission is a no-op.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The submission is complete, or its collection status is not resumable.</exception>
+    public void ScreenOut()
+    {
+        EnsureScreenOutAllowed();
+        if (IsScreenedOut)
+        {
+            return;
+        }
+
+        var previousCollectionStatus = CollectionStatus;
+        EnsureStarted();
+        SetCollectionStatus(CollectionStatusValue.ScreenOut);
+        RegisterRevisedDomainEvent(() => new SubmissionCollectionStatusChangedEvent(this, previousCollectionStatus));
+    }
+
+    private void EnsureScreenOutAllowed()
+    {
+        if (IsComplete)
+        {
+            throw new InvalidOperationException("A complete submission cannot be screened out.");
+        }
+
+        // Another terminal outcome (e.g. cancelled) is not overwritten.
+        if (!IsScreenedOut && !IsResumableCollection())
+        {
+            throw new InvalidOperationException(
+                "Cannot screen out a submission whose collection status is not resumable.");
+        }
     }
 
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
@@ -283,6 +344,11 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         {
             throw new ArgumentException(
                 "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
+        }
+
+        if (IsScreenedOut)
+        {
+            throw new InvalidOperationException("A screened-out submission cannot be changed.");
         }
 
         if (!IsComplete && isComplete && !IsResumableCollection())

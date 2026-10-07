@@ -50,16 +50,19 @@ public class PartialUpdateSubmissionByTokenHandler(
             IsComplete: request.IsComplete,
             CurrentPage: request.CurrentPage,
             JsonData: request.JsonData,
-            Metadata: request.Metadata);
+            Metadata: request.Metadata,
+            CollectionOutcome: request.CollectionOutcome);
 
         return await sender.Send(partialUpdateSubmissionCommand, cancellationToken);
     }
 
     private async Task<Result> ValidateReCaptchaAsync(Form form, PartialUpdateSubmissionByTokenCommand request, CancellationToken cancellationToken)
     {
+        // A screen-out ends the interview like a complete, so it gets the same bot check.
+        var endsInterview = (request.IsComplete ?? false) || CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
         var validationContext = new SubmissionVerificationContext(
            form,
-           request.IsComplete ?? false,
+           endsInterview,
            request.JsonData,
            request.ReCaptchaToken
        );

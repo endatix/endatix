@@ -44,7 +44,8 @@ public class PartialUpdateByAccessToken(IMediator mediator)
             request.IsComplete,
             request.CurrentPage,
             request.JsonData,
-            request.Metadata
+            request.Metadata,
+            request.CollectionOutcome
         );
 
         var result = await mediator.Send(command, ct);

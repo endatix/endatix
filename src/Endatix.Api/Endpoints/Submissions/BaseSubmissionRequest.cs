@@ -1,4 +1,6 @@
 using Endatix.Api.Common;
+using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Infrastructure.Data.Config;
 using FluentValidation;
 
@@ -51,4 +53,10 @@ internal static class SubmissionRequestValidationExtensions
             .ValidJsonString()
             .When(x => x.Metadata != null);
     }
+
+    /// <summary>Accepts an omitted outcome or <c>screen_out</c>; anything else is a 400, not a silent normal save.</summary>
+    internal static IRuleBuilderOptions<T, string?> ValidCollectionOutcome<T>(this IRuleBuilder<T, string?> ruleBuilder) =>
+        ruleBuilder
+            .Must(CollectionOutcomes.IsSupported)
+            .WithMessage($"'{{PropertyName}}' must be '{CollectionStatusCodes.ScreenOut}' when set.");
 }

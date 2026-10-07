@@ -85,9 +85,12 @@ public class CreateSubmissionHandler(
             canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
         }
 
+        var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
+
+        // A screen-out ends the interview like a complete, so it gets the same bot check.
         var validationContext = new SubmissionVerificationContext(
             formWithActiveDefinition,
-            request.IsComplete ?? DEFAULT_IS_COMPLETE,
+            screenOut || (request.IsComplete ?? DEFAULT_IS_COMPLETE),
             request.JsonData,
             request.ReCaptchaToken
         );
@@ -107,7 +110,7 @@ public class CreateSubmissionHandler(
             FormId: request.FormId,
             FormDefinitionId: activeDefinition.Id,
             JsonData: request.JsonData ?? DEFAULT_JSON_DATA,
-            IsComplete: request.IsComplete ?? DEFAULT_IS_COMPLETE,
+            IsComplete: !screenOut && (request.IsComplete ?? DEFAULT_IS_COMPLETE),
             CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             Metadata: request.Metadata ?? DEFAULT_METADATA,
             SubmitterId: submitterId,
@@ -120,6 +123,11 @@ public class CreateSubmissionHandler(
                 request.RequiredPermission,
                 Actions.Submissions.Create,
                 StringComparison.Ordinal)));
+
+        if (screenOut)
+        {
+            submission.ScreenOut();
+        }
 
         try
         {

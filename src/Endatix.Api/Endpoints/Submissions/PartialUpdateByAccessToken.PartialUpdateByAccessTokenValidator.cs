@@ -27,5 +27,7 @@ public class PartialUpdateByAccessTokenValidator : Validator<PartialUpdateByAcce
         RuleFor(x => x.CurrentPage)
             .GreaterThanOrEqualTo(0)
             .When(x => x.CurrentPage != null);
+
+        RuleFor(x => x.CollectionOutcome).ValidCollectionOutcome();
     }
 }

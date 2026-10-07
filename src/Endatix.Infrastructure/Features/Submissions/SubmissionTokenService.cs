@@ -62,7 +62,8 @@ public class SubmissionTokenService : ISubmissionTokenService
             return Result.NotFound("Invalid or expired token");
         }
 
-        if (submission.IsComplete)
+        // A screened-out interview has ended too, so its token follows the same after-completion rule.
+        if (submission.IsComplete || submission.IsScreenedOut)
         {
             var tenantSettings = await _tenantSettingsRepository
                 .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(submission.TenantId), cancellationToken);
@@ -70,7 +71,7 @@ public class SubmissionTokenService : ISubmissionTokenService
 
             if (!tenantSettings.IsSubmissionTokenValidAfterCompletion)
             {
-                return Result.NotFound("Submission completed");
+                return Result.NotFound(submission.IsComplete ? "Submission completed" : "Submission screened out");
             }
         }
 

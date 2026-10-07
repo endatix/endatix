@@ -43,7 +43,8 @@ public class PartialUpdateByToken(IMediator mediator) : Endpoint<PartialUpdateSu
             request.CurrentPage,
             request.JsonData,
             request.Metadata,
-            request.ReCaptchaToken
+            request.ReCaptchaToken,
+            request.CollectionOutcome
         );
 
         var result = await mediator.Send(updateSubmissionCommand, ct);

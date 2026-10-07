@@ -1,0 +1,53 @@
+{
+  "form": {
+    "name": "Age gate"
+  },
+  "definition": {
+    "jsonSchema": {
+      "title": "Age gate",
+      "description": "Under 18 is screened out onto a custom thank-you page. 18 or older continues to a favorite-alcohol question and then the default thank-you page.",
+      "completedHtml": "<h4>Thank you</h4><p>Your answers were saved.</p>",
+      "completedHtmlOnCondition": [
+        {
+          "expression": "{age} = 'under_18'",
+          "html": "<h4>Thanks for your interest</h4><p>This survey is for people who are 18 or older, so we have to stop here.</p>"
+        }
+      ],
+      "pages": [
+        {
+          "name": "agePage",
+          "elements": [
+            {
+              "type": "radiogroup",
+              "name": "age",
+              "title": "How old are you?",
+              "isRequired": true,
+              "choices": [
+                { "value": "under_18", "text": "Under 18" },
+                { "value": "18_or_over", "text": "18 or older" }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "alcohol",
+          "elements": [
+            {
+              "type": "radiogroup",
+              "name": "favoriteAlcohol",
+              "title": "What is your favorite alcohol?",
+              "isRequired": true,
+              "choices": ["Wine", "Beer", "Spirits", "None"]
+            }
+          ]
+        }
+      ],
+      "triggers": [
+        {
+          "type": "screenout",
+          "expression": "{age} = 'under_18'"
+        }
+      ]
+    }
+  }
+}

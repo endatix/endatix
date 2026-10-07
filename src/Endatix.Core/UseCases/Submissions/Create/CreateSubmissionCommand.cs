@@ -27,5 +27,6 @@ public record CreateSubmissionCommand(
     string? ReCaptchaToken,
     string RequiredPermission,
     ClaimsPrincipal? SubmitterPrincipal = null,
-    SubmitterInput? Submitter = null
+    SubmitterInput? Submitter = null,
+    string? CollectionOutcome = null
 ) : ICommand<Result<Submission>>;
