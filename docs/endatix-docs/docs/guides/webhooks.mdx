@@ -13,9 +13,9 @@ Endatix provides a flexible webhook system that allows you to send notifications
 Webhooks in Endatix are built-in event handlers that automatically send HTTP requests to configured endpoints when specific events occur. The system supports the following events:
 
 - Form events (`FormCreated`, `FormUpdated`, `FormEnabledStateChanged`, `FormDeleted`)
-- Submission events (`SubmissionCompleted`)
+- Submission events (`SubmissionCompleted`, `SubmissionCollectionStatusChanged`)
 
-Delivery is **durable and asynchronous**: when an event is raised, Endatix writes an outbox message in the same database transaction as your data, then a background relay delivers the webhook. See [Background Processing](/docs/configuration/background-processing) for how the outbox relay works and how to tune `Endatix:Outbox`.
+Delivery is durable. The API writes an outbox message in the same database transaction as the form or submission, then returns. A background relay picks the message up. With `Endatix:Outbox:DeliverToJobQueue` on, that relay enqueues one background job per endpoint. Each job sends, retries, and dead-letters on its own, so one slow endpoint does not hold the others. With the switch off (the default in `appsettings.json`), the relay delivers every endpoint inline. See [Background Processing](/docs/configuration/background-processing).
 
 ## Configuration Levels
 
@@ -64,7 +64,7 @@ Both tenant and form webhook configurations use the same JSON format:
 ```
 
 :::tip
-This example shows configuration for `FormCreated` and `SubmissionCompleted` events. The other supported events (`FormUpdated`, `FormEnabledStateChanged`, `FormDeleted`) are configured the same way.
+This example shows `FormCreated` and `SubmissionCompleted`. `FormUpdated`, `FormEnabledStateChanged`, `FormDeleted`, and `SubmissionCollectionStatusChanged` use the same shape.
 :::
 
 ## Tenant-Level Configuration
@@ -243,17 +243,24 @@ To test your webhooks:
     - `PUT api/forms/{formId}/submissions/{submissionId}`
     - `PATCH api/forms/{formId}/submissions/{submissionId}`
     - `PATCH api/forms/{formId}/submissions/by-token/{submissionToken}`
-  - This event is triggered once per submission when `IsComplete` field is set to true
+  - This event is triggered once per submission when `IsComplete` is set to true
+  - A screen-out does not send this event
   - Can be used to process form responses, trigger workflows, or update external systems
+
+- `SubmissionCollectionStatusChanged`: Triggered when a submission is screened out (`collectionStatus` is `screen_out`, `isComplete` stays false). The payload also carries `previousCollectionStatus`
+  - Endpoints that can trigger the event: the same public create and token update calls, with `collectionOutcome` set to `screen_out`
+  - A normal complete does not send this event
+  - A reviewer-status change does not send this event
+  - An in-process `INotificationHandler` does not run for this event. Code in the API host implements `IOutboxIntegrationEventHandler`. See [React to a screen-out](/docs/configuration/background-processing#react-to-a-screen-out).
 
 ## Webhook Message Structure
 
 Each webhook message contains:
 
 - `Id`: Unique Snowflake-generated webhook message id
-- `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `submission_completed`)
+- `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `submission_completed`, `submission_collection_status_changed`)
 - `Action`: The action that triggered the event (e.g., `created`, `updated`, `deleted`)
-- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events, and a `revision` field — a per-entity counter that increases with every change, which consumers can use to order events for the same form or submission and detect missed updates
+- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events, and a `revision` field - a per-entity counter that increases with every change, which consumers can use to order events for the same form or submission and detect missed updates
 
 ## Request Headers
 
@@ -264,7 +271,7 @@ Every webhook request carries these headers:
 | `X-Endatix-Event` | The event name (e.g., `submission_completed`) |
 | `X-Endatix-Entity` | The entity type (e.g., `submission`, `form`) |
 | `X-Endatix-Action` | The action (e.g., `created`, `updated`, `deleted`) |
-| `X-Endatix-Hook-Id` | The unique message id — equals the `Id` field in the body |
+| `X-Endatix-Hook-Id` | The unique message id - equals the `Id` field in the body |
 
 `X-Endatix-Hook-Id` identifies the **message**, not the delivery attempt: if the same event is redelivered (delivery is [at-least-once](/docs/configuration/background-processing)), the header repeats verbatim. Use it as the deduplication key for idempotent processing.
 
@@ -273,7 +280,7 @@ Authentication headers (such as an API key) are added according to your webhook 
 ## Best Practices
 
 1. **Error Handling**: Design your webhook receiving endpoints to handle errors gracefully
-2. **Idempotency**: Use the `X-Endatix-Hook-Id` header to deduplicate at-least-once deliveries from the [outbox relay](/docs/configuration/background-processing)
+2. **Idempotency**: Use the `X-Endatix-Hook-Id` header to deduplicate at-least-once deliveries. With per-endpoint jobs, a retry of one endpoint repeats that header and does not resend the other endpoints.
 3. **Logging**: Log incoming webhook requests for debugging and auditing
 4. **Validation**: Validate the payload structure and required fields before processing
 5. **Use Form-Level Sparingly**: Only configure form-level webhooks when you need different behavior than the tenant default
