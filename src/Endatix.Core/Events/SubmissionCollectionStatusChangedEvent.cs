@@ -19,23 +19,15 @@ public sealed class SubmissionCollectionStatusChangedEvent(Submission submission
 
     public object GetPayload() => new Payload(Submission, _revision);
 
-    public sealed record Payload
+    /// <summary>Outbox contract for <c>submission.collection_status_changed</c> — adds <c>collectionStatus</c>.</summary>
+    public sealed record Payload : SubmissionCompletedEvent.Payload
     {
-        public long SubmissionId { get; init; }
-        public long FormId { get; init; }
-        public long TenantId { get; init; }
-        public string CollectionStatus { get; init; } = null!;
-        public bool IsComplete { get; init; }
-        public long Revision { get; init; }
+        public string CollectionStatus { get; init; }
 
         public Payload(Submission submission, long revision)
+            : base(submission, revision)
         {
-            SubmissionId = submission.Id;
-            FormId = submission.FormId;
-            TenantId = submission.TenantId;
             CollectionStatus = submission.CollectionStatus.Code;
-            IsComplete = submission.IsComplete;
-            Revision = revision;
         }
     }
 }

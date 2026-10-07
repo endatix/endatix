@@ -8,7 +8,8 @@ public class WebHookConfiguration
 {
     /// <summary>
     /// Dictionary of webhook events keyed by event name.
-    /// Supported events: FormCreated, FormUpdated, FormEnabledStateChanged, FormDeleted, SubmissionCompleted
+    /// Supported events: FormCreated, FormUpdated, FormEnabledStateChanged, FormDeleted, SubmissionCompleted,
+    /// SubmissionCollectionStatusChanged
     /// </summary>
     public Dictionary<string, WebHookEventConfig> Events { get; set; } = new();
 }

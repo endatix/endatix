@@ -108,7 +108,7 @@ public class CreateSubmissionHandler(
             FormId: request.FormId,
             FormDefinitionId: activeDefinition.Id,
             JsonData: request.JsonData ?? DEFAULT_JSON_DATA,
-            IsComplete: screenOut ? false : request.IsComplete ?? DEFAULT_IS_COMPLETE,
+            IsComplete: !screenOut && (request.IsComplete ?? DEFAULT_IS_COMPLETE),
             CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
             Metadata: request.Metadata ?? DEFAULT_METADATA,
             SubmitterId: submitterId,

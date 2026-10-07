@@ -250,6 +250,13 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             return;
         }
 
+        // Another terminal outcome (e.g. cancelled) is not overwritten.
+        if (!IsResumableCollection())
+        {
+            throw new InvalidOperationException(
+                "Cannot screen out a submission whose collection status is not resumable.");
+        }
+
         SetCollectionStatus(CollectionStatusValue.ScreenOut);
         RegisterRevisedDomainEvent(() => new SubmissionCollectionStatusChangedEvent(this));
     }

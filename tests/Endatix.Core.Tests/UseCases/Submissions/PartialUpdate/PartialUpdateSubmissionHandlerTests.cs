@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -294,5 +295,47 @@ public class PartialUpdateSubmissionHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value.Metadata.Should().Be(existingMetadata);
+    }
+
+    [Fact]
+    public async Task Handle_ScreenOutOutcome_StoresScreenOutAndDoesNotComplete()
+    {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3, isComplete: false) { Id = 1 };
+        var request = new PartialUpdateSubmissionCommand(1, 2, true, 1, "{ \"age\": \"under_18\" }", null, CollectionStatusCodes.ScreenOut);
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        submission.IsComplete.Should().BeFalse();
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.ScreenOut);
+        await _mediator.DidNotReceive().Publish(Arg.Any<SubmissionCompletedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_UpdateAfterScreenOut_ReturnsCannotBeChanged()
+    {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3, isComplete: false) { Id = 1 };
+        submission.ScreenOut();
+        var request = new PartialUpdateSubmissionCommand(1, 2, null, null, "{ \"age\": \"18_or_over\" }", null);
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "This submission cannot be changed.");
+        await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

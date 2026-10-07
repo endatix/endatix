@@ -1,4 +1,6 @@
 using Endatix.Api.Common;
+using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Infrastructure.Data.Config;
 using FluentValidation;
 
@@ -35,7 +37,8 @@ public abstract class BaseSubmissionRequest
     public string? Metadata { get; set; }
 
     /// <summary>
-    /// <c>screen_out</c> when a screen-out trigger ends the interview. Ignored on a partial save.
+    /// <c>screen_out</c> when a screen-out trigger ends the interview. The submission stays
+    /// incomplete and later updates are rejected. Omit for a normal save. Any other value is rejected.
     /// </summary>
     public string? CollectionOutcome { get; set; }
 }
@@ -55,5 +58,13 @@ internal static class SubmissionRequestValidationExtensions
         validator.RuleFor(x => x.Metadata)
             .ValidJsonString()
             .When(x => x.Metadata != null);
+
+        validator.RuleFor(x => x.CollectionOutcome).ValidCollectionOutcome();
     }
+
+    /// <summary>Accepts an omitted outcome or <c>screen_out</c>; anything else is a 400, not a silent normal save.</summary>
+    internal static IRuleBuilderOptions<T, string?> ValidCollectionOutcome<T>(this IRuleBuilder<T, string?> ruleBuilder) =>
+        ruleBuilder
+            .Must(CollectionOutcomes.IsSupported)
+            .WithMessage($"'{{PropertyName}}' must be '{CollectionStatusCodes.ScreenOut}' when set.");
 }

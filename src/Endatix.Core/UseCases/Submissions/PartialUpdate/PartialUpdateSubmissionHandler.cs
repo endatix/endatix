@@ -28,6 +28,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
 
         var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
+        var wasScreenedOut = submission.CollectionStatus.Code == CollectionStatusCodes.ScreenOut;
         var isComplete = screenOut ? false : request.IsComplete;
         if (!submission.IsComplete && (isComplete ?? false))
         {
@@ -58,7 +59,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
         catch (InvalidOperationException)
         {
-            var message = screenOut
+            var message = screenOut || wasScreenedOut
                 ? "This submission cannot be changed."
                 : "This submission cannot be completed.";
             return Result.Invalid(new ValidationError(message));

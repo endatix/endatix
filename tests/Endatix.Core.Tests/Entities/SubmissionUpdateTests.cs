@@ -175,4 +175,30 @@ public class SubmissionUpdateTests
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("A screened-out submission cannot be changed.");
     }
+
+    [Fact]
+    public void ScreenOut_on_cancelled_submission_throws()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        submission.Cancel();
+
+        var act = submission.ScreenOut;
+
+        act.Should().Throw<InvalidOperationException>();
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.Cancelled);
+    }
+
+    [Fact]
+    public void ScreenOut_event_payload_carries_answers_and_collection_status()
+    {
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        submission.ScreenOut();
+        var domainEvent = submission.DomainEvents.OfType<SubmissionCollectionStatusChangedEvent>().Single();
+
+        var payload = (SubmissionCollectionStatusChangedEvent.Payload)domainEvent.GetPayload();
+
+        payload.CollectionStatus.Should().Be(CollectionStatusCodes.ScreenOut);
+        payload.JsonData.Should().Be(SampleData.SUBMISSION_JSON_DATA_1);
+        payload.IsComplete.Should().BeFalse();
+    }
 }

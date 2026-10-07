@@ -33,6 +33,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         }
 
         var originalJson = submission.JsonData;
+        var wasScreenedOut = submission.CollectionStatus.Code == CollectionStatusCodes.ScreenOut;
 
         try
         {
@@ -47,7 +48,10 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         }
         catch (InvalidOperationException)
         {
-            return Result.Invalid(new ValidationError("This submission cannot be completed."));
+            var message = wasScreenedOut
+                ? "This submission cannot be changed."
+                : "This submission cannot be completed.";
+            return Result.Invalid(new ValidationError(message));
         }
 
         if (!string.Equals(originalJson, request.JsonData, StringComparison.Ordinal))
