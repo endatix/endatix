@@ -70,7 +70,7 @@ public class FormDefinitionFlattenerTests
                 }
               ],
               "calculatedValues": [
-                { "name": "score", "expression": "1" }
+                { "name": "score", "expression": "1", "includeIntoResult": true }
               ]
             }
             """;
@@ -201,7 +201,7 @@ public class FormDefinitionFlattenerTests
             }
           ],
           "calculatedValues": [
-            { "name": "total", "expression": "1" }
+            { "name": "total", "expression": "1", "includeIntoResult": true }
           ]
         }
         """;

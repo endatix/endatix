@@ -83,6 +83,34 @@ public partial class FormSchemaCompilerTests
       """{"parentKey":"score","surveyJsType":"text","exportShape":"scalar","title":{"default":"Your score"}}""");
   }
 
+  [Theory]
+  [InlineData(FormSchemaCompileMode.Merge, true)]
+  [InlineData(FormSchemaCompileMode.Replace, false)]
+  public void CompilePersisted_StoredColumnForUnsavedCalculatedValue_KeptOnlyByMerge(FormSchemaCompileMode mode, bool kept)
+  {
+    // Arrange: older compilers treated a missing includeIntoResult as true and stored a column.
+    const string storedDefinition = """
+        {
+          "pages": [{ "elements": [{ "type": "text", "name": "qName" }] }],
+          "calculatedValues": [{ "name": "totalAmount", "expression": "1", "includeIntoResult": true }]
+        }
+        """;
+    const string definition = """
+        {
+          "pages": [{ "elements": [{ "type": "text", "name": "qName" }] }],
+          "calculatedValues": [{ "name": "totalAmount", "expression": "1" }]
+        }
+        """;
+    FormSchemaCompiler compiler = new();
+    FormSchemaCompileResult stored = compiler.CompilePersisted(storedDefinition);
+
+    // Act
+    FormSchemaCompileResult recompiled = compiler.CompilePersisted(definition, stored.FlatteningMapJson, stored.CodebookJson, mode);
+
+    // Assert
+    recompiled.FlatteningMap.Columns.Any(column => column.Key == "totalAmount").Should().Be(kept);
+  }
+
   private static string ReadCodebookColumn(string codebookJson, string columnKey)
   {
     using JsonDocument codebook = JsonDocument.Parse(codebookJson);
