@@ -46,7 +46,7 @@ public class PartialUpdateSubmissionHandlerTests
     public async Task Handle_ValidRequest_UpdatesSubmission()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3) { Id = 1 };
+        var submission = StoredSubmission();
         var requestMetadata = "{\"key\":\"value\"}";
         var request = new PartialUpdateSubmissionCommand(
             1, 2, true, 1, "{ \"updated\": true }", requestMetadata
@@ -77,7 +77,7 @@ public class PartialUpdateSubmissionHandlerTests
     public async Task Handle_JsonDataChanged_CreatesSubmissionVersion()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3) { Id = 1 };
+        var submission = StoredSubmission();
         var request = new PartialUpdateSubmissionCommand(1, 2, true, 1, "{ \"updated\": true }", "metadata");
 
         _repository.SingleOrDefaultAsync(
@@ -99,7 +99,7 @@ public class PartialUpdateSubmissionHandlerTests
     {
         // Arrange
         var originalJson = "{ }";
-        var submission = new Submission(SampleData.TENANT_ID, originalJson, 2, 3) { Id = 1 };
+        var submission = StoredSubmission(jsonData: originalJson);
         var request = new PartialUpdateSubmissionCommand(1, 2, null, null, null, null);
 
         _repository.SingleOrDefaultAsync(
@@ -119,14 +119,7 @@ public class PartialUpdateSubmissionHandlerTests
     {
         // Arrange
         var existingPage = 7;
-        var submission = new Submission(
-            tenantId: SampleData.TENANT_ID,
-            jsonData: "{ }",
-            formId: 2,
-            formDefinitionId: 3,
-            isComplete: false,
-            currentPage: existingPage,
-            metadata: null);
+        var submission = StoredSubmission(isComplete: false, currentPage: existingPage);
 
         var request = new PartialUpdateSubmissionCommand(
             SubmissionId: 1,
@@ -156,13 +149,7 @@ public class PartialUpdateSubmissionHandlerTests
     {
         // Arrange
         const int DEFAULT_CURRENT_PAGE = 0;
-        var submission = new Submission(
-            tenantId: SampleData.TENANT_ID,
-            jsonData: "{ }",
-            formId: 2,
-            formDefinitionId: 3,
-            isComplete: false,
-            metadata: null);
+        var submission = StoredSubmission(isComplete: false);
         var request = new PartialUpdateSubmissionCommand(
             1, 2, null, null, null, null
         );
@@ -186,13 +173,7 @@ public class PartialUpdateSubmissionHandlerTests
     {
         // Arrange
         var existingMetadata = "{\"test\":\"1\",\"existing\":\"value\"}";
-        var submission = new Submission(
-            tenantId: SampleData.TENANT_ID,
-            jsonData: "{ }",
-            formId: 2,
-            formDefinitionId: 3,
-            isComplete: false,
-            metadata: existingMetadata);
+        var submission = StoredSubmission(isComplete: false, metadata: existingMetadata);
 
         var newMetadata = "{\"language\":\"en\",\"test\":\"updated\"}";
         var request = new PartialUpdateSubmissionCommand(
@@ -227,13 +208,7 @@ public class PartialUpdateSubmissionHandlerTests
     public async Task Handle_MetadataProvidedButExistingIsNull_SetsNewMetadata()
     {
         // Arrange
-        var submission = new Submission(
-            tenantId: SampleData.TENANT_ID,
-            jsonData: "{ }",
-            formId: 2,
-            formDefinitionId: 3,
-            isComplete: false,
-            metadata: null);
+        var submission = StoredSubmission(isComplete: false);
 
         var newMetadata = "{\"language\":\"en\"}";
         var request = new PartialUpdateSubmissionCommand(
@@ -265,13 +240,7 @@ public class PartialUpdateSubmissionHandlerTests
     {
         // Arrange
         var existingMetadata = "{\"test\":\"1\"}";
-        var submission = new Submission(
-            tenantId: SampleData.TENANT_ID,
-            jsonData: "{ }",
-            formId: 2,
-            formDefinitionId: 3,
-            isComplete: false,
-            metadata: existingMetadata);
+        var submission = StoredSubmission(isComplete: false, metadata: existingMetadata);
 
         var request = new PartialUpdateSubmissionCommand(
             SubmissionId: 1,
@@ -301,7 +270,7 @@ public class PartialUpdateSubmissionHandlerTests
     public async Task Handle_ScreenOutOutcome_StoresScreenOutAndDoesNotComplete()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3, isComplete: false) { Id = 1 };
+        var submission = StoredSubmission(isComplete: false);
         var request = new PartialUpdateSubmissionCommand(1, 2, true, 1, "{ \"age\": \"under_18\" }", null, CollectionStatusCodes.ScreenOut);
         _repository.SingleOrDefaultAsync(
             Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
@@ -322,7 +291,7 @@ public class PartialUpdateSubmissionHandlerTests
     public async Task Handle_UpdateAfterScreenOut_ReturnsScreenedOutMessage()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3, isComplete: false) { Id = 1 };
+        var submission = StoredSubmission(isComplete: false);
         submission.ScreenOut();
         var request = new PartialUpdateSubmissionCommand(1, 2, null, null, "{ \"age\": \"18_or_over\" }", null);
         _repository.SingleOrDefaultAsync(
@@ -343,7 +312,7 @@ public class PartialUpdateSubmissionHandlerTests
     public async Task Handle_ScreenOutRetryOnScreenedOutSubmission_ReturnsOkWithoutChanges()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3, isComplete: false) { Id = 1 };
+        var submission = StoredSubmission(isComplete: false);
         submission.ScreenOut();
         var revision = submission.Revision;
         var request = new PartialUpdateSubmissionCommand(1, 2, false, 1, "{ \"age\": \"under_18\" }", null, CollectionStatusCodes.ScreenOut);
@@ -366,7 +335,7 @@ public class PartialUpdateSubmissionHandlerTests
     public async Task Handle_ScreenOutOnCompleteSubmission_ReturnsInvalidAndLeavesSubmissionUnchanged()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3, isComplete: true) { Id = 1 };
+        var submission = StoredSubmission(isComplete: true);
         var revision = submission.Revision;
         var request = new PartialUpdateSubmissionCommand(1, 2, null, 1, "{ \"age\": \"under_18\" }", null, CollectionStatusCodes.ScreenOut);
         _repository.SingleOrDefaultAsync(
@@ -384,4 +353,18 @@ public class PartialUpdateSubmissionHandlerTests
         submission.Revision.Should().Be(revision);
         await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    private static Submission StoredSubmission(
+        string jsonData = "{ }",
+        bool isComplete = true,
+        int? currentPage = null,
+        string? metadata = null) =>
+        Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 2,
+            FormDefinitionId: 3,
+            JsonData: jsonData,
+            IsComplete: isComplete,
+            CurrentPage: currentPage,
+            Metadata: metadata));
 }

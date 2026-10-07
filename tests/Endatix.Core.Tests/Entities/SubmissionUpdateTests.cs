@@ -11,7 +11,7 @@ public class SubmissionUpdateTests
     public void Update_NullJsonData_ThrowsArgumentNullException()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
+        var submission = NewSubmission();
 
         // Act
         var action = () => submission.Update(null, formDefinitionId: 123, formDefinitionFormId: 123);
@@ -25,7 +25,7 @@ public class SubmissionUpdateTests
     public void Update_EmptyJsonData_ThrowsArgumentException()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
+        var submission = NewSubmission();
 
         // Act
         var action = () => submission.Update(string.Empty, formDefinitionId: 123, formDefinitionFormId: 123);
@@ -39,7 +39,7 @@ public class SubmissionUpdateTests
     public void Update_NegativeFormDefinitionId_ThrowsArgumentException()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
+        var submission = NewSubmission();
         const long invalidFormDefinitionId = -1;
 
         // Act
@@ -53,7 +53,7 @@ public class SubmissionUpdateTests
     [Fact]
     public void Update_FormDefinitionFormIdMismatch_ThrowsArgumentException()
     {
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456);
+        var submission = NewSubmission();
 
         var act = () => submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 789, formDefinitionFormId: 999);
 
@@ -65,7 +65,7 @@ public class SubmissionUpdateTests
     public void Update_ValidInput_UpdatesPropertiesCorrectly()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         const string updatedJsonData = SampleData.SUBMISSION_JSON_DATA_2;
         const long updatedFormDefinitionId = 789;
 
@@ -87,7 +87,7 @@ public class SubmissionUpdateTests
     public void Update_FirstCall_SetsStartedAtOnce()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         submission.HasStarted.Should().BeFalse();
 
         // Act
@@ -106,7 +106,7 @@ public class SubmissionUpdateTests
     {
         // Arrange — create incomplete so StartedAt is null, then complete via Update
         // (Update always EnsureStarted first, so this path is: EnsureStarted then complete)
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
 
         // Act
         submission.Update(SampleData.SUBMISSION_JSON_DATA_1, formDefinitionId: 456, formDefinitionFormId: 123, isComplete: true);
@@ -122,7 +122,7 @@ public class SubmissionUpdateTests
     public void Update_CompleteAfterStart_PreservesOriginalStartedAt()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         var fixedStart = new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc);
         submission.EnsureStarted(fixedStart);
 
@@ -139,7 +139,7 @@ public class SubmissionUpdateTests
     public void EnsureStarted_WhenAlreadyStarted_DoesNotOverwrite()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         var fixedStart = new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc);
         submission.EnsureStarted(fixedStart);
 
@@ -155,7 +155,7 @@ public class SubmissionUpdateTests
     public void ScreenOut_IncompleteSubmission_SetsScreenOutAndLeavesIsCompleteFalse()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
 
         // Act
         submission.ScreenOut();
@@ -173,7 +173,7 @@ public class SubmissionUpdateTests
     public void ScreenOut_AlreadyScreenedOut_IsNoOp()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         submission.ScreenOut();
         var revision = submission.Revision;
 
@@ -190,12 +190,7 @@ public class SubmissionUpdateTests
     public void ScreenOut_NotStartedSubmission_RecordsStartedAt()
     {
         // Arrange
-        var submission = Submission.Create(new SubmissionCreateArgs(
-            TenantId: SampleData.TENANT_ID,
-            FormId: 123,
-            FormDefinitionId: 456,
-            JsonData: SampleData.SUBMISSION_JSON_DATA_1,
-            IsComplete: false));
+        var submission = NewSubmission(isComplete: false);
 
         // Act
         submission.ScreenOut();
@@ -209,7 +204,7 @@ public class SubmissionUpdateTests
     public void ScreenOut_WithAnswers_SavesAnswersAndScreensOut()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
 
         // Act
         submission.ScreenOut(SampleData.SUBMISSION_JSON_DATA_2, formDefinitionId: 456, formDefinitionFormId: 123, currentPage: 2);
@@ -225,7 +220,7 @@ public class SubmissionUpdateTests
     public void ScreenOut_WithAnswersOnCompleteSubmission_ThrowsAndLeavesSubmissionUnchanged()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: true);
+        var submission = NewSubmission(isComplete: true);
         var revision = submission.Revision;
         var eventCount = submission.DomainEvents.Count();
 
@@ -243,7 +238,7 @@ public class SubmissionUpdateTests
     public void Update_ScreenedOutSubmission_ThrowsInvalidOperationException()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         submission.ScreenOut();
 
         // Act
@@ -258,7 +253,7 @@ public class SubmissionUpdateTests
     public void ScreenOut_CancelledSubmission_ThrowsInvalidOperationException()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         submission.Cancel();
 
         // Act
@@ -273,7 +268,7 @@ public class SubmissionUpdateTests
     public void Cancel_ScreenedOutSubmission_ThrowsAndKeepsScreenOut()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         submission.ScreenOut();
 
         // Act
@@ -289,7 +284,7 @@ public class SubmissionUpdateTests
     public void ScreenOut_EventPayload_CarriesAnswersAndCollectionStatuses()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        var submission = NewSubmission(isComplete: false);
         submission.ScreenOut();
         var domainEvent = submission.DomainEvents.OfType<SubmissionCollectionStatusChangedEvent>().Single();
 
@@ -303,4 +298,12 @@ public class SubmissionUpdateTests
         payload.IsComplete.Should().BeFalse();
         payload.StartedAt.Should().NotBeNull();
     }
+
+    private static Submission NewSubmission(bool isComplete = true) =>
+        Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: SampleData.SUBMISSION_JSON_DATA_1,
+            IsComplete: isComplete));
 }
