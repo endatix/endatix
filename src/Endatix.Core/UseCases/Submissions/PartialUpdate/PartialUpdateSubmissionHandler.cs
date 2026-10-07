@@ -59,12 +59,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
         catch (InvalidOperationException)
         {
-            var message = wasScreenedOut
-                ? "Screened-out submissions can't be edited yet."
-                : screenOut
-                    ? "This submission cannot be changed."
-                    : "This submission cannot be completed.";
-            return Result.Invalid(new ValidationError(message));
+            return Result.Invalid(new ValidationError(RejectionMessage(wasScreenedOut, screenOut)));
         }
 
         if (!string.Equals(originalJson, submission.JsonData, StringComparison.Ordinal))
@@ -87,5 +82,20 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
 
         return Result.Success(submission);
+    }
+
+    private static string RejectionMessage(bool wasScreenedOut, bool screenOut)
+    {
+        if (wasScreenedOut)
+        {
+            return "Screened-out submissions can't be edited yet.";
+        }
+
+        if (screenOut)
+        {
+            return "This submission cannot be changed.";
+        }
+
+        return "This submission cannot be completed.";
     }
 }
