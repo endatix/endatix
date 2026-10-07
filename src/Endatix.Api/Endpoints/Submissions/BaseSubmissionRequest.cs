@@ -35,12 +35,6 @@ public abstract class BaseSubmissionRequest
     /// Stringified metadata related to the form submission
     /// </summary>
     public string? Metadata { get; set; }
-
-    /// <summary>
-    /// <c>screen_out</c> when a screen-out trigger ends the interview. The submission stays
-    /// incomplete and later updates are rejected. Omit for a normal save. Any other value is rejected.
-    /// </summary>
-    public string? CollectionOutcome { get; set; }
 }
 
 internal static class SubmissionRequestValidationExtensions
@@ -58,8 +52,6 @@ internal static class SubmissionRequestValidationExtensions
         validator.RuleFor(x => x.Metadata)
             .ValidJsonString()
             .When(x => x.Metadata != null);
-
-        validator.RuleFor(x => x.CollectionOutcome).ValidCollectionOutcome();
     }
 
     /// <summary>Accepts an omitted outcome or <c>screen_out</c>; anything else is a 400, not a silent normal save.</summary>

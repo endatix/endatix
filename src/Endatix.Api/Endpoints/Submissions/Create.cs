@@ -75,5 +75,6 @@ public sealed class CreateSubmissionValidator : Validator<CreateSubmissionReques
     public CreateSubmissionValidator()
     {
         this.ApplyBaseSubmissionRules();
+        RuleFor(x => x.CollectionOutcome).ValidCollectionOutcome();
     }
 }

@@ -33,7 +33,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         }
 
         var originalJson = submission.JsonData;
-        var wasScreenedOut = submission.CollectionStatus.Code == CollectionStatusCodes.ScreenOut;
+        var wasScreenedOut = submission.IsScreenedOut;
 
         try
         {
@@ -49,7 +49,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         catch (InvalidOperationException)
         {
             var message = wasScreenedOut
-                ? "Screened-out submissions can't be edited yet."
+                ? CollectionOutcomes.SCREENED_OUT_EDIT_REJECTED_MESSAGE
                 : "This submission cannot be completed.";
             return Result.Invalid(new ValidationError(message));
         }

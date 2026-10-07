@@ -34,9 +34,4 @@ public class PartialUpdateSubmissionRequest
     /// Stringified metadata related to the form submission
     /// </summary>
     public string? Metadata { get; set; }
-
-    /// <summary>
-    /// <c>screen_out</c> when a screen-out trigger ends the interview.
-    /// </summary>
-    public string? CollectionOutcome { get; set; }
 }

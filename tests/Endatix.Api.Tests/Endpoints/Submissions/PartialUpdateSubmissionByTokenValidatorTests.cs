@@ -20,8 +20,13 @@ public class PartialUpdateSubmissionByTokenValidatorTests
     [InlineData("screen_out")]
     public void Validate_SupportedCollectionOutcome_Passes(string? collectionOutcome)
     {
-        var result = _validator.TestValidate(Request(collectionOutcome));
+        // Arrange
+        var request = Request(collectionOutcome);
 
+        // Act
+        var result = _validator.TestValidate(request);
+
+        // Assert
         result.ShouldNotHaveValidationErrorFor(x => x.CollectionOutcome);
     }
 
@@ -31,8 +36,13 @@ public class PartialUpdateSubmissionByTokenValidatorTests
     [InlineData("complete")]
     public void Validate_UnsupportedCollectionOutcome_Fails(string collectionOutcome)
     {
-        var result = _validator.TestValidate(Request(collectionOutcome));
+        // Arrange
+        var request = Request(collectionOutcome);
 
+        // Act
+        var result = _validator.TestValidate(request);
+
+        // Assert
         result.ShouldHaveValidationErrorFor(x => x.CollectionOutcome);
     }
 }

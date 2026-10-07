@@ -152,53 +152,155 @@ public class SubmissionUpdateTests
     }
 
     [Fact]
-    public void ScreenOut_sets_screen_out_and_leaves_IsComplete_false()
+    public void ScreenOut_IncompleteSubmission_SetsScreenOutAndLeavesIsCompleteFalse()
     {
+        // Arrange
         var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
 
+        // Act
         submission.ScreenOut();
 
+        // Assert
         submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.ScreenOut);
+        submission.IsScreenedOut.Should().BeTrue();
         submission.IsComplete.Should().BeFalse();
+        submission.CompletedAt.Should().BeNull();
         submission.DomainEvents.Should().ContainSingle(e => e is SubmissionCollectionStatusChangedEvent);
         submission.DomainEvents.Should().NotContain(e => e is SubmissionCompletedEvent);
     }
 
     [Fact]
-    public void Update_after_screen_out_throws()
+    public void ScreenOut_AlreadyScreenedOut_IsNoOp()
     {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        submission.ScreenOut();
+        var revision = submission.Revision;
+
+        // Act
+        submission.ScreenOut(SampleData.SUBMISSION_JSON_DATA_2, formDefinitionId: 456, formDefinitionFormId: 123);
+
+        // Assert
+        submission.Revision.Should().Be(revision);
+        submission.JsonData.Should().Be(SampleData.SUBMISSION_JSON_DATA_1);
+        submission.DomainEvents.OfType<SubmissionCollectionStatusChangedEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public void ScreenOut_NotStartedSubmission_RecordsStartedAt()
+    {
+        // Arrange
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: SampleData.SUBMISSION_JSON_DATA_1,
+            IsComplete: false));
+
+        // Act
+        submission.ScreenOut();
+
+        // Assert
+        submission.StartedAt.Should().NotBeNull();
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.ScreenOut);
+    }
+
+    [Fact]
+    public void ScreenOut_WithAnswers_SavesAnswersAndScreensOut()
+    {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+
+        // Act
+        submission.ScreenOut(SampleData.SUBMISSION_JSON_DATA_2, formDefinitionId: 456, formDefinitionFormId: 123, currentPage: 2);
+
+        // Assert
+        submission.JsonData.Should().Be(SampleData.SUBMISSION_JSON_DATA_2);
+        submission.CurrentPage.Should().Be(2);
+        submission.IsScreenedOut.Should().BeTrue();
+        submission.IsComplete.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ScreenOut_WithAnswersOnCompleteSubmission_ThrowsAndLeavesSubmissionUnchanged()
+    {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: true);
+        var revision = submission.Revision;
+        var eventCount = submission.DomainEvents.Count();
+
+        // Act
+        var act = () => submission.ScreenOut(SampleData.SUBMISSION_JSON_DATA_2, formDefinitionId: 456, formDefinitionFormId: 123);
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>();
+        submission.JsonData.Should().Be(SampleData.SUBMISSION_JSON_DATA_1);
+        submission.Revision.Should().Be(revision);
+        submission.DomainEvents.Should().HaveCount(eventCount);
+    }
+
+    [Fact]
+    public void Update_ScreenedOutSubmission_ThrowsInvalidOperationException()
+    {
+        // Arrange
         var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
         submission.ScreenOut();
 
+        // Act
         var act = () => submission.Update(SampleData.SUBMISSION_JSON_DATA_2, formDefinitionId: 456, formDefinitionFormId: 123, isComplete: false);
 
+        // Assert
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("A screened-out submission cannot be changed.");
     }
 
     [Fact]
-    public void ScreenOut_on_cancelled_submission_throws()
+    public void ScreenOut_CancelledSubmission_ThrowsInvalidOperationException()
     {
+        // Arrange
         var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
         submission.Cancel();
 
-        var act = submission.ScreenOut;
+        // Act
+        var act = () => submission.ScreenOut();
 
+        // Assert
         act.Should().Throw<InvalidOperationException>();
         submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.Cancelled);
     }
 
     [Fact]
-    public void ScreenOut_event_payload_carries_answers_and_collection_status()
+    public void Cancel_ScreenedOutSubmission_ThrowsAndKeepsScreenOut()
     {
+        // Arrange
+        var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
+        submission.ScreenOut();
+
+        // Act
+        var act = () => submission.Cancel();
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("A screened-out submission cannot be cancelled.");
+        submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.ScreenOut);
+    }
+
+    [Fact]
+    public void ScreenOut_EventPayload_CarriesAnswersAndCollectionStatuses()
+    {
+        // Arrange
         var submission = new Submission(SampleData.TENANT_ID, SampleData.SUBMISSION_JSON_DATA_1, formId: 123, formDefinitionId: 456, isComplete: false);
         submission.ScreenOut();
         var domainEvent = submission.DomainEvents.OfType<SubmissionCollectionStatusChangedEvent>().Single();
 
+        // Act
         var payload = (SubmissionCollectionStatusChangedEvent.Payload)domainEvent.GetPayload();
 
+        // Assert
         payload.CollectionStatus.Should().Be(CollectionStatusCodes.ScreenOut);
+        payload.PreviousCollectionStatus.Should().Be(CollectionStatusCodes.NotStarted);
         payload.JsonData.Should().Be(SampleData.SUBMISSION_JSON_DATA_1);
         payload.IsComplete.Should().BeFalse();
+        payload.StartedAt.Should().NotBeNull();
     }
 }

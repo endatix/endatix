@@ -130,4 +130,22 @@ public class SubmissionTokenServiceResolveTokenTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(submissionId);
     }
+
+    [Fact]
+    public async Task ResolveToken_WhenSubmissionIsScreenedOutAndTokenNotValidAfterCompletion_ReturnsNotFound()
+    {
+        // Arrange
+        var token = "valid-token";
+        var submission = new Submission(TENANT_ID, "{ }", 1, 2, isComplete: false);
+        submission.ScreenOut();
+        submission.UpdateToken(new Token(24));
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+
+        // Act
+        var result = await _sut.ResolveTokenAsync(token, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Submission screened out");
+    }
 }

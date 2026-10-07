@@ -27,7 +27,5 @@ public class PartialUpdateSubmissionValidator : Validator<PartialUpdateSubmissio
         RuleFor(x => x.CurrentPage)
             .GreaterThan(0)
             .When(x => x.CurrentPage != null);
-
-        RuleFor(x => x.CollectionOutcome).ValidCollectionOutcome();
     }
 }

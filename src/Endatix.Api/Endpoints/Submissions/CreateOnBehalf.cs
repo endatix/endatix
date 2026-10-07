@@ -49,8 +49,7 @@ public sealed class CreateOnBehalf(IMediator mediator)
                 IsComplete: request.IsComplete,
                 ReCaptchaToken: null,
                 RequiredPermission: Actions.Submissions.CreateOnBehalf,
-                Submitter: request.Submitter,
-                CollectionOutcome: request.CollectionOutcome),
+                Submitter: request.Submitter),
             ct);
 
         return TypedResultsBuilder

@@ -43,8 +43,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissio
                     request.IsComplete,
                     request.CurrentPage,
                     request.JsonData,
-                    request.Metadata,
-                    request.CollectionOutcome
+                    request.Metadata
                 );
 
         var result = await mediator.Send(updateSubmissionCommand, ct);
