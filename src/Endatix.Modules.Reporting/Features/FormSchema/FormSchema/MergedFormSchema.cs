@@ -30,6 +30,17 @@ internal sealed class MergedFormSchema
 
     public IReadOnlyList<FormSchemaColumn> Columns { get; }
 
+    /// <summary>
+    /// Same keys in the same order, with each key the current definition still produces described
+    /// by its current column. The append-only merge keeps the first column a key had, so a question
+    /// that took over a calculated value's name would otherwise still be described as calculated.
+    /// </summary>
+    public MergedFormSchema WithCurrentColumns(IEnumerable<FormSchemaColumn> currentColumns)
+    {
+        MergedFormSchema current = new(currentColumns);
+        return new MergedFormSchema(Columns.Select(column => current._columnsByKey.GetValueOrDefault(column.Key) ?? column));
+    }
+
     public MergedFormSchema MergeAppendOnly(IEnumerable<FormSchemaColumn> newColumns, SchemaCompilationLimits? limits = null)
     {
         var effectiveLimits = limits ?? SchemaCompilationLimits.Default;

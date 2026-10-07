@@ -54,6 +54,35 @@ public partial class FormSchemaCompilerTests
       ReadCodebookColumn(initial.CodebookJson, "totalAmount"));
   }
 
+  [Fact]
+  public void CompilePersisted_MergeModeAfterQuestionTookOverCalculatedValueName_WritesQuestionEntry()
+  {
+    // Arrange
+    const string v1 = """
+        {
+          "pages": [{ "elements": [{ "type": "text", "name": "qName" }] }],
+          "calculatedValues": [{ "name": "score", "expression": "1", "includeIntoResult": true }]
+        }
+        """;
+    const string v2 = """
+        { "pages": [{ "elements": [{ "type": "text", "name": "qName" }, { "type": "text", "name": "score", "title": "Your score" }] }] }
+        """;
+    FormSchemaCompiler compiler = new();
+    FormSchemaCompileResult initial = compiler.CompilePersisted(v1);
+
+    // Act
+    FormSchemaCompileResult merged = compiler.CompilePersisted(
+      v2,
+      initial.FlatteningMapJson,
+      initial.CodebookJson,
+      FormSchemaCompileMode.Merge);
+
+    // Assert: the stored map keeps the first kind; the codebook describes the current question.
+    merged.FlatteningMap.Columns.Single(column => column.Key == "score").Kind.Should().Be(FormSchemaColumnKind.Calculated);
+    ReadCodebookColumn(merged.CodebookJson, "score").Should().Be(
+      """{"parentKey":"score","surveyJsType":"text","exportShape":"scalar","title":{"default":"Your score"}}""");
+  }
+
   private static string ReadCodebookColumn(string codebookJson, string columnKey)
   {
     using JsonDocument codebook = JsonDocument.Parse(codebookJson);
