@@ -175,7 +175,8 @@ internal static class FormSchemaCodebookBuilder
         out JsonElement existingColumn)
     {
         existingColumn = default;
-        if (TryGetQuestionElement(column, questionElements, out _))
+        // Calculated entries come from the column alone, so rebuilding them is cheap and drops stale ones.
+        if (column.Kind is FormSchemaColumnKind.Calculated || TryGetQuestionElement(column, questionElements, out _))
         {
             return false;
         }
@@ -194,12 +195,31 @@ internal static class FormSchemaCodebookBuilder
         FormSchemaColumn column,
         IReadOnlyDictionary<string, CollectedQuestion> questionElements)
     {
+        if (column.Kind is FormSchemaColumnKind.Calculated)
+        {
+            return CreateCalculatedColumnEntry(column);
+        }
+
         var parentKey = column.SourceQuestion ?? column.Key;
         var hasQuestion = TryGetQuestionElement(column, questionElements, out var questionElement);
 
         return WriteColumnEntry(writer =>
             WriteColumnMetadata(writer, column, parentKey, hasQuestion, questionElement));
     }
+
+    // A calculated value is not a question, even when one shares its name: it never takes a
+    // question's type, shape or title.
+    private static JsonElement CreateCalculatedColumnEntry(FormSchemaColumn column) =>
+        WriteColumnEntry(writer =>
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.ParentKey, column.Key);
+            writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, FormSchemaCodebookPropertyNames.CalculatedValueSurveyJsType);
+            writer.WriteString(FormSchemaCodebookPropertyNames.ExportShape, FormSchemaCodebookExportShape.FromColumnKind(column.Kind).Name);
+            writer.WritePropertyName(SurveyJsPropertyNames.Title);
+            SurveyJsLocalizationHelper.WriteLocalizedStrings(
+                writer,
+                new Dictionary<string, string> { [FormSchemaCodebookPropertyNames.Default] = column.Key });
+        });
 
     private static bool TryGetQuestionElement(
         FormSchemaColumn column,

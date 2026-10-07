@@ -586,5 +586,9 @@
         }
       ]
     }
+  ],
+  "calculatedValues": [
+    { "name": "qCalculatedTotal", "expression": "{qTextNumber} * 2", "includeIntoResult": true },
+    { "name": "qCalculatedHidden", "expression": "{qTextNumber} + 1", "includeIntoResult": false }
   ]
 }

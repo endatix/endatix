@@ -22,7 +22,13 @@ internal static class FormSchemaFixtureAssertions
             }
 
             actualValue.Should().NotBeNull(because);
-            actualValue!.Value.GetRawText().Should().Be(property.Value.GetRawText(), because);
+            // Structural, so a golden written by the pipeline matches regardless of whitespace.
+            JsonElement.DeepEquals(actualValue!.Value, property.Value).Should().BeTrue(
+                "{0} ({1}: actual {2}, expected {3})",
+                because,
+                property.Name,
+                actualValue.Value.GetRawText(),
+                property.Value.GetRawText());
         }
 
         actual.Keys.Should().BeEquivalentTo(

@@ -104,6 +104,26 @@ public sealed class ExportColumnPlanBuilderTests
     }
 
     [Fact]
+    public void Build_CalculatedValueNamedLikeQuestion_UsesCalculatedValueNameAsHeader()
+    {
+        // Arrange
+        const string definitionJson = """
+            {
+              "pages":[{"elements":[{"type":"ranking","name":"qRanking","title":"Rank the fruit","choices":["apple","pear"]}]}],
+              "calculatedValues":[{"name":"qRanking","expression":"1","includeIntoResult":true}]
+            }
+            """;
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        FormSchemaEntity schema = new(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        // Act
+        IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, locale: "default");
+
+        // Assert
+        plan.Columns.Single(column => column.CanonicalKey == "qRanking").HeaderLabel.Should().Be("qRanking");
+    }
+
+    [Fact]
     public void Build_WithAllQuestionsSchema_ResolvesLocalizedHeaderForChoiceColumn()
     {
         // Arrange

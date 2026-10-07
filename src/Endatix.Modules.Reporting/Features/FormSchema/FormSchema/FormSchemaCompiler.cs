@@ -14,13 +14,13 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
 {
     private readonly SchemaCompilationLimits _limits = limits ?? SchemaCompilationLimits.Default;
 
-    public MergedFormSchema Compile(JsonElement definition, MergedFormSchema? existing = null)
-    {
-        var newColumns = FormDefinitionFlattener.Flatten(definition, _limits);
-        return existing is null
-            ? new MergedFormSchema(newColumns)
-            : existing.MergeAppendOnly(newColumns, _limits);
-    }
+    public MergedFormSchema Compile(JsonElement definition, MergedFormSchema? existing = null) =>
+        Merge(FormDefinitionFlattener.Flatten(definition, _limits), existing);
+
+    private MergedFormSchema Merge(IReadOnlyList<FormSchemaColumn> currentColumns, MergedFormSchema? existing) =>
+        existing is null
+            ? new MergedFormSchema(currentColumns)
+            : existing.MergeAppendOnly(currentColumns, _limits);
 
     public MergedFormSchema Compile(string definitionJson, MergedFormSchema? existing = null)
     {
@@ -46,11 +46,12 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
             ? null
             : FormSchemaFlatteningMap.FromJson(flatteningMapJsonInput);
 
-        var merged = Compile(definition.RootElement, existingFlatteningMap);
+        var currentColumns = FormDefinitionFlattener.Flatten(definition.RootElement, _limits);
+        var merged = Merge(currentColumns, existingFlatteningMap);
         var flatteningMapJson = FormSchemaFlatteningMap.ToJson(merged);
         var codebookJson = FormSchemaCodebookBuilder.Build(
             definition.RootElement,
-            merged,
+            merged.WithCurrentColumns(currentColumns),
             codebookJsonInput);
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition.RootElement);
         var localesJson = JsonSerializer.Serialize(locales);

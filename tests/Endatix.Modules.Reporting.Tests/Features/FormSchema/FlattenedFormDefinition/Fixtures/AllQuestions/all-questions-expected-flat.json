@@ -2,7 +2,10 @@
   "qRadioGroup": "email",
   "qRating": 4,
   "qSlider": 50,
-  "qRangeSlider": [80, 120],
+  "qRangeSlider": [
+    80,
+    120
+  ],
   "qDropdown": "sword",
   "questionSongs__1": 0,
   "questionSongs__2": 1,
@@ -91,5 +94,6 @@
   "qLoop__other__qLoopBoolean": false,
   "qLoop__other__qLoopRating": 4,
   "qLoop__other__qLoopColor": "4",
-  "qLoop__other__qLoopColor__other_text": null
+  "qLoop__other__qLoopColor__other_text": null,
+  "qCalculatedTotal": 64
 }

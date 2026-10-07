@@ -67,5 +67,7 @@
     "bob": { "teamwork": 1, "punctuality": 4 },
     "alice": { "teamwork": 4, "punctuality": 2 }
   },
-  "questionSongs-Comment": "Joker Song"
+  "questionSongs-Comment": "Joker Song",
+  "qCalculatedTotal": 64,
+  "qCalculatedHidden": 33
 }

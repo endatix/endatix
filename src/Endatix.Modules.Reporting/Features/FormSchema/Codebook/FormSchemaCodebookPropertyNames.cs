@@ -27,4 +27,7 @@ internal static class FormSchemaCodebookPropertyNames
     public const string Default = Domain.SurveyJs.SurveyJsElementType.DefaultLocale;
 
     public const string UnknownSurveyJsType = "unknown";
+
+    /// <summary>SurveyJS class name of a calculated value (custom variable).</summary>
+    public const string CalculatedValueSurveyJsType = "calculatedvalue";
 }

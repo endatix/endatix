@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -7,7 +8,7 @@ using FluentAssertions;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export;
 
-public sealed class ShojiCodebookGeneratorTests
+public sealed partial class ShojiCodebookGeneratorTests
 {
     [Fact]
     public void Generate_WithAllQuestionsSchema_ProducesExpectedShojiCodebook()
@@ -136,7 +137,8 @@ public sealed class ShojiCodebookGeneratorTests
             .Select(element => element.GetString()!)
             .ToList();
 
-        // Assert — definition walk, not alphabetical / writer-phase order
+        // Assert — calculated values after the system columns, then the definition walk (not
+        // alphabetical / writer-phase order)
         order.Take(11).Should().Equal(
             "FormId",
             "Id",
@@ -149,7 +151,8 @@ public sealed class ShojiCodebookGeneratorTests
             "DurationSeconds",
             "SubmitterId",
             "SubmitterDisplayId");
-        order.Skip(11).Take(6).Should().Equal(
+        order.Skip(SubmissionExportRow.SystemColumns.Count).Take(7).Should().Equal(
+            "qCalculatedTotal",
             "qRadioGroup",
             "qRating",
             "qSlider",

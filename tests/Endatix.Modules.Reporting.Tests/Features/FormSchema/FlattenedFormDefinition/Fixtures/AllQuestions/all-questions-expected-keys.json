@@ -91,5 +91,6 @@
   "qLoop__other__qLoopBoolean",
   "qLoop__other__qLoopRating",
   "qLoop__other__qLoopColor",
-  "qLoop__other__qLoopColor__other_text"
+  "qLoop__other__qLoopColor__other_text",
+  "qCalculatedTotal"
 ]

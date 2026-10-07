@@ -96,7 +96,9 @@ public sealed class AllQuestionsCompileTests
             compiled.FlatteningMap);
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-flat.json"),
-            FlattenedSubmissionFlattener.ToJson(compiled.FlatteningMap, flattened));
+            JsonSerializer.Serialize(
+                JsonDocument.Parse(FlattenedSubmissionFlattener.ToJson(compiled.FlatteningMap, flattened)).RootElement,
+                new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
 
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-codebook.json"),
