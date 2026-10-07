@@ -49,7 +49,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         catch (InvalidOperationException)
         {
             var message = wasScreenedOut
-                ? "This submission cannot be changed."
+                ? "Screened-out submissions can't be edited yet."
                 : "This submission cannot be completed.";
             return Result.Invalid(new ValidationError(message));
         }

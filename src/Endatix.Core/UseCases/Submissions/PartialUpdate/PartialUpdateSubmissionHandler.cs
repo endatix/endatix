@@ -59,9 +59,11 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
         catch (InvalidOperationException)
         {
-            var message = screenOut || wasScreenedOut
-                ? "This submission cannot be changed."
-                : "This submission cannot be completed.";
+            var message = wasScreenedOut
+                ? "Screened-out submissions can't be edited yet."
+                : screenOut
+                    ? "This submission cannot be changed."
+                    : "This submission cannot be completed.";
             return Result.Invalid(new ValidationError(message));
         }
 

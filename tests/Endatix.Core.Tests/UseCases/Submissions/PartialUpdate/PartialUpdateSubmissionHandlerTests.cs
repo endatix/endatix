@@ -319,7 +319,7 @@ public class PartialUpdateSubmissionHandlerTests
     }
 
     [Fact]
-    public async Task Handle_UpdateAfterScreenOut_ReturnsCannotBeChanged()
+    public async Task Handle_UpdateAfterScreenOut_ReturnsScreenedOutMessage()
     {
         // Arrange
         var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3, isComplete: false) { Id = 1 };
@@ -335,7 +335,7 @@ public class PartialUpdateSubmissionHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "This submission cannot be changed.");
+        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "Screened-out submissions can't be edited yet.");
         await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }
