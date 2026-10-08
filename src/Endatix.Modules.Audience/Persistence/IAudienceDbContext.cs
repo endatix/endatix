@@ -15,6 +15,7 @@ public interface IAudienceDbContext : ITenantDbContext
     DbSet<Membership> Memberships { get; }
     DbSet<PropertyValue> PropertyValues { get; }
     DbSet<AudienceImport> AudienceImports { get; }
+    DbSet<AudienceLink> Links { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

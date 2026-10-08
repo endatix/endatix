@@ -95,6 +95,19 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         return new Submission(id, args);
     }
 
+    public void FreezePersonalization(long audienceLinkId, string snapshot)
+    {
+        Guard.Against.NegativeOrZero(audienceLinkId);
+        Guard.Against.NullOrEmpty(snapshot);
+        if (PersonalizationSnapshot is not null)
+        {
+            return;
+        }
+
+        AudienceLinkId = audienceLinkId;
+        PersonalizationSnapshot = snapshot;
+    }
+
     public bool IsComplete { get; private set; }
     public string JsonData { get; private set; } = null!;
     public FormDefinition FormDefinition { get; private set; } = null!;
@@ -108,6 +121,11 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public Submitter? Submitter { get; private set; }
     public string? SubmitterDisplayId { get; private set; }
     public string? SubmitterProfileSnapshot { get; private set; }
+
+    /// <summary>Frozen audience values from the first open of a personalised link.</summary>
+    public string? PersonalizationSnapshot { get; private set; }
+
+    public long? AudienceLinkId { get; private set; }
     public bool IsTestSubmission { get; private set; }
     public string? RestrictionKey { get; private set; }
 
