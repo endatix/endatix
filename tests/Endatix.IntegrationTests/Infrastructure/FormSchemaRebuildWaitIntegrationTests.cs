@@ -1,4 +1,5 @@
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Persistence.PostgreSql.Locking;
 using static Endatix.IntegrationTests.FormSchemaRebuildWorld;
@@ -7,7 +8,7 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// Rebuilds of one form's schema that wait for each other against PostgreSQL: what a rebuild does once it has the
-/// lock, and what happens when the wait runs out.
+/// lock, what it leaves behind when it fails, and what happens when the wait runs out.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -54,6 +55,29 @@ public sealed class FormSchemaRebuildWaitIntegrationTests(DbIntegrationFixture f
         // Assert
         counter.Saves.Should().Be(1);
         counter.Deletes.Should().BeLessThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task A_rebuild_that_rolls_back_leaves_the_committed_schema_for_the_next_read_in_its_scope()
+    {
+        // Arrange — clearing the flattened rows fails after the schema was saved, so the rebuild rolls back.
+        var form = await _world.SeedFormAsync([BaseDefinition, AddsQuestionA]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        await using var scope = _world.OpenScope();
+        var schemas = scope.Schemas();
+        var failingDelete = Substitute.For<IFlattenedSubmissionRepository>();
+        failingDelete.DeleteByFormIdAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<int>(new InvalidOperationException("Delete failed.")));
+        var compile = () => scope.Processor(schemas, failingDelete)
+            .ProcessAsync(TenantId, form.FormId, form.DefinitionIds[1], cancellationToken: Cancellation);
+        await compile.Should().ThrowAsync<InvalidOperationException>();
+
+        // Act
+        var schema = await schemas.GetByFormIdAsync(TenantId, form.FormId, Cancellation);
+
+        // Assert
+        schema!.FormDefinitionRevision.Should().Be(form.DefinitionIds[0]);
+        ColumnKeys(schema).Should().NotContain("qa");
     }
 
     [Fact]

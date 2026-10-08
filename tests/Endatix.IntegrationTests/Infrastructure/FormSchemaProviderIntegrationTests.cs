@@ -84,7 +84,7 @@ public sealed class FormSchemaProviderIntegrationTests
         int definitionReadsToCompile = DefinitionReads(formsRepository);
         FormSchema? second = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
 
-        second.Should().BeSameAs(first);
+        second.Should().BeEquivalentTo(first);
         (await dbContext.FormSchemas.CountAsync(cancellationToken)).Should().Be(1);
         DefinitionReads(formsRepository).Should().Be(definitionReadsToCompile);
     }

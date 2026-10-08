@@ -9,6 +9,11 @@ namespace Endatix.Modules.Reporting.Data;
 /// <summary>
 /// Repository for compiled form schemas.
 /// </summary>
+/// <remarks>
+/// Schemas are read untracked and tracked only while they are saved, so every read comes from the database: a
+/// scope that lives long, as a backfill does, sees what other scopes committed since, and never what it saved itself
+/// in a transaction that then rolled back.
+/// </remarks>
 internal sealed class FormSchemaRepository(
     ReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork,
@@ -21,15 +26,14 @@ internal sealed class FormSchemaRepository(
     internal static readonly TimeSpan RebuildLockTimeout = TimeSpan.FromSeconds(10);
 
     /// <inheritdoc />
-    public async Task<FormSchema?> GetByFormIdAsync(
+    public Task<FormSchema?> GetByFormIdAsync(
         long tenantId,
         long formId,
-        CancellationToken cancellationToken)
-    {
-        return await dbContext.FormSchemas
+        CancellationToken cancellationToken) =>
+        dbContext.FormSchemas
+            .AsNoTracking()
             .Where(schema => schema.TenantId == tenantId && schema.FormId == formId)
             .FirstOrDefaultAsync(cancellationToken);
-    }
 
     /// <inheritdoc />
     public async Task<FormSchema?> LockAndGetByFormIdAsync(
@@ -38,22 +42,23 @@ internal sealed class FormSchemaRepository(
         CancellationToken cancellationToken)
     {
         await transactionLock.AcquireAsync(dbContext.Database, RebuildLock(tenantId, formId), cancellationToken);
-
-        // A row this context already tracks would come back as it was first read, before the lock, and hide what the
-        // rebuild that held the lock saved; read it again instead.
-        DetachTracked(tenantId, formId);
         return await GetByFormIdAsync(tenantId, formId, cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task SaveAsync(FormSchema schema, CancellationToken cancellationToken)
     {
-        if (schema.Id == default)
+        var entry = schema.Id == default
+            ? await dbContext.FormSchemas.AddAsync(schema, cancellationToken)
+            : dbContext.FormSchemas.Update(schema);
+        try
         {
-            await dbContext.FormSchemas.AddAsync(schema, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        finally
+        {
+            entry.State = EntityState.Detached;
+        }
     }
 
     /// <inheritdoc />
@@ -68,14 +73,4 @@ internal sealed class FormSchemaRepository(
         {
             Timeout = RebuildLockTimeout,
         };
-
-    private void DetachTracked(long tenantId, long formId)
-    {
-        var tracked = dbContext.FormSchemas.Local
-            .FirstOrDefault(schema => schema.TenantId == tenantId && schema.FormId == formId);
-        if (tracked is not null)
-        {
-            dbContext.Entry(tracked).State = EntityState.Detached;
-        }
-    }
 }
