@@ -9,8 +9,9 @@ public interface IFormSchemaProcessor
     /// Compiles and persists the export schema for a form definition, after the definition changed.
     /// </summary>
     /// <remarks>
-    /// A definition older than the schema only adds the columns the schema lacks, and changes nothing when it lacks
-    /// none, unless <paramref name="replace"/> is set.
+    /// A definition older than the schema only adds the columns the schema lacks, and only when the form has real
+    /// submissions, unless <paramref name="replace"/> is set. Without real submissions the newer definition's rebuild
+    /// replaced the schema, and merging the older one would bring back what it removed.
     /// </remarks>
     /// <param name="tenantId">The ID of the tenant.</param>
     /// <param name="formId">The ID of the form.</param>

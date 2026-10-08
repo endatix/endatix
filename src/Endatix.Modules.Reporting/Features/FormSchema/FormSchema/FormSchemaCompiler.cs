@@ -10,7 +10,8 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 /// Supports append-only <see cref="FormSchemaCompileMode.Merge"/> and full
 /// <see cref="FormSchemaCompileMode.Replace"/> from the current definition.
 /// </summary>
-internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
+/// <remarks>Not sealed, and <see cref="CompilePersisted"/> is virtual, so a test can count the compiles a rebuild makes.</remarks>
+internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
 {
     private readonly SchemaCompilationLimits _limits = limits ?? SchemaCompilationLimits.Default;
 
@@ -28,7 +29,7 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
         return Compile(definition.RootElement, existing);
     }
 
-    public FormSchemaCompileResult CompilePersisted(
+    public virtual FormSchemaCompileResult CompilePersisted(
         string definitionJson,
         string? existingFlatteningMapJson = null,
         string? existingCodebookJson = null,

@@ -12,14 +12,16 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// <summary>
 /// Compiles and persists the export schema for a form definition.
 /// Replaces the schema when asked to, or when the form has no real (non-test) submissions and the definition is
-/// not older than the schema; otherwise merges, adding only the columns the schema lacks.
+/// not older than the schema; otherwise merges, adding only the columns the schema lacks. A definition older than the
+/// schema is merged only for a submission made on it, which needs its columns, or when the form has real submissions.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Rebuilds of one form run one after another: each reads the schema, decides, compiles and saves under a lock held
 /// for its transaction, so each starts from what the one before it saved, and one that finds nothing left to do
-/// leaves the schema as it is. Reading the definition and counting the form's real submissions happen before the
-/// lock, so the lock is held for as little as possible.
+/// leaves the schema as it is. The definition is read and its columns worked out before the lock, so the lock is held
+/// for as little as possible. Whether the form has real submissions is read under the lock, and only when it decides
+/// between a replace and a merge.
 /// </para>
 /// <para>
 /// A form deleted while it is compiled loses the schema this compile wrote, as its deletion sync removes it.
@@ -71,8 +73,7 @@ internal sealed class FormSchemaProcessor(
         await FinishAsync(rebuild, savedMode, cancellationToken);
     }
 
-    // What needs no lock is read before it: the definition, the columns it compiles to, and the form's real
-    // submissions.
+    // What needs no lock is read before it: the definition and the columns it compiles to.
     private async Task<SchemaRebuild?> PrepareAsync(
         CompileTarget target,
         RebuildTrigger trigger,
@@ -85,8 +86,7 @@ internal sealed class FormSchemaProcessor(
         }
 
         var columns = Compiling(target, () => compiler.Columns(definitionJson));
-        var realSubmissions = await CountRealSubmissionsAsync(target, cancellationToken);
-        return new SchemaRebuild(target, trigger, new DefinitionSource(definitionJson, columns), realSubmissions);
+        return new SchemaRebuild(target, trigger, new DefinitionSource(definitionJson, columns));
     }
 
     private async Task<string?> ReadDefinitionJsonAsync(CompileTarget target, CancellationToken cancellationToken)
@@ -130,7 +130,7 @@ internal sealed class FormSchemaProcessor(
         }
 
         await schemaRepository.SaveAsync(schema, cancellationToken);
-        if (mode == FormSchemaCompileMode.Replace)
+        if (mode == FormSchemaCompileMode.Replace && rebuild.ClearsFlattenedRows)
         {
             await flattenedSubmissionRepository.DeleteByFormIdAsync(target.TenantId, target.FormId, cancellationToken);
         }
@@ -138,9 +138,9 @@ internal sealed class FormSchemaProcessor(
         return mode;
     }
 
-    // A replace clears the flattened rows, so the count it relies on is read again under the lock: the one read before
-    // it may be stale. The count lives on the App DB and cannot join this transaction, so this is as late as it gets.
-    // A count that was not zero only ever merges, which is safe even when stale, so it is not read again.
+    // Whether the form has real submissions is read only when it decides the mode, and as late as it can be: under the
+    // lock, just before a replace that may clear the flattened rows. It lives on the App DB and cannot join this
+    // transaction. Returns null when the schema is left as it is.
     private async Task<FormSchemaCompileMode?> ChooseModeAsync(
         SchemaRebuild rebuild,
         FormSchemaEntity? existing,
@@ -150,9 +150,9 @@ internal sealed class FormSchemaProcessor(
             RebuildPlan.LeaveAsItIs => null,
             RebuildPlan.Replace => FormSchemaCompileMode.Replace,
             RebuildPlan.Merge => FormSchemaCompileMode.Merge,
-            _ => rebuild.RealSubmissionsBeforeLock == 0 && await CountRealSubmissionsAsync(rebuild.Target, cancellationToken) == 0
-                ? FormSchemaCompileMode.Replace
-                : FormSchemaCompileMode.Merge,
+            _ when await HasRealSubmissionsAsync(rebuild.Target, cancellationToken) => FormSchemaCompileMode.Merge,
+            RebuildPlan.ReplaceUnlessRealSubmissions => FormSchemaCompileMode.Replace,
+            _ => null,
         };
 
     // Null when the compile changed nothing, so there is nothing to save and, for a replace, nothing to clear.
@@ -243,23 +243,22 @@ internal sealed class FormSchemaProcessor(
 
     private void LogCompiled(SchemaRebuild rebuild, FormSchemaCompileMode mode) =>
         logger.LogInformation(
-            "Compiled form schema for form {FormId} (definition {FormDefinitionId}, compileMode={CompileMode}, replace={Replace}, realSubmissionCount={RealSubmissionCount})",
+            "Compiled form schema for form {FormId} (definition {FormDefinitionId}, compileMode={CompileMode}, replace={Replace})",
             rebuild.Target.FormId,
             rebuild.Target.FormDefinitionId,
             mode,
-            rebuild.ForceReplace,
-            rebuild.RealSubmissionsBeforeLock);
+            rebuild.ForceReplace);
 
     private void LogLeftAsItIs(SchemaRebuild rebuild) =>
         logger.LogDebug(
-            "Form schema for form {FormId} already holds definition {FormDefinitionId}; left as it is",
+            "Form schema for form {FormId} needs nothing from definition {FormDefinitionId}; left as it is",
             rebuild.Target.FormId,
             rebuild.Target.FormDefinitionId);
 
-    private Task<int> CountRealSubmissionsAsync(CompileTarget target, CancellationToken cancellationToken) =>
+    private Task<bool> HasRealSubmissionsAsync(CompileTarget target, CancellationToken cancellationToken) =>
         appDbContext.Submissions
             .AsNoTracking()
-            .CountAsync(
+            .AnyAsync(
                 submission => submission.TenantId == target.TenantId &&
                               submission.FormId == target.FormId &&
                               !submission.IsTestSubmission,
@@ -277,7 +276,10 @@ internal sealed class FormSchemaProcessor(
         /// <summary>A replace was asked for: the flattened rows are cleared even when the form has real submissions.</summary>
         ForcedReplace,
 
-        /// <summary>A submission made on the definition is about to be flattened, and needs only its columns.</summary>
+        /// <summary>
+        /// A submission made on the definition is about to be flattened, and needs only its columns. Its flattened row
+        /// already exists, as may those of other submissions flattened at the same time, so a replace keeps the rows.
+        /// </summary>
         SubmissionOnDefinition,
     }
 
@@ -290,35 +292,48 @@ internal sealed class FormSchemaProcessor(
 
         /// <summary>Replace when the form has no real submissions, which only the App DB can tell.</summary>
         ReplaceUnlessRealSubmissions,
+
+        /// <summary>Merge when the form has real submissions; otherwise leave the schema as it is.</summary>
+        MergeIfRealSubmissions,
     }
 
     /// <summary>One rebuild of a form's schema from one of its definitions.</summary>
-    private sealed record SchemaRebuild(
-        CompileTarget Target,
-        RebuildTrigger Trigger,
-        DefinitionSource Definition,
-        int RealSubmissionsBeforeLock)
+    private sealed record SchemaRebuild(CompileTarget Target, RebuildTrigger Trigger, DefinitionSource Definition)
     {
         public bool ForceReplace => Trigger == RebuildTrigger.ForcedReplace;
 
-        // A definition older than the schema only ever merges, so it cannot drop a newer definition's columns.
+        public bool ClearsFlattenedRows => !ForSubmission;
+
+        private bool ForSubmission => Trigger == RebuildTrigger.SubmissionOnDefinition;
+
+        // A changed definition at the schema's own revision may have been edited in place, so its new labels still
+        // need a compile; a flatten needs only the columns.
         public RebuildPlan PlanFor(FormSchemaEntity? existing) =>
-            this switch
+            existing switch
             {
-                { ForceReplace: true } => RebuildPlan.Replace,
-                _ when existing is not null && IsCoveredBy(existing) => RebuildPlan.LeaveAsItIs,
-                _ when existing?.FormDefinitionRevision > Target.FormDefinitionId => RebuildPlan.Merge,
+                _ when ForceReplace => RebuildPlan.Replace,
+                null => RebuildPlan.ReplaceUnlessRealSubmissions,
+                _ when existing.FormDefinitionRevision > Target.FormDefinitionId => PlanForOlderDefinition(existing),
+                _ when existing.FormDefinitionRevision == Target.FormDefinitionId && ForSubmission && HasColumns(existing) =>
+                    RebuildPlan.LeaveAsItIs,
                 _ => RebuildPlan.ReplaceUnlessRealSubmissions,
             };
 
-        // Only the columns matter for a definition older than the schema, and for a flatten. A changed definition at
-        // the schema's own revision may have been edited in place, so its new labels still need a compile.
-        private bool IsCoveredBy(FormSchemaEntity existing)
-        {
-            var revision = existing.FormDefinitionRevision;
-            var onlyColumnsMatter = revision > Target.FormDefinitionId ||
-                                    (revision == Target.FormDefinitionId && Trigger == RebuildTrigger.SubmissionOnDefinition);
-            return onlyColumnsMatter && FormSchemaCompiler.HasColumns(existing.FlatteningMap, Definition.Columns);
-        }
+        // A definition older than the schema never replaces it, so it cannot drop a newer definition's columns; it only
+        // adds the columns the schema lacks, which a flatten of a submission made on it needs. A rebuild after it
+        // changed may run late or be retried, once a newer definition's rebuild committed. With real submissions the
+        // schema keeps every column it ever had, so it still merges. Without them the newer definition's replace
+        // removed those columns on purpose, and merging would bring them back and put the older labels and locales
+        // over the newer ones.
+        private RebuildPlan PlanForOlderDefinition(FormSchemaEntity existing) =>
+            this switch
+            {
+                _ when HasColumns(existing) => RebuildPlan.LeaveAsItIs,
+                { ForSubmission: true } => RebuildPlan.Merge,
+                _ => RebuildPlan.MergeIfRealSubmissions,
+            };
+
+        private bool HasColumns(FormSchemaEntity existing) =>
+            FormSchemaCompiler.HasColumns(existing.FlatteningMap, Definition.Columns);
     }
 }

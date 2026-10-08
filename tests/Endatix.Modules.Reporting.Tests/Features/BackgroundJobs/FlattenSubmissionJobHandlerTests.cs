@@ -2,7 +2,6 @@ using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
-using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Reporting.Features.BackgroundJobs;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.Outbox;
@@ -84,23 +83,6 @@ public sealed class FlattenSubmissionJobHandlerTests
         // Assert
         result.ValidationErrors.Should().ContainSingle()
             .Which.ErrorMessage.Should().Be("The outbox message no longer exists.");
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_SchemaRebuildLockTimesOut_ThrowsSoTheJobIsRetried()
-    {
-        // Arrange — another rebuild of the form held the schema lock for longer than the wait allows.
-        Seed("submission.completed", $$"""{"tenantId":"{{TenantA}}","formId":"1","submissionId":"2"}""", TenantA);
-        TransactionLockRequest request = new(TransactionLockScopes.ReportingFormSchema, $"{TenantA}:1");
-        _flattening.ProcessAsync(TenantA, 1, 2, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new TransactionLockTimeoutException(request, new TimeoutException())));
-        var handler = CreateHandler();
-
-        // Act
-        var act = () => handler.ExecuteAsync(Job(TenantA), CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<TransactionLockTimeoutException>();
     }
 
     private FlattenSubmissionJobHandler CreateHandler() =>

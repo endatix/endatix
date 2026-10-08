@@ -1,4 +1,5 @@
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
 using static Endatix.IntegrationTests.FormSchemaRebuildWorld;
 
@@ -81,6 +82,43 @@ public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixtu
         var schema = await _world.ReadSchemaAsync(form.FormId);
         ColumnKeys(schema).Should().Contain(["q0", "qa", "qb"]);
         schema.FormDefinitionRevision.Should().Be(form.DefinitionIds[1]);
+    }
+
+    [Fact]
+    public async Task A_late_rebuild_for_an_older_version_leaves_the_schema_compiled_from_the_newer_one()
+    {
+        // Arrange — no real submissions, and the newer version dropped qa. Jobs run in any order, so the older
+        // version's rebuild may run after the newer one's committed.
+        var form = await _world.SeedFormAsync([AddsQuestionAInGerman, RetitlesBase]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[1]);
+        var compiled = await _world.ReadSchemaAsync(form.FormId);
+
+        // Act
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+
+        // Assert
+        var schema = await _world.ReadSchemaAsync(form.FormId);
+        ColumnKeys(schema).Should().NotContain("qa");
+        schema.Locales.Should().Be(compiled.Locales);
+        schema.Codebook.Should().Be(compiled.Codebook).And.Contain("Base, retitled");
+        schema.FormDefinitionRevision.Should().Be(form.DefinitionIds[1]);
+    }
+
+    [Fact]
+    public async Task A_test_submission_on_a_new_version_of_a_form_without_real_submissions_ends_processed_with_its_row()
+    {
+        // Arrange — the flatten finds the schema older than the submission's version, so it replaces the schema.
+        var form = await _world.SeedFormAsync([BaseDefinition, AddsQuestionA]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        var onNewer = await _world.AddTestSubmissionAsync(form.FormId, form.DefinitionIds[1], """{"q0":"new","qa":"answer a"}""");
+
+        // Act
+        await _world.FlattenAsync(form.FormId, onNewer);
+
+        // Assert
+        var row = await _world.ReadFlattenedAsync(onNewer);
+        row.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
+        row.DataJson.Should().Contain("answer a");
     }
 
     [Fact]

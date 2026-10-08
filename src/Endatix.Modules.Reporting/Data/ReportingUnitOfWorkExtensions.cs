@@ -24,20 +24,4 @@ internal static class ReportingUnitOfWorkExtensions
             throw;
         }
     }
-
-    /// <summary>
-    /// Runs <paramref name="work"/> in one transaction: committed when it completes, rolled back when it or the commit
-    /// throws.
-    /// </summary>
-    public static Task InTransactionAsync(
-        this IReportingUnitOfWork unitOfWork,
-        Func<Task> work,
-        CancellationToken cancellationToken) =>
-        unitOfWork.InTransactionAsync(
-            async () =>
-            {
-                await work();
-                return true;
-            },
-            cancellationToken);
 }

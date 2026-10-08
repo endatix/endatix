@@ -1,14 +1,21 @@
+using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Repositories;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.BackgroundJobs;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +38,13 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
     public const string AddsQuestionA = """
         { "pages": [ { "elements": [
           { "type": "text", "name": "q0", "title": "Base" },
+          { "type": "text", "name": "qa", "title": "Added by A" }
+        ] } ] }
+        """;
+
+    public const string AddsQuestionAInGerman = """
+        { "pages": [ { "elements": [
+          { "type": "text", "name": "q0", "title": { "default": "Base", "de": "Basis" } },
           { "type": "text", "name": "qa", "title": "Added by A" }
         ] } ] }
         """;
@@ -127,6 +141,26 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
         await scope.Flattening(new PostgreSqlTransactionLock()).ProcessAsync(TenantId, formId, submissionId, Cancellation);
     }
 
+    // Runs the flatten as the background job runs it, from the outbox message of the submission's completion.
+    public async Task<Result> RunFlattenJobAsync(long formId, long submissionId, ITransactionLock transactionLock)
+    {
+        const long outboxMessageId = 700;
+        OutboxMessage message = new(
+            SubmissionCompletedEvent.EventTypeName,
+            $$"""{"tenantId":"{{TenantId}}","formId":"{{formId}}","submissionId":"{{submissionId}}"}""",
+            TenantId,
+            DateTime.UtcNow,
+            1) { Id = outboxMessageId };
+        BackgroundJobContext job = new(
+            JobId: 1,
+            ReportingFlattenSubmissionPayload.JobType,
+            TenantId,
+            BackgroundJobPayloadSerializer.Serialize(new ReportingFlattenSubmissionPayload(outboxMessageId)),
+            AttemptCount: 1);
+        await using var scope = OpenScope();
+        return await scope.FlattenJob(transactionLock, message).ExecuteAsync(job, Cancellation);
+    }
+
     public async Task<SubmissionBackfillResult> BackfillAsync(long formId, ITransactionLock transactionLock)
     {
         await using var scope = OpenScope();
@@ -194,21 +228,17 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContext report
     public FormSchemaRepository Schemas(ITransactionLock? transactionLock = null) =>
         new(reportingDb, new ReportingUnitOfWork(reportingDb), transactionLock ?? new PostgreSqlTransactionLock());
 
-    public FormSchemaProcessor Processor(IFormSchemaRepository schemas, IFlattenedSubmissionRepository? flattenedRows = null)
-    {
-        ReportingUnitOfWork unitOfWork = new(reportingDb);
-        return new FormSchemaProcessor(
-            FormsRepository(),
-            schemas,
-            flattenedRows ?? new FlattenedSubmissionRepository(reportingDb, unitOfWork),
-            unitOfWork,
-            appDb,
-            new FormSchemaCompiler(),
-            NullLogger<FormSchemaProcessor>.Instance);
-    }
+    public FormSchemaProcessor Processor(IFormSchemaRepository schemas, IFlattenedSubmissionRepository? flattenedRows = null) =>
+        Processor(schemas, flattenedRows, new FormSchemaCompiler());
 
-    public FormSchemaProvider Provider(IFormSchemaRepository schemas, IFlattenedSubmissionRepository? flattenedRows = null) =>
-        new(schemas, Processor(schemas, flattenedRows), new FormSchemaCoverage(FormsRepository(), new FormSchemaCompiler()));
+    public FormSchemaProcessor Processor(IFormSchemaRepository schemas, RebuildCounter counter) =>
+        Processor(schemas, counter.FlattenedRows, counter.Compiler);
+
+    public FormSchemaProvider Provider(IFormSchemaRepository schemas, RebuildCounter? counter = null) =>
+        new(
+            schemas,
+            counter is null ? Processor(schemas) : Processor(schemas, counter),
+            new FormSchemaCoverage(FormsRepository(), new FormSchemaCompiler()));
 
     public SubmissionFlatteningProcessor Flattening(ITransactionLock transactionLock) =>
         new(
@@ -217,6 +247,17 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContext report
             Provider(Schemas(transactionLock)),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
 
+    public FlattenSubmissionJobHandler FlattenJob(ITransactionLock transactionLock, OutboxMessage message)
+    {
+        var outboxMessages = Substitute.For<IRepository<OutboxMessage>>();
+        outboxMessages.FirstOrDefaultAsync(Arg.Any<OutboxMessageByIdForTenantSpec>(), Arg.Any<CancellationToken>())
+            .Returns(message);
+        return new(
+            outboxMessages,
+            new FlattenSubmissionOutboxHandler(Flattening(transactionLock), NullLogger<FlattenSubmissionOutboxHandler>.Instance),
+            NullLogger<FlattenSubmissionJobHandler>.Instance);
+    }
+
     public SubmissionBackfillProcessor Backfill(ITransactionLock transactionLock) =>
         new(Submissions(), FlattenedRows(), Flattening(transactionLock), NullLogger<SubmissionBackfillProcessor>.Instance);
 
@@ -224,6 +265,22 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContext report
     {
         await appDb.DisposeAsync();
         await reportingDb.DisposeAsync();
+    }
+
+    private FormSchemaProcessor Processor(
+        IFormSchemaRepository schemas,
+        IFlattenedSubmissionRepository? flattenedRows,
+        FormSchemaCompiler compiler)
+    {
+        ReportingUnitOfWork unitOfWork = new(reportingDb);
+        return new FormSchemaProcessor(
+            FormsRepository(),
+            schemas,
+            flattenedRows ?? new FlattenedSubmissionRepository(reportingDb, unitOfWork),
+            unitOfWork,
+            appDb,
+            compiler,
+            NullLogger<FormSchemaProcessor>.Instance);
     }
 
     private FlattenedSubmissionRepository FlattenedRows() => new(reportingDb, new ReportingUnitOfWork(reportingDb));

@@ -1,6 +1,7 @@
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Endatix.IntegrationTests;
@@ -53,6 +54,17 @@ internal sealed class WaitAfterLockedRead(IFormSchemaRepository inner, Rendezvou
     }
 }
 
+// Holds each rebuild before it asks for the lock until all have come that far, so every one has already found it must
+// rebuild, and they then take the lock one after another.
+internal sealed class WaitBeforeLockedRead(IFormSchemaRepository inner, Rendezvous rendezvous) : ForwardingSchemas(inner)
+{
+    public override async Task<FormSchema?> LockAndGetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken)
+    {
+        await rendezvous.ArriveAsync(cancellationToken);
+        return await base.LockAndGetByFormIdAsync(tenantId, formId, cancellationToken);
+    }
+}
+
 // Runs some work once, before the first rebuild takes the lock.
 internal sealed class BeforeLockedRead(IFormSchemaRepository inner, Func<Task> work) : ForwardingSchemas(inner)
 {
@@ -79,22 +91,44 @@ internal sealed class CountingSaves(IFormSchemaRepository inner, RebuildCounter 
     }
 }
 
-/// <summary>Counts the schema saves and flattened-row deletes of several rebuilds.</summary>
+// Its parameters are the ones of the method it overrides.
+internal sealed class CountingCompiler(RebuildCounter counter) : FormSchemaCompiler
+{
+    public override FormSchemaCompileResult CompilePersisted(
+        string definitionJson,
+        string? existingFlatteningMapJson = null,
+        string? existingCodebookJson = null,
+        FormSchemaCompileMode mode = FormSchemaCompileMode.Merge)
+    {
+        counter.CountCompile();
+        return base.CompilePersisted(definitionJson, existingFlatteningMapJson, existingCodebookJson, mode);
+    }
+}
+
+/// <summary>Counts the compiles, schema saves and flattened-row deletes of several rebuilds.</summary>
 internal sealed class RebuildCounter
 {
+    private int _compiles;
     private int _saves;
 
     public RebuildCounter()
     {
+        Compiler = new CountingCompiler(this);
         FlattenedRows.DeleteByFormIdAsync(default, default, default).ReturnsForAnyArgs(0);
     }
 
+    public FormSchemaCompiler Compiler { get; }
+
     public IFlattenedSubmissionRepository FlattenedRows { get; } = Substitute.For<IFlattenedSubmissionRepository>();
+
+    public int Compiles => Volatile.Read(ref _compiles);
 
     public int Saves => Volatile.Read(ref _saves);
 
     public int Deletes => FlattenedRows.ReceivedCalls()
         .Count(call => call.GetMethodInfo().Name == nameof(IFlattenedSubmissionRepository.DeleteByFormIdAsync));
+
+    public void CountCompile() => Interlocked.Increment(ref _compiles);
 
     public void CountSave() => Interlocked.Increment(ref _saves);
 }

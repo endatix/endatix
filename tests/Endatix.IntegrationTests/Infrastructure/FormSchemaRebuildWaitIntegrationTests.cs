@@ -1,3 +1,4 @@
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
@@ -23,20 +24,24 @@ public sealed class FormSchemaRebuildWaitIntegrationTests(DbIntegrationFixture f
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Concurrent_flattens_on_a_newly_published_version_save_the_schema_once()
+    public async Task Concurrent_flattens_on_a_newly_published_version_compile_and_save_the_schema_once()
     {
-        // Arrange — only test submissions, so the compile replaces the schema and clears flattened rows.
+        // Arrange — only test submissions, so the compile replaces the schema. Every flatten has found the schema
+        // older than its submission before the first takes the lock, so the others find the work done once they
+        // have it.
         var form = await _world.SeedFormAsync([BaseDefinition, AddsQuestionA]);
         await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
         RebuildCounter counter = new();
+        Rendezvous allFoundItOlder = new(ConcurrentRebuilds);
 
         // Act
         await Task.WhenAll(Enumerable.Range(0, ConcurrentRebuilds)
-            .Select(_ => GetOrCompileCountedAsync(form.FormId, form.DefinitionIds[1], counter)));
+            .Select(_ => GetOrCompileNewestCountedAsync(form, counter, allFoundItOlder)));
 
         // Assert
+        counter.Compiles.Should().Be(1);
         counter.Saves.Should().Be(1);
-        counter.Deletes.Should().BeLessThanOrEqualTo(1);
+        counter.Deletes.Should().Be(0, "a flatten keeps the flattened rows, its own among them");
         ColumnKeys(await _world.ReadSchemaAsync(form.FormId)).Should().Contain(["q0", "qa"]);
     }
 
@@ -103,6 +108,23 @@ public sealed class FormSchemaRebuildWaitIntegrationTests(DbIntegrationFixture f
         (await _world.ReadFlattenedAsync(form.SubmissionId)).DataJson.Should().Contain("first answer");
     }
 
+    [Fact]
+    public async Task A_flatten_job_that_times_out_waiting_for_a_rebuild_throws_so_the_job_is_retried()
+    {
+        // Arrange — another rebuild of the form holds its lock while the job runs.
+        var form = await _world.SeedFormWithRealSubmissionAsync([BaseDefinition]);
+        await using var rebuild = _world.CreateReportingDbContext();
+        await rebuild.Database.BeginTransactionAsync(Cancellation);
+        await new PostgreSqlTransactionLock().AcquireAsync(rebuild.Database, RebuildLockOf(form.FormId), Cancellation);
+        ShortWaitLock shortWait = new(new PostgreSqlTransactionLock());
+
+        // Act
+        var runJob = () => _world.RunFlattenJobAsync(form.FormId, form.SubmissionId, shortWait);
+
+        // Assert — the job runtime retries a job that throws, and never one that returns a failure.
+        await runJob.Should().ThrowAsync<TransactionLockTimeoutException>();
+    }
+
     private async Task CompileCountedAsync(long formId, long formDefinitionId, RebuildCounter counter)
     {
         await using var scope = _world.OpenScope();
@@ -111,11 +133,11 @@ public sealed class FormSchemaRebuildWaitIntegrationTests(DbIntegrationFixture f
             .ProcessAsync(TenantId, formId, formDefinitionId, cancellationToken: Cancellation);
     }
 
-    private async Task GetOrCompileCountedAsync(long formId, long formDefinitionId, RebuildCounter counter)
+    private async Task GetOrCompileNewestCountedAsync(RebuildForm form, RebuildCounter counter, Rendezvous beforeTheLock)
     {
         await using var scope = _world.OpenScope();
-        CountingSaves schemas = new(scope.Schemas(), counter);
-        await scope.Provider(schemas, counter.FlattenedRows)
-            .GetOrCompileAsync(TenantId, formId, formDefinitionId, Cancellation);
+        CountingSaves schemas = new(new WaitBeforeLockedRead(scope.Schemas(), beforeTheLock), counter);
+        await scope.Provider(schemas, counter)
+            .GetOrCompileAsync(TenantId, form.FormId, form.DefinitionIds[^1], Cancellation);
     }
 }
