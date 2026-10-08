@@ -19,9 +19,11 @@ docker/keycloak/generate-dev-env.sh
 docker compose -f docker/docker-compose.keycloak.yml up
 ```
 
-The script creates `docker/keycloak/.env` with random values for the admin password, the realm users' password, and the client secret. Git ignores that file. Without `openssl` or `bash`, copy `docker/keycloak/.env.example` to `.env` and set each value yourself. Compose refuses to start until the file exists.
+The script creates `docker/keycloak/.env` with random values for the admin password, the realm users' password, and the client secret. Git ignores that file. The script keeps an existing `.env`, so running it again changes nothing. Without `openssl` or `bash`, copy `docker/keycloak/.env.example` to `docker/keycloak/.env` and set every value yourself.
 
-The compose file runs `quay.io/keycloak/keycloak:26.8` with `start-dev --import-realm` and binds `127.0.0.1:8080`. Admin console: `http://127.0.0.1:8080`, username `admin`, password `KC_BOOTSTRAP_ADMIN_PASSWORD`.
+Compose does not start without the file. It fails with `env file .../docker/keycloak/.env not found`.
+
+The compose file runs `quay.io/keycloak/keycloak:26.8` with `start-dev --import-realm` and binds `127.0.0.1:8080`. Admin console: `http://127.0.0.1:8080`, username `admin`, password `KC_BOOTSTRAP_ADMIN_PASSWORD` from `docker/keycloak/.env`.
 
 The imported realm is [`docker/keycloak/endatix-realm.json`](https://github.com/endatix/endatix/blob/main/docker/keycloak/endatix-realm.json):
 
@@ -39,12 +41,14 @@ The realm file holds `${KC_DEV_USER_PASSWORD}` and `${KC_HUB_CLIENT_SECRET}` pla
 
 Authorization services are off. Keycloak 26 does not ship the JavaScript policy provider, so a realm export that contains a policy of type `js` fails with `Couldn't find policy provider with type [js]`. Do not replace this file with an admin-console export: Keycloak writes the client secret as `**********`.
 
-`start-dev --import-realm` imports only when the realm is not already in the container volume. After you change the JSON or `docker/keycloak/.env`, delete the volume and start again:
+`start-dev --import-realm` imports only when the container does not hold the realm yet. After you change the JSON or `docker/keycloak/.env`, remove the container and start again:
 
 ```bash
 docker compose -f docker/docker-compose.keycloak.yml down -v
 docker compose -f docker/docker-compose.keycloak.yml up
 ```
+
+If you ran this realm before `docker/keycloak/.env` existed, run the two commands above once, then put the new `KC_HUB_CLIENT_SECRET` in the API `ClientSecret` and the Hub `AUTH_KEYCLOAK_CLIENT_SECRET`. The old dev secret no longer works: the token call fails with `Invalid client or Invalid client credentials`.
 
 ## Wire the local workspace
 

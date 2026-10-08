@@ -2,17 +2,19 @@
 # Creates docker/keycloak/.env with random credentials for the local Keycloak dev realm.
 
 set -euo pipefail
+# The file holds credentials: readable by the current user only.
+umask 077
 
 ENV_FILE="$(dirname "$0")/.env"
 
 # The realm keeps the values from its first import, so replacing them would leave
-# Keycloak and this file out of sync.
-if [ -f "$ENV_FILE" ]; then
-  echo "$ENV_FILE already exists. Delete it and run 'docker compose -f docker/docker-compose.keycloak.yml down -v' to start over."
-  exit 1
+# Keycloak and this file out of sync. Running the script again is a no-op.
+if [[ -f "$ENV_FILE" ]]; then
+  echo "$ENV_FILE already exists, keeping it. To start over, delete it, run this script, then 'docker compose -f docker/docker-compose.keycloak.yml down -v'."
+  exit 0
 fi
 
-if ! [ -x "$(command -v openssl)" ]; then
+if ! command -v openssl > /dev/null; then
   echo "openssl is not installed. Copy .env.example to .env and set the values by hand."
   exit 1
 fi
