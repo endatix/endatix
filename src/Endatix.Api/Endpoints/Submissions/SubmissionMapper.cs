@@ -48,7 +48,8 @@ public class SubmissionMapper
         SubmitterDisplayId = submission.SubmitterDisplayId,
         SubmitterProfile = ParseSubmitterProfile(submission.SubmitterProfileSnapshot),
         IsTestSubmission = submission.IsTestSubmission,
-        CollectionStatus = submission.CollectionStatus.Code
+        CollectionStatus = submission.CollectionStatus.Code,
+        Personalization = PersonalizationReader.Read(submission.PersonalizationSnapshot),
     };
 
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)
