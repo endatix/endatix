@@ -2,7 +2,6 @@ using System.Data.Common;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -19,7 +18,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal sealed class RefusedRefire(
     StoredDurableJobs durableJobs,
     IServiceScopeFactory scopeFactory,
-    IOptions<BackgroundJobsOptions> options,
+    JobTypePolicies policies,
     JobLifecycleMetrics metrics,
     ILogger<RefusedRefire> logger)
 {
@@ -123,7 +122,7 @@ internal sealed class RefusedRefire(
             return false;
         }
 
-        var retention = options.Value.ResolvePolicy(refusal.JobKey.Name).Retention;
+        var retention = policies.For(refusal.JobKey.Name).Retention;
         var failure = new AttemptFailure(BackgroundJobMessages.RefireRefused, refusal.RefusedAt, retention);
         return await repository.TryDeadLetterAsync(seen, failure);
     }

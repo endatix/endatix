@@ -27,6 +27,23 @@ public static class BackgroundJobHandlerServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Registers <typeparamref name="THandler"/>, keyed by the job type of <typeparamref name="TPayload"/>, with the
+    /// settings that job type runs with where the host configures none of its own.
+    /// </summary>
+    public static IServiceCollection AddBackgroundJobHandler<THandler, TPayload>(
+        this IServiceCollection services,
+        BackgroundJobTypeDefaults defaults)
+        where THandler : BackgroundJobHandler<TPayload>
+        where TPayload : IBackgroundJobPayload
+    {
+        ArgumentNullException.ThrowIfNull(defaults);
+
+        return services
+            .AddBackgroundJobHandler<THandler, TPayload>()
+            .AddBackgroundJobTypeDefaults(TPayload.JobType, defaults);
+    }
+
+    /// <summary>
     /// Registers a handler built by <paramref name="factory"/>, keyed by <paramref name="jobType"/>, for a handler
     /// that implements <see cref="IBackgroundJobHandler"/> directly. The host refuses to start when the handler
     /// declares a job type other than <paramref name="jobType"/>.
@@ -42,6 +59,23 @@ public static class BackgroundJobHandlerServiceCollectionExtensions
 
         services.AddKeyedScoped(jobType, (provider, _) => factory(provider));
         services.AddScoped(factory);
+        return services;
+    }
+
+    /// <summary>
+    /// Declares the settings <paramref name="jobType"/> runs with where the host configures none of its own, for a
+    /// handler registered by a factory.
+    /// </summary>
+    public static IServiceCollection AddBackgroundJobTypeDefaults(
+        this IServiceCollection services,
+        string jobType,
+        BackgroundJobTypeDefaults defaults)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobType);
+        ArgumentNullException.ThrowIfNull(defaults);
+
+        services.AddSingleton(defaults with { JobType = jobType });
         return services;
     }
 }

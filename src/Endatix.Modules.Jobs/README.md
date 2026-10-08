@@ -124,6 +124,12 @@ Derive from `BackgroundJobHandler<TPayload>` and register it with
 builds only its own handler. The job type comes from the payload; handlers may live in any
 assembly. Two handlers declaring the same job type fail startup.
 
+A job type that needs other settings than the global defaults declares them at the same call, so every
+host runs it as tuned: `AddBackgroundJobHandler<THandler, TPayload>(new BackgroundJobTypeDefaults
+{ MaxAttempts = 8, MaxConcurrency = 4 })`. A handler registered by a factory declares them with
+`services.AddBackgroundJobTypeDefaults(jobType, defaults)`. A value the host sets in configuration
+wins over it ([Configuration](#configuration)).
+
 ```csharp
 internal sealed class SubmissionExportJobHandler(..., ILogger<SubmissionExportJobHandler> logger)
     : BackgroundJobHandler<SubmissionExportPayload>(logger)
@@ -300,7 +306,46 @@ pipeline to it.
 
 ## Configuration
 
-Under `Endatix:BackgroundJobs`, with per-job-type overrides under `JobTypes:{JobType}`:
+Under `Endatix:BackgroundJobs`, with per-job-type settings under `JobTypes:{JobType}`.
+
+**Anything set in configuration wins over code.** Each per-type setting of a job type is looked up on
+its own, and the first of these that has a value is used:
+
+1. the job type's own key, `JobTypes:{JobType}:{Setting}`, in appsettings or an environment variable;
+2. the global key, `{Setting}`, if the host set it;
+3. the job type's default, declared in code when its handler was registered (the table below);
+4. the global default (the second table below).
+
+`MaxConcurrency` has no global key, so it takes the job type's own key, then the job type's default,
+then `1`.
+
+For example, a host whose `appsettings.json` has
+
+```json
+"Endatix": {
+  "BackgroundJobs": {
+    "RetentionDays": 30,
+    "JobTypes": { "WebHookDelivery": { "MaxAttempts": 10 } }
+  }
+}
+```
+
+keeps every finished job's row for 30 days, webhook deliveries included, and tries a webhook delivery
+10 times; the other webhook settings stay as declared in code. The same with environment variables:
+
+```bash
+Endatix__BackgroundJobs__RetentionDays=30
+Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=10
+```
+
+The options validator checks the values each job type runs with, and names the key each one came
+from; a value from code is named by the `JobTypes` key that replaces it.
+
+| Job type | MaxAttempts | MaxRuntimeMinutes | BackoffBaseSeconds / BackoffCapSeconds | RetentionDays | MaxConcurrency | Declared in |
+|----------|-------------|-------------------|----------------------------------------|---------------|----------------|-------------|
+| `WebHookDelivery` | 8 | 5 | 10 / 3600 | 3 | 4 | `Endatix.Infrastructure` |
+| `ReportingCompileFormSchema`, `ReportingFlattenSubmission`, `ReportingSeedDefaultExportFormats`, `ReportingSyncFormDeletion`, `ReportingSyncSubmissionDeletion` | 5 | 10 | 10 / 600 | 3 | 2 | `Endatix.Modules.Reporting` |
+| any other | global | global | global | global | 1 | — |
 
 | Key | Default | Purpose |
 |-----|---------|---------|
