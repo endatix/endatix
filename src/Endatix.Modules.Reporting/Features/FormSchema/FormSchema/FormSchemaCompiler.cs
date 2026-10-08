@@ -63,11 +63,18 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
     /// Whether a persisted flattening map already has every column the definition compiles to, so merging the
     /// definition into it would add none.
     /// </summary>
-    public bool HasColumnsFor(string flatteningMapJson, string definitionJson)
+    public bool HasColumnsFor(string flatteningMapJson, string definitionJson) =>
+        HasColumns(flatteningMapJson, Columns(definitionJson));
+
+    /// <summary>Whether a persisted flattening map already has a column with the key of every one in <paramref name="columns"/>.</summary>
+    public static bool HasColumns(string flatteningMapJson, IReadOnlyList<FormSchemaColumn> columns) =>
+        FormSchemaFlatteningMap.FromJson(flatteningMapJson).HasColumnsFor(columns);
+
+    /// <summary>The columns the definition compiles to, before any merge.</summary>
+    public IReadOnlyList<FormSchemaColumn> Columns(string definitionJson)
     {
-        var persisted = FormSchemaFlatteningMap.FromJson(flatteningMapJson);
         using var definition = JsonDocument.Parse(definitionJson);
-        return persisted.HasColumnsFor(FormDefinitionFlattener.Flatten(definition.RootElement, _limits));
+        return FormDefinitionFlattener.Flatten(definition.RootElement, _limits);
     }
 
     public MergedFormSchema CompileFromPersistedSchema(string definitionJson, string? existingFlatteningMapJson = null)

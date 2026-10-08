@@ -8,6 +8,7 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -140,6 +141,6 @@ public sealed class FormSchemaRepositoryTests
     private static FormSchemaRepository CreateRepository(ReportingDbContext dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FormSchemaRepository(dbContext, unitOfWork);
+        return new FormSchemaRepository(dbContext, unitOfWork, new PostgreSqlTransactionLock());
     }
 }

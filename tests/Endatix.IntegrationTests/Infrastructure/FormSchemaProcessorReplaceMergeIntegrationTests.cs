@@ -11,6 +11,7 @@ using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -256,7 +257,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         await using var reportingDb = CreateReportingDbContext();
         ReportingUnitOfWork unitOfWork = new(reportingDb);
         SyncFormDeletionOutboxHandler sync = new(
-            new FormSchemaRepository(reportingDb, unitOfWork),
+            new FormSchemaRepository(reportingDb, unitOfWork, new PostgreSqlTransactionLock()),
             new FlattenedSubmissionRepository(reportingDb, unitOfWork),
             unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
@@ -368,7 +369,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         ReportingUnitOfWork unitOfWork = new(reportingDb);
         return new FormSchemaProcessor(
             formsRepository,
-            new FormSchemaRepository(reportingDb, unitOfWork),
+            new FormSchemaRepository(reportingDb, unitOfWork, new PostgreSqlTransactionLock()),
             new FlattenedSubmissionRepository(reportingDb, unitOfWork),
             unitOfWork,
             appDb,

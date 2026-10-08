@@ -1,22 +1,12 @@
-using Endatix.Core.Entities;
-using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Features.Outbox;
-using Endatix.Infrastructure.Repositories;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Domain;
-using Endatix.Modules.Reporting.Features.FlattenedSubmission;
-using Endatix.Modules.Reporting.Features.FormSchema;
-using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
-using Endatix.Modules.Reporting.Persistence;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
+using static Endatix.IntegrationTests.FormSchemaRebuildWorld;
 
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Rebuilds of one form's schema against PostgreSQL: concurrent rebuilds, and flattens of submissions made on an
-/// older definition than the schema was last compiled from.
+/// What a form's schema holds after rebuilds against PostgreSQL: rebuilds that overlap, flattens of submissions made
+/// on an older definition than the schema, and definitions that change while a rebuild runs.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -24,35 +14,7 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixture)
 {
-    private const long TenantId = 52;
-
-    // Long enough for both rebuilds to read the schema before either saves, when nothing keeps them apart.
-    private static readonly TimeSpan BothReadTimeout = TimeSpan.FromSeconds(2);
-
-    private const string BaseDefinition = """
-        { "pages": [ { "elements": [ { "type": "text", "name": "q0", "title": "Base" } ] } ] }
-        """;
-
-    private const string AddsQuestionA = """
-        { "pages": [ { "elements": [
-          { "type": "text", "name": "q0", "title": "Base" },
-          { "type": "text", "name": "qa", "title": "Added by A" }
-        ] } ] }
-        """;
-
-    private const string AddsQuestionB = """
-        { "pages": [ { "elements": [
-          { "type": "text", "name": "q0", "title": "Base" },
-          { "type": "text", "name": "qb", "title": "Added by B" }
-        ] } ] }
-        """;
-
-    private const string RetitlesBase = """
-        { "pages": [ { "elements": [
-          { "type": "text", "name": "q0", "title": "Base, retitled" },
-          { "type": "text", "name": "qb", "title": "Added by B" }
-        ] } ] }
-        """;
+    private readonly FormSchemaRebuildWorld _world = new(fixture);
 
     [Theory]
     [InlineData(true)]
@@ -60,24 +22,22 @@ public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixtu
     public async Task Concurrent_rebuilds_of_one_form_keep_every_question_either_adds(bool schemaAlreadyCompiled)
     {
         // Arrange
-        var form = await SeedFormAsync([BaseDefinition, AddsQuestionA, AddsQuestionB]);
+        var form = await _world.SeedFormWithRealSubmissionAsync([BaseDefinition, AddsQuestionA, AddsQuestionB]);
         if (schemaAlreadyCompiled)
         {
-            await CompileAsync(form.FormId, form.DefinitionIds[0]);
+            await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
         }
 
         Rendezvous bothRead = new(parties: 2);
 
         // Act
         await Task.WhenAll(
-            CompileHeldAfterReadAsync(form.FormId, form.DefinitionIds[1], bothRead),
-            CompileHeldAfterReadAsync(form.FormId, form.DefinitionIds[2], bothRead));
+            _world.CompileAsync(form.FormId, form.DefinitionIds[1], schemas => new WaitAfterLockedRead(schemas, bothRead)),
+            _world.CompileAsync(form.FormId, form.DefinitionIds[2], schemas => new WaitAfterLockedRead(schemas, bothRead)));
 
         // Assert
-        var schema = await ReadSchemaAsync(form.FormId);
-        FormSchemaFlatteningMap.FromJson(schema.FlatteningMap).Columns
-            .Select(column => column.Key)
-            .Should().Contain(["q0", "qa", "qb"]);
+        var schema = await _world.ReadSchemaAsync(form.FormId);
+        ColumnKeys(schema).Should().Contain(["q0", "qa", "qb"]);
         schema.FormDefinitionRevision.Should().Be(form.DefinitionIds[2]);
     }
 
@@ -85,182 +45,77 @@ public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixtu
     public async Task Flattening_a_submission_on_an_older_definition_keeps_the_schema_compiled_from_the_newer_one()
     {
         // Arrange
-        var form = await SeedFormAsync([BaseDefinition, RetitlesBase]);
-        await CompileAsync(form.FormId, form.DefinitionIds[0]);
-        await CompileAsync(form.FormId, form.DefinitionIds[1]);
-        var compiled = await ReadSchemaAsync(form.FormId);
+        var form = await _world.SeedFormWithRealSubmissionAsync([BaseDefinition, RetitlesBase]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[1]);
+        var compiled = await _world.ReadSchemaAsync(form.FormId);
 
         // Act
-        await FlattenAsync(form.FormId, form.SubmissionId);
+        await _world.FlattenAsync(form.FormId, form.SubmissionId);
 
         // Assert
-        var afterFlatten = await ReadSchemaAsync(form.FormId);
+        var afterFlatten = await _world.ReadSchemaAsync(form.FormId);
         afterFlatten.ModifiedAt.Should().Be(compiled.ModifiedAt);
         afterFlatten.Codebook.Should().Be(compiled.Codebook).And.Contain("Base, retitled");
-        var row = await ReadFlattenedAsync(form.SubmissionId);
+        var row = await _world.ReadFlattenedAsync(form.SubmissionId);
         row.DataJson.Should().Contain("first answer");
     }
 
-    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
-
-    private Task CompileAsync(long formId, long formDefinitionId) =>
-        CompileWithAsync(formId, formDefinitionId, schemas => schemas);
-
-    private Task CompileHeldAfterReadAsync(long formId, long formDefinitionId, Rendezvous rendezvous) =>
-        CompileWithAsync(formId, formDefinitionId, schemas => new WaitAfterLockedRead(schemas, rendezvous));
-
-    private async Task CompileWithAsync(
-        long formId,
-        long formDefinitionId,
-        Func<IFormSchemaRepository, IFormSchemaRepository> wrapSchemas)
+    [Fact]
+    public async Task A_test_submission_on_an_older_version_does_not_drop_the_newer_versions_columns()
     {
-        await using var appDb = CreateAppDbContext();
-        await using var reportingDb = CreateReportingDbContext();
-        var schemas = wrapSchemas(new FormSchemaRepository(reportingDb, new ReportingUnitOfWork(reportingDb)));
+        // Arrange — no real submissions, so both versions compile by replacing the schema.
+        var form = await _world.SeedFormAsync([AddsQuestionA, AddsQuestionB]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[1]);
+        var onOlder = await _world.AddTestSubmissionAsync(form.FormId, form.DefinitionIds[0], """{"q0":"old","qa":"answer a"}""");
+        var onNewer = await _world.AddTestSubmissionAsync(form.FormId, form.DefinitionIds[1], """{"q0":"new","qb":"answer b"}""");
+        await _world.FlattenAsync(form.FormId, onOlder);
 
-        await CreateProcessor(appDb, reportingDb, schemas)
-            .ProcessAsync(TenantId, formId, formDefinitionId, cancellationToken: Cancellation);
+        // Act
+        await _world.FlattenAsync(form.FormId, onNewer);
+
+        // Assert
+        var row = await _world.ReadFlattenedAsync(onNewer);
+        row.DataJson.Should().Contain("answer b");
+        var schema = await _world.ReadSchemaAsync(form.FormId);
+        ColumnKeys(schema).Should().Contain(["q0", "qa", "qb"]);
+        schema.FormDefinitionRevision.Should().Be(form.DefinitionIds[1]);
     }
 
-    private async Task FlattenAsync(long formId, long submissionId)
+    [Fact]
+    public async Task A_forced_replace_from_an_older_definition_lets_the_newer_ones_submissions_bring_their_columns_back()
     {
-        await using var appDb = CreateAppDbContext();
-        await using var reportingDb = CreateReportingDbContext();
-        FormSchemaRepository schemas = new(reportingDb, new ReportingUnitOfWork(reportingDb));
-        FormSchemaProvider provider = new(
-            schemas,
-            CreateProcessor(appDb, reportingDb, schemas),
-            CreateFormsRepository(appDb),
-            new FormSchemaCompiler());
-        SubmissionFlatteningProcessor flattening = new(
-            new EfRepository<Submission>(appDb, new EndatixSpecificationEvaluator([])),
-            new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
-            provider,
-            NullLogger<SubmissionFlatteningProcessor>.Instance);
+        // Arrange — the older definition is made active again and the schema replaced from it.
+        var form = await _world.SeedFormWithRealSubmissionAsync([AddsQuestionA, AddsQuestionB]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[1]);
+        var onNewer = await _world.AddTestSubmissionAsync(form.FormId, form.DefinitionIds[1], """{"q0":"new","qb":"answer b"}""");
+        await _world.ReplaceAsync(form.FormId, form.DefinitionIds[0]);
 
-        await flattening.ProcessAsync(TenantId, formId, submissionId, Cancellation);
+        // Act
+        await _world.FlattenAsync(form.FormId, onNewer);
+
+        // Assert
+        (await _world.ReadFlattenedAsync(onNewer)).DataJson.Should().Contain("answer b");
     }
 
-    private static FormSchemaProcessor CreateProcessor(
-        AppDbContext appDb,
-        ReportingDbContext reportingDb,
-        IFormSchemaRepository schemas)
+    [Fact]
+    public async Task A_rebuild_that_read_the_definition_before_an_edit_ends_with_the_edited_columns()
     {
-        ReportingUnitOfWork unitOfWork = new(reportingDb);
-        return new FormSchemaProcessor(
-            CreateFormsRepository(appDb),
-            schemas,
-            new FlattenedSubmissionRepository(reportingDb, unitOfWork),
-            unitOfWork,
-            appDb,
-            new FormSchemaCompiler(),
-            NullLogger<FormSchemaProcessor>.Instance);
-    }
-
-    private static FormsRepository CreateFormsRepository(AppDbContext appDb) =>
-        new(appDb, new AppUnitOfWork(appDb), new EndatixSpecificationEvaluator([]));
-
-    // One real submission on the oldest definition, so every compile merges.
-    private async Task<SeededForm> SeedFormAsync(string[] definitionsOldestFirst)
-    {
-        await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
-        await ReportingTestSchema.EnsureMigratedAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
-
-        await using var appDb = CreateAppDbContext();
-        appDb.Set<Tenant>().Add(new Tenant("form-schema-rebuild-tenant", "tnntfsrb") { Id = TenantId });
-        await appDb.SaveChangesAsync(Cancellation);
-
-        // Saved before its definitions, which avoids the Form <-> ActiveDefinition circular insert.
-        var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Rebuilt form"));
-        appDb.Forms.Add(form);
-        await appDb.SaveChangesAsync(Cancellation);
-
-        List<long> definitionIds = [];
-        foreach (var json in definitionsOldestFirst)
+        // Arrange — no real submissions, so each rebuild replaces the schema. After this rebuild read the definition,
+        // it is edited in place and the edit's own rebuild commits first.
+        var form = await _world.SeedFormAsync([BaseDefinition]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        Func<IFormSchemaRepository, IFormSchemaRepository> editFirst = schemas => new BeforeLockedRead(schemas, async () =>
         {
-            FormDefinition definition = new(TenantId, isDraft: false, jsonData: json);
-            form.AddFormDefinition(definition);
-            appDb.Set<FormDefinition>().Add(definition);
-            await appDb.SaveChangesAsync(Cancellation);
-            definitionIds.Add(definition.Id);
-        }
+            await _world.EditDefinitionAsync(form.DefinitionIds[0], AddsQuestionA);
+            await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        });
 
-        var submission = Submission.Create(new SubmissionCreateArgs(
-            TenantId: TenantId,
-            FormId: form.Id,
-            FormDefinitionId: definitionIds[0],
-            JsonData: """{"q0":"first answer"}""",
-            IsComplete: true));
-        appDb.Submissions.Add(submission);
-        await appDb.SaveChangesAsync(Cancellation);
-        return new SeededForm(form.Id, definitionIds, submission.Id);
-    }
+        // Act
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0], editFirst);
 
-    private async Task<FormSchema> ReadSchemaAsync(long formId)
-    {
-        await using var reportingDb = CreateReportingDbContext();
-        return await reportingDb.FormSchemas.AsNoTracking().SingleAsync(schema => schema.FormId == formId, Cancellation);
-    }
-
-    private async Task<FlattenedSubmission> ReadFlattenedAsync(long submissionId)
-    {
-        await using var reportingDb = CreateReportingDbContext();
-        return await reportingDb.FlattenedSubmissions.AsNoTracking()
-            .SingleAsync(row => row.SubmissionId == submissionId, Cancellation);
-    }
-
-    private AppDbContext CreateAppDbContext()
-    {
-        DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
-        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, fixture.ConnectionString);
-        return new AppDbContext(
-            optionsBuilder.Options,
-            new IntegrationTenantContext(TenantId),
-            new OutboxIntegrationEventDispatcher());
-    }
-
-    private ReportingDbContext CreateReportingDbContext() =>
-        new(
-            ReportingTestSchema.ConfigureOptionsBuilder(fixture.ConnectionString).Options,
-            new IntegrationTenantContext(TenantId));
-
-    private sealed record SeededForm(long FormId, IReadOnlyList<long> DefinitionIds, long SubmissionId);
-
-    /// <summary>Lets every party go on once all have arrived, or once the timeout passes.</summary>
-    private sealed class Rendezvous(int parties)
-    {
-        private readonly TaskCompletionSource _allArrived = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private int _arrived;
-
-        public async Task ArriveAsync(CancellationToken cancellationToken)
-        {
-            if (Interlocked.Increment(ref _arrived) == parties)
-            {
-                _allArrived.TrySetResult();
-            }
-
-            await Task.WhenAny(_allArrived.Task, Task.Delay(BothReadTimeout, cancellationToken));
-        }
-    }
-
-    // Holds each rebuild after it has read the schema, so rebuilds that are not kept apart both read it before
-    // either saves. A rebuild that has to wait for the lock arrives only after the other one committed.
-    private sealed class WaitAfterLockedRead(IFormSchemaRepository inner, Rendezvous rendezvous) : IFormSchemaRepository
-    {
-        public Task<FormSchema?> GetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
-            inner.GetByFormIdAsync(tenantId, formId, cancellationToken);
-
-        public async Task<FormSchema?> LockAndGetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken)
-        {
-            var schema = await inner.LockAndGetByFormIdAsync(tenantId, formId, cancellationToken);
-            await rendezvous.ArriveAsync(cancellationToken);
-            return schema;
-        }
-
-        public Task SaveAsync(FormSchema schema, CancellationToken cancellationToken) =>
-            inner.SaveAsync(schema, cancellationToken);
-
-        public Task<int> DeleteByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
-            inner.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
+        // Assert
+        ColumnKeys(await _world.ReadSchemaAsync(form.FormId)).Should().Contain(["q0", "qa"]);
     }
 }

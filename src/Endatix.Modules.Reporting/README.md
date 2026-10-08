@@ -50,12 +50,20 @@ On every compile path (outbox `form.definition.updated`, manual `POST .../report
 
 | Mode | When | Behavior |
 |------|------|----------|
-| **Replace** | Form has **0 real** submissions (`IsTestSubmission == false`) | Rebuild FlatteningMap + Codebook from the current definition only. After save, hard-delete that form’s `FlattenedSubmissions` rows (test flatten debris). |
-| **Merge** | Form has **≥1 real** submission | Append-only merge: retain historical columns, questions, and choice-catalog values. |
+| **Replace** | Form has **0 real** submissions (`IsTestSubmission == false`) and the definition is not older than the schema's revision; or `replace=true` | Rebuild FlatteningMap + Codebook from the definition only, at its revision. After save, hard-delete that form’s `FlattenedSubmissions` rows (test flatten debris). |
+| **Merge** | Form has **≥1 real** submission, or the definition is older than the schema's revision | Append-only merge: retain historical columns, questions, and choice-catalog values. |
 
 Test submissions alone do **not** force merge. This is a defensive bridge until Form Publish makes publish the controlled compile moment.
 
-Rebuilds of one form run one at a time. Each reads, compiles and saves the schema in one transaction holding a PostgreSQL advisory lock for that form (`FormSchemaRebuildLock`: the first 8 bytes of SHA-256 over a scope name, the tenant id and the form id), so a rebuild that waited merges onto what the one before it saved. Without it, two rebuilds that read the schema at once each saved only their own columns, and the revision still looked current.
+Rebuilds of one form run one at a time. Each reads the schema, chooses its mode, compiles and saves in one transaction holding the form's transaction lock (`ITransactionLock`, scope `TransactionLockScopes.ReportingFormSchema`, key `{tenantId}:{formId}`; on PostgreSQL `pg_advisory_xact_lock(scope, hashtext(key))`), so a rebuild that waited decides on what the one before it saved. Without it, two rebuilds that read the schema at once each saved only their own columns, and the revision still looked current.
+
+- **Decided under the lock.** The mode is chosen from the schema as read under the lock. A definition older than the schema only merges, adding the columns the schema lacks, and changes nothing when it lacks none, so it never drops a newer definition's columns. The real-submission count is read before the lock; a zero, which would replace, is read again under it.
+- **A waiter that finds the work done stops.** A flatten that needs a definition's columns stops when the schema is at that definition's revision or newer and has them. A compile after a definition changed still compiles, as the definition may have been edited in place under the same id, but saves nothing, and clears no rows, when the result is what is stored.
+- **What runs under the lock:** the schema read, the mode choice, the real-submission count for a replace, the compile, the save, and for a replace the clearing of the flattened rows. The definition read, the first count, the definition's columns, and the form-deleted check run outside it. After the commit the definition is read again, and a rebuild that compiled JSON an in-place edit has since replaced runs once more.
+- **The wait is bounded at 10 seconds** (`lock_timeout` for the lock alone, under the 30-second default command timeout). A wait that runs out throws `TransactionLockTimeoutException`; a job retries it, and a backfill reports the submission as failed and processes it on its next run.
+- **SQL Server:** there is no transaction lock yet; a rebuild there throws `NotSupportedException` when it asks for one.
+
+Whether the schema has an older definition's columns is worked out once per scope for each saved version of the schema (`FormSchemaCoverage`).
 
 A flatten rebuilds the schema only for a submission on a definition newer than the schema's revision, or on an older one whose columns the schema lacks (a replace dropped them). A merge keeps every column, so an older definition is normally already in the schema; rebuilding from it would save the schema again for every such submission and put the older definition's labels and locales back.
 

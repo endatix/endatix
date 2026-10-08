@@ -1,7 +1,4 @@
-using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Specifications;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema;
 
@@ -17,8 +14,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 internal sealed class FormSchemaProvider(
     IFormSchemaRepository schemaRepository,
     IFormSchemaProcessor schemaProcessor,
-    IFormsRepository formsRepository,
-    FormSchemaCompiler compiler) : IFormSchemaProvider
+    FormSchemaCoverage coverage) : IFormSchemaProvider
 {
     /// <inheritdoc />
     public async Task<Domain.FormSchema?> GetOrCompileAsync(
@@ -33,7 +29,7 @@ internal sealed class FormSchemaProvider(
             return schema;
         }
 
-        await schemaProcessor.ProcessAsync(tenantId, formId, formDefinitionId, cancellationToken: cancellationToken);
+        await schemaProcessor.IncludeDefinitionAsync(tenantId, formId, formDefinitionId, cancellationToken);
 
         schema = await schemaRepository.GetByFormIdAsync(tenantId, formId, cancellationToken);
         return schema is null || schema.FormDefinitionRevision < formDefinitionId ? null : schema;
@@ -42,21 +38,8 @@ internal sealed class FormSchemaProvider(
     private async Task<bool> IsUpToDateForAsync(
         Domain.FormSchema schema,
         long formDefinitionId,
-        CancellationToken cancellationToken)
-    {
-        if (schema.FormDefinitionRevision == formDefinitionId)
-        {
-            return true;
-        }
-
-        if (schema.FormDefinitionRevision < formDefinitionId)
-        {
-            return false;
-        }
-
-        var olderDefinition = await formsRepository.SingleOrDefaultAsync(
-            new DefinitionByFormAndDefinitionIdSpec(schema.FormId, formDefinitionId),
-            cancellationToken);
-        return olderDefinition is not null && compiler.HasColumnsFor(schema.FlatteningMap, olderDefinition.JsonData);
-    }
+        CancellationToken cancellationToken) =>
+        schema.FormDefinitionRevision == formDefinitionId ||
+        (schema.FormDefinitionRevision > formDefinitionId &&
+         await coverage.HasColumnsOfAsync(schema, formDefinitionId, cancellationToken));
 }

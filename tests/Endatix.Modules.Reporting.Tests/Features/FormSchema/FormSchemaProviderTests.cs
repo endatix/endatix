@@ -22,6 +22,7 @@ public class FormSchemaProviderTests
     private readonly IFormSchemaProcessor _schemaProcessor = Substitute.For<IFormSchemaProcessor>();
     private readonly IFormsRepository _formsRepository = Substitute.For<IFormsRepository>();
     private readonly FormSchemaCompiler _compiler = new();
+    private FormSchemaProvider? _provider;
 
     [Fact]
     public async Task FormSchemaProvider_GetOrCompileAsync_WithCurrentSchema_ReturnsWithoutInvokingProcessor()
@@ -36,7 +37,7 @@ public class FormSchemaProviderTests
 
         // Assert
         result.Should().BeSameAs(schema);
-        await _schemaProcessor.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, default, default);
+        await _schemaProcessor.DidNotReceiveWithAnyArgs().IncludeDefinitionAsync(default, default, default, default);
     }
 
     [Fact]
@@ -52,11 +53,11 @@ public class FormSchemaProviderTests
 
         // Assert
         result.Should().BeSameAs(refreshed);
-        await _schemaProcessor.Received(1).ProcessAsync(
+        await _schemaProcessor.Received(1).IncludeDefinitionAsync(
             TenantId,
             FormId,
             FormDefinitionId,
-            cancellationToken: Arg.Any<CancellationToken>());
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public class FormSchemaProviderTests
 
         // Assert
         result.Should().BeSameAs(schema);
-        await _schemaProcessor.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, default, default);
+        await _schemaProcessor.DidNotReceiveWithAnyArgs().IncludeDefinitionAsync(default, default, default, default);
     }
 
     [Fact]
@@ -90,11 +91,11 @@ public class FormSchemaProviderTests
 
         // Assert
         result.Should().BeSameAs(merged);
-        await _schemaProcessor.Received(1).ProcessAsync(
+        await _schemaProcessor.Received(1).IncludeDefinitionAsync(
             TenantId,
             FormId,
             HistoricalFormDefinitionId,
-            cancellationToken: Arg.Any<CancellationToken>());
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -109,18 +110,74 @@ public class FormSchemaProviderTests
 
         // Assert
         result.Should().BeNull();
-        await _schemaProcessor.Received(1).ProcessAsync(
+        await _schemaProcessor.Received(1).IncludeDefinitionAsync(
             TenantId,
             FormId,
             FormDefinitionId,
-            cancellationToken: Arg.Any<CancellationToken>());
+            Arg.Any<CancellationToken>());
     }
 
-    private Task<FormSchemaEntity?> GetOrCompileAsync(long formDefinitionId)
+    [Fact]
+    public async Task FormSchemaProvider_GetOrCompileAsync_WithSameOlderDefinitionAgain_ReadsTheDefinitionOnce()
     {
-        FormSchemaProvider provider = new(_schemaRepository, _schemaProcessor, _formsRepository, _compiler);
-        return provider.GetOrCompileAsync(TenantId, FormId, formDefinitionId, TestContext.Current.CancellationToken);
+        // Arrange
+        _schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(Schema(FormDefinitionId, MergedMap()));
+        ReadsHistoricalDefinition();
+        await GetOrCompileAsync(HistoricalFormDefinitionId);
+
+        // Act
+        await GetOrCompileAsync(HistoricalFormDefinitionId);
+
+        // Assert
+        await _formsRepository.Received(1)
+            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task FormSchemaProvider_GetOrCompileAsync_AfterTheSchemaChanged_ChecksTheOlderDefinitionAgain()
+    {
+        // Arrange
+        _schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(Schema(FormDefinitionId, MergedMap()), Schema(FormDefinitionId + 1, MergedMap()));
+        ReadsHistoricalDefinition();
+        await GetOrCompileAsync(HistoricalFormDefinitionId);
+
+        // Act
+        await GetOrCompileAsync(HistoricalFormDefinitionId);
+
+        // Assert
+        await _formsRepository.Received(2)
+            .SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task FormSchemaProvider_GetOrCompileAsync_WithOlderDefinitionOverCompileLimits_ThrowsInvalidOperationExceptionNamingTheForm()
+    {
+        // Arrange
+        _schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(Schema(FormDefinitionId, MergedMap()));
+        ReadsHistoricalDefinition();
+        FormSchemaProvider provider = new(
+            _schemaRepository,
+            _schemaProcessor,
+            new FormSchemaCoverage(_formsRepository, new FormSchemaCompiler(new SchemaCompilationLimits { MaxQuestions = 0 })));
+
+        // Act
+        var act = () => provider.GetOrCompileAsync(
+            TenantId, FormId, HistoricalFormDefinitionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        var thrown = await act.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage($"*form {FormId}*");
+        thrown.Which.InnerException.Should().BeOfType<SchemaCompilationLimitExceededException>();
+    }
+
+    private Task<FormSchemaEntity?> GetOrCompileAsync(long formDefinitionId) =>
+        Provider.GetOrCompileAsync(TenantId, FormId, formDefinitionId, TestContext.Current.CancellationToken);
+
+    private FormSchemaProvider Provider =>
+        _provider ??= new FormSchemaProvider(_schemaRepository, _schemaProcessor, new FormSchemaCoverage(_formsRepository, _compiler));
 
     private void ReadsHistoricalDefinition() =>
         _formsRepository

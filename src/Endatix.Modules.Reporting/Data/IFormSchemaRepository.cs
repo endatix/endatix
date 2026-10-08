@@ -17,6 +17,9 @@ public interface IFormSchemaRepository
     /// open transaction ends, so rebuilds of one form run one after another and each starts from the one before.
     /// </summary>
     /// <exception cref="InvalidOperationException">No transaction is open.</exception>
+    /// <exception cref="Endatix.Infrastructure.Data.Locking.TransactionLockTimeoutException">
+    /// Another rebuild of the form held the lock for longer than the wait allows.
+    /// </exception>
     Task<FormSchema?> LockAndGetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken);
 
     /// <summary>

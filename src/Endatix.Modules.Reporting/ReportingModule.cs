@@ -75,6 +75,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IExportDataSource, FormSchemaCodebookExportDataSource>();
         builder.Services.AddSingleton<FormSchemaCompiler>();
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
+        builder.Services.AddScoped<FormSchemaCoverage>();
         builder.Services.AddScoped<IFormSchemaProvider, FormSchemaProvider>();
         builder.Services.AddScoped<ISubmissionFlatteningProcessor, SubmissionFlatteningProcessor>();
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
