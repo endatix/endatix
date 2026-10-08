@@ -52,5 +52,6 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
             AudiencePersistence.ConfigureDbContextOptions);
         builder.Services.AddScoped<IAudienceDbContext>(
             sp => sp.GetRequiredService<AudiencePostgreSqlDbContext>());
+        builder.Services.AddSingleton<MatchKeyLock>();
     }
 }

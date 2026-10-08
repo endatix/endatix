@@ -1,9 +1,11 @@
 using System.Reflection;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
+using Endatix.Persistence.PostgreSql.Locking;
 using Endatix.Persistence.PostgreSql.Options;
 using Endatix.Persistence.PostgreSql.Querying;
 using Endatix.Persistence.PostgreSql.Repositories;
@@ -11,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
@@ -133,6 +136,7 @@ public class PostgreSqlPersistenceBuilder
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
+        Services.TryAddSingleton<ITransactionLock, PostgreSqlTransactionLock>();
 
         // The engine's raw-ADO.NET outbox claim store. Builds an unopened connection from the SAME
         // connection string the DbContext uses (DefaultConnection by default, or the Configure<TContext>

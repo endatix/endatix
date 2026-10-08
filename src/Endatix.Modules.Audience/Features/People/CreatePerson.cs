@@ -25,7 +25,8 @@ internal sealed class CreatePersonHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
     IValueNormalizer normalizer,
-    IUniqueConstraintViolationChecker violations)
+    IUniqueConstraintViolationChecker violations,
+    MatchKeyLock matchKeyLock)
     : ICommandHandler<CreatePersonCommand, Result<PersonDto>>
 {
     public async Task<Result<PersonDto>> Handle(
@@ -87,7 +88,7 @@ internal sealed class CreatePersonHandler(
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
-            await MatchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
+            await matchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
         Result<PersonDto> created = await AddAsync(request, cancellationToken);
         if (created.IsSuccess)
         {
