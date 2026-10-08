@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -49,7 +48,7 @@ internal sealed class RedeemLinkHandler(
             return Result.NotFound("Form not found.");
         }
 
-        string snapshot = await SnapshotAsync(link, cancellationToken);
+        string snapshot = await SnapshotAsync(link, DateTime.UtcNow, cancellationToken);
         Submission submission = Submission.Create(new SubmissionCreateArgs(
             link.TenantId,
             link.FormId,
@@ -65,28 +64,26 @@ internal sealed class RedeemLinkHandler(
         return await RedeemedAsync(submission.Id, snapshot, true, cancellationToken);
     }
 
-    private async Task<string> SnapshotAsync(AudienceLink link, CancellationToken cancellationToken)
+    private async Task<string> SnapshotAsync(
+        AudienceLink link,
+        DateTime capturedAt,
+        CancellationToken cancellationToken)
     {
-        var cells = await (
+        string identifier = await (
+            from membership in db.Memberships
+            join member in db.Members on membership.MemberId equals member.Id
+            where membership.Id == link.MembershipId
+            select member.Identifier).FirstOrDefaultAsync(cancellationToken) ?? "";
+        var rows = await (
             from value in db.PropertyValues
             join property in db.Properties on value.PropertyId equals property.Id
             where value.MembershipId == link.MembershipId
-            select new { property.Id, property.VariableName, property.Name, property.DataType, value.Value })
+            select new { property.VariableName, property.DataType, value.Value })
             .ToListAsync(cancellationToken);
-        return JsonSerializer.Serialize(new
-        {
-            schemaVersion = 1,
-            audienceLinkId = link.Id,
-            values = cells.Select(cell => new
-            {
-                propertyId = cell.Id,
-                variableName = cell.VariableName,
-                name = cell.Name,
-                dataType = cell.DataType,
-                value = cell.Value,
-                usage = "variable_only",
-            }),
-        });
+        List<SnapshotCell> cells = rows
+            .Select(row => new SnapshotCell(row.VariableName, row.DataType, row.Value))
+            .ToList();
+        return PersonalizationSnapshotJson.Write(link.Id, identifier, capturedAt, cells);
     }
 
     private async Task<Result<RedeemedLinkDto>> RedeemedAsync(
