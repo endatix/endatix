@@ -49,11 +49,13 @@ public sealed class RedeemedLinkResponse
     public long SubmissionId { get; init; }
     public string Snapshot { get; init; } = "{}";
     public bool Created { get; init; }
+    public string AccessToken { get; init; } = string.Empty;
 
     public static RedeemedLinkResponse From(RedeemedLinkDto dto) => new()
     {
         SubmissionId = dto.SubmissionId,
         Snapshot = dto.Snapshot,
         Created = dto.Created,
+        AccessToken = dto.AccessToken,
     };
 }
