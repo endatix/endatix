@@ -6,6 +6,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data.Config;
 using Ardalis.GuardClauses;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.SqlServer.Metadata;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -16,38 +17,76 @@ public static class DbContextModelBuilderExtensions
 {
     /// <summary>
     /// Client snowflake on every <c>long Id</c> PK: EF <see cref="SnowflakeValueGeneratorFactory"/>
-    /// + <c>OnAdd</c> + store strategy <c>None</c>. Call last in <c>OnModelCreating</c>.
+    /// + <c>OnAdd</c> + store strategy <c>None</c> for the context's provider only. Call last in
+    /// <c>OnModelCreating</c>, passing the context's <see cref="DbContext.Database"/>.
     /// The factory only constructs the generator type (model is cached). <c>IIdGenerator&lt;long&gt;</c>
     /// is resolved at <c>Add</c> from host DI.
     /// </summary>
+    /// <remarks>
+    /// Only the active provider's <c>ValueGenerationStrategy</c> annotation is written, so a snapshot
+    /// scaffolded for one provider compiles in a project that references only that provider's EF
+    /// package. A non-relational provider gets the generator and no store strategy.
+    /// </remarks>
+    public static void ApplySnowflakeIdValueGenerators(this ModelBuilder builder, DatabaseFacade database)
+    {
+        Guard.Against.Null(builder);
+        Guard.Against.Null(database);
+
+        ApplySnowflakeIds(builder, StoreStrategyWriterFor(database));
+    }
+
+    /// <summary>
+    /// Same as <see cref="ApplySnowflakeIdValueGenerators(ModelBuilder, DatabaseFacade)"/>, but writes
+    /// the <c>ValueGenerationStrategy</c> annotation of both PostgreSQL and SQL Server.
+    /// </summary>
+    [Obsolete("Writes the id annotations of both PostgreSQL and SQL Server, which breaks snapshots in projects " +
+        "that reference one EF provider. Use ApplySnowflakeIdValueGenerators(ModelBuilder, DatabaseFacade) " +
+        "with the context's Database instead.")]
     public static void ApplySnowflakeIdValueGenerators(this ModelBuilder builder)
     {
         Guard.Against.Null(builder);
 
-        foreach (var entityType in builder.Model.GetEntityTypes())
+        ApplySnowflakeIds(builder, idProperty =>
         {
-            if (entityType.IsOwned() || entityType.FindPrimaryKey() is null)
-            {
-                continue;
-            }
+            idProperty.SetValueGenerationStrategy(NpgsqlValueGenerationStrategy.None);
+            idProperty.SetValueGenerationStrategy(SqlServerValueGenerationStrategy.None);
+        });
+    }
 
-            var idProperty = entityType.FindProperty("Id");
-            if (idProperty is null || idProperty.ClrType != typeof(long))
-            {
-                continue;
-            }
+    private static Action<IMutableProperty> StoreStrategyWriterFor(DatabaseFacade database)
+    {
+        if (database.IsNpgsql())
+        {
+            return idProperty => idProperty.SetValueGenerationStrategy(NpgsqlValueGenerationStrategy.None);
+        }
 
-            IMutableProperty metadata = builder.Entity(entityType.ClrType)
+        if (database.IsSqlServer())
+        {
+            return idProperty => idProperty.SetValueGenerationStrategy(SqlServerValueGenerationStrategy.None);
+        }
+
+        return _ => { };
+    }
+
+    private static void ApplySnowflakeIds(ModelBuilder builder, Action<IMutableProperty> setStoreStrategy)
+    {
+        foreach (var entityType in builder.Model.GetEntityTypes().Where(HasLongIdKey))
+        {
+            IMutableProperty idProperty = builder.Entity(entityType.ClrType)
                 .Property<long>("Id")
                 .HasValueGeneratorFactory<SnowflakeValueGeneratorFactory>()
                 .ValueGeneratedOnAdd()
                 .Metadata;
 
-            metadata.SetValueGenerationStrategy(NpgsqlValueGenerationStrategy.None);
-            metadata.SetValueGenerationStrategy(SqlServerValueGenerationStrategy.None);
-            metadata.ValueGenerated = ValueGenerated.OnAdd;
+            setStoreStrategy(idProperty);
+            idProperty.ValueGenerated = ValueGenerated.OnAdd;
         }
     }
+
+    private static bool HasLongIdKey(IMutableEntityType entityType) =>
+        !entityType.IsOwned()
+        && entityType.FindPrimaryKey() is not null
+        && entityType.FindProperty("Id")?.ClrType == typeof(long);
 
     /// <summary>
     /// Applies named Endatix query filters for soft deletion and tenant isolation.

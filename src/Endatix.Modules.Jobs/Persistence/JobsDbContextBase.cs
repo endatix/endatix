@@ -61,7 +61,7 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
         // notably the JSON column type and the filtered-index predicates, whose syntax differs.
         ApplyProviderConfigurations(modelBuilder);
 
-        modelBuilder.ApplySnowflakeIdValueGenerators();
+        modelBuilder.ApplySnowflakeIdValueGenerators(Database);
         modelBuilder.ApplyModuleTableNames();
     }
 

@@ -37,13 +37,79 @@ When `Endatix:Data:EnableAutoMigrations` is true, `DatabaseMigrationService` run
 1. **Core (always)** — `AppDbContext` and `AppIdentityDbContext` are migrated automatically; no contributor registration required.
 2. **Modules (opt-in)** — each module with its own DbContext calls `AddDbContextWithMigrations<TContext>` in `ConfigureServices` (registers DbContext + migration contributor).
 
-### Module persistence checklist
+### Module persistence
 
-1. Create `{Name}Module : IEndatixModule, IHasDbMigrations` (+ `IHasFeatureFlag` when optional).
-2. In `ConfigureServices`, call `builder.AddDbContextWithMigrations<TContext>(...)` from `Endatix.Infrastructure.Data` (registers DbContext + migration contributor).
-3. Use a dedicated schema and module-owned `Persistence/` folder for entities, configs, and migrations.
-4. Prefer **provider-split DbContext types** (one snapshot per provider) over namespace-filtered single contexts when supporting PostgreSQL and SQL Server.
-5. Do **not** add `Setup.cs` — all DI belongs on the module class.
+Endatix has two persistence patterns. Every new module uses the **module pattern**.
+
+| | Monolith pattern | Module pattern |
+|---|---|---|
+| Used by | `AppDbContext`, `AppIdentityDbContext` | Audience and Jobs. Reporting (one context, PostgreSQL migrations only today) and the SaaS modules are moving to it. |
+| Context types | One context type for every provider | An abstract base context with the shared model, plus one sealed derived context per provider |
+| Where migrations live | A separate assembly per provider: `Endatix.Persistence.PostgreSql`, `Endatix.Persistence.SqlServer` | The module assembly, under `Persistence/Migrations/<Provider>/` |
+| Model snapshot | One per provider assembly, for the shared context type | One per derived context: `<Derived>ModelSnapshot.cs` |
+| When to use | The core contexts only; do not add new ones | Every module that owns tables |
+
+#### Module recipe
+
+1. Create `{Name}Module : IEndatixModule, IHasDbMigrations` (+ `IHasFeatureFlag` when optional). All DI belongs on the module class; do **not** add `Setup.cs`.
+2. **Base context.** An abstract `{Name}DbContextBase` owns the `DbSet`s, the module's own schema and the shared model. It applies the shared configurations explicitly (`modelBuilder.ApplyConfiguration(new XConfiguration())`), because an `[ApplyConfigurationFor<T>]` attribute can name only one context. It then calls an abstract `ApplyProviderConfigurations(modelBuilder)`, and finishes with `modelBuilder.ApplySnowflakeIdValueGenerators(Database)` and `modelBuilder.ApplyModuleTableNames()`.
+3. **Derived contexts.** One sealed context per provider (`{Name}PostgreSqlDbContext`, `{Name}SqlServerDbContext`). Each overrides `ApplyProviderConfigurations` with `modelBuilder.ApplyConfigurationsFor<TDerived>(typeof(TDerived).Assembly)`.
+4. **Provider configurations.** Column types, JSON columns and filtered-index SQL live in `Persistence/Config/<Provider>/`, each class marked `[ApplyConfigurationFor<TDerived>]`.
+5. **Design-time factory.** One `IDesignTimeDbContextFactory<TDerived>` per derived context. It pins the provider (`UseNpgsql` or `UseSqlServer`) instead of reading `DefaultConnection_DbProvider`, sets the migrations assembly to the module assembly, and puts the migrations history table in the module schema. It reads `ConnectionStrings:DefaultConnection` (`ModuleDesignTimeConfiguration`) and fails when it is missing, so set a PostgreSQL connection string to scaffold PostgreSQL migrations and a SQL Server one to scaffold SQL Server migrations. `migrations add` does not connect to the database.
+6. **Runtime registration.** In `ConfigureServices`, pick the derived context with `DatabaseProviderResolver.IsPostgreSql(configuration)`, register it with `builder.AddDbContextWithMigrations<TDerived>(...)` from `Endatix.Infrastructure.Data`, and map the module interface to it: `builder.Services.AddScoped<I{Name}DbContext>(sp => sp.GetRequiredService<TDerived>())`. Consumers depend on the interface only, so nothing downstream branches on the provider.
+7. **Migrations namespaces.** Set both `PostgreSqlMigrationsNamespace` and `SqlServerMigrationsNamespace` to the module's migrations root namespace (`Endatix.Modules.<Name>.Persistence.Migrations`), never to a provider folder. Registration requires the active provider's namespace, and two equal values keep namespace filtering off: each derived context already finds its own migrations by their `[DbContext]` attribute.
+
+#### Adding a migration
+
+Run from the repository root, with `Endatix.WebHost` as the startup project.
+
+```bash
+# PostgreSQL
+ConnectionStrings__DefaultConnection="Host=localhost;Database=endatix;Username=postgres;Password=..." \
+dotnet ef migrations add <MigrationName> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.<Name> \
+  --context <Name>PostgreSqlDbContext \
+  --output-dir Persistence/Migrations/PostgreSql
+
+# SQL Server
+ConnectionStrings__DefaultConnection="Server=localhost;Database=endatix;User Id=sa;Password=...;TrustServerCertificate=True" \
+dotnet ef migrations add <MigrationName> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.<Name> \
+  --context <Name>SqlServerDbContext \
+  --output-dir Persistence/Migrations/SqlServer
+```
+
+Module SQL Server migrations need **SQL Server 2025 or later, or Azure SQL Database**.
+
+#### Why not one context with two migration folders
+
+One context type cannot own both providers' migrations in one assembly, because of two EF Core rules:
+
+- **Discovery.** EF finds a context's migrations by matching `Context.GetType()` against each migration's `[DbContext(typeof(...))]` attribute. With one context type, both folders match, and each provider would see the other's migrations.
+- **Snapshot placement.** EF reads and writes the snapshot as `{ContextName}ModelSnapshot.cs`, one per context type. Two providers would overwrite one snapshot.
+
+The monolith pattern avoids both by putting each provider's migrations in its own assembly.
+
+#### Applied migrations: retarget, never regenerate
+
+When an existing context moves to this pattern, change only the `[DbContext(typeof(...))]` attribute in its `.Designer.cs` files and its snapshot to the derived type. The migration id, `Up()` and `Down()` stay byte-identical. A regenerated migration gets a new id, and every database that applied the old one would run it again.
+
+Check a snapshot with a throwaway migration, then delete it:
+
+```bash
+dotnet ef migrations add Probe --context <Derived> --output-dir Persistence/Migrations/<Provider> \
+  --startup-project src/Endatix.WebHost --project src/Endatix.Modules.<Name>
+```
+
+The check passes when the generated `Up()` and `Down()` are empty and `git status --porcelain` lists only the two new `*_Probe*.cs` files, so the committed snapshot is unchanged. Delete both files; never commit them.
+
+#### Id annotations in snapshots
+
+`ApplySnowflakeIdValueGenerators(Database)` writes only the active provider's `ValueGenerationStrategy` annotation on each `long Id` key, so a PostgreSQL snapshot has no `SqlServer:` annotations and compiles in a project that references only the Npgsql EF provider. The parameterless `ApplySnowflakeIdValueGenerators()` writes both annotations; it is obsolete and will be removed after the next stable release.
+
+Model snapshots never contain the `ValueGeneratorFactory` annotation: EF Core filters it out of every snapshot by design and does not compare it. Do not restore it by hand.
 
 ## Observability (startup)
 
