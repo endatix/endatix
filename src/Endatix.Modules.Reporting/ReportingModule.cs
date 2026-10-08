@@ -47,8 +47,10 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     public void ConfigureFastEndpoints(Config config) =>
         ReportingModuleEndpointConfiguration.Configure(config);
 
+    // Reporting has no SQL Server migrations, and no transaction lock to keep schema rebuilds apart there.
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
+        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Reporting", FeatureFlags.ReportingModule);
         builder.AddDbContextWithMigrations<ReportingDbContext>(
             ReportingPersistence.ConfigureDbContextOptions,
             shouldMigrate: sp =>
