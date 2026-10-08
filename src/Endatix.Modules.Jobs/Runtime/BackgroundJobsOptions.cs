@@ -4,8 +4,9 @@ using Endatix.Infrastructure.Features.BackgroundJobs;
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <remarks>
-/// <see cref="JobTypes"/> and the defaults a job type declares in code override the per-job-type values one at a
-/// time, so the runtime must read them through <see cref="ResolvePolicy"/>; reading the property itself ignores both.
+/// A job type's settings resolve one at a time, from <see cref="JobTypes"/>, the global values the host set and the
+/// defaults the job type declares in code, so the runtime must read them through <see cref="ResolvePolicy"/>; reading
+/// a global property gives only the global value the host set.
 /// </remarks>
 public sealed class BackgroundJobsOptions
 {
@@ -18,6 +19,21 @@ public sealed class BackgroundJobsOptions
     /// The concurrency cap of a job type that neither the host nor the job type's own defaults set.
     /// </summary>
     public const int DefaultJobTypeMaxConcurrency = 1;
+
+    /// <summary>The global <see cref="MaxRuntimeMinutes"/> where the host sets none.</summary>
+    public const int DefaultMaxRuntimeMinutes = 60;
+
+    /// <summary>The global <see cref="MaxAttempts"/> where the host sets none.</summary>
+    public const int DefaultMaxAttempts = 3;
+
+    /// <summary>The global <see cref="BackoffBaseSeconds"/> where the host sets none.</summary>
+    public const int DefaultBackoffBaseSeconds = 30;
+
+    /// <summary>The global <see cref="BackoffCapSeconds"/> where the host sets none.</summary>
+    public const int DefaultBackoffCapSeconds = 900;
+
+    /// <summary>The global <see cref="RetentionDays"/> where the host sets none.</summary>
+    public const int DefaultRetentionDays = 7;
 
     private Dictionary<string, BackgroundJobTypeOptions> _jobTypes = new(StringComparer.OrdinalIgnoreCase);
 
@@ -51,26 +67,33 @@ public sealed class BackgroundJobsOptions
     /// </summary>
     public int ShutdownWaitSeconds { get; set; } = 30;
 
-    public int MaxRuntimeMinutes { get; set; } = 60;
+    // The five global values a job type can also set are null until the host sets them, because one the host sets
+    // replaces the default a job type declares in code, and the global default does not. Unset, each is its Default
+    // constant above.
+
+    /// <summary>
+    /// Ceiling on one attempt, in minutes.
+    /// </summary>
+    public int? MaxRuntimeMinutes { get; set; }
 
     /// <summary>
     /// Attempts before a job that keeps throwing is dead-lettered. The node running an attempt reads it when the
     /// attempt ends, so a change also applies to jobs already waiting.
     /// </summary>
-    public int MaxAttempts { get; set; } = 3;
+    public int? MaxAttempts { get; set; }
 
     /// <summary>
     /// Seconds before the first retry. Each later retry waits twice as long as the one before it, up to
     /// <see cref="BackoffCapSeconds"/>. The node running an attempt reads it when the attempt fails.
     /// </summary>
-    public int BackoffBaseSeconds { get; set; } = 30;
+    public int? BackoffBaseSeconds { get; set; }
 
-    public int BackoffCapSeconds { get; set; } = 900;
+    public int? BackoffCapSeconds { get; set; }
 
     /// <summary>
     /// Days a finished job's row is kept before the retention job may delete it.
     /// </summary>
-    public int RetentionDays { get; set; } = 7;
+    public int? RetentionDays { get; set; }
 
     /// <summary>
     /// How finished job rows are collected once their retention has passed.
@@ -111,35 +134,23 @@ public sealed class BackgroundJobsOptions
     }
 
     /// <summary>
-    /// Resolves the policy for <paramref name="jobType"/>, taking each value from the job type's override when
-    /// it is set, then from the default the job type <paramref name="declared"/>, and from the global value
-    /// otherwise.
+    /// The policy <paramref name="jobType"/> runs with, each value resolved by <see cref="JobTypeSettings.Resolve"/>.
     /// </summary>
-    /// <remarks>
-    /// A declared default beats the global value even when the host configures the global one, so a value's effect
-    /// never depends on whether some other key happens to be set.
-    /// </remarks>
-    internal BackgroundJobTypePolicy ResolvePolicy(string jobType, BackgroundJobTypeDefaults? declared)
-    {
-        var configured = JobTypes.GetValueOrDefault(jobType) ?? new BackgroundJobTypeOptions();
-        var defaults = declared ?? new BackgroundJobTypeDefaults();
+    internal BackgroundJobTypePolicy ResolvePolicy(string jobType, BackgroundJobTypeDefaults? declared) =>
+        JobTypeSettings.Resolve(this, jobType, declared).ToPolicy();
 
-        return new BackgroundJobTypePolicy(
-            MaxAttempts: InEffect(configured.MaxAttempts, defaults.MaxAttempts, MaxAttempts),
-            MaxRuntime: TimeSpan.FromMinutes(InEffect(configured.MaxRuntimeMinutes, defaults.MaxRuntimeMinutes, MaxRuntimeMinutes)),
-            BackoffBase: TimeSpan.FromSeconds(InEffect(configured.BackoffBaseSeconds, defaults.BackoffBaseSeconds, BackoffBaseSeconds)),
-            BackoffCap: TimeSpan.FromSeconds(InEffect(configured.BackoffCapSeconds, defaults.BackoffCapSeconds, BackoffCapSeconds)),
-            MaxConcurrency: InEffect(configured.MaxConcurrency, defaults.MaxConcurrency, DefaultJobTypeMaxConcurrency),
-            Retention: TimeSpan.FromDays(InEffect(configured.RetentionDays, defaults.RetentionDays, RetentionDays)));
-    }
+    /// <summary>The configuration key of the global setting <paramref name="optionName"/>.</summary>
+    internal static string GlobalKey(string optionName) => $"{SectionName}:{optionName}";
 
-    private static int InEffect(int? configured, int? declared, int global) => configured ?? declared ?? global;
+    /// <summary>The configuration key of <paramref name="jobType"/>'s own setting <paramref name="optionName"/>.</summary>
+    internal static string JobTypeKey(string jobType, string optionName) =>
+        $"{SectionName}:{nameof(JobTypes)}:{jobType}:{optionName}";
 }
 
 /// <summary>
 /// Overrides for one job type, bound from <c>Endatix:BackgroundJobs:JobTypes:{JobType}</c>. A value left unset
-/// falls back to the default the job type declares in code, then to the global value of the same name on
-/// <see cref="BackgroundJobsOptions"/>.
+/// falls back to the global value of the same name on <see cref="BackgroundJobsOptions"/> when the host set it, then
+/// to the default the job type declares in code, then to the global default.
 /// </summary>
 public sealed class BackgroundJobTypeOptions
 {
@@ -215,8 +226,7 @@ public sealed class BackgroundJobsClusteringOptions
 }
 
 /// <summary>
-/// The values in effect for one job type, once its overrides have fallen back to its declared defaults and then to
-/// the global values.
+/// The values in effect for one job type, as <see cref="JobTypeSettings.Resolve"/> resolves them.
 /// </summary>
 internal readonly record struct BackgroundJobTypePolicy(
     int MaxAttempts,

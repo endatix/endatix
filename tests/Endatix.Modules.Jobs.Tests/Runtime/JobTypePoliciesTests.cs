@@ -46,48 +46,87 @@ public sealed class JobTypePoliciesTests
     }
 
     [Fact]
-    public void For_JobTypeConfiguredThroughEnvironmentVariables_OverridesTheDeclaredDefault()
+    public void For_JobTypeAndGlobalConfigured_TakesTheJobTypeKey()
     {
-        // Arrange — a prefix of the test's own, so no other test reads the variable.
-        var prefix = $"JOBTYPEPOLICIESTESTS_{Guid.NewGuid():N}_";
-        var variable = $"{prefix}Endatix__BackgroundJobs__JobTypes__{WebHook}__MaxConcurrency";
-        Environment.SetEnvironmentVariable(variable, "6");
-        try
+        // Arrange
+        var configuration = InMemory(new()
         {
-            var configuration = new ConfigurationBuilder().AddEnvironmentVariables(prefix).Build();
-            var policies = Policies(configuration, DeclaredDefaults.For(DeclaredDefaults.Tuned, WebHook));
+            [$"Endatix:BackgroundJobs:JobTypes:{WebHook}:MaxAttempts"] = "10",
+            ["Endatix:BackgroundJobs:MaxAttempts"] = "6",
+        });
+        var policies = Policies(configuration, DeclaredDefaults.For(DeclaredDefaults.Tuned, WebHook));
 
-            // Act
-            var policy = policies.For(WebHook);
+        // Act
+        var policy = policies.For(WebHook);
 
-            // Assert
-            policy.MaxConcurrency.Should().Be(6);
-            policy.MaxAttempts.Should().Be(8);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(variable, null);
-        }
+        // Assert
+        policy.MaxAttempts.Should().Be(10);
     }
 
     [Fact]
-    public void For_GlobalConfigured_DeclaredDefaultStillApplies()
+    public void For_JobTypeConfiguredThroughEnvironmentVariables_OverridesTheDeclaredDefault()
     {
-        // Arrange — the global value is the setting of job types that declare none, whether it is configured or not.
-        var configuration = InMemory(new() { ["Endatix:BackgroundJobs:MaxAttempts"] = "6" });
+        // Arrange
+        using var environment = new EnvironmentVariables(
+            ($"Endatix__BackgroundJobs__JobTypes__{WebHook}__MaxConcurrency", "6"));
+        var policies = Policies(environment.Configuration, DeclaredDefaults.For(DeclaredDefaults.Tuned, WebHook));
+
+        // Act
+        var policy = policies.For(WebHook);
+
+        // Assert
+        policy.MaxConcurrency.Should().Be(6);
+        policy.MaxAttempts.Should().Be(8);
+    }
+
+    [Fact]
+    public void For_GlobalConfigured_OverridesTheDeclaredDefault()
+    {
+        // Arrange
+        var configuration = InMemory(new() { ["Endatix:BackgroundJobs:RetentionDays"] = "30" });
         var policies = Policies(configuration, DeclaredDefaults.For(DeclaredDefaults.Tuned, WebHook));
 
         // Act
         var declared = policies.For(WebHook);
         var undeclared = policies.For("SubmissionExport");
 
-        // Assert
+        // Assert — only the key the host set changes; every other setting keeps the declared default.
+        declared.Retention.Should().Be(TimeSpan.FromDays(30));
         declared.MaxAttempts.Should().Be(8);
-        undeclared.MaxAttempts.Should().Be(6);
+        undeclared.Retention.Should().Be(TimeSpan.FromDays(30));
     }
 
     [Fact]
-    public void For_DeclaredDefaultLeavesKeyUnset_FallsBackToTheGlobal()
+    public void For_GlobalConfiguredThroughEnvironmentVariables_OverridesTheDeclaredDefault()
+    {
+        // Arrange
+        using var environment = new EnvironmentVariables(("Endatix__BackgroundJobs__RetentionDays", "30"));
+        var policies = Policies(environment.Configuration, DeclaredDefaults.For(DeclaredDefaults.Tuned, WebHook));
+
+        // Act
+        var policy = policies.For(WebHook);
+
+        // Assert
+        policy.Retention.Should().Be(TimeSpan.FromDays(30));
+        policy.MaxAttempts.Should().Be(8);
+    }
+
+    [Fact]
+    public void For_GlobalAssignedInCode_OverridesTheDeclaredDefault()
+    {
+        // Arrange — a host that sets the option in code configures it as much as one that sets the key.
+        var options = new BackgroundJobsOptions { MaxAttempts = 6 };
+        var policies = new JobTypePolicies(Options.Create(options), DeclaredDefaults.For(DeclaredDefaults.Tuned, WebHook));
+
+        // Act
+        var policy = policies.For(WebHook);
+
+        // Assert
+        policy.MaxAttempts.Should().Be(6);
+    }
+
+    [Fact]
+    public void For_DeclaredDefaultLeavesKeyUnset_FallsBackToTheConfiguredGlobal()
     {
         // Arrange
         var configuration = InMemory(new() { ["Endatix:BackgroundJobs:BackoffBaseSeconds"] = "20" });
@@ -101,7 +140,25 @@ public sealed class JobTypePoliciesTests
         // Assert
         policy.MaxAttempts.Should().Be(8);
         policy.BackoffBase.Should().Be(TimeSpan.FromSeconds(20));
-        policy.MaxConcurrency.Should().Be(BackgroundJobsOptions.DefaultJobTypeMaxConcurrency);
+    }
+
+    [Fact]
+    public void For_NothingConfiguredOrDeclared_UsesTheGlobalDefaults()
+    {
+        // Arrange
+        var policies = Policies(new ConfigurationBuilder().Build(), DeclaredDefaults.None);
+
+        // Act
+        var policy = policies.For("SubmissionExport");
+
+        // Assert
+        policy.Should().Be(new BackgroundJobTypePolicy(
+            MaxAttempts: 3,
+            MaxRuntime: TimeSpan.FromMinutes(60),
+            BackoffBase: TimeSpan.FromSeconds(30),
+            BackoffCap: TimeSpan.FromSeconds(900),
+            MaxConcurrency: 1,
+            Retention: TimeSpan.FromDays(7)));
     }
 
     private static JobTypePolicies Policies(IConfiguration configuration, JobTypeDefaults declared)
@@ -113,4 +170,35 @@ public sealed class JobTypePoliciesTests
 
     private static IConfiguration InMemory(Dictionary<string, string?> settings) =>
         new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+
+    /// <summary>
+    /// Sets environment variables under a prefix of the test's own, so no other test reads them, and removes them
+    /// when disposed.
+    /// </summary>
+    private sealed class EnvironmentVariables : IDisposable
+    {
+        private readonly string _prefix = $"JOBTYPEPOLICIESTESTS_{Guid.NewGuid():N}_";
+        private readonly string[] _names;
+
+        public EnvironmentVariables(params (string Name, string Value)[] variables)
+        {
+            _names = variables.Select(variable => _prefix + variable.Name).ToArray();
+            foreach (var (name, value) in variables)
+            {
+                Environment.SetEnvironmentVariable(_prefix + name, value);
+            }
+
+            Configuration = new ConfigurationBuilder().AddEnvironmentVariables(_prefix).Build();
+        }
+
+        public IConfiguration Configuration { get; }
+
+        public void Dispose()
+        {
+            foreach (var name in _names)
+            {
+                Environment.SetEnvironmentVariable(name, null);
+            }
+        }
+    }
 }

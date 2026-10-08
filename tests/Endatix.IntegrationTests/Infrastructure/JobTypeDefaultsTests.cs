@@ -18,8 +18,9 @@ using Quartz;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// A host whose configuration sets nothing for background jobs, as one built on the packages rather than on
-/// <c>Endatix.WebHost</c>'s own appsettings files is, runs each job type with the settings its owner declares.
+/// Each job type runs with the settings its owner declares in code unless the host's configuration sets them: on a
+/// host built on the packages rather than on <c>Endatix.WebHost</c>'s own appsettings files, on
+/// <c>Endatix.WebHost</c> as shipped, and with a global setting the host configures.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -31,6 +32,23 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
 
     private const string WebHook = "WebHookDelivery";
+    private const string ReportingFlatten = "ReportingFlattenSubmission";
+
+    private static readonly BackgroundJobTypePolicy TunedWebHook = new(
+        MaxAttempts: 8,
+        MaxRuntime: TimeSpan.FromMinutes(5),
+        BackoffBase: TimeSpan.FromSeconds(10),
+        BackoffCap: TimeSpan.FromSeconds(3600),
+        MaxConcurrency: 4,
+        Retention: TimeSpan.FromDays(3));
+
+    private static readonly BackgroundJobTypePolicy TunedReporting = new(
+        MaxAttempts: 5,
+        MaxRuntime: TimeSpan.FromMinutes(10),
+        BackoffBase: TimeSpan.FromSeconds(10),
+        BackoffCap: TimeSpan.FromSeconds(600),
+        MaxConcurrency: 2,
+        Retention: TimeSpan.FromDays(3));
 
     [Fact]
     public async Task Webhook_jobs_run_four_at_a_time_on_a_host_without_job_settings()
@@ -75,35 +93,77 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
             .Get(QuartzRegistration.SchedulerName).MaxConcurrency;
 
         // Assert — the pool holds every cap the execution limits apply, plus the retention thread.
-        policies.For("ReportingFlattenSubmission").Should().Be(new BackgroundJobTypePolicy(
-            MaxAttempts: 5,
-            MaxRuntime: TimeSpan.FromMinutes(10),
-            BackoffBase: TimeSpan.FromSeconds(10),
-            BackoffCap: TimeSpan.FromSeconds(600),
-            MaxConcurrency: 2,
-            Retention: TimeSpan.FromDays(3)));
+        policies.For(ReportingFlatten).Should().Be(TunedReporting);
         plan.GroupCaps[WebHook].Should().Be(4);
-        plan.GroupCaps["ReportingFlattenSubmission"].Should().Be(2);
+        plan.GroupCaps[ReportingFlatten].Should().Be(2);
         threads.Should().Be(plan.PoolSize + 1);
+    }
+
+    [Fact]
+    public async Task WebHost_with_its_shipped_settings_runs_webhook_and_reporting_jobs_as_tuned()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var host = StartedHost(database, ReportingOn);
+
+        // Act
+        var policies = host.Services.GetRequiredService<JobTypePolicies>();
+
+        // Assert — the shipped appsettings set the general job settings, but none that replaces a tuned value.
+        host.Services.GetRequiredService<IConfiguration>().GetSection("Endatix:BackgroundJobs:IdleWaitTimeSeconds")
+            .Value.Should().NotBeNull("the shipped appsettings must have been loaded");
+        policies.For(WebHook).Should().Be(TunedWebHook);
+        policies.For(ReportingFlatten).Should().Be(TunedReporting);
+    }
+
+    [Fact]
+    public async Task A_global_job_setting_the_host_configures_applies_to_the_tuned_job_types()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var host = StartedHost(database, builder =>
+        {
+            ReportingOn(builder);
+            builder.UseSetting("Endatix:BackgroundJobs:RetentionDays", "30");
+        });
+
+        // Act
+        var policies = host.Services.GetRequiredService<JobTypePolicies>();
+
+        // Assert — the configured key replaces the declared retention; every other setting stays as declared.
+        policies.For(WebHook).Should().Be(TunedWebHook with { Retention = TimeSpan.FromDays(30) });
+        policies.For(ReportingFlatten).Should().Be(TunedReporting with { Retention = TimeSpan.FromDays(30) });
     }
 
     // The full web host with Reporting on and no appsettings file, so nothing configures a job type.
     private static WebApplicationFactory<EndatixWebHost::Program> HostWithoutJobSettings(
         JobsTestDatabase database,
-        Action<IServiceCollection> configureServices)
+        Action<IServiceCollection> configureServices) =>
+        StartedHost(database, builder =>
+        {
+            ReportingOn(builder);
+            builder.ConfigureAppConfiguration((_, configuration) => RemoveAppSettingsFiles(configuration));
+            builder.ConfigureTestServices(configureServices);
+        });
+
+    private static WebApplicationFactory<EndatixWebHost::Program> StartedHost(
+        JobsTestDatabase database,
+        Action<IWebHostBuilder> configure)
     {
         var factory = new EndatixWebApplicationFactory(database.ConnectionString, TestDatabaseProvider.PostgreSql)
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseSetting("Endatix:FeatureFlags:ReportingModule", "true");
-                builder.ConfigureAppConfiguration((_, configuration) => RemoveAppSettingsFiles(configuration));
-                builder.ConfigureTestServices(configureServices);
-            });
+            .WithWebHostBuilder(configure);
 
         // Reading the services builds and starts the host, and with it the migrations and the scheduler.
         _ = factory.Services;
         return factory;
     }
+
+    private static void ReportingOn(IWebHostBuilder builder) =>
+        builder.UseSetting("Endatix:FeatureFlags:ReportingModule", "true");
 
     private static void RemoveAppSettingsFiles(IConfigurationBuilder configuration)
     {

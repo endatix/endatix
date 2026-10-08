@@ -64,6 +64,16 @@ public class BackgroundJobsOptionsTests
             new() { ["BackoffCapSeconds"] = "60", ["JobTypes:X:BackoffBaseSeconds"] = "120" },
             ["JobTypes:X:BackoffBaseSeconds", "BackoffCapSeconds"]
         },
+        {
+            "job type backoff base above the global default cap",
+            new() { ["JobTypes:X:BackoffBaseSeconds"] = "1000" },
+            ["JobTypes:X:BackoffBaseSeconds", "BackoffCapSeconds"]
+        },
+        {
+            "global attempts above its upper bound",
+            new() { ["MaxAttempts"] = "11" },
+            ["MaxAttempts"]
+        },
     };
 
     public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidRetentionValues => new()
@@ -96,16 +106,54 @@ public class BackgroundJobsOptionsTests
         options.Clustering.CheckinIntervalSeconds.Should().Be(7.5);
         options.Clustering.CheckinMisfireThresholdSeconds.Should().Be(7.5);
         options.Clustering.InstanceId.Should().BeNull();
-        options.RetentionDays.Should().Be(7);
         options.Retention.Cron.Should().Be("0 0/15 * * * ?");
         options.Retention.BatchSize.Should().Be(1000);
         options.Retention.MaxBatchesPerRun.Should().Be(50);
         options.MisfireThresholdSeconds.Should().Be(60);
         options.ShutdownWaitSeconds.Should().Be(30);
-        options.MaxRuntimeMinutes.Should().Be(60);
+    }
+
+    [Fact]
+    public void Bind_EmptyConfiguration_LeavesTheGlobalJobTypeValuesUnsetWithDocumentedDefaults()
+    {
+        // Arrange
+        var section = new Dictionary<string, string?>();
+
+        // Act
+        var options = Bind(section);
+
+        // Assert — an unset global must stay unset, or it would replace every job type's declared defaults.
+        int?[] globalJobTypeValues =
+        [
+            options.MaxRuntimeMinutes,
+            options.MaxAttempts,
+            options.BackoffBaseSeconds,
+            options.BackoffCapSeconds,
+            options.RetentionDays,
+        ];
+        globalJobTypeValues.Should().AllSatisfy(value => value.Should().BeNull());
+        new[]
+        {
+            BackgroundJobsOptions.DefaultMaxRuntimeMinutes,
+            BackgroundJobsOptions.DefaultMaxAttempts,
+            BackgroundJobsOptions.DefaultBackoffBaseSeconds,
+            BackgroundJobsOptions.DefaultBackoffCapSeconds,
+            BackgroundJobsOptions.DefaultRetentionDays,
+        }.Should().Equal(60, 3, 30, 900, 7);
+    }
+
+    [Fact]
+    public void Bind_GlobalKeySetToItsDefaultValue_IsSet()
+    {
+        // Arrange — a host that writes the default value has still configured it.
+        var section = new Dictionary<string, string?> { ["MaxAttempts"] = "3" };
+
+        // Act
+        var options = Bind(section);
+
+        // Assert
         options.MaxAttempts.Should().Be(3);
-        options.BackoffBaseSeconds.Should().Be(30);
-        options.BackoffCapSeconds.Should().Be(900);
+        options.RetentionDays.Should().BeNull();
     }
 
     [Fact]
@@ -320,6 +368,54 @@ public class BackgroundJobsOptionsTests
         result.Failed.Should().BeTrue();
         result.FailureMessage.Should().Contain($"{FullKey("JobTypes:X:BackoffCapSeconds")} (60)")
             .And.Contain($"{FullKey("JobTypes:X:BackoffBaseSeconds")} (the job type's default, declared in code) (120)");
+    }
+
+    [Fact]
+    public void Validate_ConfiguredGlobalCapBelowDeclaredBase_FailsNamingBothSources()
+    {
+        // Arrange
+        var options = Bind(new() { ["BackoffCapSeconds"] = "60" });
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { BackoffBaseSeconds = 120 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert — the configured global cap replaces nothing the job type set, so it is the cap the job type runs with.
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain($"{FullKey("BackoffCapSeconds")} (60)")
+            .And.Contain($"{FullKey("JobTypes:X:BackoffBaseSeconds")} (the job type's default, declared in code) (120)");
+    }
+
+    [Fact]
+    public void Validate_GlobalOutOfRangeInheritedByJobTypes_FailsOnceNamingTheGlobalKey()
+    {
+        // Arrange
+        var options = Bind(new() { ["MaxAttempts"] = "11" });
+        var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.For(DeclaredDefaults.Tuned, "X", "Y"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert — the job types run with the global value, which is reported once, under the key that sets it.
+        result.Failed.Should().BeTrue();
+        result.Failures.Should().ContainSingle()
+            .Which.Should().Be($"{FullKey("MaxAttempts")} must be at most 10, but is 11.");
+    }
+
+    [Fact]
+    public void Validate_OutOfRangeDeclaredDefaultReplacedByConfiguredGlobal_Succeeds()
+    {
+        // Arrange
+        var options = Bind(new() { ["MaxAttempts"] = "5" });
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { MaxAttempts = 11 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert
+        result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
     }
 
     [Fact]
