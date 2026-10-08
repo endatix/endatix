@@ -4,6 +4,7 @@ using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(AudiencePostgreSqlDbContext))]
-    partial class AudiencePostgreSqlDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261008074014_AddAudienceLinks")]
+    partial class AddAudienceLinks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -1,7 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Quartz;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -12,7 +11,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal sealed class JobAttemptClaimer(
     IServiceScopeFactory scopeFactory,
     JobHandlerRegistry registry,
-    IOptions<BackgroundJobsOptions> options,
+    JobTypePolicies policies,
     JobLifecycleMetrics metrics,
     ILogger<JobAttemptClaimer> logger)
 {
@@ -42,7 +41,7 @@ internal sealed class JobAttemptClaimer(
     }
 
     /// <summary>The policy attempts of <paramref name="jobType"/> run under.</summary>
-    private BackgroundJobTypePolicy PolicyFor(string jobType) => options.Value.ResolvePolicy(jobType);
+    private BackgroundJobTypePolicy PolicyFor(string jobType) => policies.For(jobType);
 
     private async Task<bool> TryDeadLetterSpentAsync(
         JobFiring firing,

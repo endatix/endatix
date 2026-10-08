@@ -1,4 +1,7 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Submissions;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -23,4 +26,7 @@ public class SubmissionModel
     public IReadOnlyDictionary<string, string>? SubmitterProfile { get; set; }
     public bool IsTestSubmission { get; set; }
     public string CollectionStatus { get; set; } = string.Empty;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PersonalizationRead? Personalization { get; set; }
 }

@@ -1,12 +1,20 @@
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <remarks>
+/// <para>
 /// Unknown job types, unknown per-type keys and unknown sibling sections pass. Overrides for a job type whose
 /// handler is not deployed yet, or a section another component reads, are not mistakes.
+/// </para>
+/// <para>
+/// A job type is validated on the values it runs with, as <see cref="JobTypeSettings.Resolve"/> resolves them, each
+/// named by the key it came from. A value the job type takes from the global one is validated once, as the global
+/// value, rather than once per job type.
+/// </para>
 /// </remarks>
-internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<BackgroundJobsOptions>
+internal sealed class BackgroundJobsOptionsValidator(JobTypeDefaults declaredDefaults) : IValidateOptions<BackgroundJobsOptions>
 {
     // Every value is bounded above as well as below. A value far above these does not tune the queue: it breaks
     // the timers and date arithmetic that run jobs, or asks one process for more work than it can carry, and the
@@ -30,10 +38,10 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
 
         ValidateHostSettings(options, failures);
         ValidateRetention(options, failures);
-        ValidateJobTypeDefaults(options, failures);
-        foreach (var (jobType, overrides) in options.JobTypes.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        ValidateGlobalJobTypeValues(options, failures);
+        foreach (var jobType in JobTypesToValidate(options))
         {
-            ValidateJobType(options, jobType, overrides, failures);
+            ValidateJobType(JobTypeSettings.Resolve(options, jobType, declaredDefaults.For(jobType)), failures);
         }
 
         return failures.Count is 0
@@ -69,63 +77,54 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
     }
 
     // The global values every job type falls back to.
-    private static void ValidateJobTypeDefaults(BackgroundJobsOptions options, List<string> failures)
+    private static void ValidateGlobalJobTypeValues(BackgroundJobsOptions options, List<string> failures)
     {
         RequireInRange(options.MaxRuntimeMinutes, GlobalKey(nameof(options.MaxRuntimeMinutes)), OneDayInMinutes, failures);
         RequireInRange(options.MaxAttempts, GlobalKey(nameof(options.MaxAttempts)), MaxAttemptsCeiling, failures);
         RequireInRange(options.BackoffBaseSeconds, GlobalKey(nameof(options.BackoffBaseSeconds)), OneDayInSeconds, failures);
         RequireInRange(options.BackoffCapSeconds, GlobalKey(nameof(options.BackoffCapSeconds)), OneDayInSeconds, failures);
         RequireCapNotBelowBase(
-            options.BackoffBaseSeconds,
-            GlobalKey(nameof(options.BackoffBaseSeconds)),
-            options.BackoffCapSeconds,
-            GlobalKey(nameof(options.BackoffCapSeconds)),
+            Global(options.BackoffBaseSeconds, BackgroundJobsOptions.DefaultBackoffBaseSeconds, nameof(options.BackoffBaseSeconds)),
+            Global(options.BackoffCapSeconds, BackgroundJobsOptions.DefaultBackoffCapSeconds, nameof(options.BackoffCapSeconds)),
             failures);
     }
 
-    private static void ValidateJobType(
-        BackgroundJobsOptions options,
-        string jobType,
-        BackgroundJobTypeOptions? overrides,
-        List<string> failures)
+    // A configured key that differs from a declared job type only in case is that job type, as it is when the
+    // policy is resolved, so it is validated once, under the declared name.
+    private IEnumerable<string> JobTypesToValidate(BackgroundJobsOptions options) =>
+        declaredDefaults.JobTypes
+            .Union(options.JobTypes.Keys, StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.Ordinal);
+
+    private static void ValidateJobType(JobTypeSettings settings, List<string> failures)
     {
-        if (overrides is null)
+        (JobTypeSetting Setting, int Maximum, int Minimum)[] bounded =
+        [
+            (settings.MaxAttempts, MaxAttemptsCeiling, 1),
+            (settings.MaxRuntimeMinutes, OneDayInMinutes, 1),
+            (settings.BackoffBaseSeconds, OneDayInSeconds, 1),
+            (settings.BackoffCapSeconds, OneDayInSeconds, 1),
+            (settings.RetentionDays, TenYearsInDays, 1),
+
+            // Zero is a real setting: it keeps this node from running the type while it still enqueues it.
+            (settings.MaxConcurrency, MaxConcurrencyCeiling, 0),
+        ];
+        foreach (var (setting, maximum, minimum) in bounded.Where(bound => !bound.Setting.IsGlobal))
         {
-            return;
+            RequireInRange(setting.Value, setting.Key, maximum, failures, minimum);
         }
 
-        RequireInRange(overrides.MaxAttempts, JobTypeKey(jobType, nameof(overrides.MaxAttempts)), MaxAttemptsCeiling, failures);
-        RequireInRange(overrides.MaxRuntimeMinutes, JobTypeKey(jobType, nameof(overrides.MaxRuntimeMinutes)), OneDayInMinutes, failures);
-        RequireInRange(overrides.BackoffBaseSeconds, JobTypeKey(jobType, nameof(overrides.BackoffBaseSeconds)), OneDayInSeconds, failures);
-        RequireInRange(overrides.BackoffCapSeconds, JobTypeKey(jobType, nameof(overrides.BackoffCapSeconds)), OneDayInSeconds, failures);
-        RequireInRange(overrides.RetentionDays, JobTypeKey(jobType, nameof(overrides.RetentionDays)), TenYearsInDays, failures);
+        RequireBackoffCapNotBelowBase(settings, failures);
+    }
 
-        // Zero is a real setting: it keeps this node from running the type while it still enqueues it.
-        RequireInRange(
-            overrides.MaxConcurrency,
-            JobTypeKey(jobType, nameof(overrides.MaxConcurrency)),
-            MaxConcurrencyCeiling,
-            failures,
-            minimum: 0);
-
-        // With neither value overridden the pair is the global one, which has already been checked.
-        if (overrides.BackoffBaseSeconds is null && overrides.BackoffCapSeconds is null)
+    // With both values the global ones, the pair has already been checked. Otherwise each side is named by the key
+    // its value came from, so a clash with an inherited global value points the operator at that global key.
+    private static void RequireBackoffCapNotBelowBase(JobTypeSettings settings, List<string> failures)
+    {
+        if (!settings.BackoffBaseSeconds.IsGlobal || !settings.BackoffCapSeconds.IsGlobal)
         {
-            return;
+            RequireCapNotBelowBase(settings.BackoffBaseSeconds, settings.BackoffCapSeconds, failures);
         }
-
-        // Each side is named by the key its value came from, so a clash with an inherited global value points
-        // the operator at that global key.
-        RequireCapNotBelowBase(
-            overrides.BackoffBaseSeconds ?? options.BackoffBaseSeconds,
-            overrides.BackoffBaseSeconds is null
-                ? GlobalKey(nameof(options.BackoffBaseSeconds))
-                : JobTypeKey(jobType, nameof(overrides.BackoffBaseSeconds)),
-            overrides.BackoffCapSeconds ?? options.BackoffCapSeconds,
-            overrides.BackoffCapSeconds is null
-                ? GlobalKey(nameof(options.BackoffCapSeconds))
-                : JobTypeKey(jobType, nameof(overrides.BackoffCapSeconds)),
-            failures);
     }
 
     private static void RequireInRange(int? value, string key, int maximum, List<string> failures, int minimum = 1)
@@ -152,34 +151,31 @@ internal sealed class BackgroundJobsOptionsValidator : IValidateOptions<Backgrou
         }
     }
 
-    private static void RequireCapNotBelowBase(
-        int baseSeconds,
-        string baseKey,
-        int capSeconds,
-        string capKey,
-        List<string> failures)
+    private static void RequireCapNotBelowBase(JobTypeSetting backoffBase, JobTypeSetting backoffCap, List<string> failures)
     {
         // A value below 1 has already been reported, and comparing it would only add a confusing second message.
-        if (baseSeconds < 1 || capSeconds < 1)
+        if (backoffBase.Value is not >= 1 || backoffCap.Value is not >= 1)
         {
             return;
         }
 
-        if (capSeconds < baseSeconds)
+        if (backoffCap.Value < backoffBase.Value)
         {
-            failures.Add($"{capKey} ({capSeconds}) must be greater than or equal to {baseKey} ({baseSeconds}).");
+            failures.Add(
+                $"{backoffCap.Key} ({backoffCap.Value}) must be greater than or equal to {backoffBase.Key} ({backoffBase.Value}).");
         }
     }
 
-    private static string GlobalKey(string optionName) =>
-        $"{BackgroundJobsOptions.SectionName}:{optionName}";
+    private static JobTypeSetting Global(int? configured, int globalDefault, string optionName) =>
+        configured is { } value
+            ? new(value, JobTypeSettingSource.GlobalConfiguration, GlobalKey(optionName))
+            : new(globalDefault, JobTypeSettingSource.GlobalDefault, GlobalKey(optionName));
+
+    private static string GlobalKey(string optionName) => BackgroundJobsOptions.GlobalKey(optionName);
 
     private static string RetentionKey(string optionName) =>
-        $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.Retention)}:{optionName}";
+        GlobalKey($"{nameof(BackgroundJobsOptions.Retention)}:{optionName}");
 
     private static string ClusteringKey(string optionName) =>
-        $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.Clustering)}:{optionName}";
-
-    private static string JobTypeKey(string jobType, string optionName) =>
-        $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.JobTypes)}:{jobType}:{optionName}";
+        GlobalKey($"{nameof(BackgroundJobsOptions.Clustering)}:{optionName}");
 }

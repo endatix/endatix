@@ -1,3 +1,4 @@
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Reporting.Features.BackgroundJobs;
 using Endatix.Modules.Reporting.Features.Outbox;
@@ -39,6 +40,37 @@ public sealed class ReportingSubscriptionsTests
         var allInlineEvents = inline.SelectMany(handler => handler.EventTypes).Distinct().ToList();
         allInlineEvents.SelectMany(subscriptions.For).Select(subscription => subscription.JobType)
             .Should().OnlyContain(jobType => jobType.StartsWith("Reporting", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AddReportingOutboxWork_Default_DeclaresTheTunedSettingsForEveryReportingJobType()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var tuned = new BackgroundJobTypeDefaults
+        {
+            MaxAttempts = 5,
+            MaxRuntimeMinutes = 10,
+            BackoffBaseSeconds = 10,
+            BackoffCapSeconds = 600,
+            RetentionDays = 3,
+            MaxConcurrency = 2,
+        };
+
+        // Act
+        services.AddReportingOutboxWork();
+        using var provider = services.BuildServiceProvider();
+
+        // Assert — every host gets these, whatever its configuration holds.
+        var declared = provider.GetServices<BackgroundJobTypeDefaults>().ToList();
+        declared.Select(defaults => defaults.JobType).Should().BeEquivalentTo(
+            ReportingCompileFormSchemaPayload.JobType,
+            ReportingFlattenSubmissionPayload.JobType,
+            ReportingSeedDefaultExportFormatsPayload.JobType,
+            ReportingSyncFormDeletionPayload.JobType,
+            ReportingSyncSubmissionDeletionPayload.JobType);
+        declared.Should().AllSatisfy(defaults =>
+            defaults.Should().BeEquivalentTo(tuned, options => options.Excluding(value => value.JobType)));
     }
 
     [Fact]
