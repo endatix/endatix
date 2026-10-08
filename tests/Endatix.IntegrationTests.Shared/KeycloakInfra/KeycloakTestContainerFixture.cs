@@ -28,7 +28,7 @@ public sealed class KeycloakTestContainerFixture : IAsyncLifetime
             var network =
                 await EndatixTestcontainers.AcquireNetworkAsync(_settings);
 
-            var builder = new KeycloakBuilder(new DockerImage("quay.io/keycloak/keycloak:26.6"))
+            var builder = new KeycloakBuilder(new DockerImage("quay.io/keycloak/keycloak:26.8"))
                 .WithNetwork(network)
                 .WithNetworkAliases("keycloak");
 
