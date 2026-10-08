@@ -15,6 +15,18 @@ namespace Endatix.Modules.Reporting.Features.BackgroundJobs;
 /// </summary>
 internal static class ReportingOutboxJobs
 {
+    // Every Reporting job is one short read-model update, so ten minutes is ample for an attempt, and five attempts
+    // doubling from 10 seconds retry for about two and a half minutes.
+    private static readonly BackgroundJobTypeDefaults JobDefaults = new()
+    {
+        MaxAttempts = 5,
+        MaxRuntimeMinutes = 10,
+        BackoffBaseSeconds = 10,
+        BackoffCapSeconds = 600,
+        RetentionDays = 3,
+        MaxConcurrency = 2,
+    };
+
     public static IServiceCollection AddReportingOutboxWork(this IServiceCollection services)
     {
         AddInlineHandlers(services);
@@ -35,11 +47,11 @@ internal static class ReportingOutboxJobs
 
     private static void AddJobHandlers(IServiceCollection services)
     {
-        services.AddBackgroundJobHandler<CompileFormSchemaJobHandler, ReportingCompileFormSchemaPayload>();
-        services.AddBackgroundJobHandler<FlattenSubmissionJobHandler, ReportingFlattenSubmissionPayload>();
-        services.AddBackgroundJobHandler<SeedDefaultExportFormatsJobHandler, ReportingSeedDefaultExportFormatsPayload>();
-        services.AddBackgroundJobHandler<SyncFormDeletionJobHandler, ReportingSyncFormDeletionPayload>();
-        services.AddBackgroundJobHandler<SyncSubmissionDeletionJobHandler, ReportingSyncSubmissionDeletionPayload>();
+        services.AddBackgroundJobHandler<CompileFormSchemaJobHandler, ReportingCompileFormSchemaPayload>(JobDefaults);
+        services.AddBackgroundJobHandler<FlattenSubmissionJobHandler, ReportingFlattenSubmissionPayload>(JobDefaults);
+        services.AddBackgroundJobHandler<SeedDefaultExportFormatsJobHandler, ReportingSeedDefaultExportFormatsPayload>(JobDefaults);
+        services.AddBackgroundJobHandler<SyncFormDeletionJobHandler, ReportingSyncFormDeletionPayload>(JobDefaults);
+        services.AddBackgroundJobHandler<SyncSubmissionDeletionJobHandler, ReportingSyncSubmissionDeletionPayload>(JobDefaults);
     }
 
     private static void AddSubscriptions(IServiceCollection services)

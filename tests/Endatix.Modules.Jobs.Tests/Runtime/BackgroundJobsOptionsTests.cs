@@ -1,4 +1,6 @@
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Modules.Jobs.Runtime;
+using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.Extensions.Configuration;
 using Endatix.Framework.Modules;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,6 +64,16 @@ public class BackgroundJobsOptionsTests
             new() { ["BackoffCapSeconds"] = "60", ["JobTypes:X:BackoffBaseSeconds"] = "120" },
             ["JobTypes:X:BackoffBaseSeconds", "BackoffCapSeconds"]
         },
+        {
+            "job type backoff base above the global default cap",
+            new() { ["JobTypes:X:BackoffBaseSeconds"] = "1000" },
+            ["JobTypes:X:BackoffBaseSeconds", "BackoffCapSeconds"]
+        },
+        {
+            "global attempts above its upper bound",
+            new() { ["MaxAttempts"] = "11" },
+            ["MaxAttempts"]
+        },
     };
 
     public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidRetentionValues => new()
@@ -94,16 +106,54 @@ public class BackgroundJobsOptionsTests
         options.Clustering.CheckinIntervalSeconds.Should().Be(7.5);
         options.Clustering.CheckinMisfireThresholdSeconds.Should().Be(7.5);
         options.Clustering.InstanceId.Should().BeNull();
-        options.RetentionDays.Should().Be(7);
         options.Retention.Cron.Should().Be("0 0/15 * * * ?");
         options.Retention.BatchSize.Should().Be(1000);
         options.Retention.MaxBatchesPerRun.Should().Be(50);
         options.MisfireThresholdSeconds.Should().Be(60);
         options.ShutdownWaitSeconds.Should().Be(30);
-        options.MaxRuntimeMinutes.Should().Be(60);
+    }
+
+    [Fact]
+    public void Bind_EmptyConfiguration_LeavesTheGlobalJobTypeValuesUnsetWithDocumentedDefaults()
+    {
+        // Arrange
+        var section = new Dictionary<string, string?>();
+
+        // Act
+        var options = Bind(section);
+
+        // Assert — an unset global must stay unset, or it would replace every job type's declared defaults.
+        int?[] globalJobTypeValues =
+        [
+            options.MaxRuntimeMinutes,
+            options.MaxAttempts,
+            options.BackoffBaseSeconds,
+            options.BackoffCapSeconds,
+            options.RetentionDays,
+        ];
+        globalJobTypeValues.Should().AllSatisfy(value => value.Should().BeNull());
+        new[]
+        {
+            BackgroundJobsOptions.DefaultMaxRuntimeMinutes,
+            BackgroundJobsOptions.DefaultMaxAttempts,
+            BackgroundJobsOptions.DefaultBackoffBaseSeconds,
+            BackgroundJobsOptions.DefaultBackoffCapSeconds,
+            BackgroundJobsOptions.DefaultRetentionDays,
+        }.Should().Equal(60, 3, 30, 900, 7);
+    }
+
+    [Fact]
+    public void Bind_GlobalKeySetToItsDefaultValue_IsSet()
+    {
+        // Arrange — a host that writes the default value has still configured it.
+        var section = new Dictionary<string, string?> { ["MaxAttempts"] = "3" };
+
+        // Act
+        var options = Bind(section);
+
+        // Assert
         options.MaxAttempts.Should().Be(3);
-        options.BackoffBaseSeconds.Should().Be(30);
-        options.BackoffCapSeconds.Should().Be(900);
+        options.RetentionDays.Should().BeNull();
     }
 
     [Fact]
@@ -113,8 +163,8 @@ public class BackgroundJobsOptionsTests
         var options = Bind(new() { ["JobTypes:WebHookDelivery:MaxAttempts"] = "8" });
 
         // Act
-        var overridden = options.ResolvePolicy("WebHookDelivery");
-        var notOverridden = options.ResolvePolicy("SubmissionExport");
+        var overridden = options.ResolvePolicy("WebHookDelivery", declared: null);
+        var notOverridden = options.ResolvePolicy("SubmissionExport", declared: null);
 
         // Assert — an override replaces only the key it sets; every other key, and every other job type, keeps the
         // global value.
@@ -130,7 +180,7 @@ public class BackgroundJobsOptionsTests
         var options = Bind(new() { ["JobTypes:webhookdelivery:MaxAttempts"] = "8" });
 
         // Act
-        var policy = options.ResolvePolicy("WebHookDelivery");
+        var policy = options.ResolvePolicy("WebHookDelivery", declared: null);
 
         // Assert — configuration keys are case-insensitive everywhere else, so an override written in another case
         // must apply rather than be silently ignored.
@@ -151,7 +201,7 @@ public class BackgroundJobsOptionsTests
         };
 
         // Act
-        var policy = options.ResolvePolicy("webhookdelivery");
+        var policy = options.ResolvePolicy("webhookdelivery", declared: null);
 
         // Assert
         policy.MaxAttempts.Should().Be(8);
@@ -199,7 +249,7 @@ public class BackgroundJobsOptionsTests
     {
         // Arrange
         var options = Bind(section);
-        var validator = new BackgroundJobsOptionsValidator();
+        var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.None);
 
         // Act
         var result = validator.Validate(Options.DefaultName, options);
@@ -214,7 +264,7 @@ public class BackgroundJobsOptionsTests
     {
         // Arrange — overrides for a job type whose handler is not deployed yet are not mistakes.
         var options = Bind(new() { ["JobTypes:UnknownType:MaxAttempts"] = "5" });
-        var validator = new BackgroundJobsOptionsValidator();
+        var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.None);
 
         // Act
         var result = validator.Validate(Options.DefaultName, options);
@@ -265,8 +315,8 @@ public class BackgroundJobsOptionsTests
         var options = Bind(new() { ["JobTypes:WebHookDelivery:MaxConcurrency"] = "4" });
 
         // Act
-        var overridden = options.ResolvePolicy("WebHookDelivery");
-        var unset = options.ResolvePolicy("SubmissionExport");
+        var overridden = options.ResolvePolicy("WebHookDelivery", declared: null);
+        var unset = options.ResolvePolicy("SubmissionExport", declared: null);
 
         // Assert
         overridden.MaxConcurrency.Should().Be(4);
@@ -278,7 +328,7 @@ public class BackgroundJobsOptionsTests
     {
         // Arrange — zero keeps a node from running a job type it still enqueues.
         var options = Bind(new() { ["JobTypes:X:MaxConcurrency"] = "0" });
-        var validator = new BackgroundJobsOptionsValidator();
+        var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.None);
 
         // Act
         var result = validator.Validate(Options.DefaultName, options);
@@ -287,8 +337,121 @@ public class BackgroundJobsOptionsTests
         result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
     }
 
+    [Fact]
+    public void Validate_DeclaredDefaultOutOfRange_FailsNamingTheKeyThatOverridesIt()
+    {
+        // Arrange
+        var options = Bind(new());
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { MaxAttempts = 11 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert — the operator learns the value came from code and which key replaces it.
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain(FullKey("JobTypes:X:MaxAttempts")).And.Contain("declared in code");
+    }
+
+    [Fact]
+    public void Validate_ConfiguredCapBelowDeclaredBase_FailsNamingBothSources()
+    {
+        // Arrange
+        var options = Bind(new() { ["JobTypes:X:BackoffCapSeconds"] = "60" });
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { BackoffBaseSeconds = 120 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert — the base in effect is the declared one, not the global 30 seconds the cap would clear.
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain($"{FullKey("JobTypes:X:BackoffCapSeconds")} (60)")
+            .And.Contain($"{FullKey("JobTypes:X:BackoffBaseSeconds")} (the job type's default, declared in code) (120)");
+    }
+
+    [Fact]
+    public void Validate_ConfiguredGlobalCapBelowDeclaredBase_FailsNamingBothSources()
+    {
+        // Arrange
+        var options = Bind(new() { ["BackoffCapSeconds"] = "60" });
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { BackoffBaseSeconds = 120 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert — the configured global cap replaces nothing the job type set, so it is the cap the job type runs with.
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain($"{FullKey("BackoffCapSeconds")} (60)")
+            .And.Contain($"{FullKey("JobTypes:X:BackoffBaseSeconds")} (the job type's default, declared in code) (120)");
+    }
+
+    [Fact]
+    public void Validate_GlobalOutOfRangeInheritedByJobTypes_FailsOnceNamingTheGlobalKey()
+    {
+        // Arrange
+        var options = Bind(new() { ["MaxAttempts"] = "11" });
+        var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.For(DeclaredDefaults.Tuned, "X", "Y"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert — the job types run with the global value, which is reported once, under the key that sets it.
+        result.Failed.Should().BeTrue();
+        result.Failures.Should().ContainSingle()
+            .Which.Should().Be($"{FullKey("MaxAttempts")} must be at most 10, but is 11.");
+    }
+
+    [Fact]
+    public void Validate_OutOfRangeDeclaredDefaultReplacedByConfiguredGlobal_Succeeds()
+    {
+        // Arrange
+        var options = Bind(new() { ["MaxAttempts"] = "5" });
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { MaxAttempts = 11 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert
+        result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
+    }
+
+    [Fact]
+    public void Validate_OutOfRangeDeclaredDefaultOverridden_Succeeds()
+    {
+        // Arrange — only the values a job type runs with are validated, and the override replaces the declared one.
+        var options = Bind(new() { ["JobTypes:X:MaxAttempts"] = "5" });
+        var validator = new BackgroundJobsOptionsValidator(
+            DeclaredDefaults.For(new BackgroundJobTypeDefaults { MaxAttempts = 11 }, "X"));
+
+        // Act
+        var result = validator.Validate(Options.DefaultName, options);
+
+        // Assert
+        result.Succeeded.Should().BeTrue("validation reported: {0}", result.FailureMessage);
+    }
+
+    [Fact]
+    public void Validate_DeclaredDefaultsAndNoConfiguration_StartupSucceeds()
+    {
+        // Arrange
+        using var provider = ModuleProvider(
+            new(),
+            services => services.AddBackgroundJobTypeDefaults("WebHookDelivery", DeclaredDefaults.Tuned));
+
+        // Act
+        var validate = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        // Assert
+        validate.Should().NotThrow();
+    }
+
     // The module's own registration, as a host runs it, so the test sees what startup validation sees.
-    private static ServiceProvider ModuleProvider(Dictionary<string, string?> section)
+    private static ServiceProvider ModuleProvider(
+        Dictionary<string, string?> section,
+        Action<IServiceCollection>? configureServices = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(section.Select(entry => KeyValuePair.Create(FullKey(entry.Key), entry.Value)))
@@ -302,6 +465,7 @@ public class BackgroundJobsOptionsTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         JobsModule.Instance.ConfigureServices(new EndatixModuleBuilder(services, configuration));
+        configureServices?.Invoke(services);
         return services.BuildServiceProvider();
     }
 
