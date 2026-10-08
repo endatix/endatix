@@ -31,7 +31,7 @@
       "firstName": "Test",
       "lastName": "User",
       "credentials": [
-        { "type": "password", "value": "admin@2", "temporary": false }
+        { "type": "password", "value": "${KC_DEV_USER_PASSWORD}", "temporary": false }
       ]
     },
     {
@@ -42,7 +42,7 @@
       "firstName": "External",
       "lastName": "Admin",
       "credentials": [
-        { "type": "password", "value": "admin@2", "temporary": false }
+        { "type": "password", "value": "${KC_DEV_USER_PASSWORD}", "temporary": false }
       ],
       "clientRoles": { "endatix-hub": ["admin"] }
     },
@@ -54,7 +54,7 @@
       "firstName": "External",
       "lastName": "Creator",
       "credentials": [
-        { "type": "password", "value": "admin@2", "temporary": false }
+        { "type": "password", "value": "${KC_DEV_USER_PASSWORD}", "temporary": false }
       ],
       "clientRoles": { "endatix-hub": ["creator"] }
     },
@@ -66,7 +66,7 @@
       "firstName": "External",
       "lastName": "Respondent",
       "credentials": [
-        { "type": "password", "value": "admin@2", "temporary": false }
+        { "type": "password", "value": "${KC_DEV_USER_PASSWORD}", "temporary": false }
       ],
       "clientRoles": { "endatix-hub": ["respondent"] }
     }
@@ -78,7 +78,7 @@
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
-      "secret": "endatix-dev-hub-client-secret",
+      "secret": "${KC_HUB_CLIENT_SECRET}",
       "clientAuthenticatorType": "client-secret",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,

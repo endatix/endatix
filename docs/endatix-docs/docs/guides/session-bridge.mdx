@@ -8,14 +8,15 @@ sidebar_position: 3
 
 Session bridge turns a Keycloak access token into an Endatix Hub session. A mobile app, or any other client that already holds a Keycloak access token, posts that token to Hub. Hub exchanges it with Keycloak and sets the Auth.js session cookie on the response.
 
-Complete [Keycloak setup](/docs/building-your-solution/authentication/keycloak) first. The dev realm adds a public client `mobile-app` whose access tokens set `aud` to `endatix-hub`, which is what Keycloak requires of the subject token. Sign in as any realm user (`admin@2`), for example `external-admin@endatix.com`.
+Complete [Keycloak setup](/docs/building-your-solution/authentication/keycloak) first. The dev realm adds a public client `mobile-app` whose access tokens set `aud` to `endatix-hub`, which is what Keycloak requires of the subject token. Sign in as any realm user, for example `external-admin@endatix.com`, with `KC_DEV_USER_PASSWORD` from `docker/keycloak/.env`. Run this from the Endatix API repository root:
 
 ```bash
+source docker/keycloak/.env
 curl -s -X POST http://127.0.0.1:8080/realms/endatix/protocol/openid-connect/token \
   -d 'grant_type=password' \
   -d 'client_id=mobile-app' \
   -d 'username=external-admin@endatix.com' \
-  -d 'password=admin@2'
+  --data-urlencode "password=$KC_DEV_USER_PASSWORD"
 ```
 
 The `access_token` from that response is the body field for `POST /api/auth/session-bridge`.

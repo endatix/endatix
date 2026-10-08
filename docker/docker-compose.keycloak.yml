@@ -7,8 +7,10 @@ services:
     command: start-dev --import-realm
     ports:
       - "127.0.0.1:8080:8080"
+    # Created by keycloak/generate-dev-env.sh. The realm import reads the user password
+    # and client secret from these variables, so no credential is stored in the repo.
+    env_file: ./keycloak/.env
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
     volumes:
       - ./keycloak/endatix-realm.json:/opt/keycloak/data/import/endatix-realm.json:ro
