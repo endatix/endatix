@@ -26,6 +26,7 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
     public DbSet<Member> Members => Set<Member>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<PropertyValue> PropertyValues => Set<PropertyValue>();
+    public DbSet<AudienceImport> AudienceImports => Set<AudienceImport>();
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
@@ -37,6 +38,7 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
         modelBuilder.ApplyConfiguration(new MemberConfiguration());
         modelBuilder.ApplyConfiguration(new MembershipConfiguration());
         modelBuilder.ApplyConfiguration(new PropertyValueConfiguration());
+        modelBuilder.ApplyConfiguration(new AudienceImportConfiguration());
         ApplyProviderConfigurations(modelBuilder);
         modelBuilder.ApplyEndatixQueryFilters(this);
         modelBuilder.ApplyModuleTableNames();

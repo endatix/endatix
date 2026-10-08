@@ -9,4 +9,8 @@
     <ProjectReference Include="..\..\src\Endatix.Modules.Audience\Endatix.Modules.Audience.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Features\Import\Fixtures\*.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
