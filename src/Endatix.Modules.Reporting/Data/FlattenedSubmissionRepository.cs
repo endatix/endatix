@@ -11,7 +11,7 @@ namespace Endatix.Modules.Reporting.Data;
 /// Repository for flattened submissions.
 /// </summary>
 internal sealed class FlattenedSubmissionRepository(
-    ReportingDbContext dbContext,
+    IReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork) : IFlattenedSubmissionRepository
 {
     /// <inheritdoc />
@@ -146,7 +146,7 @@ internal sealed class FlattenedSubmissionRepository(
         {
             // Two first flattens of one submission both found no row; the one that lost the insert uses the
             // other's row. Anything else is not a duplicate and fails as it would have.
-            dbContext.Entry(created).State = EntityState.Detached;
+            dbContext.FlattenedSubmissions.Entry(created).State = EntityState.Detached;
             if (!await ExistsAsync(created.SubmissionId, cancellationToken))
             {
                 throw;

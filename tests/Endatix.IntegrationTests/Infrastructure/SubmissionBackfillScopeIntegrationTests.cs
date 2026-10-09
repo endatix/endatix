@@ -300,7 +300,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
 
     private static async Task<SubmissionBackfillProcessor> CreateBackfillProcessorAsync(
         AppDbContext appDb,
-        ReportingDbContext reportingDb,
+        ReportingDbContextBase reportingDb,
         SeededForms seed,
         CancellationToken cancellationToken)
     {
@@ -317,7 +317,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
             NullLogger<SubmissionBackfillProcessor>.Instance);
     }
 
-    private static SubmissionFlatteningProcessor CreateFlatteningProcessor(AppDbContext appDb, ReportingDbContext reportingDb) =>
+    private static SubmissionFlatteningProcessor CreateFlatteningProcessor(AppDbContext appDb, ReportingDbContextBase reportingDb) =>
         new(
             CreateSubmissionRepository(appDb),
             new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
@@ -340,9 +340,10 @@ public sealed class SubmissionBackfillScopeIntegrationTests
             new OutboxIntegrationEventDispatcher());
     }
 
-    private ReportingDbContext CreateReportingDbContext() =>
-        new(
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString).Options,
+    private ReportingDbContextBase CreateReportingDbContext() =>
+        ReportingTestSchema.CreateContext(
+            _fixture.ConnectionString,
+            _fixture.Provider,
             new IntegrationTenantContext(TenantId));
 
     private sealed record SeededForms(

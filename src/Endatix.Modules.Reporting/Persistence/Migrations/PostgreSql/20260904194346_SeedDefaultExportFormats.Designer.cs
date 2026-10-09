@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
-    [DbContext(typeof(ReportingDbContext))]
+    [DbContext(typeof(ReportingPostgreSqlDbContext))]
     [Migration("20260904194346_SeedDefaultExportFormats")]
     partial class SeedDefaultExportFormats
     {

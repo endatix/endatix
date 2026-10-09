@@ -5,7 +5,7 @@ using Endatix.Modules.Reporting.Domain;
 
 namespace Endatix.Modules.Reporting.Persistence.Config.PostgreSql;
 
-[ApplyConfigurationFor<ReportingDbContext>]
+[ApplyConfigurationFor<ReportingPostgreSqlDbContext>]
 internal sealed class FlattenedSubmissionConfigurationPostgreSql : IEntityTypeConfiguration<FlattenedSubmission>
 {
     public void Configure(EntityTypeBuilder<FlattenedSubmission> builder)

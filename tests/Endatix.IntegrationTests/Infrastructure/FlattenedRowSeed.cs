@@ -9,7 +9,7 @@ namespace Endatix.IntegrationTests;
 /// Writes flattened rows the way a flatten does: the row is created, then its state is set by the repository's
 /// conditional writes.
 /// </summary>
-internal sealed class FlattenedRowSeed(ReportingDbContext dbContext)
+internal sealed class FlattenedRowSeed(ReportingDbContextBase dbContext)
 {
     // Every seeded write uses one revision, and a write from the same revision as the row's still lands.
     private const long SeedRevision = 1;

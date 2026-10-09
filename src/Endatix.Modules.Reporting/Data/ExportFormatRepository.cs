@@ -14,7 +14,7 @@ namespace Endatix.Modules.Reporting.Data;
 /// Repository for tenant export format definitions.
 /// </summary>
 internal sealed class ExportFormatRepository(
-    ReportingDbContext dbContext,
+    IReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork,
     ExportFormatSettingsParser settingsParser,
     IExportCapabilityRegistry capabilityRegistry,

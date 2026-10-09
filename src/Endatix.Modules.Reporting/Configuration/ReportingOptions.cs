@@ -8,7 +8,8 @@ public sealed class ReportingOptions
     public const string SECTION_NAME = "Customizations:Reporting";
 
     /// <summary>
-    /// When true, applies EF migrations for <see cref="Persistence.ReportingDbContext"/> at application startup.
+    /// When true, applies the active provider's EF migrations for <see cref="Persistence.ReportingDbContextBase"/>
+    /// at application startup.
     /// </summary>
     public bool ApplyMigrationsAtStartup { get; set; } = true;
 }
