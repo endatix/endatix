@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Endatix.Modules.Jobs.Persistence.Config;
 
 /// <summary>
-/// Provider-agnostic mapping for <see cref="BackgroundJob"/>. The JSON column type and the tenant check
-/// are provider-specific — see the PostgreSql configuration.
+/// Provider-agnostic mapping for <see cref="BackgroundJob"/>. The JSON column type, the tenant check and the
+/// dedup index filter are provider-specific — see <see cref="BackgroundJobProviderConfiguration"/>.
 /// </summary>
 internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<BackgroundJob>
 {

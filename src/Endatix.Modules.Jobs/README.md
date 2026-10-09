@@ -58,14 +58,8 @@ Database schema: `jobs`
 | `qrtz_*` | Quartz.NET's clustered job store: durable jobs, triggers, fired triggers, node check-ins, locks |
 
 The schema carries its own `__EFMigrationsHistory`, so job migrations advance independently
-of app-schema migrations. Quartz's tables are created by the `jobs` migrations only, from the
-PostgreSQL script embedded in the referenced Quartz.NET version, so a fresh database always gets
-the schema that version expects. Quartz validates them at startup (`SchemaProvisioning.Validate`)
-and never creates them, so a node whose tables are missing or outdated fails to start. A Quartz
-upgrade that changes its schema also ships a `jobs` migration, for databases created before it.
-That migration must be idempotent (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, and
-so on): a database created after the upgrade already has the new schema from
-`InitialBackgroundJobs` when it runs.
+of app-schema migrations. Quartz's tables are created by the `jobs` migrations only; see
+[Quartz schema and upgrades](#quartz-schema-and-upgrades).
 
 ### Status
 
@@ -378,13 +372,15 @@ writes to.
 
 **PostgreSQL is currently the only supported provider.** With the flag off — the default —
 nothing is registered and other providers are unaffected. With the flag on and a different
-provider configured, the host fails at startup naming the constraint.
+provider configured, the host fails at startup naming the constraint. The SQL Server context and
+its migration already exist, so a SQL Server database can be migrated and checked, but the module
+does not run on SQL Server yet.
 
-Persistence is **provider-split**: `JobsPostgreSqlDbContext` derives from `JobsDbContextBase`
-and owns its migrations and model snapshot under `Persistence/Migrations/PostgreSql`. EF Core
-keeps one model snapshot per context type, so adding a provider means adding a derived context,
-its own design-time factory, its own `Config/<Provider>/` configuration and its own migrations
-folder — never reusing an existing one.
+Persistence is **provider-split**: `JobsPostgreSqlDbContext` and `JobsSqlServerDbContext` derive
+from `JobsDbContextBase`, and each owns its migrations and model snapshot under
+`Persistence/Migrations/<Provider>`. EF Core keeps one model snapshot per context type, so adding a
+provider means adding a derived context, its own design-time factory, its own `Config/<Provider>/`
+configuration and its own migrations folder — never reusing an existing one.
 
 The migrations were reset once, in the change that moved scheduling onto Quartz, to a single
 `InitialBackgroundJobs` migration. v0.7.6 and the canaries before this change shipped the earlier
@@ -396,17 +392,72 @@ never ran, because no release executed jobs, and they cannot be carried over, be
 needs a Quartz trigger as well as its row. Back up `jobs."BackgroundJobs"` first if you need a
 record of them. From here on `jobs` migrations are append-only.
 
-Run the commands from the repository root, with `Endatix.WebHost` as the startup project.
+SQL Server's chain starts with its own `InitialBackgroundJobs`, which creates everything the three
+PostgreSQL migrations create, including the trigger acquisition index. It needs **SQL Server 2025 or
+later, or Azure SQL Database**, for the native `json` column type.
+
+Run the commands from the repository root, with `Endatix.WebHost` as the startup project. Each
+design-time factory pins its provider and reads `ConnectionStrings:DefaultConnection`, so set a
+connection string of that provider.
 
 ```bash
+# PostgreSQL
 dotnet ef migrations add <Name> \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Jobs \
   --context JobsPostgreSqlDbContext \
   --output-dir Persistence/Migrations/PostgreSql
+
+# SQL Server
+dotnet ef migrations add <Name> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.Jobs \
+  --context JobsSqlServerDbContext \
+  --output-dir Persistence/Migrations/SqlServer
 ```
 
 Migrations apply automatically at startup when `Endatix:Data:EnableAutoMigrations` is enabled.
+
+### Quartz schema and upgrades
+
+Quartz never migrates its own schema. The module keeps Quartz's `SchemaProvisioning` at `Validate`:
+a node checks the tables at startup and refuses to start when one is missing or outdated, but never
+creates or changes one. Only the `jobs` EF migrations do.
+
+Both providers' `InitialBackgroundJobs` run Quartz's create script for their dialect,
+`create_postgres.sql` or `create_sqlServer.sql`, read at migration time from the Quartz.NET assembly
+the module references (`QuartzSchemaScripts`), with the table prefix `jobs.qrtz_`. The module keeps
+no copy of either script, so a fresh database always gets the schema that Quartz version validates.
+
+Quartz 4.2.2 embeds only its create scripts, not its upgrade scripts. Quartz's upgrade scripts
+(`database/migrations/<version>/` in the Quartz.NET repository, such as
+`4.2/add_continuations_<dialect>.sql`) are additive and guarded (`IF NOT EXISTS`, `IF COL_LENGTH(…)
+IS NULL` and the like), so they are no-ops on a database whose tables the create script just made.
+
+When a Quartz bump changes the schema, add one EF migration **per provider**:
+
+1. Paste Quartz's guarded upgrade SQL for that provider inline with `migrationBuilder.Sql("""…""")`,
+   with `{0}` replaced by `jobs.qrtz_` and `{1}` by `qrtz_`, under a comment linking the file at the
+   Quartz release tag, for example
+   `https://github.com/quartznet/quartznet/blob/v<version>/database/migrations/<version>/<file>.sql`.
+   `AddTriggerAcquisitionIndex` shows the style.
+2. If that Quartz version embeds its upgrade scripts, load them from the package instead, the way
+   `QuartzSchemaScripts` loads the create script.
+3. A fresh database runs `InitialBackgroundJobs` with the new create script first, so the guarded
+   upgrade then changes nothing.
+
+**Keep the acquisition index.** Trigger acquisition reads `qrtz_TRIGGERS` through an index of the
+module's own, `idx_endatix_qrtz_t_acquire`, keyed on the group each trigger belongs to
+(`COALESCE(EXECUTION_GROUP, JOB_NAME)`). On SQL Server that group is the persisted computed column
+`ENDATIX_ACQUIRE_GROUP`, and the SQL Server acquisition filters on the column by name; on PostgreSQL
+the index is on the expression itself. An upgrade migration whose Quartz script rebuilds
+`qrtz_TRIGGERS` (drops and re-creates it, or copies it into a new table) must re-create, in the same
+EF migration, `ENDATIX_ACQUIRE_GROUP` and `idx_endatix_qrtz_t_acquire` on SQL Server and
+`idx_endatix_qrtz_t_acquire` on PostgreSQL. Quartz validates its own columns only, so it accepts the
+extra column.
+
+See the Quartz.NET [database documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/db/)
+and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-4.x/operations.html).
 
 ## Third-party licence
 

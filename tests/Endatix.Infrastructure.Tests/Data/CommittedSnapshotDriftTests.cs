@@ -45,6 +45,7 @@ public sealed class CommittedSnapshotDriftTests
         { PostgreSql, typeof(AudiencePostgreSqlDbContext) },
         { SqlServer, typeof(AppDbContext) },
         { SqlServer, typeof(AppIdentityDbContext) },
+        { SqlServer, typeof(JobsSqlServerDbContext) },
     };
 
     [Theory]
@@ -154,9 +155,7 @@ public sealed class CommittedSnapshotDriftTests
         }
         else
         {
-            new SqlServerPersistenceBuilder(services)
-                .UseDefault<AppDbContext>()
-                .UseDefault<AppIdentityDbContext>();
+            AddSqlServerContexts(services, configuration);
         }
 
         return services.BuildServiceProvider();
@@ -170,5 +169,13 @@ public sealed class CommittedSnapshotDriftTests
         services.AddModuleDbContext<ReportingDbContext>(configuration, ReportingPersistence.ConfigureDbContextOptions);
         services.AddModuleDbContext<JobsPostgreSqlDbContext>(configuration, JobsPersistence.ConfigureDbContextOptions);
         services.AddModuleDbContext<AudiencePostgreSqlDbContext>(configuration, AudiencePersistence.ConfigureDbContextOptions);
+    }
+
+    private static void AddSqlServerContexts(IServiceCollection services, IConfiguration configuration)
+    {
+        new SqlServerPersistenceBuilder(services)
+            .UseDefault<AppDbContext>()
+            .UseDefault<AppIdentityDbContext>();
+        services.AddModuleDbContext<JobsSqlServerDbContext>(configuration, JobsPersistence.ConfigureDbContextOptions);
     }
 }
