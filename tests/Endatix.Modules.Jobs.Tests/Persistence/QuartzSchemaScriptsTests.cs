@@ -1,3 +1,6 @@
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Endatix.Modules.Jobs.Persistence;
 
@@ -5,6 +8,41 @@ namespace Endatix.Modules.Jobs.Tests.Persistence;
 
 public sealed partial class QuartzSchemaScriptsTests
 {
+    private const string PostgreSqlScriptResource = "Quartz.Impl.AdoJobStore.Schema.create_postgres.sql";
+    private const string SqlServerScriptResource = "Quartz.Impl.AdoJobStore.Schema.create_sqlServer.sql";
+
+    // The Quartz version the hashes below were taken from. Existing databases have the tables of that version, and
+    // a later Quartz whose script hashes the same needs no jobs migration for that provider.
+    private const string PinnedQuartzVersion = "4.2.2";
+    private const string PinnedPostgreSqlScriptSha256 = "2cee704d332085e3fed27d0f571405abfd9e6989ead422018243ab2e2485ad7d";
+    private const string PinnedSqlServerScriptSha256 = "027d36c80d89f6f059d03b14b6e5c5f98b3741b05d668de938e2b2041a23b8bf";
+
+    [Fact]
+    public void PostgreSqlScript_FromReferencedQuartz_MatchesThePinnedHash()
+    {
+        // Arrange
+        var quartz = typeof(Quartz.IScheduler).Assembly;
+
+        // Act
+        var hash = Sha256OfScriptAsTheMigrationReadsIt(quartz, PostgreSqlScriptResource);
+
+        // Assert
+        hash.Should().Be(PinnedPostgreSqlScriptSha256, SchemaChangedReason(quartz, "PostgreSQL", PostgreSqlScriptResource));
+    }
+
+    [Fact]
+    public void SqlServerScript_FromReferencedQuartz_MatchesThePinnedHash()
+    {
+        // Arrange
+        var quartz = typeof(Quartz.IScheduler).Assembly;
+
+        // Act
+        var hash = Sha256OfScriptAsTheMigrationReadsIt(quartz, SqlServerScriptResource);
+
+        // Assert
+        hash.Should().Be(PinnedSqlServerScriptSha256, SchemaChangedReason(quartz, "SQL Server", SqlServerScriptResource));
+    }
+
     [Fact]
     public void PostgreSqlTables_FromReferencedQuartz_PlacesEveryTableInJobsSchema()
     {
@@ -171,4 +209,25 @@ public sealed partial class QuartzSchemaScriptsTests
 
     [GeneratedRegex(@"REFERENCES jobs\.(?<table>\w+)")]
     private static partial Regex ReferencedTable();
+
+    // Read as the migration reads it: decoded, with line endings normalized, so only a change to the statements
+    // or their comments changes the hash, not how Quartz's build checked the file out.
+    private static string Sha256OfScriptAsTheMigrationReadsIt(Assembly quartz, string resource)
+    {
+        using var stream = quartz.GetManifestResourceStream(resource);
+        stream.Should().NotBeNull($"Quartz {InformationalVersion(quartz)} no longer embeds {resource}");
+        using var reader = new StreamReader(stream);
+        var script = reader.ReadToEnd().ReplaceLineEndings("\n");
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(script)));
+    }
+
+    private static string SchemaChangedReason(Assembly quartz, string provider, string resource) =>
+        $"the hash was pinned from Quartz {PinnedQuartzVersion} and this build references Quartz " +
+        $"{InformationalVersion(quartz)}. A different hash means the Quartz {provider} schema changed with this upgrade: " +
+        $"{provider} databases created before it keep the old tables, so add an idempotent {provider} jobs migration " +
+        $"that upgrades them (diff {resource} between the two versions to see what changed), then update the pinned " +
+        "hash and the Quartz version beside it";
+
+    private static string? InformationalVersion(Assembly assembly) =>
+        assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];
 }

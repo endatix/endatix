@@ -518,6 +518,33 @@ first, and re-creates both with the same definitions in the same migration.
 See the Quartz.NET [database documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/db/)
 and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-4.x/operations.html).
 
+## Upgrading Quartz
+
+Unit tests in `Endatix.Modules.Jobs.Tests` pin what the module takes from Quartz, so an upgrade
+that changes it fails in CI rather than at deploy time:
+
+1. Bump `Quartz` and `Quartz.Dashboard` together in `Directory.Packages.props`, and the version
+   named under [What it is](#what-it-is) and in `THIRD-PARTY-NOTICES`.
+2. Run the module's tests.
+3. If `QuartzSchemaScriptsTests` fails on a pinned hash, Quartz's schema for that provider changed
+   (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server). Add an idempotent
+   `jobs` migration for what changed, per provider whose hash moved, as
+   [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes, then update that pinned hash
+   and the Quartz version beside it.
+4. If `ExecutionGroupFilteringPostgreSqlDelegateTests` fails on the acquisition statement, review
+   the rewrite in `ExecutionGroupFilteringPostgreSqlDelegate.LimitEachGroupToItsFreeSlots` against
+   Quartz's new statement, and the `idx_endatix_qrtz_t_acquire` index that serves it, then update the
+   expected SQL in the test. SQL Server has no driver delegate of the module's own yet; when one
+   rewrites the acquisition statement, it needs the same snapshot test.
+5. Whatever the tests say, re-read the other overrides of `ExecutionGroupFilteringPostgreSqlDelegate`
+   (and of a SQL Server delegate, once there is one) against the new Quartz `StdAdoDelegate` and
+   `AdoJobStoreBase` acquisition code: `SelectTriggers` relies on acquisition loading the triggers it
+   fires through it, and `SelectTriggersToAcquire` relies on the command being prepared inside the
+   base call. No test sees a change there, and if `SelectTriggers` stopped being called, recovered
+   triggers would no longer count against their job type's cap.
+6. Roll the upgrade out to every node sharing the store: they must all run the same Quartz version
+   (see [Runtime](#runtime)).
+
 ## Third-party licence
 
 Quartz.NET is Apache-2.0 licensed. Its licence text ships in `THIRD-PARTY-NOTICES`, both in
