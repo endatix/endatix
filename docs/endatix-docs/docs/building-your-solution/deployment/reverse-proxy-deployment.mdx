@@ -122,9 +122,12 @@ Nginx's default proxy config sets `Host` to the internal upstream and does not s
 ```nginx
 proxy_set_header Host $http_host;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Host public.example.com;
 proxy_set_header X-Forwarded-Proto $scheme;
 absolute_redirect off;
 ```
+
+Replace `public.example.com` with the approved public host. Do not forward a caller-supplied `X-Forwarded-Host`; the API trusts that header from a known proxy and uses it for `Request.Host` and generated links.
 
 ## Azure Front Door
 
@@ -144,7 +147,7 @@ Cloudflare appends the previous hop onto `X-Forwarded-For`. It also sets `CF-Con
 
 `globalHeaders` in `staticwebapp.config.json` does not set the visitor IP. Do not add `X-Forwarded-For` there.
 
-When Hub on Static Web Apps is reached through Azure Front Door:
+When Hub on Static Web Apps is reached through Azure Front Door, `forwardingGateway` and its `requiredHeaders` restriction need the Static Web Apps Standard plan. Free-plan deployments cannot use that restriction.
 
 1. List the public host so redirects keep it.
 2. Require your Front Door id on every request.
