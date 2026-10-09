@@ -8,6 +8,7 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -121,6 +122,37 @@ public sealed class FormSchemaRepositoryTests
         otherTenantResult.Should().BeNull();
     }
 
+    [Fact]
+    public async Task GetByFormIdAsync_AfterAnotherScopeSavedANewerSchema_ReturnsTheNewerSchema()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+        await using ReportingDbContext longLivedContext = CreateContext(TenantId);
+        FormSchemaRepository longLived = CreateRepository(longLivedContext);
+        await longLived.SaveAsync(
+            new FormSchema(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson),
+            cancellationToken);
+        await longLived.GetByFormIdAsync(TenantId, FormId, cancellationToken);
+        await SaveNewerSchemaFromAnotherScopeAsync(cancellationToken);
+
+        // Act
+        FormSchema? result = await longLived.GetByFormIdAsync(TenantId, FormId, cancellationToken);
+
+        // Assert
+        result!.FormDefinitionRevision.Should().Be(FormDefinitionRevision + 1);
+        result.FlatteningMap.Should().Contain("q1");
+    }
+
+    private async Task SaveNewerSchemaFromAnotherScopeAsync(CancellationToken cancellationToken)
+    {
+        await using ReportingDbContext otherContext = CreateContext(TenantId);
+        FormSchemaRepository other = CreateRepository(otherContext);
+        FormSchema schema = (await other.GetByFormIdAsync(TenantId, FormId, cancellationToken))!;
+        schema.UpdateSchema(FormDefinitionRevision + 1, UpdatedFlatteningMapJson, UpdatedCodebookJson);
+        await other.SaveAsync(schema, cancellationToken);
+    }
+
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
@@ -140,6 +172,6 @@ public sealed class FormSchemaRepositoryTests
     private static FormSchemaRepository CreateRepository(ReportingDbContext dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FormSchemaRepository(dbContext, unitOfWork);
+        return new FormSchemaRepository(dbContext, unitOfWork, new PostgreSqlTransactionLock());
     }
 }

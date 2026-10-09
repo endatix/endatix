@@ -14,7 +14,7 @@ namespace Endatix.Modules.Audience.Features.Settings;
 public sealed record UpdateAudienceSettingsCommand(long TenantId, string IdentifierKind)
     : ICommand<Result<AudienceSettingsDto>>;
 
-internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db)
+internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db, MatchKeyLock matchKeyLock)
     : ICommandHandler<UpdateAudienceSettingsCommand, Result<AudienceSettingsDto>>
 {
     public async Task<Result<AudienceSettingsDto>> Handle(
@@ -55,7 +55,7 @@ internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db)
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
-            await MatchKeyLock.BeginExclusiveAsync(db, request.TenantId, cancellationToken);
+            await matchKeyLock.BeginExclusiveAsync(db, request.TenantId, cancellationToken);
         Result<AudienceSettingsDto> saved = await ApplyAsync(request, cancellationToken);
         if (saved.IsSuccess)
         {

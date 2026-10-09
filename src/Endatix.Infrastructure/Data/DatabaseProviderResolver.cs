@@ -18,4 +18,24 @@ public static class DatabaseProviderResolver
 
         return providerName is "postgresql" or "postgres";
     }
+
+    /// <summary>
+    /// Fails a module that supports only PostgreSQL when the host is configured for another provider. A module calls
+    /// it first thing when it registers, which means its feature flag is on: the host asked for the module and is told
+    /// at startup that it cannot have it, rather than at the module's first database call.
+    /// </summary>
+    /// <param name="configuration">The host configuration.</param>
+    /// <param name="moduleName">The module's name as an operator knows it, such as <c>Reporting</c>.</param>
+    /// <param name="featureFlag">The feature flag that turns the module on.</param>
+    /// <exception cref="InvalidOperationException">The configured provider is not PostgreSQL.</exception>
+    public static void RequirePostgreSql(IConfiguration configuration, string moduleName, string featureFlag)
+    {
+        if (!IsPostgreSql(configuration))
+        {
+            throw new InvalidOperationException(
+                $"The {moduleName} module requires PostgreSQL. Either set the connection string " +
+                $"setting 'DefaultConnection_DbProvider' to 'postgresql', or turn off " +
+                $"'Endatix:FeatureFlags:{featureFlag}'.");
+        }
+    }
 }

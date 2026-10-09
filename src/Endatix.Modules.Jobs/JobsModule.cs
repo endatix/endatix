@@ -8,7 +8,6 @@ using Endatix.Modules.Jobs.Endpoints;
 using Endatix.Modules.Jobs.Features;
 using Endatix.Modules.Jobs.Persistence;
 using Endatix.Modules.Jobs.Runtime;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -52,7 +51,7 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        RequirePostgreSql(builder.Configuration);
+        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Background Jobs", FeatureFlags.JobsModule);
         AddPersistence(builder);
         builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
         AddValidatedOptions(builder.Services);
@@ -61,19 +60,6 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
         builder.Services.AddJobsScheduler(builder.Configuration);
         builder.Services.AddHostedService<JobsSchedulerHostedService>();
         builder.Services.AddJobsDashboard(builder.Configuration);
-    }
-
-    // Reaching here means the flag is on, so the host asked for background jobs and has to be told it cannot have
-    // them, rather than discovering it when the first enqueue fails.
-    private static void RequirePostgreSql(IConfiguration configuration)
-    {
-        if (!DatabaseProviderResolver.IsPostgreSql(configuration))
-        {
-            throw new InvalidOperationException(
-                $"The Background Jobs module requires PostgreSQL. Either set the connection string " +
-                $"setting 'DefaultConnection_DbProvider' to 'postgresql', or turn off " +
-                $"'Endatix:FeatureFlags:{FeatureFlags.JobsModule}'.");
-        }
     }
 
     // Consumers see the context only as IJobsDbContext, so nothing downstream branches on the provider.

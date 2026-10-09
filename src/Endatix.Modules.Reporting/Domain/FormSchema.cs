@@ -86,6 +86,16 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
         Locales = NormalizeLocalesJson(locales);
     }
 
+    /// <summary>
+    /// Moves the revision back to an older definition's, for a schema about to be replaced with one compiled from that
+    /// definition alone: the columns of any newer definition are gone, so the schema must no longer claim it.
+    /// </summary>
+    public void RevertRevisionTo(long formDefinitionRevision)
+    {
+        Guard.Against.NegativeOrZero(formDefinitionRevision);
+        FormDefinitionRevision = Math.Min(FormDefinitionRevision, formDefinitionRevision);
+    }
+
     private static string NormalizeLocalesJson(string? locales) =>
         string.IsNullOrWhiteSpace(locales) ? EmptyLocalesJson : locales;
 }

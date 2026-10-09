@@ -1,4 +1,7 @@
+using System.Globalization;
+using Endatix.Infrastructure.Data.Locking;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Persistence;
@@ -8,38 +11,33 @@ namespace Endatix.Modules.Audience.Persistence;
 /// lock, so creates on different forms run in parallel and the unique indexes settle their races.
 /// A match-key change takes it exclusively. The lock lives for the transaction.
 /// </summary>
-internal static class MatchKeyLock
+internal sealed class MatchKeyLock(ITransactionLock transactionLock)
 {
-    private const int LockClass = 1116;
-
     /// <summary>For writers that add members. Many can hold it at once.</summary>
-    public static Task<IDbContextTransaction> BeginSharedAsync(
+    public Task<IDbContextTransaction> BeginSharedAsync(
         IAudienceDbContext db,
         long tenantId,
         CancellationToken cancellationToken) =>
-        BeginAsync(new LockRequest(db, tenantId, Exclusive: false), cancellationToken);
+        BeginAsync(db, Request(tenantId) with { Mode = TransactionLockMode.Shared }, cancellationToken);
 
     /// <summary>For a match-key change. Waits for every member writer of the tenant.</summary>
-    public static Task<IDbContextTransaction> BeginExclusiveAsync(
+    public Task<IDbContextTransaction> BeginExclusiveAsync(
         IAudienceDbContext db,
         long tenantId,
         CancellationToken cancellationToken) =>
-        BeginAsync(new LockRequest(db, tenantId, Exclusive: true), cancellationToken);
+        BeginAsync(db, Request(tenantId), cancellationToken);
 
-    private static async Task<IDbContextTransaction> BeginAsync(
-        LockRequest request,
+    private static TransactionLockRequest Request(long tenantId) =>
+        new(TransactionLockScopes.AudienceMatchKey, tenantId.ToString(CultureInfo.InvariantCulture));
+
+    private async Task<IDbContextTransaction> BeginAsync(
+        IAudienceDbContext db,
+        TransactionLockRequest request,
         CancellationToken cancellationToken)
     {
-        DbContext context = (DbContext)request.Db;
-        IDbContextTransaction transaction =
-            await context.Database.BeginTransactionAsync(cancellationToken);
-        string tenantKey = request.TenantId.ToString();
-        FormattableString sql = request.Exclusive
-            ? (FormattableString)$"SELECT pg_advisory_xact_lock({LockClass}, hashtext({tenantKey}))"
-            : $"SELECT pg_advisory_xact_lock_shared({LockClass}, hashtext({tenantKey}))";
-        await context.Database.ExecuteSqlInterpolatedAsync(sql, cancellationToken);
+        DatabaseFacade database = ((DbContext)db).Database;
+        IDbContextTransaction transaction = await database.BeginTransactionAsync(cancellationToken);
+        await transactionLock.AcquireAsync(database, request, cancellationToken);
         return transaction;
     }
-
-    private sealed record LockRequest(IAudienceDbContext Db, long TenantId, bool Exclusive);
 }

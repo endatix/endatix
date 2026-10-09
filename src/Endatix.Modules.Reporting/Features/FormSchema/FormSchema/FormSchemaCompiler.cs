@@ -10,7 +10,8 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 /// Supports append-only <see cref="FormSchemaCompileMode.Merge"/> and full
 /// <see cref="FormSchemaCompileMode.Replace"/> from the current definition.
 /// </summary>
-internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
+/// <remarks>Not sealed, and <see cref="CompilePersisted"/> is virtual, so a test can count the compiles a rebuild makes.</remarks>
+internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
 {
     private readonly SchemaCompilationLimits _limits = limits ?? SchemaCompilationLimits.Default;
 
@@ -28,7 +29,7 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
         return Compile(definition.RootElement, existing);
     }
 
-    public FormSchemaCompileResult CompilePersisted(
+    public virtual FormSchemaCompileResult CompilePersisted(
         string definitionJson,
         string? existingFlatteningMapJson = null,
         string? existingCodebookJson = null,
@@ -57,6 +58,24 @@ internal sealed class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
         var localesJson = JsonSerializer.Serialize(locales);
 
         return new FormSchemaCompileResult(flatteningMapJson, codebookJson, localesJson, merged);
+    }
+
+    /// <summary>
+    /// Whether a persisted flattening map already has every column the definition compiles to, so merging the
+    /// definition into it would add none.
+    /// </summary>
+    public bool HasColumnsFor(string flatteningMapJson, string definitionJson) =>
+        HasColumns(flatteningMapJson, Columns(definitionJson));
+
+    /// <summary>Whether a persisted flattening map already has a column with the key of every one in <paramref name="columns"/>.</summary>
+    public static bool HasColumns(string flatteningMapJson, IReadOnlyList<FormSchemaColumn> columns) =>
+        FormSchemaFlatteningMap.FromJson(flatteningMapJson).HasColumnsFor(columns);
+
+    /// <summary>The columns the definition compiles to, before any merge.</summary>
+    public IReadOnlyList<FormSchemaColumn> Columns(string definitionJson)
+    {
+        using var definition = JsonDocument.Parse(definitionJson);
+        return FormDefinitionFlattener.Flatten(definition.RootElement, _limits);
     }
 
     public MergedFormSchema CompileFromPersistedSchema(string definitionJson, string? existingFlatteningMapJson = null)

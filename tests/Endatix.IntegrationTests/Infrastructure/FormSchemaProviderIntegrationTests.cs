@@ -10,6 +10,7 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -44,8 +45,7 @@ public sealed class FormSchemaProviderIntegrationTests
         await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
         await using AppDbContext appDbContext = CreateAppDbContext();
         FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
-        FormSchemaProcessor schemaProcessor = CreateProcessor(formsRepository, schemaRepository, appDbContext);
-        FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
+        FormSchemaProvider provider = CreateProvider(formsRepository, dbContext, appDbContext);
 
         FormSchema? result = await provider.GetOrCompileAsync(
             TenantId,
@@ -78,19 +78,20 @@ public sealed class FormSchemaProviderIntegrationTests
 
         await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
         await using AppDbContext appDbContext = CreateAppDbContext();
-        FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
-        FormSchemaProcessor schemaProcessor = CreateProcessor(formsRepository, schemaRepository, appDbContext);
-        FormSchemaProvider provider = new(schemaRepository, schemaProcessor);
+        FormSchemaProvider provider = CreateProvider(formsRepository, dbContext, appDbContext);
 
         FormSchema? first = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
+        int definitionReadsToCompile = DefinitionReads(formsRepository);
         FormSchema? second = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
 
-        second.Should().BeSameAs(first);
+        second.Should().BeEquivalentTo(first);
         (await dbContext.FormSchemas.CountAsync(cancellationToken)).Should().Be(1);
-        await formsRepository.Received(1).SingleOrDefaultAsync(
-            Arg.Any<DefinitionByFormAndDefinitionIdSpec>(),
-            cancellationToken);
+        DefinitionReads(formsRepository).Should().Be(definitionReadsToCompile);
     }
+
+    private static int DefinitionReads(IFormsRepository formsRepository) =>
+        formsRepository.ReceivedCalls().Count(call =>
+            call.GetArguments().FirstOrDefault() is DefinitionByFormAndDefinitionIdSpec);
 
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {
@@ -124,25 +125,26 @@ public sealed class FormSchemaProviderIntegrationTests
     private static FormSchemaRepository CreateSchemaRepository(ReportingDbContext dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FormSchemaRepository(dbContext, unitOfWork);
+        return new FormSchemaRepository(dbContext, unitOfWork, new PostgreSqlTransactionLock());
     }
 
-    private static FormSchemaProcessor CreateProcessor(
+    private static FormSchemaProvider CreateProvider(
         IFormsRepository formsRepository,
-        FormSchemaRepository schemaRepository,
+        ReportingDbContext dbContext,
         AppDbContext appDbContext)
     {
-        IFlattenedSubmissionRepository flattenedRepository = Substitute.For<IFlattenedSubmissionRepository>();
-        IReportingUnitOfWork unitOfWork = Substitute.For<IReportingUnitOfWork>();
-
-        return new FormSchemaProcessor(
+        ReportingUnitOfWork unitOfWork = new(dbContext);
+        FormSchemaRepository schemaRepository = new(dbContext, unitOfWork, new PostgreSqlTransactionLock());
+        FormSchemaProcessor schemaProcessor = new(
             formsRepository,
             schemaRepository,
-            flattenedRepository,
+            Substitute.For<IFlattenedSubmissionRepository>(),
             unitOfWork,
             appDbContext,
             new FormSchemaCompiler(),
             NullLogger<FormSchemaProcessor>.Instance);
+
+        return new FormSchemaProvider(schemaRepository, schemaProcessor, new FormSchemaCoverage(formsRepository, new FormSchemaCompiler()));
     }
 
     // The form is read as its definition and still exists after the compile wrote its schema.
