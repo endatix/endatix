@@ -124,32 +124,18 @@ public class CreateSubmissionHandler(
                 Actions.Submissions.Create,
                 StringComparison.Ordinal)));
 
+        ApplySnapshot(submission, request.PersonalizationSnapshot);
         if (screenOut)
         {
             submission.ScreenOut();
         }
 
-        try
+        Result<Submission>? conflict = await PersistAsync(
+            new PersistArgs(submission, shouldEnforceSingleSubmissionGate, submitterId, request.FormId),
+            cancellationToken);
+        if (conflict is not null)
         {
-            if (shouldEnforceSingleSubmissionGate)
-            {
-                // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
-                var duplicateSpec = new SubmissionByFormIdAndSubmitterIdSpec(request.FormId, submitterId!.Value);
-                var hasExistingSubmission = await submissionRepository.AnyAsync(
-                    duplicateSpec,
-                    cancellationToken);
-
-                if (hasExistingSubmission)
-                {
-                    return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
-                }
-            }
-
-            await submissionRepository.AddAsync(submission, cancellationToken);
-        }
-        catch (DuplicateSubmissionException)
-        {
-            return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
+            return conflict;
         }
 
         await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
@@ -160,5 +146,72 @@ public class CreateSubmissionHandler(
         }
 
         return Result<Submission>.Created(submission);
+    }
+
+    private static void ApplySnapshot(Submission submission, string? snapshot)
+    {
+        if (!string.IsNullOrEmpty(snapshot))
+        {
+            submission.FreezeOnBehalf(snapshot);
+        }
+    }
+
+    private async Task<Result<Submission>?> PersistAsync(PersistArgs args, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Result<Submission>? conflict = await ExistingConflictAsync(args, cancellationToken);
+            if (conflict is not null)
+            {
+                return conflict;
+            }
+
+            await submissionRepository.AddAsync(args.Submission, cancellationToken);
+            return null;
+        }
+        catch (DuplicateSubmissionException)
+        {
+            return await DuplicateConflictAsync(Spec(args), cancellationToken);
+        }
+    }
+
+    private async Task<Result<Submission>?> ExistingConflictAsync(
+        PersistArgs args,
+        CancellationToken cancellationToken)
+    {
+        if (!args.EnforceGate)
+        {
+            return null;
+        }
+
+        // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
+        SubmissionByFormIdAndSubmitterIdSpec spec = Spec(args);
+        bool exists = await submissionRepository.AnyAsync(spec, cancellationToken);
+        return exists ? await DuplicateConflictAsync(spec, cancellationToken) : null;
+    }
+
+    private static SubmissionByFormIdAndSubmitterIdSpec Spec(PersistArgs args) =>
+        new(args.FormId, args.SubmitterId!.Value);
+
+    private sealed record PersistArgs(
+        Submission Submission,
+        bool EnforceGate,
+        long? SubmitterId,
+        long FormId);
+
+    private async Task<Result<Submission>> DuplicateConflictAsync(
+        SubmissionByFormIdAndSubmitterIdSpec spec,
+        CancellationToken cancellationToken)
+    {
+        Submission? existing = await submissionRepository.FirstOrDefaultAsync(spec, cancellationToken);
+        if (existing is null)
+        {
+            return Result<Submission>.Conflict(DUPLICATE_CONFLICT_MESSAGE);
+        }
+
+        return Result<Submission>.Conflict(
+            DUPLICATE_CONFLICT_MESSAGE,
+            "submission_exists",
+            existing.Id.ToString());
     }
 }

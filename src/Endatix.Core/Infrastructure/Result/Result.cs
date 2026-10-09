@@ -254,6 +254,22 @@ public class Result<T> : IResult
     }
 
     /// <summary>
+    /// A 409 that names the existing resource. <paramref name="submissionId"/> is exposed as
+    /// <c>submissionId</c> on the problem body, next to <paramref name="errorCode"/>.
+    /// </summary>
+    public static Result<T> Conflict(string errorMessage, string errorCode, string submissionId)
+    {
+        return new Result<T>(ResultStatus.Conflict)
+        {
+            Errors = [errorMessage],
+            ValidationErrors =
+            [
+                new ValidationError("submissionId", submissionId, errorCode, ValidationSeverity.Error)
+            ]
+        };
+    }
+
+    /// <summary>
     /// Represents a critical error that occurred during the execution of the service.
     /// Everything provided by the user was valid, but the service was unable to complete due to an exception.
     /// See also HTTP 500 Internal Server Error: https://en.wikipedia.org/wiki/List_of_HTTP_status_codes#5xx_server_errors

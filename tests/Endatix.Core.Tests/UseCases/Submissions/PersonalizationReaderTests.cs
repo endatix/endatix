@@ -24,6 +24,22 @@ public sealed class PersonalizationReaderTests
         read!.Identifier.Should().Be("CG-000001-01");
         read.Variables.GetProperty("age").GetDouble().Should().Be(65);
         read.Variables.GetProperty("city").GetString().Should().Be("03. MIDWEST - COLUMBUS");
+        read.Source.Should().BeNull();
+        read.MemberId.Should().BeNull();
+    }
+
+    [Fact]
+    public void Read_OnBehalf_ReturnsSourceAndMember()
+    {
+        const string snapshot = """
+            {"schemaVersion":1,"source":"on_behalf","memberId":42,"capturedAt":"2026-10-08T08:00:00Z","identifier":"CG-000001-01","variables":{"age":65}}
+            """;
+
+        PersonalizationRead? read = PersonalizationReader.Read(snapshot);
+
+        read!.Source.Should().Be("on_behalf");
+        read.MemberId.Should().Be(42);
+        read.Variables.GetProperty("age").GetDouble().Should().Be(65);
     }
 
     [Theory]

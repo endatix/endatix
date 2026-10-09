@@ -10,9 +10,7 @@ public sealed class PersonalizationSnapshotJsonTests
     public void Write_FirstCedarGroveRow_TypesCityAndAge()
     {
         string json = PersonalizationSnapshotJson.Write(
-            1,
-            "CG-000001-01",
-            new DateTime(2026, 10, 8, 8, 0, 0, DateTimeKind.Utc),
+            new SnapshotHeader(1, "CG-000001-01", new DateTime(2026, 10, 8, 8, 0, 0, DateTimeKind.Utc)),
             [
                 new SnapshotCell("city", AudienceDataTypeCodes.Text, "03. MIDWEST - COLUMBUS"),
                 new SnapshotCell("age", AudienceDataTypeCodes.Number, "65"),
@@ -25,15 +23,34 @@ public sealed class PersonalizationSnapshotJsonTests
         variables.GetProperty("age").GetDouble().Should().Be(65);
         variables.TryGetProperty("note", out _).Should().BeFalse();
         document.RootElement.GetProperty("identifier").GetString().Should().Be("CG-000001-01");
+        document.RootElement.GetProperty("source").GetString().Should().Be("link");
+        document.RootElement.GetProperty("audienceLinkId").GetInt64().Should().Be(1);
+    }
+
+    [Fact]
+    public void Write_OnBehalf_OmitsLinkAndKeepsMember()
+    {
+        string json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(
+                null,
+                "CG-000001-01",
+                new DateTime(2026, 10, 8, 8, 0, 0, DateTimeKind.Utc),
+                "on_behalf",
+                42),
+            [new SnapshotCell("age", AudienceDataTypeCodes.Number, "65")]);
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("source").GetString().Should().Be("on_behalf");
+        document.RootElement.GetProperty("memberId").GetInt64().Should().Be(42);
+        document.RootElement.TryGetProperty("audienceLinkId", out _).Should().BeFalse();
+        document.RootElement.GetProperty("variables").GetProperty("age").GetDouble().Should().Be(65);
     }
 
     [Fact]
     public void Write_BooleanAndChoice_AreTypedJson()
     {
         string json = PersonalizationSnapshotJson.Write(
-            1,
-            "CG-000001-01",
-            DateTime.UnixEpoch,
+            new SnapshotHeader(1, "CG-000001-01", DateTime.UnixEpoch),
             [
                 new SnapshotCell("consent", AudienceDataTypeCodes.Boolean, "true"),
                 new SnapshotCell("sites", AudienceDataTypeCodes.MultipleChoice, """["a","b"]"""),
@@ -49,9 +66,7 @@ public sealed class PersonalizationSnapshotJsonTests
     public void Write_MalformedChoice_IsKeptAsText()
     {
         string json = PersonalizationSnapshotJson.Write(
-            1,
-            "CG-000001-01",
-            DateTime.UnixEpoch,
+            new SnapshotHeader(1, "CG-000001-01", DateTime.UnixEpoch),
             [new SnapshotCell("sites", AudienceDataTypeCodes.MultipleChoice, "not-json")]);
 
         using JsonDocument document = JsonDocument.Parse(json);

@@ -7,16 +7,45 @@ namespace Endatix.Modules.Audience.Features.Links;
 
 internal readonly record struct SnapshotCell(string VariableName, string DataType, string Value);
 
+internal readonly record struct SnapshotHeader(
+    long? AudienceLinkId,
+    string Identifier,
+    DateTime CapturedAt,
+    string Source = "link",
+    long? MemberId = null);
+
 /// <summary>
 /// Snapshot v1 stored on the submission. Variables are already JSON-typed.
 /// </summary>
 internal static class PersonalizationSnapshotJson
 {
-    public static string Write(
-        long audienceLinkId,
-        string identifier,
-        DateTime capturedAt,
-        IEnumerable<SnapshotCell> cells)
+    public static string Write(SnapshotHeader header, IEnumerable<SnapshotCell> cells) =>
+        Root(header, TypedVariables(cells)).ToJsonString();
+
+    private static JsonObject Root(SnapshotHeader header, JsonObject variables)
+    {
+        JsonObject root = new()
+        {
+            ["schemaVersion"] = 1,
+            ["source"] = header.Source,
+            ["capturedAt"] = header.CapturedAt,
+            ["identifier"] = header.Identifier,
+            ["variables"] = variables,
+        };
+        Add(root, "memberId", header.MemberId);
+        Add(root, "audienceLinkId", header.AudienceLinkId);
+        return root;
+    }
+
+    private static void Add(JsonObject root, string name, long? value)
+    {
+        if (value is long number)
+        {
+            root[name] = number;
+        }
+    }
+
+    private static JsonObject TypedVariables(IEnumerable<SnapshotCell> cells)
     {
         JsonObject variables = new();
         foreach (SnapshotCell cell in cells)
@@ -28,14 +57,7 @@ internal static class PersonalizationSnapshotJson
             }
         }
 
-        return new JsonObject
-        {
-            ["schemaVersion"] = 1,
-            ["capturedAt"] = capturedAt,
-            ["identifier"] = identifier,
-            ["audienceLinkId"] = audienceLinkId,
-            ["variables"] = variables,
-        }.ToJsonString();
+        return variables;
     }
 
     internal static JsonNode? Typed(string dataType, string value)
