@@ -23,9 +23,9 @@ public static class DbContextModelBuilderExtensions
     /// is resolved at <c>Add</c> from host DI.
     /// </summary>
     /// <remarks>
-    /// Only the active provider's <c>ValueGenerationStrategy</c> annotation is written, so a snapshot
-    /// scaffolded for one provider compiles in a project that references only that provider's EF
-    /// package. A non-relational provider gets the generator and no store strategy.
+    /// Only the active provider's <c>ValueGenerationStrategy</c> annotation is written, so a snapshot or
+    /// designer scaffolded for one provider names only that provider's EF types and needs no hand edits.
+    /// A non-relational provider gets the generator and no store strategy.
     /// </remarks>
     public static void ApplySnowflakeIdValueGenerators(this ModelBuilder builder, DatabaseFacade database)
     {
@@ -39,9 +39,9 @@ public static class DbContextModelBuilderExtensions
     /// Same as <see cref="ApplySnowflakeIdValueGenerators(ModelBuilder, DatabaseFacade)"/>, but writes
     /// the <c>ValueGenerationStrategy</c> annotation of both PostgreSQL and SQL Server.
     /// </summary>
-    [Obsolete("Writes the id annotations of both PostgreSQL and SQL Server, which breaks snapshots in projects " +
-        "that reference one EF provider. Use ApplySnowflakeIdValueGenerators(ModelBuilder, DatabaseFacade) " +
-        "with the context's Database instead.")]
+    [Obsolete("Writes the id annotations of both PostgreSQL and SQL Server, so every scaffolded snapshot and " +
+        "designer carries the other provider's annotation, which has to be deleted by hand. Use " +
+        "ApplySnowflakeIdValueGenerators(ModelBuilder, DatabaseFacade) with the context's Database instead.")]
     public static void ApplySnowflakeIdValueGenerators(this ModelBuilder builder)
     {
         Guard.Against.Null(builder);

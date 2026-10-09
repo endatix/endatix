@@ -94,7 +94,7 @@ The monolith pattern avoids both by putting each provider's migrations in its ow
 
 #### Applied migrations: retarget, never regenerate
 
-When an existing context moves to this pattern, change only the `[DbContext(typeof(...))]` attribute in its `.Designer.cs` files and its snapshot to the derived type. The migration id, `Up()` and `Down()` stay byte-identical. A regenerated migration gets a new id, and every database that applied the old one would run it again.
+When an existing context moves to this pattern, change only the `[DbContext(typeof(...))]` attribute in its `.Designer.cs` files and its snapshot to the derived type. The migration id, `Up()` and `Down()` stay byte-identical. A regenerated migration gets a new id, and every database that applied the old one would run it again. Deleting the other provider's `ValueGenerationStrategy` annotation from a designer is also safe: the designer's target model reaches only the active provider's SQL generator, which ignores the other provider's annotations, so the migration's SQL does not change.
 
 Check a snapshot with a throwaway migration, then delete it:
 
@@ -107,7 +107,9 @@ The check passes when the generated `Up()` and `Down()` are empty and `git statu
 
 #### Id annotations in snapshots
 
-`ApplySnowflakeIdValueGenerators(Database)` writes only the active provider's `ValueGenerationStrategy` annotation on each `long Id` key, so a PostgreSQL snapshot has no `SqlServer:` annotations and compiles in a project that references only the Npgsql EF provider. The parameterless `ApplySnowflakeIdValueGenerators()` writes both annotations; it is obsolete and will be removed after the next stable release.
+`ApplySnowflakeIdValueGenerators(Database)` writes only the active provider's `ValueGenerationStrategy` annotation on each `long Id` key, so `migrations add` scaffolds snapshots and designers that need no hand edits. The parameterless `ApplySnowflakeIdValueGenerators()` writes both annotations, so every scaffolded snapshot and designer also carries the other provider's annotation. That line names the other provider's EF types, so it compiles only while the project references both EF providers. Deleting it by hand is easy to get wrong: removing the wrong line of the chained annotation drops the provider's own annotation without any error. The parameterless overload is obsolete and will be removed after the next stable release.
+
+Every committed snapshot and designer in this repository carries only its own provider's annotation. `CommittedModelProviderAnnotationsTests` in `Endatix.Infrastructure.Tests` fails CI when one does not; `has-pending-model-changes` cannot catch it, because it compares relational models only.
 
 Model snapshots never contain the `ValueGeneratorFactory` annotation: EF Core filters it out of every snapshot by design and does not compare it. Do not restore it by hand.
 
