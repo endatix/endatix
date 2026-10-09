@@ -10,9 +10,7 @@ public sealed class PersonalizationSnapshotJsonTests
     public void Write_FirstMuestraRow_TypesCiudadAndEdac()
     {
         string json = PersonalizationSnapshotJson.Write(
-            1,
-            "0570123456-01",
-            new DateTime(2026, 10, 8, 8, 0, 0, DateTimeKind.Utc),
+            new SnapshotHeader(1, "0570123456-01", new DateTime(2026, 10, 8, 8, 0, 0, DateTimeKind.Utc)),
             [
                 new SnapshotCell("ciudad", AudienceDataTypeCodes.Text, "03. ANTIOQUIA - MEDELLIN"),
                 new SnapshotCell("edac", AudienceDataTypeCodes.Number, "65"),
@@ -25,5 +23,26 @@ public sealed class PersonalizationSnapshotJsonTests
         variables.GetProperty("edac").GetDouble().Should().Be(65);
         variables.TryGetProperty("note", out _).Should().BeFalse();
         document.RootElement.GetProperty("identifier").GetString().Should().Be("0570123456-01");
+        document.RootElement.GetProperty("source").GetString().Should().Be("link");
+        document.RootElement.GetProperty("audienceLinkId").GetInt64().Should().Be(1);
+    }
+
+    [Fact]
+    public void Write_OnBehalf_OmitsLinkAndKeepsMember()
+    {
+        string json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(
+                null,
+                "0570123456-01",
+                new DateTime(2026, 10, 8, 8, 0, 0, DateTimeKind.Utc),
+                "on_behalf",
+                42),
+            [new SnapshotCell("edac", AudienceDataTypeCodes.Number, "65")]);
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("source").GetString().Should().Be("on_behalf");
+        document.RootElement.GetProperty("memberId").GetInt64().Should().Be(42);
+        document.RootElement.TryGetProperty("audienceLinkId", out _).Should().BeFalse();
+        document.RootElement.GetProperty("variables").GetProperty("edac").GetDouble().Should().Be(65);
     }
 }

@@ -2,6 +2,7 @@ using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -45,7 +46,8 @@ public static partial class ResultExtensions
 
         var resolvedTitle = title ?? defaultTitle;
         var messages = new List<string>(result.Errors);
-        string? errorCode = null;
+        var (conflictCode, submissionId) = ReadConflict(result);
+        string? errorCode = conflictCode;
         Dictionary<string, string[]>? fields = null;
 
         if (result.IsInvalid())
@@ -78,8 +80,35 @@ public static partial class ResultExtensions
             detail: detail,
             errorCode: errorCode,
             fields: fields);
+        AddSubmissionId(problem, submissionId);
 
         return TypedResults.Problem(problem);
+    }
+
+    private static void AddSubmissionId(ProblemDetails problem, string? submissionId)
+    {
+        if (!string.IsNullOrWhiteSpace(submissionId))
+        {
+            problem.Extensions["submissionId"] = submissionId;
+        }
+    }
+
+    private static (string? ErrorCode, string? SubmissionId) ReadConflict(AppDomain.IResult result)
+    {
+        if (result.Status != ResultStatus.Conflict)
+        {
+            return (null, null);
+        }
+
+        ValidationError? coded = result.ValidationErrors
+            .FirstOrDefault(error => !string.IsNullOrWhiteSpace(error.ErrorCode));
+        if (coded is null)
+        {
+            return (null, null);
+        }
+
+        string? submissionId = coded.Identifier == "submissionId" ? coded.ErrorMessage : null;
+        return (coded.ErrorCode, submissionId);
     }
 }
 #endif

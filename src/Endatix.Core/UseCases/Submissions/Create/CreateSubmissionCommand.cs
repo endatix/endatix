@@ -18,6 +18,7 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 /// <param name="RequiredPermission"></param>
 /// <param name="SubmitterPrincipal"></param>
 /// <param name="Submitter"></param>
+/// <param name="PersonalizationSnapshot">Frozen audience values for a trusted on-behalf create.</param>
 public record CreateSubmissionCommand(
     long FormId,
     string? JsonData,
@@ -28,5 +29,6 @@ public record CreateSubmissionCommand(
     string RequiredPermission,
     ClaimsPrincipal? SubmitterPrincipal = null,
     SubmitterInput? Submitter = null,
-    string? CollectionOutcome = null
+    string? CollectionOutcome = null,
+    string? PersonalizationSnapshot = null
 ) : ICommand<Result<Submission>>;

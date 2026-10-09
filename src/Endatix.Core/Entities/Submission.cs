@@ -108,6 +108,20 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         PersonalizationSnapshot = snapshot;
     }
 
+    /// <summary>
+    /// Freezes audience values captured for a trusted on-behalf create. No link is involved.
+    /// </summary>
+    public void FreezeOnBehalf(string snapshot)
+    {
+        Guard.Against.NullOrEmpty(snapshot);
+        if (PersonalizationSnapshot is not null)
+        {
+            return;
+        }
+
+        PersonalizationSnapshot = snapshot;
+    }
+
     public bool IsComplete { get; private set; }
     public string JsonData { get; private set; } = null!;
     public FormDefinition FormDefinition { get; private set; } = null!;

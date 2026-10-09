@@ -62,6 +62,11 @@ public sealed class Member : BaseEntity, IAggregateRoot, ITenantOwned
     public void BindSubmitter(long submitterId)
     {
         Guard.Against.NegativeOrZero(submitterId);
+        if (SubmitterId is not null)
+        {
+            return;
+        }
+
         SubmitterId = submitterId;
     }
 

@@ -1,7 +1,10 @@
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Abstractions.Submitters;
 using Endatix.Framework.Configuration;
+using Endatix.Infrastructure.Features.Submissions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Features.Submitters;
@@ -21,6 +24,7 @@ public static class SubmitterServiceCollectionExtensions
         services.AddScoped<ISubmitterClaimExtractor, EndatixSubmitterClaimExtractor>();
         services.AddScoped<ISubmitterClaimExtractor, AnonymousSubmitterClaimExtractor>();
         services.AddScoped<ISubmitterResolver, SubmitterResolver>();
+        services.TryAddScoped<ISubmissionPersonalizer, NoOpSubmissionPersonalizer>();
 
         return services;
     }
