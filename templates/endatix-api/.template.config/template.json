@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json.schemastore.org/template",
+  "author": "Endatix",
+  "classifications": [ "ASP.NET", "Endatix", "API" ],
+  "name": "Endatix API",
+  "description": "An ASP.NET Core API with Endatix.Hosting configured for local development.",
+  "identity": "Endatix.Templates.Api",
+  "groupIdentity": "Endatix.Templates.Api",
+  "shortName": "endatix",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "Company.EndatixApi",
+  "preferNameDirectory": true,
+  "SpecialCustomOperations": {
+    "**/*.csproj": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [ "<!--#if" ],
+            "else": [ "<!--#else" ],
+            "elseif": [ "<!--#elseif" ],
+            "endif": [ "<!--#endif" ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
+    "**/*.json": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [ "//#if" ],
+            "else": [ "//#else" ],
+            "elseif": [ "//#elseif" ],
+            "endif": [ "//#endif" ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    }
+  },
+  "symbols": {
+    "database": {
+      "type": "parameter",
+      "displayName": "Database",
+      "description": "Database provider. sqlserver (default) or postgresql.",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "sqlserver",
+          "description": "Microsoft SQL Server on localhost"
+        },
+        {
+          "choice": "postgresql",
+          "description": "PostgreSQL on localhost"
+        }
+      ],
+      "defaultValue": "sqlserver",
+      "replaces": "DB_PROVIDER_VALUE"
+    },
+    "connectionString": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "DEFAULT_CONNECTION",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(database == \"postgresql\")",
+            "value": "Host=localhost;Port=5432;Database=endatix;Username=postgres;Password=postgres"
+          },
+          {
+            "condition": "(database != \"postgresql\")",
+            "value": "Server=localhost;Database=endatix;User Id=sa;Password=yourStrong(!)Password;TrustServerCertificate=True;"
+          }
+        ]
+      }
+    },
+    "saasManagement": {
+      "type": "parameter",
+      "displayName": "SaaS Management",
+      "description": "Reference Endatix.SaaS.Management and register SaaSManagementModule. Off by default. Requires the commercial package and PostgreSQL.",
+      "datatype": "bool",
+      "defaultValue": "false"
+    },
+    "EndatixVersion": {
+      "type": "parameter",
+      "displayName": "Endatix version",
+      "description": "Version of Endatix.Hosting (and Endatix.SaaS.Management when enabled).",
+      "datatype": "text",
+      "defaultValue": "0.7.8",
+      "replaces": "__ENDATIX_VERSION__"
+    }
+  }
+}

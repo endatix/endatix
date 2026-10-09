@@ -9,6 +9,9 @@
     <Project Path="samples/Endatix.Samples.SelfHosted/Endatix.Samples.SelfHosted.csproj" />
     <Project Path="samples/Endatix.Samples.WebApp/Endatix.Samples.WebApp.csproj" />
   </Folder>
+  <Folder Name="/templates/">
+    <Project Path="templates/Endatix.Templates.csproj" />
+  </Folder>
   <Folder Name="/solution_items/">
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
@@ -36,6 +39,7 @@
     <Project Path="tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj" />
     <Project Path="tests/Endatix.Framework.Tests/Endatix.Framework.Tests.csproj" />
     <Project Path="tests/Endatix.Hosting.Tests/Endatix.Hosting.Tests.csproj" />
+    <Project Path="tests/Endatix.Templates.Tests/Endatix.Templates.Tests.csproj" />
     <Project Path="tests/Endatix.Infrastructure.Tests/Endatix.Infrastructure.Tests.csproj" />
     <Project Path="tests/Endatix.IntegrationTests.Shared/Endatix.IntegrationTests.Shared.csproj" />
     <Project Path="tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj" />
