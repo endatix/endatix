@@ -5,7 +5,7 @@ using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Persistence;
-using Endatix.Modules.Jobs.Persistence.Config.PostgreSql;
+using Endatix.Modules.Jobs.Persistence.Config;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -41,7 +41,7 @@ internal sealed class BackgroundJobQueue(
     IJobMetrics? metrics = null,
     ILogger<BackgroundJobQueue>? logger = null) : IBackgroundJobQueue
 {
-    private const string DedupKeyIndexName = BackgroundJobConfigurationPostgreSql.DedupKeyIndexName;
+    private const string DedupKeyIndexName = BackgroundJobProviderConfiguration.DedupKeyIndexName;
 
     // A collision means another enqueue of the same key committed between this one's read and its insert; the
     // next read sees it. More than a few in a row would mean something other than that race.
