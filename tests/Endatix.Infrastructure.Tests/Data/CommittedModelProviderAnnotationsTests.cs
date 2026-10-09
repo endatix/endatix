@@ -11,6 +11,8 @@ namespace Endatix.Infrastructure.Tests.Data;
 /// Committed model snapshots and migration designers keep the model they were scaffolded from. A
 /// <c>ValueGenerationStrategy</c> annotation of the other EF provider in one of them compiles only while the
 /// project also references that provider's EF package, and <c>has-pending-model-changes</c> cannot see it.
+/// A snapshot that lost its own provider's annotation is a pending model change, which
+/// <see cref="CommittedSnapshotDriftTests"/> catches.
 /// </summary>
 public sealed partial class CommittedModelProviderAnnotationsTests
 {
@@ -18,13 +20,11 @@ public sealed partial class CommittedModelProviderAnnotationsTests
     private const string NpgsqlPrefix = "Npgsql";
     private const string SqlServerPrefix = "SqlServer";
 
-    private static readonly Lazy<IReadOnlyList<Type>> CommittedModelTypes = new(FindCommittedModelTypes);
-
     [Fact]
     public void CommittedModels_EachProvider_CarryNoStrategyAnnotationOfTheOtherProvider()
     {
         // Arrange
-        var models = CommittedModelTypes.Value;
+        var models = CommittedModels.Types;
 
         // Act
         var violations = string.Join(Environment.NewLine, models.SelectMany(ProviderViolationsOf));
@@ -39,7 +39,7 @@ public sealed partial class CommittedModelProviderAnnotationsTests
     {
         // Arrange
         // Counted, because both provider assemblies hold files with the same name.
-        var checkedCounts = CommittedModelTypes.Value.CountBy(CommittedFileNameOf).ToDictionary();
+        var checkedCounts = CommittedModels.Types.CountBy(CommittedFileNameOf).ToDictionary();
 
         // Act
         var missedFiles = string.Join(
@@ -91,18 +91,6 @@ public sealed partial class CommittedModelProviderAnnotationsTests
             _ => throw new InvalidOperationException($"{modelType.FullName} is not a snapshot or a migration."),
         };
 
-    private static IReadOnlyList<Type> FindCommittedModelTypes() =>
-        Directory.EnumerateFiles(AppContext.BaseDirectory, "Endatix.*.dll")
-            .Select(path => Assembly.Load(AssemblyName.GetAssemblyName(path)))
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(IsCommittedModel)
-            .ToList();
-
-    private static bool IsCommittedModel(Type type) =>
-        !type.IsAbstract
-        && (type.IsSubclassOf(typeof(ModelSnapshot))
-            || (type.IsSubclassOf(typeof(Migration)) && type.GetCustomAttribute<MigrationAttribute>() is not null));
-
     // EF names a designer file after the migration id and a snapshot file after the snapshot class.
     private static string CommittedFileNameOf(Type modelType) =>
         modelType.GetCustomAttribute<MigrationAttribute>() is { } migration
@@ -110,21 +98,10 @@ public sealed partial class CommittedModelProviderAnnotationsTests
             : $"{modelType.Name}.cs";
 
     private static IEnumerable<string> CommittedModelFileNamesInSourceTree() =>
-        Directory.EnumerateFiles(Path.Combine(RepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
+        Directory.EnumerateFiles(CommittedModels.SourceDirectory, "*.cs", SearchOption.AllDirectories)
             .Select(Path.GetFileName)
             .OfType<string>()
             .Where(name => DesignerFileName().IsMatch(name) || name.EndsWith("ModelSnapshot.cs", StringComparison.Ordinal));
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Endatix.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new InvalidOperationException("Endatix.slnx not found above the test output.");
-    }
 
     [GeneratedRegex(@"^\d{14}_\w+\.Designer\.cs$")]
     private static partial Regex DesignerFileName();

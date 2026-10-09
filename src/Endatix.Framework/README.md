@@ -88,7 +88,7 @@ Module SQL Server migrations need **SQL Server 2025 or later, or Azure SQL Datab
 One context type cannot own both providers' migrations in one assembly, because of two EF Core rules:
 
 - **Discovery.** EF finds a context's migrations by matching `Context.GetType()` against each migration's `[DbContext(typeof(...))]` attribute. With one context type, both folders match, and each provider would see the other's migrations.
-- **Snapshot placement.** EF reads and writes the snapshot as `{ContextName}ModelSnapshot.cs`, one per context type. Two providers would overwrite one snapshot.
+- **Snapshot placement.** EF reads a context's snapshot by its `[DbContext(typeof(...))]` attribute, taking the first match in the migrations assembly. `migrations add` writes it by file name, `{ContextName}ModelSnapshot.cs`, overwriting that file wherever it sits in the project. Either way a context type has one snapshot, so two providers would overwrite one snapshot.
 
 The monolith pattern avoids both by putting each provider's migrations in its own assembly.
 
@@ -103,13 +103,13 @@ dotnet ef migrations add Probe --context <Derived> --output-dir Persistence/Migr
   --startup-project src/Endatix.WebHost --project src/Endatix.Modules.<Name>
 ```
 
-The check passes when the generated `Up()` and `Down()` are empty and `git status --porcelain` lists only the two new `*_Probe*.cs` files, so the committed snapshot is unchanged. Delete both files; never commit them.
+The check passes when the generated `Up()` and `Down()` are empty and `git status --porcelain` lists only the two new `*_Probe*.cs` files, so the committed snapshot is unchanged. Delete both files; never commit them. CI runs the same comparison for every migrated context (see below), but the probe shows what differs.
 
 #### Id annotations in snapshots
 
 `ApplySnowflakeIdValueGenerators(Database)` writes only the active provider's `ValueGenerationStrategy` annotation on each `long Id` key, so `migrations add` scaffolds snapshots and designers that need no hand edits. The parameterless `ApplySnowflakeIdValueGenerators()` writes both annotations, so every scaffolded snapshot and designer also carries the other provider's annotation. That line names the other provider's EF types, so it compiles only while the project references both EF providers. Deleting it by hand is easy to get wrong: removing the wrong line of the chained annotation drops the provider's own annotation without any error. The parameterless overload is obsolete and will be removed after the next stable release.
 
-Every committed snapshot and designer in this repository carries only its own provider's annotation. `CommittedModelProviderAnnotationsTests` in `Endatix.Infrastructure.Tests` fails CI when one does not; `has-pending-model-changes` cannot catch it, because it compares relational models only.
+Every committed snapshot and designer in this repository carries only its own provider's annotation. `CommittedModelProviderAnnotationsTests` in `Endatix.Infrastructure.Tests` fails CI when one carries the other provider's annotation; `has-pending-model-changes` cannot catch that, because it compares relational models only. `CommittedSnapshotDriftTests` checks every snapshot against its context's current model. It builds every migrated context the way the host registers it, without a connection, and fails CI when the context has pending model changes (a snapshot that lost its own provider's annotation, for example) or when `migrations add` would write a different snapshot (stale entity order, for example). Add a new migrated context to its `MigratedContexts` list; the test fails until you do.
 
 Model snapshots never contain the `ValueGeneratorFactory` annotation: EF Core filters it out of every snapshot by design and does not compare it. Do not restore it by hand.
 
