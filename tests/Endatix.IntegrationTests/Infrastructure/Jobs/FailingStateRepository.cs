@@ -5,22 +5,42 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
-/// <summary>How many completion writes and claims still fail, shared by every scope of a test node.</summary>
+/// <summary>How many outcome writes and claims still fail, shared by every scope of a test node.</summary>
 internal sealed class StateRepositoryFailures(int completions = 0, int claims = 0)
 {
     private int _completions = completions;
     private int _claims = claims;
+    private int _fails;
+    private int _failedAttempts;
 
     /// <summary>The completion failures not yet spent.</summary>
     public int CompletionsRemaining => Math.Max(0, Volatile.Read(ref _completions));
 
+    /// <summary>How many writes of a failure the handler returned still fail.</summary>
+    public int Fails
+    {
+        get => Math.Max(0, Volatile.Read(ref _fails));
+        init => _fails = value;
+    }
+
+    /// <summary>How many writes of an attempt that threw still fail.</summary>
+    public int FailedAttempts
+    {
+        get => Math.Max(0, Volatile.Read(ref _failedAttempts));
+        init => _failedAttempts = value;
+    }
+
     public bool TryConsumeCompletion() => Interlocked.Decrement(ref _completions) >= 0;
 
     public bool TryConsumeClaim() => Interlocked.Decrement(ref _claims) >= 0;
+
+    public bool TryConsumeFail() => Interlocked.Decrement(ref _fails) >= 0;
+
+    public bool TryConsumeFailedAttempt() => Interlocked.Decrement(ref _failedAttempts) >= 0;
 }
 
 /// <summary>
-/// The real state repository, except that its completion writes and claims throw while
+/// The real state repository, except that its outcome writes and claims throw while
 /// <see cref="StateRepositoryFailures"/> has failures of that kind left, as they would while the database is
 /// unreachable.
 /// </summary>
@@ -55,7 +75,9 @@ internal sealed class FailingStateRepository(IBackgroundJobStateRepository inner
         inner.DeleteExpiredAsync(utcNow, batchSize, cancellationToken);
 
     public Task<bool> TryFailAsync(AttemptRef attempt, AttemptFailure failure, CancellationToken cancellationToken = default) =>
-        inner.TryFailAsync(attempt, failure, cancellationToken);
+        failures.TryConsumeFail()
+            ? throw new TimeoutException("The database did not answer.")
+            : inner.TryFailAsync(attempt, failure, cancellationToken);
 
     public Task<bool> TryDeadLetterSpentAsync(
         AttemptRef lastAttempt, AttemptFailure failure, CancellationToken cancellationToken = default) =>
@@ -66,5 +88,7 @@ internal sealed class FailingStateRepository(IBackgroundJobStateRepository inner
 
     public Task<bool> RecordFailedAttemptAsync(
         AttemptRef attempt, RetryableFailure failure, CancellationToken cancellationToken = default) =>
-        inner.RecordFailedAttemptAsync(attempt, failure, cancellationToken);
+        failures.TryConsumeFailedAttempt()
+            ? throw new TimeoutException("The database did not answer.")
+            : inner.RecordFailedAttemptAsync(attempt, failure, cancellationToken);
 }

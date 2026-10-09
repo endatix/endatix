@@ -8,18 +8,26 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
 /// Decides when a firing stops trying to store a re-fire the running scheduler refuses. A refusal the database caused
-/// is tried until it lands. Any other is tried <see cref="MaxRefusals"/> times, and then the row is dead-lettered, so
-/// a refusal that will not clear does not hold a worker of its job type's cap for good.
+/// is tried until it lands. Any other is tried <see cref="MaxRefusals"/> times, and then the firing settles the row
+/// itself, so a refusal that will not clear does not hold a worker of its job type's cap for good.
 /// </summary>
 /// <remarks>
+/// <para>
+/// A re-fire that carries the outcome of an attempt that finished settles the row by writing that outcome, as its
+/// firing would have, fenced on that attempt: dead-lettering it would end a job whose work is done. Any other re-fire
+/// dead-letters the row.
+/// </para>
+/// <para>
 /// The first such refusal also looks for the job type's durable job, which an operator can delete, and stores it again
 /// if it is gone: a trigger whose job is missing is refused every time.
+/// </para>
 /// </remarks>
 internal sealed class RefusedRefire(
     StoredDurableJobs durableJobs,
     IServiceScopeFactory scopeFactory,
     JobTypePolicies policies,
     JobLifecycleMetrics metrics,
+    JobOutcomeRecorder outcomes,
     ILogger<RefusedRefire> logger)
 {
     /// <summary>
@@ -51,7 +59,7 @@ internal sealed class RefusedRefire(
 
     /// <summary>
     /// Counts <paramref name="refusal"/> against <paramref name="unstored"/>, and returns whether the firing stops
-    /// trying: once the row is dead-lettered, or has moved on and no longer needs the trigger.
+    /// trying: once the row is settled, or has moved on and no longer needs the trigger.
     /// </summary>
     public async Task<bool> GiveUpAsync(RefireRefusal refusal, UnstoredTrigger unstored)
     {
@@ -66,7 +74,35 @@ internal sealed class RefusedRefire(
             return false;
         }
 
-        return unstored.Refusals >= MaxRefusals && await TryDeadLetterAsync(refusal, unstored.Refusals);
+        return unstored.Refusals >= MaxRefusals && await TrySettleAsync(refusal, unstored.Refusals);
+    }
+
+    private Task<bool> TrySettleAsync(RefireRefusal refusal, int refusals) =>
+        refusal.Again.Unsaved is { } unsaved
+            ? TryRecordCarriedAsync(refusal, unsaved, refusals)
+            : TryDeadLetterAsync(refusal, refusals);
+
+    // Returns false, keeping the firing open, only when the write failed: the outcome then still needs the trigger to
+    // carry it. The recorder counts the attempt's end when its write lands, and logs a row that has moved on.
+    private async Task<bool> TryRecordCarriedAsync(RefireRefusal refusal, UnsavedOutcome unsaved, int refusals)
+    {
+        var job = new ReclaimableJob(refusal.Again.JobId, refusal.JobKey.Name);
+        if (await outcomes.RecordUnsavedAsync(job, unsaved) is OutcomeWrite.Unwritable)
+        {
+            logger.LogError(
+                "Background job {JobId} could not record the outcome its refused re-fire carried; its firing stays open and the trigger is tried again",
+                job.JobId);
+            return false;
+        }
+
+        logger.LogError(
+            refusal.Failure,
+            "Background job {JobId} could not be re-fired: the scheduler refused its trigger {Refusals} times for a reason other than the database, so the firing wrote the {Outcome} outcome of attempt {Attempt} that the trigger carried itself, fenced on that attempt",
+            job.JobId,
+            refusals,
+            unsaved.Write,
+            unsaved.Attempt);
+        return true;
     }
 
     private async Task<bool> TryStoreDurableJobAgainAsync(RefireRefusal refusal)

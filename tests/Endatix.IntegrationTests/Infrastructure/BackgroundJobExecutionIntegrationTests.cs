@@ -253,7 +253,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     }
 
     [Fact]
-    public async Task Job_whose_outcome_cannot_be_written_runs_again_and_completes()
+    public async Task Job_whose_completion_cannot_be_written_for_a_while_completes_without_running_again()
     {
         // Arrange — every try at recording the first attempt's completion fails, as while the database is away.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
@@ -274,9 +274,9 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
-        // Assert — the trigger was kept, the next firing took the row over, and its completion was recorded.
-        row.AttemptCount.Should().Be(2);
-        invocations.CountFor(jobId).Should().Be(2);
+        // Assert — the trigger was kept, and the next firing recorded the completion it carried.
+        row.AttemptCount.Should().Be(1);
+        invocations.CountFor(jobId).Should().Be(1);
         (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
     }
 

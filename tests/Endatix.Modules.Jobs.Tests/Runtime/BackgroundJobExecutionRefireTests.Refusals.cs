@@ -160,18 +160,7 @@ public sealed partial class BackgroundJobExecutionRefireTests
         IsReclaim(scheduled[0]).Should().BeTrue();
     }
 
-    private static void RejectEveryTrigger(IScheduler scheduler)
-    {
-        scheduler.Exists(Arg.Any<JobKey>(), Arg.Any<CancellationToken>()).Returns(true);
-        scheduler
-            .ScheduleJob(Arg.Any<ITrigger>(), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
-            .Returns<ValueTask<DateTimeOffset>>(_ => throw new SchedulerException("The trigger could not be stored."));
-    }
-
     // As the scheduler words it when the job a trigger points at is not in the store.
     private static JobPersistenceException JobMissing(JobKey jobKey) =>
         new($"The job ({jobKey}) referenced by the trigger does not exist.");
-
-    private static int ScheduleJobCalls(IScheduler scheduler) =>
-        scheduler.ReceivedCalls().Count(call => call.GetMethodInfo().Name == nameof(IScheduler.ScheduleJob));
 }

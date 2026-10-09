@@ -75,8 +75,10 @@ internal static class QuartzRegistration
             .Build();
 
     /// <summary>
-    /// The one-off trigger <paramref name="spec"/> describes. Its key is the job id, its only data is the job id, and
-    /// it carries the job type's execution group. The payload and anything secret stay on the row.
+    /// The one-off trigger <paramref name="spec"/> describes. Its key is the job id, its data is the job id and, on a
+    /// re-fire, what the re-fire is for, and it carries the job type's execution group. The payload and anything secret
+    /// stay on the row; only a carried failure's message, the handler's own text, is in the trigger's data as well, and
+    /// so on the dashboard (see <see cref="UnsavedOutcome"/>).
     /// </summary>
     /// <remarks>
     /// It carries no retry policy: the job wrapper schedules each retry on a trigger of its own, timed from the job
@@ -89,14 +91,26 @@ internal static class QuartzRegistration
             .WithIdentity(id, spec.JobType)
             .ForJob(JobKeyFor(spec.JobType))
             .WithExecutionGroup(spec.JobType)
-            .UsingJobData(BackgroundJobExecution.JobIdKey, id);
+            .UsingJobData(TriggerData(id, spec));
         trigger = spec.StartAt is { } at ? trigger.StartAt(at) : trigger.StartNow();
+        return trigger.Build();
+    }
+
+    // A re-fire's data also says what it is for: taking the row over, or writing the outcome an earlier firing could not.
+    private static JobDataMap TriggerData(string id, JobTriggerSpec spec)
+    {
+        var data = new JobDataMap { [BackgroundJobExecution.JobIdKey] = id };
         if (spec.Reclaim)
         {
-            trigger = trigger.UsingJobData(BackgroundJobExecution.ReclaimKey, bool.TrueString);
+            data[BackgroundJobExecution.ReclaimKey] = bool.TrueString;
         }
 
-        return trigger.Build();
+        if (spec.Unsaved is { } unsaved)
+        {
+            data[UnsavedOutcome.DataKey] = unsaved.Serialize();
+        }
+
+        return data;
     }
 
     /// <summary>
@@ -293,11 +307,16 @@ internal static class QuartzRegistration
 /// <param name="Reclaim">
 /// Whether the firing takes the job over from an attempt whose outcome could not be written.
 /// </param>
+/// <param name="Unsaved">
+/// The outcome of that attempt, when its handler decided one, for the firing to write. It is stored in the trigger's
+/// data, failure message included, where the dashboard shows it.
+/// </param>
 internal sealed record JobTriggerSpec(
     long JobId,
     string JobType,
     DateTimeOffset? StartAt = null,
-    bool Reclaim = false);
+    bool Reclaim = false,
+    UnsavedOutcome? Unsaved = null);
 
 /// <param name="PoolSize">How many jobs this node runs at once, across every job type.</param>
 /// <param name="GroupCaps">

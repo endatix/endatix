@@ -78,8 +78,14 @@ internal sealed class JobAttemptClaimer(
 /// Whether the firing takes the job over from an attempt that did not end: a recovery of a dead node's firing, or
 /// a re-fire scheduled because an earlier firing could not claim the row or record its outcome.
 /// </param>
-internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming)
+/// <param name="Unsaved">
+/// The outcome of a finished attempt that its firing could not write, which this firing writes instead of claiming
+/// the row.
+/// </param>
+internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming, UnsavedOutcome? Unsaved = null)
 {
+    public ReclaimableJob Job => new(JobId, JobType);
+
     /// <summary>The firing, or <see langword="null"/> when its trigger carries no job id.</summary>
     public static JobFiring? TryOf(IJobExecutionContext context)
     {
@@ -95,7 +101,8 @@ internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming)
 
         var reclaim = string.Equals(
             data.GetString(BackgroundJobExecution.ReclaimKey), bool.TrueString, StringComparison.OrdinalIgnoreCase);
-        return new JobFiring(jobId, context.JobDetail.Key.Name, context.Recovering || reclaim);
+        return new JobFiring(
+            jobId, context.JobDetail.Key.Name, context.Recovering || reclaim, UnsavedOutcome.TryRead(data));
     }
 }
 
@@ -105,4 +112,11 @@ internal sealed record ClaimedAttempt(ClaimedJob Job, BackgroundJobTypePolicy Po
     public AttemptRef Ref => new(Job.Id, Job.AttemptCount);
 
     public ReclaimableJob Reclaimable => new(Job.Id, Job.JobType);
+
+    public EndedAttempt Ended => new(Ref, Job.JobType, Policy, ClaimedAt);
 }
+
+/// <summary>
+/// An attempt whose outcome is being recorded: the row and attempt its write is fenced on, and what recording it needs.
+/// </summary>
+internal sealed record EndedAttempt(AttemptRef Ref, string JobType, BackgroundJobTypePolicy Policy, DateTime ClaimedAt);

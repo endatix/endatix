@@ -12,7 +12,8 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <para>
 /// A retry gets the job's own trigger, stored for the next attempt's time. Every other case is a re-fire: the job
 /// fires again shortly and re-claims the row, whose fenced writes settle it; if the row had in fact moved on, the
-/// re-claim finds nothing to take.
+/// re-claim finds nothing to take. A re-fire for an attempt whose handler decided its outcome carries that outcome
+/// instead, and writes it rather than re-claiming the row.
 /// </para>
 /// <para>
 /// Every trigger of a job has the same key, made from the job's id, so storing one replaces whichever the job had,
@@ -23,7 +24,8 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// last trigger. One that cannot be stored while the scheduler runs is tried again, after a wait that grows to
 /// <see cref="TriggerStoreBackoff.Max"/>, each time for the delay from then, so it never lands in the past. A refusal
 /// the database caused is tried until the trigger is stored; one of the scheduler's own is tried up to
-/// <see cref="RefusedRefire.MaxRefusals"/> times, and then the job is dead-lettered.
+/// <see cref="RefusedRefire.MaxRefusals"/> times, and then the firing writes the outcome the re-fire carried, or
+/// dead-letters the job when it carried none.
 /// </para>
 /// <para>
 /// A stopping scheduler refuses every new trigger but still completes the firings it waits for. A firing that
@@ -65,7 +67,7 @@ internal sealed class UnrecordedJobRefire(
     /// Stores the trigger <paramref name="again"/> describes for a firing that leaves the job's row as it is, trying
     /// again until it is stored, and returns when the job fires again; or <see langword="null"/> when nothing was
     /// stored: the scheduler stopped first and the firing is left for the next node to check in to recover, or the
-    /// scheduler kept refusing the trigger and the job was dead-lettered.
+    /// scheduler kept refusing the trigger and the firing settled the row itself.
     /// </summary>
     public Task<DateTimeOffset?> TryKeepAsync(IJobExecutionContext context, JobRefireTrigger again) =>
         StoreOrHoldAsync(context, again);
@@ -90,16 +92,37 @@ internal sealed class UnrecordedJobRefire(
         return false;
     }
 
-    /// <summary>Re-fires a job whose attempt ended with nothing recorded on its row.</summary>
-    public async Task RefireAsync(IJobExecutionContext context, ClaimedAttempt attempt)
+    /// <summary>
+    /// Re-fires a job whose attempt ended with nothing recorded on its row, carrying <paramref name="unsaved"/>, the
+    /// outcome its handler decided, for the re-fire to write; without one, the re-fire re-claims the row.
+    /// </summary>
+    public async Task RefireAsync(IJobExecutionContext context, ClaimedAttempt attempt, UnsavedOutcome? unsaved)
     {
-        if (await TryRefireAsync(context, attempt.Reclaimable, attempt.Job.AttemptCount) is { } fireAt)
+        var again = ReclaimTrigger(attempt.Reclaimable, attempt.Job.AttemptCount, unsaved);
+        if (await StoreOrHoldAsync(context, again) is not { } fireAt)
+        {
+            return;
+        }
+
+        if (unsaved is null)
         {
             logger.LogWarning(
                 "Background job {JobId} attempt {Attempt} could not record its outcome and runs again at {FireAt:O}",
                 attempt.Job.Id,
                 attempt.Job.AttemptCount,
                 fireAt);
+            return;
+        }
+
+        LogUnsaved(again.JobId, unsaved, fireAt);
+    }
+
+    /// <summary>Re-fires a job whose firing could not write the outcome it carried, carrying it again.</summary>
+    public async Task RefireUnsavedAsync(IJobExecutionContext context, ReclaimableJob job, UnsavedOutcome unsaved)
+    {
+        if (await StoreOrHoldAsync(context, ReclaimTrigger(job, unsaved.Attempt, unsaved)) is { } fireAt)
+        {
+            LogUnsaved(job.JobId, unsaved, fireAt);
         }
     }
 
@@ -126,15 +149,28 @@ internal sealed class UnrecordedJobRefire(
     }
 
     // Returns when the job fires again, or null when nothing was scheduled.
-    private Task<DateTimeOffset?> TryRefireAsync(IJobExecutionContext context, ReclaimableJob job, int? claimedAttempt)
-    {
-        var reclaim = new JobRefireTrigger(
-            job.JobId, Delay, fireAt => QuartzRegistration.TriggerFor(job.ReclaimAt(fireAt)), claimedAttempt);
-        return StoreOrHoldAsync(context, reclaim);
-    }
+    private Task<DateTimeOffset?> TryRefireAsync(IJobExecutionContext context, ReclaimableJob job, int? claimedAttempt) =>
+        StoreOrHoldAsync(context, ReclaimTrigger(job, claimedAttempt, unsaved: null));
+
+    private static JobRefireTrigger ReclaimTrigger(ReclaimableJob job, int? claimedAttempt, UnsavedOutcome? unsaved) =>
+        new(
+            job.JobId,
+            Delay,
+            fireAt => QuartzRegistration.TriggerFor(job.ReclaimAt(fireAt, unsaved)),
+            claimedAttempt,
+            unsaved);
+
+    private void LogUnsaved(long jobId, UnsavedOutcome unsaved, DateTimeOffset fireAt) =>
+        logger.LogWarning(
+            "Background job {JobId} attempt {Attempt} ended as {Outcome}, which could not be recorded; a re-fire at {FireAt:O} records it, without running the job again",
+            jobId,
+            unsaved.Attempt,
+            unsaved.Write,
+            fireAt);
 
     // Returns when the job fires again, or null when nothing was stored: the scheduler let go of the firing first, or
-    // the job was dead-lettered. Until then the firing stays open, so the trigger that fired is not deleted.
+    // the firing settled the row itself after the scheduler kept refusing the trigger. Until then the firing stays
+    // open, so the trigger that fired is not deleted.
     private async Task<DateTimeOffset?> StoreOrHoldAsync(IJobExecutionContext context, JobRefireTrigger again)
     {
         if (HasLetGo(context.Scheduler))
@@ -260,8 +296,16 @@ internal sealed record ReclaimableJob(long JobId, string JobType)
     /// <summary>The trigger of the job's next attempt, as enqueueing would have made it.</summary>
     public JobTriggerSpec TriggerAt(DateTimeOffset fireAt) => new(JobId, JobType, fireAt);
 
-    /// <summary>A trigger that takes the job over from an attempt that left its row unsettled.</summary>
-    public JobTriggerSpec ReclaimAt(DateTimeOffset fireAt) => new(JobId, JobType, fireAt, Reclaim: true);
+    /// <summary>
+    /// A trigger that takes the job over from an attempt that left its row unsettled, or writes
+    /// <paramref name="unsaved"/>, that attempt's outcome, when it carries one.
+    /// </summary>
+    /// <remarks>
+    /// One that carries an outcome is still marked to re-claim the row, so a node of an earlier version, which does not
+    /// read the outcome, takes the job over as it always did rather than leave the row <c>Processing</c>.
+    /// </remarks>
+    public JobTriggerSpec ReclaimAt(DateTimeOffset fireAt, UnsavedOutcome? unsaved = null) =>
+        new(JobId, JobType, fireAt, Reclaim: true, unsaved);
 }
 
 /// <summary>
@@ -275,11 +319,16 @@ internal sealed record ReclaimableJob(long JobId, string JobType)
 /// The attempt the firing claimed the row at, when it holds a claim: a firing that gives up on the trigger
 /// dead-letters the row only at that attempt.
 /// </param>
+/// <param name="Unsaved">
+/// The outcome the trigger carries, when it carries one: a firing that gives up on the trigger writes it instead of
+/// dead-lettering the row.
+/// </param>
 internal sealed record JobRefireTrigger(
     long JobId,
     TimeSpan Delay,
     Func<DateTimeOffset, ITrigger> TriggerAt,
-    int? ClaimedAttempt = null);
+    int? ClaimedAttempt = null,
+    UnsavedOutcome? Unsaved = null);
 
 /// <summary>How long a firing waits before it tries again to store a trigger the scheduler refused.</summary>
 internal sealed record TriggerStoreBackoff(TimeSpan First, TimeSpan Max)

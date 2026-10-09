@@ -22,7 +22,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: 1);
-        var nodeA = await StartNodeFailingCompletionsAsync(new(database, onA, StoppingQuickly("node-a")), failures, ct);
+        var nodeA = await StartNodeFailingStateWritesAsync(new(database, onA, StoppingQuickly("node-a")), failures, ct);
         var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.FinishFirstAsNodeStops), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(onA.CountFor(jobId) == 1), Patience, ct);
         await using var nodeB = await StartNodeAsync(new(database, onB, InstanceId("node-b")), ct);
@@ -76,20 +76,9 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         ["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "1",
     };
 
-    private static async Task<JobsTestNode> StartNodeFailingCompletionsAsync(
+    private static Task<JobsTestNode> StartNodeFailingStateWritesAsync(
         ProbeNodeSetup setup,
         StateRepositoryFailures failures,
-        CancellationToken ct)
-    {
-        var node = JobsTestNode.Create(
-            setup.Database.ConnectionString,
-            setup.Settings,
-            services =>
-            {
-                services.AddProbe(setup.Invocations);
-                FailingStateRepository.Register(services, failures);
-            });
-        await node.StartAsync(ct);
-        return node;
-    }
+        CancellationToken ct) =>
+        StartNodeFailingAsync(setup, services => FailingStateRepository.Register(services, failures), ct);
 }

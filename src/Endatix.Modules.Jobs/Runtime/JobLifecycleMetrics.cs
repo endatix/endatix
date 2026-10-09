@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -9,10 +8,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <remarks>
 /// The sink is host-supplied, so its failure is reported and dropped rather than allowed to change how a job ended.
 /// </remarks>
-internal sealed class JobLifecycleMetrics(
-    IJobMetrics metrics,
-    IDateTimeProvider dateTimeProvider,
-    ILogger<JobLifecycleMetrics> logger)
+internal sealed class JobLifecycleMetrics(IJobMetrics metrics, ILogger<JobLifecycleMetrics> logger)
 {
     public void Record(JobLifecycleEvent lifecycleEvent, string jobType)
     {
@@ -26,19 +22,33 @@ internal sealed class JobLifecycleMetrics(
         }
     }
 
-    /// <summary>Records how an attempt ended and how long it ran since its claim.</summary>
-    public void RecordEnd(ClaimedAttempt attempt, JobLifecycleEvent lifecycleEvent, JobAttemptOutcome outcome)
+    /// <summary>Records how an attempt ended and how long it ran, from its claim to <paramref name="endedAt"/>.</summary>
+    /// <remarks>
+    /// The end is given rather than read from the clock, because an outcome a later firing writes ended on the node
+    /// that ran the attempt, before whatever kept it from being written, and that firing may run on another node.
+    /// </remarks>
+    public void RecordEnd(EndedAttempt attempt, JobAttemptOutcome outcome, DateTime endedAt)
     {
-        Record(lifecycleEvent, attempt.Job.JobType);
-        ObserveDuration(attempt, outcome);
+        Record(LifecycleEventOf(outcome), attempt.JobType);
+        ObserveDuration(attempt.JobType, endedAt - attempt.ClaimedAt, outcome);
     }
 
-    private void ObserveDuration(ClaimedAttempt attempt, JobAttemptOutcome outcome)
+    private static JobLifecycleEvent LifecycleEventOf(JobAttemptOutcome outcome) => outcome switch
     {
-        var jobType = attempt.Job.JobType;
+        JobAttemptOutcome.Completed => JobLifecycleEvent.Completed,
+        JobAttemptOutcome.Failed => JobLifecycleEvent.Failed,
+        JobAttemptOutcome.RetryScheduled => JobLifecycleEvent.RetryScheduled,
+        JobAttemptOutcome.DeadLettered => JobLifecycleEvent.DeadLettered,
+        JobAttemptOutcome.Canceled => JobLifecycleEvent.Canceled,
+        JobAttemptOutcome.Abandoned => JobLifecycleEvent.Abandoned,
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, null),
+    };
+
+    private void ObserveDuration(string jobType, TimeSpan duration, JobAttemptOutcome outcome)
+    {
         try
         {
-            metrics.ObserveDuration(jobType, dateTimeProvider.UtcNow.UtcDateTime - attempt.ClaimedAt, outcome);
+            metrics.ObserveDuration(jobType, duration, outcome);
         }
         catch (Exception exception)
         {
