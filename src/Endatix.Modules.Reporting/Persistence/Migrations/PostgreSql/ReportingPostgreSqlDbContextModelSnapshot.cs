@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 {
-    [DbContext(typeof(ReportingDbContext))]
-    partial class ReportingDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(ReportingPostgreSqlDbContext))]
+    partial class ReportingPostgreSqlDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {

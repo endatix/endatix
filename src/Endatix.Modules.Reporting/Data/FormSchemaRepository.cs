@@ -15,7 +15,7 @@ namespace Endatix.Modules.Reporting.Data;
 /// in a transaction that then rolled back.
 /// </remarks>
 internal sealed class FormSchemaRepository(
-    ReportingDbContext dbContext,
+    IReportingDbContext dbContext,
     IReportingUnitOfWork unitOfWork,
     ITransactionLock transactionLock) : IFormSchemaRepository
 {

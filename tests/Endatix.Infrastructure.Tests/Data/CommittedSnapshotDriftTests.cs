@@ -40,7 +40,7 @@ public sealed class CommittedSnapshotDriftTests
     {
         { PostgreSql, typeof(AppDbContext) },
         { PostgreSql, typeof(AppIdentityDbContext) },
-        { PostgreSql, typeof(ReportingDbContext) },
+        { PostgreSql, typeof(ReportingPostgreSqlDbContext) },
         { PostgreSql, typeof(JobsPostgreSqlDbContext) },
         { PostgreSql, typeof(AudiencePostgreSqlDbContext) },
         { SqlServer, typeof(AppDbContext) },
@@ -167,7 +167,7 @@ public sealed class CommittedSnapshotDriftTests
         new PostgreSqlPersistenceBuilder(services)
             .UseDefault<AppDbContext>()
             .UseDefault<AppIdentityDbContext>();
-        services.AddModuleDbContext<ReportingDbContext>(configuration, ReportingPersistence.ConfigureDbContextOptions);
+        services.AddModuleDbContext<ReportingPostgreSqlDbContext>(configuration, ReportingPersistence.ConfigureDbContextOptions);
         services.AddModuleDbContext<JobsPostgreSqlDbContext>(configuration, JobsPersistence.ConfigureDbContextOptions);
         services.AddModuleDbContext<AudiencePostgreSqlDbContext>(configuration, AudiencePersistence.ConfigureDbContextOptions);
     }

@@ -693,18 +693,15 @@ public sealed class ReportingExportRepositoryIntegrationTests
             new OutboxIntegrationEventDispatcher());
     }
 
-    private ReportingDbContext CreateReportingDbContext()
+    private ReportingDbContextBase CreateReportingDbContext()
     {
         IntegrationTenantContext tenantContext = new(TenantId);
 
-        var optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
+        return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
     private static ReportingExportRepository CreateRepository(
-        ReportingDbContext reportingDb,
+        ReportingDbContextBase reportingDb,
         AppDbContext appDb) =>
         new(reportingDb, appDb, NullLogger<ReportingExportRepository>.Instance);
 

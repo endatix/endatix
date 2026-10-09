@@ -43,7 +43,7 @@ Endatix has two persistence patterns. Every new module uses the **module pattern
 
 | | Monolith pattern | Module pattern |
 |---|---|---|
-| Used by | `AppDbContext`, `AppIdentityDbContext` | Audience and Jobs. Reporting (one context, PostgreSQL migrations only today) and the SaaS modules are moving to it. |
+| Used by | `AppDbContext`, `AppIdentityDbContext` | Reporting, Audience and Jobs. The SaaS modules are moving to it. |
 | Context types | One context type for every provider | An abstract base context with the shared model, plus one sealed derived context per provider |
 | Where migrations live | A separate assembly per provider: `Endatix.Persistence.PostgreSql`, `Endatix.Persistence.SqlServer` | The module assembly, under `Persistence/Migrations/<Provider>/` |
 | Model snapshot | One per provider assembly, for the shared context type | One per derived context: `<Derived>ModelSnapshot.cs` |

@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
@@ -17,10 +18,9 @@ internal static class ReportingTestSchema
     {
         await EnsureCoreMigratedAsync(connectionString, provider, cancellationToken);
 
-        var optionsBuilder = ConfigureOptionsBuilder(connectionString);
-
-        await using ReportingDbContext context = new(
-            optionsBuilder.Options,
+        await using ReportingDbContextBase context = CreateContext(
+            connectionString,
+            provider,
             IntegrationTenantContext.Bypass);
 
         // Reporting integration tests reset data via Respawn but keep schema objects.
@@ -29,12 +29,27 @@ internal static class ReportingTestSchema
         await context.Database.MigrateAsync(cancellationToken);
     }
 
-    internal static DbContextOptionsBuilder<ReportingDbContext> ConfigureOptionsBuilder(string connectionString)
+    /// <summary>
+    /// Creates the Reporting context of the database provider under test, configured the way the host
+    /// configures it.
+    /// </summary>
+    internal static ReportingDbContextBase CreateContext(
+        string connectionString,
+        TestDatabaseProvider provider,
+        ITenantContext tenantContext)
     {
-        var configuration = BuildTestConfiguration(connectionString);
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder = new();
+        var configuration = BuildTestConfiguration(connectionString, provider);
+        return provider == TestDatabaseProvider.PostgreSql
+            ? new ReportingPostgreSqlDbContext(HostOptions<ReportingPostgreSqlDbContext>(configuration), tenantContext)
+            : new ReportingSqlServerDbContext(HostOptions<ReportingSqlServerDbContext>(configuration), tenantContext);
+    }
+
+    private static DbContextOptions<TContext> HostOptions<TContext>(IConfiguration configuration)
+        where TContext : DbContext
+    {
+        DbContextOptionsBuilder<TContext> optionsBuilder = new();
         optionsBuilder.ConfigureModuleDbContext(configuration, ReportingPersistence.ConfigureDbContextOptions);
-        return optionsBuilder;
+        return optionsBuilder.Options;
     }
 
     private static async Task EnsureCoreMigratedAsync(
@@ -49,12 +64,12 @@ internal static class ReportingTestSchema
         await serviceProvider.ApplyDbMigrationsAsync(NullLogger.Instance, cancellationToken);
     }
 
-    private static IConfiguration BuildTestConfiguration(string connectionString) =>
+    private static IConfiguration BuildTestConfiguration(string connectionString, TestDatabaseProvider provider) =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = connectionString,
-                ["ConnectionStrings:DefaultConnection_DbProvider"] = "PostgreSql"
+                ["ConnectionStrings:DefaultConnection_DbProvider"] = provider.ToString()
             })
             .Build();
 }

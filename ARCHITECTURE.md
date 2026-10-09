@@ -119,7 +119,7 @@ Every packable project needs a `README.md` next to the csproj. `Directory.Build.
 
 **Persistence notes (Reporting PR):**
 
-- Separate `reporting` schema + `ReportingDbContext` — CQRS read model, not bloating core `Submissions`.
+- Separate `reporting` schema + `ReportingDbContextBase` (one derived context per provider) — CQRS read model, not bloating core `Submissions`.
 - Module entities use `BaseEntity` + `ITenantOwned`, not `TenantEntity`, when the context must stay isolated (`Tenant` navigation pulls the core EF graph).
 - EF Core 10: `[ComplexType]` + `ComplexProperty` on `FlattenedSubmission` integration state.
 - Provider-specific JSON columns and migrations live under `Persistence/Migrations/{PostgreSql|SqlServer}/`.
@@ -204,14 +204,17 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        builder.AddDbContextWithMigrations<ReportingDbContext>(ReportingPersistence.ConfigureDbContextOptions);
+        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Reporting", FeatureFlags.ReportingModule);
+        builder.AddDbContextWithMigrations<ReportingPostgreSqlDbContext>(ReportingPersistence.ConfigureDbContextOptions);
+        builder.Services.AddScoped<ReportingDbContextBase>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
+        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
     }
 }
 ```
 
 Host wiring: OSS `UseDefaults()` calls `UseModule(ReportingModule.Instance)`, `UseModule(JobsModule.Instance)`, and `UseModule(AudienceModule.Instance)`. `UseModule` scans MediatR on `Assembly`, invokes `ConfigureServices` at finalization, and **only if** the module implements `IHasFastEndpoints` registers FastEndpoints discovery (flag-off modules contribute nothing). Do **not** also call `Api.ScanAssemblies` from `Program` for that assembly — duplicate scan bypasses the flag.
 
-**Provider:** Reporting **requires PostgreSQL** until [#813](https://github.com/endatix/endatix/issues/813). `ReportingPersistence` still sets both namespaces, but there are no SQL Server migrations — a SQL Server host can register the module, and auto-migration then does not create schema `reporting`. Details: [Reporting README](src/Endatix.Modules.Reporting/README.md). Jobs, Audience, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only**: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Audience uses schema `audience` and is gated by `FeatureFlags.PersonalizationModule` (catalogue key `personalization-module`); the module name is the sample frame, the flag is the product name. See [Audience README](src/Endatix.Modules.Audience/README.md). Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder.
+**Provider:** Reporting **requires PostgreSQL** until [#813](https://github.com/endatix/endatix/issues/813): `ConfigureServices` throws on another provider. Its persistence already follows the module pattern — `ReportingDbContextBase` plus `ReportingPostgreSqlDbContext` and `ReportingSqlServerDbContext`, both migrations namespaces set to the migrations root — but only the PostgreSQL context has migrations. Details: [Reporting README](src/Endatix.Modules.Reporting/README.md). Jobs, Audience, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only**: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Audience uses schema `audience` and is gated by `FeatureFlags.PersonalizationModule` (catalogue key `personalization-module`); the module name is the sample frame, the flag is the product name. See [Audience README](src/Endatix.Modules.Audience/README.md). Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder.
 
 **Optimistic concurrency:** For aggregates that can be updated concurrently, use `long Revision` + `IsConcurrencyToken()` and bump `Revision` on `Modified` at save. Same CLR type and column on both providers. Do not use PostgreSQL `xmin` (`uint` / `IsRowVersion`) on dual-provider (or future dual-provider) modules — SQL Server `rowversion` is `byte[]`. Identity keeps `ConcurrencyStamp`. `Form`/`Submission.Revision` today is outbox/event pairing, not an EF concurrency token. Map `DbUpdateConcurrencyException` to HTTP 409. Unique indexes still cover insert uniqueness.
 
@@ -526,7 +529,7 @@ Gated by the deployment flag `multi-tenancy` (`FeatureFlags.MultiTenancy`). Off 
 
 **Data isolation (EF query filters)**
 
-`ApplyEndatixQueryFilters` registers two **named** EF 10 filters on every entity of `AppDbContext`, `ReportingDbContext`, `JobsDbContextBase`, and `AudienceDbContextBase`:
+`ApplyEndatixQueryFilters` registers two **named** EF 10 filters on every entity of `AppDbContext`, `ReportingDbContextBase`, `JobsDbContextBase`, and `AudienceDbContextBase`:
 
 | Name                                 | Applies to                | Predicate                               |
 | ------------------------------------ | ------------------------- | --------------------------------------- |

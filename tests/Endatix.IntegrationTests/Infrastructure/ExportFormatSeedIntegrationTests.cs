@@ -37,7 +37,7 @@ public sealed class ExportFormatSeedIntegrationTests
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9101;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
 
         // Act
         await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
@@ -64,7 +64,7 @@ public sealed class ExportFormatSeedIntegrationTests
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9102;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         ExportFormatRepository repository = CreateRepository(db);
 
         await repository.SeedDefaultsAsync(tenantId, cancellationToken);
@@ -93,7 +93,7 @@ public sealed class ExportFormatSeedIntegrationTests
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9103;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         ExportFormatRepository repository = CreateRepository(db);
         await repository.SeedDefaultsAsync(tenantId, cancellationToken);
 
@@ -125,16 +125,16 @@ public sealed class ExportFormatSeedIntegrationTests
         const long ambientTenantId = 9105;
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
-        await using ReportingDbContext first = CreateContext(ambientTenantId);
+        await using ReportingDbContextBase first = CreateContext(ambientTenantId);
         await CreateRepository(first).SeedDefaultsAsync(targetTenantId, cancellationToken);
 
-        await using ReportingDbContext second = CreateContext(ambientTenantId);
+        await using ReportingDbContextBase second = CreateContext(ambientTenantId);
 
         // Act
         await CreateRepository(second).SeedDefaultsAsync(targetTenantId, cancellationToken);
 
         // Assert
-        await using ReportingDbContext verify = CreateContext(targetTenantId);
+        await using ReportingDbContextBase verify = CreateContext(targetTenantId);
         List<ExportFormat> formats = await LoadFormatsAsync(verify, targetTenantId, cancellationToken);
         formats.Should().HaveCount(4);
 
@@ -150,7 +150,7 @@ public sealed class ExportFormatSeedIntegrationTests
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9106;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
 
         ExportFormat xlsx = await db.ExportFormats.SingleAsync(
@@ -179,7 +179,7 @@ public sealed class ExportFormatSeedIntegrationTests
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9111;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         ExportFormatRepository repository = CreateRepository(db);
         await repository.SeedDefaultsAsync(tenantId, cancellationToken);
 
@@ -215,7 +215,7 @@ public sealed class ExportFormatSeedIntegrationTests
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9107;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         await CreateRepository(db).SeedDefaultsAsync(tenantId, cancellationToken);
 
         ExportFormat csv = await db.ExportFormats.SingleAsync(
@@ -244,7 +244,7 @@ public sealed class ExportFormatSeedIntegrationTests
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9108;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         db.ExportFormats.Add(new ExportFormat(
             tenantId, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Native));
         await db.SaveChangesAsync(cancellationToken);
@@ -268,7 +268,7 @@ public sealed class ExportFormatSeedIntegrationTests
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9109;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         db.ExportFormats.Add(new ExportFormat(
             tenantId, "CSV", ExportTarget.Submissions, ExportDeliveryFormat.Csv, ExportProfile.Shoji));
         await db.SaveChangesAsync(cancellationToken);
@@ -299,7 +299,7 @@ public sealed class ExportFormatSeedIntegrationTests
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         const long tenantId = 9110;
-        await using ReportingDbContext db = await CreateMigratedContextAsync(tenantId, cancellationToken);
+        await using ReportingDbContextBase db = await CreateMigratedContextAsync(tenantId, cancellationToken);
         ExportFormatRepository repository = CreateRepository(db);
         await repository.SeedDefaultsAsync(tenantId, cancellationToken);
 
@@ -331,7 +331,7 @@ public sealed class ExportFormatSeedIntegrationTests
             _fixture.ConnectionString,
             _fixture.Provider,
             cancellationToken);
-        await using ReportingDbContext db = CreateContext(tenantId);
+        await using ReportingDbContextBase db = CreateContext(tenantId);
 
         // Act — tenants created after InitialReporting still get the catalog rows
         string sql = SeedDefaultExportFormatsSql.Up.Replace("{", "{{").Replace("}", "}}");
@@ -373,7 +373,7 @@ public sealed class ExportFormatSeedIntegrationTests
     }
 
     private static async Task<List<ExportFormat>> LoadFormatsAsync(
-        ReportingDbContext db,
+        ReportingDbContextBase db,
         long tenantId,
         CancellationToken cancellationToken) =>
         await db.ExportFormats
@@ -382,7 +382,7 @@ public sealed class ExportFormatSeedIntegrationTests
             .ToListAsync(cancellationToken);
 
     private static async Task<SurveyTypeExportMapping> LoadDefaultMappingAsync(
-        ReportingDbContext db,
+        ReportingDbContextBase db,
         long tenantId,
         CancellationToken cancellationToken)
     {
@@ -399,7 +399,7 @@ public sealed class ExportFormatSeedIntegrationTests
         return mapping!;
     }
 
-    private async Task<ReportingDbContext> CreateMigratedContextAsync(
+    private async Task<ReportingDbContextBase> CreateMigratedContextAsync(
         long tenantId,
         CancellationToken cancellationToken)
     {
@@ -407,17 +407,14 @@ public sealed class ExportFormatSeedIntegrationTests
         return CreateContext(tenantId);
     }
 
-    private ReportingDbContext CreateContext(long tenantId)
+    private ReportingDbContextBase CreateContext(long tenantId)
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
+        return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
-    private static ExportFormatRepository CreateRepository(ReportingDbContext db) =>
+    private static ExportFormatRepository CreateRepository(ReportingDbContextBase db) =>
         new(
             db,
             new ReportingUnitOfWork(db),
