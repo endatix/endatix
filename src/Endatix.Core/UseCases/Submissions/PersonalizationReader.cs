@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Endatix.Core.UseCases.Submissions;
 
@@ -9,7 +10,9 @@ namespace Endatix.Core.UseCases.Submissions;
 public sealed record PersonalizationRead(
     string Identifier,
     DateTimeOffset CapturedAt,
-    JsonElement Variables);
+    JsonElement Variables,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Source = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? MemberId = null);
 
 public static class PersonalizationReader
 {
@@ -30,17 +33,27 @@ public static class PersonalizationReader
                 return null;
             }
 
-            string identifier = root.TryGetProperty("identifier", out JsonElement id)
-                ? id.GetString() ?? ""
-                : "";
-            DateTimeOffset capturedAt = root.TryGetProperty("capturedAt", out JsonElement at)
-                ? at.GetDateTimeOffset()
-                : default;
-            return new PersonalizationRead(identifier, capturedAt, variables.Clone());
+            return FromRoot(root, variables.Clone());
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    private static PersonalizationRead FromRoot(JsonElement root, JsonElement variables) =>
+        new(
+            Text(root, "identifier") ?? "",
+            root.TryGetProperty("capturedAt", out JsonElement at) ? at.GetDateTimeOffset() : default,
+            variables,
+            Text(root, "source"),
+            Long(root, "memberId"));
+
+    private static string? Text(JsonElement root, string name) =>
+        root.TryGetProperty(name, out JsonElement value) ? value.GetString() : null;
+
+    private static long? Long(JsonElement root, string name) =>
+        root.TryGetProperty(name, out JsonElement value) && value.TryGetInt64(out long number)
+            ? number
+            : null;
 }
