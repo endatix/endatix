@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Features.Links;
 
-public sealed record RedeemedLinkDto(long SubmissionId, string Snapshot, bool Created, string AccessToken);
+public sealed record RedeemedLinkDto(long SubmissionId, bool Created, string AccessToken);
 
 public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Result<RedeemedLinkDto>>;
 
@@ -24,7 +24,7 @@ internal sealed class RedeemLinkHandler(
         RedeemLinkCommand request,
         CancellationToken cancellationToken)
     {
-        AudienceLink? link = await db.Links.FirstOrDefaultAsync(
+        var link = await db.Links.FirstOrDefaultAsync(
             item => item.FormId == request.FormId && item.TokenHash == AudienceLink.Hash(request.Token),
             cancellationToken);
         if (link is null)
@@ -34,7 +34,7 @@ internal sealed class RedeemLinkHandler(
 
         if (link.SubmissionId is long existingId)
         {
-            return await RedeemedAsync(existingId, await ReadSnapshotAsync(existingId, cancellationToken), false, cancellationToken);
+            return await RedeemedAsync(existingId, false, cancellationToken);
         }
 
         return await OpenAsync(link, cancellationToken);
@@ -42,14 +42,14 @@ internal sealed class RedeemLinkHandler(
 
     private async Task<Result<RedeemedLinkDto>> OpenAsync(AudienceLink link, CancellationToken cancellationToken)
     {
-        Form? form = await forms.GetByIdAsync(link.FormId, cancellationToken);
+        var form = await forms.GetByIdAsync(link.FormId, cancellationToken);
         if (form?.ActiveDefinitionId is not long definitionId)
         {
             return Result.NotFound("Form not found.");
         }
 
-        string snapshot = await SnapshotAsync(link, DateTime.UtcNow, cancellationToken);
-        Submission submission = Submission.Create(new SubmissionCreateArgs(
+        var snapshot = await SnapshotAsync(link, DateTime.UtcNow, cancellationToken);
+        var submission = Submission.Create(new SubmissionCreateArgs(
             link.TenantId,
             link.FormId,
             definitionId,
@@ -61,7 +61,7 @@ internal sealed class RedeemLinkHandler(
         await submissions.SaveChangesAsync(cancellationToken);
         link.MarkOpened(submission.Id, DateTime.UtcNow);
         await db.SaveChangesAsync(cancellationToken);
-        return await RedeemedAsync(submission.Id, snapshot, true, cancellationToken);
+        return await RedeemedAsync(submission.Id, true, cancellationToken);
     }
 
     private async Task<string> SnapshotAsync(
@@ -69,7 +69,7 @@ internal sealed class RedeemLinkHandler(
         DateTime capturedAt,
         CancellationToken cancellationToken)
     {
-        string identifier = await (
+        var identifier = await (
             from membership in db.Memberships
             join member in db.Members on membership.MemberId equals member.Id
             where membership.Id == link.MembershipId
@@ -80,7 +80,7 @@ internal sealed class RedeemLinkHandler(
             where value.MembershipId == link.MembershipId
             select new { property.VariableName, property.DataType, value.Value })
             .ToListAsync(cancellationToken);
-        List<SnapshotCell> cells = rows
+        var cells = rows
             .Select(row => new SnapshotCell(row.VariableName, row.DataType, row.Value))
             .ToList();
         return PersonalizationSnapshotJson.Write(link.Id, identifier, capturedAt, cells);
@@ -88,19 +88,12 @@ internal sealed class RedeemLinkHandler(
 
     private async Task<Result<RedeemedLinkDto>> RedeemedAsync(
         long submissionId,
-        string snapshot,
         bool created,
         CancellationToken cancellationToken)
     {
-        Result<string> token = await tokens.ObtainTokenAsync(submissionId, cancellationToken);
+        var token = await tokens.ObtainTokenAsync(submissionId, cancellationToken);
         return token.IsSuccess
-            ? Result.Success(new RedeemedLinkDto(submissionId, snapshot, created, token.Value))
+            ? Result.Success(new RedeemedLinkDto(submissionId, created, token.Value))
             : token.ToErrorResult<RedeemedLinkDto>();
-    }
-
-    private async Task<string> ReadSnapshotAsync(long submissionId, CancellationToken cancellationToken)
-    {
-        Submission? submission = await submissions.GetByIdAsync(submissionId, cancellationToken);
-        return submission?.PersonalizationSnapshot ?? "{}";
     }
 }

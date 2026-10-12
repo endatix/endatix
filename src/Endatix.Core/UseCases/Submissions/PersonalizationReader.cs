@@ -11,6 +11,11 @@ public sealed record PersonalizationRead(
     DateTimeOffset CapturedAt,
     JsonElement Variables);
 
+/// <summary>
+/// Every submission read maps through this reader, so it never throws: unreadable JSON or a snapshot
+/// without <c>variables</c> is no personalization, and a field of an unexpected type (a numeric
+/// <c>capturedAt</c>, a numeric <c>identifier</c>) reads as its default.
+/// </summary>
 public static class PersonalizationReader
 {
     public static PersonalizationRead? Read(string? snapshot)
@@ -22,25 +27,36 @@ public static class PersonalizationReader
 
         try
         {
-            using JsonDocument document = JsonDocument.Parse(snapshot);
-            JsonElement root = document.RootElement;
-            if (!root.TryGetProperty("variables", out JsonElement variables)
-                || variables.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            string identifier = root.TryGetProperty("identifier", out JsonElement id)
-                ? id.GetString() ?? ""
-                : "";
-            DateTimeOffset capturedAt = root.TryGetProperty("capturedAt", out JsonElement at)
-                ? at.GetDateTimeOffset()
-                : default;
-            return new PersonalizationRead(identifier, capturedAt, variables.Clone());
+            using var document = JsonDocument.Parse(snapshot);
+            return FromRoot(document.RootElement);
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    private static PersonalizationRead? FromRoot(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("variables", out var variables)
+            || variables.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return new PersonalizationRead(Identifier(root), CapturedAt(root), variables.Clone());
+    }
+
+    private static string Identifier(JsonElement root) =>
+        root.TryGetProperty("identifier", out var id) && id.ValueKind == JsonValueKind.String
+            ? id.GetString() ?? ""
+            : "";
+
+    private static DateTimeOffset CapturedAt(JsonElement root) =>
+        root.TryGetProperty("capturedAt", out var at)
+        && at.ValueKind == JsonValueKind.String
+        && at.TryGetDateTimeOffset(out var capturedAt)
+            ? capturedAt
+            : default;
 }

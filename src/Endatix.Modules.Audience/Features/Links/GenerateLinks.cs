@@ -21,31 +21,36 @@ internal sealed class GenerateLinksHandler(IAudienceDbContext db, IRepository<Fo
         GenerateLinksCommand request,
         CancellationToken cancellationToken)
     {
-        Form? form = await forms.GetByIdAsync(request.FormId, cancellationToken);
-        if (form is null || form.TenantId != request.TenantId)
+        var gate = await TenantFormGate.EnsureAsync(
+            new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
+        if (!gate.IsSuccess)
         {
-            return Result.NotFound("Form not found.");
+            return gate.ToErrorResult<IReadOnlyList<IssuedLinkDto>>();
         }
 
-        List<long> membershipIds = await db.Memberships
-            .Where(membership => membership.FormId == request.FormId)
-            .Select(membership => membership.Id)
-            .Take(MaxLinks + 1)
-            .ToListAsync(cancellationToken);
+        var membershipIds = await MembershipIdsAsync(request.FormId, cancellationToken);
         if (membershipIds.Count > MaxLinks)
         {
             return Result.Invalid(new ValidationError("This form has more than 5,000 people."));
         }
 
-        HashSet<long> existing = await ExistingAsync(request.FormId, cancellationToken);
-        List<IssuedLinkDto> issued = IssueMissing(request, membershipIds, existing);
+        var existing = await ExistingAsync(request.FormId, cancellationToken);
+        var issued = IssueMissing(request, membershipIds, existing);
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success<IReadOnlyList<IssuedLinkDto>>(issued);
     }
 
+    /// <summary>Up to one more than the cap, so a form over it is refused without reading it all.</summary>
+    private Task<List<long>> MembershipIdsAsync(long formId, CancellationToken cancellationToken) =>
+        db.Memberships
+            .Where(membership => membership.FormId == formId)
+            .Select(membership => membership.Id)
+            .Take(MaxLinks + 1)
+            .ToListAsync(cancellationToken);
+
     private async Task<HashSet<long>> ExistingAsync(long formId, CancellationToken cancellationToken)
     {
-        List<long> ids = await db.Links
+        var ids = await db.Links
             .Where(link => link.FormId == formId)
             .Select(link => link.MembershipId)
             .ToListAsync(cancellationToken);
@@ -58,14 +63,14 @@ internal sealed class GenerateLinksHandler(IAudienceDbContext db, IRepository<Fo
         HashSet<long> existing)
     {
         List<IssuedLinkDto> issued = [];
-        foreach (long membershipId in membershipIds)
+        foreach (var membershipId in membershipIds)
         {
             if (existing.Contains(membershipId))
             {
                 continue;
             }
 
-            (AudienceLink link, string token) = AudienceLink.Issue(
+            (var link, var token) = AudienceLink.Issue(
                 request.TenantId,
                 request.FormId,
                 membershipId);

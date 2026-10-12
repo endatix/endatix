@@ -44,17 +44,19 @@ public sealed class RedeemLinkRequest
     public string? Token { get; init; }
 }
 
+/// <summary>
+/// What an anonymous open needs: the submission and a token to work on it. The frozen snapshot
+/// stays internal; clients read the typed <c>personalization</c> on the submission instead.
+/// </summary>
 public sealed class RedeemedLinkResponse
 {
     public long SubmissionId { get; init; }
-    public string Snapshot { get; init; } = "{}";
     public bool Created { get; init; }
     public string AccessToken { get; init; } = string.Empty;
 
     public static RedeemedLinkResponse From(RedeemedLinkDto dto) => new()
     {
         SubmissionId = dto.SubmissionId,
-        Snapshot = dto.Snapshot,
         Created = dto.Created,
         AccessToken = dto.AccessToken,
     };
