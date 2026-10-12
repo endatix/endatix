@@ -44,7 +44,8 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
 
                     b.Property<string>("DedupKey")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(200)")
+                        .UseCollation("Latin1_General_100_BIN2");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
@@ -62,7 +63,8 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
                     b.Property<string>("JobType")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("nvarchar(128)")
+                        .UseCollation("Latin1_General_100_BIN2");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");

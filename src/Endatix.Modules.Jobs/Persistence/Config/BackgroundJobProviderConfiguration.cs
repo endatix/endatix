@@ -5,13 +5,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Endatix.Modules.Jobs.Persistence.Config;
 
 /// <summary>
-/// The provider-dependent half of the <see cref="BackgroundJob"/> mapping: JSON storage, the tenant check
-/// constraint and the dedup index.
+/// The provider-dependent half of the <see cref="BackgroundJob"/> mapping: JSON storage, the dedup key's
+/// comparison, the tenant check constraint and the dedup index.
 /// </summary>
 /// <remarks>
-/// The shape is the same on every provider; only the JSON column type and the identifier quoting in the SQL
-/// fragments differ, so a derived configuration supplies those two and nothing else. A change made here
-/// therefore reaches every provider at once.
+/// The shape is the same on every provider; only the JSON column type, the identifier quoting in the SQL
+/// fragments and, where the database's default differs from .NET's, the dedup columns' collation differ, so a
+/// derived configuration supplies those and nothing else. A change made here therefore reaches every provider
+/// at once.
 /// </remarks>
 internal abstract class BackgroundJobProviderConfiguration : IEntityTypeConfiguration<BackgroundJob>
 {
@@ -24,10 +25,18 @@ internal abstract class BackgroundJobProviderConfiguration : IEntityTypeConfigur
     /// <summary>Quotes a column name for a check constraint or an index filter.</summary>
     protected abstract string QuoteIdentifier(string name);
 
+    /// <summary>
+    /// A collation that compares the dedup identity's text columns the way the queue's in-memory lookup does,
+    /// ordinally, or <see langword="null"/> when the database's default already does.
+    /// </summary>
+    protected virtual string? OrdinalCollation => null;
+
     public void Configure(EntityTypeBuilder<BackgroundJob> builder)
     {
         builder.Property(job => job.PayloadJson)
             .HasColumnType(JsonColumnType);
+
+        UseOrdinalComparisonForDedupIdentity(builder);
 
         // The entity refuses a job without a tenant, but the entity is not the only way a row can
         // arrive: a migration, a seeder or a hand-written statement all bypass it. A row with tenant
@@ -37,6 +46,20 @@ internal abstract class BackgroundJobProviderConfiguration : IEntityTypeConfigur
             "CK_BackgroundJobs_TenantId", $"{QuoteIdentifier(nameof(BackgroundJob.TenantId))} > 0"));
 
         HasDedupKeyIndex(builder);
+    }
+
+    // The queue finds an existing job by matching the stored key and job type ordinally. Were the unique index
+    // to compare them case-insensitively, keys differing only in case would miss that lookup and then collide on
+    // the index, failing the enqueue instead of returning the existing job.
+    private void UseOrdinalComparisonForDedupIdentity(EntityTypeBuilder<BackgroundJob> builder)
+    {
+        if (OrdinalCollation is not { } collation)
+        {
+            return;
+        }
+
+        builder.Property(job => job.JobType).UseCollation(collation);
+        builder.Property(job => job.DedupKey).UseCollation(collation);
     }
 
     // The guarantee behind idempotent enqueue: a redelivered fan-out cannot insert a second row for the same unit

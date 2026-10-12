@@ -1,16 +1,23 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Domain;
+using Endatix.Modules.Jobs.Features;
 using Endatix.Modules.Jobs.Persistence;
+using Endatix.Modules.Jobs.Runtime;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The Background Jobs store on SQL Server, at database level: what the SQL Server migrations create and remove.
+/// The Background Jobs store on SQL Server, at database level: what the SQL Server migrations create and remove,
+/// and how the dedup index they create compares keys.
 /// Each test migrates a database of its own, so only that migration shapes it.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
@@ -123,6 +130,43 @@ public sealed class JobsSqlServerStoreTests(DbIntegrationFixture fixture)
         tables.Should().Equal("__EFMigrationsHistory");
         appliedMigrations.Should().Be(0);
         acquisitionObjects.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_SqlServerDedupKeysDifferingOnlyInCase_AreDistinctJobsAndAnExactRepeatDedups()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var context = ContextFor(database);
+        await context.Database.MigrateAsync(ct);
+        var queue = QueueOver(context);
+
+        // Act
+        var lowerCase = await queue.EnqueueAsync(ExportRequest("report"), ct);
+        var upperCase = await queue.EnqueueAsync(ExportRequest("Report"), ct);
+        var repeat = await queue.EnqueueAsync(ExportRequest("report"), ct);
+
+        // Assert
+        upperCase.Should().NotBe(lowerCase);
+        repeat.Should().Be(lowerCase);
+        (await database.CountAsync("SELECT count(*) FROM jobs.BackgroundJobs", ct)).Should().Be(2);
+    }
+
+    private static BackgroundJobRequest ExportRequest(string dedupKey) =>
+        new("SubmissionExport", "{}", TenantId: 7, DedupKey: dedupKey);
+
+    // The real queue over the SQL Server context; the scheduler only commits, since this asserts the rows alone.
+    private static BackgroundJobQueue QueueOver(JobsSqlServerDbContext context)
+    {
+        var clock = Substitute.For<IDateTimeProvider>();
+        clock.UtcNow.Returns(DateTimeOffset.UtcNow);
+        var scheduler = Substitute.For<IJobTriggerScheduler>();
+        scheduler.ScheduleAndCommitAsync(
+                Arg.Any<IDbContextTransaction>(), Arg.Any<IReadOnlyList<BackgroundJob>>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<IDbContextTransaction>().CommitAsync(call.Arg<CancellationToken>()));
+        return new BackgroundJobQueue(context, clock, scheduler);
     }
 
     private static async Task ShouldHaveTheAcquisitionColumnAndIndexAsync(JobsTestDatabase database, CancellationToken ct)

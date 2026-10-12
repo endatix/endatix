@@ -27,7 +27,7 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
-                    JobType = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    JobType = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false, collation: "Latin1_General_100_BIN2"),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     PayloadJson = table.Column<string>(type: "json", nullable: false),
@@ -41,7 +41,7 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
                     AttemptCount = table.Column<int>(type: "int", nullable: false),
                     NextAttemptAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     TraceId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
-                    DedupKey = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    DedupKey = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true, collation: "Latin1_General_100_BIN2"),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
