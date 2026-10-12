@@ -14,7 +14,7 @@ public sealed class DatabaseCheckpoint
 {
     private static readonly string[] _postgresSchemas = ["public", "identity", "agents", "reporting", "jobs", "audience"];
 
-    private static readonly string[] _sqlServerSchemas = ["dbo", "identity", "agents", "reporting"];
+    private static readonly string[] _sqlServerSchemas = ["dbo", "identity", "agents", "reporting", "audience"];
 
     private readonly SemaphoreSlim _init = new(1, 1);
     private readonly Dictionary<TestDatabaseProvider, Respawner> _respawners = [];

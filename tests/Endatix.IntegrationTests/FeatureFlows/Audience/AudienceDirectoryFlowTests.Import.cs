@@ -29,6 +29,52 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task Importing_external_ids_matches_only_the_same_casing()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        using HttpResponseMessage key = await api.PutKeyAsync("external_id");
+        long formId = await api.CreateFormAsync();
+        using HttpResponseMessage added = await api.AddPersonAsync(formId, "AbC-1");
+
+        // Act
+        using HttpResponseMessage response = await api.ImportAsync(formId, "email\nAbC-1\nabc-1\n");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, key.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement result = await api.ReadAsync(response);
+        Assert.Equal(1, result.GetProperty("skippedCount").GetInt32());
+        Assert.Equal(1, result.GetProperty("createdCount").GetInt32());
+    }
+
+    // SQL Server takes at most 2,100 parameters, so a file this long sends its match keys as one JSON value, which
+    // the database compares under the match key's own collation.
+    [Fact]
+    public async Task Importing_a_large_file_of_external_ids_matches_only_the_same_casing()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        using HttpResponseMessage key = await api.PutKeyAsync("external_id");
+        long formId = await api.CreateFormAsync();
+        using HttpResponseMessage added = await api.AddPersonAsync(formId, "AbC-1");
+        IEnumerable<string> others = Enumerable.Range(0, 2_200).Select(i => $"other-{i}");
+        string csv = "email\nAbC-1\nabc-1\n" + string.Join("\n", others) + "\n";
+
+        // Act
+        using HttpResponseMessage response = await api.ImportAsync(formId, csv);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, key.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement result = await api.ReadAsync(response);
+        Assert.Equal(1, result.GetProperty("skippedCount").GetInt32());
+        Assert.Equal(2_201, result.GetProperty("createdCount").GetInt32());
+    }
+
+    [Fact]
     public async Task Importing_bad_rows_rejects_them_with_their_row_numbers()
     {
         // Arrange
