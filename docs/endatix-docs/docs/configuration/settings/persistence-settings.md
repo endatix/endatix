@@ -29,7 +29,7 @@ The Reporting module (`Endatix:FeatureFlags:ReportingModule`) runs on both provi
 
 The Audience module (`Endatix:FeatureFlags:PersonalizationModule`) runs on both providers.
 
-Keep `READ_COMMITTED_SNAPSHOT` on for the database. A database that Endatix creates on first start has it on, and so does Azure SQL Database; a database created beforehand (by a DBA or a script) may have it off. Without it, a read waits for any writer whose uncommitted rows it scans: while one tenant imports a 5,000-row CSV, another tenant's audience requests can wait 1.5–2 seconds for the import to commit. With it on, they do not wait. Check and turn it on with:
+Keep `READ_COMMITTED_SNAPSHOT` on for the database. A database that Endatix creates on first start has it on, and so does Azure SQL Database; a database created beforehand (by a DBA or a script) may have it off. Without it, a read waits for any writer whose uncommitted rows it scans: while one tenant imports a 5,000-row CSV, another tenant's audience requests can wait 1.5–2 seconds for the import to commit. With it on, their reads do not wait; a write can still wait briefly near the end of a large import, when SQL Server escalates the import's row locks to table locks. Check and turn it on with:
 
 ```sql
 SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME();
