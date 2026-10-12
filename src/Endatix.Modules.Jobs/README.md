@@ -443,15 +443,24 @@ by hand.
    under a comment linking the file at the Quartz release tag, for example
    `https://github.com/quartznet/quartznet/blob/v<version>/database/migrations/<version>/<file>.sql`.
    `AddTriggerAcquisitionIndex` shows the style. Keep every guard, adapted as below.
-   - **SQL Server** (`…_sqlServer.sql`): replace `[dbo].[QRTZ_<TABLE>]` with `[jobs].[qrtz_<TABLE>]`
-     and qualify each check, so `COL_LENGTH('QRTZ_TRIGGERS', …)` becomes
-     `COL_LENGTH('jobs.qrtz_TRIGGERS', …)`; an unqualified check resolves in the default schema
-     (`dbo`) and never sees the module's table. The script separates batches with `GO`, which is a client command, not T-SQL:
-     put each batch in its own `migrationBuilder.Sql` call.
-   - **PostgreSQL** (`…_postgres.sql`): names are lower-case and unquoted. Replace `qrtz_<table>`
-     with `jobs.qrtz_<table>`, and add `table_schema = 'jobs'` to each `information_schema` check,
-     which otherwise matches a same-named table in any schema. Each `DO $$ … $$;` block can stay in
-     one call.
+   - **SQL Server** (`…_sqlServer.sql`): point every reference to a Quartz table at
+     `jobs.qrtz_<TABLE>`, in whatever form it appears: `[dbo].[QRTZ_<TABLE>]` becomes
+     `[jobs].[qrtz_<TABLE>]`, `OBJECT_ID('dbo.QRTZ_<TABLE>')` becomes `OBJECT_ID('jobs.qrtz_<TABLE>')`,
+     `COL_LENGTH('QRTZ_<TABLE>', …)` becomes `COL_LENGTH('jobs.qrtz_<TABLE>', …)`, and the same for
+     any `REFERENCES`. An unqualified or `dbo` reference resolves in the default schema and never sees
+     the module's table, so its guard runs a statement that is not needed. Also rename constraint and
+     index names from `PK_/FK_/IDX_QRTZ_…` to `PK_/FK_/IDX_qrtz_…`, in the `sys.indexes` guard and the
+     `CREATE` alike: the create script names them with the `qrtz_` prefix, so an unrenamed guard misses
+     the existing index and the `CREATE` fails (or, under a case-sensitive collation, adds a duplicate).
+     The script separates batches with `GO`, which is a client command, not T-SQL: put each batch in
+     its own `migrationBuilder.Sql` call.
+   - **PostgreSQL** (`…_postgres.sql`): names are lower-case and unquoted. Replace each table reference
+     `qrtz_<table>` with `jobs.qrtz_<table>` (not the `qrtz_` inside index names, which already match
+     the create script's once lower-cased), and add `table_schema = 'jobs'` to each `information_schema` check
+     while keeping its `table_name = 'qrtz_<table>'` literal unqualified, because `table_name` never
+     includes the schema; only the `ALTER TABLE` / `CREATE … ON` targets become `jobs.qrtz_<table>`.
+     Without the schema check, the guard matches a same-named table in any schema. Each `DO $$ … $$;`
+     block can stay in one call.
 2. If a later Quartz version embeds its upgrade scripts, load them from the package the way
    `QuartzSchemaScripts` loads the create script, once they carry its placeholders; until then, adapt
    them as above.
