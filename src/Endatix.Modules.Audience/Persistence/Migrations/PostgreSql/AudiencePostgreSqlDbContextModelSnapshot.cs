@@ -23,12 +23,12 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImport", b =>
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImport", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None)
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
                     b.Property<DateTime>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
