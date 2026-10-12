@@ -2,7 +2,6 @@ using Endatix.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using Quartz;
 using Quartz.Impl;
 
@@ -50,11 +49,11 @@ internal static class QuartzRegistration
     /// What the scheduler is sized to from this host's job types. The pool holds every job type's full cap at
     /// once, so a backlog in one job type never takes a thread another type is entitled to.
     /// </summary>
-    public static JobsSchedulerPlan Build(IEnumerable<string> jobTypes, BackgroundJobsOptions options)
+    public static JobsSchedulerPlan Build(IEnumerable<string> jobTypes, JobTypePolicies policies)
     {
         var caps = jobTypes.ToDictionary(
             jobType => jobType,
-            jobType => options.ResolvePolicy(jobType).MaxConcurrency,
+            jobType => policies.For(jobType).MaxConcurrency,
             StringComparer.Ordinal);
 
         // A pool of zero is not a valid thread pool; a host whose job types are all capped at zero keeps one
@@ -121,7 +120,14 @@ internal static class QuartzRegistration
         services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
         services.AddMetrics();
         services.TryAddSingleton<IJobMetrics, MeterJobMetrics>();
+        AddJobTypePolicies(services);
         return services;
+    }
+
+    private static void AddJobTypePolicies(IServiceCollection services)
+    {
+        services.AddSingleton<JobTypeDefaults>();
+        services.AddSingleton<JobTypePolicies>();
     }
 
     public static IServiceCollection AddJobsScheduler(this IServiceCollection services, IConfiguration configuration)
@@ -144,20 +150,20 @@ internal static class QuartzRegistration
     private static void SizeToRegisteredJobTypes(IServiceCollection services)
     {
         services.AddOptions<ThreadPoolOptions>(SchedulerName)
-            .Configure<JobHandlerRegistry, IOptions<BackgroundJobsOptions>>((threadPool, registry, jobsOptions) =>
-                threadPool.MaxConcurrency = ThreadCount(registry, jobsOptions.Value));
+            .Configure<JobHandlerRegistry, JobTypePolicies>((threadPool, registry, policies) =>
+                threadPool.MaxConcurrency = ThreadCount(registry, policies));
 
         // An acquisition takes up to one trigger per free thread and fires them together, taking the cluster-wide
         // trigger lock once to acquire and once to fire rather than once per trigger. Above a batch of one, Quartz
         // takes the lock for every acquisition, so an idle node takes it once per idle wait. Execution limits still
         // hold per job type: the driver delegate never returns more of a type's triggers than it has free slots.
         services.AddOptions<QuartzSchedulerOptions>(SchedulerName)
-            .Configure<JobHandlerRegistry, IOptions<BackgroundJobsOptions>>((scheduler, registry, jobsOptions) =>
-                scheduler.MaxBatchSize = ThreadCount(registry, jobsOptions.Value));
+            .Configure<JobHandlerRegistry, JobTypePolicies>((scheduler, registry, policies) =>
+                scheduler.MaxBatchSize = ThreadCount(registry, policies));
     }
 
-    private static int ThreadCount(JobHandlerRegistry registry, BackgroundJobsOptions options) =>
-        Build(registry.JobTypes, options).PoolSize + MaintenanceThreads;
+    private static int ThreadCount(JobHandlerRegistry registry, JobTypePolicies policies) =>
+        Build(registry.JobTypes, policies).PoolSize + MaintenanceThreads;
 
     private static void ConfigureQuartz(
         IQuartzBuilder quartz,
@@ -218,7 +224,7 @@ internal static class QuartzRegistration
     {
         var plan = Build(
             provider.GetRequiredService<JobHandlerRegistry>().JobTypes,
-            provider.GetRequiredService<IOptions<BackgroundJobsOptions>>().Value);
+            provider.GetRequiredService<JobTypePolicies>());
         foreach (var (group, cap) in plan.GroupCaps)
         {
             limits.ForGroup(group, cap);

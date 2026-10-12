@@ -5,6 +5,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
 using Endatix.Infrastructure.Features.WebHooks;
 using Microsoft.Extensions.DependencyInjection;
@@ -202,5 +203,28 @@ public sealed class WebHookJobRegistrationTests
         provider.GetRequiredService<WebHookServer>().Should().NotBeNull();
         provider.GetRequiredService<IHttpClientFactory>().CreateClient(WebHookDeliveryJobHandler.HttpClientName)
             .Should().NotBeNull();
+    }
+
+    [Fact]
+    public void AddWebHookProcessing_Default_DeclaresTheTunedWebHookDeliverySettings()
+    {
+        // Arrange
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+
+        // Act
+        services.AddWebHookProcessing();
+        using var provider = services.BuildServiceProvider();
+
+        // Assert — every host gets these, whatever its configuration holds.
+        provider.GetServices<BackgroundJobTypeDefaults>().Should().ContainSingle().Which.Should().Be(
+            new BackgroundJobTypeDefaults
+            {
+                MaxAttempts = 8,
+                MaxRuntimeMinutes = 5,
+                BackoffBaseSeconds = 10,
+                BackoffCapSeconds = 3600,
+                RetentionDays = 3,
+                MaxConcurrency = 4,
+            } with { JobType = WebHookDeliveryPayload.JobType });
     }
 }

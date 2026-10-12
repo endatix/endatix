@@ -1,9 +1,11 @@
 using System.Reflection;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
+using Endatix.Persistence.SqlServer.Locking;
 using Endatix.Persistence.SqlServer.Options;
 using Endatix.Persistence.SqlServer.Querying;
 using Endatix.Persistence.SqlServer.Repositories;
@@ -12,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Persistence.SqlServer.Builders;
@@ -132,6 +135,7 @@ public class SqlServerPersistenceBuilder
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();
+        Services.TryAddSingleton<ITransactionLock, SqlServerTransactionLock>();
 
         // The engine's raw-ADO.NET outbox claim store. Builds an unopened connection from the SAME
         // connection string the DbContext uses (DefaultConnection by default, or the Configure<TContext>

@@ -42,7 +42,7 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
         ApplyProviderConfigurations(modelBuilder);
         modelBuilder.ApplyEndatixQueryFilters(this);
         modelBuilder.ApplyModuleTableNames();
-        modelBuilder.ApplySnowflakeIdValueGenerators();
+        modelBuilder.ApplySnowflakeIdValueGenerators(Database);
     }
 
     protected abstract void ApplyProviderConfigurations(ModelBuilder modelBuilder);

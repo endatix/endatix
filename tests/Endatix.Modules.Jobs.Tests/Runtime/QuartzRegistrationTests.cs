@@ -1,6 +1,8 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Framework.Modules;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Modules.Jobs.Runtime;
+using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -56,7 +58,7 @@ public sealed class QuartzRegistrationTests
         string[] jobTypes = ["WebHookDelivery", .. ReportingJobTypes];
 
         // Act
-        var plan = QuartzRegistration.Build(jobTypes, options);
+        var plan = QuartzRegistration.Build(jobTypes, Configured(options));
 
         // Assert
         plan.PoolSize.Should().Be(14);
@@ -69,7 +71,7 @@ public sealed class QuartzRegistrationTests
         var options = Bind(new Dictionary<string, string?> { ["MaxConcurrency"] = "4" });
 
         // Act
-        var plan = QuartzRegistration.Build(["A", "B"], options);
+        var plan = QuartzRegistration.Build(["A", "B"], Configured(options));
 
         // Assert — two job types at the default cap of one each.
         plan.PoolSize.Should().Be(2);
@@ -82,7 +84,7 @@ public sealed class QuartzRegistrationTests
         var options = Bind(new Dictionary<string, string?> { ["JobTypes:A:MaxConcurrency"] = "0" });
 
         // Act
-        var plan = QuartzRegistration.Build(["A"], options);
+        var plan = QuartzRegistration.Build(["A"], Configured(options));
 
         // Assert
         plan.PoolSize.Should().Be(1);
@@ -94,7 +96,7 @@ public sealed class QuartzRegistrationTests
         // Arrange — caps of three and one, plus the retention thread.
         using var provider = SchedulerServices(
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:JobTypes:A:MaxConcurrency"] = "3" },
-            "A", "B");
+            ["A", "B"]);
 
         // Act
         var batchSize = SchedulerOptions<QuartzSchedulerOptions>(provider).MaxBatchSize;
@@ -106,10 +108,68 @@ public sealed class QuartzRegistrationTests
     }
 
     [Fact]
+    public void Build_DeclaredDefaultsAndNoConfiguration_CapsComeFromTheDeclaredDefaults()
+    {
+        // Arrange
+        var reporting = new BackgroundJobTypeDefaults { MaxConcurrency = 2 };
+        var services = new ServiceCollection()
+            .AddBackgroundJobTypeDefaults("WebHookDelivery", DeclaredDefaults.Tuned);
+        foreach (var jobType in ReportingJobTypes)
+        {
+            services.AddBackgroundJobTypeDefaults(jobType, reporting);
+        }
+
+        var policies = Policies(new BackgroundJobsOptions(), services);
+
+        // Act
+        var plan = QuartzRegistration.Build(["WebHookDelivery", .. ReportingJobTypes], policies);
+
+        // Assert
+        plan.GroupCaps["WebHookDelivery"].Should().Be(4);
+        plan.GroupCaps["ReportingFlattenSubmission"].Should().Be(2);
+        plan.PoolSize.Should().Be(14);
+    }
+
+    [Fact]
+    public void AddJobsScheduler_DeclaredMaxConcurrency_SizesThreadPoolAndGroupCapsAlike()
+    {
+        // Arrange
+        using var provider = SchedulerServices(
+            new Dictionary<string, string?>(),
+            ["A", "B"],
+            services => services.AddBackgroundJobTypeDefaults("A", DeclaredDefaults.Tuned));
+
+        // Act
+        var threads = SchedulerOptions<ThreadPoolOptions>(provider).MaxConcurrency;
+        var caps = QuartzRegistration.Build(["A", "B"], provider.GetRequiredService<JobTypePolicies>()).GroupCaps;
+
+        // Assert — four for the declared type, one for the other, and the retention thread; the execution limits
+        // read the same caps.
+        threads.Should().Be(6);
+        caps.Should().Equal(new Dictionary<string, int> { ["A"] = 4, ["B"] = 1 });
+    }
+
+    [Fact]
+    public void AddJobsScheduler_ConfiguredMaxConcurrency_OverridesTheDeclaredCap()
+    {
+        // Arrange
+        using var provider = SchedulerServices(
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:JobTypes:A:MaxConcurrency"] = "2" },
+            ["A"],
+            services => services.AddBackgroundJobTypeDefaults("A", DeclaredDefaults.Tuned));
+
+        // Act
+        var threads = SchedulerOptions<ThreadPoolOptions>(provider).MaxConcurrency;
+
+        // Assert
+        threads.Should().Be(3);
+    }
+
+    [Fact]
     public void AddJobsScheduler_Store_InsertsTriggersWithoutTheTriggerLock()
     {
         // Arrange
-        using var provider = SchedulerServices(new Dictionary<string, string?>(), "A");
+        using var provider = SchedulerServices(new Dictionary<string, string?>(), ["A"]);
 
         // Act
         var lockOnInsert = SchedulerOptions<AdoJobStoreOptions>(provider).LockOnInsert;
@@ -119,7 +179,10 @@ public sealed class QuartzRegistrationTests
     }
 
     // The module's own registration, with a handler registry of the given job types in place of the host's handlers.
-    private static ServiceProvider SchedulerServices(Dictionary<string, string?> settings, params string[] jobTypes)
+    private static ServiceProvider SchedulerServices(
+        Dictionary<string, string?> settings,
+        string[] jobTypes,
+        Action<IServiceCollection>? configureServices = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -133,6 +196,7 @@ public sealed class QuartzRegistrationTests
         services.AddSingleton<IConfiguration>(configuration);
         JobsModule.Instance.ConfigureServices(new EndatixModuleBuilder(services, configuration));
         services.Replace(ServiceDescriptor.Singleton(JobHandlerRegistry.Build(jobTypes.Select(Handler))));
+        configureServices?.Invoke(services);
         return services.BuildServiceProvider();
     }
 
@@ -145,6 +209,15 @@ public sealed class QuartzRegistrationTests
 
     private static T SchedulerOptions<T>(IServiceProvider provider) where T : class =>
         provider.GetRequiredService<IOptionsMonitor<T>>().Get(QuartzRegistration.SchedulerName);
+
+    private static JobTypePolicies Configured(BackgroundJobsOptions options) =>
+        new(Options.Create(options), DeclaredDefaults.None);
+
+    private static JobTypePolicies Policies(BackgroundJobsOptions options, IServiceCollection declaredServices)
+    {
+        using var provider = declaredServices.BuildServiceProvider();
+        return new(Options.Create(options), new JobTypeDefaults(provider.GetServices<BackgroundJobTypeDefaults>()));
+    }
 
     private static BackgroundJobsOptions Bind(Dictionary<string, string?> section)
     {

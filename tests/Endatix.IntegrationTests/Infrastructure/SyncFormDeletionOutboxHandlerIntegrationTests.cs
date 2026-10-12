@@ -8,6 +8,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Outbox.Engine;
+using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
@@ -44,7 +45,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
 
         await using var dbContext = CreateContext(TenantId);
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        FormSchemaRepository schemaRepository = new(dbContext, unitOfWork);
+        FormSchemaRepository schemaRepository = new(dbContext, unitOfWork, new PostgreSqlTransactionLock());
         FlattenedSubmissionRepository flattenedRepository = new(dbContext, unitOfWork);
 
         FormSchemaCompiler compiler = new();
@@ -110,7 +111,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         await using var dbContext = CreateContext(TenantId);
         ReportingUnitOfWork unitOfWork = new(dbContext);
         SyncFormDeletionOutboxHandler handler = new(
-            new FormSchemaRepository(dbContext, unitOfWork),
+            new FormSchemaRepository(dbContext, unitOfWork, new PostgreSqlTransactionLock()),
             new FlattenedSubmissionRepository(dbContext, unitOfWork),
             unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);

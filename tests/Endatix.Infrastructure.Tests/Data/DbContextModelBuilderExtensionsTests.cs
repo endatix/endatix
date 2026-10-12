@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.SqlServer.Metadata;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Config;
 using FluentAssertions;
@@ -9,6 +13,11 @@ namespace Endatix.Infrastructure.Tests.Data;
 
 public class DbContextModelBuilderExtensionsTests
 {
+    private const string NpgsqlStrategyAnnotation = "Npgsql:ValueGenerationStrategy";
+    private const string SqlServerStrategyAnnotation = "SqlServer:ValueGenerationStrategy";
+    private const string NotConnectedNpgsql = "Host=127.0.0.1;Database=__model_only_not_connected__";
+    private const string NotConnectedSqlServer = "Server=127.0.0.1;Database=__model_only_not_connected__";
+
     [Fact]
     public void ApplyConfigurationsFor_WithValidAttribute_AppliesOnlyMatchingConfigurations()
     {
@@ -117,6 +126,84 @@ public class DbContextModelBuilderExtensionsTests
         var action = () => builder.ApplyConfigurationsFor<FooDbContext>(null!);
         action.Should().Throw<ArgumentNullException>();
     }
+
+    [Fact]
+    public void ApplySnowflakeIdValueGenerators_NpgsqlModel_SetsOnlyNpgsqlStrategy()
+    {
+        // Arrange
+        using var context = new ProviderScopedSnowflakeDbContext(
+            new DbContextOptionsBuilder<ProviderScopedSnowflakeDbContext>().UseNpgsql(NotConnectedNpgsql).Options);
+
+        // Act
+        var id = IdPropertyOf(context);
+
+        // Assert
+        id.FindAnnotation(NpgsqlStrategyAnnotation)!.Value.Should().Be(NpgsqlValueGenerationStrategy.None);
+        id.FindAnnotation(SqlServerStrategyAnnotation).Should().BeNull();
+        id.ValueGenerated.Should().Be(ValueGenerated.OnAdd);
+        id.GetValueGeneratorFactory().Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ApplySnowflakeIdValueGenerators_SqlServerModel_SetsOnlySqlServerStrategy()
+    {
+        // Arrange
+        using var context = new ProviderScopedSnowflakeDbContext(
+            new DbContextOptionsBuilder<ProviderScopedSnowflakeDbContext>().UseSqlServer(NotConnectedSqlServer).Options);
+
+        // Act
+        var id = IdPropertyOf(context);
+
+        // Assert
+        id.FindAnnotation(SqlServerStrategyAnnotation)!.Value.Should().Be(SqlServerValueGenerationStrategy.None);
+        id.FindAnnotation(NpgsqlStrategyAnnotation).Should().BeNull();
+        id.ValueGenerated.Should().Be(ValueGenerated.OnAdd);
+        id.GetValueGeneratorFactory().Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ApplySnowflakeIdValueGenerators_InMemoryModel_SetsNoProviderStrategy()
+    {
+        // Arrange
+        using var context = new ProviderScopedSnowflakeDbContext(
+            new DbContextOptionsBuilder<ProviderScopedSnowflakeDbContext>()
+                .UseInMemoryDatabase(nameof(ApplySnowflakeIdValueGenerators_InMemoryModel_SetsNoProviderStrategy))
+                .Options);
+
+        // Act
+        var buildModel = () => IdPropertyOf(context);
+
+        // Assert
+        var id = buildModel.Should().NotThrow().Subject;
+        id.FindAnnotation(NpgsqlStrategyAnnotation).Should().BeNull();
+        id.FindAnnotation(SqlServerStrategyAnnotation).Should().BeNull();
+        id.GetValueGeneratorFactory().Should().NotBeNull();
+    }
+
+    [Fact]
+    public void ApplySnowflakeIdValueGenerators_ParameterlessOverload_WritesBothStrategiesAndIsObsolete()
+    {
+        // Arrange
+        using var context = new BothProvidersSnowflakeDbContext(
+            new DbContextOptionsBuilder<BothProvidersSnowflakeDbContext>().UseNpgsql(NotConnectedNpgsql).Options);
+        var parameterlessOverload = typeof(DbContextModelBuilderExtensions).GetMethod(
+            nameof(DbContextModelBuilderExtensions.ApplySnowflakeIdValueGenerators),
+            [typeof(ModelBuilder)]);
+
+        // Act
+        var id = IdPropertyOf(context);
+
+        // Assert
+        id.FindAnnotation(NpgsqlStrategyAnnotation)!.Value.Should().Be(NpgsqlValueGenerationStrategy.None);
+        id.FindAnnotation(SqlServerStrategyAnnotation)!.Value.Should().Be(SqlServerValueGenerationStrategy.None);
+        parameterlessOverload!.GetCustomAttribute<ObsoleteAttribute>()!.Message.Should().Contain(nameof(DatabaseFacade));
+    }
+
+    // The design-time model is the one migrations scaffold snapshots from, so annotations are read there.
+    private static IReadOnlyProperty IdPropertyOf(DbContext context) =>
+        context.GetService<IDesignTimeModel>().Model
+            .FindEntityType(typeof(AlphaEntity))!
+            .FindProperty(nameof(AlphaEntity.Id))!;
 }
 
 // Test entities
@@ -157,6 +244,29 @@ public class BarDbContext : DbContext
 public class NonExistentDbContext : DbContext
 {
     public NonExistentDbContext(DbContextOptions<NonExistentDbContext> options) : base(options) { }
+}
+
+public class ProviderScopedSnowflakeDbContext(DbContextOptions<ProviderScopedSnowflakeDbContext> options)
+    : DbContext(options)
+{
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AlphaEntity>();
+        modelBuilder.ApplySnowflakeIdValueGenerators(Database);
+    }
+}
+
+// A separate context type, because EF caches one model per context type and provider.
+public class BothProvidersSnowflakeDbContext(DbContextOptions<BothProvidersSnowflakeDbContext> options)
+    : DbContext(options)
+{
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AlphaEntity>();
+#pragma warning disable CS0618 // The obsolete overload is the subject of the test that uses this context.
+        modelBuilder.ApplySnowflakeIdValueGenerators();
+#pragma warning restore CS0618
+    }
 }
 
 // Test configurations

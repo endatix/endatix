@@ -163,13 +163,25 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    // Eight attempts doubling from 10 seconds keep retrying for about 21 minutes, so an endpoint that is down for a
+    // few minutes still gets its delivery. A delivery mostly waits on the receiver, so a node runs four at once.
+    private static readonly BackgroundJobTypeDefaults WebHookDeliveryDefaults = new()
+    {
+        MaxAttempts = 8,
+        MaxRuntimeMinutes = 5,
+        BackoffBaseSeconds = 10,
+        BackoffCapSeconds = 3600,
+        RetentionDays = 3,
+        MaxConcurrency = 4,
+    };
+
     // Webhooks as background jobs: one job per endpoint, each POSTing once per attempt. Its client is the webhook
     // client without the retry, so the job's attempt budget is the number of POSTs an endpoint receives rather than
     // that budget times the client's retries. The handler only runs where the Jobs module is registered.
     private static void AddWebHookJobDelivery(IServiceCollection services)
     {
         AddWebHookJobHttpClient(services);
-        services.AddBackgroundJobHandler<WebHookDeliveryJobHandler, WebHookDeliveryPayload>();
+        services.AddBackgroundJobHandler<WebHookDeliveryJobHandler, WebHookDeliveryPayload>(WebHookDeliveryDefaults);
         foreach (var eventType in WebHookEvents.OperationsByEventType.Keys)
         {
             services.AddOutboxJobSubscription<WebHookDeliveryPayload, WebHookEndpointExpander>(eventType);

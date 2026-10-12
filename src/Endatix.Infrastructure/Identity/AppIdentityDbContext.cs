@@ -27,7 +27,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 
         builder.HasDefaultSchema("identity");
 
-        builder.ApplySnowflakeIdValueGenerators();
+        builder.ApplySnowflakeIdValueGenerators(Database);
 
         RenameIdentityTables(builder);
     }

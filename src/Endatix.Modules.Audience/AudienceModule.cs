@@ -7,7 +7,6 @@ using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Audience.Features.Forms;
 using Endatix.Modules.Audience.Features.Import;
 using Endatix.Modules.Audience.Persistence;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Modules.Audience;
@@ -31,21 +30,10 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        RequirePostgreSql(builder.Configuration);
+        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Audience", FeatureFlags.PersonalizationModule);
         AddPersistence(builder);
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, DeleteFormAudienceOutboxHandler>();
         builder.Services.AddScoped<ImportWriteSupport>();
-    }
-
-    private static void RequirePostgreSql(IConfiguration configuration)
-    {
-        if (!DatabaseProviderResolver.IsPostgreSql(configuration))
-        {
-            throw new InvalidOperationException(
-                $"The Audience module requires PostgreSQL. Either set the connection string " +
-                $"setting 'DefaultConnection_DbProvider' to 'postgresql', or turn off " +
-                $"'Endatix:FeatureFlags:{FeatureFlags.PersonalizationModule}'.");
-        }
     }
 
     private static void AddPersistence(EndatixModuleBuilder builder)
@@ -54,5 +42,6 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
             AudiencePersistence.ConfigureDbContextOptions);
         builder.Services.AddScoped<IAudienceDbContext>(
             sp => sp.GetRequiredService<AudiencePostgreSqlDbContext>());
+        builder.Services.AddSingleton<MatchKeyLock>();
     }
 }

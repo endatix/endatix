@@ -4,6 +4,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Tests.Features.Outbox;
 using FluentAssertions.Execution;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.SqlServer.Metadata;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,41 +12,65 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Infrastructure.Tests.Data;
 
 /// <summary>
-/// App + Identity models: every <c>long Id</c> PK is OnAdd + client generator, never IDENTITY/serial.
+/// App + Identity models: every <c>long Id</c> PK is OnAdd + client generator, never IDENTITY/serial,
+/// and carries only the active provider's value-generation annotation.
 /// Shared 1:1 keys (e.g. TenantSettings.TenantId) stay Never. Reporting/Jobs have their own suites.
 /// </summary>
 public class ApplySnowflakeIdValueGeneratorsTests
 {
+    private const string NpgsqlStrategyAnnotation = "Npgsql:ValueGenerationStrategy";
+    private const string SqlServerStrategyAnnotation = "SqlServer:ValueGenerationStrategy";
+
     [Fact]
     public void PostgreSql_App_LongKeys_AreClientSnowflakes_WithNoSerialIdentity()
     {
+        // Arrange
         using AppDbContext context = AppDbContextModelInspectionFactory.CreatePostgreSqlAppDbContext();
 
-        AssertLongKeyContract(context);
+        // Act
+        var model = DesignTimeModelOf(context);
+
+        // Assert
+        AssertLongKeyContract(model, IsNotNpgsqlStoreGenerated, SqlServerStrategyAnnotation);
     }
 
     [Fact]
     public void SqlServer_App_LongKeys_AreClientSnowflakes_WithNoIdentity()
     {
+        // Arrange
         using AppDbContext context = AppDbContextModelInspectionFactory.CreateSqlServerAppDbContext();
 
-        AssertLongKeyContract(context);
+        // Act
+        var model = DesignTimeModelOf(context);
+
+        // Assert
+        AssertLongKeyContract(model, IsNotSqlServerStoreGenerated, NpgsqlStrategyAnnotation);
     }
 
     [Fact]
     public void PostgreSql_Identity_LongKeys_AreClientSnowflakes_WithNoSerialIdentity()
     {
+        // Arrange
         using var context = AppDbContextModelInspectionFactory.CreatePostgreSqlAppIdentityDbContext();
 
-        AssertLongKeyContract(context);
+        // Act
+        var model = DesignTimeModelOf(context);
+
+        // Assert
+        AssertLongKeyContract(model, IsNotNpgsqlStoreGenerated, SqlServerStrategyAnnotation);
     }
 
     [Fact]
     public void SqlServer_Identity_LongKeys_AreClientSnowflakes_WithNoIdentity()
     {
+        // Arrange
         using var context = AppDbContextModelInspectionFactory.CreateSqlServerAppIdentityDbContext();
 
-        AssertLongKeyContract(context);
+        // Act
+        var model = DesignTimeModelOf(context);
+
+        // Assert
+        AssertLongKeyContract(model, IsNotSqlServerStoreGenerated, NpgsqlStrategyAnnotation);
     }
 
     [Fact]
@@ -97,9 +122,21 @@ public class ApplySnowflakeIdValueGeneratorsTests
         tenant.Id.Should().BeGreaterThan(0);
     }
 
-    private static void AssertLongKeyContract(DbContext context)
+    private static IModel DesignTimeModelOf(DbContext context) =>
+        context.GetService<IDesignTimeModel>().Model;
+
+    private static bool IsNotNpgsqlStoreGenerated(IReadOnlyProperty property) =>
+        NpgsqlPropertyExtensions.GetValueGenerationStrategy(property) == NpgsqlValueGenerationStrategy.None;
+
+    private static bool IsNotSqlServerStoreGenerated(IReadOnlyProperty property) =>
+        SqlServerPropertyExtensions.GetValueGenerationStrategy(property) == SqlServerValueGenerationStrategy.None;
+
+    private static void AssertLongKeyContract(
+        IModel model,
+        Func<IReadOnlyProperty, bool> isNotStoreGenerated,
+        string otherProviderStrategyAnnotation)
     {
-        var longKeyProperties = context.Model.GetEntityTypes()
+        var longKeyProperties = model.GetEntityTypes()
             .Where(entityType => !entityType.IsOwned())
             .SelectMany(entityType => entityType.GetKeys())
             .SelectMany(key => key.Properties)
@@ -114,10 +151,9 @@ public class ApplySnowflakeIdValueGeneratorsTests
         {
             var name = $"{property.DeclaringType.ShortName()}.{property.Name}";
 
-            NpgsqlPropertyExtensions.GetValueGenerationStrategy(property).Should().Be(
-                NpgsqlValueGenerationStrategy.None, "{0} must not be a Postgres serial/identity column", name);
-            SqlServerPropertyExtensions.GetValueGenerationStrategy(property).Should().Be(
-                SqlServerValueGenerationStrategy.None, "{0} must not be a SQL Server IDENTITY column", name);
+            isNotStoreGenerated(property).Should().BeTrue("{0} must not be a serial/IDENTITY column", name);
+            property.FindAnnotation(otherProviderStrategyAnnotation).Should().BeNull(
+                "{0} must carry only the active provider's strategy so its snapshot compiles without the other provider", name);
 
             if (property.Name == "Id" && property.IsPrimaryKey())
             {

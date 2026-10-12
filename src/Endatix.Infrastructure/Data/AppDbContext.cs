@@ -72,39 +72,39 @@ public class AppDbContext : DbContext, ITenantDbContext
         base.OnConfiguring(optionsBuilder);
     }
 
-    protected override void OnModelCreating(ModelBuilder builder)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(builder);
+        base.OnModelCreating(modelBuilder);
 
         // Domain events live on entities (BaseEntity : HasDomainEventsBase) but are never persisted —
         // they are captured to the outbox in ProcessEntities. Exclude the type from the model so EF
         // doesn't try to map the [NotMapped] DomainEvents collection as a keyless/related entity.
-        builder.Ignore<DomainEventBase>();
-        builder.Ignore<CollectionStatus>();
+        modelBuilder.Ignore<DomainEventBase>();
+        modelBuilder.Ignore<CollectionStatus>();
 
-        builder.ApplyEndatixQueryFilters(this);
+        modelBuilder.ApplyEndatixQueryFilters(this);
 
         // Apply base configurations from Infrastructure assembly
-        builder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
+        modelBuilder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
 
         // Apply database-specific configurations from the migrations assembly
         var migrationsAssembly = Database.GetService<IMigrationsAssembly>();
         if (migrationsAssembly?.Assembly != null)
         {
-            builder.ApplyConfigurationsFromAssembly(migrationsAssembly.Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(migrationsAssembly.Assembly);
         }
 
-        builder.Entity<SubmissionExportRow>()
+        modelBuilder.Entity<SubmissionExportRow>()
             .HasNoKey()
             .ToTable(t => t.ExcludeFromMigrations());
 
-        builder.Entity<DynamicExportRow>()
+        modelBuilder.Entity<DynamicExportRow>()
             .HasNoKey()
             .ToTable(t => t.ExcludeFromMigrations());
 
-        builder.ApplySnowflakeIdValueGenerators();
+        modelBuilder.ApplySnowflakeIdValueGenerators(Database);
 
-        PrefixTableNames(builder);
+        PrefixTableNames(modelBuilder);
     }
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;

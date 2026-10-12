@@ -22,4 +22,8 @@ internal sealed class SchemaCompilationLimitExceededException : InvalidOperation
     public int? Actual { get; }
 
     public string? Context { get; }
+
+    /// <summary>The failure as the form's compile reports it, naming the form and the limit it ran into.</summary>
+    public InvalidOperationException ForForm(long formId) =>
+        new($"Form schema compilation failed for form {formId}: {LimitKind}.", this);
 }

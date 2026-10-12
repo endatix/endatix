@@ -37,7 +37,7 @@ public class FormSchemaProcessorTests
 
         await processor.ProcessAsync(TenantId, FormId, formDefinitionId: 999, cancellationToken: TestContext.Current.CancellationToken);
 
-        await schemaRepository.DidNotReceive().GetByFormIdAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+        await schemaRepository.DidNotReceive().LockAndGetByFormIdAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
         await schemaRepository.DidNotReceive().SaveAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<CancellationToken>());
         await flattenedRepository.DidNotReceive()
             .DeleteByFormIdAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
