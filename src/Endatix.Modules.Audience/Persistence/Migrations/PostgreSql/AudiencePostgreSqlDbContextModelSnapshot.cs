@@ -90,6 +90,63 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         });
                 });
 
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceLink", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("MembershipId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("OpenedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("SubmissionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Links_TokenHash")
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.HasIndex("TenantId", "FormId", "MembershipId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Links_Membership")
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("Links", "audience", t =>
+                        {
+                            t.HasCheckConstraint("CK_Links_TenantId", "\"TenantId\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceSettings", b =>
                 {
                     b.Property<long>("Id")

@@ -40,6 +40,12 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.Property(s => s.SubmitterProfileSnapshot)
             .IsRequired(false);
 
+        builder.Property(s => s.PersonalizationSnapshot)
+            .IsRequired(false);
+
+        builder.Property(s => s.AudienceLinkId)
+            .IsRequired(false);
+
         builder.Property(s => s.IsTestSubmission)
             .HasDefaultValue(false);
 

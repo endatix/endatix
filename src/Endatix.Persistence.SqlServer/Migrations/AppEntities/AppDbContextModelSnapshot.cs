@@ -609,6 +609,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bigint")
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
 
+                    b.Property<long?>("AudienceLinkId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("CollectionStatus")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -653,6 +656,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("PersonalizationSnapshot")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RestrictionKey")
                         .HasMaxLength(256)

@@ -608,6 +608,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("bigint")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
+                    b.Property<long?>("AudienceLinkId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("CollectionStatus")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -652,6 +655,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PersonalizationSnapshot")
+                        .HasColumnType("text");
 
                     b.Property<string>("RestrictionKey")
                         .HasMaxLength(256)
