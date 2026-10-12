@@ -27,6 +27,20 @@ public class CreateOnBehalfTests
             Substitute.For<ITenantContext>());
     }
 
+    /// <summary>On-behalf leaves start unset until the respondent engages, unless the create is already complete.</summary>
+    private static Submission CreatedSubmission(
+        long formId,
+        string jsonData,
+        long formDefinitionId,
+        bool isComplete = true) =>
+        Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData,
+            IsComplete: isComplete,
+            StartSubmission: false));
+
     [Fact]
     public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
     {
@@ -62,7 +76,7 @@ public class CreateOnBehalfTests
             Metadata = "test metadata"
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, 2) { Id = 1 };
+        var submission = CreatedSubmission(formId, jsonData, formDefinitionId: 2);
         submission.UpdateToken(new Token(1));
         var result = Result<Submission>.Created(submission);
 
@@ -78,7 +92,7 @@ public class CreateOnBehalfTests
         createdResult!.Value.Should().NotBeNull();
         createdResult!.Value!.Id.Should().Be("1");
         createdResult!.Value!.Token.Should().NotBeNull();
-        createdResult!.Value!.Token!.Should().Be(submission.Token.Value);
+        createdResult!.Value!.Token!.Should().Be(submission.Token!.Value);
     }
 
     [Fact]
@@ -96,7 +110,7 @@ public class CreateOnBehalfTests
                 AuthProvider: SubmitterAuthProviders.Integration)
         };
         var result = Result<Submission>.Created(
-            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+            CreatedSubmission(123, """{ "field": "value" }""", formDefinitionId: 456));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -126,7 +140,7 @@ public class CreateOnBehalfTests
             JsonData = """{ "field": "value" }"""
         };
         var result = Result<Submission>.Created(
-            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+            CreatedSubmission(123, """{ "field": "value" }""", formDefinitionId: 456));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -156,7 +170,7 @@ public class CreateOnBehalfTests
             JsonData = """{ "field": "value" }"""
         };
         var result = Result<Submission>.Created(
-            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+            CreatedSubmission(123, """{ "field": "value" }""", formDefinitionId: 456));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -184,13 +198,7 @@ public class CreateOnBehalfTests
             JsonData = """{ "field": "prefill" }""",
             IsComplete = isComplete
         };
-        var submission = Submission.Create(1, new SubmissionCreateArgs(
-            TenantId: SampleData.TENANT_ID,
-            FormId: 123,
-            FormDefinitionId: 456,
-            JsonData: request.JsonData!,
-            IsComplete: false,
-            StartSubmission: false));
+        var submission = CreatedSubmission(123, request.JsonData!, formDefinitionId: 456, isComplete: false);
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<Submission>.Created(submission));
@@ -221,13 +229,7 @@ public class CreateOnBehalfTests
             JsonData = """{ "field": "done" }""",
             IsComplete = true
         };
-        var submission = Submission.Create(1, new SubmissionCreateArgs(
-            TenantId: SampleData.TENANT_ID,
-            FormId: 123,
-            FormDefinitionId: 456,
-            JsonData: request.JsonData!,
-            IsComplete: true,
-            StartSubmission: false));
+        var submission = CreatedSubmission(123, request.JsonData!, formDefinitionId: 456);
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<Submission>.Created(submission));

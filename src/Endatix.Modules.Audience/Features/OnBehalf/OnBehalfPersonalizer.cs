@@ -19,12 +19,14 @@ internal sealed class OnBehalfPersonalizer(
         SubmissionPersonalizationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!CanFreeze(request.Submitter) || !await HasPropertiesAsync(request.FormId, cancellationToken))
+        if (request.Submitter is not SubmitterInput submitter
+            || !CanFreeze(submitter)
+            || !await HasPropertiesAsync(request.FormId, cancellationToken))
         {
             return null;
         }
 
-        return await FreezeMemberAsync(request, cancellationToken);
+        return await FreezeMemberAsync(request, submitter, cancellationToken);
     }
 
     /// <summary>
@@ -53,9 +55,10 @@ internal sealed class OnBehalfPersonalizer(
 
     private async Task<PersonalizationFreeze?> FreezeMemberAsync(
         SubmissionPersonalizationRequest request,
+        SubmitterInput submitter,
         CancellationToken cancellationToken)
     {
-        var subjectId = request.Submitter!.ExternalSubjectId;
+        var subjectId = submitter.ExternalSubjectId;
         var member = await FindMemberAsync(request.TenantId, subjectId, cancellationToken);
         var membershipId = member is null
             ? null
@@ -69,8 +72,8 @@ internal sealed class OnBehalfPersonalizer(
         return new PersonalizationFreeze(member.Id, snapshot);
     }
 
-    private static bool CanFreeze(SubmitterInput? submitter) =>
-        submitter is not null && !string.IsNullOrWhiteSpace(submitter.ExternalSubjectId);
+    private static bool CanFreeze(SubmitterInput submitter) =>
+        !string.IsNullOrWhiteSpace(submitter.ExternalSubjectId);
 
     private Task<bool> HasPropertiesAsync(long formId, CancellationToken cancellationToken) =>
         db.Properties.AnyAsync(property => property.FormId == formId, cancellationToken);

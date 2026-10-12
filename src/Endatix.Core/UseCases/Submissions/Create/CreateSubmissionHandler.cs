@@ -192,7 +192,8 @@ public class CreateSubmissionHandler(
     }
 
     private static SubmissionByFormIdAndSubmitterIdSpec Spec(PersistArgs args) =>
-        new(args.FormId, args.SubmitterId!.Value);
+        new(args.FormId, args.SubmitterId ?? throw new InvalidOperationException(
+            "A single-submission conflict requires a submitter."));
 
     private sealed record PersistArgs(
         Submission Submission,
