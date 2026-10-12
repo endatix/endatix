@@ -50,8 +50,8 @@ public sealed class ImportCsv(
             new ImportCsvCommand(
                 tenantContext.TenantId,
                 request.FormId,
-                request.CsvText!,
-                request.IdentifierColumn!,
+                request.CsvText ?? string.Empty,
+                request.IdentifierColumn ?? string.Empty,
                 string.IsNullOrWhiteSpace(request.FileName) ? DefaultFileName : request.FileName,
                 request.PropertyColumns,
                 long.TryParse(userContext.GetCurrentUserId(), out long userId) ? userId : null),

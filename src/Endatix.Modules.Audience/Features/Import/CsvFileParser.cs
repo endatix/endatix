@@ -33,7 +33,13 @@ internal static class CsvFileParser
             HasHeaderRecord = true,
             TrimOptions = TrimOptions.Trim,
             MissingFieldFound = null,
-            BadDataFound = args => malformedRows.Add(args.Context.Parser!.Row),
+            BadDataFound = args =>
+            {
+                if (args.Context.Parser is { } parser)
+                {
+                    malformedRows.Add(parser.Row);
+                }
+            },
         });
 
     private static bool TryReadHeaders(CsvReader csv, out string[] headers)

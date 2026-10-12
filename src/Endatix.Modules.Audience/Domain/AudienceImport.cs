@@ -10,7 +10,11 @@ namespace Endatix.Modules.Audience.Domain;
 /// </summary>
 public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
 {
-    private AudienceImport() { }
+    private AudienceImport()
+    {
+        FileName = string.Empty;
+        Status = string.Empty;
+    }
 
     public AudienceImport(AudienceImportCreateArgs args)
     {
@@ -35,9 +39,9 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
 
     public long FormId { get; private set; }
 
-    public string FileName { get; private set; } = null!;
+    public string FileName { get; private set; }
 
-    public string Status { get; private set; } = null!;
+    public string Status { get; private set; }
 
     public int CreatedCount { get; private set; }
 
