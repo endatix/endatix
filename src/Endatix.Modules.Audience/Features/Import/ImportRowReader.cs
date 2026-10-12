@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.People;
 
 namespace Endatix.Modules.Audience.Features.Import;
 
@@ -24,28 +25,36 @@ internal static class ImportRowReader
 
     private sealed class RowSorter(CsvColumnMap map, ImportMatchKey matchKey)
     {
+        private const string MalformedRow =
+            "The row has a quote in the wrong place, so its cells cannot be read reliably.";
+
         private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
-        private readonly Dictionary<long, Property> _propertiesById =
-            map.PropertiesByVariable.Values.ToDictionary(property => property.Id);
 
         public List<ImportRow> Accepted { get; } = [];
 
         public List<ImportRejectionDto> Rejected { get; } = [];
 
+        /// <summary>
+        /// The repeat check runs last and only an accepted row claims its identifier, so a row
+        /// rejected for a bad value does not turn a later, valid row for the same person into a
+        /// duplicate.
+        /// </summary>
         public void Add(CsvDataRow row)
         {
             string identifier = (row.Cells.GetValueOrDefault(map.IdentifierColumn) ?? string.Empty).Trim();
-            IReadOnlyDictionary<long, string> values = CsvColumnMapper.ReadValues(map, row.Cells);
-            string? error = Member.IdentifierError(identifier, matchKey.IdentifierKind)
-                ?? RepeatError(identifier)
-                ?? ValuesError(values);
+            CellRead cells = CsvColumnMapper.ReadValues(map, row.Cells);
+            string? error = (row.Malformed ? MalformedRow : null)
+                ?? Member.IdentifierError(identifier, matchKey.IdentifierKind)
+                ?? cells.Error
+                ?? ValuesError(cells.Values)
+                ?? RepeatError(identifier);
             if (error is not null)
             {
                 Rejected.Add(new ImportRejectionDto(row.RowNumber, error));
                 return;
             }
 
-            Accepted.Add(new ImportRow(identifier, matchKey.Normalize(identifier), values));
+            Accepted.Add(new ImportRow(identifier, matchKey.Normalize(identifier), cells.Values));
         }
 
         private string? RepeatError(string identifier) =>
@@ -53,7 +62,7 @@ internal static class ImportRowReader
 
         private string? ValuesError(IReadOnlyDictionary<long, string> values) =>
             values
-                .Select(cell => PropertyValue.ValueError(cell.Value) ?? _propertiesById[cell.Key].ValueError(cell.Value))
+                .Select(cell => PropertyValuesWriter.ValueError(map.PropertiesById[cell.Key], cell.Value))
                 .FirstOrDefault(error => error is not null);
     }
 }

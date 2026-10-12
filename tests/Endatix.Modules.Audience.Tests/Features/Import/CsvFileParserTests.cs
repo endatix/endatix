@@ -64,4 +64,19 @@ public sealed class CsvFileParserTests
         Assert.False(result.IsSuccess);
         Assert.Contains("header", result.Error!, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Parse_StrayQuote_MarksThatRowOnly()
+    {
+        // Arrange
+        const string csv = "email,name\na@example.com,Ann\nb@example.com,Smith \"Jr\nc@example.com,Cy\n";
+
+        // Act
+        CsvFileParseResult result = CsvFileParser.Parse(csv);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Contains(result.Rows, row => row.Malformed);
+        Assert.False(result.Rows[0].Malformed);
+    }
 }

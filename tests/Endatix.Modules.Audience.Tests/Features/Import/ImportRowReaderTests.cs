@@ -7,7 +7,7 @@ namespace Endatix.Modules.Audience.Tests.Features.Import;
 
 public sealed class ImportRowReaderTests
 {
-    private static readonly CsvColumnMap EmailOnly = CsvColumnMapper.Build([], "email", null);
+    private static readonly CsvColumnMap EmailOnly = CsvColumnMapper.Build(new CsvColumnRequest([], ["email"], "email", null));
     private static readonly IValueNormalizer Upper = new UpperInvariantNormalizer();
     private static readonly ImportMatchKey EmailKey = new(AudienceIdentifierKindCodes.Email, Upper);
     private static readonly ImportMatchKey ExternalIdKey = new(AudienceIdentifierKindCodes.ExternalId, Upper);
@@ -94,8 +94,7 @@ public sealed class ImportRowReaderTests
     public void Read_ValueOfWrongType_RejectsRowWithReason()
     {
         // Arrange
-        Property age = new(new PropertyCreateArgs(1, 10, "Age", AudienceDataTypeCodes.Number, 0));
-        CsvColumnMap map = CsvColumnMapper.Build([age], "email", new Dictionary<string, string> { ["age"] = "Age" });
+        CsvColumnMap map = AgeMap();
         CsvDataRow row = new(2, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["email"] = "ada@example.com",
@@ -110,6 +109,50 @@ public sealed class ImportRowReaderTests
         result.Rejected.Should().ContainSingle()
             .Which.Should().Be(new ImportRejectionDto(2, "'Age' must be a number."));
     }
+
+    [Fact]
+    public void Read_RowRejectedForAValue_DoesNotMakeALaterRowForThePersonADuplicate()
+    {
+        // Arrange
+        CsvDataRow bad = AgeRow(2, "ada@example.com", "forty");
+        CsvDataRow good = AgeRow(5, "ada@example.com", "40");
+
+        // Act
+        ImportRows result = ImportRowReader.Read([bad, good], AgeMap(), EmailKey);
+
+        // Assert
+        result.Accepted.Should().ContainSingle().Which.Values.Should().ContainValue("40");
+        result.Rejected.Should().ContainSingle()
+            .Which.Should().Be(new ImportRejectionDto(2, "'Age' must be a number."));
+    }
+
+    [Fact]
+    public void Read_MalformedRow_RejectsItAndKeepsTheRest()
+    {
+        // Arrange
+        CsvDataRow malformed = Row(2, "ada@example.com") with { Malformed = true };
+
+        // Act
+        ImportRows result = ImportRowReader.Read([malformed, Row(3, "bo@example.com")], EmailOnly, EmailKey);
+
+        // Assert
+        result.Accepted.Should().ContainSingle().Which.Identifier.Should().Be("bo@example.com");
+        result.Rejected.Should().ContainSingle().Which.RowNumber.Should().Be(2);
+    }
+
+    private static CsvColumnMap AgeMap()
+    {
+        Property age = new(new PropertyCreateArgs(1, 10, "Age", AudienceDataTypeCodes.Number, 0)) { Id = 7 };
+        return CsvColumnMapper.Build(new CsvColumnRequest(
+            [age], ["email", "Age"], "email", new Dictionary<string, string> { ["age"] = "Age" }));
+    }
+
+    private static CsvDataRow AgeRow(int rowNumber, string email, string age) =>
+        new(rowNumber, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["email"] = email,
+            ["Age"] = age,
+        });
 
     private static CsvDataRow Row(int rowNumber, string email) =>
         new(rowNumber, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["email"] = email });

@@ -74,18 +74,21 @@ internal sealed class ImportCsvHandler(
         ImportInput input,
         CancellationToken cancellationToken)
     {
-        try
+        Result<ImportResultDto>? first = await ImportUnlessRaceAsync(request, input, cancellationToken);
+        if (first is not null)
         {
-            return await ImportAsync(request, input, cancellationToken);
+            return first;
         }
-        catch (DbUpdateException ex) when (IsAudienceRace(ex))
-        {
-            ((DbContext)db).ChangeTracker.Clear();
-            return await ImportOnceMoreAsync(request, input, cancellationToken);
-        }
+
+        ((DbContext)db).ChangeTracker.Clear();
+        return await ImportUnlessRaceAsync(request, input, cancellationToken)
+            ?? Result.Conflict("The audience changed while the import ran. Run the import again.");
     }
 
-    private async Task<Result<ImportResultDto>> ImportOnceMoreAsync(
+    /// <summary>
+    /// The import's result, or <see langword="null"/> when a parallel write won a unique index.
+    /// </summary>
+    private async Task<Result<ImportResultDto>?> ImportUnlessRaceAsync(
         ImportCsvCommand request,
         ImportInput input,
         CancellationToken cancellationToken)
@@ -96,7 +99,7 @@ internal sealed class ImportCsvHandler(
         }
         catch (DbUpdateException ex) when (IsAudienceRace(ex))
         {
-            return Result.Conflict("The audience changed while the import ran. Run the import again.");
+            return null;
         }
     }
 
@@ -150,11 +153,10 @@ internal sealed class ImportCsvHandler(
         CsvFileParseResult parsed,
         IReadOnlyList<Property> properties)
     {
-        string? mappingError = CsvColumnMapper.MappingError(properties, parsed.Headers, request.PropertyColumns);
+        CsvColumnRequest columns = new(properties, parsed.Headers, request.IdentifierColumn, request.PropertyColumns);
+        string? mappingError = CsvColumnMapper.MappingError(columns);
         return mappingError is null
-            ? Result.Success(new ImportInput(
-                parsed.Rows,
-                CsvColumnMapper.Build(properties, request.IdentifierColumn, request.PropertyColumns)))
+            ? Result.Success(new ImportInput(parsed.Rows, CsvColumnMapper.Build(columns)))
             : Result<ImportInput>.Invalid(new ValidationError(mappingError));
     }
 

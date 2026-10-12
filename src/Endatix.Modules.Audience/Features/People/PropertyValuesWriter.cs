@@ -40,7 +40,7 @@ internal static class PropertyValuesWriter
     {
         foreach ((long propertyId, string value) in values)
         {
-            string? error = PropertyValue.ValueError(value) ?? properties[propertyId].ValueError(value);
+            string? error = ValueError(properties[propertyId], value);
             if (error is not null)
             {
                 return Result.Invalid(new ValidationError(error));
@@ -49,6 +49,13 @@ internal static class PropertyValuesWriter
 
         return Result.Success();
     }
+
+    /// <summary>
+    /// Why <paramref name="value"/> cannot be stored for <paramref name="property"/>: the cell rule
+    /// (length) first, then the property's type and choices. The one rule every writer checks.
+    /// </summary>
+    public static string? ValueError(Property property, string value) =>
+        PropertyValue.ValueError(value) ?? property.ValueError(value);
 
     /// <summary>
     /// Cells of the given memberships whose property is still active. A cell written while its

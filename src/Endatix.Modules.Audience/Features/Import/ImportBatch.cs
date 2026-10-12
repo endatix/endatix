@@ -23,22 +23,37 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
             return;
         }
 
-        if (row.Values.Count == 0)
+        if (UpdateIfChanged(membership, row.Values))
+        {
+            Tally.Updated++;
+        }
+        else
         {
             Tally.Skipped++;
-            return;
         }
-
-        UpdateCells(membership, row.Values);
-        Tally.Updated++;
     }
 
-    private void UpdateCells(Membership membership, IReadOnlyDictionary<long, string> values)
+    /// <summary>
+    /// Writes the row's values when any differs from the stored cell, so re-importing the same
+    /// file reports its people as unchanged and leaves their cells untouched.
+    /// </summary>
+    private bool UpdateIfChanged(Membership membership, IReadOnlyDictionary<long, string> values)
     {
         IReadOnlyDictionary<long, PropertyValue> cells =
             existing.CellsByMembershipId.GetValueOrDefault(membership.Id) ?? new Dictionary<long, PropertyValue>();
+        if (!Changes(values, cells))
+        {
+            return false;
+        }
+
         PropertyValuesWriter.Upsert(new PropertyValueWrite(db, target.TenantId, membership.Id, values), cells);
+        return true;
     }
+
+    private static bool Changes(
+        IReadOnlyDictionary<long, string> values,
+        IReadOnlyDictionary<long, PropertyValue> cells) =>
+        values.Any(pair => cells.GetValueOrDefault(pair.Key)?.Value != pair.Value);
 
     private Member AddMember(ImportRow row)
     {
