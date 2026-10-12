@@ -37,7 +37,17 @@ internal sealed class MatchKeyLock(ITransactionLock transactionLock)
     {
         DatabaseFacade database = ((DbContext)db).Database;
         IDbContextTransaction transaction = await database.BeginTransactionAsync(cancellationToken);
-        await transactionLock.AcquireAsync(database, request, cancellationToken);
-        return transaction;
+        try
+        {
+            await transactionLock.AcquireAsync(database, request, cancellationToken);
+            return transaction;
+        }
+        catch
+        {
+            // The caller never gets the transaction to dispose. Left open, it would take the scope's later writes
+            // and roll them back with the context, and a retry would find the connection already in a transaction.
+            await transaction.DisposeAsync();
+            throw;
+        }
     }
 }

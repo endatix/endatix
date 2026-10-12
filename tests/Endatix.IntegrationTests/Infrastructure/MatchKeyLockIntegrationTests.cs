@@ -1,5 +1,6 @@
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,6 +42,29 @@ public sealed class MatchKeyLockIntegrationTests(EndatixIntegrationWebHostFixtur
         tookItWhileTheWriterWasOpen.Should().BeFalse();
         await using var keyChangeTransaction = await exclusive.WaitAsync(MaxWait, Cancellation);
         keyChangeTransaction.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task BeginExclusiveAsync_CancelledWhileWaiting_LeavesNoTransactionOpen()
+    {
+        // Arrange
+        Assert.SkipWhen(
+            fixture.Provider != TestDatabaseProvider.PostgreSql,
+            "The audience module is PostgreSQL-only; it is not registered on this provider.");
+        await using var writer = fixture.Factory.Services.CreateAsyncScope();
+        await using var memberWrite = await BeginSharedAsync(writer);
+        await using var keyChange = fixture.Factory.Services.CreateAsyncScope();
+        var db = keyChange.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        cancellation.CancelAfter(LongEnoughToTakeAFreeLock);
+
+        // Act
+        var act = () => keyChange.ServiceProvider.GetRequiredService<MatchKeyLock>()
+            .BeginExclusiveAsync(db, TenantId, cancellation.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        ((DbContext)db).Database.CurrentTransaction.Should().BeNull();
     }
 
     private static Task<IDbContextTransaction> BeginSharedAsync(AsyncServiceScope scope) =>

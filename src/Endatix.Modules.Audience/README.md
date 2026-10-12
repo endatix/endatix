@@ -49,8 +49,9 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
   `false`. `date`: `YYYY-MM-DD`. `date_time`: ISO 8601 (`2026-10-05T09:30`, optional seconds and
   offset). `single_choice`: one key from `ChoicesJson`. `multiple_choice`: a JSON array of keys.
   `AllowsOther` accepts any key.
-- **Concurrency.** Person creates take a shared tenant lock; a match-key change takes it
-  exclusively. The unique indexes settle create races (a second pass reuses the member; a duplicate
+- **Concurrency.** Person creates and imports take a shared tenant lock; a match-key change takes it
+  exclusively. The lock is `ITransactionLock` (scope `AudienceMatchKey`, key the tenant id), held until the
+  transaction ends. The unique indexes settle create races (a second pass reuses the member; a duplicate
   on one form is a 409). The identifier is checked against the key read under the lock. Two
   updates adding the same cell: the second pass overwrites. Cells are written in property-id order. The people
   list counts and reads in one snapshot.
