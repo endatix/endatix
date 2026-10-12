@@ -12,8 +12,9 @@ Gated by `Endatix:FeatureFlags:PersonalizationModule` (off by default). Runs on 
 or later (or Azure SQL Database). `EndatixBuilder.UseDefaults()` calls `UseModule(AudienceModule.Instance)`.
 
 The module registers `AudiencePostgreSqlDbContext` or `AudienceSqlServerDbContext` for the configured provider;
-handlers see it only as `IAudienceDbContext`. On SQL Server, turn on `READ_COMMITTED_SNAPSHOT` for the database (on by
-default in Azure SQL Database): without it, other tenants' audience reads wait for a running CSV import to commit.
+handlers see it only as `IAudienceDbContext`. On SQL Server, keep `READ_COMMITTED_SNAPSHOT` on for the database (on in a
+database Endatix creates and in Azure SQL Database; a database created beforehand may have it off): without it, other
+tenants' audience reads wait for a running CSV import to commit.
 
 ## Migrations
 
@@ -83,8 +84,8 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
   transaction ends. The unique indexes settle create races (a second pass reuses the member; a duplicate
   on one form is a 409). The identifier is checked against the key read under the lock. Two
   updates adding the same cell: the second pass overwrites. Cells are written in property-id order. The people
-  list counts and reads in one `REPEATABLE READ` transaction: a snapshot on PostgreSQL; on SQL Server it takes
-  shared locks, so it waits for a running import even with `READ_COMMITTED_SNAPSHOT` on.
+  list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
+  person added in between makes the page longer than the count, the total is raised to cover the rows shown.
 - **Deletes.** Removing a person deletes the membership and its cells; the member stays. Deleting a
   property soft-deletes its cells in one statement. Reads skip cells of deleted properties.
 - **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships
