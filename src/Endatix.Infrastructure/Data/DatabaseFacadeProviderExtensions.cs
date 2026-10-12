@@ -10,7 +10,9 @@ namespace Endatix.Infrastructure.Data;
 /// <remarks>
 /// A module's derived context maps provider-specific column types and index SQL. Built for the wrong
 /// provider, its model still builds and the first query fails with an unrelated type or syntax error, so
-/// the context checks its provider before it applies those mappings.
+/// the module's base context calls one of these, through its abstract <c>EnsureSupportedProvider</c>, before
+/// it applies any mapping. This checks a built context; <see cref="DatabaseProviderResolver"/> checks the
+/// configuration when the module registers.
 /// </remarks>
 public static class DatabaseFacadeProviderExtensions
 {
@@ -18,7 +20,7 @@ public static class DatabaseFacadeProviderExtensions
     /// <param name="database">The context's <see cref="DbContext.Database"/>.</param>
     /// <param name="contextType">The context that requires PostgreSQL, named in the exception.</param>
     /// <exception cref="NotSupportedException">The context is configured for another provider.</exception>
-    public static void RequirePostgreSql(this DatabaseFacade database, Type contextType)
+    public static void EnsureNpgsql(this DatabaseFacade database, Type contextType)
     {
         Guard.Against.Null(database);
         Guard.Against.Null(contextType);
@@ -33,7 +35,7 @@ public static class DatabaseFacadeProviderExtensions
     /// <param name="database">The context's <see cref="DbContext.Database"/>.</param>
     /// <param name="contextType">The context that requires SQL Server, named in the exception.</param>
     /// <exception cref="NotSupportedException">The context is configured for another provider.</exception>
-    public static void RequireSqlServer(this DatabaseFacade database, Type contextType)
+    public static void EnsureSqlServer(this DatabaseFacade database, Type contextType)
     {
         Guard.Against.Null(database);
         Guard.Against.Null(contextType);

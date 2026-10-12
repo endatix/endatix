@@ -31,6 +31,7 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        EnsureSupportedProvider();
         modelBuilder.HasDefaultSchema(AudiencePersistence.Schema);
         modelBuilder.ApplyConfiguration(new AudienceSettingsConfiguration());
         modelBuilder.ApplyConfiguration(new PropertyConfiguration());
@@ -42,6 +43,13 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
         modelBuilder.ApplyModuleTableNames();
         modelBuilder.ApplySnowflakeIdValueGenerators(Database);
     }
+
+    /// <summary>
+    /// Throws when the context is configured for a database provider its mappings do not target. Called first in
+    /// <see cref="OnModelCreating"/>, before any shared mapping, so a wrong provider fails with a message that
+    /// names it rather than at whichever mapping first uses a provider-specific feature.
+    /// </summary>
+    protected abstract void EnsureSupportedProvider();
 
     protected abstract void ApplyProviderConfigurations(ModelBuilder modelBuilder);
 

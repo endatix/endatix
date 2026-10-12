@@ -77,17 +77,14 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
     }
 
-    // Reporting has no SQL Server migrations, and no transaction lock to keep schema rebuilds apart there.
+    // PostgreSQL only: Reporting has no SQL Server migrations yet, and SqlServerTransactionLock, which keeps schema
+    // rebuilds apart, is still a stub that throws.
     private static void AddPersistence(EndatixModuleBuilder builder)
     {
         DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Reporting", FeatureFlags.ReportingModule);
         builder.AddDbContextWithMigrations<ReportingPostgreSqlDbContext>(
             ReportingPersistence.ConfigureDbContextOptions,
-            shouldMigrate: sp =>
-            {
-                var options = sp.GetService<IOptions<ReportingOptions>>();
-                return options is null || options.Value.ApplyMigrationsAtStartup;
-            });
+            shouldMigrate: sp => sp.GetRequiredService<IOptions<ReportingOptions>>().Value.ApplyMigrationsAtStartup);
 
         // Consumers see the context only as IReportingDbContext or the base, so nothing downstream branches on
         // the provider. The base is the one line that names it; ReportingUnitOfWork needs the base because

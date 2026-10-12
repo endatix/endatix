@@ -1,3 +1,6 @@
+using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -58,16 +61,20 @@ public sealed class ReportingModuleStartupMigrationTests
     ];
 
     [Fact]
-    public async Task Host_startup_on_a_database_carrying_the_shipped_migration_history_applies_nothing_and_keeps_those_rows()
+    public async Task Host_startup_on_a_database_carrying_the_shipped_migration_history_applies_and_reseeds_nothing()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await _fixture.ResetDatabaseAsync(cancellationToken: cancellationToken);
+        await InsertTenantAsync(cancellationToken);
         await ReportingTestSchema.EnsureMigratedAsync(
             _fixture.Database.ConnectionString,
             _fixture.Provider,
             cancellationToken);
         await RecordShippedHistoryAsync(cancellationToken);
+        var historyBefore = await MigrationHistoryAsync(cancellationToken);
+        var exportFormatsBefore = await ExportFormatCountAsync(cancellationToken);
+        exportFormatsBefore.Should().BePositive("the tenant gives a re-run of the export-format seed rows to add");
 
         await using var factory = new EndatixWebApplicationFactory(
                 _fixture.Database.ConnectionString,
@@ -84,21 +91,23 @@ public sealed class ReportingModuleStartupMigrationTests
         // Assert
         response.Should().BeSuccessful();
         var history = await MigrationHistoryAsync(cancellationToken);
-        (await PendingMigrationsAsync(cancellationToken)).Should().BeEmpty();
+        history.Should().Equal(historyBefore);
         history.Should().Contain(ShippedHistory);
         history.Select(row => row.MigrationId).Should().BeSubsetOf(MigrationsOfThisBuild());
+        (await PendingMigrationsAsync(cancellationToken)).Should().BeEmpty();
+        (await ExportFormatCountAsync(cancellationToken)).Should().Be(exportFormatsBefore);
     }
 
     // PostgreSQL SQL from here on: these tests assert the PostgreSQL chain that existing databases hold.
 
-    // Rewrites the shipped part of the history exactly as the shipped builds wrote it. Rows of migrations added after
-    // them (ids that sort later) are this build's own and stay applied, so a new migration does not make it pending.
+    // Rewrites exactly the shipped rows as the shipped builds wrote them. Rows of any other migration of this build,
+    // whatever its timestamp, stay applied, so adding a migration does not make it pending here.
     private async Task RecordShippedHistoryAsync(CancellationToken cancellationToken)
     {
-        var lastShippedId = ShippedHistory[^1].MigrationId;
+        string[] shippedIds = [.. ShippedHistory.Select(row => row.MigrationId)];
         await using var context = CreateReportingContext();
         await context.Database.ExecuteSqlAsync(
-            $"""DELETE FROM reporting."__EFMigrationsHistory" WHERE "MigrationId" <= {lastShippedId}""",
+            $"""DELETE FROM reporting."__EFMigrationsHistory" WHERE "MigrationId" = ANY({shippedIds})""",
             cancellationToken);
         foreach (var (migrationId, productVersion) in ShippedHistory)
         {
@@ -109,6 +118,25 @@ public sealed class ReportingModuleStartupMigrationTests
                  """,
                 cancellationToken);
         }
+    }
+
+    private async Task InsertTenantAsync(CancellationToken cancellationToken)
+    {
+        DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
+        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.Database.ConnectionString);
+        await using AppDbContext appDb = new(
+            optionsBuilder.Options,
+            IntegrationTenantContext.Bypass,
+            new OutboxIntegrationEventDispatcher());
+
+        appDb.Set<Tenant>().Add(new Tenant($"startup-{Guid.NewGuid():N}"[..32], Guid.NewGuid().ToString("N")[..8]));
+        await appDb.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<int> ExportFormatCountAsync(CancellationToken cancellationToken)
+    {
+        await using var context = CreateReportingContext();
+        return await context.ExportFormats.IgnoreQueryFilters().CountAsync(cancellationToken);
     }
 
     private async Task<List<string>> PendingMigrationsAsync(CancellationToken cancellationToken)

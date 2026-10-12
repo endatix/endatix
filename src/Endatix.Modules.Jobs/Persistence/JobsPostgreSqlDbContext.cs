@@ -14,9 +14,10 @@ public sealed class JobsPostgreSqlDbContext(
     : JobsDbContextBase(options, tenantContext)
 {
     /// <inheritdoc />
-    protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder)
-    {
-        Database.RequirePostgreSql(typeof(JobsPostgreSqlDbContext));
+    protected override void EnsureSupportedProvider() =>
+        Database.EnsureNpgsql(typeof(JobsPostgreSqlDbContext));
+
+    /// <inheritdoc />
+    protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFor<JobsPostgreSqlDbContext>(typeof(JobsPostgreSqlDbContext).Assembly);
-    }
 }

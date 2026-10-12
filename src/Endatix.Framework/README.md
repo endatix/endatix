@@ -52,8 +52,8 @@ Endatix has two persistence patterns. Every new module uses the **module pattern
 #### Module recipe
 
 1. Create `{Name}Module : IEndatixModule, IHasDbMigrations` (+ `IHasFeatureFlag` when optional). All DI belongs on the module class; do **not** add `Setup.cs`.
-2. **Base context.** An abstract `{Name}DbContextBase` owns the `DbSet`s, the module's own schema and the shared model. It applies the shared configurations explicitly (`modelBuilder.ApplyConfiguration(new XConfiguration())`), because an `[ApplyConfigurationFor<T>]` attribute can name only one context. It then calls an abstract `ApplyProviderConfigurations(modelBuilder)`, and finishes with `modelBuilder.ApplySnowflakeIdValueGenerators(Database)` and `modelBuilder.ApplyModuleTableNames()`.
-3. **Derived contexts.** One sealed context per provider (`{Name}PostgreSqlDbContext`, `{Name}SqlServerDbContext`). Each overrides `ApplyProviderConfigurations`: first `Database.RequirePostgreSql(typeof(TDerived))` (or `RequireSqlServer`), so a context built for the wrong provider fails with a `NotSupportedException` naming it instead of at its first query, then `modelBuilder.ApplyConfigurationsFor<TDerived>(typeof(TDerived).Assembly)`.
+2. **Base context.** An abstract `{Name}DbContextBase` owns the `DbSet`s, the module's own schema and the shared model. The first statement of its `OnModelCreating` calls an abstract `EnsureSupportedProvider()`, so every derived context has to state its provider and a wrong one fails before any mapping is applied. It then applies the shared configurations explicitly (`modelBuilder.ApplyConfiguration(new XConfiguration())`), because an `[ApplyConfigurationFor<T>]` attribute can name only one context. It then calls an abstract `ApplyProviderConfigurations(modelBuilder)`, and finishes with `modelBuilder.ApplySnowflakeIdValueGenerators(Database)` and `modelBuilder.ApplyModuleTableNames()`.
+3. **Derived contexts.** One sealed context per provider (`{Name}PostgreSqlDbContext`, `{Name}SqlServerDbContext`). Each implements `EnsureSupportedProvider()` as `Database.EnsureNpgsql(typeof(TDerived))` (or `EnsureSqlServer`), which throws a `NotSupportedException` naming the context and the configured provider instead of failing at the first query, and overrides `ApplyProviderConfigurations` with `modelBuilder.ApplyConfigurationsFor<TDerived>(typeof(TDerived).Assembly)`.
 4. **Provider configurations.** Column types, JSON columns and filtered-index SQL live in `Persistence/Config/<Provider>/`, each class marked `[ApplyConfigurationFor<TDerived>]`.
 5. **Design-time factory.** One `IDesignTimeDbContextFactory<TDerived>` per derived context. It pins the provider (`UseNpgsql` or `UseSqlServer`) instead of reading `DefaultConnection_DbProvider`, sets the migrations assembly to the module assembly, and puts the migrations history table in the module schema. It reads `ConnectionStrings:DefaultConnection` (`ModuleDesignTimeConfiguration`) and fails when it is missing, so set a PostgreSQL connection string to scaffold PostgreSQL migrations and a SQL Server one to scaffold SQL Server migrations. `migrations add` does not connect to the database.
 6. **Runtime registration.** In `ConfigureServices`, pick the derived context with `DatabaseProviderResolver.IsPostgreSql(configuration)`, register it with `builder.AddDbContextWithMigrations<TDerived>(...)` from `Endatix.Infrastructure.Data`, and map the module interface to it: `builder.Services.AddScoped<I{Name}DbContext>(sp => sp.GetRequiredService<TDerived>())`. Consumers depend on the interface only, so nothing downstream branches on the provider. When code also needs the base type (a unit of work on `EfUnitOfWorkBase<TContext>`, which is constrained to `DbContext`), register the base to the derived context once and alias the interface to the base, so a single line names the provider.
@@ -82,10 +82,11 @@ dotnet ef migrations add <MigrationName> \
 ```
 
 Always pass `--output-dir`. A context without a snapshot yet (the first migration of a chain) otherwise lands in the
-project's default `Migrations/` folder with the namespace `Endatix.Modules.<Name>.Migrations`. That is outside the
-module's migrations root namespace (`Endatix.Modules.<Name>.Persistence.Migrations`), and later migrations of the
-chain that omit `--output-dir` follow it there. EF still finds them by their `[DbContext]` attribute while namespace filtering is off,
-but a module that sets provider-specific migrations namespaces filters by that prefix and would silently skip them.
+project's default `Migrations/` folder with the namespace `Endatix.Modules.<Name>.Migrations`, and later migrations of
+the chain that omit `--output-dir` follow it there. With both migrations namespaces set to the root (step 7), namespace
+filtering is off and EF still finds them by their `[DbContext]` attribute, so the cost is files in the wrong folder and
+namespace that no check reports. Only a module that sets provider-specific migrations namespaces filters by that prefix,
+and it would silently skip them.
 
 Module SQL Server migrations need **SQL Server 2025 or later, or Azure SQL Database**.
 

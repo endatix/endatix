@@ -39,16 +39,11 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        EnsureSupportedProvider();
         modelBuilder.HasDefaultSchema(ReportingPersistence.Schema);
 
         modelBuilder.ApplyEndatixQueryFilters(this);
-
-        // Applied explicitly rather than by attribute scan: the shared configurations belong to every
-        // derived context, and an [ApplyConfigurationFor<T>] attribute can only name one of them.
-        modelBuilder.ApplyConfiguration(new ExportFormatConfiguration());
-        modelBuilder.ApplyConfiguration(new FlattenedSubmissionConfiguration());
-        modelBuilder.ApplyConfiguration(new FormSchemaConfiguration());
-        modelBuilder.ApplyConfiguration(new SurveyTypeExportMappingConfiguration());
+        ApplySharedConfigurations(modelBuilder);
 
         // Provider specifics come second so they can refine what the shared configurations set: JSON
         // column types and filtered-index predicates, whose syntax differs.
@@ -57,6 +52,23 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
         modelBuilder.ApplySnowflakeIdValueGenerators(Database);
         modelBuilder.ApplyModuleTableNames();
     }
+
+    // Applied explicitly rather than by attribute scan: the shared configurations belong to every derived
+    // context, and an [ApplyConfigurationFor<T>] attribute can only name one of them.
+    private static void ApplySharedConfigurations(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfiguration(new ExportFormatConfiguration());
+        modelBuilder.ApplyConfiguration(new FlattenedSubmissionConfiguration());
+        modelBuilder.ApplyConfiguration(new FormSchemaConfiguration());
+        modelBuilder.ApplyConfiguration(new SurveyTypeExportMappingConfiguration());
+    }
+
+    /// <summary>
+    /// Throws when the context is configured for a database provider its mappings do not target. Called first in
+    /// <see cref="OnModelCreating"/>, before any shared mapping, so a wrong provider fails with a message that
+    /// names it rather than at whichever mapping first uses a provider-specific feature.
+    /// </summary>
+    protected abstract void EnsureSupportedProvider();
 
     /// <summary>
     /// Applies the configurations belonging to this provider's context. Each derived context scans for

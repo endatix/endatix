@@ -6,57 +6,57 @@ namespace Endatix.Infrastructure.Tests.Data;
 public class DatabaseFacadeProviderExtensionsTests
 {
     [Fact]
-    public void RequirePostgreSql_NpgsqlDatabase_DoesNotThrow()
+    public void EnsureNpgsql_NpgsqlDatabase_DoesNotThrow()
     {
         // Arrange
         using var context = NpgsqlContext();
 
         // Act
-        var require = () => context.Database.RequirePostgreSql(typeof(DbContext));
+        var ensure = () => context.Database.EnsureNpgsql(typeof(DbContext));
 
         // Assert
-        require.Should().NotThrow();
+        ensure.Should().NotThrow();
     }
 
     [Fact]
-    public void RequirePostgreSql_SqlServerDatabase_ThrowsNamingTheContextAndTheProvider()
+    public void EnsureNpgsql_SqlServerDatabase_ThrowsNamingTheContextAndTheProvider()
     {
         // Arrange
         using var context = SqlServerContext();
 
         // Act
-        var require = () => context.Database.RequirePostgreSql(typeof(DatabaseFacadeProviderExtensionsTests));
+        var ensure = () => context.Database.EnsureNpgsql(typeof(DatabaseFacadeProviderExtensionsTests));
 
         // Assert
-        require.Should().Throw<NotSupportedException>().WithMessage(
+        ensure.Should().Throw<NotSupportedException>().WithMessage(
             "DatabaseFacadeProviderExtensionsTests is mapped for PostgreSQL only, but it is configured for the " +
             "'Microsoft.EntityFrameworkCore.SqlServer' provider.*");
     }
 
     [Fact]
-    public void RequireSqlServer_SqlServerDatabase_DoesNotThrow()
+    public void EnsureSqlServer_SqlServerDatabase_DoesNotThrow()
     {
         // Arrange
         using var context = SqlServerContext();
 
         // Act
-        var require = () => context.Database.RequireSqlServer(typeof(DbContext));
+        var ensure = () => context.Database.EnsureSqlServer(typeof(DbContext));
 
         // Assert
-        require.Should().NotThrow();
+        ensure.Should().NotThrow();
     }
 
     [Fact]
-    public void RequireSqlServer_NpgsqlDatabase_ThrowsNamingTheContextAndTheProvider()
+    public void EnsureSqlServer_NpgsqlDatabase_ThrowsNamingTheContextAndTheProvider()
     {
         // Arrange
         using var context = NpgsqlContext();
 
         // Act
-        var require = () => context.Database.RequireSqlServer(typeof(DatabaseFacadeProviderExtensionsTests));
+        var ensure = () => context.Database.EnsureSqlServer(typeof(DatabaseFacadeProviderExtensionsTests));
 
         // Assert
-        require.Should().Throw<NotSupportedException>().WithMessage(
+        ensure.Should().Throw<NotSupportedException>().WithMessage(
             "DatabaseFacadeProviderExtensionsTests is mapped for SQL Server only, but it is configured for the " +
             "'Npgsql.EntityFrameworkCore.PostgreSQL' provider.*");
     }

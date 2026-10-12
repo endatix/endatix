@@ -4,7 +4,6 @@ using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Persistence.PostgreSql.Locking;
-using Endatix.Persistence.SqlServer.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,10 +48,20 @@ internal static class ReportingTestSchema
     }
 
     /// <summary>
-    /// The transaction lock the host registers for the database <paramref name="context"/> is connected to.
+    /// The transaction lock a PostgreSQL host registers (<c>TransactionLockTests</c> pins that registration).
     /// </summary>
-    internal static ITransactionLock TransactionLockFor(IReportingDbContext context) =>
-        context.Database.IsNpgsql() ? new PostgreSqlTransactionLock() : new SqlServerTransactionLock();
+    /// <exception cref="NotSupportedException"><paramref name="context"/> is not on PostgreSQL.</exception>
+    internal static ITransactionLock TransactionLockFor(IReportingDbContext context)
+    {
+        if (!context.Database.IsNpgsql())
+        {
+            throw new NotSupportedException(
+                "Reporting integration tests lock schema rebuilds on PostgreSQL only, not on " +
+                $"'{context.Database.ProviderName}'.");
+        }
+
+        return new PostgreSqlTransactionLock();
+    }
 
     // The schema reset in EnsureMigratedAsync is PostgreSQL SQL, and a SQL Server context would migrate an empty
     // chain, so a test that runs on SQL Server fails here, naming the reason, rather than on unrelated syntax.

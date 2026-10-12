@@ -130,10 +130,12 @@ dotnet ef migrations add <MigrationName> \
   --output-dir Persistence/Migrations/SqlServer
 ```
 
-Always pass `--output-dir`. Without it, the first SQL Server migration (no snapshot yet) lands in `Migrations/` with
-the namespace `Endatix.Modules.Reporting.Migrations`, outside the root namespace `ReportingPersistence` registers
-(`Endatix.Modules.Reporting.Persistence.Migrations`), and every later migration added without `--output-dir` follows it there. See
-"Adding a migration" in `src/Endatix.Framework/README.md`.
+Always pass `--output-dir`. Without it, the first SQL Server migration (no snapshot yet) lands in the project's
+`Migrations/` folder with the namespace `Endatix.Modules.Reporting.Migrations`, and every later migration added without
+`--output-dir` follows it there. EF still finds and applies them: Reporting sets both migrations namespaces to the same
+root, so namespace filtering is off and each context finds its migrations by their `[DbContext]` attribute. The cost is
+the files themselves: they sit outside `Persistence/Migrations/SqlServer` and the module's migrations namespace, and
+nothing fails to point that out. See "Adding a migration" in `src/Endatix.Framework/README.md`.
 
 ### Remove last migration
 
