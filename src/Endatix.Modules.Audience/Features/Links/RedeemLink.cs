@@ -72,7 +72,7 @@ internal sealed class RedeemLinkHandler(
         }
 
         return claimedId is long submissionId
-            ? await ResumeAsync(link.Id, submissionId, cancellationToken)
+            ? await ResumeAsync(link.Id, link.FormId, submissionId, cancellationToken)
             : Result.NotFound(LinkNotFound);
     }
 
@@ -104,22 +104,65 @@ internal sealed class RedeemLinkHandler(
     private async Task<Result<RedeemedLinkDto>?> OpenNewAsync(AudienceLink link, CancellationToken cancellationToken)
     {
         var form = await forms.GetByIdAsync(link.FormId, cancellationToken);
-        if (form?.ActiveDefinitionId is not long definitionId)
+        if (form is not { IsEnabled: true, ActiveDefinitionId: long definitionId })
         {
-            return Result.NotFound("Form not found.");
+            return Result.NotFound(form is null ? "Form not found." : LinkNotFound);
+        }
+
+        if (!await MembershipIsLiveAsync(link.MembershipId, cancellationToken))
+        {
+            return Result.NotFound(LinkNotFound);
+        }
+
+        if (form.LimitOnePerUser
+            && await ExistingSubmissionIdAsync(link, cancellationToken) is long existingId)
+        {
+            return await ClaimOpenedAsync(link.Id, existingId, created: false, cancellationToken);
         }
 
         var pending = await submissions.FirstOrDefaultAsync(
             new SubmissionForLinkSpec(link.FormId, link.Id),
             cancellationToken);
         var submission = pending ?? await StartAsync(link, definitionId, cancellationToken);
-        var redeemed = await RedeemedAsync(submission.Id, pending is null, cancellationToken);
+        return await ClaimOpenedAsync(link.Id, submission.Id, pending is null, cancellationToken);
+    }
+
+    /// <summary>Issues the token, then claims. <see langword="null"/> when a writer outside the lock claimed first.</summary>
+    private async Task<Result<RedeemedLinkDto>?> ClaimOpenedAsync(
+        long linkId,
+        long submissionId,
+        bool created,
+        CancellationToken cancellationToken)
+    {
+        var redeemed = await RedeemedAsync(submissionId, created, cancellationToken);
         if (!redeemed.IsSuccess)
         {
             return redeemed;
         }
 
-        return await ClaimAsync(link.Id, submission.Id, cancellationToken) ? redeemed : null;
+        return await ClaimAsync(linkId, submissionId, cancellationToken) ? redeemed : null;
+    }
+
+    private Task<bool> MembershipIsLiveAsync(long membershipId, CancellationToken cancellationToken) =>
+        db.Memberships.AnyAsync(membership => membership.Id == membershipId, cancellationToken);
+
+    /// <summary>The submission this person already has on a one-response form.</summary>
+    private async Task<long?> ExistingSubmissionIdAsync(AudienceLink link, CancellationToken cancellationToken)
+    {
+        var submitterId = await db.Members.AsNoTracking()
+            .Where(member => db.Memberships.Any(membership =>
+                membership.Id == link.MembershipId && membership.MemberId == member.Id))
+            .Select(member => member.SubmitterId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (submitterId is not long id)
+        {
+            return null;
+        }
+
+        var existing = await submissions.FirstOrDefaultAsync(
+            new SubmissionForSubmitterSpec(link.FormId, id),
+            cancellationToken);
+        return existing?.Id;
     }
 
     /// <summary>
@@ -128,9 +171,16 @@ internal sealed class RedeemLinkHandler(
     /// </summary>
     private async Task<Result<RedeemedLinkDto>> ResumeAsync(
         long linkId,
+        long formId,
         long submissionId,
         CancellationToken cancellationToken)
     {
+        var form = await forms.GetByIdAsync(formId, cancellationToken);
+        if (form is not { IsEnabled: true })
+        {
+            return Result.NotFound(LinkNotFound);
+        }
+
         var hasToken = await submissions.FirstOrDefaultAsync(
             new SubmissionHasTokenSpec(submissionId),
             cancellationToken);
@@ -235,6 +285,14 @@ internal sealed class RedeemLinkHandler(
 /// The submission already written for this link, including one whose claim never committed. The form narrows
 /// it to <c>IX_Submissions_FormId</c>: <c>AudienceLinkId</c> has no index.
 /// </summary>
+/// <summary>The earliest live submission this person already has on the form.</summary>
+internal sealed class SubmissionForSubmitterSpec : Specification<Submission>
+{
+    public SubmissionForSubmitterSpec(long formId, long submitterId) =>
+        Query.Where(submission => submission.FormId == formId && submission.SubmitterId == submitterId)
+            .OrderBy(submission => submission.Id);
+}
+
 internal sealed class SubmissionForLinkSpec : Specification<Submission>
 {
     public SubmissionForLinkSpec(long formId, long audienceLinkId) =>
