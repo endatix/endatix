@@ -60,19 +60,19 @@ public sealed class ReportingModuleStartupMigrationTests
         ("20260930070117_AddFlattenedSubmissionSourceRevision", "10.0.0"),
     ];
 
+    private static string LastShippedId => ShippedHistory[^1].MigrationId;
+
     [Fact]
-    public async Task Host_startup_on_a_database_carrying_the_shipped_migration_history_applies_and_reseeds_nothing()
+    public async Task Host_startup_upgrades_a_database_stopped_at_the_last_shipped_migration_and_reruns_nothing()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await _fixture.ResetDatabaseAsync(cancellationToken: cancellationToken);
         await InsertTenantAsync(cancellationToken);
-        await ReportingTestSchema.EnsureMigratedAsync(
-            _fixture.Database.ConnectionString,
-            _fixture.Provider,
-            cancellationToken);
+        await MigrateToLastShippedAsync(cancellationToken);
         await RecordShippedHistoryAsync(cancellationToken);
-        var historyBefore = await MigrationHistoryAsync(cancellationToken);
+        var idsBefore = (await MigrationHistoryAsync(cancellationToken)).Select(row => row.MigrationId).ToList();
+        var newerMigrations = MigrationsOfThisBuild().Where(id => string.CompareOrdinal(id, LastShippedId) > 0).ToList();
         var exportFormatsBefore = await ExportFormatCountAsync(cancellationToken);
         exportFormatsBefore.Should().BePositive("the tenant's seeded formats are what an unchanged count after startup is compared against");
 
@@ -91,8 +91,11 @@ public sealed class ReportingModuleStartupMigrationTests
         // Assert
         response.Should().BeSuccessful();
         var history = await MigrationHistoryAsync(cancellationToken);
-        history.Should().Equal(historyBefore, "startup must not apply any migration, including a re-run of the idempotent seed");
-        history.Should().Contain(ShippedHistory);
+        idsBefore.Intersect(newerMigrations).Should().BeEmpty("the database stops where the last shipped build left it");
+        history.Select(row => row.MigrationId).Should().Equal(
+            idsBefore.Concat(newerMigrations).Order(StringComparer.Ordinal),
+            "startup must apply this build's newer migrations and re-run nothing, including the idempotent seed");
+        history.Should().Contain(ShippedHistory, "startup must leave the shipped rows as the shipped builds wrote them");
         history.Select(row => row.MigrationId).Should().BeSubsetOf(MigrationsOfThisBuild());
         (await PendingMigrationsAsync(cancellationToken)).Should().BeEmpty();
         (await ExportFormatCountAsync(cancellationToken)).Should().Be(exportFormatsBefore, "startup must not add or remove export formats");
@@ -100,8 +103,19 @@ public sealed class ReportingModuleStartupMigrationTests
 
     // PostgreSQL SQL from here on: these tests assert the PostgreSQL chain that existing databases hold.
 
-    // Rewrites exactly the shipped rows as the shipped builds wrote them. Rows of any other migration of this build,
-    // whatever its timestamp, stay applied, so adding a migration does not make it pending here.
+    // Migrating to the last shipped id leaves the database where an upgrading one starts. A migration of this build
+    // with an older id (one merged from a long-lived branch) is applied here too, because EF applies in id order.
+    private async Task MigrateToLastShippedAsync(CancellationToken cancellationToken)
+    {
+        await using var context = await ReportingTestSchema.DropSchemaAsync(
+            _fixture.Database.ConnectionString,
+            _fixture.Provider,
+            cancellationToken);
+        await context.Database.MigrateAsync(LastShippedId, cancellationToken);
+    }
+
+    // Rewrites exactly the shipped rows as the shipped builds wrote them: their literal ids, not this build's, so a
+    // renamed shipped migration leaves an id the build does not know, and their EF version.
     private async Task RecordShippedHistoryAsync(CancellationToken cancellationToken)
     {
         string[] shippedIds = [.. ShippedHistory.Select(row => row.MigrationId)];
@@ -151,7 +165,7 @@ public sealed class ReportingModuleStartupMigrationTests
         await using var context = CreateReportingContext();
         var rows = await context.Database
             .SqlQueryRaw<string>(
-                """SELECT "MigrationId" || ' ' || "ProductVersion" AS "Value" FROM reporting."__EFMigrationsHistory" ORDER BY "MigrationId" """)
+                """SELECT "MigrationId" || ' ' || "ProductVersion" AS "Value" FROM reporting."__EFMigrationsHistory" ORDER BY "MigrationId" COLLATE "C" """)
             .ToListAsync(cancellationToken);
         return [.. rows.Select(row => row.Split(' ')).Select(parts => (parts[0], parts[1]))];
     }

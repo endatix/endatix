@@ -2,7 +2,6 @@ using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
-using Endatix.Persistence.PostgreSql.Locking;
 using static Endatix.IntegrationTests.FormSchemaRebuildWorld;
 
 namespace Endatix.IntegrationTests;
@@ -90,12 +89,14 @@ public sealed class FormSchemaRebuildWaitIntegrationTests(DbIntegrationFixture f
     {
         // Arrange — another rebuild of the form holds its lock for the whole first backfill.
         var form = await _world.SeedFormWithRealSubmissionAsync([BaseDefinition]);
-        ShortWaitLock shortWait = new(new PostgreSqlTransactionLock());
         SubmissionBackfillResult duringRebuild;
+        ShortWaitLock shortWait;
         await using (var rebuild = _world.CreateReportingDbContext())
         {
+            var transactionLock = ReportingTestSchema.TransactionLockFor(rebuild);
+            shortWait = new(transactionLock);
             await rebuild.Database.BeginTransactionAsync(Cancellation);
-            await new PostgreSqlTransactionLock().AcquireAsync(rebuild.Database, RebuildLockOf(form.FormId), Cancellation);
+            await transactionLock.AcquireAsync(rebuild.Database, RebuildLockOf(form.FormId), Cancellation);
             duringRebuild = await _world.BackfillAsync(form.FormId, shortWait);
         }
 
@@ -115,8 +116,9 @@ public sealed class FormSchemaRebuildWaitIntegrationTests(DbIntegrationFixture f
         var form = await _world.SeedFormWithRealSubmissionAsync([BaseDefinition]);
         await using var rebuild = _world.CreateReportingDbContext();
         await rebuild.Database.BeginTransactionAsync(Cancellation);
-        await new PostgreSqlTransactionLock().AcquireAsync(rebuild.Database, RebuildLockOf(form.FormId), Cancellation);
-        ShortWaitLock shortWait = new(new PostgreSqlTransactionLock());
+        var transactionLock = ReportingTestSchema.TransactionLockFor(rebuild);
+        await transactionLock.AcquireAsync(rebuild.Database, RebuildLockOf(form.FormId), Cancellation);
+        ShortWaitLock shortWait = new(transactionLock);
 
         // Act
         var runJob = () => _world.RunFlattenJobAsync(form.FormId, form.SubmissionId, shortWait);

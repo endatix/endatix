@@ -18,18 +18,36 @@ internal static class ReportingTestSchema
         TestDatabaseProvider provider,
         CancellationToken cancellationToken = default)
     {
+        await using ReportingDbContextBase context = await DropSchemaAsync(connectionString, provider, cancellationToken);
+        await context.Database.MigrateAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Migrates the core schema and drops the Reporting one, returning a context to migrate it with, so a test can
+    /// choose how far the Reporting chain goes.
+    /// </summary>
+    internal static async Task<ReportingDbContextBase> DropSchemaAsync(
+        string connectionString,
+        TestDatabaseProvider provider,
+        CancellationToken cancellationToken)
+    {
         RequirePostgreSql(provider);
         await EnsureCoreMigratedAsync(connectionString, provider, cancellationToken);
 
-        await using ReportingDbContextBase context = CreateContext(
-            connectionString,
-            provider,
-            IntegrationTenantContext.Bypass);
+        var context = CreateContext(connectionString, provider, IntegrationTenantContext.Bypass);
 
-        // Reporting integration tests reset data via Respawn but keep schema objects.
-        // Drop the module schema so updated migrations (e.g. FormSchemas rename) apply cleanly.
-        await context.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS reporting CASCADE;");
-        await context.Database.MigrateAsync(cancellationToken);
+        try
+        {
+            // Reporting integration tests reset data via Respawn but keep schema objects.
+            // Drop the module schema so updated migrations (e.g. FormSchemas rename) apply cleanly.
+            await context.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS reporting CASCADE;", cancellationToken);
+            return context;
+        }
+        catch
+        {
+            await context.DisposeAsync();
+            throw;
+        }
     }
 
     /// <summary>
