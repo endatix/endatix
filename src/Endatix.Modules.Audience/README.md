@@ -62,5 +62,5 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
 - **On behalf.** `POST forms/{formId}/submissions/onbehalf` (`Submissions.CreateOnBehalf`, not this module's routes) freezes a snapshot when `Submitter.ExternalSubjectId` matches a member on a form that has properties. Unknown id, no properties, or no submitter leaves the create unchanged. The snapshot is `source: on_behalf` plus `memberId` and `values[]` beside `variables`. Binding `Member.SubmitterId` is one update that matches only while it is null.
 - **Links.** The token is stored as a SHA-256 hash. Opening claims the link with one update
   (`SubmissionId` still null), so two first opens leave one submission. A crash between creating
-  the submission and that update can leave an unopened link; the next open creates another.
+  the submission and that update leaves the submission; the next open claims it instead of creating another.
   Disabled forms, a removed person, and sharing one submission with on-behalf are not gated here.

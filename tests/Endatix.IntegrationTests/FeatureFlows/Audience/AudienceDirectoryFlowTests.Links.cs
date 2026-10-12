@@ -1,7 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
@@ -67,6 +72,49 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Opening_a_link_claims_the_submission_left_when_the_claim_did_not_commit()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Columbus");
+        long orphanId = await LeaveUnclaimedSubmissionAsync(world.Services, formId);
+        using var anonymous = world.AnonymousClient();
+
+        // Act
+        var opened = await RedeemAsync(anonymous, formId, token);
+
+        // Assert
+        Assert.False(opened.GetProperty("created").GetBoolean());
+        Assert.Equal(orphanId, IdOf(opened, "submissionId"));
+    }
+
+    /// <summary>A committed submission for the link, with the link still unopened.</summary>
+    private static async Task<long> LeaveUnclaimedSubmissionAsync(IServiceProvider services, long formId)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        AppDbContext app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        IAudienceDbContext audience = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var link = await audience.Links.AsNoTracking().SingleAsync(item => item.FormId == formId, cancellationToken);
+        var definitionId = await app.Forms
+            .Where(form => form.Id == formId)
+            .Select(form => form.ActiveDefinitionId)
+            .SingleAsync(cancellationToken);
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            link.TenantId,
+            formId,
+            definitionId!.Value,
+            "{}",
+            IsComplete: false,
+            StartSubmission: true));
+        submission.FreezePersonalization(link.Id, """{"schemaVersion":1,"identifier":"x","variables":{"city":"Columbus"}}""");
+        app.Add(submission);
+        await app.SaveChangesAsync(cancellationToken);
+        return submission.Id;
     }
 
     /// <summary>A form with a City property and one person whose city is set; their one link.</summary>
