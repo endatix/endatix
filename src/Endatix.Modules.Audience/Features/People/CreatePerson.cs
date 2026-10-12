@@ -114,13 +114,17 @@ internal sealed class CreatePersonHandler(
         }
 
         Member member = await FindOrAddMemberAsync(request, identifierKind, cancellationToken);
-        bool onForm = await db.Memberships.AnyAsync(
-            membership => membership.FormId == request.FormId && membership.MemberId == member.Id,
-            cancellationToken);
-        return onForm
+        return await IsOnFormAsync(request, member, cancellationToken)
             ? AlreadyOnForm()
             : Result<PersonDto>.Created(await AddToFormAsync(request, member, cancellationToken));
     }
+
+    private Task<bool> IsOnFormAsync(CreatePersonCommand request, Member member, CancellationToken cancellationToken) =>
+        db.Memberships.AnyAsync(
+            membership => membership.TenantId == request.TenantId
+                && membership.FormId == request.FormId
+                && membership.MemberId == member.Id,
+            cancellationToken);
 
     private static Result<PersonDto> AlreadyOnForm() =>
         Result.Conflict("This person is already on this form's audience.");

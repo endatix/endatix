@@ -115,7 +115,7 @@ internal sealed class UpdatePersonHandler(
         }
 
         Dictionary<long, string> allValues = await PropertyValuesWriter
-            .ActiveCells(db, [membership.Id])
+            .ActiveCells(db, membership.TenantId, [membership.Id])
             .ToDictionaryAsync(value => value.PropertyId, value => value.Value, cancellationToken);
         return new PersonDto(membership.Id, member.Id, member.Identifier, allValues);
     }

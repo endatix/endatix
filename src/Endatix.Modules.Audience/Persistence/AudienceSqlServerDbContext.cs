@@ -17,6 +17,7 @@ public sealed class AudienceSqlServerDbContext(
     protected override void EnsureSupportedProvider() =>
         Database.EnsureSqlServer(typeof(AudienceSqlServerDbContext));
 
+    /// <inheritdoc />
     protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFor<AudienceSqlServerDbContext>(typeof(AudienceSqlServerDbContext).Assembly);
 }

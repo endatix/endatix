@@ -1,4 +1,3 @@
-using System.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -7,7 +6,6 @@ using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Modules.Audience.Shared;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.People;
 
@@ -49,33 +47,42 @@ internal sealed class ListPeopleHandler(
     }
 
     /// <summary>
-    /// Counts and reads in one snapshot, so a person added between the two queries cannot make
-    /// the page larger than the total.
+    /// Counts, then reads the page, each in its own statement and without a transaction: a transaction that kept
+    /// them consistent would hold shared locks on SQL Server and wait behind every writer. A person added between
+    /// the two queries can make the page longer than the count, so the total is raised to cover the rows shown.
     /// </summary>
     private async Task<Paged<PersonDto>> PageAsync(
         ListPeopleQuery request,
         CancellationToken cancellationToken)
     {
-        await using IDbContextTransaction snapshot = await ((DbContext)db).Database
-            .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
         (int requestedPage, int pageSize) = ResolvePaging(request);
-        IQueryable<Membership> query = MembershipsOnForm(request.FormId);
+        IQueryable<Membership> query = MembershipsOnForm(request.TenantId, request.FormId);
 
-        int total = await query.CountAsync(cancellationToken);
-        int page = Paged<PersonDto>.ResolvePage(requestedPage, pageSize, total);
+        int counted = await query.CountAsync(cancellationToken);
+        int page = Paged<PersonDto>.ResolvePage(requestedPage, pageSize, counted);
         List<Membership> rows = await query
             .OrderBy(membership => membership.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        List<PersonDto> items = await MapPeopleAsync(rows, cancellationToken);
+        List<PersonDto> items = await MapPeopleAsync(request.TenantId, rows, cancellationToken);
+        int total = TotalCoveringPage(counted, (page - 1) * pageSize, items.Count);
         return Paged<PersonDto>.FromPage(page, pageSize, total, items);
     }
 
-    private IQueryable<Membership> MembershipsOnForm(long formId) =>
+    /// <summary>
+    /// The counted total, or more when the page read after the count holds rows the count missed.
+    /// </summary>
+    internal static int TotalCoveringPage(int counted, int offset, int shown) =>
+        Math.Max(counted, offset + shown);
+
+    // The tenant is stated as well as filtered, so SQL Server can seek the tenant-first index: the tenant query
+    // filter's bypass parameter keeps it from seeking on the filter alone.
+    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId) =>
         db.Memberships.AsNoTracking().Where(membership =>
-            membership.FormId == formId
+            membership.TenantId == tenantId
+            && membership.FormId == formId
             && db.Members.Any(member => member.Id == membership.MemberId));
 
     private static (int Page, int PageSize) ResolvePaging(ListPeopleQuery request)
@@ -88,6 +95,7 @@ internal sealed class ListPeopleHandler(
     }
 
     private async Task<List<PersonDto>> MapPeopleAsync(
+        long tenantId,
         List<Membership> rows,
         CancellationToken cancellationToken)
     {
@@ -98,7 +106,7 @@ internal sealed class ListPeopleHandler(
 
         Dictionary<long, string> identifiers = await LoadIdentifiersAsync(rows, cancellationToken);
         Dictionary<long, Dictionary<long, string>> values =
-            await LoadValuesAsync(rows.Select(row => row.Id).ToHashSet(), cancellationToken);
+            await LoadValuesAsync(tenantId, rows.Select(row => row.Id).ToHashSet(), cancellationToken);
         return BuildDtos(rows, identifiers, values);
     }
 
@@ -114,11 +122,12 @@ internal sealed class ListPeopleHandler(
     }
 
     private async Task<Dictionary<long, Dictionary<long, string>>> LoadValuesAsync(
+        long tenantId,
         HashSet<long> membershipIds,
         CancellationToken cancellationToken)
     {
         var valueRows = await PropertyValuesWriter
-            .ActiveCells(db, membershipIds)
+            .ActiveCells(db, tenantId, membershipIds)
             .Select(value => new { value.MembershipId, value.PropertyId, value.Value })
             .ToListAsync(cancellationToken);
 
