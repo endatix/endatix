@@ -25,6 +25,16 @@ SQL Server must be **SQL Server 2025 or later, or Azure SQL Database**: the sche
 
 The Reporting module (`Endatix:FeatureFlags:ReportingModule`) runs on both providers and migrates its `reporting` schema at startup on either.
 
+### Audience on SQL Server
+
+The Audience module (`Endatix:FeatureFlags:PersonalizationModule`) runs on both providers.
+
+Turn on `READ_COMMITTED_SNAPSHOT` for the database. Azure SQL Database has it on by default; SQL Server on-premises and in containers has it off. Without it, a read waits for any writer whose uncommitted rows it scans: while one tenant imports a 5,000-row CSV, another tenant's audience requests can wait about 2 seconds for the import to commit.
+
+```sql
+ALTER DATABASE [endatix] SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+```
+
 ## Usage Examples
 
 ### 1. Automatic Configuration with Defaults
