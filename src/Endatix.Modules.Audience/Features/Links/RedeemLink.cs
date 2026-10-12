@@ -1,3 +1,4 @@
+using Ardalis.Specification;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -58,6 +59,43 @@ internal sealed class RedeemLinkHandler(
             return Result.NotFound("Form not found.");
         }
 
+        var pending = await submissions.FirstOrDefaultAsync(
+            new SubmissionForLinkSpec(link.Id),
+            cancellationToken);
+        return pending is not null
+            ? await ClaimExistingAsync(link.Id, pending, cancellationToken)
+            : await OpenNewAsync(link, definitionId, cancellationToken);
+    }
+
+    /// <summary>
+    /// A crash after the insert and before the claim leaves this submission. The next open
+    /// claims it instead of creating another.
+    /// </summary>
+    private async Task<Result<RedeemedLinkDto>> ClaimExistingAsync(
+        long linkId,
+        Submission pending,
+        CancellationToken cancellationToken)
+    {
+        if (await ClaimAsync(linkId, pending.Id, cancellationToken))
+        {
+            return await RedeemedAsync(pending.Id, false, cancellationToken);
+        }
+
+        var claimed = await ResumeClaimedAsync(linkId, cancellationToken);
+        if (claimed.IsSuccess && claimed.Value.SubmissionId != pending.Id)
+        {
+            pending.Delete();
+            await submissions.SaveChangesAsync(cancellationToken);
+        }
+
+        return claimed;
+    }
+
+    private async Task<Result<RedeemedLinkDto>> OpenNewAsync(
+        AudienceLink link,
+        long definitionId,
+        CancellationToken cancellationToken)
+    {
         var submission = await StartAsync(link, definitionId, cancellationToken);
         if (await ClaimAsync(link.Id, submission.Id, cancellationToken))
         {
@@ -145,4 +183,12 @@ internal sealed class RedeemLinkHandler(
             ? Result.Success(new RedeemedLinkDto(submissionId, created, token.Value))
             : token.ToErrorResult<RedeemedLinkDto>();
     }
+}
+
+/// <summary>The submission already written for this link, including one whose claim never committed.</summary>
+internal sealed class SubmissionForLinkSpec : Specification<Submission>
+{
+    public SubmissionForLinkSpec(long audienceLinkId) =>
+        Query.Where(submission => submission.AudienceLinkId == audienceLinkId)
+            .OrderBy(submission => submission.Id);
 }
