@@ -1,5 +1,7 @@
+using Endatix.Core.Abstractions;
 using Endatix.Framework.Modules;
 using Endatix.Modules.Reporting;
+using Endatix.Modules.Reporting.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,6 +25,27 @@ public class ReportingModuleRegistrationTests
 
         // Assert
         moduleBuilder.MigrationContributorRegistered.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ConfigureServices_PostgreSql_RegistersOnlyThePostgreSqlContext()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton(Substitute.For<ITenantContext>());
+        var moduleBuilder = CreateModuleBuilder(services, provider: "postgresql");
+
+        // Act
+        ReportingModule.Instance.ConfigureServices(moduleBuilder);
+
+        // Assert
+        using var serviceProvider = services.BuildServiceProvider();
+        using var scope = serviceProvider.CreateScope();
+        var asInterface = scope.ServiceProvider.GetRequiredService<IReportingDbContext>();
+        var asBase = scope.ServiceProvider.GetRequiredService<ReportingDbContextBase>();
+        asInterface.Should().BeOfType<ReportingPostgreSqlDbContext>();
+        asBase.Should().BeSameAs(asInterface);
+        services.Should().NotContain(descriptor => descriptor.ServiceType == typeof(ReportingSqlServerDbContext));
     }
 
     [Fact]

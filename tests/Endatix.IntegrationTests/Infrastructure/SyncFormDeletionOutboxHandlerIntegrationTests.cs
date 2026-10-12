@@ -127,14 +127,11 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
-    private ReportingDbContext CreateContext(long tenantId)
+    private ReportingDbContextBase CreateContext(long tenantId)
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        var optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
+        return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
     private static IOutboxMessage CreateMessage()

@@ -363,7 +363,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
 
     private static FormSchemaProcessor CreateProcessor(
         IFormsRepository formsRepository,
-        ReportingDbContext reportingDb,
+        ReportingDbContextBase reportingDb,
         AppDbContext appDb)
     {
         ReportingUnitOfWork unitOfWork = new(reportingDb);
@@ -390,14 +390,11 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             new OutboxIntegrationEventDispatcher());
     }
 
-    private ReportingDbContext CreateReportingDbContext()
+    private ReportingDbContextBase CreateReportingDbContext()
     {
         IntegrationTenantContext tenantContext = new(TenantId);
 
-        var optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
+        return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
     private sealed record SeededForm(long FormId, long FormDefinitionId);

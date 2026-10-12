@@ -5,7 +5,7 @@ using Endatix.Modules.Reporting.Domain;
 
 namespace Endatix.Modules.Reporting.Persistence.Config.SqlServer;
 
-[ApplyConfigurationFor<ReportingDbContext>]
+[ApplyConfigurationFor<ReportingSqlServerDbContext>]
 internal sealed class FlattenedSubmissionConfigurationSqlServer : IEntityTypeConfiguration<FlattenedSubmission>
 {
     public void Configure(EntityTypeBuilder<FlattenedSubmission> builder)

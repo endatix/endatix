@@ -42,7 +42,7 @@ public sealed class FormSchemaProviderIntegrationTests
 
         IFormsRepository formsRepository = CreateFormsRepository();
 
-        await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateReportingContext(TenantId);
         await using AppDbContext appDbContext = CreateAppDbContext();
         FormSchemaRepository schemaRepository = CreateSchemaRepository(dbContext);
         FormSchemaProvider provider = CreateProvider(formsRepository, dbContext, appDbContext);
@@ -76,7 +76,7 @@ public sealed class FormSchemaProviderIntegrationTests
 
         IFormsRepository formsRepository = CreateFormsRepository();
 
-        await using ReportingDbContext dbContext = CreateReportingContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateReportingContext(TenantId);
         await using AppDbContext appDbContext = CreateAppDbContext();
         FormSchemaProvider provider = CreateProvider(formsRepository, dbContext, appDbContext);
 
@@ -99,14 +99,11 @@ public sealed class FormSchemaProviderIntegrationTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
-    private ReportingDbContext CreateReportingContext(long tenantId)
+    private ReportingDbContextBase CreateReportingContext(long tenantId)
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
+        return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
     private AppDbContext CreateAppDbContext()
@@ -122,7 +119,7 @@ public sealed class FormSchemaProviderIntegrationTests
             new OutboxIntegrationEventDispatcher());
     }
 
-    private static FormSchemaRepository CreateSchemaRepository(ReportingDbContext dbContext)
+    private static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
         return new FormSchemaRepository(dbContext, unitOfWork, new PostgreSqlTransactionLock());
@@ -130,7 +127,7 @@ public sealed class FormSchemaProviderIntegrationTests
 
     private static FormSchemaProvider CreateProvider(
         IFormsRepository formsRepository,
-        ReportingDbContext dbContext,
+        ReportingDbContextBase dbContext,
         AppDbContext appDbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);

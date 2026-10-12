@@ -15,7 +15,7 @@ namespace Endatix.Modules.Reporting.Data;
 /// Repository for exporting reporting data.
 /// </summary>
 internal sealed class ReportingExportRepository(
-    ReportingDbContext reportingDbContext,
+    IReportingDbContext reportingDbContext,
     AppDbContext appDbContext,
     ILogger<ReportingExportRepository> logger) : IReportingExportRepository
 {

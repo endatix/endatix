@@ -1,11 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Endatix.Infrastructure.Data.Config;
 using Endatix.Modules.Reporting.Domain;
 
 namespace Endatix.Modules.Reporting.Persistence.Config;
 
-[ApplyConfigurationFor<ReportingDbContext>]
 internal sealed class FormSchemaConfiguration : IEntityTypeConfiguration<FormSchema>
 {
     public void Configure(EntityTypeBuilder<FormSchema> builder)

@@ -47,17 +47,9 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     public void ConfigureFastEndpoints(Config config) =>
         ReportingModuleEndpointConfiguration.Configure(config);
 
-    // Reporting has no SQL Server migrations, and no transaction lock to keep schema rebuilds apart there.
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Reporting", FeatureFlags.ReportingModule);
-        builder.AddDbContextWithMigrations<ReportingDbContext>(
-            ReportingPersistence.ConfigureDbContextOptions,
-            shouldMigrate: sp =>
-            {
-                var options = sp.GetService<IOptions<ReportingOptions>>();
-                return options is null || options.Value.ApplyMigrationsAtStartup;
-            });
+        AddPersistence(builder);
 
         builder.Services.AddScoped<IReportingUnitOfWork, ReportingUnitOfWork>();
         builder.Services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
@@ -83,5 +75,23 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
         builder.Services.AddReportingOutboxWork();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
+    }
+
+    // Reporting has no SQL Server migrations, and no transaction lock to keep schema rebuilds apart there.
+    private static void AddPersistence(EndatixModuleBuilder builder)
+    {
+        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Reporting", FeatureFlags.ReportingModule);
+        builder.AddDbContextWithMigrations<ReportingPostgreSqlDbContext>(
+            ReportingPersistence.ConfigureDbContextOptions,
+            shouldMigrate: sp =>
+            {
+                var options = sp.GetService<IOptions<ReportingOptions>>();
+                return options is null || options.Value.ApplyMigrationsAtStartup;
+            });
+
+        // Consumers see the context only as IReportingDbContext or the base, so nothing downstream branches on
+        // the provider.
+        builder.Services.AddScoped<ReportingDbContextBase>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
+        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
     }
 }

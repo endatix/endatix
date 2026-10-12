@@ -37,7 +37,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
         ReportingUnitOfWork unitOfWork = new(dbContext);
 
@@ -66,7 +66,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
         ReportingUnitOfWork unitOfWork = new(dbContext);
 
@@ -92,7 +92,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateContext(TenantId);
         FlattenedSubmissionRepository repository = CreateRepository(dbContext);
         ReportingUnitOfWork unitOfWork = new(dbContext);
 
@@ -136,17 +136,14 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
-    private ReportingDbContext CreateContext(long tenantId)
+    private ReportingDbContextBase CreateContext(long tenantId)
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
+        return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
-    private static FlattenedSubmissionRepository CreateRepository(ReportingDbContext dbContext)
+    private static FlattenedSubmissionRepository CreateRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
         return new FlattenedSubmissionRepository(dbContext, unitOfWork);

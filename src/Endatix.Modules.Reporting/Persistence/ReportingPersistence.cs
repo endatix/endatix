@@ -9,26 +9,24 @@ public static class ReportingPersistence
 {
     public const string Schema = "reporting";
 
-    public const string PostgreSqlMigrationsNamespace =
-        "Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql";
+    private const string MigrationsRootNamespace = "Endatix.Modules.Reporting.Persistence.Migrations";
 
-    public const string SqlServerMigrationsNamespace =
-        "Endatix.Modules.Reporting.Persistence.Migrations.SqlServer";
-
-    public const string PostgreSqlConfigNamespace =
-        "Endatix.Modules.Reporting.Persistence.Config.PostgreSql";
-
-    public const string SqlServerConfigNamespace =
-        "Endatix.Modules.Reporting.Persistence.Config.SqlServer";
+    /// <summary>The assembly that holds every provider's Reporting migrations.</summary>
+    internal static string MigrationsAssembly => typeof(ReportingDbContextBase).Assembly.GetName().Name!;
 
     /// <summary>
     /// Shared module DbContext options for runtime and design-time registration.
     /// </summary>
+    /// <remarks>
+    /// Both providers get the migrations root namespace. Registration requires a namespace for the active
+    /// provider, and equal values keep namespace filtering off: each provider has its own derived context, and
+    /// EF finds that context's migrations by their <c>[DbContext]</c> attribute, leaving nothing to filter.
+    /// </remarks>
     public static void ConfigureDbContextOptions(ModuleDbContextOptions options)
     {
         options.Schema = Schema;
-        options.MigrationsAssembly = typeof(ReportingDbContext).Assembly.GetName().Name!;
-        options.PostgreSqlMigrationsNamespace = PostgreSqlMigrationsNamespace;
-        options.SqlServerMigrationsNamespace = SqlServerMigrationsNamespace;
+        options.MigrationsAssembly = MigrationsAssembly;
+        options.PostgreSqlMigrationsNamespace = MigrationsRootNamespace;
+        options.SqlServerMigrationsNamespace = MigrationsRootNamespace;
     }
 }

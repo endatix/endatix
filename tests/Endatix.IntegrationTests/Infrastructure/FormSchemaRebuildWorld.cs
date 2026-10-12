@@ -181,9 +181,10 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
             .SingleAsync(row => row.SubmissionId == submissionId, Cancellation);
     }
 
-    public ReportingDbContext CreateReportingDbContext() =>
-        new(
-            ReportingTestSchema.ConfigureOptionsBuilder(fixture.ConnectionString).Options,
+    public ReportingDbContextBase CreateReportingDbContext() =>
+        ReportingTestSchema.CreateContext(
+            fixture.ConnectionString,
+            fixture.Provider,
             new IntegrationTenantContext(TenantId));
 
     private static async Task<List<long>> AddDefinitionsAsync(AppDbContext appDb, Form form, string[] definitionsOldestFirst)
@@ -223,7 +224,7 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
 internal sealed record RebuildForm(long FormId, IReadOnlyList<long> DefinitionIds, long SubmissionId);
 
 /// <summary>The two databases of one job or request, and the Reporting pieces built on them.</summary>
-internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContext reportingDb) : IAsyncDisposable
+internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase reportingDb) : IAsyncDisposable
 {
     public FormSchemaRepository Schemas(ITransactionLock? transactionLock = null) =>
         new(reportingDb, new ReportingUnitOfWork(reportingDb), transactionLock ?? new PostgreSqlTransactionLock());

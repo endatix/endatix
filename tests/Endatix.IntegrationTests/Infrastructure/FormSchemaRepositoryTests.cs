@@ -42,7 +42,7 @@ public sealed class FormSchemaRepositoryTests
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateContext(TenantId);
         FormSchemaRepository repository = CreateRepository(dbContext);
 
         FormSchema? result = await repository.GetByFormIdAsync(TenantId, FormId, cancellationToken);
@@ -56,7 +56,7 @@ public sealed class FormSchemaRepositoryTests
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateContext(TenantId);
         FormSchemaRepository repository = CreateRepository(dbContext);
         FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson);
 
@@ -81,7 +81,7 @@ public sealed class FormSchemaRepositoryTests
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateContext(TenantId);
         FormSchemaRepository repository = CreateRepository(dbContext);
         FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson);
         await repository.SaveAsync(schema, cancellationToken);
@@ -109,7 +109,7 @@ public sealed class FormSchemaRepositoryTests
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
 
-        await using ReportingDbContext dbContext = CreateContext(TenantId);
+        await using ReportingDbContextBase dbContext = CreateContext(TenantId);
         FormSchemaRepository repository = CreateRepository(dbContext);
         FormSchema schema = new(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson);
         await repository.SaveAsync(schema, cancellationToken);
@@ -128,7 +128,7 @@ public sealed class FormSchemaRepositoryTests
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
-        await using ReportingDbContext longLivedContext = CreateContext(TenantId);
+        await using ReportingDbContextBase longLivedContext = CreateContext(TenantId);
         FormSchemaRepository longLived = CreateRepository(longLivedContext);
         await longLived.SaveAsync(
             new FormSchema(TenantId, FormId, FormDefinitionRevision, InitialFlatteningMapJson, CodebookJson),
@@ -146,7 +146,7 @@ public sealed class FormSchemaRepositoryTests
 
     private async Task SaveNewerSchemaFromAnotherScopeAsync(CancellationToken cancellationToken)
     {
-        await using ReportingDbContext otherContext = CreateContext(TenantId);
+        await using ReportingDbContextBase otherContext = CreateContext(TenantId);
         FormSchemaRepository other = CreateRepository(otherContext);
         FormSchema schema = (await other.GetByFormIdAsync(TenantId, FormId, cancellationToken))!;
         schema.UpdateSchema(FormDefinitionRevision + 1, UpdatedFlatteningMapJson, UpdatedCodebookJson);
@@ -159,17 +159,14 @@ public sealed class FormSchemaRepositoryTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
-    private ReportingDbContext CreateContext(long tenantId)
+    private ReportingDbContextBase CreateContext(long tenantId)
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        DbContextOptionsBuilder<ReportingDbContext> optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
+        return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
-    private static FormSchemaRepository CreateRepository(ReportingDbContext dbContext)
+    private static FormSchemaRepository CreateRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
         return new FormSchemaRepository(dbContext, unitOfWork, new PostgreSqlTransactionLock());

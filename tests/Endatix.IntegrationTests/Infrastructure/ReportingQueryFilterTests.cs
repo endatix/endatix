@@ -30,7 +30,6 @@ public sealed class ReportingQueryFilterTests
         await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
 
-        IncrementingIdGenerator idGenerator = new();
         IntegrationTenantContext bypassTenant = IntegrationTenantContext.Bypass;
 
         // High, unseeded ids: InitialReporting / SeedDefaultExportFormats seed export formats
@@ -38,7 +37,7 @@ public sealed class ReportingQueryFilterTests
         const long tenant1 = 9201;
         const long tenant2 = 9202;
 
-        using (var seedContext = CreateContext(idGenerator, bypassTenant))
+        using (var seedContext = CreateContext(bypassTenant))
         {
             seedContext.ExportFormats.AddRange(
                 new ExportFormat(tenant1, "Tenant1 Export", ExportTarget.Submissions, ExportDeliveryFormat.Csv) { Id = 101 },
@@ -61,7 +60,7 @@ public sealed class ReportingQueryFilterTests
 
         // Act & Assert — Tenant 1 isolation
         IntegrationTenantContext tenant1Ctx = new(tenant1);
-        using (var ctx = CreateContext(idGenerator, tenant1Ctx))
+        using (var ctx = CreateContext(tenant1Ctx))
         {
             (await ctx.ExportFormats.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant1);
             (await ctx.FormSchemas.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant1);
@@ -71,7 +70,7 @@ public sealed class ReportingQueryFilterTests
 
         // Act & Assert — Tenant 2 isolation
         IntegrationTenantContext tenant2Ctx = new(tenant2);
-        using (var ctx = CreateContext(idGenerator, tenant2Ctx))
+        using (var ctx = CreateContext(tenant2Ctx))
         {
             (await ctx.ExportFormats.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant2);
             (await ctx.FormSchemas.ToListAsync(cancellationToken)).Should().ContainSingle().Which.TenantId.Should().Be(tenant2);
@@ -80,7 +79,7 @@ public sealed class ReportingQueryFilterTests
         }
 
         // Act & Assert — Bypass (no isolation)
-        using (var ctx = CreateContext(idGenerator, bypassTenant))
+        using (var ctx = CreateContext(bypassTenant))
         {
             (await ctx.ExportFormats.CountAsync(InTestTenants<ExportFormat>(), cancellationToken)).Should().Be(2);
             (await ctx.FormSchemas.CountAsync(InTestTenants<FormSchema>(), cancellationToken)).Should().Be(2);
@@ -92,19 +91,6 @@ public sealed class ReportingQueryFilterTests
         }
     }
 
-    private TestReportingDbContext CreateContext(IIdGenerator<long> idGenerator, ITenantContext tenantContext)
-    {
-        var optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new TestReportingDbContext(optionsBuilder.Options, tenantContext);
-    }
-
-    private sealed class TestReportingDbContext : ReportingDbContext
-    {
-        public TestReportingDbContext(
-            DbContextOptions<ReportingDbContext> options,
-            ITenantContext tenantContext)
-            : base(options, tenantContext) { }
-    }
+    private ReportingDbContextBase CreateContext(ITenantContext tenantContext) =>
+        ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
 }

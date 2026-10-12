@@ -326,17 +326,14 @@ public sealed class FlattenedSubmissionRepositoryTests
         await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, cancellationToken);
     }
 
-    private ReportingDbContext CreateContext(long tenantId)
+    private ReportingDbContextBase CreateContext(long tenantId)
     {
         IntegrationTenantContext tenantContext = new(tenantId);
 
-        var optionsBuilder =
-            ReportingTestSchema.ConfigureOptionsBuilder(_fixture.ConnectionString);
-
-        return new ReportingDbContext(optionsBuilder.Options, tenantContext);
+        return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
-    private static FlattenedSubmissionRepository CreateRepository(ReportingDbContext dbContext)
+    private static FlattenedSubmissionRepository CreateRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
         return new FlattenedSubmissionRepository(dbContext, unitOfWork);

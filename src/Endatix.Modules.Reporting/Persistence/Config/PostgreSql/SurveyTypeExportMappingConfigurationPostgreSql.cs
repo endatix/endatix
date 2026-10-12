@@ -5,7 +5,7 @@ using Endatix.Modules.Reporting.Domain;
 
 namespace Endatix.Modules.Reporting.Persistence.Config.PostgreSql;
 
-[ApplyConfigurationFor<ReportingDbContext>]
+[ApplyConfigurationFor<ReportingPostgreSqlDbContext>]
 internal sealed class SurveyTypeExportMappingConfigurationPostgreSql : IEntityTypeConfiguration<SurveyTypeExportMapping>
 {
     public void Configure(EntityTypeBuilder<SurveyTypeExportMapping> builder)

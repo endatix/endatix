@@ -5,6 +5,6 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Modules.Reporting.Data;
 
 internal sealed class ReportingUnitOfWork(
-    ReportingDbContext context,
+    ReportingDbContextBase context,
     ILogger<ReportingUnitOfWork>? logger = null)
-    : EfUnitOfWorkBase<ReportingDbContext>(context, logger), IReportingUnitOfWork;
+    : EfUnitOfWorkBase<ReportingDbContextBase>(context, logger), IReportingUnitOfWork;

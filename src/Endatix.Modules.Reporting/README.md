@@ -89,18 +89,21 @@ Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Ins
 Run the commands from the `oss` folder.
 
 > [!NOTE]
-> Always use `Endatix.WebHost` as startup project, and this module as the migrations project (`ReportingDbContext`).
-> Set `ConnectionStrings:DefaultConnection_DbProvider` to the provider you are generating for.
+> Always use `Endatix.WebHost` as startup project, and this module as the migrations project.
+> Each provider has its own context: `ReportingPostgreSqlDbContext` and `ReportingSqlServerDbContext`. Each one's
+> design-time factory pins its provider, so pick the provider with `--context` and set
+> `ConnectionStrings:DefaultConnection` to a database of that provider. See "Module persistence" in
+> `src/Endatix.Framework/README.md`.
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`)
+- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`)
 
   Tenant export formats are rows, not code. Runtime catalog: `DefaultExportFormats.All`
   (`SeedDefaultsAsync` / `tenant.created`). **Existing tenants:** frozen SQL in
   `SeedDefaultExportFormats` — do not generate that migration from the catalog; a new default
   needs a new data migration. **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder`.
-- `Persistence/Migrations/SqlServer/` — **not yet available**. SQL Server support is coming soon
+- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **not yet available**. SQL Server support is coming soon
   ([endatix/endatix#813](https://github.com/endatix/endatix/issues/813)). Use PostgreSQL for Reporting until then.
 
 > **SQL Server hosts:** Do not enable `ReportingModule` until SQL Server support lands in #813: the host fails at
@@ -117,7 +120,7 @@ PostgreSQL only (SQL Server: wait for #813).
 dotnet ef migrations add <MigrationName> \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
-  --context ReportingDbContext \
+  --context ReportingPostgreSqlDbContext \
   --output-dir Persistence/Migrations/PostgreSql
 ```
 
@@ -129,7 +132,7 @@ dotnet ef migrations add <MigrationName> \
 dotnet ef migrations list \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
-  --context ReportingDbContext
+  --context ReportingPostgreSqlDbContext
 ```
 
 2. If it is applied, roll the database back to the previous migration:
@@ -138,7 +141,7 @@ dotnet ef migrations list \
 dotnet ef database update <PreviousMigrationName> \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
-  --context ReportingDbContext
+  --context ReportingPostgreSqlDbContext
 ```
 
 3. Remove the last migration:
@@ -147,7 +150,7 @@ dotnet ef database update <PreviousMigrationName> \
 dotnet ef migrations remove \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
-  --context ReportingDbContext
+  --context ReportingPostgreSqlDbContext
 ```
 
 ### Apply migrations
@@ -156,5 +159,5 @@ dotnet ef migrations remove \
 dotnet ef database update \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
-  --context ReportingDbContext
+  --context ReportingPostgreSqlDbContext
 ```
