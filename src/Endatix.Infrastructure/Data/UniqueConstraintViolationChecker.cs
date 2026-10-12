@@ -11,8 +11,10 @@ internal sealed class UniqueConstraintViolationChecker : IUniqueConstraintViolat
     private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(100);
     private const string POSTGRES_UNIQUE_VIOLATION = "23505";
     private static readonly ConcurrentDictionary<(Type Type, string PropertyName), PropertyInfo?> _propertyCache = new();
+    // Error 2627 names a constraint ("… UNIQUE KEY constraint 'X'"); 2601, raised by a unique index such as a
+    // filtered one, names the index ("… with unique index 'X'").
     private static readonly Regex _sqlServerConstraintRegex = new(
-        @"constraint\s+'(?<constraint>[^']+)'",
+        @"(?:constraint|unique\s+index)\s+'(?<constraint>[^']+)'",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled, _regexMatchTimeout);
 
     /// <inheritdoc />

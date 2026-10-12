@@ -71,6 +71,38 @@ namespace Endatix.Infrastructure.Tests.Data
         }
 
         [Fact]
+        public void AnalyzeUniqueConstraint_SqlServer2601UniqueIndex_ReturnsIndexName()
+        {
+            // Arrange
+            const string message = "Cannot insert duplicate key row in object 'audience.Members' with unique index " +
+                "'IX_Members_Identifier'. The duplicate key value is (1, x).";
+            Exception exception = new DbUpdateException("save failed", new Microsoft.Data.SqlClient.SqlException(2601, message));
+
+            // Act
+            var result = _sut.AnalyzeUniqueConstraint(exception);
+
+            // Assert
+            result.IsUniqueConstraintViolation.Should().BeTrue();
+            result.ConstraintName.Should().Be("IX_Members_Identifier");
+        }
+
+        [Fact]
+        public void AnalyzeUniqueConstraint_SqlServer2627Constraint_ReturnsConstraintName()
+        {
+            // Arrange
+            const string message = "Violation of UNIQUE KEY constraint 'UQ_X'. Cannot insert duplicate key in object " +
+                "'dbo.X'. The duplicate key value is (1).";
+            Exception exception = new DbUpdateException("save failed", new Microsoft.Data.SqlClient.SqlException(2627, message));
+
+            // Act
+            var result = _sut.AnalyzeUniqueConstraint(exception);
+
+            // Assert
+            result.IsUniqueConstraintViolation.Should().BeTrue();
+            result.ConstraintName.Should().Be("UQ_X");
+        }
+
+        [Fact]
         public void AnalyzeUniqueConstraint_WhenSqlServerNonUniqueViolation_ReturnsNotViolation()
         {
             Exception sqlException = new Microsoft.Data.SqlClient.SqlException(547);
