@@ -62,7 +62,9 @@ public sealed class CreateOnBehalf(
         CreateSubmissionOnBehalfRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.Submitter is null)
+        // No submitter, or no tenant: create as today. The real personalizer is registered only
+        // when PersonalizationModule is on; otherwise this is a no-op.
+        if (request.Submitter is null || tenant.TenantId <= 0)
         {
             return Task.FromResult<PersonalizationFreeze?>(null);
         }

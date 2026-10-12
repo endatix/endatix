@@ -16,14 +16,16 @@ namespace Endatix.Api.Tests.Endpoints.Submissions;
 public class CreateOnBehalfTests
 {
     private readonly IMediator _mediator;
+    private readonly ISubmissionPersonalizer _personalizer;
     private readonly CreateOnBehalf _endpoint;
 
     public CreateOnBehalfTests()
     {
         _mediator = Substitute.For<IMediator>();
+        _personalizer = Substitute.For<ISubmissionPersonalizer>();
         _endpoint = Factory.Create<CreateOnBehalf>(
             _mediator,
-            Substitute.For<ISubmissionPersonalizer>(),
+            _personalizer,
             Substitute.For<ITenantContext>());
     }
 
@@ -124,10 +126,46 @@ public class CreateOnBehalfTests
                 cmd.FormId == request.FormId &&
                 cmd.JsonData == request.JsonData &&
                 cmd.Submitter == request.Submitter &&
+                cmd.PersonalizationSnapshot == null &&
                 cmd.RequiredPermission == "submissions.create.onbehalf"
             ),
             Arg.Any<CancellationToken>()
         );
+        await _personalizer.DidNotReceiveWithAnyArgs()
+            .FreezeAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ModuleReturnsNoFreeze_CreatesWithoutPersonalization()
+    {
+        // Arrange — PersonalizationModule off registers the no-op personalizer, which returns null.
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(7L);
+        var personalizer = Substitute.For<ISubmissionPersonalizer>();
+        personalizer.FreezeAsync(Arg.Any<SubmissionPersonalizationRequest>(), Arg.Any<CancellationToken>())
+            .Returns((PersonalizationFreeze?)null);
+        var endpoint = Factory.Create<CreateOnBehalf>(_mediator, personalizer, tenant);
+        var request = new CreateSubmissionOnBehalfRequest
+        {
+            FormId = 123,
+            JsonData = """{ "field": "value" }""",
+            Submitter = new SubmitterInput("biz-1", "biz-1", SubmitterAuthProviders.Integration)
+        };
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Submission>.Created(
+                CreatedSubmission(123, request.JsonData!, formDefinitionId: 456)));
+
+        // Act
+        var response = await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        (response.Result as Created<SubmissionModel>).Should().NotBeNull();
+        await personalizer.Received(1).FreezeAsync(
+            Arg.Is<SubmissionPersonalizationRequest>(call => call.TenantId == 7 && call.FormId == 123),
+            Arg.Any<CancellationToken>());
+        await _mediator.Received(1).Send(
+            Arg.Is<CreateSubmissionCommand>(cmd => cmd.PersonalizationSnapshot == null),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
