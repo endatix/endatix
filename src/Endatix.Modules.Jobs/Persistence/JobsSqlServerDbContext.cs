@@ -14,7 +14,10 @@ public sealed class JobsSqlServerDbContext(
     : JobsDbContextBase(options, tenantContext)
 {
     /// <inheritdoc />
+    protected override void EnsureSupportedProvider() =>
+        Database.EnsureSqlServer(typeof(JobsSqlServerDbContext));
+
+    /// <inheritdoc />
     protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
-        modelBuilder.ApplyConfigurationsFor<JobsSqlServerDbContext>(
-            typeof(JobsSqlServerDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFor<JobsSqlServerDbContext>(typeof(JobsSqlServerDbContext).Assembly);
 }
