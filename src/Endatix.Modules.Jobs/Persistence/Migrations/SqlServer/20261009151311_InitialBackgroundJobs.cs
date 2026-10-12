@@ -103,12 +103,16 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Like the table drops below, these tolerate objects already gone; ALTER TABLE needs its table to exist.
-            migrationBuilder.Sql("DROP INDEX IF EXISTS idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS;");
+            // The index and the column go first, since the column cannot be dropped while the index uses it. Both
+            // drops run only while qrtz_TRIGGERS exists, and each also skips an index or column already gone, so
+            // Down() completes on a partly removed schema, as the table drops below do.
             migrationBuilder.Sql(
                 """
                 IF OBJECT_ID(N'jobs.qrtz_TRIGGERS', N'U') IS NOT NULL
+                BEGIN
+                    DROP INDEX IF EXISTS idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS;
                     ALTER TABLE jobs.qrtz_TRIGGERS DROP COLUMN IF EXISTS ENDATIX_ACQUIRE_GROUP;
+                END
                 """);
 
             // SQL Server has no DROP TABLE ... CASCADE. The script creates every table after the tables it

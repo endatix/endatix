@@ -475,7 +475,12 @@ the index is on the expression itself. An upgrade migration whose Quartz script 
 `qrtz_TRIGGERS` (drops and re-creates it, or copies it into a new table) must re-create, in the same
 EF migration, `ENDATIX_ACQUIRE_GROUP` and `idx_endatix_qrtz_t_acquire` on SQL Server and
 `idx_endatix_qrtz_t_acquire` on PostgreSQL. Quartz validates its own columns only, so it accepts the
-extra column.
+extra column. On SQL Server they also block `ALTER TABLE … ALTER COLUMN`: the column on `EXECUTION_GROUP`
+and `JOB_NAME`, the index on its other key and included columns (`JOB_GROUP`, `MISFIRE_INSTR`,
+`PREFERRED_NODE` and the rest), except where an `nvarchar` key or included column only widens (a
+primary-key column never may). An upgrade
+migration that alters one of them drops `idx_endatix_qrtz_t_acquire`, then `ENDATIX_ACQUIRE_GROUP`,
+first, and re-creates both with the same definitions in the same migration.
 
 See the Quartz.NET [database documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/db/)
 and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-4.x/operations.html).
