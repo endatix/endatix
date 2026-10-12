@@ -32,6 +32,11 @@ namespace Endatix.Persistence.SqlServer.Locking;
 /// aborts it. The transaction keeps the locks it already held, so the caller must roll it back, as it would on
 /// PostgreSQL. Rolling it back here instead would leave the caller's transaction object completed under it.
 /// </para>
+/// <para>
+/// Cancelling the token makes SqlClient abort the wait, which becomes an <see cref="OperationCanceledException"/>.
+/// Any other <see cref="SqlException"/>, such as a command timeout or a killed session, is thrown as it is, even
+/// when the token was cancelled as well.
+/// </para>
 /// </remarks>
 public sealed class SqlServerTransactionLock : ITransactionLock
 {
@@ -42,6 +47,8 @@ public sealed class SqlServerTransactionLock : ITransactionLock
         "EXEC @Result = sp_getapplock @Resource = @Resource, @LockMode = @LockMode, @LockOwner = 'Transaction', @LockTimeout = @LockTimeout";
 
     private const int WaitWithoutTimeout = -1;
+
+    private const byte CancelledByClientClass = 11;
 
     /// <inheritdoc />
     public async Task AcquireAsync(
@@ -55,7 +62,7 @@ public sealed class SqlServerTransactionLock : ITransactionLock
         }
 
         var status = await GetAppLockAsync(database, request, cancellationToken);
-        if (Failure(status, request, cancellationToken) is { } failure)
+        if (Failure(status, request) is { } failure)
         {
             throw failure;
         }
@@ -88,9 +95,10 @@ public sealed class SqlServerTransactionLock : ITransactionLock
         {
             await database.ExecuteSqlRawAsync(GetAppLockSql, [status, .. LockParameters(request)], cancellationToken);
         }
-        catch (SqlException exception) when (cancellationToken.IsCancellationRequested)
+        catch (SqlException exception) when (cancellationToken.IsCancellationRequested && IsCancelledByClient(exception))
         {
-            throw Cancelled(request, exception, cancellationToken);
+            throw new OperationCanceledException(
+                $"The wait for transaction lock {request} was cancelled.", exception, cancellationToken);
         }
 
         return (int)status.Value;
@@ -106,24 +114,37 @@ public sealed class SqlServerTransactionLock : ITransactionLock
     private static string LockMode(TransactionLockMode mode) =>
         mode == TransactionLockMode.Shared ? "Shared" : "Exclusive";
 
-    // sp_getapplock's return status: 0 granted at once, 1 granted after a wait, a negative value not granted.
-    private static Exception? Failure(int status, TransactionLockRequest request, CancellationToken cancellationToken) =>
+    /// <summary>
+    /// Whether <paramref name="exception"/> is SqlClient aborting the batch for a cancelled token: errors it raises
+    /// itself, numbered 0 with class 11. Its message is localized, so the number and class are what tell it apart.
+    /// A command timeout (-2), a server error (a positive number) or a broken or killed connection (class 20 and up)
+    /// is not, even when the token happens to be cancelled by the time it is thrown.
+    /// </summary>
+    private static bool IsCancelledByClient(SqlException exception) =>
+        exception.Errors.Count > 0
+        && exception.Errors.Cast<SqlError>().All(error => error is { Number: 0, Class: CancelledByClientClass });
+
+    /// <summary>
+    /// The exception for <c>sp_getapplock</c>'s return status, or <see langword="null"/> when the lock was granted:
+    /// 0 at once, 1 after a wait. A negative status is not granted.
+    /// </summary>
+    /// <remarks>
+    /// <c>-2</c>, cancelled, is not the caller's token: that aborts the batch before a status comes back. The server
+    /// gave the request up itself, so it is a failure to report, not an <see cref="OperationCanceledException"/>,
+    /// which callers take as their own cancellation and do not report.
+    /// </remarks>
+    internal static Exception? Failure(int status, TransactionLockRequest request) =>
         status switch
         {
             >= 0 => null,
             -1 => new TransactionLockTimeoutException(request),
-            -2 when cancellationToken.IsCancellationRequested => Cancelled(request, innerException: null, cancellationToken),
+            -2 => new InvalidOperationException(
+                $"The wait for transaction lock {request} was cancelled by SQL Server; roll back the transaction and try again."),
             -3 => new InvalidOperationException(
                 $"The wait for transaction lock {request} was chosen as a deadlock victim; roll back the transaction and try again."),
             _ => new InvalidOperationException(
                 $"sp_getapplock refused transaction lock {request} with status {status}."),
         };
-
-    private static OperationCanceledException Cancelled(
-        TransactionLockRequest request,
-        Exception? innerException,
-        CancellationToken cancellationToken) =>
-        new($"The wait for transaction lock {request} was cancelled.", innerException, cancellationToken);
 
     // Rounded up to whole milliseconds, as a value under one would read as 0, which means not waiting at all.
     private static int LockTimeoutMilliseconds(TimeSpan? timeout) =>

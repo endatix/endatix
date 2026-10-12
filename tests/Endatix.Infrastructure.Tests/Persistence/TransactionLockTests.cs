@@ -137,6 +137,74 @@ public class TransactionLockTests
         first.Should().NotBe(second);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Failure_GrantedStatus_IsNone(int status)
+    {
+        // Arrange
+        var granted = status;
+
+        // Act
+        var failure = SqlServerTransactionLock.Failure(granted, Request);
+
+        // Assert
+        failure.Should().BeNull();
+    }
+
+    [Fact]
+    public void Failure_TimedOutStatus_IsTransactionLockTimeoutException()
+    {
+        // Arrange
+        const int timedOut = -1;
+
+        // Act
+        var failure = SqlServerTransactionLock.Failure(timedOut, Request);
+
+        // Assert
+        failure.Should().BeOfType<TransactionLockTimeoutException>().Which.Request.Should().Be(Request);
+    }
+
+    [Fact]
+    public void Failure_CancelledStatus_IsInvalidOperationExceptionSayingTheServerCancelledIt()
+    {
+        // Arrange
+        const int cancelled = -2;
+
+        // Act
+        var failure = SqlServerTransactionLock.Failure(cancelled, Request);
+
+        // Assert
+        failure.Should().BeOfType<InvalidOperationException>()
+            .Which.Message.Should().Match("*1:tenant:form*cancelled by SQL Server*");
+    }
+
+    [Fact]
+    public void Failure_DeadlockStatus_IsInvalidOperationExceptionSayingItWasTheVictim()
+    {
+        // Arrange
+        const int deadlockVictim = -3;
+
+        // Act
+        var failure = SqlServerTransactionLock.Failure(deadlockVictim, Request);
+
+        // Assert
+        failure.Should().BeOfType<InvalidOperationException>().Which.Message.Should().Match("*deadlock victim*");
+    }
+
+    [Fact]
+    public void Failure_InvalidCallStatus_IsInvalidOperationExceptionWithTheStatus()
+    {
+        // Arrange
+        const int invalidCall = -999;
+
+        // Act
+        var failure = SqlServerTransactionLock.Failure(invalidCall, Request);
+
+        // Assert
+        failure.Should().BeOfType<InvalidOperationException>().Which.Message.Should().Match("*refused*status -999*");
+    }
+
     [Fact]
     public async Task AcquireAsync_OnPostgreSqlWithoutTransaction_ThrowsInvalidOperationException()
     {
