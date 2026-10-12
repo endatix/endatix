@@ -1,6 +1,10 @@
+using System.Reflection;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Persistence;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Quartz;
 
 namespace Endatix.IntegrationTests;
@@ -165,11 +169,11 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         jobsMigrations.Should().Equal(ShippedJobsMigrations());
     }
 
+    // The assembly also holds the SQL Server chain; only the migrations bound to the PostgreSQL context are shipped here.
     private static IEnumerable<string> ShippedJobsMigrations() =>
-        typeof(Endatix.Modules.Jobs.Persistence.JobsPostgreSqlDbContext).Assembly.GetTypes()
-            .Select(type => type.GetCustomAttributes(typeof(Microsoft.EntityFrameworkCore.Migrations.MigrationAttribute), false)
-                .OfType<Microsoft.EntityFrameworkCore.Migrations.MigrationAttribute>()
-                .SingleOrDefault()?.Id)
+        typeof(JobsPostgreSqlDbContext).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<DbContextAttribute>()?.ContextType == typeof(JobsPostgreSqlDbContext))
+            .Select(type => type.GetCustomAttribute<MigrationAttribute>()?.Id)
             .OfType<string>()
             .Order(StringComparer.Ordinal);
 
