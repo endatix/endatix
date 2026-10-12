@@ -57,13 +57,11 @@ public sealed class Member : BaseEntity, IAggregateRoot, ITenantOwned
     /// <summary>The match key. Unique per tenant.</summary>
     public string NormalizedIdentifier { get; private set; }
 
+    /// <summary>
+    /// The person's Submitter, set once by the first submission created on their behalf (a
+    /// conditional update in <c>OnBehalfPersonalizer.BindAsync</c>) and never re-pointed.
+    /// </summary>
     public long? SubmitterId { get; private set; }
-
-    public void BindSubmitter(long submitterId)
-    {
-        Guard.Against.NegativeOrZero(submitterId);
-        SubmitterId = submitterId;
-    }
 
     /// <summary>
     /// Rejects a blank or too-long identifier, and an email identifier that is not one address.

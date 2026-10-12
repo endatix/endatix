@@ -8,19 +8,40 @@ using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.Abstractions.Submitters;
 using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.UseCases.Submissions.Create;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
 public class CreateOnBehalfTests
 {
     private readonly IMediator _mediator;
+    private readonly ISubmissionPersonalizer _personalizer;
     private readonly CreateOnBehalf _endpoint;
 
     public CreateOnBehalfTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _endpoint = Factory.Create<CreateOnBehalf>(_mediator);
+        _personalizer = Substitute.For<ISubmissionPersonalizer>();
+        _endpoint = Factory.Create<CreateOnBehalf>(
+            _mediator,
+            _personalizer,
+            Substitute.For<ITenantContext>());
     }
+
+    /// <summary>On-behalf leaves start unset until the respondent engages, unless the create is already complete.</summary>
+    private static Submission CreatedSubmission(
+        long formId,
+        string jsonData,
+        long formDefinitionId,
+        bool isComplete = true) =>
+        Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData,
+            IsComplete: isComplete,
+            StartSubmission: false));
 
     [Fact]
     public async Task ExecuteAsync_InvalidRequest_ReturnsBadRequest()
@@ -57,7 +78,7 @@ public class CreateOnBehalfTests
             Metadata = "test metadata"
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, 2) { Id = 1 };
+        var submission = CreatedSubmission(formId, jsonData, formDefinitionId: 2);
         submission.UpdateToken(new Token(1));
         var result = Result<Submission>.Created(submission);
 
@@ -73,7 +94,7 @@ public class CreateOnBehalfTests
         createdResult!.Value.Should().NotBeNull();
         createdResult!.Value!.Id.Should().Be("1");
         createdResult!.Value!.Token.Should().NotBeNull();
-        createdResult!.Value!.Token!.Should().Be(submission.Token.Value);
+        createdResult!.Value!.Token!.Should().Be(submission.Token!.Value);
     }
 
     [Fact]
@@ -91,7 +112,7 @@ public class CreateOnBehalfTests
                 AuthProvider: SubmitterAuthProviders.Integration)
         };
         var result = Result<Submission>.Created(
-            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+            CreatedSubmission(123, """{ "field": "value" }""", formDefinitionId: 456));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -105,10 +126,46 @@ public class CreateOnBehalfTests
                 cmd.FormId == request.FormId &&
                 cmd.JsonData == request.JsonData &&
                 cmd.Submitter == request.Submitter &&
+                cmd.PersonalizationSnapshot == null &&
                 cmd.RequiredPermission == "submissions.create.onbehalf"
             ),
             Arg.Any<CancellationToken>()
         );
+        await _personalizer.DidNotReceiveWithAnyArgs()
+            .FreezeAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ModuleReturnsNoFreeze_CreatesWithoutPersonalization()
+    {
+        // Arrange — PersonalizationModule off registers the no-op personalizer, which returns null.
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(7L);
+        var personalizer = Substitute.For<ISubmissionPersonalizer>();
+        personalizer.FreezeAsync(Arg.Any<SubmissionPersonalizationRequest>(), Arg.Any<CancellationToken>())
+            .Returns((PersonalizationFreeze?)null);
+        var endpoint = Factory.Create<CreateOnBehalf>(_mediator, personalizer, tenant);
+        var request = new CreateSubmissionOnBehalfRequest
+        {
+            FormId = 123,
+            JsonData = """{ "field": "value" }""",
+            Submitter = new SubmitterInput("biz-1", "biz-1", SubmitterAuthProviders.Integration)
+        };
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Submission>.Created(
+                CreatedSubmission(123, request.JsonData!, formDefinitionId: 456)));
+
+        // Act
+        var response = await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        (response.Result as Created<SubmissionModel>).Should().NotBeNull();
+        await personalizer.Received(1).FreezeAsync(
+            Arg.Is<SubmissionPersonalizationRequest>(call => call.TenantId == 7 && call.FormId == 123),
+            Arg.Any<CancellationToken>());
+        await _mediator.Received(1).Send(
+            Arg.Is<CreateSubmissionCommand>(cmd => cmd.PersonalizationSnapshot == null),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -121,7 +178,7 @@ public class CreateOnBehalfTests
             JsonData = """{ "field": "value" }"""
         };
         var result = Result<Submission>.Created(
-            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+            CreatedSubmission(123, """{ "field": "value" }""", formDefinitionId: 456));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -151,7 +208,7 @@ public class CreateOnBehalfTests
             JsonData = """{ "field": "value" }"""
         };
         var result = Result<Submission>.Created(
-            new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+            CreatedSubmission(123, """{ "field": "value" }""", formDefinitionId: 456));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -179,13 +236,7 @@ public class CreateOnBehalfTests
             JsonData = """{ "field": "prefill" }""",
             IsComplete = isComplete
         };
-        var submission = Submission.Create(1, new SubmissionCreateArgs(
-            TenantId: SampleData.TENANT_ID,
-            FormId: 123,
-            FormDefinitionId: 456,
-            JsonData: request.JsonData!,
-            IsComplete: false,
-            StartSubmission: false));
+        var submission = CreatedSubmission(123, request.JsonData!, formDefinitionId: 456, isComplete: false);
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<Submission>.Created(submission));
@@ -216,13 +267,7 @@ public class CreateOnBehalfTests
             JsonData = """{ "field": "done" }""",
             IsComplete = true
         };
-        var submission = Submission.Create(1, new SubmissionCreateArgs(
-            TenantId: SampleData.TENANT_ID,
-            FormId: 123,
-            FormDefinitionId: 456,
-            JsonData: request.JsonData!,
-            IsComplete: true,
-            StartSubmission: false));
+        var submission = CreatedSubmission(123, request.JsonData!, formDefinitionId: 456);
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<Submission>.Created(submission));
@@ -237,4 +282,26 @@ public class CreateOnBehalfTests
         created.Value.StartedAt.Should().NotBeNull();
         created.Value.IsComplete.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task ExecuteAsync_SubmissionExists_KeepsTheExistingIdOnThe409()
+    {
+        // Arrange
+        var request = new CreateSubmissionOnBehalfRequest { FormId = 123 };
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Submission>.Conflict(
+                new ExistingResource("submission_exists", "submissionId", "99"),
+                "A submission already exists for this user and form."));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        var problem = response.Result as ProblemHttpResult;
+        problem.Should().NotBeNull();
+        problem!.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        problem.ProblemDetails.Extensions["errorCode"].Should().Be("submission_exists");
+        problem.ProblemDetails.Extensions["submissionId"].Should().Be("99");
+    }
+
 }

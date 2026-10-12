@@ -38,6 +38,14 @@ public class SubmissionTokenServiceObtainTokenTests
         _sut = new SubmissionTokenService(_submissionRepository, _formRepository, _tenantSettingsRepository);
     }
 
+    private static Submission IncompleteSubmission(long id) =>
+        Submission.Create(id, new SubmissionCreateArgs(
+            TenantId: TENANT_ID,
+            FormId: FORM_ID,
+            FormDefinitionId: 3,
+            JsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+            IsComplete: false));
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
@@ -72,7 +80,7 @@ public class SubmissionTokenServiceObtainTokenTests
     {
         // Arrange
         var submissionId = 1L;
-        var submission = new Submission(TENANT_ID, SampleData.FORM_DEFINITION_JSON_DATA_1, FORM_ID, 3, false) { Id = submissionId };
+        var submission = IncompleteSubmission(submissionId);
         _submissionRepository.GetByIdAsync(submissionId).Returns(submission);
 
         // Act
@@ -92,7 +100,7 @@ public class SubmissionTokenServiceObtainTokenTests
     {
         // Arrange
         var submissionId = 1L;
-        var submission = new Submission(TENANT_ID, SampleData.FORM_DEFINITION_JSON_DATA_1, FORM_ID, 3, false) { Id = submissionId };
+        var submission = IncompleteSubmission(submissionId);
         _submissionRepository.GetByIdAsync(submissionId).Returns(submission);
 
         var form = Form.Create(new FormCreateArgs(
@@ -122,21 +130,25 @@ public class SubmissionTokenServiceObtainTokenTests
     }
 
     [Fact]
-    public async Task ObtainToken_NoTenantSettings_ThrowsArgumentNullException()
+    public async Task ObtainToken_NoTenantSettings_UsesTheNewTenantDefaultExpiry()
     {
         // Arrange
         var submissionId = 1L;
-        var submission = new Submission(TENANT_ID, SampleData.FORM_DEFINITION_JSON_DATA_1, FORM_ID, 3, false) { Id = submissionId };
+        var submission = IncompleteSubmission(submissionId);
         _submissionRepository.GetByIdAsync(submissionId).Returns(submission);
         _tenantSettingsRepository.FirstOrDefaultAsync(
             Arg.Any<TenantSettingsByTenantIdSpec>(),
             Arg.Any<CancellationToken>()).Returns((TenantSettings)null!);
 
+        var before = DateTime.UtcNow;
+
         // Act
-        var act = () => _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
+        var result = await _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*Tenant settings must be configured.*");
+        result.IsSuccess.Should().BeTrue();
+        submission.Token!.ExpiresAt!.Value.Should().BeCloseTo(
+            before.AddHours(TenantSettings.DefaultSubmissionTokenExpiryHours),
+            TimeSpan.FromMinutes(1));
     }
 }

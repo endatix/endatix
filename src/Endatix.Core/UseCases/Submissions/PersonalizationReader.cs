@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Endatix.Core.UseCases.Submissions;
 
@@ -9,7 +10,9 @@ namespace Endatix.Core.UseCases.Submissions;
 public sealed record PersonalizationRead(
     string Identifier,
     DateTimeOffset CapturedAt,
-    JsonElement Variables);
+    JsonElement Variables,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Source = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? MemberId = null);
 
 /// <summary>
 /// Every submission read maps through this reader, so it never throws: unreadable JSON or a snapshot
@@ -45,13 +48,18 @@ public static class PersonalizationReader
             return null;
         }
 
-        return new PersonalizationRead(Identifier(root), CapturedAt(root), variables.Clone());
+        return new PersonalizationRead(
+            Text(root, "identifier") ?? "",
+            CapturedAt(root),
+            variables.Clone(),
+            Text(root, "source"),
+            Long(root, "memberId"));
     }
 
-    private static string Identifier(JsonElement root) =>
-        root.TryGetProperty("identifier", out var id) && id.ValueKind == JsonValueKind.String
-            ? id.GetString() ?? ""
-            : "";
+    private static string? Text(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 
     private static DateTimeOffset CapturedAt(JsonElement root) =>
         root.TryGetProperty("capturedAt", out var at)
@@ -59,4 +67,12 @@ public static class PersonalizationReader
         && at.TryGetDateTimeOffset(out var capturedAt)
             ? capturedAt
             : default;
+
+    // TryGetInt64 throws on a non-number, so the kind is checked first ("memberId": "123" or null).
+    private static long? Long(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt64(out var number)
+            ? number
+            : null;
 }

@@ -65,11 +65,11 @@ public class SubmissionTokenService : ISubmissionTokenService
         // A screened-out interview has ended too, so its token follows the same after-completion rule.
         if (submission.IsComplete || submission.IsScreenedOut)
         {
+            // No settings row reads as a new tenant's default: not valid after completion.
             var tenantSettings = await _tenantSettingsRepository
                 .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(submission.TenantId), cancellationToken);
-            Guard.Against.Null(tenantSettings, "Tenant settings must be configured.");
 
-            if (!tenantSettings.IsSubmissionTokenValidAfterCompletion)
+            if (tenantSettings?.IsSubmissionTokenValidAfterCompletion != true)
             {
                 return Result.NotFound(submission.IsComplete ? "Submission completed" : "Submission screened out");
             }
@@ -90,10 +90,12 @@ public class SubmissionTokenService : ISubmissionTokenService
             return formExpiry.SubmissionTokenExpiryHours;
         }
 
+        // A tenant created before tenant settings existed has no row. It gets a new tenant's default
+        // instead of failing every submission create with a 500.
         var tenantSettings = await _tenantSettingsRepository
             .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(tenantId), cancellationToken);
-        Guard.Against.Null(tenantSettings, "Tenant settings must be configured.");
-
-        return tenantSettings.SubmissionTokenExpiryHours;
+        return tenantSettings is null
+            ? TenantSettings.DefaultSubmissionTokenExpiryHours
+            : tenantSettings.SubmissionTokenExpiryHours;
     }
 }

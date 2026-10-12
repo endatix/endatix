@@ -224,6 +224,25 @@ public class ResultExtensionsTests
     }
 
     [Fact]
+    public void ToProblem_ConflictWithSubmission_AddsErrorCodeAndSubmissionId()
+    {
+        // Arrange
+        var result = Result<string>.Conflict(
+            new ExistingResource("submission_exists", "submissionId", "99"),
+            "A submission already exists for this user and form.");
+
+        // Act
+        var httpResult = result.Map(value => value.Length).ToProblem();
+
+        // Assert
+        httpResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        httpResult.ProblemDetails.Detail.Should().Be("A submission already exists for this user and form.");
+        httpResult.ProblemDetails.Extensions["errorCode"].Should().Be("submission_exists");
+        httpResult.ProblemDetails.Extensions["submissionId"].Should().Be("99");
+        httpResult.ProblemDetails.Extensions.Should().NotContainKey("fields");
+    }
+
+    [Fact]
     public void ToProblem_Unavailable_UsesServiceUnavailableDefaultTitle()
     {
         // Arrange

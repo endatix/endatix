@@ -2,6 +2,7 @@ using Endatix.Core.Infrastructure.Result;
 using AppDomain = Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -45,7 +46,7 @@ public static partial class ResultExtensions
 
         var resolvedTitle = title ?? defaultTitle;
         var messages = new List<string>(result.Errors);
-        string? errorCode = null;
+        var errorCode = result.Existing?.ErrorCode;
         Dictionary<string, string[]>? fields = null;
 
         if (result.IsInvalid())
@@ -78,8 +79,18 @@ public static partial class ResultExtensions
             detail: detail,
             errorCode: errorCode,
             fields: fields);
+        AddExisting(problem, result.Existing);
 
         return TypedResults.Problem(problem);
+    }
+
+    /// <summary>The resource a 409 ran into, under its own field (<c>submissionId</c>).</summary>
+    private static void AddExisting(ProblemDetails problem, AppDomain.ExistingResource? existing)
+    {
+        if (existing is not null)
+        {
+            problem.Extensions[existing.Field] = existing.Id;
+        }
     }
 }
 #endif
