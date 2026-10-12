@@ -205,9 +205,17 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
         DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Reporting", FeatureFlags.ReportingModule);
-        builder.AddDbContextWithMigrations<ReportingPostgreSqlDbContext>(ReportingPersistence.ConfigureDbContextOptions);
+        builder.AddDbContextWithMigrations<ReportingPostgreSqlDbContext>(
+            ReportingPersistence.ConfigureDbContextOptions,
+            // Keeps the module's own opt-out: Customizations:Reporting:ApplyMigrationsAtStartup=false.
+            shouldMigrate: sp =>
+            {
+                var options = sp.GetService<IOptions<ReportingOptions>>();
+                return options is null || options.Value.ApplyMigrationsAtStartup;
+            });
         builder.Services.AddScoped<ReportingDbContextBase>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
-        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
+        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingDbContextBase>());
+        // ... the module's own services
     }
 }
 ```

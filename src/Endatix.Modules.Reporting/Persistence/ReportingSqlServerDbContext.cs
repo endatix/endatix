@@ -14,7 +14,9 @@ public sealed class ReportingSqlServerDbContext(
     : ReportingDbContextBase(options, tenantContext)
 {
     /// <inheritdoc />
-    protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
-        modelBuilder.ApplyConfigurationsFor<ReportingSqlServerDbContext>(
-            typeof(ReportingSqlServerDbContext).Assembly);
+    protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder)
+    {
+        Database.RequireSqlServer(typeof(ReportingSqlServerDbContext));
+        modelBuilder.ApplyConfigurationsFor<ReportingSqlServerDbContext>(typeof(ReportingSqlServerDbContext).Assembly);
+    }
 }

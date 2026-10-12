@@ -14,7 +14,9 @@ public sealed class ReportingPostgreSqlDbContext(
     : ReportingDbContextBase(options, tenantContext)
 {
     /// <inheritdoc />
-    protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
-        modelBuilder.ApplyConfigurationsFor<ReportingPostgreSqlDbContext>(
-            typeof(ReportingPostgreSqlDbContext).Assembly);
+    protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder)
+    {
+        Database.RequirePostgreSql(typeof(ReportingPostgreSqlDbContext));
+        modelBuilder.ApplyConfigurationsFor<ReportingPostgreSqlDbContext>(typeof(ReportingPostgreSqlDbContext).Assembly);
+    }
 }

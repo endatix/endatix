@@ -90,8 +90,9 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
             });
 
         // Consumers see the context only as IReportingDbContext or the base, so nothing downstream branches on
-        // the provider.
+        // the provider. The base is the one line that names it; ReportingUnitOfWork needs the base because
+        // EfUnitOfWorkBase is constrained to DbContext.
         builder.Services.AddScoped<ReportingDbContextBase>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
-        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
+        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingDbContextBase>());
     }
 }

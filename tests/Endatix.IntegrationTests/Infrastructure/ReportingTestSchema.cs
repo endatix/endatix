@@ -1,7 +1,10 @@
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Persistence.PostgreSql.Locking;
+using Endatix.Persistence.SqlServer.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +19,7 @@ internal static class ReportingTestSchema
         TestDatabaseProvider provider,
         CancellationToken cancellationToken = default)
     {
+        RequirePostgreSql(provider);
         await EnsureCoreMigratedAsync(connectionString, provider, cancellationToken);
 
         await using ReportingDbContextBase context = CreateContext(
@@ -33,15 +37,32 @@ internal static class ReportingTestSchema
     /// Creates the Reporting context of the database provider under test, configured the way the host
     /// configures it.
     /// </summary>
+    /// <exception cref="NotSupportedException">The provider is SQL Server, which has no Reporting migrations yet.</exception>
     internal static ReportingDbContextBase CreateContext(
         string connectionString,
         TestDatabaseProvider provider,
         ITenantContext tenantContext)
     {
+        RequirePostgreSql(provider);
         var configuration = BuildTestConfiguration(connectionString, provider);
-        return provider == TestDatabaseProvider.PostgreSql
-            ? new ReportingPostgreSqlDbContext(HostOptions<ReportingPostgreSqlDbContext>(configuration), tenantContext)
-            : new ReportingSqlServerDbContext(HostOptions<ReportingSqlServerDbContext>(configuration), tenantContext);
+        return new ReportingPostgreSqlDbContext(HostOptions<ReportingPostgreSqlDbContext>(configuration), tenantContext);
+    }
+
+    /// <summary>
+    /// The transaction lock the host registers for the database <paramref name="context"/> is connected to.
+    /// </summary>
+    internal static ITransactionLock TransactionLockFor(IReportingDbContext context) =>
+        context.Database.IsNpgsql() ? new PostgreSqlTransactionLock() : new SqlServerTransactionLock();
+
+    // The schema reset in EnsureMigratedAsync is PostgreSQL SQL, and a SQL Server context would migrate an empty
+    // chain, so a test that runs on SQL Server fails here, naming the reason, rather than on unrelated syntax.
+    private static void RequirePostgreSql(TestDatabaseProvider provider)
+    {
+        if (provider != TestDatabaseProvider.PostgreSql)
+        {
+            throw new NotSupportedException(
+                "Reporting has no SQL Server migrations yet, so Reporting integration tests run on PostgreSQL only.");
+        }
     }
 
     private static DbContextOptions<TContext> HostOptions<TContext>(IConfiguration configuration)

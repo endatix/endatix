@@ -34,9 +34,10 @@ public sealed class ReportingModuleStartupMigrationTests
 
         // Act
         using var client = factory.CreateClient();
-        _ = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
+        using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
 
         // Assert
+        response.Should().BeSuccessful();
         var exportFormatsTableExists = await IntegrationDbAssert.TableExistsAsync(
             _fixture.Database.ConnectionString,
             _fixture.Database.Provider,
@@ -46,9 +47,9 @@ public sealed class ReportingModuleStartupMigrationTests
         Assert.True(exportFormatsTableExists);
     }
 
-    // The ids and EF version the previous build wrote to existing PostgreSQL databases, written out rather than
+    // The ids and EF version the shipped builds wrote to existing PostgreSQL databases, written out rather than
     // read from the current build, so renaming an applied migration fails here instead of re-running it in production.
-    private static readonly (string MigrationId, string ProductVersion)[] PreviousBuildHistory =
+    private static readonly (string MigrationId, string ProductVersion)[] ShippedHistory =
     [
         ("20260721062723_InitialReporting", "10.0.0"),
         ("20260904194346_SeedDefaultExportFormats", "10.0.0"),
@@ -57,7 +58,7 @@ public sealed class ReportingModuleStartupMigrationTests
     ];
 
     [Fact]
-    public async Task Host_startup_reapplies_nothing_on_a_database_migrated_by_the_previous_build()
+    public async Task Host_startup_on_a_database_carrying_the_shipped_migration_history_applies_nothing_and_keeps_those_rows()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -66,8 +67,7 @@ public sealed class ReportingModuleStartupMigrationTests
             _fixture.Database.ConnectionString,
             _fixture.Provider,
             cancellationToken);
-        await RecordPreviousBuildHistoryAsync(cancellationToken);
-        var exportFormatsBefore = await ExportFormatCountAsync(cancellationToken);
+        await RecordShippedHistoryAsync(cancellationToken);
 
         await using var factory = new EndatixWebApplicationFactory(
                 _fixture.Database.ConnectionString,
@@ -79,22 +79,28 @@ public sealed class ReportingModuleStartupMigrationTests
 
         // Act
         using var client = factory.CreateClient();
-        _ = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
+        using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
 
         // Assert
+        response.Should().BeSuccessful();
+        var history = await MigrationHistoryAsync(cancellationToken);
         (await PendingMigrationsAsync(cancellationToken)).Should().BeEmpty();
-        (await MigrationHistoryAsync(cancellationToken)).Should().Equal(PreviousBuildHistory);
-        (await ExportFormatCountAsync(cancellationToken)).Should().Be(exportFormatsBefore);
+        history.Should().Contain(ShippedHistory);
+        history.Select(row => row.MigrationId).Should().BeSubsetOf(MigrationsOfThisBuild());
     }
 
     // PostgreSQL SQL from here on: these tests assert the PostgreSQL chain that existing databases hold.
-    private async Task RecordPreviousBuildHistoryAsync(CancellationToken cancellationToken)
+
+    // Rewrites the shipped part of the history exactly as the shipped builds wrote it. Rows of migrations added after
+    // them (ids that sort later) are this build's own and stay applied, so a new migration does not make it pending.
+    private async Task RecordShippedHistoryAsync(CancellationToken cancellationToken)
     {
+        var lastShippedId = ShippedHistory[^1].MigrationId;
         await using var context = CreateReportingContext();
-        await context.Database.ExecuteSqlRawAsync(
-            """DELETE FROM reporting."__EFMigrationsHistory" """,
+        await context.Database.ExecuteSqlAsync(
+            $"""DELETE FROM reporting."__EFMigrationsHistory" WHERE "MigrationId" <= {lastShippedId}""",
             cancellationToken);
-        foreach (var (migrationId, productVersion) in PreviousBuildHistory)
+        foreach (var (migrationId, productVersion) in ShippedHistory)
         {
             await context.Database.ExecuteSqlAsync(
                 $"""
@@ -122,10 +128,10 @@ public sealed class ReportingModuleStartupMigrationTests
         return [.. rows.Select(row => row.Split(' ')).Select(parts => (parts[0], parts[1]))];
     }
 
-    private async Task<int> ExportFormatCountAsync(CancellationToken cancellationToken)
+    private List<string> MigrationsOfThisBuild()
     {
-        await using var context = CreateReportingContext();
-        return await context.ExportFormats.IgnoreQueryFilters().CountAsync(cancellationToken);
+        using var context = CreateReportingContext();
+        return [.. context.Database.GetMigrations()];
     }
 
     private ReportingDbContextBase CreateReportingContext() =>

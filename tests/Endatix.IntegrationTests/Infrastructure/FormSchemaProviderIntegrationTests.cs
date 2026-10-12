@@ -10,7 +10,6 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
-using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -122,7 +121,7 @@ public sealed class FormSchemaProviderIntegrationTests
     private static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FormSchemaRepository(dbContext, unitOfWork, new PostgreSqlTransactionLock());
+        return new FormSchemaRepository(dbContext, unitOfWork, ReportingTestSchema.TransactionLockFor(dbContext));
     }
 
     private static FormSchemaProvider CreateProvider(
@@ -131,7 +130,7 @@ public sealed class FormSchemaProviderIntegrationTests
         AppDbContext appDbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        FormSchemaRepository schemaRepository = new(dbContext, unitOfWork, new PostgreSqlTransactionLock());
+        FormSchemaRepository schemaRepository = new(dbContext, unitOfWork, ReportingTestSchema.TransactionLockFor(dbContext));
         FormSchemaProcessor schemaProcessor = new(
             formsRepository,
             schemaRepository,
