@@ -6,13 +6,12 @@ using static Endatix.IntegrationTests.FormSchemaRebuildWorld;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// What a form's schema holds after rebuilds against PostgreSQL: rebuilds that overlap, flattens of submissions made
+/// What a form's schema holds after rebuilds against the database: rebuilds that overlap, flattens of submissions made
 /// on an older definition than the schema, and definitions that change while a rebuild runs.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class FormSchemaRebuildIntegrationTests(DbIntegrationFixture fixture)
 {
     private readonly FormSchemaRebuildWorld _world = new(fixture);

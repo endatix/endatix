@@ -12,13 +12,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// PostgreSQL integration coverage for export request-time filters in
+/// Database integration coverage for export request-time filters in
 /// <see cref="ReportingExportRepository"/> (date ranges including StartedAt, test inclusion, submission id range).
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class ReportingExportRepositoryIntegrationTests
 {
     private const long TenantId = 41;
@@ -685,7 +684,7 @@ public sealed class ReportingExportRepositoryIntegrationTests
         IntegrationTenantContext tenantContext = new(TenantId);
 
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
-        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
+        IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, _fixture.ConnectionString, _fixture.Provider);
 
         return new AppDbContext(
             optionsBuilder.Options,

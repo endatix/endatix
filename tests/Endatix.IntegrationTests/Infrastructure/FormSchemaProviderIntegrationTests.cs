@@ -18,7 +18,6 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class FormSchemaProviderIntegrationTests
 {
     private const long TenantId = 1;
@@ -110,7 +109,7 @@ public sealed class FormSchemaProviderIntegrationTests
         IntegrationTenantContext tenantContext = new(TenantId);
 
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
-        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
+        IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, _fixture.ConnectionString, _fixture.Provider);
 
         return new AppDbContext(
             optionsBuilder.Options,

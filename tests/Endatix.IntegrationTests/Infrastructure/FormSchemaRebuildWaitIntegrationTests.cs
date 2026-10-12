@@ -7,13 +7,12 @@ using static Endatix.IntegrationTests.FormSchemaRebuildWorld;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Rebuilds of one form's schema that wait for each other against PostgreSQL: what a rebuild does once it has the
+/// Rebuilds of one form's schema that wait for each other against the database: what a rebuild does once it has the
 /// lock, what it leaves behind when it fails, and what happens when the wait runs out.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class FormSchemaRebuildWaitIntegrationTests(DbIntegrationFixture fixture)
 {
     private const int ConcurrentRebuilds = 5;

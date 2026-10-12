@@ -12,7 +12,6 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class ReportingQueryFilterTests
 {
     private readonly DbIntegrationFixture _fixture;

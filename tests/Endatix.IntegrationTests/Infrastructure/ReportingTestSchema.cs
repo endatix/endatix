@@ -4,6 +4,7 @@ using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Persistence.PostgreSql.Locking;
+using Endatix.Persistence.SqlServer.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +14,18 @@ namespace Endatix.IntegrationTests;
 
 internal static class ReportingTestSchema
 {
+    // SQL Server has no DROP SCHEMA … CASCADE: the tables go first, the mappings before the formats they reference.
+    private const string DropSqlServerSchemaSql = """
+        DROP TABLE IF EXISTS [reporting].[SurveyTypeExportMappings];
+        DROP TABLE IF EXISTS [reporting].[ExportFormats];
+        DROP TABLE IF EXISTS [reporting].[FlattenedSubmissions];
+        DROP TABLE IF EXISTS [reporting].[FormSchemas];
+        DROP TABLE IF EXISTS [reporting].[__EFMigrationsHistory];
+        DROP SCHEMA IF EXISTS [reporting];
+        """;
+
+    private const string DropPostgreSqlSchemaSql = "DROP SCHEMA IF EXISTS reporting CASCADE;";
+
     public static async Task EnsureMigratedAsync(
         string connectionString,
         TestDatabaseProvider provider,
@@ -31,7 +44,6 @@ internal static class ReportingTestSchema
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)
     {
-        RequirePostgreSql(provider);
         await EnsureCoreMigratedAsync(connectionString, provider, cancellationToken);
 
         var context = CreateContext(connectionString, provider, IntegrationTenantContext.Bypass);
@@ -40,7 +52,9 @@ internal static class ReportingTestSchema
         {
             // Reporting integration tests reset data via Respawn but keep schema objects.
             // Drop the module schema so updated migrations (e.g. FormSchemas rename) apply cleanly.
-            await context.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS reporting CASCADE;", cancellationToken);
+            await context.Database.ExecuteSqlRawAsync(
+                provider == TestDatabaseProvider.SqlServer ? DropSqlServerSchemaSql : DropPostgreSqlSchemaSql,
+                cancellationToken);
             return context;
         }
         catch
@@ -54,42 +68,33 @@ internal static class ReportingTestSchema
     /// Creates the Reporting context of the database provider under test, configured the way the host
     /// configures it.
     /// </summary>
-    /// <exception cref="NotSupportedException">The provider is SQL Server, which has no Reporting migrations yet.</exception>
     internal static ReportingDbContextBase CreateContext(
         string connectionString,
         TestDatabaseProvider provider,
         ITenantContext tenantContext)
     {
-        RequirePostgreSql(provider);
         var configuration = BuildTestConfiguration(connectionString, provider);
-        return new ReportingPostgreSqlDbContext(HostOptions<ReportingPostgreSqlDbContext>(configuration), tenantContext);
+        return provider == TestDatabaseProvider.SqlServer
+            ? new ReportingSqlServerDbContext(HostOptions<ReportingSqlServerDbContext>(configuration), tenantContext)
+            : new ReportingPostgreSqlDbContext(HostOptions<ReportingPostgreSqlDbContext>(configuration), tenantContext);
     }
 
     /// <summary>
-    /// The transaction lock a PostgreSQL host registers (<c>TransactionLockTests</c> pins that registration).
+    /// The transaction lock a host on the context's provider registers (<c>TransactionLockTests</c> pins that
+    /// registration).
     /// </summary>
-    /// <exception cref="NotSupportedException"><paramref name="context"/> is not on PostgreSQL.</exception>
-    internal static ITransactionLock TransactionLockFor(IReportingDbContext context)
-    {
-        if (!context.Database.IsNpgsql())
-        {
-            throw new NotSupportedException(
-                "Reporting integration tests lock schema rebuilds on PostgreSQL only, not on " +
-                $"'{context.Database.ProviderName}'.");
-        }
+    internal static ITransactionLock TransactionLockFor(IReportingDbContext context) =>
+        context.Database.IsSqlServer() ? new SqlServerTransactionLock() : new PostgreSqlTransactionLock();
 
-        return new PostgreSqlTransactionLock();
-    }
-
-    // The schema reset in EnsureMigratedAsync is PostgreSQL SQL, and a SQL Server context would migrate an empty
-    // chain, so a test that runs on SQL Server fails here, naming the reason, rather than on unrelated syntax.
-    private static void RequirePostgreSql(TestDatabaseProvider provider)
+    /// <summary>
+    /// Runs the frozen seed of the context's provider again, the SQL its first seeding migration ran.
+    /// </summary>
+    internal static Task RunFrozenSeedAsync(ReportingDbContextBase context, CancellationToken cancellationToken)
     {
-        if (provider != TestDatabaseProvider.PostgreSql)
-        {
-            throw new NotSupportedException(
-                "Reporting has no SQL Server migrations yet, so Reporting integration tests run on PostgreSQL only.");
-        }
+        var seed = context.Database.IsSqlServer() ? SeedDefaultExportFormatsSqlServerSql.Up : SeedDefaultExportFormatsSql.Up;
+
+        // Raw SQL is run as a format string, so the braces of its JSON literals are escaped.
+        return context.Database.ExecuteSqlRawAsync(seed.Replace("{", "{{").Replace("}", "}}"), cancellationToken);
     }
 
     private static DbContextOptions<TContext> HostOptions<TContext>(IConfiguration configuration)

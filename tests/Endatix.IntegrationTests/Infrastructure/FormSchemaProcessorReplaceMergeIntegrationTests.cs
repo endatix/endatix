@@ -17,12 +17,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// PostgreSQL coverage for FormSchema replace vs merge gate (#892).
+/// Database coverage for the FormSchema replace vs merge gate (#892).
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
 {
     private const long TenantId = 51;
@@ -381,7 +380,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         IntegrationTenantContext tenantContext = new(TenantId);
 
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
-        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
+        IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, _fixture.ConnectionString, _fixture.Provider);
 
         return new AppDbContext(
             optionsBuilder.Options,
