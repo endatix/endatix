@@ -7,16 +7,17 @@ using Endatix.Modules.Audience.Domain;
 namespace Endatix.Modules.Audience.Tests.Features.Import;
 
 /// <summary>
-/// The customer sample and the 5,000-row file share one header. Numbers are the
-/// integer columns; everything else is text. businessid is the external id.
+/// The Cedar Grove Pulse sample and the 5,000-row file share one header. Numbers
+/// are the integer columns; everything else is text. external_id is the match key.
 /// </summary>
 public sealed class PanelCsvCompatibilityTests
 {
-    private static readonly string[] NumberHeaders = ["iddomicilio", "NSE_LOC", "edac", "ni", "idPainel"];
+    private static readonly string[] NumberHeaders =
+        ["household_id", "ses_local", "age", "household_size", "panel_id"];
 
     [Theory]
-    [InlineData("muestra-co.csv", 20)]
-    [InlineData("audience-5000.csv", 5000)]
+    [InlineData("cedar-grove-pulse.csv", 20)]
+    [InlineData("cedar-grove-pulse-5000.csv", 5000)]
     public void Cells_MatchPlannedPropertyTypes(string fileName, int expectedRows)
     {
         string path = Path.Combine(AppContext.BaseDirectory, "Features", "Import", "Fixtures", fileName);
@@ -29,7 +30,7 @@ public sealed class PanelCsvCompatibilityTests
         csv.Read();
         csv.ReadHeader();
         string[] headers = csv.HeaderRecord!;
-        headers.Should().Contain("businessid");
+        headers.Should().Contain("external_id");
 
         int rows = 0;
         while (csv.Read())
@@ -37,7 +38,7 @@ public sealed class PanelCsvCompatibilityTests
             rows++;
             foreach (string header in headers)
             {
-                if (header == "businessid")
+                if (header == "external_id")
                 {
                     csv.GetField(header).Should().NotBeNullOrWhiteSpace();
                     continue;
