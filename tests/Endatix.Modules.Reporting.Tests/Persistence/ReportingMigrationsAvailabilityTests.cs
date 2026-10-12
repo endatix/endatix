@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql;
+using Endatix.Modules.Reporting.Persistence.Migrations.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -50,25 +51,35 @@ public sealed class ReportingMigrationsAvailabilityTests
     }
 
     [Fact]
-    public void GetMigrations_SqlServerContext_SeesNoPostgreSqlMigrations()
+    public void GetMigrations_SqlServerContext_ReturnsOnlyItsInitialMigration()
     {
         // Arrange
         using var postgreSqlContext = CreatePostgreSqlContext();
-        using var sqlServerContext = new ReportingSqlServerDbContext(
-            HostOptions<ReportingSqlServerDbContext>(
-                "sqlserver",
-                "Server=127.0.0.1;Database=not_connected;User Id=sa;Password=not-connected"),
-            Substitute.For<ITenantContext>());
+        using var sqlServerContext = CreateSqlServerContext();
 
         // Act
-        var sqlServerMigrationIds = sqlServerContext.Database.GetMigrations();
-        var sqlServerSnapshot = sqlServerContext.GetService<IMigrationsAssembly>().ModelSnapshot;
+        var sqlServerMigrationIds = sqlServerContext.Database.GetMigrations().ToList();
 
         // Assert
+        sqlServerMigrationIds.Should().ContainSingle().Which.Should().EndWith("_InitialReporting");
         sqlServerMigrationIds.Should().NotIntersectWith(
             postgreSqlContext.Database.GetMigrations(),
             "each provider's context must see only its own migrations");
-        (sqlServerSnapshot?.GetType()).Should().NotBe<ReportingPostgreSqlDbContextModelSnapshot>();
+    }
+
+    [Fact]
+    public void HasPendingModelChanges_SqlServerContext_ReturnsFalse()
+    {
+        // Arrange
+        using var context = CreateSqlServerContext();
+
+        // Act
+        var snapshot = context.GetService<IMigrationsAssembly>().ModelSnapshot;
+        var hasPendingModelChanges = context.Database.HasPendingModelChanges();
+
+        // Assert
+        snapshot.Should().BeOfType<ReportingSqlServerDbContextModelSnapshot>();
+        hasPendingModelChanges.Should().BeFalse();
     }
 
     [Fact]
@@ -90,6 +101,13 @@ public sealed class ReportingMigrationsAvailabilityTests
             HostOptions<ReportingPostgreSqlDbContext>(
                 "postgresql",
                 "Host=127.0.0.1;Database=not_connected;Username=postgres;Password=not-connected"),
+            Substitute.For<ITenantContext>());
+
+    private static ReportingSqlServerDbContext CreateSqlServerContext() =>
+        new(
+            HostOptions<ReportingSqlServerDbContext>(
+                "sqlserver",
+                "Server=127.0.0.1;Database=not_connected;User Id=sa;Password=not-connected"),
             Substitute.For<ITenantContext>());
 
     private static DbContextOptions<TContext> HostOptions<TContext>(string provider, string connectionString)
