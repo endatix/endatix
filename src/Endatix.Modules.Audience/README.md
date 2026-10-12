@@ -1,7 +1,7 @@
 # Endatix.Modules.Audience
 
-Audience personalization for Endatix: per-form properties and people, tenant match key, and
-(later) import and personalised links.
+Audience personalization for Endatix: per-form properties and people, tenant match key, CSV import,
+and personalised links.
 
 >[!TIP]
 >**[Endatix Platform](https://github.com/endatix/endatix)** is an open-source data collection and management library for .NET.
@@ -23,6 +23,7 @@ Database schema: `audience`
 | `Memberships` | Person on one form |
 | `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). A stored value is never empty: saving `""` clears (soft-deletes) the cell |
 | `Imports` | One row per confirmed CSV import: counts, file name, who ran it |
+| `Links` | One hashed token per membership (`IX_Links_Membership`). `SubmissionId` is set once, on first open |
 
 ## API (directory)
 
@@ -34,8 +35,10 @@ Database schema: `audience`
 | GET/POST | `forms/{formId}/audience/people` | List (page ≤ 5,000) / add |
 | PUT/DELETE | `forms/{formId}/audience/people/{membershipId}` | Edit values / remove from this form only |
 | POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400 |
+| POST | `forms/{formId}/audience/links` | Issue one link per person who does not have one, up to 5,000. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
+| POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open creates one in-progress submission and freezes `PersonalizationSnapshot`. A parallel first open keeps one submission. A later open returns that submission. Unknown token, or a link whose submission was deleted, is 404. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
 
-Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`.
+Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`, and redeem, which is anonymous.
 
 ## Rules
 
@@ -56,3 +59,7 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
 - **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships
   and properties; tenant members stay. Until it runs, the form's people still count toward the
   match-key lock.
+- **Links.** The token is stored as a SHA-256 hash. Opening claims the link with one update
+  (`SubmissionId` still null), so two first opens leave one submission. A crash between creating
+  the submission and that update can leave an unopened link; the next open creates another.
+  Disabled forms, a removed person, and sharing one submission with on-behalf are not gated here.

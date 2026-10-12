@@ -58,9 +58,22 @@ internal static class PersonalizationSnapshotJson
 
         if (dataType == AudienceDataTypeCodes.MultipleChoice)
         {
-            return JsonNode.Parse(value);
+            return Choice(value);
         }
 
         return JsonValue.Create(value);
+    }
+
+    /// <summary>A stored choice list is JSON. Unparseable text is kept as text so one bad cell cannot block the open.</summary>
+    private static JsonNode? Choice(string value)
+    {
+        try
+        {
+            return JsonNode.Parse(value);
+        }
+        catch (JsonException)
+        {
+            return JsonValue.Create(value);
+        }
     }
 }

@@ -15,14 +15,28 @@ public sealed class Redeem(IMediator mediator)
     {
         Post("forms/{formId}/audience/links/{token}/redeem");
         AllowAnonymous();
-        Summary(summary => summary.Summary = "Open a personalised link");
+        // In-process only. The host rewrites X-Forwarded-For when the peer is a known proxy.
+        Throttle(60, 60);
+        Summary(summary =>
+        {
+            summary.Summary = "Open a personalised link";
+            summary.Responses[200] = "Submission opened or resumed.";
+            summary.Responses[400] = "Invalid input.";
+            summary.Responses[404] = "Link not found.";
+            summary.Responses[403] = "Too many requests.";
+        });
+        Description(builder => builder
+            .Produces<RedeemedLinkResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(400)
+            .ProducesProblem(403)
+            .ProducesProblem(404));
     }
 
     public override async Task<Results<Ok<RedeemedLinkResponse>, ProblemHttpResult>> ExecuteAsync(
         RedeemLinkRequest request,
         CancellationToken ct)
     {
-        var result = await mediator.Send(new RedeemLinkCommand(request.FormId, request.Token!), ct);
+        var result = await mediator.Send(new RedeemLinkCommand(request.FormId, request.Token), ct);
         return TypedResultsBuilder
             .MapResult(result, RedeemedLinkResponse.From)
             .SetTypedResults<Ok<RedeemedLinkResponse>, ProblemHttpResult>();
@@ -41,7 +55,7 @@ public sealed class RedeemLinkValidator : Validator<RedeemLinkRequest>
 public sealed class RedeemLinkRequest
 {
     public long FormId { get; init; }
-    public string? Token { get; init; }
+    public string Token { get; init; } = string.Empty;
 }
 
 /// <summary>

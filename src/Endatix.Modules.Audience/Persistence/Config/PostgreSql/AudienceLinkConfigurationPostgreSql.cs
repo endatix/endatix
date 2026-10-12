@@ -17,7 +17,7 @@ internal sealed class AudienceLinkConfigurationPostgreSql : IEntityTypeConfigura
 
         builder.HasIndex(link => new { link.TenantId, link.FormId, link.MembershipId })
             .IsUnique()
-            .HasDatabaseName("IX_Links_Membership")
+            .HasDatabaseName(AudienceLink.UniqueConstraints.OnePerMembership)
             .HasFilter($"\"{nameof(AudienceLink.IsDeleted)}\" = false");
 
         builder.HasIndex(link => link.TokenHash)

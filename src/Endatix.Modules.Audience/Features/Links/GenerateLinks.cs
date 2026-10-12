@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -12,7 +13,10 @@ public sealed record IssuedLinkDto(long MembershipId, string Token);
 
 public sealed record GenerateLinksCommand(long TenantId, long FormId) : ICommand<Result<IReadOnlyList<IssuedLinkDto>>>;
 
-internal sealed class GenerateLinksHandler(IAudienceDbContext db, IRepository<Form> forms)
+internal sealed class GenerateLinksHandler(
+    IAudienceDbContext db,
+    IRepository<Form> forms,
+    IUniqueConstraintViolationChecker violations)
     : ICommandHandler<GenerateLinksCommand, Result<IReadOnlyList<IssuedLinkDto>>>
 {
     public const int MaxLinks = 5_000;
@@ -28,6 +32,32 @@ internal sealed class GenerateLinksHandler(IAudienceDbContext db, IRepository<Fo
             return gate.ToErrorResult<IReadOnlyList<IssuedLinkDto>>();
         }
 
+        return await IssueOnceAsync(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Two issuers can both pass the existence check. The membership index refuses the loser;
+    /// a second pass returns only the links that were not saved.
+    /// </summary>
+    private async Task<Result<IReadOnlyList<IssuedLinkDto>>> IssueOnceAsync(
+        GenerateLinksCommand request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await IssueAsync(request, cancellationToken);
+        }
+        catch (DbUpdateException ex) when (violations.IsViolationOf(ex, AudienceLink.UniqueConstraints.OnePerMembership))
+        {
+            ((DbContext)db).ChangeTracker.Clear();
+            return await IssueAsync(request, cancellationToken);
+        }
+    }
+
+    private async Task<Result<IReadOnlyList<IssuedLinkDto>>> IssueAsync(
+        GenerateLinksCommand request,
+        CancellationToken cancellationToken)
+    {
         var membershipIds = await MembershipIdsAsync(request.FormId, cancellationToken);
         if (membershipIds.Count > MaxLinks)
         {

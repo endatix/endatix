@@ -34,10 +34,20 @@ internal sealed class RedeemLinkHandler(
 
         if (link.SubmissionId is long existingId)
         {
-            return await RedeemedAsync(existingId, false, cancellationToken);
+            return await ResumeAsync(existingId, cancellationToken);
         }
 
         return await OpenAsync(link, cancellationToken);
+    }
+
+    private async Task<Result<RedeemedLinkDto>> ResumeAsync(
+        long submissionId,
+        CancellationToken cancellationToken)
+    {
+        var submission = await submissions.GetByIdAsync(submissionId, cancellationToken);
+        return submission is null
+            ? Result.NotFound("Link not found.")
+            : await RedeemedAsync(submissionId, false, cancellationToken);
     }
 
     private async Task<Result<RedeemedLinkDto>> OpenAsync(AudienceLink link, CancellationToken cancellationToken)
@@ -48,6 +58,22 @@ internal sealed class RedeemLinkHandler(
             return Result.NotFound("Form not found.");
         }
 
+        var submission = await StartAsync(link, definitionId, cancellationToken);
+        if (await ClaimAsync(link.Id, submission.Id, cancellationToken))
+        {
+            return await RedeemedAsync(submission.Id, true, cancellationToken);
+        }
+
+        submission.Delete();
+        await submissions.SaveChangesAsync(cancellationToken);
+        return await ResumeClaimedAsync(link.Id, cancellationToken);
+    }
+
+    private async Task<Submission> StartAsync(
+        AudienceLink link,
+        long definitionId,
+        CancellationToken cancellationToken)
+    {
         var snapshot = await SnapshotAsync(link, DateTime.UtcNow, cancellationToken);
         var submission = Submission.Create(new SubmissionCreateArgs(
             link.TenantId,
@@ -59,9 +85,33 @@ internal sealed class RedeemLinkHandler(
         submission.FreezePersonalization(link.Id, snapshot);
         await submissions.AddAsync(submission, cancellationToken);
         await submissions.SaveChangesAsync(cancellationToken);
-        link.MarkOpened(submission.Id, DateTime.UtcNow);
-        await db.SaveChangesAsync(cancellationToken);
-        return await RedeemedAsync(submission.Id, true, cancellationToken);
+        return submission;
+    }
+
+    /// <summary>One winner: the update matches only while the link is still unopened.</summary>
+    private async Task<bool> ClaimAsync(long linkId, long submissionId, CancellationToken cancellationToken)
+    {
+        int updated = await db.Links
+            .Where(item => item.Id == linkId && item.SubmissionId == null)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(item => item.SubmissionId, submissionId)
+                    .SetProperty(item => item.OpenedAt, DateTime.UtcNow),
+                cancellationToken);
+        return updated == 1;
+    }
+
+    private async Task<Result<RedeemedLinkDto>> ResumeClaimedAsync(
+        long linkId,
+        CancellationToken cancellationToken)
+    {
+        long? submissionId = await db.Links.AsNoTracking()
+            .Where(item => item.Id == linkId)
+            .Select(item => item.SubmissionId)
+            .FirstOrDefaultAsync(cancellationToken);
+        return submissionId is long existingId
+            ? await ResumeAsync(existingId, cancellationToken)
+            : Result.NotFound("Link not found.");
     }
 
     private async Task<string> SnapshotAsync(

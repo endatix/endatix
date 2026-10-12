@@ -18,7 +18,17 @@ public sealed class Generate(IMediator mediator, ITenantContext tenantContext)
     {
         Post("forms/{formId}/audience/links");
         Permissions(Actions.Forms.Edit);
-        Summary(summary => summary.Summary = "Issue personalised links");
+        Summary(summary =>
+        {
+            summary.Summary = "Issue personalised links";
+            summary.Responses[200] = "Links issued. Each raw token is returned once.";
+            summary.Responses[400] = "Invalid input, or the form has more than 5,000 people.";
+            summary.Responses[404] = "Form not found.";
+        });
+        Description(builder => builder
+            .Produces<IReadOnlyList<IssuedLinkResponse>>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(400)
+            .ProducesProblem(404));
     }
 
     public override async Task<Results<Ok<IReadOnlyList<IssuedLinkResponse>>, ProblemHttpResult>> ExecuteAsync(

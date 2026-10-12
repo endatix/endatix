@@ -13,6 +13,12 @@ public sealed class AudienceLink : BaseEntity, ITenantOwned
 {
     public const int TokenHashLength = 64;
 
+    /// <summary>Database names of the unique indexes on <see cref="AudienceLink"/>.</summary>
+    public static class UniqueConstraints
+    {
+        public const string OnePerMembership = "IX_Links_Membership";
+    }
+
     private AudienceLink()
     {
         TokenHash = string.Empty;
@@ -51,17 +57,5 @@ public sealed class AudienceLink : BaseEntity, ITenantOwned
     {
         byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
-
-    public void MarkOpened(long submissionId, DateTime openedAt)
-    {
-        Guard.Against.NegativeOrZero(submissionId);
-        if (SubmissionId is not null)
-        {
-            return;
-        }
-
-        SubmissionId = submissionId;
-        OpenedAt = openedAt;
     }
 }
