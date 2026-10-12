@@ -434,15 +434,27 @@ Quartz 4.2.2 embeds only its create scripts, not its upgrade scripts. Quartz's u
 `4.2/add_continuations_<dialect>.sql`) are additive and guarded (`IF NOT EXISTS`, `IF COL_LENGTH(…)
 IS NULL` and the like), so they are no-ops on a database whose tables the create script just made.
 
-When a Quartz bump changes the schema, add one EF migration **per provider**:
+When a Quartz bump changes the schema, add one EF migration **per provider**. The upgrade scripts do
+not use the create script's `{0}`/`{1}` placeholders: they name Quartz's default tables, so each
+statement has to be pointed at the module's tables (`QuartzRegistration.TablePrefix`, `jobs.qrtz_`)
+by hand.
 
-1. Paste Quartz's guarded upgrade SQL for that provider inline with `migrationBuilder.Sql("""…""")`,
-   with `{0}` replaced by `jobs.qrtz_` and `{1}` by `qrtz_`, under a comment linking the file at the
-   Quartz release tag, for example
+1. Copy Quartz's guarded upgrade SQL for that provider inline with `migrationBuilder.Sql("""…""")`,
+   under a comment linking the file at the Quartz release tag, for example
    `https://github.com/quartznet/quartznet/blob/v<version>/database/migrations/<version>/<file>.sql`.
-   `AddTriggerAcquisitionIndex` shows the style.
-2. If that Quartz version embeds its upgrade scripts, load them from the package instead, the way
-   `QuartzSchemaScripts` loads the create script.
+   `AddTriggerAcquisitionIndex` shows the style. Keep every guard, adapted as below.
+   - **SQL Server** (`…_sqlServer.sql`): replace `[dbo].[QRTZ_<TABLE>]` with `[jobs].[qrtz_<TABLE>]`
+     and qualify each check, so `COL_LENGTH('QRTZ_TRIGGERS', …)` becomes
+     `COL_LENGTH('jobs.qrtz_TRIGGERS', …)`; an unqualified check resolves in the default schema
+     (`dbo`) and never sees the module's table. The script separates batches with `GO`, which is a client command, not T-SQL:
+     put each batch in its own `migrationBuilder.Sql` call.
+   - **PostgreSQL** (`…_postgres.sql`): names are lower-case and unquoted. Replace `qrtz_<table>`
+     with `jobs.qrtz_<table>`, and add `table_schema = 'jobs'` to each `information_schema` check,
+     which otherwise matches a same-named table in any schema. Each `DO $$ … $$;` block can stay in
+     one call.
+2. If a later Quartz version embeds its upgrade scripts, load them from the package the way
+   `QuartzSchemaScripts` loads the create script, once they carry its placeholders; until then, adapt
+   them as above.
 3. A fresh database runs `InitialBackgroundJobs` with the new create script first, so the guarded
    upgrade then changes nothing.
 
