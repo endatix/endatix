@@ -64,7 +64,7 @@ Rebuilds of one form run one at a time. Each reads the schema, chooses its mode,
 - **A flatten's replace keeps the flattened rows.** The submission being flattened already has its row, as may others flattened at the same time; clearing them would leave those submissions with no row. Test rows flattened on an older definition stay until the next compile that replaces and clears.
 - **What runs under the lock:** the schema read, the mode choice, the real-submission check when it decides the mode, the compile, the save, and for a replace the clearing of the flattened rows. The definition read, the definition's columns, and the form-deleted check run outside it. After the commit the definition is read again, and a rebuild that compiled JSON an in-place edit has since replaced runs once more.
 - **The wait is bounded at 10 seconds** (`lock_timeout` on PostgreSQL, `@LockTimeout` on SQL Server, for the lock alone, under the 30-second default command timeout). A wait that runs out throws `TransactionLockTimeoutException`; a job retries it, and a backfill reports the submission as failed and processes it on its next run.
-- **SQL Server:** the lock is there (`SqlServerTransactionLock`), but the module still fails at startup there, as it has no SQL Server migrations yet (see [Registration](#registration)).
+- **SQL Server:** `SqlServerTransactionLock`. A lock that times out leaves the transaction open on SQL Server, unlike PostgreSQL; the rebuild rolls it back either way.
 
 The schema is read untracked, and tracked only while it is saved, so a long-lived scope such as a backfill sees what other scopes committed, and never what a rolled-back rebuild of its own saved. Whether the schema has an older definition's columns is worked out once per scope for each saved version of the schema (`FormSchemaCoverage`).
 
@@ -74,7 +74,7 @@ A form deleted after a compile read it loses the schema that compile wrote, hard
 
 ## Registration
 
-Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. Capabilities: `IEndatixModule`, `IHasFeatureFlag`, `IHasDbMigrations`, `IHasFastEndpoints` (serializers/OpenAPI tags via `ConfigureFastEndpoints`). Do **not** also `Api.ScanAssemblies` this assembly. `ReportingPersistence.ConfigureDbContextOptions` sets both namespaces, but **runtime requires PostgreSQL** until [#813](https://github.com/endatix/endatix/issues/813) (no SQL Server migrations): with the flag on and any other provider, startup fails with an `InvalidOperationException` naming the provider setting and the flag. Disabled by default until:
+Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. Capabilities: `IEndatixModule`, `IHasFeatureFlag`, `IHasDbMigrations`, `IHasFastEndpoints` (serializers/OpenAPI tags via `ConfigureFastEndpoints`). Do **not** also `Api.ScanAssemblies` this assembly. The module runs on **PostgreSQL** and on **SQL Server 2025 or later (or Azure SQL Database)**; it needs SQL Server's native `json` type. `ConfigureServices` registers `ReportingPostgreSqlDbContext` or `ReportingSqlServerDbContext` by `ConnectionStrings:DefaultConnection_DbProvider`, and consumers resolve it as `IReportingDbContext` or `ReportingDbContextBase`. Disabled by default until:
 
 ```json
 "Endatix": {
@@ -103,11 +103,15 @@ Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
   (`SeedDefaultsAsync` / `tenant.created`). **Existing tenants:** frozen SQL in
   `SeedDefaultExportFormats` — do not generate that migration from the catalog; a new default
   needs a new data migration. **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder`.
-- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **not yet available**. SQL Server support is coming soon
-  ([endatix/endatix#813](https://github.com/endatix/endatix/issues/813)). Use PostgreSQL for Reporting until then.
+- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`)
 
-> **SQL Server hosts:** Do not enable `ReportingModule` until SQL Server support lands in #813: the host fails at
-> startup.
+  One migration creates the schema and, at the end of its `Up()`, seeds the same default formats and CSV default
+  mapping for every existing tenant as the PostgreSQL `SeedDefaultExportFormats` migration: frozen T-SQL in `SeedDefaultExportFormatsSqlServerSql`,
+  with ids derived from the tenant id (`HASHBYTES`). Do not generate it from the catalog either.
+
+On SQL Server, text comparisons follow the database collation, case-insensitive by default, where PostgreSQL compares
+case-sensitively: two export formats of a tenant whose names differ only in case are one name there (the API already
+treats them as one).
 
 Startup also applies Reporting migrations when `Customizations:Reporting:ApplyMigrationsAtStartup` is true (default)
 and `Endatix:Data:EnableAutoMigrations` is enabled.
@@ -122,7 +126,7 @@ dotnet ef migrations add <MigrationName> \
   --context ReportingPostgreSqlDbContext \
   --output-dir Persistence/Migrations/PostgreSql
 
-# SQL Server: Reporting's SQL Server chain arrives with #813 (#1186); this is the command its first migration uses.
+# SQL Server
 dotnet ef migrations add <MigrationName> \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
@@ -136,6 +140,8 @@ Always pass `--output-dir`. Without it, the first SQL Server migration (no snaps
 root, so namespace filtering is off and each context finds its migrations by their `[DbContext]` attribute. The cost is
 the files themselves: they sit outside `Persistence/Migrations/SqlServer` and the module's migrations namespace, and
 nothing fails to point that out. See "Adding a migration" in `src/Endatix.Framework/README.md`.
+
+The commands below use the PostgreSQL context; pass `--context ReportingSqlServerDbContext` for SQL Server.
 
 ### Remove last migration
 

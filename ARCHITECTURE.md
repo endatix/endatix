@@ -185,7 +185,7 @@ Persistence                ──► Domain
 
 **Terminology:** "Codebook" is an **export format** in Infrastructure (`CodebookJsonExporter`). Reporting module vocabulary uses **FormSchema**.
 
-**Submission export formats:** exporters live in `Infrastructure/Exporting/Exporters/` and register with `AddExporter`; `ExportValidator` accepts every registered wire key, so a new format needs no API change. `csv` stays raw interchange. `xlsx` (`SubmissionXlsxExporter`, DocumentFormat.OpenXml) is the Excel path — 16+ digit IDs as inline strings, dates as OADate + custom number format, JSON booleans as Excel boolean cells (codebook still `1`/`0`). **Picker lists `reporting.ExportFormats` rows, not registered capabilities.** Runtime catalog: `DefaultExportFormats.All` (`tenant.created` seeder). Existing tenants: frozen `SeedDefaultExportFormats` SQL (same `hashtextextended` ids as `InitialReporting`) — a new default is a new migration, not a catalog change to an applied one. SqlServer Reporting migrations are still [#813](https://github.com/endatix/endatix/issues/813) — no SS seed SQL until then.
+**Submission export formats:** exporters live in `Infrastructure/Exporting/Exporters/` and register with `AddExporter`; `ExportValidator` accepts every registered wire key, so a new format needs no API change. `csv` stays raw interchange. `xlsx` (`SubmissionXlsxExporter`, DocumentFormat.OpenXml) is the Excel path — 16+ digit IDs as inline strings, dates as OADate + custom number format, JSON booleans as Excel boolean cells (codebook still `1`/`0`). **Picker lists `reporting.ExportFormats` rows, not registered capabilities.** Runtime catalog: `DefaultExportFormats.All` (`tenant.created` seeder). Existing tenants: frozen `SeedDefaultExportFormats` SQL (same `hashtextextended` ids as `InitialReporting`) — a new default is a new migration, not a catalog change to an applied one. SQL Server's single `InitialReporting` migration ends with the same seed as frozen T-SQL (`SeedDefaultExportFormatsSqlServerSql`, `HASHBYTES` ids).
 
 **Tests mirror features:** golden JSON fixtures under `tests/.../Features/FormSchema/FlattenedFormDefinition/Fixtures/`; compiler tests in `Features/FormSchema/FormSchema/`; submission mapping in `Features/FlattenedSubmission/`.
 
@@ -204,21 +204,28 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Reporting", FeatureFlags.ReportingModule);
-        builder.AddDbContextWithMigrations<ReportingPostgreSqlDbContext>(
+        if (DatabaseProviderResolver.IsPostgreSql(builder.Configuration))
+            AddDbContext<ReportingPostgreSqlDbContext>(builder);
+        else
+            AddDbContext<ReportingSqlServerDbContext>(builder);
+        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingDbContextBase>());
+        // ... the module's own services, including builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME)
+    }
+
+    private static void AddDbContext<TContext>(EndatixModuleBuilder builder) where TContext : ReportingDbContextBase
+    {
+        builder.AddDbContextWithMigrations<TContext>(
             ReportingPersistence.ConfigureDbContextOptions,
             // Keeps the module's own opt-out: Customizations:Reporting:ApplyMigrationsAtStartup=false.
             shouldMigrate: sp => sp.GetRequiredService<IOptions<ReportingOptions>>().Value.ApplyMigrationsAtStartup);
-        builder.Services.AddScoped<ReportingDbContextBase>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
-        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingDbContextBase>());
-        // ... the module's own services, including builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME)
+        builder.Services.AddScoped<ReportingDbContextBase>(sp => sp.GetRequiredService<TContext>());
     }
 }
 ```
 
 Host wiring: OSS `UseDefaults()` calls `UseModule(ReportingModule.Instance)`, `UseModule(JobsModule.Instance)`, and `UseModule(AudienceModule.Instance)`. `UseModule` scans MediatR on `Assembly`, invokes `ConfigureServices` at finalization, and **only if** the module implements `IHasFastEndpoints` registers FastEndpoints discovery (flag-off modules contribute nothing). Do **not** also call `Api.ScanAssemblies` from `Program` for that assembly — duplicate scan bypasses the flag.
 
-**Provider:** Reporting **requires PostgreSQL** until [#813](https://github.com/endatix/endatix/issues/813): `ConfigureServices` throws on another provider. Its persistence already follows the module pattern — `ReportingDbContextBase` plus `ReportingPostgreSqlDbContext` and `ReportingSqlServerDbContext`, both migrations namespaces set to the migrations root — but only the PostgreSQL context has migrations. Details: [Reporting README](src/Endatix.Modules.Reporting/README.md). Jobs, Audience, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only**: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Audience uses schema `audience` and is gated by `FeatureFlags.PersonalizationModule` (catalogue key `personalization-module`); the module name is the sample frame, the flag is the product name. See [Audience README](src/Endatix.Modules.Audience/README.md). Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder. Work in a module that must not interleave across processes takes `ITransactionLock` (`Endatix.Infrastructure.Data.Locking`), a named lock held until the transaction ends; each provider's persistence builder registers it: `pg_advisory_xact_lock` on PostgreSQL, `sp_getapplock` with a transaction owner on SQL Server.
+**Provider:** Reporting runs on **PostgreSQL and SQL Server 2025 or later (or Azure SQL Database)**. Its persistence follows the module pattern — `ReportingDbContextBase` plus `ReportingPostgreSqlDbContext` and `ReportingSqlServerDbContext`, each with its own migrations under `Persistence/Migrations/<Provider>/`, both migrations namespaces set to the migrations root — and `ConfigureServices` registers the active provider's context only. Details: [Reporting README](src/Endatix.Modules.Reporting/README.md). Jobs, Audience, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only**: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Audience uses schema `audience` and is gated by `FeatureFlags.PersonalizationModule` (catalogue key `personalization-module`); the module name is the sample frame, the flag is the product name. See [Audience README](src/Endatix.Modules.Audience/README.md). Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder. Work in a module that must not interleave across processes takes `ITransactionLock` (`Endatix.Infrastructure.Data.Locking`), a named lock held until the transaction ends; each provider's persistence builder registers it: `pg_advisory_xact_lock` on PostgreSQL, `sp_getapplock` with a transaction owner on SQL Server.
 
 **Optimistic concurrency:** For aggregates that can be updated concurrently, use `long Revision` + `IsConcurrencyToken()` and bump `Revision` on `Modified` at save. Same CLR type and column on both providers. Do not use PostgreSQL `xmin` (`uint` / `IsRowVersion`) on dual-provider (or future dual-provider) modules — SQL Server `rowversion` is `byte[]`. Identity keeps `ConcurrencyStamp`. `Form`/`Submission.Revision` today is outbox/event pairing, not an EF concurrency token. Map `DbUpdateConcurrencyException` to HTTP 409. Unique indexes still cover insert uniqueness.
 
