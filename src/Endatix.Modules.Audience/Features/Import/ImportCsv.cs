@@ -43,7 +43,8 @@ public sealed record ImportRejectionDto(int RowNumber, string Reason);
 internal sealed class ImportCsvHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    ImportWriteSupport support)
+    ImportWriteSupport support,
+    MatchKeyLock matchKeyLock)
     : ICommandHandler<ImportCsvCommand, Result<ImportResultDto>>
 {
     private const int MaxReportedRejections = 50;
@@ -179,7 +180,7 @@ internal sealed class ImportCsvHandler(
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
-            await MatchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
+            await matchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
         ImportTarget target = new(request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer));
         ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.MatchKey);
