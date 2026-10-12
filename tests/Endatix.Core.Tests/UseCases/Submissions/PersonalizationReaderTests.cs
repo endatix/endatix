@@ -12,17 +12,17 @@ public sealed class PersonalizationReaderTests
     }
 
     [Fact]
-    public void Read_TypedVariables_RoundTripsEdacAsNumber()
+    public void Read_TypedVariables_RoundTripsAgeAsNumber()
     {
         const string snapshot = """
-            {"schemaVersion":1,"capturedAt":"2026-10-08T08:00:00Z","identifier":"0570123456-01","variables":{"ciudad":"03. ANTIOQUIA - MEDELLIN","edac":65}}
+            {"schemaVersion":1,"capturedAt":"2026-10-08T08:00:00Z","identifier":"CG-000001-01","variables":{"city":"03. MIDWEST - COLUMBUS","age":65}}
             """;
 
         PersonalizationRead? read = PersonalizationReader.Read(snapshot);
 
         read.Should().NotBeNull();
-        read!.Identifier.Should().Be("0570123456-01");
-        read.Variables.GetProperty("edac").GetDouble().Should().Be(65);
-        read.Variables.GetProperty("ciudad").GetString().Should().Be("03. ANTIOQUIA - MEDELLIN");
+        read!.Identifier.Should().Be("CG-000001-01");
+        read.Variables.GetProperty("age").GetDouble().Should().Be(65);
+        read.Variables.GetProperty("city").GetString().Should().Be("03. MIDWEST - COLUMBUS");
     }
 }
