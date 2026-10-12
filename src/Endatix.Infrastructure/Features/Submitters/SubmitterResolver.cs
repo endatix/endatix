@@ -5,6 +5,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Identity.Authentication;
+using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Features.Submitters;
 
@@ -48,54 +49,72 @@ internal sealed class SubmitterResolver(
             return _empty;
         }
 
-        var profileSnapshot = profileSnapshotBuilder.Build(input.Profile);
+        var draft = new SubmitterDraft(
+            context.TenantId, input, profileSnapshotBuilder.Build(input.Profile), dateTimeProvider.UtcNow);
         var submitter = await FindExistingSubmitterAsync(context.TenantId, input, cancellationToken);
-        var now = dateTimeProvider.UtcNow;
-
         if (submitter is null)
         {
-            submitter = Submitter.Create(
-                context.TenantId,
-                input.AuthProvider,
-                input.ExternalSubjectId,
-                input.DisplayId,
-                input.AppUserId,
-                profileSnapshot,
-                now);
-
-            try
-            {
-                await submitterRepository.AddAsync(submitter, cancellationToken);
-            }
-            catch (Exception exception)
-            {
-                var violation = uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(exception);
-                if (!violation.IsUniqueConstraintViolation || !violation.IsSubmitterIdentityViolation())
-                {
-                    throw;
-                }
-
-                var existingSubmitter = await FindExistingSubmitterAsync(context.TenantId, input, cancellationToken);
-                if (existingSubmitter is null)
-                {
-                    throw;
-                }
-
-                submitter = existingSubmitter;
-                submitter.Refresh(input.DisplayId, profileSnapshot, now);
-                await submitterRepository.UpdateAsync(submitter, cancellationToken);
-            }
+            submitter = await CreateAsync(draft, cancellationToken);
         }
         else
         {
-            submitter.Refresh(input.DisplayId, profileSnapshot, now);
-            await submitterRepository.UpdateAsync(submitter, cancellationToken);
+            await RefreshAsync(submitter, draft, cancellationToken);
         }
 
-        return new SubmitterResolution(
-            submitter.Id,
-            submitter.DisplayId,
-            profileSnapshot);
+        return new SubmitterResolution(submitter.Id, submitter.DisplayId, draft.ProfileSnapshot);
+    }
+
+    /// <summary>
+    /// Creates the Submitter. When a parallel request created it first, the unique index refuses this
+    /// insert and the winner's row is refreshed and returned instead.
+    /// </summary>
+    private async Task<Submitter> CreateAsync(SubmitterDraft draft, CancellationToken cancellationToken)
+    {
+        var input = draft.Input;
+        var submitter = Submitter.Create(
+            draft.TenantId, input.AuthProvider, input.ExternalSubjectId, input.DisplayId, input.AppUserId, draft.ProfileSnapshot, draft.Now);
+        try
+        {
+            await submitterRepository.AddAsync(submitter, cancellationToken);
+            return submitter;
+        }
+        catch (Exception exception) when (IsIdentityRace(exception))
+        {
+            ForgetFailedInsert(exception);
+            var existing = await FindExistingSubmitterAsync(draft.TenantId, input, cancellationToken)
+                ?? throw new InvalidOperationException("The Submitter that won the race could not be read back.", exception);
+            await RefreshAsync(existing, draft, cancellationToken);
+            return existing;
+        }
+    }
+
+    private Task RefreshAsync(Submitter submitter, SubmitterDraft draft, CancellationToken cancellationToken)
+    {
+        submitter.Refresh(draft.Input.DisplayId, draft.ProfileSnapshot, draft.Now);
+        return submitterRepository.UpdateAsync(submitter, cancellationToken);
+    }
+
+    private bool IsIdentityRace(Exception exception)
+    {
+        var violation = uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(exception);
+        return violation.IsUniqueConstraintViolation && violation.IsSubmitterIdentityViolation();
+    }
+
+    /// <summary>
+    /// A parallel request created this Submitter first. The losing insert stays tracked as Added, so
+    /// the next save (the refresh below, then the submission itself) would repeat it and fail again.
+    /// </summary>
+    private static void ForgetFailedInsert(Exception exception)
+    {
+        if (exception is not DbUpdateException update)
+        {
+            return;
+        }
+
+        foreach (var entry in update.Entries)
+        {
+            entry.State = EntityState.Detached;
+        }
     }
 
     private SubmitterExtractionInput? GetExtractionInput(SubmitterResolveContext context)
@@ -158,4 +177,11 @@ internal sealed class SubmitterResolver(
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>What one resolve writes: the identity read from the input, and when it was seen.</summary>
+    private sealed record SubmitterDraft(
+        long TenantId,
+        SubmitterExtractionInput Input,
+        string? ProfileSnapshot,
+        DateTimeOffset Now);
 }

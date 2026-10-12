@@ -31,6 +31,7 @@ public class CreateSubmissionHandler(
 
     private const string DEFAULT_JSON_DATA = "{}";
     private const string DUPLICATE_CONFLICT_MESSAGE = "A submission already exists for this user and form.";
+    private const string SUBMISSION_EXISTS_CODE = "submission_exists";
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -210,8 +211,7 @@ public class CreateSubmissionHandler(
         }
 
         return Result<Submission>.Conflict(
-            DUPLICATE_CONFLICT_MESSAGE,
-            "submission_exists",
-            existing.Id.ToString());
+            new ExistingResource(SUBMISSION_EXISTS_CODE, "submissionId", existing.Id.ToString()),
+            DUPLICATE_CONFLICT_MESSAGE);
     }
 }

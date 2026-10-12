@@ -5,7 +5,12 @@ using Endatix.Modules.Audience.Contracts;
 
 namespace Endatix.Modules.Audience.Features.Links;
 
-internal readonly record struct SnapshotCell(string VariableName, string DataType, string Value);
+internal readonly record struct SnapshotCell(
+    long PropertyId,
+    string VariableName,
+    string Name,
+    string DataType,
+    string Value);
 
 internal readonly record struct SnapshotHeader(
     long? AudienceLinkId,
@@ -15,14 +20,16 @@ internal readonly record struct SnapshotHeader(
     long? MemberId = null);
 
 /// <summary>
-/// Snapshot v1 stored on the submission. Variables are already JSON-typed.
+/// Snapshot v1 stored on the submission: <c>variables</c> (name → typed value) is what a survey
+/// reads; <c>values[]</c> keeps each property's id, name and type beside its value, for reporting
+/// and the codebook, because a frozen snapshot can never be enriched later.
 /// </summary>
 internal static class PersonalizationSnapshotJson
 {
-    public static string Write(SnapshotHeader header, IEnumerable<SnapshotCell> cells) =>
-        Root(header, TypedVariables(cells)).ToJsonString();
+    public static string Write(SnapshotHeader header, IReadOnlyCollection<SnapshotCell> cells) =>
+        Root(header, TypedVariables(cells), TypedValues(cells)).ToJsonString();
 
-    private static JsonObject Root(SnapshotHeader header, JsonObject variables)
+    private static JsonObject Root(SnapshotHeader header, JsonObject variables, JsonArray values)
     {
         JsonObject root = new()
         {
@@ -31,6 +38,7 @@ internal static class PersonalizationSnapshotJson
             ["capturedAt"] = header.CapturedAt,
             ["identifier"] = header.Identifier,
             ["variables"] = variables,
+            ["values"] = values,
         };
         Add(root, "memberId", header.MemberId);
         Add(root, "audienceLinkId", header.AudienceLinkId);
@@ -59,6 +67,30 @@ internal static class PersonalizationSnapshotJson
 
         return variables;
     }
+
+    private static JsonArray TypedValues(IEnumerable<SnapshotCell> cells)
+    {
+        JsonArray values = [];
+        foreach (SnapshotCell cell in cells)
+        {
+            JsonNode? typed = Typed(cell.DataType, cell.Value);
+            if (typed is not null)
+            {
+                values.Add(ValueEntry(cell, typed));
+            }
+        }
+
+        return values;
+    }
+
+    private static JsonObject ValueEntry(SnapshotCell cell, JsonNode typed) => new()
+    {
+        ["propertyId"] = cell.PropertyId,
+        ["variableName"] = cell.VariableName,
+        ["name"] = cell.Name,
+        ["dataType"] = cell.DataType,
+        ["value"] = typed,
+    };
 
     internal static JsonNode? Typed(string dataType, string value)
     {

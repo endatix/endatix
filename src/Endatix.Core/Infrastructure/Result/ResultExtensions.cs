@@ -49,6 +49,11 @@ public static class ResultExtensions
             throw new InvalidOperationException("Result is successful. Cannot convert to error result.");
         }
 
+        if (result.Existing is not null)
+        {
+            return Result<TDestination>.Conflict(result.Existing, [.. result.Errors]);
+        }
+
         var correlationId = TryGetCorrelationId(result);
 
         return ConvertError<TDestination>(result.Status, result.Errors, result.ValidationErrors, correlationId);

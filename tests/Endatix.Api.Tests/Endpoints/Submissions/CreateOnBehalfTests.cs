@@ -8,6 +8,8 @@ using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.Abstractions.Submitters;
 using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.UseCases.Submissions.Create;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -19,7 +21,10 @@ public class CreateOnBehalfTests
     public CreateOnBehalfTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _endpoint = Factory.Create<CreateOnBehalf>(_mediator);
+        _endpoint = Factory.Create<CreateOnBehalf>(
+            _mediator,
+            Substitute.For<ISubmissionPersonalizer>(),
+            Substitute.For<ITenantContext>());
     }
 
     [Fact]
@@ -237,4 +242,26 @@ public class CreateOnBehalfTests
         created.Value.StartedAt.Should().NotBeNull();
         created.Value.IsComplete.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task ExecuteAsync_SubmissionExists_KeepsTheExistingIdOnThe409()
+    {
+        // Arrange
+        var request = new CreateSubmissionOnBehalfRequest { FormId = 123 };
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Submission>.Conflict(
+                new ExistingResource("submission_exists", "submissionId", "99"),
+                "A submission already exists for this user and form."));
+
+        // Act
+        var response = await _endpoint.ExecuteAsync(request, CancellationToken.None);
+
+        // Assert
+        var problem = response.Result as ProblemHttpResult;
+        problem.Should().NotBeNull();
+        problem!.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        problem.ProblemDetails.Extensions["errorCode"].Should().Be("submission_exists");
+        problem.ProblemDetails.Extensions["submissionId"].Should().Be("99");
+    }
+
 }

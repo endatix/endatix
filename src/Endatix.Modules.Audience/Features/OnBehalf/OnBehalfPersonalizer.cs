@@ -27,29 +27,37 @@ internal sealed class OnBehalfPersonalizer(
         return await FreezeMemberAsync(request, cancellationToken);
     }
 
+    /// <summary>
+    /// Binds the member to the submission's Submitter once. The update only matches a member with no
+    /// Submitter yet, so parallel creates cannot re-point it. Best effort: the submission is already
+    /// saved, and failing here would make the caller retry into a 409 for a submission that exists.
+    /// </summary>
     public async Task BindAsync(
         PersonalizationFreeze freeze,
         long submitterId,
         CancellationToken cancellationToken)
     {
-        Member? member = await db.Members
-            .FirstOrDefaultAsync(person => person.Id == freeze.MemberId, cancellationToken);
-        if (member is null || member.SubmitterId is not null)
+        try
         {
-            return;
+            await BindOnceAsync(freeze.MemberId, submitterId, cancellationToken);
         }
-
-        member.BindSubmitter(submitterId);
-        await db.SaveChangesAsync(cancellationToken);
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                ex,
+                "Could not bind audience member {MemberId} to submitter {SubmitterId}",
+                freeze.MemberId,
+                submitterId);
+        }
     }
 
     private async Task<PersonalizationFreeze?> FreezeMemberAsync(
         SubmissionPersonalizationRequest request,
         CancellationToken cancellationToken)
     {
-        string subjectId = request.Submitter!.ExternalSubjectId;
-        Member? member = await FindMemberAsync(request.TenantId, subjectId, cancellationToken);
-        long? membershipId = member is null
+        var subjectId = request.Submitter!.ExternalSubjectId;
+        var member = await FindMemberAsync(request.TenantId, subjectId, cancellationToken);
+        var membershipId = member is null
             ? null
             : await MembershipIdAsync(request.FormId, member.Id, cancellationToken);
         if (member is null || membershipId is null)
@@ -57,7 +65,7 @@ internal sealed class OnBehalfPersonalizer(
             return Unknown(subjectId, request.FormId);
         }
 
-        string snapshot = await SnapshotAsync(member, membershipId.Value, cancellationToken);
+        var snapshot = await SnapshotAsync(member, membershipId.Value, cancellationToken);
         return new PersonalizationFreeze(member.Id, snapshot);
     }
 
@@ -67,9 +75,15 @@ internal sealed class OnBehalfPersonalizer(
     private Task<bool> HasPropertiesAsync(long formId, CancellationToken cancellationToken) =>
         db.Properties.AnyAsync(property => property.FormId == formId, cancellationToken);
 
+    private Task<int> BindOnceAsync(long memberId, long submitterId, CancellationToken cancellationToken) =>
+        db.Members
+            .Where(person => person.Id == memberId && person.SubmitterId == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(person => person.SubmitterId, submitterId), cancellationToken);
+
     private PersonalizationFreeze? Unknown(string businessId, long formId)
     {
-        logger.LogInformation(
+        // Debug, not Information: a BusinessId can be personal data, and production keeps Information.
+        logger.LogDebug(
             "Unknown BusinessId {BusinessId} on form {FormId}",
             businessId,
             formId);
@@ -81,8 +95,8 @@ internal sealed class OnBehalfPersonalizer(
         string externalSubjectId,
         CancellationToken cancellationToken)
     {
-        string kind = await IdentifierKindReader.GetAsync(db, tenantId, cancellationToken);
-        string normalized = Member.Normalize(externalSubjectId, kind, normalizer);
+        var kind = await IdentifierKindReader.GetAsync(db, tenantId, cancellationToken);
+        var normalized = Member.Normalize(externalSubjectId, kind, normalizer);
         return await db.Members.AsNoTracking().FirstOrDefaultAsync(
             person => person.TenantId == tenantId && person.NormalizedIdentifier == normalized,
             cancellationToken);
@@ -102,24 +116,10 @@ internal sealed class OnBehalfPersonalizer(
         long membershipId,
         CancellationToken cancellationToken)
     {
-        List<SnapshotCell> cells = await LoadCellsAsync(membershipId, cancellationToken);
+        var cells = await SnapshotCells.LoadAsync(db, membershipId, cancellationToken);
         return PersonalizationSnapshotJson.Write(
             new SnapshotHeader(null, member.Identifier, DateTime.UtcNow, "on_behalf", member.Id),
             cells);
     }
 
-    private async Task<List<SnapshotCell>> LoadCellsAsync(
-        long membershipId,
-        CancellationToken cancellationToken)
-    {
-        var rows = await (
-            from value in db.PropertyValues
-            join property in db.Properties on value.PropertyId equals property.Id
-            where value.MembershipId == membershipId
-            select new { property.VariableName, property.DataType, value.Value })
-            .ToListAsync(cancellationToken);
-        return rows
-            .Select(row => new SnapshotCell(row.VariableName, row.DataType, row.Value))
-            .ToList();
-    }
 }

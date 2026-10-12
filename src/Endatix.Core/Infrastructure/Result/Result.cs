@@ -33,6 +33,7 @@ public class Result<T> : IResult
         SuccessMessage = result.SuccessMessage,
         CorrelationId = result.CorrelationId,
         ValidationErrors = result.ValidationErrors,
+        Existing = result.Existing,
     };
 
     [JsonInclude]
@@ -55,6 +56,8 @@ public class Result<T> : IResult
     public IEnumerable<string> Errors { get; protected set; } = [];
     [JsonInclude]
     public IEnumerable<ValidationError> ValidationErrors { get; protected set; } = [];
+    [JsonInclude]
+    public ExistingResource? Existing { get; protected set; }
 
     /// <summary>
     /// Returns the current value.
@@ -254,19 +257,12 @@ public class Result<T> : IResult
     }
 
     /// <summary>
-    /// A 409 that names the existing resource. <paramref name="submissionId"/> is exposed as
-    /// <c>submissionId</c> on the problem body, next to <paramref name="errorCode"/>.
+    /// A 409 that names the resource it ran into (<see cref="ExistingResource"/>), so the caller can
+    /// carry on with it. Mapping to another result type keeps it.
     /// </summary>
-    public static Result<T> Conflict(string errorMessage, string errorCode, string submissionId)
+    public static Result<T> Conflict(ExistingResource existing, params string[] errorMessages)
     {
-        return new Result<T>(ResultStatus.Conflict)
-        {
-            Errors = [errorMessage],
-            ValidationErrors =
-            [
-                new ValidationError("submissionId", submissionId, errorCode, ValidationSeverity.Error)
-            ]
-        };
+        return new Result<T>(ResultStatus.Conflict) { Errors = errorMessages, Existing = existing };
     }
 
     /// <summary>

@@ -122,7 +122,7 @@ public class SubmissionTokenServiceObtainTokenTests
     }
 
     [Fact]
-    public async Task ObtainToken_NoTenantSettings_ThrowsArgumentNullException()
+    public async Task ObtainToken_NoTenantSettings_UsesTheNewTenantDefaultExpiry()
     {
         // Arrange
         var submissionId = 1L;
@@ -132,11 +132,15 @@ public class SubmissionTokenServiceObtainTokenTests
             Arg.Any<TenantSettingsByTenantIdSpec>(),
             Arg.Any<CancellationToken>()).Returns((TenantSettings)null!);
 
+        var before = DateTime.UtcNow;
+
         // Act
-        var act = () => _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
+        var result = await _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage("*Tenant settings must be configured.*");
+        result.IsSuccess.Should().BeTrue();
+        submission.Token!.ExpiresAt!.Value.Should().BeCloseTo(
+            before.AddHours(TenantSettings.DefaultSubmissionTokenExpiryHours),
+            TimeSpan.FromMinutes(1));
     }
 }

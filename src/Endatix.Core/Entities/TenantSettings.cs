@@ -16,6 +16,9 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
 {
     public const string DefaultRegistrationRole = "Respondent";
 
+    /// <summary>Submission token lifetime of a new tenant, in hours.</summary>
+    public const int DefaultSubmissionTokenExpiryHours = 24;
+
     private string? _slackSettingsJson;
     private SlackSettings? _slackSettings;
     private string? _webHookSettingsJson;
@@ -27,7 +30,7 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
 
     private TenantSettings() { } // For EF Core
 
-    public TenantSettings(long tenantId, int? submissionTokenExpiryHours = 24, bool isSubmissionTokenValidAfterCompletion = false, string? slackSettingsJson = null, string? webHookSettingsJson = null, string? customExportsJson = null)
+    public TenantSettings(long tenantId, int? submissionTokenExpiryHours = DefaultSubmissionTokenExpiryHours, bool isSubmissionTokenValidAfterCompletion = false, string? slackSettingsJson = null, string? webHookSettingsJson = null, string? customExportsJson = null)
     {
         Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
 

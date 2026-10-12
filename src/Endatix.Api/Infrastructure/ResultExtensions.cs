@@ -46,8 +46,7 @@ public static partial class ResultExtensions
 
         var resolvedTitle = title ?? defaultTitle;
         var messages = new List<string>(result.Errors);
-        var (conflictCode, submissionId) = ReadConflict(result);
-        string? errorCode = conflictCode;
+        var errorCode = result.Existing?.ErrorCode;
         Dictionary<string, string[]>? fields = null;
 
         if (result.IsInvalid())
@@ -80,35 +79,18 @@ public static partial class ResultExtensions
             detail: detail,
             errorCode: errorCode,
             fields: fields);
-        AddSubmissionId(problem, submissionId);
+        AddExisting(problem, result.Existing);
 
         return TypedResults.Problem(problem);
     }
 
-    private static void AddSubmissionId(ProblemDetails problem, string? submissionId)
+    /// <summary>The resource a 409 ran into, under its own field (<c>submissionId</c>).</summary>
+    private static void AddExisting(ProblemDetails problem, AppDomain.ExistingResource? existing)
     {
-        if (!string.IsNullOrWhiteSpace(submissionId))
+        if (existing is not null)
         {
-            problem.Extensions["submissionId"] = submissionId;
+            problem.Extensions[existing.Field] = existing.Id;
         }
-    }
-
-    private static (string? ErrorCode, string? SubmissionId) ReadConflict(AppDomain.IResult result)
-    {
-        if (result.Status != ResultStatus.Conflict)
-        {
-            return (null, null);
-        }
-
-        ValidationError? coded = result.ValidationErrors
-            .FirstOrDefault(error => !string.IsNullOrWhiteSpace(error.ErrorCode));
-        if (coded is null)
-        {
-            return (null, null);
-        }
-
-        string? submissionId = coded.Identifier == "submissionId" ? coded.ErrorMessage : null;
-        return (coded.ErrorCode, submissionId);
     }
 }
 #endif

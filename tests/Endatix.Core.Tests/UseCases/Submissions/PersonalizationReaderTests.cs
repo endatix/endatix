@@ -65,4 +65,18 @@ public sealed class PersonalizationReaderTests
     {
         PersonalizationReader.Read(snapshot).Should().BeNull();
     }
+
+    [Theory]
+    [InlineData("""{"memberId":"123","variables":{}}""")]
+    [InlineData("""{"memberId":null,"variables":{}}""")]
+    [InlineData("""{"memberId":{"id":1},"variables":{}}""")]
+    public void Read_MemberIdThatIsNotANumber_ReadsAsNoMemberInsteadOfThrowing(string snapshot)
+    {
+        // Act
+        var read = PersonalizationReader.Read(snapshot);
+
+        // Assert
+        read.Should().NotBeNull();
+        read!.MemberId.Should().BeNull();
+    }
 }

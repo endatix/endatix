@@ -226,13 +226,15 @@ public class ResultExtensionsTests
     [Fact]
     public void ToProblem_ConflictWithSubmission_AddsErrorCodeAndSubmissionId()
     {
+        // Arrange
         var result = Result<string>.Conflict(
-            "A submission already exists for this user and form.",
-            "submission_exists",
-            "99");
+            new ExistingResource("submission_exists", "submissionId", "99"),
+            "A submission already exists for this user and form.");
 
-        var httpResult = result.ToProblem();
+        // Act
+        var httpResult = result.Map(value => value.Length).ToProblem();
 
+        // Assert
         httpResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
         httpResult.ProblemDetails.Detail.Should().Be("A submission already exists for this user and form.");
         httpResult.ProblemDetails.Extensions["errorCode"].Should().Be("submission_exists");

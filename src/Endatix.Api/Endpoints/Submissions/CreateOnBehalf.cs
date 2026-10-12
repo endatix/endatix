@@ -49,8 +49,8 @@ public sealed class CreateOnBehalf(
         CreateSubmissionOnBehalfRequest request,
         CancellationToken ct)
     {
-        PersonalizationFreeze? freeze = await FreezeAsync(request, ct);
-        Result<Submission> result = await mediator.Send(ToCommand(request, freeze), ct);
+        var freeze = await FreezeAsync(request, ct);
+        var result = await mediator.Send(ToCommand(request, freeze), ct);
         await BindAsync(freeze, result, ct);
 
         return TypedResultsBuilder

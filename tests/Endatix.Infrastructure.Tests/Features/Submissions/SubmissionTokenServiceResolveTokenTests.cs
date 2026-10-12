@@ -106,6 +106,25 @@ public class SubmissionTokenServiceResolveTokenTests
     }
 
     [Fact]
+    public async Task ResolveToken_CompletedSubmissionAndNoTenantSettings_ReadsAsNotValidAfterCompletion()
+    {
+        // Arrange
+        var submission = new Submission(TENANT_ID, "{ }", 1L, 2L, isComplete: true);
+        submission.UpdateToken(new Token(24));
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+        _tenantSettingsRepository.FirstOrDefaultAsync(
+            Arg.Any<TenantSettingsByTenantIdSpec>(),
+            Arg.Any<CancellationToken>()).Returns((TenantSettings)null!);
+
+        // Act
+        var result = await _sut.ResolveTokenAsync("valid-token", CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Submission completed");
+    }
+
+    [Fact]
     public async Task ResolveToken_WhenSubmissionIsCompleteAndTokenValidAfterCompletion_ReturnsSuccess()
     {
         // Arrange

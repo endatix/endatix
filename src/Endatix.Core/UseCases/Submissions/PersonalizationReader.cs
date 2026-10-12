@@ -68,8 +68,11 @@ public static class PersonalizationReader
             ? capturedAt
             : default;
 
+    // TryGetInt64 throws on a non-number, so the kind is checked first ("memberId": "123" or null).
     private static long? Long(JsonElement root, string name) =>
-        root.TryGetProperty(name, out var value) && value.TryGetInt64(out var number)
+        root.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt64(out var number)
             ? number
             : null;
 }

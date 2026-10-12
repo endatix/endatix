@@ -63,8 +63,7 @@ public class CreateSubmissionPersonalizationTests
             CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Conflict);
-        result.ValidationErrors.Should().ContainSingle(error =>
-            error.ErrorCode == "submission_exists" && error.ErrorMessage == "99");
+        result.Existing.Should().Be(new ExistingResource("submission_exists", "submissionId", "99"));
     }
 
     private void StubForm(bool limitOne)

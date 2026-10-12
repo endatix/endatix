@@ -325,10 +325,10 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
         public CancellationToken CancellationToken => cancellationToken;
 
         /// <summary>
-        /// A form with its own token expiry: opening a link issues a submission token, and the
-        /// test world's tenant has no tenant settings to fall back on (a real tenant always does).
+        /// A form with no token expiry of its own: the test tenant has no tenant settings either, so
+        /// every submission token here takes the new-tenant default.
         /// </summary>
-        public async Task<long> CreateFormAsync()
+        public async Task<long> CreateFormAsync(bool limitOnePerUser = false)
         {
             using var response = await PostAsync(
                 "/api/forms",
@@ -336,8 +336,8 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
                 {
                     name = $"Audience {Guid.NewGuid():N}",
                     isEnabled = true,
+                    limitOnePerUser,
                     formDefinitionJsonData = FormDefinition,
-                    submissionTokenExpiryHours = 24,
                 });
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             return IdOf(await ReadAsync(response), "id");

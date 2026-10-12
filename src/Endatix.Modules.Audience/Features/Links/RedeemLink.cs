@@ -91,7 +91,7 @@ internal sealed class RedeemLinkHandler(
     /// <summary>One winner: the update matches only while the link is still unopened.</summary>
     private async Task<bool> ClaimAsync(long linkId, long submissionId, CancellationToken cancellationToken)
     {
-        int updated = await db.Links
+        var updated = await db.Links
             .Where(item => item.Id == linkId && item.SubmissionId == null)
             .ExecuteUpdateAsync(
                 setters => setters
@@ -105,7 +105,7 @@ internal sealed class RedeemLinkHandler(
         long linkId,
         CancellationToken cancellationToken)
     {
-        long? submissionId = await db.Links.AsNoTracking()
+        var submissionId = await db.Links.AsNoTracking()
             .Where(item => item.Id == linkId)
             .Select(item => item.SubmissionId)
             .FirstOrDefaultAsync(cancellationToken);
@@ -120,7 +120,7 @@ internal sealed class RedeemLinkHandler(
         CancellationToken cancellationToken)
     {
         var person = await PersonAsync(link.MembershipId, cancellationToken);
-        List<SnapshotCell> cells = await CellsAsync(link.MembershipId, cancellationToken);
+        var cells = await SnapshotCells.LoadAsync(db, link.MembershipId, cancellationToken);
         var header = new SnapshotHeader(link.Id, person?.Identifier ?? "", capturedAt, MemberId: person?.Id);
         return PersonalizationSnapshotJson.Write(header, cells);
     }
@@ -132,17 +132,6 @@ internal sealed class RedeemLinkHandler(
             where membership.Id == membershipId
             select new PersonRow(member.Identifier, member.Id))
         .FirstOrDefaultAsync(cancellationToken);
-
-    private async Task<List<SnapshotCell>> CellsAsync(long membershipId, CancellationToken cancellationToken)
-    {
-        var rows = await (
-            from value in db.PropertyValues
-            join property in db.Properties on value.PropertyId equals property.Id
-            where value.MembershipId == membershipId
-            select new { property.VariableName, property.DataType, value.Value })
-            .ToListAsync(cancellationToken);
-        return rows.Select(row => new SnapshotCell(row.VariableName, row.DataType, row.Value)).ToList();
-    }
 
     private sealed record PersonRow(string Identifier, long Id);
 
