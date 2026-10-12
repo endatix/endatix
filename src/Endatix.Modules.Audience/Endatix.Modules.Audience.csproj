@@ -23,6 +23,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="FastEndpoints" />
     <PackageReference Include="Ardalis.GuardClauses" />
     <PackageReference Include="MediatR" />
