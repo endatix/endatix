@@ -74,7 +74,7 @@ public sealed class ReportingModuleStartupMigrationTests
         await RecordShippedHistoryAsync(cancellationToken);
         var historyBefore = await MigrationHistoryAsync(cancellationToken);
         var exportFormatsBefore = await ExportFormatCountAsync(cancellationToken);
-        exportFormatsBefore.Should().BePositive("the tenant gives a re-run of the export-format seed rows to add");
+        exportFormatsBefore.Should().BePositive("the tenant's seeded formats are what an unchanged count after startup is compared against");
 
         await using var factory = new EndatixWebApplicationFactory(
                 _fixture.Database.ConnectionString,
@@ -91,11 +91,11 @@ public sealed class ReportingModuleStartupMigrationTests
         // Assert
         response.Should().BeSuccessful();
         var history = await MigrationHistoryAsync(cancellationToken);
-        history.Should().Equal(historyBefore);
+        history.Should().Equal(historyBefore, "startup must not apply any migration, including a re-run of the idempotent seed");
         history.Should().Contain(ShippedHistory);
         history.Select(row => row.MigrationId).Should().BeSubsetOf(MigrationsOfThisBuild());
         (await PendingMigrationsAsync(cancellationToken)).Should().BeEmpty();
-        (await ExportFormatCountAsync(cancellationToken)).Should().Be(exportFormatsBefore);
+        (await ExportFormatCountAsync(cancellationToken)).Should().Be(exportFormatsBefore, "startup must not add or remove export formats");
     }
 
     // PostgreSQL SQL from here on: these tests assert the PostgreSQL chain that existing databases hold.
