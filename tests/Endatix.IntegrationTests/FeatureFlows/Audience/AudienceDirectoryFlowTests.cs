@@ -8,14 +8,15 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// The audience directory over HTTP on PostgreSQL: the races the unique indexes and the tenant
-/// match-key lock settle, the match-key rules, and value checks by data type. The module is
-/// PostgreSQL-only, so every test skips on SQL Server.
+/// match-key lock settle, the match-key rules, value checks by data type, and the CSV import
+/// (<c>AudienceDirectoryFlowTests.Import.cs</c>). The module is PostgreSQL-only, so every test
+/// skips on SQL Server.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "PostgreSql")]
-public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SeedPassword = "Password123!";
     private static readonly TimeSpan OutboxWait = TimeSpan.FromSeconds(30);
@@ -357,6 +358,14 @@ public sealed class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture 
             long membershipId = IdOf(await ReadAsync(response), "membershipId");
             return ($"/api/forms/{formId}/audience/people/{membershipId}", propertyId);
         }
+
+        public Task<HttpResponseMessage> ImportAsync(
+            long formId,
+            string csv,
+            Dictionary<string, string>? propertyColumns = null) =>
+            PostAsync(
+                $"/api/forms/{formId}/audience/import",
+                new { csvText = csv, identifierColumn = "email", fileName = "people.csv", propertyColumns });
 
         public Task<HttpResponseMessage> AddPersonAsync(long formId, string identifier) =>
             PostAsync($"/api/forms/{formId}/audience/people", new { identifier });
