@@ -9,6 +9,8 @@ public class ReportingDbContextTests
 {
     private const string PostgreSql = "PostgreSql";
     private const string SqlServer = "SqlServer";
+    private const string PostgreSqlConnectionString = "Host=localhost;Database=reporting_tests";
+    private const string SqlServerConnectionString = "Server=(localdb)\\mssqllocaldb;Database=ReportingTests;Trusted_Connection=True";
 
     [Theory]
     [InlineData(PostgreSql)]
@@ -78,19 +80,53 @@ public class ReportingDbContextTests
         dataJsonColumnType.Should().Be(jsonColumnType);
     }
 
+    [Fact]
+    public void Model_PostgreSqlContextConfiguredForSqlServer_ThrowsNotSupportedException()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ReportingPostgreSqlDbContext>()
+            .UseSqlServer(SqlServerConnectionString)
+            .Options;
+        using var context = new ReportingPostgreSqlDbContext(options, Substitute.For<ITenantContext>());
+
+        // Act
+        var buildModel = () => context.Model;
+
+        // Assert
+        buildModel.Should().Throw<NotSupportedException>()
+            .WithMessage("ReportingPostgreSqlDbContext is mapped for PostgreSQL only*Microsoft.EntityFrameworkCore.SqlServer*");
+    }
+
+    [Fact]
+    public void Model_SqlServerContextConfiguredForPostgreSql_ThrowsNotSupportedException()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ReportingSqlServerDbContext>()
+            .UseNpgsql(PostgreSqlConnectionString)
+            .Options;
+        using var context = new ReportingSqlServerDbContext(options, Substitute.For<ITenantContext>());
+
+        // Act
+        var buildModel = () => context.Model;
+
+        // Assert
+        buildModel.Should().Throw<NotSupportedException>()
+            .WithMessage("ReportingSqlServerDbContext is mapped for SQL Server only*Npgsql.EntityFrameworkCore.PostgreSQL*");
+    }
+
     private static ReportingDbContextBase CreateContext(string provider)
     {
         var tenantContext = Substitute.For<ITenantContext>();
         if (provider == SqlServer)
         {
             var sqlServerOptions = new DbContextOptionsBuilder<ReportingSqlServerDbContext>()
-                .UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=ReportingTests;Trusted_Connection=True")
+                .UseSqlServer(SqlServerConnectionString)
                 .Options;
             return new ReportingSqlServerDbContext(sqlServerOptions, tenantContext);
         }
 
         var postgreSqlOptions = new DbContextOptionsBuilder<ReportingPostgreSqlDbContext>()
-            .UseNpgsql("Host=localhost;Database=reporting_tests;Username=postgres;Password=postgres")
+            .UseNpgsql(PostgreSqlConnectionString)
             .Options;
         return new ReportingPostgreSqlDbContext(postgreSqlOptions, tenantContext);
     }

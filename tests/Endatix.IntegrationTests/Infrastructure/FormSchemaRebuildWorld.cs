@@ -17,7 +17,6 @@ using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
-using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -138,7 +137,7 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
     public async Task FlattenAsync(long formId, long submissionId)
     {
         await using var scope = OpenScope();
-        await scope.Flattening(new PostgreSqlTransactionLock()).ProcessAsync(TenantId, formId, submissionId, Cancellation);
+        await scope.Flattening(scope.TransactionLock).ProcessAsync(TenantId, formId, submissionId, Cancellation);
     }
 
     // Runs the flatten as the background job runs it, from the outbox message of the submission's completion.
@@ -226,8 +225,11 @@ internal sealed record RebuildForm(long FormId, IReadOnlyList<long> DefinitionId
 /// <summary>The two databases of one job or request, and the Reporting pieces built on them.</summary>
 internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase reportingDb) : IAsyncDisposable
 {
+    /// <summary>The transaction lock the host registers for the database under test.</summary>
+    public ITransactionLock TransactionLock { get; } = ReportingTestSchema.TransactionLockFor(reportingDb);
+
     public FormSchemaRepository Schemas(ITransactionLock? transactionLock = null) =>
-        new(reportingDb, new ReportingUnitOfWork(reportingDb), transactionLock ?? new PostgreSqlTransactionLock());
+        new(reportingDb, new ReportingUnitOfWork(reportingDb), transactionLock ?? TransactionLock);
 
     public FormSchemaProcessor Processor(IFormSchemaRepository schemas, IFlattenedSubmissionRepository? flattenedRows = null) =>
         Processor(schemas, flattenedRows, new FormSchemaCompiler());

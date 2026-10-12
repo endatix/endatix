@@ -49,6 +49,7 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        EnsureSupportedProvider();
         modelBuilder.HasDefaultSchema(JobsPersistence.Schema);
 
         modelBuilder.ApplyEndatixQueryFilters(this);
@@ -64,6 +65,13 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
         modelBuilder.ApplySnowflakeIdValueGenerators(Database);
         modelBuilder.ApplyModuleTableNames();
     }
+
+    /// <summary>
+    /// Throws when the context is configured for a database provider its mappings do not target. Called first in
+    /// <see cref="OnModelCreating"/>, before any shared mapping, so a wrong provider fails with a message that
+    /// names it rather than at whichever mapping first uses a provider-specific feature.
+    /// </summary>
+    protected abstract void EnsureSupportedProvider();
 
     /// <summary>
     /// Applies the configurations belonging to this provider's context. Each derived context scans

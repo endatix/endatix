@@ -10,7 +10,6 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
-using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -304,7 +303,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
         SeededForms seed,
         CancellationToken cancellationToken)
     {
-        FormSchemaRepository schemaRepository = new(reportingDb, new ReportingUnitOfWork(reportingDb), new PostgreSqlTransactionLock());
+        FormSchemaRepository schemaRepository = new(reportingDb, new ReportingUnitOfWork(reportingDb), ReportingTestSchema.TransactionLockFor(reportingDb));
         var compiled = new FormSchemaCompiler().CompilePersisted(DefinitionJson);
         await schemaRepository.SaveAsync(
             new FormSchema(TenantId, seed.FormId, seed.DefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson),
@@ -322,7 +321,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
             CreateSubmissionRepository(appDb),
             new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
             new FormSchemaProvider(
-                new FormSchemaRepository(reportingDb, new ReportingUnitOfWork(reportingDb), new PostgreSqlTransactionLock()),
+                new FormSchemaRepository(reportingDb, new ReportingUnitOfWork(reportingDb), ReportingTestSchema.TransactionLockFor(reportingDb)),
                 Substitute.For<IFormSchemaProcessor>(),
                 new FormSchemaCoverage(Substitute.For<IFormsRepository>(), new FormSchemaCompiler())),
             NullLogger<SubmissionFlatteningProcessor>.Instance);

@@ -12,7 +12,6 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
-using Endatix.Persistence.PostgreSql.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -270,6 +269,6 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
     private static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FormSchemaRepository(dbContext, unitOfWork, new PostgreSqlTransactionLock());
+        return new FormSchemaRepository(dbContext, unitOfWork, ReportingTestSchema.TransactionLockFor(dbContext));
     }
 }

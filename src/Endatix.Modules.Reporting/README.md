@@ -114,15 +114,28 @@ and `Endatix:Data:EnableAutoMigrations` is enabled.
 
 ### Add migration
 
-PostgreSQL only (SQL Server: wait for #813).
-
 ```bash
+# PostgreSQL
 dotnet ef migrations add <MigrationName> \
   --startup-project src/Endatix.WebHost \
   --project src/Endatix.Modules.Reporting \
   --context ReportingPostgreSqlDbContext \
   --output-dir Persistence/Migrations/PostgreSql
+
+# SQL Server: Reporting's SQL Server chain arrives with #813 (#1186); this is the command its first migration uses.
+dotnet ef migrations add <MigrationName> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.Reporting \
+  --context ReportingSqlServerDbContext \
+  --output-dir Persistence/Migrations/SqlServer
 ```
+
+Always pass `--output-dir`. Without it, the first SQL Server migration (no snapshot yet) lands in the project's
+`Migrations/` folder with the namespace `Endatix.Modules.Reporting.Migrations`, and every later migration added without
+`--output-dir` follows it there. EF still finds and applies them: Reporting sets both migrations namespaces to the same
+root, so namespace filtering is off and each context finds its migrations by their `[DbContext]` attribute. The cost is
+the files themselves: they sit outside `Persistence/Migrations/SqlServer` and the module's migrations namespace, and
+nothing fails to point that out. See "Adding a migration" in `src/Endatix.Framework/README.md`.
 
 ### Remove last migration
 

@@ -13,7 +13,10 @@ public sealed class AudiencePostgreSqlDbContext(
     ITenantContext tenantContext)
     : AudienceDbContextBase(options, tenantContext)
 {
+    /// <inheritdoc />
+    protected override void EnsureSupportedProvider() =>
+        Database.EnsureNpgsql(typeof(AudiencePostgreSqlDbContext));
+
     protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
-        modelBuilder.ApplyConfigurationsFor<AudiencePostgreSqlDbContext>(
-            typeof(AudiencePostgreSqlDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFor<AudiencePostgreSqlDbContext>(typeof(AudiencePostgreSqlDbContext).Assembly);
 }

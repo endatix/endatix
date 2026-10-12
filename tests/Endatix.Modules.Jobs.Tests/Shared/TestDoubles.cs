@@ -28,6 +28,11 @@ internal sealed class TestJobsDbContext(
             .AddInterceptors(interceptors)
             .Options;
 
+    protected override void EnsureSupportedProvider()
+    {
+        // In memory on purpose: this double maps no provider-specific columns, so any provider is fine.
+    }
+
     protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder)
     {
         // No provider specifics in memory.
