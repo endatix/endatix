@@ -45,7 +45,7 @@ internal static class DbContextMigrationRunner
                 $"No EF Core migrations are registered for {contextName}. " +
                 "Auto-migration cannot create the database schema for the active provider. " +
                 "Generate provider-specific migrations before enabling startup migrations " +
-                "(see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).";
+                "(see the module README).";
             logger.LogNoMigrationsRegistered(contextName);
             throw new InvalidOperationException(message);
         }
