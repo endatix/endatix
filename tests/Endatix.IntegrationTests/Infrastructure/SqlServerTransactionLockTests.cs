@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
@@ -20,6 +21,13 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
 {
     private const int CommandTimeoutSeconds = 1;
     private const int CommandTimeoutNumber = -2;
+    private const byte MaxInformationalClass = 10;
+    private const byte MinBrokenConnectionClass = 20;
+
+    // PRINT rather than RAISERROR WITH NOWAIT: the server holds a PRINT back until the batch ends, so it reaches
+    // SqlClient together with the cancel. A message flushed during the wait makes SqlClient ignore the token until
+    // the command times out.
+    private const string InformationalMessageSql = "PRINT N'Waiting for the lock.';";
 
     private static readonly TimeSpan ShortWait = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan LongWait = TimeSpan.FromSeconds(10);
@@ -258,6 +266,52 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task AcquireAsync_CancelledWhileWaitingAfterAnInformationalMessage_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        await using var holder = await BeginAsync();
+        await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
+        await using var waiter = await BeginAsync(options => options
+            .UseSqlServer(fixture.ConnectionString)
+            .AddInterceptors(new PrependToCommand(InformationalMessageSql)));
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        cancellation.CancelAfter(ShortWait);
+
+        // Act
+        var act = () => _lock.AcquireAsync(waiter.Database, Exclusive, cancellation.Token);
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+        thrown.Which.InnerException.Should().BeOfType<SqlException>()
+            .Which.Errors.Cast<SqlError>().Should().Contain(error => error.Class <= MaxInformationalClass);
+    }
+
+    [Fact]
+    public async Task AcquireAsync_WaitingSessionKilledWhileTheTokenIsCancelled_ThrowsTheSqlExceptionAsItIs()
+    {
+        // Arrange
+        await using var holder = await BeginAsync();
+        await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        await using var waiter = await BeginAsync(options => options
+            .UseSqlServer(fixture.ConnectionString)
+            .AddInterceptors(new CancelOnCommandFailure(cancellation)));
+        var waiterSession = await SessionIdAsync(waiter);
+        var waiting = _lock.AcquireAsync(waiter.Database, Exclusive, cancellation.Token);
+        await Task.Delay(ShortWait, Cancellation);
+        var waitedForTheHolder = !waiting.IsCompleted;
+
+        // Act
+        await KillAsync(waiterSession);
+
+        // Assert
+        waitedForTheHolder.Should().BeTrue();
+        var thrown = await waiting.Awaiting(wait => wait).Should().ThrowExactlyAsync<SqlException>();
+        thrown.Which.Class.Should().BeGreaterThanOrEqualTo(MinBrokenConnectionClass);
+        cancellation.IsCancellationRequested.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task AcquireAsync_ManyTransactionsOnOneKey_HoldItOneAtATime()
     {
         // Arrange
@@ -304,6 +358,32 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
         context.Database
             .SqlQuery<int>($"SELECT @@LOCK_TIMEOUT AS [Value]")
             .SingleAsync(Cancellation);
+
+    private static Task<short> SessionIdAsync(DbContext context) =>
+        context.Database
+            .SqlQuery<short>($"SELECT @@SPID AS [Value]")
+            .SingleAsync(Cancellation);
+
+    // KILL takes no variable and cannot run inside a transaction, so it is built on the server on a connection of its own.
+    private async Task KillAsync(short session)
+    {
+        await using SqlConnection connection = new(fixture.ConnectionString);
+        await connection.OpenAsync(Cancellation);
+        await using SqlCommand kill = new(
+            "DECLARE @kill nvarchar(20) = N'KILL ' + CAST(@session AS nvarchar(10)); EXEC (@kill);", connection);
+        kill.Parameters.Add(new SqlParameter("@session", SqlDbType.SmallInt) { Value = session });
+        await kill.ExecuteNonQueryAsync(Cancellation);
+    }
+
+    /// <summary>Puts <paramref name="sql"/> in front of every command, in the same batch.</summary>
+    private sealed class PrependToCommand(string sql) : DbCommandInterceptor
+    {
+        public override DbCommand CommandInitialized(CommandEndEventData eventData, DbCommand result)
+        {
+            result.CommandText = sql + Environment.NewLine + result.CommandText;
+            return result;
+        }
+    }
 
     /// <summary>
     /// Cancels the token once the command has failed and before its exception reaches the lock, so the lock sees a

@@ -50,6 +50,8 @@ public sealed class SqlServerTransactionLock : ITransactionLock
 
     private const byte CancelledByClientClass = 11;
 
+    private const byte MaxInformationalClass = 10;
+
     /// <inheritdoc />
     public async Task AcquireAsync(
         DatabaseFacade database,
@@ -114,15 +116,22 @@ public sealed class SqlServerTransactionLock : ITransactionLock
     private static string LockMode(TransactionLockMode mode) =>
         mode == TransactionLockMode.Shared ? "Shared" : "Exclusive";
 
-    /// <summary>
-    /// Whether <paramref name="exception"/> is SqlClient aborting the batch for a cancelled token: errors it raises
-    /// itself, numbered 0 with class 11. Its message is localized, so the number and class are what tell it apart.
-    /// A command timeout (-2), a server error (a positive number) or a broken or killed connection (class 20 and up)
-    /// is not, even when the token happens to be cancelled by the time it is thrown.
-    /// </summary>
     private static bool IsCancelledByClient(SqlException exception) =>
-        exception.Errors.Count > 0
-        && exception.Errors.Cast<SqlError>().All(error => error is { Number: 0, Class: CancelledByClientClass });
+        IsCancelledByClient(exception.Errors.Cast<SqlError>().Select(error => (error.Number, error.Class)).ToList());
+
+    /// <summary>
+    /// Whether <paramref name="errors"/>, as number and class, are SqlClient aborting the batch for a cancelled token:
+    /// at least one error it raises itself, numbered 0 with class 11, and otherwise only informational messages
+    /// (class 10 and below), which SqlClient hands over in the same exception. Its message is localized, so the number
+    /// and class are what tell it apart. A command timeout (-2), a server error (a positive number) or a broken or
+    /// killed connection (class 20 and up) is not, even when the token happens to be cancelled by the time it is thrown.
+    /// </summary>
+    internal static bool IsCancelledByClient(IReadOnlyCollection<(int Number, byte Class)> errors) =>
+        errors.Any(IsCancelError)
+        && errors.All(error => error.Class <= MaxInformationalClass || IsCancelError(error));
+
+    private static bool IsCancelError((int Number, byte Class) error) =>
+        error is (0, CancelledByClientClass);
 
     /// <summary>
     /// The exception for <c>sp_getapplock</c>'s return status, or <see langword="null"/> when the lock was granted:

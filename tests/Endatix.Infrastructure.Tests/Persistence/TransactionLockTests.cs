@@ -10,6 +10,16 @@ namespace Endatix.Infrastructure.Tests.Persistence;
 
 public class TransactionLockTests
 {
+    private const byte InformationalClass = 0;
+    private const byte MaxInformationalClass = 10;
+    private const byte ClientCancelClass = 11;
+    private const byte BrokenConnectionClass = 20;
+    private const int CommandTimeoutNumber = -2;
+    private const int DeadlockVictimNumber = 1205;
+    private const byte DeadlockVictimClass = 13;
+    private const int KilledSessionNumber = 596;
+    private const byte KilledSessionClass = 21;
+
     private static readonly TransactionLockRequest Request = new(Scope: 1, Key: "tenant:form");
 
     [Fact]
@@ -203,6 +213,56 @@ public class TransactionLockTests
 
         // Assert
         failure.Should().BeOfType<InvalidOperationException>().Which.Message.Should().Match("*refused*status -999*");
+    }
+
+    public static TheoryData<(int Number, byte Class)[]> ClientCancellations =>
+    new()
+    {
+        new[] { (0, ClientCancelClass) },
+        new[] { (0, ClientCancelClass), (0, ClientCancelClass) },
+        new[] { (0, InformationalClass), (0, ClientCancelClass) },
+        new[] { (50000, MaxInformationalClass), (0, ClientCancelClass), (0, ClientCancelClass) },
+    };
+
+    public static TheoryData<(int Number, byte Class)[]> OtherFailures =>
+    new()
+    {
+        Array.Empty<(int, byte)>(),
+        new[] { (0, InformationalClass) },
+        new[] { (CommandTimeoutNumber, ClientCancelClass) },
+        new[] { (CommandTimeoutNumber, ClientCancelClass), (0, ClientCancelClass), (0, InformationalClass) },
+        new[] { (DeadlockVictimNumber, DeadlockVictimClass), (0, ClientCancelClass) },
+        new[] { (0, ClientCancelClass), (0, BrokenConnectionClass) },
+        new[] { (KilledSessionNumber, KilledSessionClass), (0, BrokenConnectionClass) },
+    };
+
+    [Theory]
+    [MemberData(nameof(ClientCancellations))]
+    public void IsCancelledByClient_SqlClientCancellationWithOnlyInformationalMessagesBeside_IsTrue(
+        (int Number, byte Class)[] errors)
+    {
+        // Arrange
+        var thrown = errors;
+
+        // Act
+        var cancelled = SqlServerTransactionLock.IsCancelledByClient(thrown);
+
+        // Assert
+        cancelled.Should().BeTrue();
+    }
+
+    [Theory]
+    [MemberData(nameof(OtherFailures))]
+    public void IsCancelledByClient_NoSqlClientCancellationOrAnErrorBesideIt_IsFalse((int Number, byte Class)[] errors)
+    {
+        // Arrange
+        var thrown = errors;
+
+        // Act
+        var cancelled = SqlServerTransactionLock.IsCancelledByClient(thrown);
+
+        // Assert
+        cancelled.Should().BeFalse();
     }
 
     [Fact]
