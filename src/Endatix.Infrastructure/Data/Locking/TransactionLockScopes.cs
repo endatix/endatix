@@ -11,4 +11,7 @@ public static class TransactionLockScopes
 
     /// <summary>One form's Reporting export schema, so that its rebuilds run one at a time.</summary>
     public const int ReportingFormSchema = 1117;
+
+    /// <summary>The first open of one personalised link, so that parallel opens start one submission.</summary>
+    public const int AudienceLinkOpen = 1118;
 }

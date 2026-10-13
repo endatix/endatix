@@ -26,6 +26,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 
 - Generic `IRepository<T>` + Ardalis specifications. A dedicated repository (`Core.Abstractions.Repositories` → `Infrastructure.Data.Repositories`) only for multi-entity aggregates or queries a spec cannot express.
 - `IUnitOfWork` only when several entities must save atomically: begin → changes → one `SaveChangesAsync` → commit. In `catch`: roll back, log, return author-written `Result.Error` (never `ex.Message`).
+- Work that must not interleave across requests: try one conditional statement or unique index first, else `ITransactionLock` via `BeginLockedTransactionAsync`. Use a narrow key and a bounded `Timeout` (503 on HTTP). Hold one connection (a second context joins the locked transaction). Re-check untracked under the lock, keep the row-count guard, and keep the section short. See [ARCHITECTURE.md → Transaction locks](ARCHITECTURE.md#serializing-work-across-requests-transaction-locks).
 - Global query filters are **named** (`EndatixQueryFilterNames`); opt out by name, never blanket. Ambient tenant `0` is bypass, not isolation. See [ARCHITECTURE.md → Multi-tenancy](ARCHITECTURE.md#multi-tenancy-platform-tenants).
 
 ## Entity Ids (snowflake)

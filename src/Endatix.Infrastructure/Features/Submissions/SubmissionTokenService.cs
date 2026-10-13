@@ -37,8 +37,21 @@ public class SubmissionTokenService : ISubmissionTokenService
             return Result.NotFound("Submission not found");
         }
 
-        var tokenExpiryHours = await GetTokenExpiryHoursAsync(submission.FormId, submission.TenantId, cancellationToken);
+        var formExpiry = await _formRepository.FirstOrDefaultAsync(
+            new FormProjections.SessionTokenExpiryDtoSpec(submission.FormId), cancellationToken);
+        if (formExpiry == null)
+        {
+            // A live submission can outlast its form when a delete misses it; that is not found, not a 500.
+            return Result.NotFound("Form not found");
+        }
 
+        IssueOrExtend(submission, await GetTokenExpiryHoursAsync(formExpiry, submission.TenantId, cancellationToken));
+        await _submissionRepository.SaveChangesAsync(cancellationToken);
+        return Result<string>.Success(submission!.Token!.Value);
+    }
+
+    private static void IssueOrExtend(Submission submission, int? tokenExpiryHours)
+    {
         if (submission.Token == null)
         {
             submission.UpdateToken(new Token(tokenExpiryHours));
@@ -47,9 +60,6 @@ public class SubmissionTokenService : ISubmissionTokenService
         {
             submission.Token.Extend(tokenExpiryHours);
         }
-
-        await _submissionRepository.SaveChangesAsync(cancellationToken);
-        return Result<string>.Success(submission!.Token!.Value);
     }
 
     public async Task<Result<long>> ResolveTokenAsync(string token, CancellationToken cancellationToken)
@@ -78,13 +88,11 @@ public class SubmissionTokenService : ISubmissionTokenService
         return Result<long>.Success(submission.Id);
     }
 
-    private async Task<int?> GetTokenExpiryHoursAsync(long formId, long tenantId, CancellationToken cancellationToken)
+    private async Task<int?> GetTokenExpiryHoursAsync(
+        FormProjections.FormSessionTokenExpiryDto formExpiry,
+        long tenantId,
+        CancellationToken cancellationToken)
     {
-        var formExpiry = await _formRepository.FirstOrDefaultAsync(
-            new FormProjections.SessionTokenExpiryDtoSpec(formId),
-            cancellationToken);
-        Guard.Against.Null(formExpiry);
-
         if (formExpiry.SubmissionTokenExpiryHours.HasValue)
         {
             return formExpiry.SubmissionTokenExpiryHours;
