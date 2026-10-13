@@ -39,7 +39,7 @@ public sealed partial class AudienceDirectoryFlowTests
     {
         // Arrange
         AudienceApi api = await AdminAsync();
-        long formId = await FormWithFivePeopleAsync(api);
+        long formId = await api.CreateFormAsync();
 
         // Act
         using HttpResponseMessage response = await api.Client.GetAsync(
@@ -47,6 +47,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(["page"], await FailingFieldsAsync(api, response));
     }
 
     [Fact]
@@ -54,7 +55,7 @@ public sealed partial class AudienceDirectoryFlowTests
     {
         // Arrange
         AudienceApi api = await AdminAsync();
-        long formId = await FormWithFivePeopleAsync(api);
+        long formId = await api.CreateFormAsync();
 
         // Act
         using HttpResponseMessage response = await api.Client.GetAsync(
@@ -62,6 +63,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(["pageSize"], await FailingFieldsAsync(api, response));
     }
 
     private static async Task<long> FormWithFivePeopleAsync(AudienceApi api)
@@ -71,6 +73,10 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(HttpStatusCode.OK, imported.StatusCode);
         return formId;
     }
+
+    /// <summary>The request fields a validation problem names.</summary>
+    private static async Task<List<string>> FailingFieldsAsync(AudienceApi api, HttpResponseMessage response) =>
+        (await api.ReadAsync(response)).GetProperty("fields").EnumerateObject().Select(field => field.Name).ToList();
 
     private static List<string> Identifiers(JsonElement page) =>
         page.GetProperty("items").EnumerateArray()
