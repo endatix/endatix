@@ -67,6 +67,12 @@ public sealed class BackgroundJobsOptions
     /// </summary>
     public int ShutdownWaitSeconds { get; set; } = 30;
 
+    /// <summary>
+    /// Whether enqueueing takes the scheduler's cluster-wide trigger lock until its transaction commits. Unset, it is
+    /// <c>false</c> on PostgreSQL and <c>true</c> on SQL Server.
+    /// </summary>
+    public bool? LockOnInsert { get; set; }
+
     // The five global values a job type can also set are null until the host sets them, because one the host sets
     // replaces the default a job type declares in code, and the global default does not. Unset, each is its Default
     // constant above.

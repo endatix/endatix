@@ -24,6 +24,8 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
 
     public string ConnectionString => _database.ConnectionString;
 
+    public TestDatabaseProvider Provider => _server.Provider;
+
     /// <summary>Creates a PostgreSQL database on the server <paramref name="serverConnectionString"/> points at.</summary>
     public static Task<JobsTestDatabase> CreateAsync(string serverConnectionString, CancellationToken cancellationToken) =>
         CreateAsync(TestDatabaseProvider.PostgreSql, serverConnectionString, cancellationToken);

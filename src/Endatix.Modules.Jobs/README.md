@@ -116,7 +116,9 @@ drop the rest.
 Derive from `BackgroundJobHandler<TPayload>` and register it with
 `services.AddBackgroundJobHandler<THandler, TPayload>()`, which keys it by job type so a job run
 builds only its own handler. The job type comes from the payload; handlers may live in any
-assembly. Two handlers declaring the same job type fail startup.
+assembly. Two handlers declaring the same job type, or job types that differ only in case, fail startup:
+on SQL Server the scheduler matches job types to their triggers under the database collation, which
+ignores case by default.
 
 A job type that needs other settings than the global defaults declares them at the same call, so every
 host runs it as tuned: `AddBackgroundJobHandler<THandler, TPayload>(new BackgroundJobTypeDefaults
@@ -348,6 +350,7 @@ from; a value from code is named by the `JobTypes` key that replaces it.
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
 | `MisfireThresholdSeconds` | `60` | How long a due job may wait for a slot before the backlog warning |
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
+| `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); read when an attempt ends, so a change also applies to jobs already waiting |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |

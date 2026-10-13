@@ -23,6 +23,34 @@ public sealed class JobHandlerRegistryTests
     }
 
     [Fact]
+    public void Build_JobTypesDifferingOnlyInCase_Throws()
+    {
+        // Arrange — a job store on SQL Server would match both to one execution group.
+        IBackgroundJobHandler[] handlers = [new NamedHandler("ProbeJob"), new NamedHandler("probejob")];
+
+        // Act
+        var build = () => JobHandlerRegistry.Build(handlers);
+
+        // Assert
+        build.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain("'ProbeJob'").And.Contain("'probejob'").And.Contain("differ only in case");
+    }
+
+    [Fact]
+    public void Contains_JobTypeInAnotherCase_ReturnsFalse()
+    {
+        // Arrange
+        IBackgroundJobHandler[] handlers = [new NamedHandler("ProbeJob")];
+
+        // Act
+        var registry = JobHandlerRegistry.Build(handlers);
+
+        // Assert — refusing case variants does not make routing ignore case.
+        registry.Contains("ProbeJob").Should().BeTrue();
+        registry.Contains("probejob").Should().BeFalse();
+    }
+
+    [Fact]
     public void Build_UnknownJobType_IsNotAnError()
     {
         // Arrange — "Orphan" has no handler on this host; another host may run it.
