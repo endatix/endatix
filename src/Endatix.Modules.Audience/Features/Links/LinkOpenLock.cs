@@ -52,11 +52,23 @@ internal sealed class LinkOpenLock(IAudienceDbContext db, AppDbContext app, ITra
 /// <summary>A locked section. Disposing it without <see cref="CommitAsync"/> rolls back everything it wrote.</summary>
 internal sealed class LockedLink(AppDbContext app, IDbContextTransaction transaction) : IAsyncDisposable
 {
-    public Task CommitAsync(CancellationToken cancellationToken) => transaction.CommitAsync(cancellationToken);
+    private bool _committed;
+
+    public async Task CommitAsync(CancellationToken cancellationToken)
+    {
+        await transaction.CommitAsync(cancellationToken);
+        _committed = true;
+    }
 
     public async ValueTask DisposeAsync()
     {
         await transaction.DisposeAsync();
         await app.Database.UseTransactionAsync(null);
+        if (!_committed)
+        {
+            // The rows rolled back, but the context still tracks them. An insert the unique index refused stays
+            // Added, and the next save in this request would send it again.
+            app.ChangeTracker.Clear();
+        }
     }
 }

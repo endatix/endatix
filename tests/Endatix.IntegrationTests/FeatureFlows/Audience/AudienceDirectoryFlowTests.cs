@@ -370,11 +370,14 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
         }
 
         /// <summary>A person on a new form that has one property; returns the person's URL.</summary>
-        public async Task<(string PersonUrl, long PropertyId)> PersonWithPropertyAsync(object property)
+        public async Task<(string PersonUrl, long PropertyId)> PersonWithPropertyAsync(
+            object property,
+            string? identifier = null,
+            bool limitOnePerUser = false)
         {
-            var formId = await CreateFormAsync();
+            var formId = await CreateFormAsync(limitOnePerUser);
             var propertyId = await CreatePropertyAsync(formId, property);
-            using var response = await AddPersonAsync(formId, $"{Guid.NewGuid():N}@example.com");
+            using var response = await AddPersonAsync(formId, identifier ?? $"{Guid.NewGuid():N}@example.com");
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             var membershipId = IdOf(await ReadAsync(response), "membershipId");
             return ($"/api/forms/{formId}/audience/people/{membershipId}", propertyId);

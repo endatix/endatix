@@ -1,9 +1,10 @@
-using Ardalis.Specification;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
@@ -21,12 +22,13 @@ public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Res
 /// </summary>
 internal sealed class RedeemLinkHandler(
     IAudienceDbContext db,
-    IRepository<Form> forms,
     IRepository<Submission> submissions,
     ISubmissionTokenService tokens,
-    LinkOpenLock linkLock)
+    LinkOpenLock linkLock,
+    LinkOpenGates gates)
     : ICommandHandler<RedeemLinkCommand, Result<RedeemedLinkDto>>
 {
+    /// <summary>Every refusal reads the same, so an anonymous caller learns nothing about the form or the person.</summary>
     private const string LinkNotFound = "Link not found.";
 
     public async Task<Result<RedeemedLinkDto>> Handle(
@@ -62,7 +64,7 @@ internal sealed class RedeemLinkHandler(
         var claimedId = link.SubmissionId;
         if (claimedId is null)
         {
-            var opened = await OpenLockedAsync(link, cancellationToken);
+            var opened = await OpenAsync(link, cancellationToken);
             if (opened is not null)
             {
                 return opened;
@@ -76,18 +78,40 @@ internal sealed class RedeemLinkHandler(
             : Result.NotFound(LinkNotFound);
     }
 
-    /// <summary><see langword="null"/> when another open claimed the link first; the caller resumes it.</summary>
+    /// <summary>
+    /// Checks the gates, then opens under the lock. An insert refused by <c>UX_Submissions_RestrictionKey</c> means
+    /// another writer (an on-behalf create) stored this person's response first. The lock rolled ours back, and the
+    /// second pass takes that response over. <see langword="null"/> when another open claimed the link first.
+    /// </summary>
+    private async Task<Result<RedeemedLinkDto>?> OpenAsync(AudienceLink link, CancellationToken cancellationToken)
+    {
+        var opening = await gates.CheckAsync(link, cancellationToken);
+        if (opening is null)
+        {
+            return Result.NotFound(LinkNotFound);
+        }
+
+        try
+        {
+            return await OpenLockedAsync(opening, cancellationToken);
+        }
+        catch (DuplicateSubmissionException)
+        {
+            return await OpenLockedAsync(opening, cancellationToken);
+        }
+    }
+
     private async Task<Result<RedeemedLinkDto>?> OpenLockedAsync(
-        AudienceLink link,
+        LinkOpening opening,
         CancellationToken cancellationToken)
     {
-        await using var locked = await linkLock.BeginAsync(link.Id, cancellationToken);
-        if (await ClaimedIdAsync(link.Id, cancellationToken) is not null)
+        await using var locked = await linkLock.BeginAsync(opening.Link.Id, cancellationToken);
+        if (await ClaimedIdAsync(opening.Link.Id, cancellationToken) is not null)
         {
             return null;
         }
 
-        var opened = await OpenNewAsync(link, cancellationToken);
+        var opened = await OpenNewAsync(opening, cancellationToken);
         if (opened is { IsSuccess: true })
         {
             await locked.CommitAsync(cancellationToken);
@@ -97,29 +121,60 @@ internal sealed class RedeemLinkHandler(
     }
 
     /// <summary>
-    /// Adopts the submission an open left before its claim, or inserts one, then issues its token and claims.
-    /// <see langword="null"/> when a writer outside the lock (an older version during a deploy) claimed first:
-    /// the uncommitted submission and token roll back with the lock.
+    /// Takes over the response an earlier open left before its claim, else the person's response on a one-response
+    /// form, else starts one. Then issues its token and claims. <see langword="null"/> when a writer outside the lock
+    /// (an older version during a deploy) claimed first: everything here rolls back with the lock.
     /// </summary>
-    private async Task<Result<RedeemedLinkDto>?> OpenNewAsync(AudienceLink link, CancellationToken cancellationToken)
+    private async Task<Result<RedeemedLinkDto>?> OpenNewAsync(LinkOpening opening, CancellationToken cancellationToken)
     {
-        var form = await forms.GetByIdAsync(link.FormId, cancellationToken);
-        if (form?.ActiveDefinitionId is not long definitionId)
+        var link = opening.Link;
+        var existing = await submissions.FirstOrDefaultAsync(new SubmissionForLinkSpec(link.FormId, link.Id), cancellationToken)
+            ?? await PersonsResponseAsync(opening, cancellationToken);
+        var submission = existing is null
+            ? await StartAsync(opening, cancellationToken)
+            : await TakeOverAsync(link, existing, cancellationToken);
+        if (submission is null)
         {
-            return Result.NotFound("Form not found.");
+            return Result.NotFound(LinkNotFound);
         }
 
-        var pending = await submissions.FirstOrDefaultAsync(
-            new SubmissionForLinkSpec(link.FormId, link.Id),
-            cancellationToken);
-        var submission = pending ?? await StartAsync(link, definitionId, cancellationToken);
-        var redeemed = await RedeemedAsync(submission.Id, pending is null, cancellationToken);
-        if (!redeemed.IsSuccess)
+        var redeemed = await RedeemedAsync(submission.Id, existing is null, cancellationToken);
+        return !redeemed.IsSuccess || await ClaimAsync(link.Id, submission.Id, cancellationToken) ? redeemed : null;
+    }
+
+    /// <summary>The person's response on a one-response form. Test responses do not count, as in Core's gate.</summary>
+    private async Task<Submission?> PersonsResponseAsync(LinkOpening opening, CancellationToken cancellationToken) =>
+        opening.SubmitterId is long submitterId
+            ? await submissions.FirstOrDefaultAsync(
+                new SubmissionByFormIdAndSubmitterIdSpec(opening.Link.FormId, submitterId),
+                cancellationToken)
+            : null;
+
+    /// <summary>
+    /// A response this open did not create becomes the link's: it is marked started, and it gets the live audience
+    /// values when it has none (an on-behalf create before the person was in the audience). Values it has stay.
+    /// The snapshot is read either way: it is the check under the lock that the person is still there.
+    /// <see langword="null"/> when the person was removed meanwhile.
+    /// </summary>
+    private async Task<Submission?> TakeOverAsync(
+        AudienceLink link,
+        Submission submission,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = await SnapshotAsync(link, cancellationToken);
+        if (snapshot is null)
         {
-            return redeemed;
+            return null;
         }
 
-        return await ClaimAsync(link.Id, submission.Id, cancellationToken) ? redeemed : null;
+        if (submission.PersonalizationSnapshot is null)
+        {
+            submission.FreezePersonalization(link.Id, snapshot);
+        }
+
+        submission.EnsureStarted();
+        await submissions.SaveChangesAsync(cancellationToken);
+        return submission;
     }
 
     /// <summary>
@@ -131,14 +186,12 @@ internal sealed class RedeemLinkHandler(
         long submissionId,
         CancellationToken cancellationToken)
     {
-        var hasToken = await submissions.FirstOrDefaultAsync(
-            new SubmissionHasTokenSpec(submissionId),
-            cancellationToken);
-        return hasToken switch
+        var state = await submissions.FirstOrDefaultAsync(new SubmissionResumeSpec(submissionId), cancellationToken);
+        return state switch
         {
-            null => Result.NotFound(LinkNotFound),
-            true => await RedeemedAsync(submissionId, false, cancellationToken),
-            false => await FirstTokenLockedAsync(linkId, submissionId, cancellationToken),
+            null or { FormIsEnabled: false } => Result.NotFound(LinkNotFound),
+            { HasToken: true } => await RedeemedAsync(submissionId, false, cancellationToken),
+            _ => await FirstTokenLockedAsync(linkId, submissionId, cancellationToken),
         };
     }
 
@@ -176,76 +229,69 @@ internal sealed class RedeemLinkHandler(
         return updated == 1;
     }
 
-    private async Task<Submission> StartAsync(
-        AudienceLink link,
-        long definitionId,
-        CancellationToken cancellationToken)
+    /// <summary><see langword="null"/> when the person was removed meanwhile.</summary>
+    private async Task<Submission?> StartAsync(LinkOpening opening, CancellationToken cancellationToken)
     {
-        var snapshot = await SnapshotAsync(link, DateTime.UtcNow, cancellationToken);
-        var submission = Submission.Create(new SubmissionCreateArgs(
-            link.TenantId,
-            link.FormId,
-            definitionId,
-            "{}",
-            IsComplete: false,
-            StartSubmission: true));
-        submission.FreezePersonalization(link.Id, snapshot);
+        var snapshot = await SnapshotAsync(opening.Link, cancellationToken);
+        if (snapshot is null)
+        {
+            return null;
+        }
+
+        var submission = NewResponse(opening);
+        submission.FreezePersonalization(opening.Link.Id, snapshot);
         await submissions.AddAsync(submission, cancellationToken);
         await submissions.SaveChangesAsync(cancellationToken);
         return submission;
     }
 
-    private async Task<string> SnapshotAsync(
-        AudienceLink link,
-        DateTime capturedAt,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// On a one-response form the response carries the person's Submitter and the single-response gate, so
+    /// <c>UX_Submissions_RestrictionKey</c> refuses a second one from any writer.
+    /// </summary>
+    private static Submission NewResponse(LinkOpening opening) =>
+        Submission.Create(new SubmissionCreateArgs(
+            opening.Link.TenantId,
+            opening.Link.FormId,
+            opening.DefinitionId,
+            "{}",
+            IsComplete: false,
+            SubmitterId: opening.SubmitterId,
+            EnforceSingleSubmissionGate: opening.SubmitterId is not null,
+            StartSubmission: true));
+
+    /// <summary>
+    /// The live audience values, or <see langword="null"/> when the person was removed. The cells are read before
+    /// the person: a removal deletes both in one save, so a person still there means the cells predate it.
+    /// </summary>
+    private async Task<string?> SnapshotAsync(AudienceLink link, CancellationToken cancellationToken)
     {
-        var person = await PersonAsync(link.MembershipId, cancellationToken);
         var cells = await SnapshotCells.LoadAsync(
             db,
             new SnapshotMembership(link.TenantId, link.MembershipId),
             cancellationToken);
-        var header = new SnapshotHeader(link.Id, person?.Identifier ?? "", capturedAt, MemberId: person?.Id);
-        return PersonalizationSnapshotJson.Write(header, cells);
+        var person = await gates.PersonAsync(link.MembershipId, cancellationToken);
+        return person is null
+            ? null
+            : PersonalizationSnapshotJson.Write(
+                new SnapshotHeader(link.Id, person.Identifier, DateTime.UtcNow, MemberId: person.MemberId),
+                cells);
     }
 
-    private Task<PersonRow?> PersonAsync(long membershipId, CancellationToken cancellationToken) =>
-        (
-            from membership in db.Memberships
-            join member in db.Members on membership.MemberId equals member.Id
-            where membership.Id == membershipId
-            select new PersonRow(member.Identifier, member.Id))
-        .FirstOrDefaultAsync(cancellationToken);
-
-    private sealed record PersonRow(string Identifier, long Id);
-
+    /// <summary>A submission or form deleted meanwhile is the same refusal as any other.</summary>
     private async Task<Result<RedeemedLinkDto>> RedeemedAsync(
         long submissionId,
         bool created,
         CancellationToken cancellationToken)
     {
         var token = await tokens.ObtainTokenAsync(submissionId, cancellationToken);
-        return token.IsSuccess
-            ? Result.Success(new RedeemedLinkDto(submissionId, created, token.Value))
+        if (token.IsSuccess)
+        {
+            return Result.Success(new RedeemedLinkDto(submissionId, created, token.Value));
+        }
+
+        return token.Status == ResultStatus.NotFound
+            ? Result.NotFound(LinkNotFound)
             : token.ToErrorResult<RedeemedLinkDto>();
     }
-}
-
-/// <summary>
-/// The submission already written for this link, including one whose claim never committed. The form narrows
-/// it to <c>IX_Submissions_FormId</c>: <c>AudienceLinkId</c> has no index.
-/// </summary>
-internal sealed class SubmissionForLinkSpec : Specification<Submission>
-{
-    public SubmissionForLinkSpec(long formId, long audienceLinkId) =>
-        Query.Where(submission => submission.FormId == formId && submission.AudienceLinkId == audienceLinkId)
-            .OrderBy(submission => submission.Id);
-}
-
-/// <summary>Whether a live submission has its token, untracked; <see langword="null"/> when there is none.</summary>
-internal sealed class SubmissionHasTokenSpec : Specification<Submission, bool?>
-{
-    public SubmissionHasTokenSpec(long submissionId) =>
-        Query.Where(submission => submission.Id == submissionId)
-            .Select(submission => (bool?)(submission.Token!.Value != null));
 }

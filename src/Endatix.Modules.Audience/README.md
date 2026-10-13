@@ -66,7 +66,7 @@ Database schema: `audience`
 | PUT/DELETE | `forms/{formId}/audience/people/{membershipId}` | Edit values / remove from this form only |
 | POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400 |
 | POST | `forms/{formId}/audience/links` | Issue one link per person who does not have one, up to 5,000. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
-| POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open creates one in-progress submission and freezes `PersonalizationSnapshot`. A parallel first open keeps one submission. A later open returns that submission. Unknown token, or a link whose submission or form was deleted, is 404. Another open of the same link holding it past 5 s is 503. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
+| POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open pins the active form definition and the live audience cells on one in-progress submission. A later publish, a new property, or an edited cell does not change that response. A parallel first open keeps one submission. A later open returns it. Unknown token, a deleted submission, a disabled form, or a person removed before the first open is 404 and does not mark the link opened. A person removed after open still resumes while the form is enabled. On a one-response form, a person who already has a submission (from on-behalf, or an earlier link) opens that one; it is marked started and gets the live cells if it has none. Another open of the same link holding it past 5 s is 503. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
 
 Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`, and redeem, which is anonymous.
 
@@ -92,11 +92,21 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
   and properties; tenant members stay. Until it runs, the form's people still count toward the
   match-key lock.
 - **On behalf.** `POST forms/{formId}/submissions/onbehalf` (`Submissions.CreateOnBehalf`, not this module's routes) freezes a snapshot when `Submitter.ExternalSubjectId` matches a member on a form that has properties. Unknown id, no properties, or no submitter leaves the create unchanged. The snapshot is `source: on_behalf` plus `memberId` and `values[]` beside `variables`. Binding `Member.SubmitterId` is one update that matches only while it is null.
-- **Links.** The token is stored as a SHA-256 hash. A claimed link resumes without a lock. A first open takes
-  `ITransactionLock` (scope `AudienceLinkOpen`, key the link id, 5 s wait, then 503) through `LinkOpenLock`, on one
+- **Links.** The token is stored as a SHA-256 hash. A claimed link resumes without a lock. A first open checks
+  `LinkOpenGates` before the lock: a disabled form or a removed person is 404 at once, and a link open never
+  writes either. It then takes `ITransactionLock` (scope `AudienceLinkOpen`, key the link id, 5 s wait, then 503) through `LinkOpenLock`, on one
   connection: `AppDbContext` joins the audience transaction. Under the lock it re-reads the claim, adopts a submission
   an earlier open left (`FormId` + `AudienceLinkId`) or inserts one, issues the token, and claims with one update
   (`SubmissionId` still null). All of that commits together. A claim lost to a writer outside the lock rolls back
   and resumes that writer's submission. A link claimed before tokens were issued this way gets its first token
-  under the lock. See [ARCHITECTURE.md → Transaction locks](../../ARCHITECTURE.md#serializing-work-across-requests-transaction-locks).
-  Disabled forms, a removed person, and sharing one submission with on-behalf are not gated here.
+  under the lock. A person removed before that claim is not found, and the link stays unopened: every path under the
+  lock (insert or take-over) reads the snapshot, which reads the cells before the membership, and a removal deletes
+  both in one save. A person removed after open still resumes
+  that submission while the form is enabled.
+- **One response per person.** On a one-response form the open resolves the person's Submitter before the lock:
+  `Member.SubmitterId` when bound, else `Integration` + the identifier (what on-behalf resolves), created if missing
+  and bound once. The link's submission carries it with the single-response gate, so `UX_Submissions_RestrictionKey`
+  refuses a second one from either path. A refused insert rolls back, and the retry takes the other writer's
+  submission over. A create stores its token in its insert, so a take-over's token is never replaced by a later
+  save. For email tenants the identifier is matched as first entered, so an on-behalf call with another
+  casing is a different Submitter until `Member.SubmitterId` is bound. See [ARCHITECTURE.md → Transaction locks](../../ARCHITECTURE.md#serializing-work-across-requests-transaction-locks).

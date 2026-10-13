@@ -38,6 +38,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         builder.Services.AddScoped<ImportWriteSupport>();
         builder.Services.AddScoped<ISubmissionPersonalizer, OnBehalfPersonalizer>();
         builder.Services.AddScoped<LinkOpenLock>();
+        builder.Services.AddScoped<LinkOpenGates>();
     }
 
     private static void AddPersistence(EndatixModuleBuilder builder)
