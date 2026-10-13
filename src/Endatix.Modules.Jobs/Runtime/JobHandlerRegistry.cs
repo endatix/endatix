@@ -16,7 +16,9 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// Handlers are resolved from the job's own scope and never held, because a handler may depend on scoped
 /// services such as a <c>DbContext</c>. A handler registered keyed by its job type is the only one a job run
 /// builds; one registered without a key is found by building every handler. Job types are compared ordinally: a
-/// job type is a routing key written by code, not text a person types.
+/// job type is a routing key written by code, not text a person types. They must still be unique ignoring case,
+/// because a job store on SQL Server matches each trigger to its job type's execution group under the database
+/// collation, which ignores case by default, so two job types differing only in case would share one group.
 /// </para>
 /// </remarks>
 internal sealed class JobHandlerRegistry
@@ -38,20 +40,22 @@ internal sealed class JobHandlerRegistry
     /// <summary>
     /// Builds the registry. Throws <see cref="InvalidOperationException"/> naming the job type when a handler
     /// declares a blank, reserved or over-long one, or when two handlers declare the same one, which would leave routing
-    /// ambiguous.
+    /// ambiguous, or two that differ only in case.
     /// </summary>
     public static JobHandlerRegistry Build(IEnumerable<IBackgroundJobHandler> handlers)
     {
         ArgumentNullException.ThrowIfNull(handlers);
 
-        Dictionary<string, Type> handlerTypes = new(StringComparer.Ordinal);
+        // Collected ignoring case, so job types that differ only in case are refused, and then routed ordinally.
+        Dictionary<string, HandlerEntry> handlerTypes = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (var handler in handlers)
         {
             AddHandler(handlerTypes, handler);
         }
 
-        return new JobHandlerRegistry(handlerTypes);
+        return new JobHandlerRegistry(handlerTypes.Values.ToDictionary(
+            entry => entry.JobType, entry => entry.HandlerType, StringComparer.Ordinal));
     }
 
     /// <summary>
@@ -78,21 +82,31 @@ internal sealed class JobHandlerRegistry
         return registry;
     }
 
-    private static void AddHandler(Dictionary<string, Type> handlerTypes, IBackgroundJobHandler handler)
+    private static void AddHandler(Dictionary<string, HandlerEntry> handlerTypes, IBackgroundJobHandler handler)
     {
-        var jobType = handler.JobType;
-        var handlerType = handler.GetType();
-        if (JobTypeError(jobType, handlerType) is { } error)
+        var entry = new HandlerEntry(handler.JobType, handler.GetType());
+        if (JobTypeError(entry.JobType, entry.HandlerType) is { } error)
         {
             throw new InvalidOperationException(error);
         }
 
-        if (!handlerTypes.TryAdd(jobType, handlerType))
+        if (!handlerTypes.TryAdd(entry.JobType, entry))
         {
-            throw new InvalidOperationException(
-                $"More than one background job handler is registered for the job type '{jobType}': " +
-                $"{handlerTypes[jobType].FullName} and {handlerType.FullName}.");
+            throw new InvalidOperationException(DuplicateJobTypeError(handlerTypes[entry.JobType], entry));
         }
+    }
+
+    private static string DuplicateJobTypeError(HandlerEntry first, HandlerEntry second)
+    {
+        if (first.JobType == second.JobType)
+        {
+            return $"More than one background job handler is registered for the job type '{first.JobType}': " +
+                $"{first.HandlerType.FullName} and {second.HandlerType.FullName}.";
+        }
+
+        return $"The job types '{first.JobType}' of {first.HandlerType.FullName} and '{second.JobType}' of " +
+            $"{second.HandlerType.FullName} differ only in case. Job types must be unique ignoring case, because " +
+            "a job store on SQL Server matches triggers to job types under a collation that ignores case.";
     }
 
     /// <summary>Why no job could run under <paramref name="jobType"/>, or <see langword="null"/> when one can.</summary>
@@ -101,11 +115,13 @@ internal sealed class JobHandlerRegistry
         _ when string.IsNullOrWhiteSpace(jobType) =>
             $"The background job handler {handlerType.FullName} declares no job type, so nothing can be routed to it.",
 
-        // Every job type is also an execution group, and the scheduler reserves these names for its own limits; a
-        // handler declaring one would fail building the scheduler on every host that registers it.
+        // Every job type is also an execution group, and the scheduler reserves these names for its own limits and
+        // its maintenance jobs; a handler declaring one would fail building the scheduler, or share the maintenance
+        // jobs' slots on SQL Server, whose collation ignores case, so either could starve the other.
         _ when IsReservedExecutionGroupName(jobType) =>
-            $"The job type '{jobType}' of the background job handler {handlerType.FullName} is a name the " +
-            "scheduler reserves for its execution limits, so no job could ever run under it.",
+            $"The job type '{jobType}' of the background job handler {handlerType.FullName} is, ignoring case, a " +
+            $"name the scheduler reserves for its execution limits or for its maintenance jobs ('{JobRetentionJob.Group}'), " +
+            "so no job could safely run under it.",
         { Length: > JobTypeMaxLength } =>
             $"The job type '{jobType}' of the background job handler {handlerType.FullName} is longer than " +
             $"{JobTypeMaxLength} characters, so no job could ever carry it.",
@@ -113,7 +129,9 @@ internal sealed class JobHandlerRegistry
     };
 
     private static bool IsReservedExecutionGroupName(string jobType) =>
-        jobType.Trim() is "*" or "_" || jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase);
+        jobType.Trim() is "*" or "_" ||
+        jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase) ||
+        jobType.Trim().Equals(JobRetentionJob.Group, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The handler <paramref name="jobType"/> routes to, from the scope the job runs in, or <see langword="null"/>
@@ -130,4 +148,8 @@ internal sealed class JobHandlerRegistry
             ?? jobScope.GetServices<IBackgroundJobHandler>().FirstOrDefault(handler =>
                 string.Equals(handler.JobType, jobType, StringComparison.Ordinal));
     }
+
+    /// <param name="JobType">The job type as the handler declares it.</param>
+    /// <param name="HandlerType">The handler's type.</param>
+    private readonly record struct HandlerEntry(string JobType, Type HandlerType);
 }

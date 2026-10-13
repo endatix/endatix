@@ -154,13 +154,15 @@ internal static class QuartzRegistration
     {
         var options = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
             ?? new BackgroundJobsOptions();
-        var connectionString = ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
+        var database = new JobStoreDatabase(
+            ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration),
+            DatabaseProviderResolver.IsPostgreSql(configuration));
 
         services.AddJobExecution();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
-        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, connectionString));
+        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, database));
         SizeToRegisteredJobTypes(services);
 
         return services;
@@ -185,10 +187,7 @@ internal static class QuartzRegistration
     private static int ThreadCount(JobHandlerRegistry registry, JobTypePolicies policies) =>
         Build(registry.JobTypes, policies).PoolSize + MaintenanceThreads;
 
-    private static void ConfigureQuartz(
-        IQuartzBuilder quartz,
-        BackgroundJobsOptions options,
-        string connectionString)
+    private static void ConfigureQuartz(IQuartzBuilder quartz, BackgroundJobsOptions options, JobStoreDatabase database)
     {
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
         AddRetentionJob(quartz, options.Retention);
@@ -196,7 +195,7 @@ internal static class QuartzRegistration
         quartz.AddTriggerListener<JobMisfireListener>();
         quartz.UseExecutionLimits(ConfigureExecutionLimits);
         UseThreadPool(quartz, options);
-        quartz.UsePersistentStore(store => ConfigureStore(store, options, connectionString));
+        quartz.UsePersistentStore(store => ConfigureStore(store, options, database));
     }
 
     private static void UseThreadPool(IQuartzBuilder quartz, BackgroundJobsOptions options)
@@ -273,14 +272,11 @@ internal static class QuartzRegistration
             .WithCronSchedule(cron));
     }
 
-    private static void ConfigureStore(IPersistentStoreBuilder store, BackgroundJobsOptions options, string connectionString)
+    private static void ConfigureStore(IPersistentStoreBuilder store, BackgroundJobsOptions options, JobStoreDatabase database)
     {
-        // Named before the database, because registration is first-wins and the database would otherwise bring the
-        // shipped dialect.
-        store.UseDriverDelegate<ExecutionGroupFilteringPostgreSqlDelegate>();
-        store.UsePostgres(connectionString);
+        UseDatabase(store, database);
         store.UseSystemTextJsonSerializer();
-        store.ConfigureStore(ado => ConfigureAdoStore(ado, options));
+        store.ConfigureStore(ado => ConfigureAdoStore(ado, options, database));
         store.UseClustering(clustering =>
         {
             clustering.CheckinInterval = TimeSpan.FromSeconds(options.Clustering.CheckinIntervalSeconds);
@@ -289,7 +285,22 @@ internal static class QuartzRegistration
         });
     }
 
-    private static void ConfigureAdoStore(AdoJobStoreOptions ado, BackgroundJobsOptions options)
+    // Each dialect is named before its database, because registration is first-wins and the database would otherwise
+    // bring the shipped dialect.
+    private static void UseDatabase(IPersistentStoreBuilder store, JobStoreDatabase database)
+    {
+        if (database.IsPostgreSql)
+        {
+            store.UseDriverDelegate<ExecutionGroupFilteringPostgreSqlDelegate>();
+            store.UsePostgres(database.ConnectionString);
+            return;
+        }
+
+        store.UseDriverDelegate<ExecutionGroupFilteringSqlServerDelegate>();
+        store.UseSqlServer(database.ConnectionString);
+    }
+
+    private static void ConfigureAdoStore(AdoJobStoreOptions ado, BackgroundJobsOptions options, JobStoreDatabase database)
     {
         ado.TablePrefix = TablePrefix;
         ado.StoreJobDataAsStrings = true;
@@ -297,8 +308,11 @@ internal static class QuartzRegistration
         ado.AcceptEnlistedTransactions = true;
 
         // On PostgreSQL an uncommitted trigger is invisible to every node's acquisition, so enqueue need not hold the
-        // cluster-wide trigger lock until it commits; the deadlocks Quartz warns of without it are SQL Server's.
-        ado.LockOnInsert = false;
+        // cluster-wide trigger lock until it commits. On SQL Server, unless the database reads committed snapshots,
+        // an acquisition reading the triggers waits on every open enqueue's uncommitted rows, which is what Quartz
+        // takes the lock on insert for: holding it makes enqueues and acquisitions take turns. A host whose database
+        // reads committed snapshots may turn it off, and a host may set it on either database.
+        ado.LockOnInsert = options.LockOnInsert ?? !database.IsPostgreSql;
         ado.MisfireThreshold = TimeSpan.FromSeconds(options.MisfireThresholdSeconds);
 
         // A job that waited past the threshold for a slot is put back in line by the misfire pass, so a pass as rare
@@ -306,6 +320,10 @@ internal static class QuartzRegistration
         ado.MisfireHandlerFrequency = TimeSpan.FromSeconds(Math.Min(10, options.MisfireThresholdSeconds));
     }
 }
+
+/// <param name="ConnectionString">The database the scheduler's tables live in, beside the job rows.</param>
+/// <param name="IsPostgreSql">Whether that database is PostgreSQL; otherwise it is SQL Server.</param>
+internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreSql);
 
 /// <param name="JobId">The job row the trigger fires.</param>
 /// <param name="JobType">The job type whose durable scheduler job the trigger points at.</param>

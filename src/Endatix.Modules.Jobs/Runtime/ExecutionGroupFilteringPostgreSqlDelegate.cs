@@ -28,20 +28,15 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <para>
 /// The <c>jobs</c> migrations index the triggers on the same <c>COALESCE</c> expression
 /// (<c>idx_endatix_qrtz_t_acquire</c>), followed by the acquisition order, so each group's read is a short index
-/// scan; a change to the expression here has to change that index with it.
+/// scan. The group expression here and that index change together: a change to one without the other turns each
+/// group's read into a scan of every waiting trigger.
 /// </para>
 /// </remarks>
 internal sealed class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
 {
+    private const string DriverDelegate = "PostgreSQL";
     private const string FreeGroupsParameter = "endatix_free_groups";
-    private const string FreeSlotsParameter = "endatix_free_slots";
-    private const string FreeGroupsMarker = "@" + FreeGroupsParameter;
-    private const string Select = "SELECT";
-    private const string OrderBy = "ORDER BY";
-
-    // The acquisition runs on the scheduler thread; the value flows from the override that sets it into the
-    // command the base method prepares inside the same call.
-    private static readonly AsyncLocal<FreeSlots?> _freeSlots = new();
+    private const string FreeSlotsParameter = ExecutionGroupAcquisition.FreeSlotsParameter;
 
     /// <inheritdoc />
     protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape) =>
@@ -66,136 +61,55 @@ internal sealed class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDele
     internal static string LimitEachGroupToItsFreeSlots(string shippedSql, int batchSize)
     {
         var batchLimit = string.Create(CultureInfo.InvariantCulture, $" LIMIT {batchSize}");
-        var orderBy = OrderByStart(shippedSql, batchLimit);
-        var projectionAndConditions = shippedSql[Select.Length..orderBy];
-        var order = shippedSql[orderBy..^batchLimit.Length];
+        var shipped = ExecutionGroupAcquisition.Split(shippedSql, new ShippedSqlBounds("SELECT", batchLimit), DriverDelegate);
 
         return $"""
             SELECT acquirable.*
-            FROM unnest({FreeGroupsMarker}, @{FreeSlotsParameter}) AS free(endatix_group, endatix_free_slots)
+            FROM unnest(@{FreeGroupsParameter}, @{FreeSlotsParameter}) AS free(endatix_group, endatix_free_slots)
             CROSS JOIN LATERAL (
-                SELECT t.NEXT_FIRE_TIME, t.PRIORITY,{projectionAndConditions}
+                SELECT t.NEXT_FIRE_TIME, t.PRIORITY,{shipped.ProjectionAndConditions}
                 AND COALESCE(t.execution_group, t.job_name) = free.endatix_group
-                {order}
+                {shipped.Order}
                 LIMIT free.endatix_free_slots
             ) AS acquirable
-            {order}{batchLimit}
+            {shipped.Order}{batchLimit}
             """;
-    }
-
-    // Where the shipped statement's ORDER BY starts, once the statement is known to have the shape the rewrite needs.
-    private static int OrderByStart(string shippedSql, string batchLimit)
-    {
-        var orderBy = shippedSql.LastIndexOf(OrderBy, StringComparison.Ordinal);
-        if (!shippedSql.StartsWith(Select, StringComparison.Ordinal) || orderBy < 0 ||
-            !shippedSql.EndsWith(batchLimit, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException(
-                "The scheduler's acquisition query is no longer a SELECT ending in ORDER BY and LIMIT, so the " +
-                "Endatix PostgreSQL driver delegate cannot limit it per execution group; it has to be updated to " +
-                "match the scheduler.");
-        }
-
-        return orderBy;
     }
 
     /// <summary>
     /// Reads the triggers <paramref name="triggerKeys"/> name, giving each trigger of an Endatix job that names no
-    /// execution group its job type's group.
+    /// execution group its job type's group (<see cref="ExecutionGroupAcquisition.WithJobTypeGroups"/>).
     /// </summary>
-    /// <remarks>
-    /// Acquisition reads the triggers it is about to fire through here. The triggers Quartz creates to recover a dead
-    /// node's jobs name no execution group: the acquisition query finds them through their job's name anyway, but
-    /// the scheduler counts a firing against the group its trigger names, so without one a recovered job would hold
-    /// a slot of its type without being counted in it, and the node would keep acquiring that type's triggers past
-    /// its cap.
-    /// </remarks>
     public override async ValueTask<List<IOperableTrigger>> SelectTriggers(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
-        CancellationToken cancellationToken = default)
-    {
-        var triggers = await base.SelectTriggers(conn, triggerKeys, cancellationToken);
-        foreach (var trigger in triggers.Where(trigger =>
-                     trigger.ExecutionGroup is null && trigger.JobKey.Group == QuartzRegistration.JobGroup))
-        {
-            trigger.ExecutionGroup = trigger.JobKey.Name;
-        }
-
-        return triggers;
-    }
+        CancellationToken cancellationToken = default) =>
+        ExecutionGroupAcquisition.WithJobTypeGroups(await base.SelectTriggers(conn, triggerKeys, cancellationToken));
 
     /// <inheritdoc />
-    public override async ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(
+    public override ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionCriteria criteria,
-        CancellationToken cancellationToken = default)
-    {
-        var freeSlots = FreeSlots.Of(criteria);
-        if (freeSlots.Groups.Length == 0)
-        {
-            return [];
-        }
-
-        return await WithFreeSlotsAsync(
-            freeSlots, () => base.SelectTriggersToAcquire(conn, criteria, cancellationToken));
-    }
-
-    // The slots are visible to the command the acquisition prepares, and to nothing after it.
-    private static async ValueTask<T> WithFreeSlotsAsync<T>(FreeSlots freeSlots, Func<ValueTask<T>> acquire)
-    {
-        _freeSlots.Value = freeSlots;
-        try
-        {
-            return await acquire();
-        }
-        finally
-        {
-            _freeSlots.Value = null;
-        }
-    }
+        CancellationToken cancellationToken = default) =>
+        ExecutionGroupAcquisition.SelectTriggersToAcquireAsync(
+            criteria, () => base.SelectTriggersToAcquire(conn, criteria, cancellationToken));
 
     /// <inheritdoc />
     public override DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
     {
-        if (!commandText.Contains(FreeGroupsMarker, StringComparison.Ordinal))
+        var freeSlots = ExecutionGroupAcquisition.FreeSlotsFor(commandText, DriverDelegate);
+        var command = base.PrepareCommand(cth, commandText);
+        if (freeSlots is not null)
         {
-            return base.PrepareCommand(cth, commandText);
+            BindAsArrays(command, freeSlots);
         }
 
-        // Only the acquisition override knows the free slots. Binding none would make the node acquire nothing,
-        // silently, so a statement prepared any other way is refused instead.
-        var freeSlots = _freeSlots.Value
-            ?? throw new InvalidOperationException(
-                "The trigger acquisition statement was prepared outside trigger acquisition, so this node's free " +
-                "execution groups are unknown. The scheduler's acquisition path has changed; the Endatix PostgreSQL " +
-                "driver delegate has to be updated to match it.");
-
-        var command = base.PrepareCommand(cth, commandText);
-        Bind(command, freeSlots);
         return command;
     }
 
-    private static void Bind(DbCommand command, FreeSlots freeSlots)
+    private static void BindAsArrays(DbCommand command, ExecutionGroupFreeSlots freeSlots)
     {
         command.Parameters.Add(new NpgsqlParameter(FreeGroupsParameter, freeSlots.Groups) { DataTypeName = "text[]" });
         command.Parameters.Add(new NpgsqlParameter(FreeSlotsParameter, freeSlots.Slots) { DataTypeName = "integer[]" });
-    }
-
-    /// <param name="Groups">The execution groups with at least one free slot on this node.</param>
-    /// <param name="Slots">How many triggers the group at the same index in <paramref name="Groups"/> may still take.</param>
-    private sealed record FreeSlots(string[] Groups, int[] Slots)
-    {
-        // A group without a limit may fill the whole batch.
-        public static FreeSlots Of(TriggerAcquisitionCriteria criteria)
-        {
-            var free = criteria.ExecutionLimits?.Groups
-                .Where(limit => limit.Group.Name is not null && limit.MaxConcurrent is null or > 0)
-                .ToArray() ?? [];
-
-            return new FreeSlots(
-                free.Select(limit => limit.Group.Name!).ToArray(),
-                free.Select(limit => limit.MaxConcurrent ?? criteria.MaxCount).ToArray());
-        }
     }
 }

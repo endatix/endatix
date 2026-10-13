@@ -1,3 +1,6 @@
+using System.Data;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Infrastructure.Data;
@@ -7,26 +10,54 @@ using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Features;
 using Endatix.Modules.Jobs.Persistence;
 using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
+using Quartz;
+using Quartz.Impl.AdoJobStore;
 
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The Background Jobs store on SQL Server, at database level: what the SQL Server migrations create and remove,
-/// and how the dedup index they create compares keys.
+/// The Background Jobs store on SQL Server, at database and scheduler level: what the SQL Server migrations create
+/// and remove, how the dedup index they create compares keys, whether the scheduler accepts the tables, and which
+/// triggers the driver delegate acquires.
 /// Each test migrates a database of its own, so only that migration shapes it.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "SqlServer")]
-public sealed class JobsSqlServerStoreTests(DbIntegrationFixture fixture)
+public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture)
 {
     private const string SkipReason = "Asserts SQL Server catalog views and T-SQL.";
+
+    // The trigger of group A that the acquisition-cost test copies into a backlog.
+    private const string BacklogTemplate = "a0";
+
+    // Copies the template trigger, one millisecond apart, until group A holds @triggers triggers. The column list
+    // comes from the catalog, so the copies keep every column Quartz's script creates.
+    private const string GrowBacklogSql =
+        """
+        DECLARE @offset int = (SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE JOB_NAME = N'A');
+        DECLARE @columns nvarchar(max) = (
+            SELECT STRING_AGG(CAST(QUOTENAME(name) AS nvarchar(max)), N', ') WITHIN GROUP (ORDER BY column_id)
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID(N'jobs.qrtz_TRIGGERS') AND is_computed = 0
+              AND name NOT IN (N'TRIGGER_NAME', N'NEXT_FIRE_TIME'));
+        DECLARE @insert nvarchar(max) =
+            N'INSERT INTO jobs.qrtz_TRIGGERS (TRIGGER_NAME, NEXT_FIRE_TIME, ' + @columns + N') ' +
+            N'SELECT CONCAT(t.TRIGGER_NAME, N''-'', copies.n), t.NEXT_FIRE_TIME + copies.n * 10000, ' + @columns + N' ' +
+            N'FROM jobs.qrtz_TRIGGERS AS t ' +
+            N'CROSS JOIN (SELECT TOP (@count) @offset + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n ' +
+            N'FROM sys.all_columns AS a CROSS JOIN sys.all_columns AS b) AS copies ' +
+            N'WHERE t.TRIGGER_NAME = @template';
+        DECLARE @count int = @triggers - @offset;
+        EXEC sp_executesql @insert, N'@count int, @offset int, @template nvarchar(200)', @count, @offset, @template;
+        """;
 
     private const string TablesInJobsSchema =
         "SELECT count(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('jobs')";
@@ -152,6 +183,226 @@ public sealed class JobsSqlServerStoreTests(DbIntegrationFixture fixture)
         upperCase.Should().NotBe(lowerCase);
         repeat.Should().Be(lowerCase);
         (await database.CountAsync("SELECT count(*) FROM jobs.BackgroundJobs", ct)).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task QuartzValidation_SqlServerMigratedDatabase_Passes()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await MigratedDatabaseAsync(ct);
+        await using var services = AcquisitionTestStore.SchedulerServices(
+            AcquisitionTestStore.Configuration(TestDatabaseProvider.SqlServer, database.ConnectionString));
+
+        // Act — building the scheduler validates its tables, the acquisition column among them.
+        var scheduler = await AcquisitionTestStore.SchedulerOf(services, ct);
+
+        // Assert
+        scheduler.SchedulerName.Should().Be(QuartzRegistration.SchedulerName);
+        await scheduler.Shutdown(cancellationToken: ct);
+    }
+
+    [Fact]
+    public async Task QuartzValidation_SqlServerMissingTable_Fails()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await MigratedDatabaseAsync(ct);
+        await database.ExecuteAsync("DROP TABLE jobs.qrtz_LOCKS", ct);
+        await using var services = AcquisitionTestStore.SchedulerServices(
+            AcquisitionTestStore.Configuration(TestDatabaseProvider.SqlServer, database.ConnectionString));
+
+        // Act
+        var build = async () => await AcquisitionTestStore.SchedulerOf(services, ct);
+
+        // Assert
+        await build.Should().ThrowAsync<SchedulerException>().WithMessage("*schema validation failed*");
+    }
+
+    [Fact]
+    public async Task SelectTriggersToAcquire_FullGroupAtHeadOfQueue_ReturnsOtherGroupsTrigger()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        var behind = await store.SeedHeadOfLineAsync(ct);
+
+        // Act
+        var acquired = await store.SelectTriggersToAcquireAsync(2, limits => limits.ForGroup("A", 0).ForGroup("B", 1), ct);
+
+        // Assert — the same key the PostgreSQL delegate returns on this fixture.
+        store.DriverDelegate.Should().BeOfType<ExecutionGroupFilteringSqlServerDelegate>();
+        acquired.Should().Equal(behind);
+    }
+
+    [Fact]
+    public async Task SelectTriggersToAcquire_GroupWithOneFreeSlot_ReturnsItsOldestTrigger()
+    {
+        // Arrange — b2 and b3 are due together; b3's priority is higher.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        AcquisitionTestTrigger[] waiting =
+        [
+            AcquisitionTestTrigger.Of("B", "b1", 5),
+            AcquisitionTestTrigger.Of("B", "b2", 1),
+            AcquisitionTestTrigger.Of("B", "b3", 1) with { Priority = 9 },
+            AcquisitionTestTrigger.Of("B", "b4", 3),
+            AcquisitionTestTrigger.Of("B", "b5", 4),
+        ];
+        foreach (var trigger in waiting)
+        {
+            await store.ScheduleAsync(trigger, ct);
+        }
+
+        // Act — a cap of two with one firing leaves one slot.
+        var acquired = await store.SelectTriggersToAcquireAsync(10, limits => limits.ForGroup("B", 1), ct);
+
+        // Assert
+        acquired.Should().Equal(new TriggerKey("b3", "B"));
+    }
+
+    [Fact]
+    public async Task SelectTriggersToAcquire_TriggerWithoutGroup_MatchesByJobName()
+    {
+        // Arrange — stored as Quartz stores the trigger that recovers a dead node's job: no execution group.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        var recovering = new AcquisitionTestTrigger(new TriggerKey("r1", "RECOVERING_JOBS"), "B", 0, ExecutionGroup: null);
+        await store.ScheduleAsync(recovering, ct);
+
+        // Act
+        var acquired = await store.SelectTriggersToAcquireAsync(10, limits => limits.ForGroup("B", 1), ct);
+        var read = await store.SelectTriggerAsync(recovering.Key, ct);
+
+        // Assert
+        acquired.Should().Equal(recovering.Key);
+        read.ExecutionGroup.Should().Be("B");
+    }
+
+    [Fact]
+    public async Task SelectTriggersToAcquire_LargeBacklogInFullGroup_ReadsStayFlat()
+    {
+        // Arrange — group A's backlog is due before B's only trigger, so a read that walked the queue in fire order
+        // would read A's whole backlog first.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await store.ScheduleAsync(AcquisitionTestTrigger.Of("A", BacklogTemplate, 0), ct);
+        var behind = AcquisitionTestTrigger.Of("B", "b1", 1500);
+        await store.ScheduleAsync(behind, ct);
+
+        // Act
+        await GrowBacklogAsync(store.Database, 5_000, ct);
+        var atFiveThousand = await AcquireWithReadsAsync(store.Database, ct);
+        await GrowBacklogAsync(store.Database, 50_000, ct);
+        var atFiftyThousand = await AcquireWithReadsAsync(store.Database, ct);
+
+        // Assert
+        atFiveThousand.Acquired.Should().Equal(behind.Key);
+        atFiftyThousand.Acquired.Should().Equal(behind.Key);
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"Logical reads on qrtz_TRIGGERS per acquisition: {atFiveThousand.Reads} at 5,000 waiting triggers in the " +
+            $"full group, {atFiftyThousand.Reads} at 50,000.");
+        atFiveThousand.Reads.Should().BePositive();
+        atFiftyThousand.Reads.Should().BeLessThanOrEqualTo(2 * atFiveThousand.Reads).And.BeLessThanOrEqualTo(1_000);
+    }
+
+    // Grows group A's backlog in one statement run on the server, rather than a round trip per trigger.
+    private static async Task GrowBacklogAsync(JobsTestDatabase database, int triggers, CancellationToken ct)
+    {
+        await using var connection = new SqlConnection(database.ConnectionString);
+        await connection.OpenAsync(ct);
+        await using var command = new SqlCommand(GrowBacklogSql, connection) { CommandTimeout = 300 };
+        command.Parameters.AddWithValue("@triggers", triggers);
+        command.Parameters.AddWithValue("@template", BacklogTemplate);
+        await command.ExecuteNonQueryAsync(ct);
+    }
+
+    // The SQL Server delegate's acquisition statement for a batch of 11, with A full and one slot free in B, and the
+    // logical reads SQL Server reports on qrtz_TRIGGERS for it. It runs on a connection of the test's own, because
+    // SQL Server sends the statistics after the rows and the client raises them only once a reader moves past the
+    // rows, which the scheduler's reader never does.
+    private static async Task<(List<TriggerKey> Acquired, long Reads)> AcquireWithReadsAsync(
+        JobsTestDatabase database,
+        CancellationToken ct)
+    {
+        await using var connection = new SqlConnection(database.ConnectionString);
+        await connection.OpenAsync(ct);
+        var reads = 0L;
+        connection.InfoMessage += (_, message) => reads += TriggerReadsIn(message.Message);
+        await using (var statistics = new SqlCommand("SET STATISTICS IO ON", connection))
+        {
+            await statistics.ExecuteNonQueryAsync(ct);
+        }
+
+        await using var command = AcquisitionCommand(connection, batchSize: 11, freeSlotsJson: """[{"g":"B","s":1}]""");
+        List<TriggerKey> acquired = [];
+        await using (var reader = await command.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+            {
+                acquired.Add(new TriggerKey(
+                    reader.GetString(reader.GetOrdinal("TRIGGER_NAME")),
+                    reader.GetString(reader.GetOrdinal("TRIGGER_GROUP"))));
+            }
+
+            await reader.NextResultAsync(ct);
+        }
+
+        return (acquired, reads);
+    }
+
+    // The rewritten statement with the values the scheduler binds to it.
+    private static SqlCommand AcquisitionCommand(SqlConnection connection, int batchSize, string freeSlotsJson)
+    {
+        var statement = ExecutionGroupFilteringSqlServerDelegate
+            .LimitEachGroupToItsFreeSlots(new SqlServerDialect().AcquisitionSql(batchSize), batchSize)
+            .Replace("{0}", QuartzRegistration.TablePrefix, StringComparison.Ordinal);
+        var command = new SqlCommand(statement, connection);
+        var now = DateTimeOffset.UtcNow;
+        command.Parameters.AddWithValue("@schedulerName", QuartzRegistration.SchedulerName);
+        command.Parameters.AddWithValue("@state", "WAITING");
+        command.Parameters.AddWithValue("@noLaterThan", now.AddSeconds(30).UtcTicks);
+        command.Parameters.AddWithValue("@noEarlierThan", now.AddDays(-1).UtcTicks);
+        command.Parameters.AddWithValue("@instanceId", "acquisition-test");
+        command.Parameters.AddWithValue("@autoPinSentinel", "*");
+        command.Parameters.AddWithValue("@liveNodeCutoff", now.AddSeconds(-15).UtcTicks);
+        command.Parameters.Add(new SqlParameter("@endatix_free_slots", SqlDbType.NVarChar, -1) { Value = freeSlotsJson });
+        return command;
+    }
+
+    // The statement Quartz's SQL Server dialect builds for an acquisition without job-type exclusions.
+    private sealed class SqlServerDialect : SqlServerDelegate
+    {
+        public string AcquisitionSql(int maxCount) =>
+            GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, 0));
+    }
+
+    private static long TriggerReadsIn(string message) =>
+        TriggerReads().Matches(message).Sum(match => long.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture));
+
+    [GeneratedRegex(@"Table 'qrtz_TRIGGERS'\. Scan count \d+, logical reads (\d+)")]
+    private static partial Regex TriggerReads();
+
+    private async Task<JobsTestDatabase> MigratedDatabaseAsync(CancellationToken ct)
+    {
+        var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        try
+        {
+            await using var context = ContextFor(database);
+            await context.Database.MigrateAsync(ct);
+            return database;
+        }
+        catch
+        {
+            await database.DisposeAsync();
+            throw;
+        }
     }
 
     private static BackgroundJobRequest ExportRequest(string dedupKey) =>
