@@ -15,12 +15,11 @@ using System.Text.Json;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// PostgreSQL coverage for form.deleted Reporting cleanup (#902).
+/// Database coverage for form.deleted Reporting cleanup (#902).
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
 {
     private const long TenantId = 61;

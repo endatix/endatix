@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
@@ -21,14 +22,12 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class SubmissionBackfillProcessorIntegrationTests
 {
     private const long TenantId = 1;
     private const long FormId = 100;
     private const long FormDefinitionId = 200;
     private const long SubmissionId = 500;
-    // In the form PostgreSQL returns a jsonb value, which is how the conditional write stores it.
     private const string ProcessedDataJson = """{"firstName": "Ada"}""";
     private const string SimpleDefinitionJson = """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1","title":"Question 1"}]}]}""";
     private const string SimpleSubmissionJson = """{"q1":"hello"}""";
@@ -82,7 +81,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
             cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
-        persisted.DataJson.Should().Be(ProcessedDataJson);
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.DataJson!), JsonNode.Parse(ProcessedDataJson)).Should().BeTrue();
     }
 
     [Fact]

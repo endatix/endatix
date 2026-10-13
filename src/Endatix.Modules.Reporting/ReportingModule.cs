@@ -77,19 +77,29 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
     }
 
-    // PostgreSQL only: Reporting has no SQL Server migrations yet, and SqlServerTransactionLock, which keeps schema
-    // rebuilds apart, is still a stub that throws.
     private static void AddPersistence(EndatixModuleBuilder builder)
     {
-        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Reporting", FeatureFlags.ReportingModule);
-        builder.AddDbContextWithMigrations<ReportingPostgreSqlDbContext>(
+        if (DatabaseProviderResolver.IsPostgreSql(builder.Configuration))
+        {
+            AddDbContext<ReportingPostgreSqlDbContext>(builder);
+        }
+        else
+        {
+            AddDbContext<ReportingSqlServerDbContext>(builder);
+        }
+
+        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingDbContextBase>());
+    }
+
+    // Consumers see the context only as IReportingDbContext or the base, so nothing downstream branches on the
+    // provider. The base is the one registration that names the provider's context; ReportingUnitOfWork needs the
+    // base because EfUnitOfWorkBase is constrained to DbContext.
+    private static void AddDbContext<TContext>(EndatixModuleBuilder builder)
+        where TContext : ReportingDbContextBase
+    {
+        builder.AddDbContextWithMigrations<TContext>(
             ReportingPersistence.ConfigureDbContextOptions,
             shouldMigrate: sp => sp.GetRequiredService<IOptions<ReportingOptions>>().Value.ApplyMigrationsAtStartup);
-
-        // Consumers see the context only as IReportingDbContext or the base, so nothing downstream branches on
-        // the provider. The base is the one line that names it; ReportingUnitOfWork needs the base because
-        // EfUnitOfWorkBase is constrained to DbContext.
-        builder.Services.AddScoped<ReportingDbContextBase>(sp => sp.GetRequiredService<ReportingPostgreSqlDbContext>());
-        builder.Services.AddScoped<IReportingDbContext>(sp => sp.GetRequiredService<ReportingDbContextBase>());
+        builder.Services.AddScoped<ReportingDbContextBase>(sp => sp.GetRequiredService<TContext>());
     }
 }

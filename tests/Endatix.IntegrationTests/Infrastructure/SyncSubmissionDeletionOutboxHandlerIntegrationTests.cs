@@ -15,7 +15,6 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
 {
     private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);

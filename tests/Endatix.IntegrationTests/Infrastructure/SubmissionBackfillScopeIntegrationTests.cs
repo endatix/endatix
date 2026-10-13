@@ -17,14 +17,13 @@ using NSubstitute;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Runs the backfill's real queries against PostgreSQL: which submissions each completion scope
+/// Runs the backfill's real queries against the database: which submissions each completion scope
 /// pages, the cursor, the deleted-submission lookup, and the skip decision with database timestamps.
 /// Unit tests stub these queries, so an inverted filter would pass them.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class SubmissionBackfillScopeIntegrationTests
 {
     private const long TenantId = 43;
@@ -332,7 +331,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
     private AppDbContext CreateAppDbContext()
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
-        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
+        IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, _fixture.ConnectionString, _fixture.Provider);
         return new AppDbContext(
             optionsBuilder.Options,
             new IntegrationTenantContext(TenantId),

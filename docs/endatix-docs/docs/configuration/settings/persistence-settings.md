@@ -21,6 +21,10 @@ The easiest way to specify which database provider Endatix should use is through
 
 Supported providers are **SQL Server** and **PostgreSQL**. On PostgreSQL, the `pg_trgm` extension is required for data-list label search — see [System Requirements](/docs/getting-started/system-requirements#postgresql-pg_trgm-extension).
 
+SQL Server must be **SQL Server 2025 or later, or Azure SQL Database**: the schema uses SQL Server's native `json` type.
+
+The Reporting module (`Endatix:FeatureFlags:ReportingModule`) runs on both providers and migrates its `reporting` schema at startup on either.
+
 ## Usage Examples
 
 ### 1. Automatic Configuration with Defaults

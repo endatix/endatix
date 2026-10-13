@@ -1,6 +1,4 @@
-using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
@@ -15,13 +13,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// PostgreSQL coverage for <see cref="ExportFormatRepository.SeedDefaultsAsync"/>, which is an
+/// Database coverage for <see cref="ExportFormatRepository.SeedDefaultsAsync"/>, which is an
 /// idempotent "ensure" — it backfills only the default formats a tenant is missing.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class ExportFormatSeedIntegrationTests
 {
     private readonly DbIntegrationFixture _fixture;
@@ -326,7 +323,7 @@ public sealed class ExportFormatSeedIntegrationTests
     {
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        long tenantId = await InsertTenantAsync(cancellationToken);
+        long tenantId = await IntegrationTenants.InsertAsync(_fixture.Database, cancellationToken);
         await ReportingTestSchema.EnsureMigratedAsync(
             _fixture.ConnectionString,
             _fixture.Provider,
@@ -334,8 +331,7 @@ public sealed class ExportFormatSeedIntegrationTests
         await using ReportingDbContextBase db = CreateContext(tenantId);
 
         // Act — tenants created after InitialReporting still get the catalog rows
-        string sql = SeedDefaultExportFormatsSql.Up.Replace("{", "{{").Replace("}", "}}");
-        await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+        await ReportingTestSchema.RunFrozenSeedAsync(db, cancellationToken);
 
         // Assert
         List<ExportFormat> formats = await LoadFormatsAsync(db, tenantId, cancellationToken);
@@ -352,24 +348,6 @@ public sealed class ExportFormatSeedIntegrationTests
         SurveyTypeExportMapping mapping = await LoadDefaultMappingAsync(db, tenantId, cancellationToken);
         ExportFormat csv = formats.Should().ContainSingle(format => format.Name == DefaultExportFormats.Csv.Name).Subject;
         mapping.ExportFormatId.Should().Be(csv.Id);
-    }
-
-    private async Task<long> InsertTenantAsync(CancellationToken cancellationToken)
-    {
-        IntegrationTenantContext tenantContext = IntegrationTenantContext.Bypass;
-        DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
-        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, _fixture.ConnectionString);
-
-        await using AppDbContext appDb = new(
-            optionsBuilder.Options,
-            tenantContext,
-            new OutboxIntegrationEventDispatcher());
-
-        Tenant tenant = new($"xlsx-seed-{Guid.NewGuid():N}"[..32], Guid.NewGuid().ToString("N")[..8]);
-        appDb.Set<Tenant>().Add(tenant);
-        await appDb.SaveChangesAsync(cancellationToken);
-
-        return tenant.Id;
     }
 
     private static async Task<List<ExportFormat>> LoadFormatsAsync(

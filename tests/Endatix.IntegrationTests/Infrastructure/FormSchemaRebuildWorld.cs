@@ -23,7 +23,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// One form with its definitions and submissions in PostgreSQL, and the Reporting pieces that rebuild its schema,
+/// One form with its definitions and submissions in the database, and the Reporting pieces that rebuild its schema,
 /// each built in a scope of its own, as a job or a request would be.
 /// </summary>
 internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
@@ -212,7 +212,7 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
     private AppDbContext CreateAppDbContext()
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
-        IntegrationAppDbContextFactory.ConfigurePostgreSqlOptions(optionsBuilder, fixture.ConnectionString);
+        IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
         return new AppDbContext(
             optionsBuilder.Options,
             new IntegrationTenantContext(TenantId),

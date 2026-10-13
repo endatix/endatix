@@ -29,6 +29,6 @@ internal static partial class MigrationLoggerExtensions
     [LoggerMessage(
         EventId = EndatixEventIds.Migrations.NoMigrationsRegistered,
         Level = LogLevel.Error,
-        Message = "No EF Core migrations are registered for {DbContextName}. Auto-migration cannot create the database schema for the active provider. Generate provider-specific migrations before enabling startup migrations (see module README; Reporting SQL Server: https://github.com/endatix/endatix/issues/813).")]
+        Message = "No EF Core migrations are registered for {DbContextName}. Auto-migration cannot create the database schema for the active provider. Generate provider-specific migrations before enabling startup migrations (see the module README).")]
     public static partial void LogNoMigrationsRegistered(this ILogger logger, string dbContextName);
 }

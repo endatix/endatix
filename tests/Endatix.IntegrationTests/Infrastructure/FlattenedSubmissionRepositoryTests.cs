@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts;
@@ -11,14 +12,12 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class FlattenedSubmissionRepositoryTests
 {
     private const long TenantId = 1;
     private const long OtherTenantId = 2;
     private const long FormId = 100;
     private const long SubmissionId = 500;
-    // In the form PostgreSQL returns a jsonb value, which is how the conditional write stores it.
     private const string ProcessedDataJson = """{"firstName": "Ada"}""";
 
     private readonly DbIntegrationFixture _fixture;
@@ -119,7 +118,7 @@ public sealed class FlattenedSubmissionRepositoryTests
         persisted.Should().NotBeNull();
         persisted!.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
         persisted.Integration.ProcessedAt.Should().NotBeNull();
-        persisted.DataJson.Should().Be(ProcessedDataJson);
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.DataJson!), JsonNode.Parse(ProcessedDataJson)).Should().BeTrue();
         persisted.SourceRevision.Should().Be(3);
         persisted.SourceModifiedAt.Should().Be(sourceModifiedAt);
         persisted.IsDeleted.Should().BeFalse();
