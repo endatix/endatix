@@ -18,7 +18,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // the firing gives up on re-firing the job after A's scheduler has let go of it.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: 1);
@@ -48,7 +48,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // worker runs one job of the type at a time.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = TriggerStoreFailures.Rejected(stores: 1 + RefusedRefire.MaxRefusals);
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(3), ct);

@@ -140,7 +140,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-before-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
         await host.Database.ExecuteAsync(
-            $"""UPDATE "Submissions" SET "IsDeleted" = true, "DeletedAt" = now() WHERE "Id" = {submissionId}""", ct);
+            $"""UPDATE "Submissions" SET "IsDeleted" = 'true', "DeletedAt" = CURRENT_TIMESTAMP WHERE "Id" = {submissionId}""", ct);
 
         // Act — a flatten of that submission, such as a retry, runs after the deletion.
         await host.InsertMessageAsync(new OutboxRow(910, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
@@ -150,7 +150,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         finished.Should().BeTrue();
         (await JobAsync(host, "910:ReportingFlattenSubmission", ct)).Should().Be((3, 1));
         (await host.Database.CountAsync(
-            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId} AND "IsDeleted" = true""", ct))
+            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId} AND "IsDeleted" = 'true'""", ct))
             .Should().Be(1);
     }
 
@@ -200,7 +200,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
 
         // Assert
         var rows = await host.Database.QueryAsync(
-            $"""SELECT "DataJson"::text, "SourceRevision", "IntegrationStatus" FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId}""",
+            $"""SELECT "DataJson", "SourceRevision", "IntegrationStatus" FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId}""",
             reader => (Data: reader.GetString(0), Revision: reader.GetInt64(1), Status: reader.GetString(2)),
             ct);
         rows.Should().ContainSingle();
@@ -227,7 +227,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
 
         // Assert
         var rows = await host.Database.QueryAsync(
-            $"""SELECT "DataJson"::text, "SourceRevision" FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId}""",
+            $"""SELECT "DataJson", "SourceRevision" FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId}""",
             reader => (Data: reader.GetString(0), Revision: reader.GetInt64(1)),
             ct);
         rows.Should().ContainSingle();
@@ -252,7 +252,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     {
         var all = new Dictionary<string, string?>(settings ?? []) { ["Endatix:FeatureFlags:ReportingModule"] = reporting.ToString() };
         return FanOutHost.StartAsync(
-            fixture.ConnectionString, new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = all }, ct);
+            fixture, new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = all }, ct);
     }
 
     private static async Task<long> CreateTenantAsync(FanOutHost host, string name, CancellationToken ct)

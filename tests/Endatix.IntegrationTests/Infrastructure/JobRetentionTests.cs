@@ -28,7 +28,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
         var now = DateTime.UtcNow;
         List<long> expired =
@@ -60,7 +60,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct, new Dictionary<string, string?>
         {
             ["Endatix:BackgroundJobs:Retention:BatchSize"] = "2",
@@ -85,9 +85,9 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
         // Arrange — a webhook delivery job, whose rows are kept three days.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:JobTypes:WebHookDelivery:RetentionDays"] = "3" },
             services => services.AddScoped<IBackgroundJobHandler>(_ => new NamedProbeHandler("WebHookDelivery", new NamedProbeRuns())));
         await node.StartAsync(ct);
@@ -107,7 +107,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
         Dictionary<string, string?>? settings = null)
     {
         var all = new Dictionary<string, string?>(settings ?? []) { ["Endatix:BackgroundJobs:RunInProcess"] = "false" };
-        var node = JobsTestNode.Create(database.ConnectionString, all);
+        var node = JobsTestNode.Create(database, all);
         await node.StartAsync(ct);
         return node;
     }

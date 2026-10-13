@@ -1,3 +1,4 @@
+using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
@@ -29,12 +30,18 @@ internal sealed class TriggerStoreFailures
     public static TriggerStoreFailures Rejected(int stores) =>
         new(stores, () => new JobPersistenceException("The trigger was refused."));
 
-    /// <summary>The failure the next store throws, or <see langword="null"/> once none are left.</summary>
-    public Exception? TryConsume() => Interlocked.Decrement(ref _stores) >= 0 ? _failure() : null;
+    /// <summary>
+    /// Throws the next failure when <paramref name="trigger"/> is a new probe trigger and failures are left;
+    /// otherwise stores it with <paramref name="store"/>.
+    /// </summary>
+    public ValueTask<int> FailOrStore(IOperableTrigger trigger, Func<ValueTask<int>> store) =>
+        trigger.Key.Group == ProbePayload.JobType && TryConsume() is { } failure ? throw failure : store();
+
+    private Exception? TryConsume() => Interlocked.Decrement(ref _stores) >= 0 ? _failure() : null;
 }
 
 /// <summary>
-/// Quartz's PostgreSQL dialect, except that storing a new trigger of the probe job type throws while
+/// Quartz's dialect for the node's provider, except that storing a new trigger of the probe job type throws while
 /// <see cref="TriggerStoreFailures"/> has failures left.
 /// </summary>
 /// <remarks>
@@ -42,27 +49,44 @@ internal sealed class TriggerStoreFailures
 /// the one probe type these nodes run. Every trigger the job wrapper stores, a retry's or a re-fire's, is a new row,
 /// because a reschedule deletes the row that fired before it inserts its replacement.
 /// </remarks>
-internal sealed class FailingTriggerStoreDelegate(TriggerStoreFailures failures) : PostgreSQLDelegate
+internal static class FailingTriggerStoreDelegate
 {
     /// <summary>Puts this dialect in place of the one the Jobs module registered for its scheduler.</summary>
-    public static void Register(IServiceCollection services, TriggerStoreFailures failures)
+    public static void Register(IServiceCollection services, TestDatabaseProvider provider, TriggerStoreFailures failures)
     {
         var registered = services.Single(service =>
             service.ServiceType == typeof(IDriverDelegate)
             && Equals(service.ServiceKey, QuartzRegistration.SchedulerName));
         services.Remove(registered);
-        services.AddKeyedSingleton<IDriverDelegate>(
-            QuartzRegistration.SchedulerName,
-            (_, _) => new FailingTriggerStoreDelegate(failures));
+        services.AddKeyedSingleton<IDriverDelegate>(QuartzRegistration.SchedulerName, (_, _) => For(provider, failures));
     }
 
-    public override ValueTask<int> InsertTrigger(
-        ConnectionAndTransactionHolder conn,
-        IOperableTrigger trigger,
-        StoredTriggerState state,
-        IJobDetail jobDetail,
-        CancellationToken cancellationToken = default) =>
-        trigger.Key.Group == ProbePayload.JobType && failures.TryConsume() is { } failure
-            ? throw failure
-            : base.InsertTrigger(conn, trigger, state, jobDetail, cancellationToken);
+    private static IDriverDelegate For(TestDatabaseProvider provider, TriggerStoreFailures failures) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => new FailingPostgreSqlDelegate(failures),
+        TestDatabaseProvider.SqlServer => new FailingSqlServerDelegate(failures),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
+    };
+
+    private sealed class FailingPostgreSqlDelegate(TriggerStoreFailures failures) : PostgreSQLDelegate
+    {
+        public override ValueTask<int> InsertTrigger(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger trigger,
+            StoredTriggerState state,
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default) =>
+            failures.FailOrStore(trigger, () => base.InsertTrigger(conn, trigger, state, jobDetail, cancellationToken));
+    }
+
+    private sealed class FailingSqlServerDelegate(TriggerStoreFailures failures) : SqlServerDelegate
+    {
+        public override ValueTask<int> InsertTrigger(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger trigger,
+            StoredTriggerState state,
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default) =>
+            failures.FailOrStore(trigger, () => base.InsertTrigger(conn, trigger, state, jobDetail, cancellationToken));
+    }
 }

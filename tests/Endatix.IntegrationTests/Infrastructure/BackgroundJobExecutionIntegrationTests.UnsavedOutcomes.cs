@@ -24,7 +24,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         using var lifecycle = JobLifecycleEventListener.Start();
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: OneFiringOfWrites + 2);
         await using var node = await StartNodeFailingStateWritesAsync(new(database, invocations, OneAttempt()), failures, ct);
@@ -49,7 +49,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures { Fails = OneFiringOfWrites + 1 };
         await using var node = await StartNodeFailingStateWritesAsync(new(database, invocations, OneAttempt()), failures, ct);
@@ -72,7 +72,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         using var lifecycle = JobLifecycleEventListener.Start();
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var writeFailures = new StateRepositoryFailures(completions: OneFiringOfWrites);
         var refusals = TriggerStoreFailures.Rejected(stores: RefusedRefire.MaxRefusals);
@@ -85,7 +85,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
             services =>
             {
                 FailingStateRepository.Register(services, writeFailures);
-                FailingTriggerStoreDelegate.Register(services, refusals);
+                FailingTriggerStoreDelegate.Register(services, database.Provider, refusals);
             },
             ct);
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
@@ -107,7 +107,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — the first firing's writes all fail, so its completion waits on the re-fire.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: OneFiringOfWrites);
         await using var node = await StartNodeFailingStateWritesAsync(new(database, invocations, OneAttempt()), failures, ct);
@@ -133,7 +133,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — the retry's backoff is longer than the re-fire's delay, which replaces the retry's trigger.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures { FailedAttempts = OneFiringOfWrites };
         var settings = new Dictionary<string, string?>
@@ -160,7 +160,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — a re-fire as earlier versions stored it, for a last attempt that left its row Processing.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, OneAttempt(), ct);
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
@@ -187,7 +187,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         CancellationToken ct)
     {
         var node = JobsTestNode.Create(
-            setup.Database.ConnectionString,
+            setup.Database,
             setup.Settings,
             services =>
             {

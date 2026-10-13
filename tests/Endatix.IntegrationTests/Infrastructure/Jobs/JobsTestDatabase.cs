@@ -1,7 +1,6 @@
 using System.Data.Common;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Data.SqlClient;
-using Npgsql;
 
 namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
@@ -26,9 +25,9 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
 
     public TestDatabaseProvider Provider => _server.Provider;
 
-    /// <summary>Creates a PostgreSQL database on the server <paramref name="serverConnectionString"/> points at.</summary>
-    public static Task<JobsTestDatabase> CreateAsync(string serverConnectionString, CancellationToken cancellationToken) =>
-        CreateAsync(TestDatabaseProvider.PostgreSql, serverConnectionString, cancellationToken);
+    /// <summary>Creates a database of the fixture's provider on the fixture's server.</summary>
+    public static Task<JobsTestDatabase> CreateAsync(DbIntegrationFixture fixture, CancellationToken cancellationToken) =>
+        CreateAsync(fixture.Provider, fixture.ConnectionString, cancellationToken);
 
     /// <summary>Creates a database of <paramref name="provider"/> on the server <paramref name="serverConnectionString"/> points at.</summary>
     public static async Task<JobsTestDatabase> CreateAsync(
@@ -72,8 +71,7 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         // Pooled connections hold the database open, and both providers refuse to drop a database in use.
-        NpgsqlConnection.ClearAllPools();
-        SqlConnection.ClearAllPools();
+        _server.ClearPools();
         await _server.ExecuteAsync(DropDatabaseSql(_server.Provider, _name), CancellationToken.None);
     }
 
@@ -98,12 +96,27 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
             ConnectionString = Provider switch
             {
                 TestDatabaseProvider.PostgreSql =>
-                    new NpgsqlConnectionStringBuilder(ConnectionString) { Database = name }.ConnectionString,
+                    new Npgsql.NpgsqlConnectionStringBuilder(ConnectionString) { Database = name }.ConnectionString,
                 TestDatabaseProvider.SqlServer =>
                     new SqlConnectionStringBuilder(ConnectionString) { InitialCatalog = name }.ConnectionString,
                 _ => throw Unsupported(Provider),
             },
         };
+
+        public void ClearPools()
+        {
+            switch (Provider)
+            {
+                case TestDatabaseProvider.PostgreSql:
+                    Npgsql.NpgsqlConnection.ClearAllPools();
+                    break;
+                case TestDatabaseProvider.SqlServer:
+                    SqlConnection.ClearAllPools();
+                    break;
+                default:
+                    throw Unsupported(Provider);
+            }
+        }
 
         public async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
         {
@@ -116,7 +129,7 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         {
             DbConnection connection = Provider switch
             {
-                TestDatabaseProvider.PostgreSql => new NpgsqlConnection(ConnectionString),
+                TestDatabaseProvider.PostgreSql => new Npgsql.NpgsqlConnection(ConnectionString),
                 TestDatabaseProvider.SqlServer => new SqlConnection(ConnectionString),
                 _ => throw Unsupported(Provider),
             };
