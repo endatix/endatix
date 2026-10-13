@@ -537,17 +537,17 @@ that changes it fails in CI rather than at deploy time:
    `jobs` migration for what changed, per provider whose hash moved, as
    [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes, then update that pinned hash
    and the Quartz version beside it.
-4. If `ExecutionGroupFilteringPostgreSqlDelegateTests` fails on the acquisition statement, review
-   the rewrite in `ExecutionGroupFilteringPostgreSqlDelegate.LimitEachGroupToItsFreeSlots` against
-   Quartz's new statement, and the `idx_endatix_qrtz_t_acquire` index that serves it, then update the
-   expected SQL in the test. SQL Server has no driver delegate of the module's own yet; when one
-   rewrites the acquisition statement, it needs the same snapshot test.
-5. Whatever the tests say, re-read the other overrides of `ExecutionGroupFilteringPostgreSqlDelegate`
-   (and of a SQL Server delegate, once there is one) against the new Quartz `StdAdoDelegate` and
-   `AdoJobStoreBase` acquisition code: `SelectTriggers` relies on acquisition loading the triggers it
-   fires through it, and `SelectTriggersToAcquire` relies on the command being prepared inside the
-   base call. No test sees a change there, and if `SelectTriggers` stopped being called, recovered
-   triggers would no longer count against their job type's cap.
+4. If `GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql` fails for a provider, Quartz's
+   acquisition statement changed. Review that provider's rewrite
+   (`ExecutionGroupFilteringPostgreSqlDelegate` or `ExecutionGroupFilteringSqlServerDelegate`,
+   `LimitEachGroupToItsFreeSlots`) against the new statement, and the `idx_endatix_qrtz_t_acquire`
+   index that serves it, then pin the new statements in `Quartz422AcquisitionSql`, renamed for the
+   new version.
+5. Whatever the tests say, re-read the other overrides of both delegates against the new Quartz
+   `StdAdoDelegate` and `AdoJobStoreBase` acquisition code: `SelectTriggers` relies on acquisition
+   loading the triggers it fires through it, and `SelectTriggersToAcquire` relies on the command
+   being prepared inside the base call. No test sees a change there, and if `SelectTriggers` stopped
+   being called, recovered triggers would no longer count against their job type's cap.
 6. Roll the upgrade out to every node sharing the store: they must all run the same Quartz version
    (see [Runtime](#runtime)).
 
