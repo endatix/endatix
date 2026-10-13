@@ -15,9 +15,9 @@ internal static class QuartzSchemaScripts
     /// <c>Validate</c> and runs them from a migration instead, so deployments that turn automatic migrations
     /// off never have tables created at startup.
     /// </summary>
-    private const string PostgreSqlResourceName = "Quartz.Impl.AdoJobStore.Schema.create_postgres.sql";
+    internal const string PostgreSqlResourceName = "Quartz.Impl.AdoJobStore.Schema.create_postgres.sql";
 
-    private const string SqlServerResourceName = "Quartz.Impl.AdoJobStore.Schema.create_sqlServer.sql";
+    internal const string SqlServerResourceName = "Quartz.Impl.AdoJobStore.Schema.create_sqlServer.sql";
 
     /// <summary>Quartz separates the script's statements with a line reading exactly this.</summary>
     private const string StatementSeparator = "--;;";

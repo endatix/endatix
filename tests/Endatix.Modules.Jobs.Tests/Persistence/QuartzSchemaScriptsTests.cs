@@ -8,8 +8,8 @@ namespace Endatix.Modules.Jobs.Tests.Persistence;
 
 public sealed partial class QuartzSchemaScriptsTests
 {
-    private const string PostgreSqlScriptResource = "Quartz.Impl.AdoJobStore.Schema.create_postgres.sql";
-    private const string SqlServerScriptResource = "Quartz.Impl.AdoJobStore.Schema.create_sqlServer.sql";
+    private const string PostgreSqlScriptResource = QuartzSchemaScripts.PostgreSqlResourceName;
+    private const string SqlServerScriptResource = QuartzSchemaScripts.SqlServerResourceName;
 
     // The Quartz version the hashes below were taken from. Existing databases have the tables of that version, and
     // a later Quartz whose script hashes the same needs no jobs migration for that provider.
