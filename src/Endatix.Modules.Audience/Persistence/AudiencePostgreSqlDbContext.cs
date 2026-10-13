@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
+using Endatix.Modules.Audience.Persistence.Config;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Persistence;
@@ -17,6 +18,6 @@ public sealed class AudiencePostgreSqlDbContext(
     protected override void EnsureSupportedProvider() =>
         Database.EnsureNpgsql(typeof(AudiencePostgreSqlDbContext));
 
-    protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
-        modelBuilder.ApplyConfigurationsFor<AudiencePostgreSqlDbContext>(typeof(AudiencePostgreSqlDbContext).Assembly);
+    /// <inheritdoc />
+    private protected override AudienceSqlDialect SqlDialect => AudienceSqlDialect.PostgreSql;
 }

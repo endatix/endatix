@@ -6,21 +6,22 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Endatix.Modules.Audience.Persistence.Config;
 
 /// <summary>
-/// Provider-agnostic mapping for <see cref="Property"/>.
+/// Mapping for <see cref="Property"/>: JSON choices and a unique variable name per form.
 /// </summary>
-internal sealed class PropertyConfiguration : IEntityTypeConfiguration<Property>
+internal sealed class PropertyConfiguration(AudienceSqlDialect dialect) : IEntityTypeConfiguration<Property>
 {
     public const int DataTypeMaxLength = 32;
 
     public void Configure(EntityTypeBuilder<Property> builder)
     {
-        builder.ToTable("Properties");
+        builder.ToTable("Properties", table => table.HasCheckConstraint(
+            "CK_Properties_TenantId", dialect.PositiveTenantIdCheck));
         ConfigureKeys(builder);
         ConfigureStrings(builder);
+        builder.Property(property => property.ChoicesJson).HasColumnType(dialect.JsonColumnType);
         builder.Property(property => property.SortOrder).IsRequired();
         builder.Property(property => property.AllowsOther).IsRequired();
-        builder.HasIndex(property => new { property.TenantId, property.FormId })
-            .HasDatabaseName("IX_Properties_Form");
+        HasIndexes(builder);
     }
 
     private static void ConfigureKeys(EntityTypeBuilder<Property> builder)
@@ -40,5 +41,17 @@ internal sealed class PropertyConfiguration : IEntityTypeConfiguration<Property>
         builder.Property(property => property.DataType)
             .HasMaxLength(DataTypeMaxLength)
             .IsRequired();
+    }
+
+    private void HasIndexes(EntityTypeBuilder<Property> builder)
+    {
+        builder.HasIndex(property => new { property.TenantId, property.FormId })
+            .HasDatabaseName("IX_Properties_Form")
+            .HasFilter(dialect.ActiveRowsFilter);
+
+        builder.HasIndex(property => new { property.TenantId, property.FormId, property.VariableName })
+            .IsUnique()
+            .HasDatabaseName(Property.UniqueConstraints.VariableNamePerForm)
+            .HasFilter(dialect.ActiveRowsFilter);
     }
 }

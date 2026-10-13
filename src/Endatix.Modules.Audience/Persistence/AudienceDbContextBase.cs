@@ -35,14 +35,13 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
     {
         EnsureSupportedProvider();
         modelBuilder.HasDefaultSchema(AudiencePersistence.Schema);
-        modelBuilder.ApplyConfiguration(new AudienceSettingsConfiguration());
-        modelBuilder.ApplyConfiguration(new PropertyConfiguration());
-        modelBuilder.ApplyConfiguration(new MemberConfiguration());
-        modelBuilder.ApplyConfiguration(new MembershipConfiguration());
-        modelBuilder.ApplyConfiguration(new PropertyValueConfiguration());
-        modelBuilder.ApplyConfiguration(new AudienceImportConfiguration());
-        modelBuilder.ApplyConfiguration(new AudienceLinkConfiguration());
-        ApplyProviderConfigurations(modelBuilder);
+        modelBuilder.ApplyConfiguration(new AudienceSettingsConfiguration(SqlDialect));
+        modelBuilder.ApplyConfiguration(new PropertyConfiguration(SqlDialect));
+        modelBuilder.ApplyConfiguration(new MemberConfiguration(SqlDialect));
+        modelBuilder.ApplyConfiguration(new MembershipConfiguration(SqlDialect));
+        modelBuilder.ApplyConfiguration(new PropertyValueConfiguration(SqlDialect));
+        modelBuilder.ApplyConfiguration(new AudienceImportConfiguration(SqlDialect));
+        modelBuilder.ApplyConfiguration(new AudienceLinkConfiguration(SqlDialect));
         modelBuilder.ApplyEndatixQueryFilters(this);
         modelBuilder.ApplyModuleTableNames();
         modelBuilder.ApplySnowflakeIdValueGenerators(Database);
@@ -55,7 +54,11 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
     /// </summary>
     protected abstract void EnsureSupportedProvider();
 
-    protected abstract void ApplyProviderConfigurations(ModelBuilder modelBuilder);
+    /// <summary>
+    /// How this context's provider spells the SQL fragments of the shared mapping. The mapping itself is the same on
+    /// every provider.
+    /// </summary>
+    private protected abstract AudienceSqlDialect SqlDialect { get; }
 
     public override int SaveChanges()
     {

@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
+using Endatix.Modules.Audience.Persistence.Config;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Persistence;
@@ -18,6 +19,5 @@ public sealed class AudienceSqlServerDbContext(
         Database.EnsureSqlServer(typeof(AudienceSqlServerDbContext));
 
     /// <inheritdoc />
-    protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
-        modelBuilder.ApplyConfigurationsFor<AudienceSqlServerDbContext>(typeof(AudienceSqlServerDbContext).Assembly);
+    private protected override AudienceSqlDialect SqlDialect => AudienceSqlDialect.SqlServer;
 }

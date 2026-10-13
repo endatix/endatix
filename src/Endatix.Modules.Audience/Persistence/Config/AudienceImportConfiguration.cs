@@ -6,13 +6,15 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Endatix.Modules.Audience.Persistence.Config;
 
 /// <summary>
-/// Provider-agnostic mapping for <see cref="AudienceImport"/>.
+/// Mapping for <see cref="AudienceImport"/>.
 /// </summary>
-internal sealed class AudienceImportConfiguration : IEntityTypeConfiguration<AudienceImport>
+internal sealed class AudienceImportConfiguration(AudienceSqlDialect dialect)
+    : IEntityTypeConfiguration<AudienceImport>
 {
     public void Configure(EntityTypeBuilder<AudienceImport> builder)
     {
-        builder.ToTable("Imports");
+        builder.ToTable("Imports", table => table.HasCheckConstraint(
+            "CK_Imports_TenantId", dialect.PositiveTenantIdCheck));
 
         builder.Property(import => import.TenantId).IsRequired();
         builder.Property(import => import.FormId).IsRequired();

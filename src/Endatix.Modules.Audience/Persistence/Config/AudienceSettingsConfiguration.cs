@@ -5,20 +5,27 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Endatix.Modules.Audience.Persistence.Config;
 
 /// <summary>
-/// Provider-agnostic mapping for <see cref="AudienceSettings"/>.
+/// Mapping for <see cref="AudienceSettings"/>: one active row per tenant.
 /// </summary>
-internal sealed class AudienceSettingsConfiguration : IEntityTypeConfiguration<AudienceSettings>
+internal sealed class AudienceSettingsConfiguration(AudienceSqlDialect dialect)
+    : IEntityTypeConfiguration<AudienceSettings>
 {
     public const int IdentifierKindMaxLength = 32;
 
     public void Configure(EntityTypeBuilder<AudienceSettings> builder)
     {
-        builder.ToTable("Settings");
+        builder.ToTable("Settings", table => table.HasCheckConstraint(
+            "CK_Settings_TenantId", dialect.PositiveTenantIdCheck));
 
         builder.Property(settings => settings.TenantId).IsRequired();
 
         builder.Property(settings => settings.IdentifierKind)
             .HasMaxLength(IdentifierKindMaxLength)
             .IsRequired();
+
+        builder.HasIndex(settings => settings.TenantId)
+            .IsUnique()
+            .HasDatabaseName("IX_Settings_Tenant")
+            .HasFilter(dialect.ActiveRowsFilter);
     }
 }
