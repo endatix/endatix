@@ -41,7 +41,7 @@ internal sealed class OnBehalfPersonalizer(
     {
         try
         {
-            await BindOnceAsync(freeze.MemberId, submitterId, cancellationToken);
+            await db.BindSubmitterOnceAsync(new SubmitterBinding(freeze.MemberId, submitterId), cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -81,11 +81,6 @@ internal sealed class OnBehalfPersonalizer(
         db.Properties.AnyAsync(
             property => property.TenantId == request.TenantId && property.FormId == request.FormId,
             cancellationToken);
-
-    private Task<int> BindOnceAsync(long memberId, long submitterId, CancellationToken cancellationToken) =>
-        db.Members
-            .Where(person => person.Id == memberId && person.SubmitterId == null)
-            .ExecuteUpdateAsync(set => set.SetProperty(person => person.SubmitterId, submitterId), cancellationToken);
 
     private PersonalizationFreeze? Unknown(string businessId, long formId)
     {

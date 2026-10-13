@@ -80,7 +80,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using var response = await anonymous.PostAsJsonAsync(
-            $"/api/forms/{formId}/audience/links/{new string('a', 64)}/redeem", new { }, admin.CancellationToken);
+            RedeemUrl(formId, new string('a', 64)), new { }, admin.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -140,7 +140,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using var again = await anonymous.PostAsJsonAsync(
-            $"/api/forms/{formId}/audience/links/{token}/redeem", new { }, admin.CancellationToken);
+            RedeemUrl(formId, token), new { }, admin.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
@@ -163,7 +163,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using var again = await anonymous.PostAsJsonAsync(
-            $"/api/forms/{formId}/audience/links/{token}/redeem", new { }, admin.CancellationToken);
+            RedeemUrl(formId, token), new { }, admin.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
@@ -242,23 +242,42 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     /// <summary>A form with a City property and one person whose city is set; their one link.</summary>
-    private static async Task<(long FormId, string Token)> LinkForPersonWithCityAsync(AudienceApi admin, string city)
+    private static async Task<IssuedLink> LinkForPersonWithCityAsync(
+        AudienceApi admin,
+        string city,
+        bool limitOnePerUser = false)
     {
-        (var personUrl, var propertyId) = await admin.PersonWithPropertyAsync(new { name = "City", dataType = "text" });
+        var identifier = $"{Guid.NewGuid():N}@example.com";
+        (var personUrl, var propertyId) = await admin.PersonWithPropertyAsync(
+            new { name = "City", dataType = "text" }, identifier, limitOnePerUser);
         using var saved = await admin.PutValueAsync(personUrl, propertyId, city);
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var formId = long.Parse(personUrl.Split('/')[3]);
+        return new IssuedLink(formId, personUrl, propertyId, identifier, await IssueLinkAsync(admin, formId));
+    }
+
+    /// <summary>The token of the one link issued on a form with one person.</summary>
+    private static async Task<string> IssueLinkAsync(AudienceApi admin, long formId)
+    {
         using var issued = await admin.PostAsync($"/api/forms/{formId}/audience/links", new { });
         Assert.Equal(HttpStatusCode.OK, issued.StatusCode);
         var link = Assert.Single((await admin.ReadAsync(issued)).EnumerateArray());
-        return (formId, link.GetProperty("token").GetString()!);
+        return link.GetProperty("token").GetString()!;
     }
+
+    private sealed record IssuedLink(long FormId, string PersonUrl, long PropertyId, string Identifier, string Token)
+    {
+        public void Deconstruct(out long formId, out string token) => (formId, token) = (FormId, Token);
+    }
+
+    private static string RedeemUrl(long formId, string token) =>
+        $"/api/forms/{formId}/audience/links/{token}/redeem";
 
     private static async Task<JsonElement> RedeemAsync(HttpClient anonymous, long formId, string token)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         using var response = await anonymous.PostAsJsonAsync(
-            $"/api/forms/{formId}/audience/links/{token}/redeem", new { }, cancellationToken);
+            RedeemUrl(formId, token), new { }, cancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
     }

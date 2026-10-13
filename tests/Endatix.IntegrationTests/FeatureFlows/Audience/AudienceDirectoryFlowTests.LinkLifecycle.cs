@@ -66,9 +66,9 @@ public sealed partial class AudienceDirectoryFlowTests
         // Arrange
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        (var formId, var membershipId, var token) = await IssuedLinkAsync(admin, "Akron");
-        using var removed = await admin.Client.DeleteAsync(
-            $"/api/forms/{formId}/audience/people/{membershipId}", admin.CancellationToken);
+        var link = await LinkForPersonWithCityAsync(admin, "Akron");
+        (var formId, var token) = link;
+        using var removed = await admin.Client.DeleteAsync(link.PersonUrl, admin.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
         using var anonymous = world.AnonymousClient();
 
@@ -87,11 +87,11 @@ public sealed partial class AudienceDirectoryFlowTests
         // Arrange
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        (var formId, var membershipId, var token) = await IssuedLinkAsync(admin, "Toledo");
+        var link = await LinkForPersonWithCityAsync(admin, "Toledo");
+        (var formId, var token) = link;
         using var anonymous = world.AnonymousClient();
         var opened = await RedeemAsync(anonymous, formId, token);
-        using var removed = await admin.Client.DeleteAsync(
-            $"/api/forms/{formId}/audience/people/{membershipId}", admin.CancellationToken);
+        using var removed = await admin.Client.DeleteAsync(link.PersonUrl, admin.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
 
         // Act
@@ -100,41 +100,6 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.False(again.GetProperty("created").GetBoolean());
         Assert.Equal(IdOf(opened, "submissionId"), IdOf(again, "submissionId"));
-    }
-
-    [Fact]
-    public async Task Opening_a_one_response_form_uses_the_existing_on_behalf_submission()
-    {
-        // Arrange
-        var world = await WorldAsync();
-        var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        var formId = await admin.CreateFormAsync(limitOnePerUser: true);
-        var propertyId = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
-        const string person = "cg-000001-01@example.com";
-        using var added = await admin.AddPersonAsync(formId, person);
-        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
-        var personUrl = $"/api/forms/{formId}/audience/people/{IdOf(await admin.ReadAsync(added), "membershipId")}";
-        using var saved = await admin.PutValueAsync(personUrl, propertyId, "Columbus");
-        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
-        using var created = await admin.PostAsync(
-            $"/api/forms/{formId}/submissions/onbehalf",
-            new { submitter = new { externalSubjectId = person, displayId = person, authProvider = "Integration" } });
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var submissionId = IdOf(await admin.ReadAsync(created), "id");
-        using var issued = await admin.PostAsync($"/api/forms/{formId}/audience/links", new { });
-        var token = Assert.Single((await admin.ReadAsync(issued)).EnumerateArray()).GetProperty("token").GetString()!;
-        using var anonymous = world.AnonymousClient();
-
-        // Act
-        var opened = await RedeemAsync(anonymous, formId, token);
-        var read = await admin.Client.GetFromJsonAsync<JsonElement>(
-            $"/api/forms/{formId}/submissions/{submissionId}", admin.CancellationToken);
-
-        // Assert
-        Assert.False(opened.GetProperty("created").GetBoolean());
-        Assert.Equal(submissionId, IdOf(opened, "submissionId"));
-        Assert.Equal("on_behalf", read.GetProperty("personalization").GetProperty("source").GetString());
-        Assert.Equal("Columbus", read.GetProperty("personalization").GetProperty("variables").GetProperty("city").GetString());
     }
 
     [Fact]
@@ -165,8 +130,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Arrange
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        (var formId, var membershipId, var propertyId, var token) = await IssuedLinkWithPropertyAsync(admin, "Columbus");
-        var personUrl = $"/api/forms/{formId}/audience/people/{membershipId}";
+        (var formId, var personUrl, var propertyId, _, var token) = await LinkForPersonWithCityAsync(admin, "Columbus");
         using var edited = await admin.PutValueAsync(personUrl, propertyId, "Dayton");
         Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
         var ageId = await admin.CreatePropertyAsync(formId, new { name = "Age", dataType = "number" });
@@ -189,9 +153,6 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.False(variables.TryGetProperty("region", out _));
     }
 
-    private static string RedeemUrl(long formId, string token) =>
-        $"/api/forms/{formId}/audience/links/{token}/redeem";
-
     private static async Task<long> PublishAsync(AudienceApi admin, long formId, string jsonData)
     {
         using var response = await admin.PostAsync(
@@ -210,31 +171,5 @@ public sealed partial class AudienceDirectoryFlowTests
             .Where(item => item.FormId == formId)
             .Select(item => item.SubmissionId)
             .SingleAsync(cancellationToken);
-    }
-
-    private static async Task<(long FormId, long MembershipId, string Token)> IssuedLinkAsync(
-        AudienceApi admin,
-        string city)
-    {
-        (var formId, var membershipId, _, var token) = await IssuedLinkWithPropertyAsync(admin, city);
-        return (formId, membershipId, token);
-    }
-
-    private static async Task<(long FormId, long MembershipId, long PropertyId, string Token)> IssuedLinkWithPropertyAsync(
-        AudienceApi admin,
-        string city)
-    {
-        var formId = await admin.CreateFormAsync();
-        var propertyId = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
-        using var added = await admin.AddPersonAsync(formId, $"{Guid.NewGuid():N}@example.com");
-        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
-        var membershipId = IdOf(await admin.ReadAsync(added), "membershipId");
-        using var saved = await admin.PutValueAsync(
-            $"/api/forms/{formId}/audience/people/{membershipId}", propertyId, city);
-        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
-        using var issued = await admin.PostAsync($"/api/forms/{formId}/audience/links", new { });
-        Assert.Equal(HttpStatusCode.OK, issued.StatusCode);
-        var token = Assert.Single((await admin.ReadAsync(issued)).EnumerateArray()).GetProperty("token").GetString()!;
-        return (formId, membershipId, propertyId, token);
     }
 }

@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -104,6 +105,40 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     /// <summary>
+    /// An on-behalf create for the same person commits while this open, on a one-response form, is paused at its
+    /// insert. <c>UX_Submissions_RestrictionKey</c> refuses this open's insert, and the open takes the on-behalf
+    /// submission over instead of leaving the person with two.
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_link_while_an_on_behalf_create_for_the_person_commits_takes_that_submission_over()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Parma", limitOnePerUser: true);
+        var gate = new SubmissionInsertGate();
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
+        await using var firstOpen = PausedOpen.Start(
+            gate,
+            HandlerWith(scope.ServiceProvider, gatedApp),
+            new RedeemLinkCommand(link.FormId, link.Token));
+        await firstOpen.ReachedInsertAsync();
+        using var created = await OnBehalfAsync(admin, link.FormId, link.Identifier);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var onBehalfId = IdOf(await admin.ReadAsync(created), "id");
+
+        // Act
+        var opened = await firstOpen.ReleaseAsync();
+
+        // Assert
+        Assert.True(opened.IsSuccess);
+        Assert.False(opened.Value.Created);
+        Assert.Equal(onBehalfId, opened.Value.SubmissionId);
+        await AssertOnlySubmissionAsync(world.Services, link.FormId, onBehalfId);
+    }
+
+    /// <summary>
     /// Before the lock, the claim committed ahead of the token, so a link can name a submission
     /// without one. Parallel opens of it issue that token once.
     /// </summary>
@@ -141,7 +176,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using var response = await anonymous.PostAsJsonAsync(
-            $"/api/forms/{formId}/audience/links/{token}/redeem", new { }, admin.CancellationToken);
+            RedeemUrl(formId, token), new { }, admin.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -222,7 +257,8 @@ public sealed partial class AudienceDirectoryFlowTests
         var submissions = new EfRepository<Submission>(app, evaluator);
         var tokens = new SubmissionTokenService(submissions, forms, new EfRepository<TenantSettings>(app, evaluator));
         var linkLock = new LinkOpenLock(audience, app, services.GetRequiredService<ITransactionLock>());
-        return new RedeemLinkHandler(audience, forms, submissions, tokens, linkLock);
+        var gates = new LinkOpenGates(audience, forms, services.GetRequiredService<ISubmitterResolver>());
+        return new RedeemLinkHandler(audience, submissions, tokens, linkLock, gates);
     }
 
     /// <summary>
