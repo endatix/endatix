@@ -15,9 +15,9 @@ internal static class QuartzSchemaScripts
     /// <c>Validate</c> and runs them from a migration instead, so deployments that turn automatic migrations
     /// off never have tables created at startup.
     /// </summary>
-    private const string PostgreSqlResourceName = "Quartz.Impl.AdoJobStore.Schema.create_postgres.sql";
+    internal const string PostgreSqlResourceName = "Quartz.Impl.AdoJobStore.Schema.create_postgres.sql";
 
-    private const string SqlServerResourceName = "Quartz.Impl.AdoJobStore.Schema.create_sqlServer.sql";
+    internal const string SqlServerResourceName = "Quartz.Impl.AdoJobStore.Schema.create_sqlServer.sql";
 
     /// <summary>Quartz separates the script's statements with a line reading exactly this.</summary>
     private const string StatementSeparator = "--;;";
@@ -51,7 +51,18 @@ internal static class QuartzSchemaScripts
     private static List<string> StatementsOf(string resourceName) =>
         SplitIntoStatements(ReadScript(resourceName));
 
-    private static string ReadScript(string resourceName)
+    // '{0}' is the full prefix and '{1}' the prefix without its schema, for index and constraint names,
+    // which both providers place in their table's schema anyway.
+    private static string ReadScript(string resourceName) =>
+        ScriptText(resourceName)
+            .Replace("{0}", QuartzRegistration.TablePrefix, StringComparison.Ordinal)
+            .Replace("{1}", UnqualifiedPrefix, StringComparison.Ordinal);
+
+    /// <summary>
+    /// The script as Quartz embeds it, before the table prefix is filled in, with its line endings normalized, so
+    /// only a change to its statements or comments changes the text, not how Quartz's build checked it out.
+    /// </summary>
+    internal static string ScriptText(string resourceName)
     {
         var assembly = typeof(Quartz.IScheduler).Assembly;
         using var stream = assembly.GetManifestResourceStream(resourceName)
@@ -59,12 +70,7 @@ internal static class QuartzSchemaScripts
                 $"Quartz.NET no longer embeds '{resourceName}'. Check the scheduler's schema scripts " +
                 "after upgrading Quartz and update the jobs migrations to match.");
         using var reader = new StreamReader(stream);
-
-        // '{0}' is the full prefix and '{1}' the prefix without its schema, for index and constraint names,
-        // which both providers place in their table's schema anyway.
-        return reader.ReadToEnd()
-            .Replace("{0}", QuartzRegistration.TablePrefix, StringComparison.Ordinal)
-            .Replace("{1}", UnqualifiedPrefix, StringComparison.Ordinal);
+        return reader.ReadToEnd().ReplaceLineEndings("\n");
     }
 
     // The separator is a whole line: the script's own header mentions it mid-sentence.
@@ -72,7 +78,7 @@ internal static class QuartzSchemaScripts
     {
         var statements = new List<string>();
         var current = new StringBuilder();
-        foreach (var line in script.ReplaceLineEndings("\n").Split('\n'))
+        foreach (var line in script.Split('\n'))
         {
             if (line.Trim() == StatementSeparator)
             {

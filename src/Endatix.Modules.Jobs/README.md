@@ -518,6 +518,39 @@ first, and re-creates both with the same definitions in the same migration.
 See the Quartz.NET [database documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/db/)
 and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-4.x/operations.html).
 
+## Upgrading Quartz
+
+The packages pin Quartz exactly (`[4.2.2]`), because the module depends on its internals and every
+node sharing the store must run the same version; an upgrade bumps the pin.
+
+Unit tests in `Endatix.Modules.Jobs.Tests` pin what the module takes from Quartz, so an upgrade
+that changes it fails in CI rather than at deploy time:
+
+1. Bump `Quartz` and `Quartz.Dashboard` together in `Directory.Packages.props`, keeping the exact
+   `[x.y.z]` range, and every mention of the old version in this README and in
+   `THIRD-PARTY-NOTICES`.
+2. Run the module's tests.
+3. If `QuartzSchemaScriptsTests` fails on a pinned hash, Quartz's create script for that provider changed
+   (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server). Diff that script
+   between the two versions. If only comments or whitespace changed, update the pinned hash and the
+   Quartz version beside it, and nothing else. Otherwise add an idempotent
+   `jobs` migration for what changed, per provider whose hash moved, as
+   [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes, then update that pinned hash
+   and the Quartz version beside it.
+4. If `GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql` fails for a provider, Quartz's
+   acquisition statement changed. Review that provider's rewrite
+   (`ExecutionGroupFilteringPostgreSqlDelegate` or `ExecutionGroupFilteringSqlServerDelegate`,
+   `LimitEachGroupToItsFreeSlots`) against the new statement, and the `idx_endatix_qrtz_t_acquire`
+   index that serves it, then pin the new statements in `Quartz422AcquisitionSql`, renamed for the
+   new version.
+5. Whatever the tests say, re-read the other overrides of both delegates against the new Quartz
+   `StdAdoDelegate` and `AdoJobStoreBase` acquisition code: `SelectTriggers` relies on acquisition
+   loading the triggers it fires through it, and `SelectTriggersToAcquire` relies on the command
+   being prepared inside the base call. No test sees a change there, and if `SelectTriggers` stopped
+   being called, recovered triggers would no longer count against their job type's cap.
+6. Roll the upgrade out to every node sharing the store: they must all run the same Quartz version
+   (see [Runtime](#runtime)).
+
 ## Third-party licence
 
 Quartz.NET is Apache-2.0 licensed. Its licence text ships in `THIRD-PARTY-NOTICES`, both in
