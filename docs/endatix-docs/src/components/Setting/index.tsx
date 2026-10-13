@@ -12,12 +12,12 @@ type SettingProps = Readonly<{
   children: React.ReactNode;
 }>;
 
-/** Insert `<wbr>` after each `_` so long keys wrap between tokens. */
+/** Insert a break opportunity after `_` and `:` so long keys wrap on tokens. */
 function breakableName(name: string): React.ReactNode {
   const chunks: { key: string; text: string; breakAfter: boolean }[] = [];
   let start = 0;
   for (let i = 0; i < name.length; i++) {
-    if (name[i] === "_") {
+    if (name[i] === "_" || name[i] === ":") {
       chunks.push({
         key: name.slice(0, i + 1),
         text: name.slice(start, i + 1),
@@ -74,8 +74,8 @@ export default function Setting({
               </span>
             )}
             {defaultValue !== undefined && (
-              <span className="edx-setting__tag">
-                Default <code>{defaultValue}</code>
+              <span className="edx-setting__tag edx-setting__tag--default">
+                Default <code>{breakableName(defaultValue)}</code>
               </span>
             )}
             {status && (

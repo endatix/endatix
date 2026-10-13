@@ -1,54 +1,90 @@
 ---
 sidebar_position: 3
 title: Setup Using NuGet Package
-description: Install and configure Endatix in your .NET Core project via NuGet, including package setup, appsettings configuration, and initial startup.
+description: Install Endatix.Templates, create an API with dotnet new endatix, and run it on https://localhost:5001.
 ---
-
-import Tabs from "@theme/Tabs";
-import TabItem from "@theme/TabItem";
 
 # Setup Using NuGet Package
 
-This guide provides step-by-step instructions for setting up the Endatix platform using the NuGet package manager.
+You finish with an Endatix API on `https://localhost:5001` that Hub can call at `http://localhost:3000`. The template writes the project, the development settings, and the first user. It does not start a database or Docker.
 
-## Prerequisites
+`Endatix.Templates` is published with the Endatix API release: nuget.org for a stable release, GitHub Packages for a canary. Until that package is on the feed you use, create the host with [`dotnet new web`](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-new-sdk-templates#web) and [`dotnet add package Endatix.Hosting`](https://www.nuget.org/packages/Endatix.Hosting), then follow [Already have a project?](#already-have-a-project).
 
-Before getting started, make sure your environment meets the [System Requirements](/docs/getting-started/system-requirements) (.NET 10 SDK, a supported database, and `pg_trgm` when using PostgreSQL). NuGet Package Manager is included with Visual Studio or the .NET CLI.
+Meet the [System Requirements](/docs/getting-started/system-requirements) first: the .NET 10 SDK, and either SQL Server or PostgreSQL (`pg_trgm` on PostgreSQL).
 
-## Step 1: Create a new .NET Core project
+## Create the API
 
-Create a new .NET Core project using the .NET CLI. The [empty project template](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-new-sdk-templates#web) is recommended:
-
-```bash
-dotnet new web -n My.Endatix.App
-```
-
-then navigate to the project directory, e.g.:
+1. Install the template and create the project. SQL Server is the default.
 
 ```bash
-cd My.Endatix.App
+dotnet new install Endatix.Templates
+dotnet new endatix -n My.Endatix.ApiHost
+cd My.Endatix.ApiHost
 ```
 
-## Step 2: Install the Endatix NuGet package
+2. Point `ConnectionStrings:DefaultConnection` in `appsettings.Development.json` at a server you can reach. The generated password is a placeholder.
 
-Install the Endatix NuGet package
+SQL Server default:
 
-<Tabs>
-  <TabItem value="dotnet-cli" label=".NET CLI" default>
-    ```bash
-    dotnet add package Endatix.Hosting 
-    ```
-  </TabItem>
-  <TabItem value="nuget-cli" label="NuGet CLI">
-    ```bash
-    nuget install Endatix.Hosting
-    ```
-  </TabItem>
-</Tabs>
+```text
+Server=localhost;Database=endatix;User Id=sa;Password=yourStrong(!)Password;TrustServerCertificate=True;
+```
 
-## Step 3: Add Endatix with default configuration
+3. Run the API. `dotnet run` uses the `https` profile (it is first in `launchSettings.json`): `https://localhost:5001` and `http://localhost:5000`, which is what Hub's `ENDATIX_BASE_URL` expects. `dotnet run --launch-profile http` is HTTP only.
 
-Once the package is installed, open your `Program.cs` file and update it as follows:
+```bash
+dotnet run
+```
+
+4. Open `https://localhost:5001/health/ui` and `https://localhost:5001/api-docs`. Sign in as `admin@localhost` / `P@ssw0rd`, then change that password. The first run applies migrations and seeds sample data and sample forms (`EnableAutoMigrations`, `SeedSampleData`, `SeedSampleForms`).
+
+## PostgreSQL
+
+Pass `--database postgresql` in step 1. The connection string becomes:
+
+```text
+Host=localhost;Port=5432;Database=endatix;Username=postgres;Password=postgres
+```
+
+`DefaultConnection_DbProvider` is `postgresql`. Create the `pg_trgm` extension before the first run. See [System Requirements](/docs/getting-started/system-requirements#postgresql-pg_trgm-extension).
+
+## What the template already sets
+
+These values are in `appsettings.Development.json` only. Replace both signing keys before you commit the file or share the machine.
+
+<Settings>
+  <Setting name="Endatix:Hub:HubBaseUrl" default="http://localhost:3000">
+    Base URL the API uses for links to Hub.
+  </Setting>
+  <Setting name="Endatix:Auth:Providers:EndatixJwt:SigningKey" default="DEV_ONLY_change_me_Endatix_local_jwt_signing_key_32b+">
+    Signs Hub access tokens. Replace this value.
+  </Setting>
+  <Setting name="Endatix:Auth:Providers:EndatixJwt:ReBacIssuer" default="edx_res_auth">
+    Issuer for resource authorization tokens. Leave this unless you change Hub to match.
+  </Setting>
+  <Setting name="Endatix:Submissions:AccessTokenSigningKey" default="DEV_ONLY_change_me_Endatix_submission_access_token_key">
+    Signs submission resume links. Replace this value.
+  </Setting>
+  <Setting name="Endatix:Data:InitialUser:Email" default="admin@localhost">
+    Created on first run.
+  </Setting>
+  <Setting name="Endatix:Data:InitialUser:Password" default="P@ssw0rd">
+    Created on first run. Change it after you sign in.
+  </Setting>
+  <Setting name="Endatix:Cors:CorsPolicies:0:AllowedOrigins:0" default="http://localhost:3000">
+    Browser origin allowed to call the API. Hub's dev server is this origin.
+  </Setting>
+</Settings>
+
+`(Optional)` Pin the NuGet version: `dotnet new endatix -n My.Endatix.ApiHost --EndatixVersion 0.7.8`. The default is the Endatix version shipped with the template.
+
+`(Optional)` `--saasManagement` adds the commercial `Endatix.SaaS.Management` package and registers the module. Use it with `--database postgresql`. Leave it off for the open-source API.
+
+## Already have a project?
+
+```bash
+dotnet add package Endatix.Hosting
+```
 
 ```csharp
 using Endatix.Hosting;
@@ -57,131 +93,29 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.ConfigureEndatix();
 
 var app = builder.Build();
-
 app.UseEndatix();
-
-app.Run();
+await app.RunAsync();
 ```
 
-This minimal setup configures Endatix with sensible defaults suitable for most scenarios.
+Copy `ConnectionStrings` and `Endatix` from an app created with `dotnet new endatix`, or follow [Configuring Endatix](/docs/configuration/).
 
-<details>
-  <summary>**What's Included in the Default Setup?**</summary>
+## Not in this template
 
-When you use `builder.Host.ConfigureEndatix()`, the following features are automatically configured with sensible defaults:
+`dotnet new endatix` does not start containers or an SMTP server. For API, Hub, and SQL Server in Docker, use [Self-Hosting using Docker](/docs/building-your-solution/deployment/self-hosting). For mail, use [Email settings](/docs/configuration/settings/email-settings).
 
-- **API endpoints**
-- **Authentication and authorization**
-- **Database persistence**
-- **Serilog logging**
-- **Health checks**
-- **Webhooks**
-- **Data migration and seeding**
-- **CQR with MediatR**
+## Next steps
 
-:bulb: **Note:** The specific implementation details of these components are subject to change as the framework evolves. For detailed information on configuring your Endatix application, please refer to our configuration guides:
-
-- [Configuring Endatix](/docs/configuration/) - Learn about the different configuration approaches and paradigms
-
-</details>
-
-## Step 4: Add the AppSettings file
-
-Find or create a new `appsettings.Development.json` file in the project root and add the following configuration:
-
-<details>
-  <summary>expand the code block below to copy the following code to your **appsettings.Development.json**</summary>
-
-:bulb: **Note on Connection Strings:** The Default connection string is required. This is line 3. The other connection strings are optional and can be used to configure the database provider. If you want to use PostgresSQL as the database provider, uncomment the _DefaultConnection_DbProvider_ line and set the value to "postgresql". Otherwise, delete line 4.
-
-:bulb: **Note on Initial User:** Line 13 and 14 are optional and they allow you to configure the credentials for the initial user. Change the email and password to your own credentials. You can remove these lines upon successful app setup and login. Never commit your credentials to the repository.
-
-```json {3,4,12,13} showLineNumbers
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "{{YOUR_CONNECTION_STRING}}" // required
-    // "DefaultConnection_DbProvider": "postgresql" // optional, uncomment this to use PostgresSQL as the database provider. Default is MS SQL Server
-  },
-  "Endatix": {
-    "Api": {
-      "SwaggerPath": "/api-docs"
-    },
-    "Data": {
-      "EnableAutoMigrations": true,
-      "SeedSampleData": true,
-      "InitialUser": {
-        "Email": "admin@admin.com", // this is the default email for the initial user. Change this to your email
-        "Password": "P@ssw0rd" // this is the default password for the initial user. Change this to a more secure password
-      }
-    }
-    "Jwt": {
-      "SigningKey": "{JWT_SIGNING_KEY}"
-    },
-    "Integrations": {
-      "Email": {
-        "SendGridSettings": {
-          "ApiKey": "{{SENDGRID_API_KEY}}"
-        }
-      }
-    }
-  },
-  "Serilog": {
-    "Using": ["Serilog.Sinks.Console", "Serilog.Sinks.File"],
-    "MinimumLevel": {
-      "Default": "Debug",
-      "Override": {
-        "Microsoft": "Information",
-        "System": "Warning"
-      }
-    },
-    "WriteTo": [
-      {
-        "Name": "Console",
-        "Args": {
-          "applyThemeToRedirectedOutput": true,
-          "theme": "Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme::Sixteen, Serilog.Sinks.Console",
-          "outputTemplate": "[{Timestamp: HH:mm:ss.fff} Level:{Level:u3}] {Message:lj}{NewLine}{Exception}"
-        }
-      },
-      {
-        "Name": "File",
-        "Args": {
-          "path": "/logs/log-.txt",
-          "rollingInterval": "Day",
-          "rollOnFileSizeLimit": true,
-          "formatter": "Serilog.Formatting.Json.JsonFormatter"
-        }
-      }
-    ],
-    "Enrich": [
-      "FromLogContext",
-      "WithMachineName",
-      "WithProcessId",
-      "WithThreadId"
-    ],
-    "Properties": {
-      "Application": "Endatix API",
-      "Environment": "Development"
-    }
-  }
-}
-
-```
-
-</details>
-
-## Step 5: Run the application
-
-Run the application using the .NET CLI:
-
-```bash
-dotnet run
-```
-
-## Step 6: Verify the Installation
-
-After installation, you can verify that Endatix is running correctly by making a simple API call:
-
-- **Verify the service is healthy** - `https://localhost:YOUR_PORT/health/ui`
-- **See the Swagger UI** - `https://localhost:YOUR_PORT/api-docs`
-- **Login** - use the default crendentials from the appsettings.Development.json file to authenticate and change them after login
+<CardGrid compact>
+  <LinkCard
+    to="/docs/configuration/"
+    title="Configuring Endatix"
+    description="Settings reference after the API is running."
+    icon="package"
+  />
+  <LinkCard
+    to="/docs/building-your-solution/deployment/self-hosting"
+    title="Self-host with Docker"
+    description="Compose stack for the API, Hub, and SQL Server."
+    icon="boxes"
+  />
+</CardGrid>
