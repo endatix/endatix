@@ -77,7 +77,7 @@ internal sealed class CreatePropertyHandler(
         CancellationToken cancellationToken)
     {
         string variableName = Property.Slugify(request.Name);
-        return await EnsureUniqueAsync(request.FormId, variableName, cancellationToken);
+        return await EnsureUniqueAsync(request, variableName, cancellationToken);
     }
 
     private async Task<Result<PropertyDto>> CreateAsync(
@@ -114,12 +114,14 @@ internal sealed class CreatePropertyHandler(
             : $"Unknown audience data type '{request.DataType}'.");
 
     private async Task<Result> EnsureUniqueAsync(
-        long formId,
+        CreatePropertyCommand request,
         string variableName,
         CancellationToken cancellationToken)
     {
         bool nameTaken = await db.Properties.AnyAsync(
-            property => property.FormId == formId && property.VariableName == variableName,
+            property => property.TenantId == request.TenantId
+                && property.FormId == request.FormId
+                && property.VariableName == variableName,
             cancellationToken);
         return nameTaken
             ? Result.Conflict(
@@ -140,7 +142,7 @@ internal sealed class CreatePropertyHandler(
         CreatePropertyCommand request,
         CancellationToken cancellationToken)
     {
-        int sortOrder = await NextSortAsync(request.FormId, cancellationToken);
+        int sortOrder = await NextSortAsync(request, cancellationToken);
         return new Property(new PropertyCreateArgs(
             request.TenantId,
             request.FormId,
@@ -170,10 +172,10 @@ internal sealed class CreatePropertyHandler(
         return property;
     }
 
-    private async Task<int> NextSortAsync(long formId, CancellationToken cancellationToken)
+    private async Task<int> NextSortAsync(CreatePropertyCommand request, CancellationToken cancellationToken)
     {
         int? max = await db.Properties
-            .Where(property => property.FormId == formId)
+            .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
             .Select(property => (int?)property.SortOrder)
             .MaxAsync(cancellationToken);
         return (max ?? -1) + 1;

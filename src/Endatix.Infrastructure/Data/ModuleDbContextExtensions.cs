@@ -106,9 +106,9 @@ public static class ModuleDbContextExtensions
     /// optional.
     /// </summary>
     /// <remarks>
-    /// A module may support one provider without supporting both — Audience is PostgreSQL-only — and
-    /// requiring a namespace for a provider it has no context for would force a value that names
-    /// nothing.
+    /// A module may support one provider without supporting both, for example while it ships only
+    /// PostgreSQL migrations, and requiring a namespace for a provider it has no context for would
+    /// force a value that names nothing.
     /// </remarks>
     private static void GuardActiveProviderMigrationsNamespace(
         ModuleDbContextOptions moduleOptions,

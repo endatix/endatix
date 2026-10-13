@@ -59,13 +59,16 @@ internal static class PropertyValuesWriter
 
     /// <summary>
     /// Cells of the given memberships whose property is still active. A cell written while its
-    /// property was being deleted stays out of every read.
+    /// property was being deleted stays out of every read. The tenant is stated so SQL Server can
+    /// seek the tenant-first cell index.
     /// </summary>
     public static IQueryable<PropertyValue> ActiveCells(
         IAudienceDbContext db,
+        long tenantId,
         IReadOnlyCollection<long> membershipIds) =>
         db.PropertyValues.AsNoTracking().Where(value =>
-            membershipIds.Contains(value.MembershipId)
+            value.TenantId == tenantId
+            && membershipIds.Contains(value.MembershipId)
             && db.Properties.Any(property => property.Id == value.PropertyId));
 
     /// <summary>
@@ -124,7 +127,8 @@ internal static class PropertyValuesWriter
     {
         HashSet<long> propertyIds = write.Values.Keys.ToHashSet();
         return write.Db.PropertyValues
-            .Where(value => value.MembershipId == write.MembershipId
+            .Where(value => value.TenantId == write.TenantId
+                && value.MembershipId == write.MembershipId
                 && propertyIds.Contains(value.PropertyId))
             .ToDictionaryAsync(value => value.PropertyId, cancellationToken);
     }

@@ -7,15 +7,13 @@ using Endatix.IntegrationTests.Shared;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The audience directory over HTTP on PostgreSQL: the races the unique indexes and the tenant
-/// match-key lock settle, the match-key rules, value checks by data type, and the CSV import
-/// (<c>AudienceDirectoryFlowTests.Import.cs</c>). The module is PostgreSQL-only, so every test
-/// skips on SQL Server.
+/// The audience directory over HTTP, on whichever provider the run uses: the races the unique
+/// indexes and the tenant match-key lock settle, the match-key rules, value checks by data type,
+/// and the CSV import (<c>AudienceDirectoryFlowTests.Import.cs</c>).
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SeedPassword = "Password123!";
@@ -49,6 +47,24 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
 
         // Assert
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+    }
+
+    [Fact]
+    public async Task Adding_external_ids_that_differ_only_in_case_adds_two_people()
+    {
+        // Arrange
+        var api = await AdminAsync();
+        using var key = await api.PutKeyAsync("external_id");
+        var formId = await api.CreateFormAsync();
+        using var first = await api.AddPersonAsync(formId, "AbC-1");
+
+        // Act
+        using var second = await api.AddPersonAsync(formId, "abc-1");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, key.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
     }
 
     [Fact]
@@ -279,15 +295,10 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
         Assert.Empty(person.GetProperty("values").EnumerateObject());
     }
 
-    private async Task<IntegrationTestWorld> WorldAsync()
-    {
-        Assert.SkipWhen(
-            fixture.Provider != TestDatabaseProvider.PostgreSql,
-            "The audience module is PostgreSQL-only; it is not registered on this provider.");
-        return await fixture.PrepareWorldAsync(
+    private Task<IntegrationTestWorld> WorldAsync() =>
+        fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword },
             TestContext.Current.CancellationToken);
-    }
 
     private async Task<AudienceApi> AdminAsync() => await AsAsync(await WorldAsync(), TestPersona.TenantAdmin);
 

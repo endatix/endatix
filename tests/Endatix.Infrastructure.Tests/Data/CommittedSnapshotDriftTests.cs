@@ -47,6 +47,7 @@ public sealed class CommittedSnapshotDriftTests
         { SqlServer, typeof(AppIdentityDbContext) },
         { SqlServer, typeof(ReportingSqlServerDbContext) },
         { SqlServer, typeof(JobsSqlServerDbContext) },
+        { SqlServer, typeof(AudienceSqlServerDbContext) },
     };
 
     [Theory]
@@ -179,5 +180,6 @@ public sealed class CommittedSnapshotDriftTests
             .UseDefault<AppIdentityDbContext>();
         services.AddModuleDbContext<ReportingSqlServerDbContext>(configuration, ReportingPersistence.ConfigureDbContextOptions);
         services.AddModuleDbContext<JobsSqlServerDbContext>(configuration, JobsPersistence.ConfigureDbContextOptions);
+        services.AddModuleDbContext<AudienceSqlServerDbContext>(configuration, AudiencePersistence.ConfigureDbContextOptions);
     }
 }

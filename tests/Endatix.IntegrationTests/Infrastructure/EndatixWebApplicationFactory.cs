@@ -99,11 +99,10 @@ internal static class EndatixWebApplicationFactoryConfiguration
         // Deployment-scoped and off by default, so the tenant management endpoints would 404 here.
         builder.UseSetting("Endatix:FeatureFlags:MultiTenancy", "true");
 
-        // Jobs and the audience module are PostgreSQL-only and fail startup deliberately on
-        // anything else, so their flags follow the provider this run is using. Tests that need
-        // them skip on SQL Server.
+        // Jobs is PostgreSQL-only and fails startup deliberately on anything else, so its flag
+        // follows the provider this run is using. Tests that need it skip on SQL Server.
         string postgreSqlOnly = (provider == TestDatabaseProvider.PostgreSql).ToString();
         builder.UseSetting("Endatix:FeatureFlags:JobsModule", postgreSqlOnly);
-        builder.UseSetting("Endatix:FeatureFlags:PersonalizationModule", postgreSqlOnly);
+        builder.UseSetting("Endatix:FeatureFlags:PersonalizationModule", "true");
     }
 }

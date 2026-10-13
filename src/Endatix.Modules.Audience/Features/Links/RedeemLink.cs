@@ -158,7 +158,10 @@ internal sealed class RedeemLinkHandler(
         CancellationToken cancellationToken)
     {
         var person = await PersonAsync(link.MembershipId, cancellationToken);
-        var cells = await SnapshotCells.LoadAsync(db, link.MembershipId, cancellationToken);
+        var cells = await SnapshotCells.LoadAsync(
+            db,
+            new SnapshotMembership(link.TenantId, link.MembershipId),
+            cancellationToken);
         var header = new SnapshotHeader(link.Id, person?.Identifier ?? "", capturedAt, MemberId: person?.Id);
         return PersonalizationSnapshotJson.Write(header, cells);
     }

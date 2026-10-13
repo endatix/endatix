@@ -8,8 +8,38 @@ and personalised links.
 
 ## Registration
 
-Gated by `Endatix:FeatureFlags:PersonalizationModule` (off by default). Requires PostgreSQL.
-`EndatixBuilder.UseDefaults()` calls `UseModule(AudienceModule.Instance)`.
+Gated by `Endatix:FeatureFlags:PersonalizationModule` (off by default). Runs on PostgreSQL and on SQL Server 2025
+or later (or Azure SQL Database). `EndatixBuilder.UseDefaults()` calls `UseModule(AudienceModule.Instance)`.
+
+The module registers `AudiencePostgreSqlDbContext` or `AudienceSqlServerDbContext` for the configured provider;
+handlers see it only as `IAudienceDbContext`. On SQL Server, keep `READ_COMMITTED_SNAPSHOT` on for the database (on in a
+database Endatix creates and in Azure SQL Database; a database created beforehand may have it off): without it, other
+tenants' audience reads wait for a running CSV import to commit.
+
+## Migrations
+
+Each provider has its own chain in this assembly: `Persistence/Migrations/PostgreSql/` and
+`Persistence/Migrations/SqlServer/`. Run from the repository root:
+
+```bash
+# PostgreSQL
+ConnectionStrings__DefaultConnection="Host=localhost;Database=endatix;Username=postgres;Password=..." \
+dotnet ef migrations add <MigrationName> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.Audience \
+  --context AudiencePostgreSqlDbContext \
+  --output-dir Persistence/Migrations/PostgreSql
+
+# SQL Server
+ConnectionStrings__DefaultConnection="Server=localhost;Database=endatix;User Id=sa;Password=...;TrustServerCertificate=True" \
+dotnet ef migrations add <MigrationName> \
+  --startup-project src/Endatix.WebHost \
+  --project src/Endatix.Modules.Audience \
+  --context AudienceSqlServerDbContext \
+  --output-dir Persistence/Migrations/SqlServer
+```
+
+A model change needs a migration in both chains.
 
 ## Schema
 
@@ -19,7 +49,7 @@ Database schema: `audience`
 |-------|---------|
 | `Settings` | One row per tenant: match key (`email` / `external_id`). No row means `email` |
 | `Properties` | Property definitions per form (`VariableName` immutable). Choice types need `ChoicesJson`, a JSON array of distinct keys; other types take no choices |
-| `Members` | One person per tenant + match key. `Identifier` keeps the value as entered; `NormalizedIdentifier` is the unique match key. Emails must be one valid address and use the same normalizer as app users; external ids keep their case |
+| `Members` | One person per tenant + match key. `Identifier` keeps the value as entered; `NormalizedIdentifier` is the unique match key. Emails must be one valid address and use the same normalizer as app users; external ids keep their case. On SQL Server the match key uses the binary collation `Latin1_General_100_BIN2`, so it compares case-sensitively as on PostgreSQL |
 | `Memberships` | Person on one form |
 | `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). A stored value is never empty: saving `""` clears (soft-deletes) the cell |
 | `Imports` | One row per confirmed CSV import: counts, file name, who ran it |
@@ -54,7 +84,8 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
   transaction ends. The unique indexes settle create races (a second pass reuses the member; a duplicate
   on one form is a 409). The identifier is checked against the key read under the lock. Two
   updates adding the same cell: the second pass overwrites. Cells are written in property-id order. The people
-  list counts and reads in one snapshot.
+  list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
+  person added in between makes the page longer than the count, the total is raised to cover the rows shown.
 - **Deletes.** Removing a person deletes the membership and its cells; the member stays. Deleting a
   property soft-deletes its cells in one statement. Reads skip cells of deleted properties.
 - **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships

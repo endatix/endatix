@@ -18,7 +18,7 @@ namespace Endatix.Modules.Audience;
 /// </summary>
 /// <remarks>
 /// Gated by <see cref="FeatureFlags.PersonalizationModule"/> (off by default). Owns the
-/// <c>audience</c> schema and its migrations. PostgreSQL first.
+/// <c>audience</c> schema and its migrations, on PostgreSQL or SQL Server.
 /// </remarks>
 public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigrations, IHasFastEndpoints
 {
@@ -32,7 +32,6 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Audience", FeatureFlags.PersonalizationModule);
         AddPersistence(builder);
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, DeleteFormAudienceOutboxHandler>();
         builder.Services.AddScoped<ImportWriteSupport>();
@@ -41,10 +40,25 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
 
     private static void AddPersistence(EndatixModuleBuilder builder)
     {
-        builder.AddDbContextWithMigrations<AudiencePostgreSqlDbContext>(
-            AudiencePersistence.ConfigureDbContextOptions);
-        builder.Services.AddScoped<IAudienceDbContext>(
-            sp => sp.GetRequiredService<AudiencePostgreSqlDbContext>());
+        if (DatabaseProviderResolver.IsPostgreSql(builder.Configuration))
+        {
+            AddContext<AudiencePostgreSqlDbContext>(builder);
+        }
+        else
+        {
+            AddContext<AudienceSqlServerDbContext>(builder);
+        }
+
+        // Consumers see the context only as IAudienceDbContext or the base, so nothing downstream branches on the
+        // provider; the base registration is the one line that names it.
+        builder.Services.AddScoped<IAudienceDbContext>(sp => sp.GetRequiredService<AudienceDbContextBase>());
         builder.Services.AddSingleton<MatchKeyLock>();
+    }
+
+    private static void AddContext<TContext>(EndatixModuleBuilder builder)
+        where TContext : AudienceDbContextBase
+    {
+        builder.AddDbContextWithMigrations<TContext>(AudiencePersistence.ConfigureDbContextOptions);
+        builder.Services.AddScoped<AudienceDbContextBase>(sp => sp.GetRequiredService<TContext>());
     }
 }

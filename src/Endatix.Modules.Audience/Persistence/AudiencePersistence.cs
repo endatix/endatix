@@ -12,11 +12,20 @@ public static class AudiencePersistence
     private const string MigrationsRootNamespace =
         "Endatix.Modules.Audience.Persistence.Migrations";
 
+    /// <summary>
+    /// Shared module DbContext options for runtime and design-time registration.
+    /// </summary>
+    /// <remarks>
+    /// Both providers get the migrations root namespace. Registration requires a namespace for the active
+    /// provider, and equal values keep namespace filtering off: each provider has its own derived context, and
+    /// EF finds that context's migrations by their <c>[DbContext]</c> attribute, leaving nothing to filter.
+    /// </remarks>
     public static void ConfigureDbContextOptions(ModuleDbContextOptions options)
     {
         options.Schema = Schema;
         options.MigrationsAssembly = AssemblyName(typeof(AudienceDbContextBase));
         options.PostgreSqlMigrationsNamespace = MigrationsRootNamespace;
+        options.SqlServerMigrationsNamespace = MigrationsRootNamespace;
     }
 
     internal static string AssemblyName(Type type) =>

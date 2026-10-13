@@ -101,7 +101,9 @@ internal sealed record ExistingAudience(
     {
         List<long> memberIds = members.Select(member => member.Id).ToList();
         return query.Db.Memberships
-            .Where(membership => membership.FormId == query.Target.FormId && memberIds.Contains(membership.MemberId))
+            .Where(membership => membership.TenantId == query.Target.TenantId
+                && membership.FormId == query.Target.FormId
+                && memberIds.Contains(membership.MemberId))
             .ToDictionaryAsync(membership => membership.MemberId, query.CancellationToken);
     }
 
@@ -111,7 +113,7 @@ internal sealed record ExistingAudience(
     {
         List<long> membershipIds = memberships.Select(membership => membership.Id).ToList();
         List<PropertyValue> cells = await query.Db.PropertyValues
-            .Where(cell => membershipIds.Contains(cell.MembershipId))
+            .Where(cell => cell.TenantId == query.Target.TenantId && membershipIds.Contains(cell.MembershipId))
             .ToListAsync(query.CancellationToken);
         return cells
             .GroupBy(cell => cell.MembershipId)

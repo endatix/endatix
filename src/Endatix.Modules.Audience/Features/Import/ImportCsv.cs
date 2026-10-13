@@ -144,7 +144,7 @@ internal sealed class ImportCsvHandler(
             return Result<ImportInput>.Invalid(new ValidationError(fileError));
         }
 
-        List<Property> properties = await LoadPropertiesAsync(request.FormId, cancellationToken);
+        List<Property> properties = await LoadPropertiesAsync(request, cancellationToken);
         return MapColumns(request, parsed, properties);
     }
 
@@ -195,9 +195,9 @@ internal sealed class ImportCsvHandler(
         return ToDto(summary, rows.Rejected);
     }
 
-    private Task<List<Property>> LoadPropertiesAsync(long formId, CancellationToken cancellationToken) =>
+    private Task<List<Property>> LoadPropertiesAsync(ImportCsvCommand request, CancellationToken cancellationToken) =>
         db.Properties
-            .Where(property => property.FormId == formId)
+            .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
             .ToListAsync(cancellationToken);
 
     private static async Task<ImportTally> StageAsync(AudienceQuery query, IReadOnlyList<ImportRow> rows)
