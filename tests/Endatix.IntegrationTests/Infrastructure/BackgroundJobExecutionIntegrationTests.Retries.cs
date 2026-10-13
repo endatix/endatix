@@ -209,22 +209,11 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     }
 
     // Only this node's stores spend the failures: the tests enqueue from another node, whose stores never fail.
-    private static async Task<JobsTestNode> StartNodeFailingTriggerStoresAsync(
+    private static Task<JobsTestNode> StartNodeFailingTriggerStoresAsync(
         ProbeNodeSetup setup,
         TriggerStoreFailures failures,
-        CancellationToken ct)
-    {
-        var node = JobsTestNode.Create(
-            setup.Database.ConnectionString,
-            setup.Settings,
-            services =>
-            {
-                services.AddProbe(setup.Invocations);
-                FailingTriggerStoreDelegate.Register(services, failures);
-            });
-        await node.StartAsync(ct);
-        return node;
-    }
+        CancellationToken ct) =>
+        StartNodeFailingAsync(setup, services => FailingTriggerStoreDelegate.Register(services, failures), ct);
 
     private static Task<IScheduler> SchedulerOfAsync(JobsTestNode node, CancellationToken ct) =>
         node.Services.GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName).GetScheduler(ct).AsTask();

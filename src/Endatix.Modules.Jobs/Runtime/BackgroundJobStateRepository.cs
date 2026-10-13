@@ -11,7 +11,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal sealed class BackgroundJobStateRepository(IJobsDbContext dbContext) : IBackgroundJobStateRepository
 {
     // The column is varchar(2048); a longer message is cut so recording a failure cannot itself fail.
-    private const int ErrorMessageMaxLength = 2048;
+    internal const int ErrorMessageMaxLength = 2048;
 
     public async Task<ClaimedJob?> TryClaimAsync(JobClaim claim, CancellationToken cancellationToken = default)
     {

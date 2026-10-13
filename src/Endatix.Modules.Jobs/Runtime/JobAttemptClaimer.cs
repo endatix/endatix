@@ -78,8 +78,30 @@ internal sealed class JobAttemptClaimer(
 /// Whether the firing takes the job over from an attempt that did not end: a recovery of a dead node's firing, or
 /// a re-fire scheduled because an earlier firing could not claim the row or record its outcome.
 /// </param>
-internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming)
+/// <param name="Carried">
+/// The outcome of a finished attempt that its firing could not write, which this firing writes instead of claiming
+/// the row; or why the outcome the trigger carries could not be read, in which case the firing re-claims the row, as
+/// one that carries no outcome does.
+/// </param>
+internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming, CarriedOutcome Carried = default)
 {
+    public ReclaimableJob Job => new(JobId, JobType);
+
+    /// <summary>The outcome this firing writes instead of claiming the row, when it carries one it can read.</summary>
+    public UnsavedOutcome? Unsaved => Carried.Outcome;
+
+    /// <summary>
+    /// A re-fire that does what this firing does: it fires the same row, takes it over if this firing was, and carries
+    /// the same outcome.
+    /// </summary>
+    public JobTriggerSpec RefireSpec => new(JobId, JobType, Reclaim: Reclaiming, Unsaved: Unsaved);
+
+    /// <summary>
+    /// The firing carrying <paramref name="outcome"/>, the outcome it carried with any refusals of its write since
+    /// counted; the firing as it is when it carries none.
+    /// </summary>
+    public JobFiring Carrying(UnsavedOutcome? outcome) => outcome is null ? this : this with { Carried = new(outcome, null) };
+
     /// <summary>The firing, or <see langword="null"/> when its trigger carries no job id.</summary>
     public static JobFiring? TryOf(IJobExecutionContext context)
     {
@@ -95,7 +117,8 @@ internal sealed record JobFiring(long JobId, string JobType, bool Reclaiming)
 
         var reclaim = string.Equals(
             data.GetString(BackgroundJobExecution.ReclaimKey), bool.TrueString, StringComparison.OrdinalIgnoreCase);
-        return new JobFiring(jobId, context.JobDetail.Key.Name, context.Recovering || reclaim);
+        return new JobFiring(
+            jobId, context.JobDetail.Key.Name, context.Recovering || reclaim, UnsavedOutcome.Read(data));
     }
 }
 
@@ -105,4 +128,11 @@ internal sealed record ClaimedAttempt(ClaimedJob Job, BackgroundJobTypePolicy Po
     public AttemptRef Ref => new(Job.Id, Job.AttemptCount);
 
     public ReclaimableJob Reclaimable => new(Job.Id, Job.JobType);
+
+    public EndedAttempt Ended => new(Ref, Job.JobType, Policy, ClaimedAt);
 }
+
+/// <summary>
+/// An attempt whose outcome is being recorded: the row and attempt its write is fenced on, and what recording it needs.
+/// </summary>
+internal sealed record EndedAttempt(AttemptRef Ref, string JobType, BackgroundJobTypePolicy Policy, DateTime ClaimedAt);

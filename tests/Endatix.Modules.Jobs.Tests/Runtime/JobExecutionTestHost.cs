@@ -96,6 +96,18 @@ internal static class JobExecutionTestHost
         return context;
     }
 
+    // The scheduler refuses every trigger for a reason of its own, with the job type's durable job in the store.
+    public static void RejectEveryTrigger(IScheduler scheduler)
+    {
+        scheduler.Exists(Arg.Any<JobKey>(), Arg.Any<CancellationToken>()).Returns(true);
+        scheduler
+            .ScheduleJob(Arg.Any<ITrigger>(), Arg.Any<ScheduleJobOptions>(), Arg.Any<CancellationToken>())
+            .Returns<ValueTask<DateTimeOffset>>(_ => throw new SchedulerException("The trigger could not be stored."));
+    }
+
+    public static int ScheduleJobCalls(IScheduler scheduler) =>
+        scheduler.ReceivedCalls().Count(call => call.GetMethodInfo().Name == nameof(IScheduler.ScheduleJob));
+
     public static IJobExecutionContext RecoveryOf(long jobId)
     {
         var context = FiringOf(jobId);
@@ -125,6 +137,9 @@ internal sealed class ObservedRun
 
     public bool Throw { get; init; }
 
+    /// <summary>A failure message the handler returns, rather than succeeding.</summary>
+    public string? FailWith { get; init; }
+
     public bool WaitForCancellation { get; init; }
 
     public bool HandlerTokenCancelled { get; set; }
@@ -147,6 +162,11 @@ internal sealed class TenantObservingHandler(ObservedRun observed, ITenantContex
         if (observed.Throw)
         {
             throw new InvalidOperationException("Transient failure.");
+        }
+
+        if (observed.FailWith is { } message)
+        {
+            return Result.Error(message);
         }
 
         if (observed.ThrowAfterShutdown)

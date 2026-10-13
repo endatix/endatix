@@ -5,7 +5,8 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
 /// The only scheduler job class. One durable scheduler job per job type points at it, and each trigger carries
-/// only the id of the job row it fires. It claims the row, runs the handler and records how the attempt ended.
+/// the id of the job row it fires. It claims the row, runs the handler and records how the attempt ended; a re-fire
+/// that carries the outcome of an attempt that finished records that outcome instead.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -44,8 +45,19 @@ internal sealed class BackgroundJobExecution(
     /// </summary>
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var attempt = await AdmitAndClaimAsync(context, cancellationToken);
-        if (attempt is null)
+        if (await admission.AdmitAsync(context) is not { } firing)
+        {
+            return;
+        }
+
+        await (firing.Unsaved is { } unsaved
+            ? RecordUnsavedAsync(context, firing.Job, unsaved)
+            : RunAttemptAsync(context, firing, cancellationToken));
+    }
+
+    private async Task RunAttemptAsync(IJobExecutionContext context, JobFiring firing, CancellationToken cancellationToken)
+    {
+        if (await ClaimAsync(context, firing, cancellationToken) is not { } attempt)
         {
             return;
         }
@@ -54,10 +66,22 @@ internal sealed class BackgroundJobExecution(
         await EndAttemptAsync(context, attempt, run);
     }
 
-    private async Task<ClaimedAttempt?> AdmitAndClaimAsync(IJobExecutionContext context, CancellationToken cancellationToken) =>
-        await admission.AdmitAsync(context) is { } firing
-            ? await ClaimAsync(context, firing, cancellationToken)
-            : null;
+    /// <summary>
+    /// Writes the outcome of an attempt that finished on an earlier firing, which could not write it, instead of
+    /// claiming the row for another attempt; while it still cannot be written, the job is re-fired carrying it again,
+    /// for as long as the database is away, and until the database has refused it
+    /// <see cref="UnsavedOutcome.MaxRejections"/> times while up.
+    /// </summary>
+    private async Task RecordUnsavedAsync(IJobExecutionContext context, ReclaimableJob job, UnsavedOutcome unsaved)
+    {
+        var written = await outcomes.RecordUnsavedAsync(job, unsaved);
+        await (written switch
+        {
+            OutcomeWrite.Unwritable => refire.RefireUnsavedAsync(context, job, unsaved),
+            OutcomeWrite.Rejected => refire.RefireRejectedAsync(context, job, unsaved.Rejected()),
+            _ => Task.CompletedTask,
+        });
+    }
 
     /// <summary>
     /// Claims the row the firing points at. The firing's trigger is the job's only one and is deleted once the
@@ -74,19 +98,23 @@ internal sealed class BackgroundJobExecution(
         }
         catch (Exception exception) // Any failure: whatever it was, the job would be left without a trigger.
         {
-            await refire.RefireUnclaimedAsync(context, new ReclaimableJob(firing.JobId, firing.JobType), exception);
+            await refire.RefireUnclaimedAsync(context, firing.Job, exception);
             return null;
         }
     }
 
-    /// <summary>Records how the attempt ended, and re-fires the job when nothing could be recorded.</summary>
+    /// <summary>
+    /// Records how the attempt ended, and re-fires the job when nothing could be recorded, carrying the outcome the
+    /// handler decided, if it decided one.
+    /// </summary>
     private async Task EndAttemptAsync(IJobExecutionContext context, ClaimedAttempt attempt, HandlerRun run)
     {
         var write = AttemptDecision.Decide(run.End, attempt.Job.AttemptCount, attempt.Policy.MaxAttempts);
         var ending = new AttemptEnding(write, run, NextAttemptAt(attempt));
-        if (await RecordAsync(context, attempt, ending) is OutcomeWrite.Unwritable or OutcomeWrite.Unscheduled)
+        var recorded = await RecordAsync(context, attempt, ending);
+        if (recorded.Written is OutcomeWrite.Unwritable or OutcomeWrite.Unscheduled)
         {
-            await refire.RefireAsync(context, attempt);
+            await refire.RefireAsync(context, attempt, recorded.Unsaved);
         }
     }
 
@@ -97,13 +125,13 @@ internal sealed class BackgroundJobExecution(
     /// <c>Retrying</c> row with no trigger is never claimed again; the row stays <c>Processing</c> for a re-fire to
     /// take over.
     /// </summary>
-    private async Task<OutcomeWrite> RecordAsync(IJobExecutionContext context, ClaimedAttempt attempt, AttemptEnding ending)
+    private async Task<OutcomeRecording> RecordAsync(IJobExecutionContext context, ClaimedAttempt attempt, AttemptEnding ending)
     {
         if (ending.Write is AttemptRowWrite.Retrying
             && !await refire.TryScheduleRetryAsync(context, attempt, ending.NextAttemptAt))
         {
             outcomes.LogUnrecordedThrow(attempt, ending.Run);
-            return OutcomeWrite.Unscheduled;
+            return new(OutcomeWrite.Unscheduled);
         }
 
         return await outcomes.RecordAsync(attempt, ending);
