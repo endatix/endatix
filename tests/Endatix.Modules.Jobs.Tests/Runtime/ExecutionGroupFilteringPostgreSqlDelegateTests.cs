@@ -53,6 +53,23 @@ public sealed class ExecutionGroupFilteringPostgreSqlDelegateTests
 
     [Theory]
     [MemberData(nameof(Quartz422AcquisitionSql.Shapes), MemberType = typeof(Quartz422AcquisitionSql))]
+    public void LimitEachGroupToItsFreeSlots_Quartz422Statement_MatchesPinnedRewrite(
+        int maxCount, int _, string excludedJobTypes)
+    {
+        // Arrange
+        var shipped = Quartz422AcquisitionSql.PostgreSql(maxCount, excludedJobTypes);
+
+        // Act
+        var rewritten = ExecutionGroupFilteringPostgreSqlDelegate.LimitEachGroupToItsFreeSlots(shipped, maxCount);
+
+        // Assert
+        Quartz422RewrittenAcquisitionSql.Normalized(rewritten).Should().Be(
+            Quartz422RewrittenAcquisitionSql.PostgreSql(maxCount, excludedJobTypes),
+            Quartz422RewrittenAcquisitionSql.RewriteChanged);
+    }
+
+    [Theory]
+    [MemberData(nameof(Quartz422AcquisitionSql.Shapes), MemberType = typeof(Quartz422AcquisitionSql))]
     public void LimitEachGroupToItsFreeSlots_EveryQuartzShape_KeepsQuartzClauses(
         int maxCount, int excludedJobTypeBucket, string excludedJobTypes)
     {
