@@ -24,12 +24,14 @@ public sealed class Redeem(IMediator mediator)
             summary.Responses[400] = "Invalid input.";
             summary.Responses[404] = "Link not found.";
             summary.Responses[403] = "Too many requests.";
+            summary.Responses[503] = "Another open of the same link is still running. Try again.";
         });
         Description(builder => builder
             .Produces<RedeemedLinkResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(403)
-            .ProducesProblem(404));
+            .ProducesProblem(404)
+            .ProducesProblem(503));
     }
 
     public override async Task<Results<Ok<RedeemedLinkResponse>, ProblemHttpResult>> ExecuteAsync(

@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -14,44 +15,93 @@ public sealed record RedeemedLinkDto(long SubmissionId, bool Created, string Acc
 
 public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Result<RedeemedLinkDto>>;
 
+/// <summary>
+/// The first open of a link, and the first token of a link claimed without one, run under
+/// <see cref="LinkOpenLock"/>, so parallel opens of one link take turns. Everything else runs unlocked.
+/// </summary>
 internal sealed class RedeemLinkHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
     IRepository<Submission> submissions,
-    ISubmissionTokenService tokens)
+    ISubmissionTokenService tokens,
+    LinkOpenLock linkLock)
     : ICommandHandler<RedeemLinkCommand, Result<RedeemedLinkDto>>
 {
+    private const string LinkNotFound = "Link not found.";
+
     public async Task<Result<RedeemedLinkDto>> Handle(
         RedeemLinkCommand request,
         CancellationToken cancellationToken)
     {
-        var link = await db.Links.FirstOrDefaultAsync(
-            item => item.FormId == request.FormId && item.TokenHash == AudienceLink.Hash(request.Token),
-            cancellationToken);
+        var link = await LinkAsync(request, cancellationToken);
         if (link is null)
         {
-            return Result.NotFound("Link not found.");
+            return Result.NotFound(LinkNotFound);
         }
 
-        if (link.SubmissionId is long existingId)
+        try
         {
-            return await ResumeAsync(existingId, cancellationToken);
+            return await OpenOrResumeAsync(link, cancellationToken);
         }
-
-        return await OpenAsync(link, cancellationToken);
+        catch (TransactionLockTimeoutException)
+        {
+            return Result.Unavailable("This link is being opened. Try again in a moment.");
+        }
     }
 
-    private async Task<Result<RedeemedLinkDto>> ResumeAsync(
-        long submissionId,
+    private Task<AudienceLink?> LinkAsync(RedeemLinkCommand request, CancellationToken cancellationToken) =>
+        db.Links.AsNoTracking().FirstOrDefaultAsync(
+            item => item.FormId == request.FormId && item.TokenHash == AudienceLink.Hash(request.Token),
+            cancellationToken);
+
+    /// <summary>The lock covers only what must not interleave; resuming a claimed link never waits.</summary>
+    private async Task<Result<RedeemedLinkDto>> OpenOrResumeAsync(
+        AudienceLink link,
         CancellationToken cancellationToken)
     {
-        var submission = await submissions.GetByIdAsync(submissionId, cancellationToken);
-        return submission is null
-            ? Result.NotFound("Link not found.")
-            : await RedeemedAsync(submissionId, false, cancellationToken);
+        var claimedId = link.SubmissionId;
+        if (claimedId is null)
+        {
+            var opened = await OpenLockedAsync(link, cancellationToken);
+            if (opened is not null)
+            {
+                return opened;
+            }
+
+            claimedId = await ClaimedIdAsync(link.Id, cancellationToken);
+        }
+
+        return claimedId is long submissionId
+            ? await ResumeAsync(link.Id, submissionId, cancellationToken)
+            : Result.NotFound(LinkNotFound);
     }
 
-    private async Task<Result<RedeemedLinkDto>> OpenAsync(AudienceLink link, CancellationToken cancellationToken)
+    /// <summary><see langword="null"/> when another open claimed the link first; the caller resumes it.</summary>
+    private async Task<Result<RedeemedLinkDto>?> OpenLockedAsync(
+        AudienceLink link,
+        CancellationToken cancellationToken)
+    {
+        await using var locked = await linkLock.BeginAsync(link.Id, cancellationToken);
+        if (await ClaimedIdAsync(link.Id, cancellationToken) is not null)
+        {
+            return null;
+        }
+
+        var opened = await OpenNewAsync(link, cancellationToken);
+        if (opened is { IsSuccess: true })
+        {
+            await locked.CommitAsync(cancellationToken);
+        }
+
+        return opened;
+    }
+
+    /// <summary>
+    /// Adopts the submission an open left before its claim, or inserts one, then issues its token and claims.
+    /// <see langword="null"/> when a writer outside the lock (an older version during a deploy) claimed first:
+    /// the uncommitted submission and token roll back with the lock.
+    /// </summary>
+    private async Task<Result<RedeemedLinkDto>?> OpenNewAsync(AudienceLink link, CancellationToken cancellationToken)
     {
         var form = await forms.GetByIdAsync(link.FormId, cancellationToken);
         if (form?.ActiveDefinitionId is not long definitionId)
@@ -60,51 +110,70 @@ internal sealed class RedeemLinkHandler(
         }
 
         var pending = await submissions.FirstOrDefaultAsync(
-            new SubmissionForLinkSpec(link.Id),
+            new SubmissionForLinkSpec(link.FormId, link.Id),
             cancellationToken);
-        return pending is not null
-            ? await ClaimExistingAsync(link.Id, pending, cancellationToken)
-            : await OpenNewAsync(link, definitionId, cancellationToken);
+        var submission = pending ?? await StartAsync(link, definitionId, cancellationToken);
+        var redeemed = await RedeemedAsync(submission.Id, pending is null, cancellationToken);
+        if (!redeemed.IsSuccess)
+        {
+            return redeemed;
+        }
+
+        return await ClaimAsync(link.Id, submission.Id, cancellationToken) ? redeemed : null;
     }
 
     /// <summary>
-    /// A crash after the insert and before the claim leaves this submission. The next open
-    /// claims it instead of creating another.
+    /// A link claimed before tokens were issued under the lock can name a submission without one. Its first
+    /// token is issued under the lock, so parallel opens do not each write their own.
     /// </summary>
-    private async Task<Result<RedeemedLinkDto>> ClaimExistingAsync(
+    private async Task<Result<RedeemedLinkDto>> ResumeAsync(
         long linkId,
-        Submission pending,
+        long submissionId,
         CancellationToken cancellationToken)
     {
-        if (await ClaimAsync(linkId, pending.Id, cancellationToken))
+        var hasToken = await submissions.FirstOrDefaultAsync(
+            new SubmissionHasTokenSpec(submissionId),
+            cancellationToken);
+        return hasToken switch
         {
-            return await RedeemedAsync(pending.Id, false, cancellationToken);
-        }
-
-        var claimed = await ResumeClaimedAsync(linkId, cancellationToken);
-        if (claimed.IsSuccess && claimed.Value.SubmissionId != pending.Id)
-        {
-            pending.Delete();
-            await submissions.SaveChangesAsync(cancellationToken);
-        }
-
-        return claimed;
+            null => Result.NotFound(LinkNotFound),
+            true => await RedeemedAsync(submissionId, false, cancellationToken),
+            false => await FirstTokenLockedAsync(linkId, submissionId, cancellationToken),
+        };
     }
 
-    private async Task<Result<RedeemedLinkDto>> OpenNewAsync(
-        AudienceLink link,
-        long definitionId,
+    private async Task<Result<RedeemedLinkDto>> FirstTokenLockedAsync(
+        long linkId,
+        long submissionId,
         CancellationToken cancellationToken)
     {
-        var submission = await StartAsync(link, definitionId, cancellationToken);
-        if (await ClaimAsync(link.Id, submission.Id, cancellationToken))
+        await using var locked = await linkLock.BeginAsync(linkId, cancellationToken);
+        var redeemed = await RedeemedAsync(submissionId, false, cancellationToken);
+        if (redeemed.IsSuccess)
         {
-            return await RedeemedAsync(submission.Id, true, cancellationToken);
+            await locked.CommitAsync(cancellationToken);
         }
 
-        submission.Delete();
-        await submissions.SaveChangesAsync(cancellationToken);
-        return await ResumeClaimedAsync(link.Id, cancellationToken);
+        return redeemed;
+    }
+
+    private Task<long?> ClaimedIdAsync(long linkId, CancellationToken cancellationToken) =>
+        db.Links.AsNoTracking()
+            .Where(item => item.Id == linkId)
+            .Select(item => item.SubmissionId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <summary>One winner: the update matches only while the link is still unopened.</summary>
+    private async Task<bool> ClaimAsync(long linkId, long submissionId, CancellationToken cancellationToken)
+    {
+        var updated = await db.Links
+            .Where(item => item.Id == linkId && item.SubmissionId == null)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(item => item.SubmissionId, submissionId)
+                    .SetProperty(item => item.OpenedAt, DateTime.UtcNow),
+                cancellationToken);
+        return updated == 1;
     }
 
     private async Task<Submission> StartAsync(
@@ -124,32 +193,6 @@ internal sealed class RedeemLinkHandler(
         await submissions.AddAsync(submission, cancellationToken);
         await submissions.SaveChangesAsync(cancellationToken);
         return submission;
-    }
-
-    /// <summary>One winner: the update matches only while the link is still unopened.</summary>
-    private async Task<bool> ClaimAsync(long linkId, long submissionId, CancellationToken cancellationToken)
-    {
-        var updated = await db.Links
-            .Where(item => item.Id == linkId && item.SubmissionId == null)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(item => item.SubmissionId, submissionId)
-                    .SetProperty(item => item.OpenedAt, DateTime.UtcNow),
-                cancellationToken);
-        return updated == 1;
-    }
-
-    private async Task<Result<RedeemedLinkDto>> ResumeClaimedAsync(
-        long linkId,
-        CancellationToken cancellationToken)
-    {
-        var submissionId = await db.Links.AsNoTracking()
-            .Where(item => item.Id == linkId)
-            .Select(item => item.SubmissionId)
-            .FirstOrDefaultAsync(cancellationToken);
-        return submissionId is long existingId
-            ? await ResumeAsync(existingId, cancellationToken)
-            : Result.NotFound("Link not found.");
     }
 
     private async Task<string> SnapshotAsync(
@@ -188,10 +231,21 @@ internal sealed class RedeemLinkHandler(
     }
 }
 
-/// <summary>The submission already written for this link, including one whose claim never committed.</summary>
+/// <summary>
+/// The submission already written for this link, including one whose claim never committed. The form narrows
+/// it to <c>IX_Submissions_FormId</c>: <c>AudienceLinkId</c> has no index.
+/// </summary>
 internal sealed class SubmissionForLinkSpec : Specification<Submission>
 {
-    public SubmissionForLinkSpec(long audienceLinkId) =>
-        Query.Where(submission => submission.AudienceLinkId == audienceLinkId)
+    public SubmissionForLinkSpec(long formId, long audienceLinkId) =>
+        Query.Where(submission => submission.FormId == formId && submission.AudienceLinkId == audienceLinkId)
             .OrderBy(submission => submission.Id);
+}
+
+/// <summary>Whether a live submission has its token, untracked; <see langword="null"/> when there is none.</summary>
+internal sealed class SubmissionHasTokenSpec : Specification<Submission, bool?>
+{
+    public SubmissionHasTokenSpec(long submissionId) =>
+        Query.Where(submission => submission.Id == submissionId)
+            .Select(submission => (bool?)(submission.Token!.Value != null));
 }

@@ -13,6 +13,11 @@ namespace Endatix.Infrastructure.Data.Locking;
 /// and wait for the other's can deadlock; one that takes a single lock before it touches anything cannot.
 /// </para>
 /// <para>
+/// Run the whole locked section on the connection that holds the lock: another context joins it with
+/// <c>SetDbConnection</c> + <c>UseTransactionAsync</c>. Renting a second pooled connection while holding the lock can
+/// exhaust the pool under load. Pattern and checklist: ARCHITECTURE.md, Serializing work across requests.
+/// </para>
+/// <para>
 /// When the lock is not taken, for whatever reason, the caller rolls the transaction back (disposing it does).
 /// PostgreSQL has already aborted it; on SQL Server it stays open, still holding whatever it locked before.
 /// </para>

@@ -66,7 +66,7 @@ Database schema: `audience`
 | PUT/DELETE | `forms/{formId}/audience/people/{membershipId}` | Edit values / remove from this form only |
 | POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400 |
 | POST | `forms/{formId}/audience/links` | Issue one link per person who does not have one, up to 5,000. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
-| POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open creates one in-progress submission and freezes `PersonalizationSnapshot`. A parallel first open keeps one submission. A later open returns that submission. Unknown token, or a link whose submission was deleted, is 404. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
+| POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open creates one in-progress submission and freezes `PersonalizationSnapshot`. A parallel first open keeps one submission. A later open returns that submission. Unknown token, or a link whose submission or form was deleted, is 404. Another open of the same link holding it past 5 s is 503. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
 
 Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`, and redeem, which is anonymous.
 
@@ -92,7 +92,11 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
   and properties; tenant members stay. Until it runs, the form's people still count toward the
   match-key lock.
 - **On behalf.** `POST forms/{formId}/submissions/onbehalf` (`Submissions.CreateOnBehalf`, not this module's routes) freezes a snapshot when `Submitter.ExternalSubjectId` matches a member on a form that has properties. Unknown id, no properties, or no submitter leaves the create unchanged. The snapshot is `source: on_behalf` plus `memberId` and `values[]` beside `variables`. Binding `Member.SubmitterId` is one update that matches only while it is null.
-- **Links.** The token is stored as a SHA-256 hash. Opening claims the link with one update
-  (`SubmissionId` still null), so two first opens leave one submission. A crash between creating
-  the submission and that update leaves the submission; the next open claims it instead of creating another.
+- **Links.** The token is stored as a SHA-256 hash. A claimed link resumes without a lock. A first open takes
+  `ITransactionLock` (scope `AudienceLinkOpen`, key the link id, 5 s wait, then 503) through `LinkOpenLock`, on one
+  connection: `AppDbContext` joins the audience transaction. Under the lock it re-reads the claim, adopts a submission
+  an earlier open left (`FormId` + `AudienceLinkId`) or inserts one, issues the token, and claims with one update
+  (`SubmissionId` still null). All of that commits together. A claim lost to a writer outside the lock rolls back
+  and resumes that writer's submission. A link claimed before tokens were issued this way gets its first token
+  under the lock. See [ARCHITECTURE.md → Transaction locks](../../ARCHITECTURE.md#serializing-work-across-requests-transaction-locks).
   Disabled forms, a removed person, and sharing one submission with on-behalf are not gated here.

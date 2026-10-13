@@ -225,7 +225,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
 
 Host wiring: OSS `UseDefaults()` calls `UseModule(ReportingModule.Instance)`, `UseModule(JobsModule.Instance)`, and `UseModule(AudienceModule.Instance)`. `UseModule` scans MediatR on `Assembly`, invokes `ConfigureServices` at finalization, and **only if** the module implements `IHasFastEndpoints` registers FastEndpoints discovery (flag-off modules contribute nothing). Do **not** also call `Api.ScanAssemblies` from `Program` for that assembly — duplicate scan bypasses the flag.
 
-**Provider:** Reporting and Audience run on **PostgreSQL and SQL Server 2025 or later (or Azure SQL Database)**. Their persistence follows the module pattern — a `…DbContextBase` plus a PostgreSQL and a SQL Server context (`ReportingPostgreSqlDbContext`/`ReportingSqlServerDbContext`, `AudiencePostgreSqlDbContext`/`AudienceSqlServerDbContext`), each with its own migrations under `Persistence/Migrations/<Provider>/`, both migrations namespaces set to the migrations root — and `ConfigureServices` registers the active provider's context only. Audience keeps the SQL Server match key in a binary collation so it stays case-sensitive. Details: [Reporting README](src/Endatix.Modules.Reporting/README.md), [Audience README](src/Endatix.Modules.Audience/README.md). Jobs, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only**: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Audience uses schema `audience` and is gated by `FeatureFlags.PersonalizationModule` (catalogue key `personalization-module`); the module name is the sample frame, the flag is the product name. Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder. Work in a module that must not interleave across processes takes `ITransactionLock` (`Endatix.Infrastructure.Data.Locking`), a named lock held until the transaction ends; each provider's persistence builder registers it: `pg_advisory_xact_lock` on PostgreSQL, `sp_getapplock` with a transaction owner on SQL Server.
+**Provider:** Reporting and Audience run on **PostgreSQL and SQL Server 2025 or later (or Azure SQL Database)**. Their persistence follows the module pattern — a `…DbContextBase` plus a PostgreSQL and a SQL Server context (`ReportingPostgreSqlDbContext`/`ReportingSqlServerDbContext`, `AudiencePostgreSqlDbContext`/`AudienceSqlServerDbContext`), each with its own migrations under `Persistence/Migrations/<Provider>/`, both migrations namespaces set to the migrations root — and `ConfigureServices` registers the active provider's context only. Audience keeps the SQL Server match key in a binary collation so it stays case-sensitive. Details: [Reporting README](src/Endatix.Modules.Reporting/README.md), [Audience README](src/Endatix.Modules.Audience/README.md). Jobs, SaaS Agents, and `Endatix.SaaS.Management` are **PostgreSQL-only**: throw in `ConfigureServices` when `DefaultConnection_DbProvider` is not postgres (Jobs pattern). Audience uses schema `audience` and is gated by `FeatureFlags.PersonalizationModule` (catalogue key `personalization-module`); the module name is the sample frame, the flag is the product name. Never set `SqlServerMigrationsNamespace` to a PostgreSQL migrations folder. Work in a module that must not interleave across processes takes `ITransactionLock` (`Endatix.Infrastructure.Data.Locking`), a named lock held until the transaction ends; each provider's persistence builder registers it: `pg_advisory_xact_lock` on PostgreSQL, `sp_getapplock` with a transaction owner on SQL Server. How to use it: [Transaction locks](#serializing-work-across-requests-transaction-locks).
 
 **Optimistic concurrency:** For aggregates that can be updated concurrently, use `long Revision` + `IsConcurrencyToken()` and bump `Revision` on `Modified` at save. Same CLR type and column on both providers. Do not use PostgreSQL `xmin` (`uint` / `IsRowVersion`) on dual-provider (or future dual-provider) modules — SQL Server `rowversion` is `byte[]`. Identity keeps `ConcurrencyStamp`. `Form`/`Submission.Revision` today is outbox/event pairing, not an EF concurrency token. Map `DbUpdateConcurrencyException` to HTTP 409. Unique indexes still cover insert uniqueness.
 
@@ -524,6 +524,41 @@ writers, retention pruning, disk-full, Windows file locking — is not worth own
 the host's choice. An Azure SDK in `Endatix.Hosting` would be in the transitive graph of every
 consumer, including those who never deploy to Azure — a permanent dependency to save three
 documented lines.
+
+---
+
+## Serializing work across requests (transaction locks)
+
+Use this when a decision reads state and then writes several rows, and two requests or processes must not both make it. Examples: the first open of a link, a match-key change against member inserts, a form-schema rebuild.
+
+**Try a single statement first.** When one row decides the outcome, a unique index or a conditional `UPDATE … WHERE <still unclaimed>` that checks its row count is enough. It needs no lock and no extra connection. Use a lock only when the decision spans reads plus several writes.
+
+**Avoid the wrong shapes.** These two came up on the way to the link-open lock (#1204, #1210, #1211):
+- **Write, then undo the loser's write.** Both requests insert, one claims, the other deletes its insert. A delete can hit a row the winner has just adopted.
+- **Reserve an id, claim it, then insert.** It needs an `IIdGenerator` in a handler, matching on a primary-key name, and ids out of creation order. A design that needs exceptions to platform rules is a sign to look for an existing primitive first.
+
+### The pattern
+
+Reference: `LinkOpenLock` + `RedeemLinkHandler` (Audience). The exclusive/shared variant is `MatchKeyLock`.
+
+1. **Fast path without the lock.** Read the deciding state untracked. When the work is already done (the link is claimed), carry on unlocked.
+2. **Take the lock as the transaction's first statement.** Use `transactionLock.BeginLockedTransactionAsync(database, request, ct)` (`TransactionLockExtensions`). It begins the transaction, acquires the lock, and disposes the transaction if acquiring fails. Take one lock per transaction.
+3. **Key narrowly.** Add a scope constant to `TransactionLockScopes`, and key by the smallest thing that must not interleave (a link id, `{tenantId}:{formId}`). Opens of different keys never wait for each other. Take a shared lock for writers that may run together and an exclusive one for the change that excludes them all (`MatchKeyLock`).
+4. **Hold one connection.** Every read and write in the section runs on the connection and transaction that hold the lock. When the section spans two contexts, the second joins the first: `other.Database.SetDbConnection(locked.GetDbConnection())`, then `UseTransactionAsync(transaction.GetDbTransaction())`, and `UseTransactionAsync(null)` on dispose (`LinkOpenLock`). Never rent a second pooled connection while holding the lock. Both contexts use `DefaultConnection`, so they share one pool. With N sections open at once and a pool of N, each holds one connection and waits for another that never comes, so every request on the host fails. Joining also commits all the writes together, so a failure or a lost race rolls them all back and leaves no orphan.
+5. **Re-check under the lock, from the database.** Another request may have finished while this one waited. Re-read the deciding state untracked. Never act on an entity the context tracked before the wait. `GetByIdAsync` returns the tracked copy, which is stale, and the section would overwrite the other request's write.
+6. **Keep the section short.** Inside it, only decide and write. Reads that need no ordering (resuming, a token extend), slow I/O and HTTP calls run after the lock ends. A query in the section must use an index: every waiter holds a connection for as long as the section runs.
+7. **Bound the wait.** Set `TransactionLockRequest.Timeout`, shorter than the command timeout. Without it, a waiter holds a connection for 30 s and then fails with a raw provider exception, which becomes a 500. Map `TransactionLockTimeoutException` to `Result.Unavailable` (503, retryable) on HTTP. Jobs retry it.
+8. **Keep the database guard and check it.** The lock orders only the code that takes it. A pod still on the previous version during a rolling deploy, or another app on the database, can write without it. Keep the conditional `UPDATE` or the unique index, and check its row count. When it says another writer won, roll back and continue from what that writer stored.
+9. **Handle rows written before the lock existed.** Rows the old code left can break assumptions the lock now guarantees. Example: a link claimed before its token was saved. Detect that state and take the locked path for it, or repair it once.
+
+### Testing a lock
+
+- **Force the interleaving; don't hope for it.** A `DbCommandInterceptor` gate pauses the first request at a chosen command while it holds the lock. Match both providers' quoting (`"Submissions"`, `[Submissions]`). Then start the second request (`AudienceDirectoryFlowTests.LinkRaces.cs`).
+- **Assert the waiting.** The second request has not completed after a short probe, then finishes with the first one's result.
+- **Assert one connection.** The joined context's `GetDbConnection()` is the locking context's connection.
+- **Cover what the lock doesn't order:** a writer that skips the lock wins (rollback and resume), and a lock held by the test past the timeout (503).
+- **Never leave a paused request running.** Release and drain every started request on dispose (`ConfigureAwaitOptions.SuppressThrowing`), so a failed assert does not leak a request into the next test.
+- **Check that each test catches its bug.** Remove each guard (the lock, the join, the row-count check, the timeout) and confirm that its test fails.
 
 ---
 

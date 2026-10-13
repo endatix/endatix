@@ -76,6 +76,28 @@ public class SubmissionTokenServiceObtainTokenTests
     }
 
     [Fact]
+    public async Task ObtainToken_FormDeleted_ReturnsNotFoundWithoutSaving()
+    {
+        // Arrange
+        var submissionId = 1L;
+        var submission = IncompleteSubmission(submissionId);
+        _submissionRepository.GetByIdAsync(submissionId).Returns(submission);
+        _formRepository.FirstOrDefaultAsync(
+            Arg.Any<FormProjections.SessionTokenExpiryDtoSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns((FormProjections.FormSessionTokenExpiryDto?)null);
+
+        // Act
+        var result = await _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Form not found");
+        submission.Token.Should().BeNull();
+        await _submissionRepository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ObtainToken_NewToken_ReturnsSuccess()
     {
         // Arrange

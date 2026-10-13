@@ -1,7 +1,6 @@
 using System.Globalization;
 using Endatix.Infrastructure.Data.Locking;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Persistence;
@@ -30,24 +29,9 @@ internal sealed class MatchKeyLock(ITransactionLock transactionLock)
     private static TransactionLockRequest Request(long tenantId) =>
         new(TransactionLockScopes.AudienceMatchKey, tenantId.ToString(CultureInfo.InvariantCulture));
 
-    private async Task<IDbContextTransaction> BeginAsync(
+    private Task<IDbContextTransaction> BeginAsync(
         IAudienceDbContext db,
         TransactionLockRequest request,
-        CancellationToken cancellationToken)
-    {
-        DatabaseFacade database = ((DbContext)db).Database;
-        IDbContextTransaction transaction = await database.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            await transactionLock.AcquireAsync(database, request, cancellationToken);
-            return transaction;
-        }
-        catch
-        {
-            // The caller never gets the transaction to dispose. Left open, it would take the scope's later writes
-            // and roll them back with the context, and a retry would find the connection already in a transaction.
-            await transaction.DisposeAsync();
-            throw;
-        }
-    }
+        CancellationToken cancellationToken) =>
+        transactionLock.BeginLockedTransactionAsync(((DbContext)db).Database, request, cancellationToken);
 }

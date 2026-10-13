@@ -1,11 +1,23 @@
+using System.Data.Common;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Locking;
+using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Infrastructure.Features.Submissions;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -81,7 +93,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Columbus");
-        long orphanId = await LeaveUnclaimedSubmissionAsync(world.Services, formId);
+        var orphanId = await LeaveUnclaimedSubmissionAsync(world.Services, formId);
         using var anonymous = world.AnonymousClient();
 
         // Act
@@ -90,15 +102,80 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.False(opened.GetProperty("created").GetBoolean());
         Assert.Equal(orphanId, IdOf(opened, "submissionId"));
+        await AssertOnlySubmissionAsync(world.Services, formId, orphanId);
+    }
+
+    [Fact]
+    public async Task Opening_one_link_many_times_at_once_creates_one_submission_with_one_access_token()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Akron");
+        using var anonymous = world.AnonymousClient();
+
+        // Act
+        var opened = await Task.WhenAll(
+            Enumerable.Range(0, ParallelOpens).Select(_ => RedeemAsync(anonymous, formId, token)));
+        var reopened = await RedeemAsync(anonymous, formId, token);
+
+        // Assert
+        var submissionId = IdOf(opened[0], "submissionId");
+        Assert.All(opened, item => Assert.Equal(submissionId, IdOf(item, "submissionId")));
+        Assert.Equal(1, opened.Count(item => item.GetProperty("created").GetBoolean()));
+        Assert.All(opened, item => Assert.Equal(AccessTokenOf(reopened), AccessTokenOf(item)));
+        await AssertOnlySubmissionAsync(world.Services, formId, submissionId);
+    }
+
+    [Fact]
+    public async Task Opening_a_link_whose_submission_was_deleted_is_not_found()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Toledo");
+        using var anonymous = world.AnonymousClient();
+        var opened = await RedeemAsync(anonymous, formId, token);
+        await DeleteSubmissionAsync(world.Services, IdOf(opened, "submissionId"));
+
+        // Act
+        using var again = await anonymous.PostAsJsonAsync(
+            $"/api/forms/{formId}/audience/links/{token}/redeem", new { }, admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
+    }
+
+    /// <summary>
+    /// A form delete that loaded the form's submissions just before the first open inserted its
+    /// own leaves that submission live on a deleted form. Reopening it is not found, not a 500.
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_link_whose_form_was_deleted_under_a_live_submission_is_not_found()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Lima");
+        using var anonymous = world.AnonymousClient();
+        await RedeemAsync(anonymous, formId, token);
+        await DeleteOnlyTheFormAsync(world.Services, formId);
+
+        // Act
+        using var again = await anonymous.PostAsJsonAsync(
+            $"/api/forms/{formId}/audience/links/{token}/redeem", new { }, admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
     }
 
     /// <summary>A committed submission for the link, with the link still unopened.</summary>
     private static async Task<long> LeaveUnclaimedSubmissionAsync(IServiceProvider services, long formId)
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        await using AsyncServiceScope scope = services.CreateAsyncScope();
-        AppDbContext app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        IAudienceDbContext audience = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var audience = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
         var link = await audience.Links.AsNoTracking().SingleAsync(item => item.FormId == formId, cancellationToken);
         var definitionId = await app.Forms
             .Where(form => form.Id == formId)
@@ -117,6 +194,53 @@ public sealed partial class AudienceDirectoryFlowTests
         return submission.Id;
     }
 
+    private static async Task DeleteSubmissionAsync(IServiceProvider services, long submissionId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var submission = await app.Submissions.SingleAsync(item => item.Id == submissionId, cancellationToken);
+        submission.Delete();
+        await app.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>The form row only: no domain events, so its submissions, links and people stay.</summary>
+    private static async Task DeleteOnlyTheFormAsync(IServiceProvider services, long formId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var updated = await app.Forms
+            .Where(form => form.Id == formId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(form => form.IsDeleted, true), cancellationToken);
+        Assert.Equal(1, updated);
+    }
+
+    private const int ParallelOpens = 8;
+    private static string AccessTokenOf(JsonElement opened) => opened.GetProperty("accessToken").GetString()!;
+
+    /// <summary>The form has exactly this submission, live, soft-deleted rows included, and the link names it.</summary>
+    private static async Task AssertOnlySubmissionAsync(IServiceProvider services, long formId, long submissionId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var audience = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var rows = await app.Submissions.AsNoTracking()
+            .IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete, EndatixQueryFilterNames.Tenant])
+            .Where(item => item.FormId == formId)
+            .Select(item => new { item.Id, item.IsDeleted })
+            .ToListAsync(cancellationToken);
+        var row = Assert.Single(rows);
+        Assert.Equal(submissionId, row.Id);
+        Assert.False(row.IsDeleted);
+        var linked = await audience.Links.AsNoTracking()
+            .Where(item => item.FormId == formId)
+            .Select(item => item.SubmissionId)
+            .SingleAsync(cancellationToken);
+        Assert.Equal(submissionId, linked);
+    }
+
     /// <summary>A form with a City property and one person whose city is set; their one link.</summary>
     private static async Task<(long FormId, string Token)> LinkForPersonWithCityAsync(AudienceApi admin, string city)
     {
@@ -132,7 +256,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
     private static async Task<JsonElement> RedeemAsync(HttpClient anonymous, long formId, string token)
     {
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        var cancellationToken = TestContext.Current.CancellationToken;
         using var response = await anonymous.PostAsJsonAsync(
             $"/api/forms/{formId}/audience/links/{token}/redeem", new { }, cancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
