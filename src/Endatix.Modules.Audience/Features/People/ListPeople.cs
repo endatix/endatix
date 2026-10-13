@@ -1,6 +1,7 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
@@ -48,34 +49,26 @@ internal sealed class ListPeopleHandler(
 
     /// <summary>
     /// Counts, then reads the page, each in its own statement and without a transaction: a transaction that kept
-    /// them consistent would hold shared locks on SQL Server and wait behind every writer. A person added between
-    /// the two queries can make the page longer than the count, so the total is raised to cover the rows shown.
+    /// them consistent would hold shared locks on SQL Server and wait behind every writer. <see cref="ResolvedPage"/>
+    /// clamps the page, and raises the total when a person added between the two queries makes the page longer.
     /// </summary>
     private async Task<Paged<PersonDto>> PageAsync(
         ListPeopleQuery request,
         CancellationToken cancellationToken)
     {
-        (int requestedPage, int pageSize) = ResolvePaging(request);
         IQueryable<Membership> query = MembershipsOnForm(request.TenantId, request.FormId);
-
-        int counted = await query.CountAsync(cancellationToken);
-        int page = Paged<PersonDto>.ResolvePage(requestedPage, pageSize, counted);
+        ResolvedPage resolved = ResolvedPage.For(
+            request.Page ?? 1,
+            PageSize(request),
+            await query.CountAsync(cancellationToken));
         List<Membership> rows = await query
             .OrderBy(membership => membership.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(resolved.Skip)
+            .Take(resolved.PageSize)
             .ToListAsync(cancellationToken);
 
-        List<PersonDto> items = await MapPeopleAsync(request.TenantId, rows, cancellationToken);
-        int total = TotalCoveringPage(counted, (page - 1) * pageSize, items.Count);
-        return Paged<PersonDto>.FromPage(page, pageSize, total, items);
+        return resolved.ToPaged(await MapPeopleAsync(request.TenantId, rows, cancellationToken));
     }
-
-    /// <summary>
-    /// The counted total, or more when the page read after the count holds rows the count missed.
-    /// </summary>
-    internal static int TotalCoveringPage(int counted, int offset, int shown) =>
-        Math.Max(counted, offset + shown);
 
     // The tenant is stated as well as filtered, so SQL Server can seek the tenant-first index: the tenant query
     // filter's bypass parameter keeps it from seeking on the filter alone.
@@ -85,14 +78,13 @@ internal sealed class ListPeopleHandler(
             && membership.FormId == formId
             && db.Members.Any(member => member.Id == membership.MemberId));
 
-    private static (int Page, int PageSize) ResolvePaging(ListPeopleQuery request)
-    {
-        int page = request.Page is > 0 ? request.Page.Value : 1;
-        int pageSize = request.PageSize is > 0
+    /// <summary>
+    /// The audience's own limits rather than <see cref="PageRequest"/>'s, which caps a page at 100 people.
+    /// </summary>
+    private static int PageSize(ListPeopleQuery request) =>
+        request.PageSize is > 0
             ? Math.Min(request.PageSize.Value, AudiencePaging.MaxPageSize)
             : AudiencePaging.DefaultPageSize;
-        return (page, pageSize);
-    }
 
     private async Task<List<PersonDto>> MapPeopleAsync(
         long tenantId,
