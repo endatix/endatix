@@ -1,7 +1,11 @@
+using System.Data;
+using System.Data.Common;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Persistence.SqlServer.Locking;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Endatix.IntegrationTests;
 
@@ -15,8 +19,19 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "SqlServer")]
 public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
 {
+    private const int CommandTimeoutSeconds = 1;
+    private const int CommandTimeoutNumber = -2;
+    private const byte MaxInformationalClass = 10;
+    private const byte MinBrokenConnectionClass = 20;
+
+    // PRINT rather than RAISERROR WITH NOWAIT: the server holds a PRINT back until the batch ends, so it reaches
+    // SqlClient together with the cancel. A message flushed during the wait makes SqlClient ignore the token until
+    // the command times out.
+    private const string InformationalMessageSql = "PRINT N'Waiting for the lock.';";
+
     private static readonly TimeSpan ShortWait = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan LongWait = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan LockWaitPoll = TimeSpan.FromMilliseconds(20);
     private static readonly TimeSpan DeadlockDetection = TimeSpan.FromSeconds(25);
     private static readonly TransactionLockRequest Exclusive = new(TransactionLockScopes.ReportingFormSchema, "lock-test");
     private static readonly TransactionLockRequest Shared = Exclusive with { Mode = TransactionLockMode.Shared };
@@ -46,9 +61,9 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
         await using var holder = await BeginAsync();
         await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
         await using var waiter = await BeginAsync();
+        var waiterSession = await SessionIdAsync(waiter);
         var waiting = _lock.AcquireAsync(waiter.Database, Exclusive with { Timeout = LongWait }, Cancellation);
-        await Task.Delay(ShortWait, Cancellation);
-        var waitedForTheHolder = !waiting.IsCompleted;
+        var waitedForTheHolder = await WaitsForAppLockAsync(waiterSession);
 
         // Act
         await holder.Database.CommitTransactionAsync(Cancellation);
@@ -66,9 +81,9 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
         await using var holder = await BeginAsync();
         await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
         await using var waiter = await BeginAsync();
+        var waiterSession = await SessionIdAsync(waiter);
         var waiting = _lock.AcquireAsync(waiter.Database, Exclusive with { Timeout = LongWait }, Cancellation);
-        await Task.Delay(ShortWait, Cancellation);
-        var waitedForTheHolder = !waiting.IsCompleted;
+        var waitedForTheHolder = await WaitsForAppLockAsync(waiterSession);
 
         // Act
         await holder.Database.RollbackTransactionAsync(Cancellation);
@@ -227,7 +242,73 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
         var act = () => _lock.AcquireAsync(waiter.Database, Exclusive, cancellation.Token);
 
         // Assert
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+        thrown.Which.InnerException.Should().BeOfType<SqlException>();
+    }
+
+    [Fact]
+    public async Task AcquireAsync_CommandTimesOutWhileTheTokenIsCancelled_ThrowsTheSqlExceptionAsItIs()
+    {
+        // Arrange
+        await using var holder = await BeginAsync();
+        await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        await using var waiter = await BeginAsync(options => options
+            .UseSqlServer(fixture.ConnectionString, sql => sql.CommandTimeout(CommandTimeoutSeconds))
+            .AddInterceptors(new CancelOnCommandFailure(cancellation)));
+
+        // Act
+        var act = () => _lock.AcquireAsync(waiter.Database, Exclusive, cancellation.Token);
+
+        // Assert
+        var thrown = await act.Should().ThrowExactlyAsync<SqlException>();
+        thrown.Which.Number.Should().Be(CommandTimeoutNumber);
+        cancellation.IsCancellationRequested.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AcquireAsync_CancelledWhileWaitingAfterAnInformationalMessage_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        await using var holder = await BeginAsync();
+        await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
+        await using var waiter = await BeginAsync(options => options
+            .UseSqlServer(fixture.ConnectionString)
+            .AddInterceptors(new PrependToCommand(InformationalMessageSql)));
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        cancellation.CancelAfter(ShortWait);
+
+        // Act
+        var act = () => _lock.AcquireAsync(waiter.Database, Exclusive, cancellation.Token);
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+        thrown.Which.InnerException.Should().BeOfType<SqlException>()
+            .Which.Errors.Cast<SqlError>().Should().Contain(error => error.Class <= MaxInformationalClass);
+    }
+
+    [Fact]
+    public async Task AcquireAsync_WaitingSessionKilledWhileTheTokenIsCancelled_ThrowsTheSqlExceptionAsItIs()
+    {
+        // Arrange
+        await using var holder = await BeginAsync();
+        await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        await using var waiter = await BeginAsync(options => options
+            .UseSqlServer(fixture.ConnectionString)
+            .AddInterceptors(new CancelOnCommandFailure(cancellation)));
+        var waiterSession = await SessionIdAsync(waiter);
+        var waiting = _lock.AcquireAsync(waiter.Database, Exclusive, cancellation.Token);
+        var waitedForTheHolder = await WaitsForAppLockAsync(waiterSession);
+
+        // Act
+        await KillAsync(waiterSession);
+
+        // Assert
+        waitedForTheHolder.Should().BeTrue();
+        var thrown = await waiting.Awaiting(wait => wait).Should().ThrowExactlyAsync<SqlException>();
+        thrown.Which.Class.Should().BeGreaterThanOrEqualTo(MinBrokenConnectionClass);
+        cancellation.IsCancellationRequested.Should().BeTrue();
     }
 
     [Fact]
@@ -261,9 +342,14 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    private async Task<DbContext> BeginAsync()
+    private Task<DbContext> BeginAsync() =>
+        BeginAsync(options => options.UseSqlServer(fixture.ConnectionString));
+
+    private static async Task<DbContext> BeginAsync(Action<DbContextOptionsBuilder> configure)
     {
-        DbContext context = new(new DbContextOptionsBuilder().UseSqlServer(fixture.ConnectionString).Options);
+        DbContextOptionsBuilder options = new();
+        configure(options);
+        DbContext context = new(options.Options);
         await context.Database.BeginTransactionAsync(Cancellation);
         return context;
     }
@@ -272,4 +358,72 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
         context.Database
             .SqlQuery<int>($"SELECT @@LOCK_TIMEOUT AS [Value]")
             .SingleAsync(Cancellation);
+
+    private static Task<short> SessionIdAsync(DbContext context) =>
+        context.Database
+            .SqlQuery<short>($"SELECT @@SPID AS [Value]")
+            .SingleAsync(Cancellation);
+
+    /// <summary>
+    /// Whether <paramref name="session"/> is seen waiting in <c>sp_getapplock</c> within <see cref="LongWait"/>, so the
+    /// test acts on a blocked waiter rather than on a session that has not reached the lock yet.
+    /// </summary>
+    private async Task<bool> WaitsForAppLockAsync(short session)
+    {
+        await using SqlConnection connection = new(fixture.ConnectionString);
+        await connection.OpenAsync(Cancellation);
+        await using SqlCommand waiting = new(
+            """
+            SELECT COUNT(*) FROM sys.dm_tran_locks
+            WHERE request_session_id = @session AND resource_type = 'APPLICATION' AND request_status = 'WAIT'
+            """,
+            connection);
+        waiting.Parameters.Add(new SqlParameter("@session", SqlDbType.SmallInt) { Value = session });
+        var deadline = DateTime.UtcNow + LongWait;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await waiting.ExecuteScalarAsync(Cancellation) is int and > 0)
+            {
+                return true;
+            }
+
+            await Task.Delay(LockWaitPoll, Cancellation);
+        }
+
+        return false;
+    }
+
+    // KILL takes no variable and cannot run inside a transaction, so it is built on the server on a connection of its own.
+    private async Task KillAsync(short session)
+    {
+        await using SqlConnection connection = new(fixture.ConnectionString);
+        await connection.OpenAsync(Cancellation);
+        await using SqlCommand kill = new(
+            "DECLARE @kill nvarchar(20) = N'KILL ' + CAST(@session AS nvarchar(10)); EXEC (@kill);", connection);
+        kill.Parameters.Add(new SqlParameter("@session", SqlDbType.SmallInt) { Value = session });
+        await kill.ExecuteNonQueryAsync(Cancellation);
+    }
+
+    /// <summary>Puts <paramref name="sql"/> in front of every command, in the same batch.</summary>
+    private sealed class PrependToCommand(string sql) : DbCommandInterceptor
+    {
+        public override DbCommand CommandInitialized(CommandEndEventData eventData, DbCommand result)
+        {
+            result.CommandText = sql + Environment.NewLine + result.CommandText;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Cancels the token once the command has failed and before its exception reaches the lock, so the lock sees a
+    /// failure that is not SqlClient's cancellation while the token is cancelled, every time.
+    /// </summary>
+    private sealed class CancelOnCommandFailure(CancellationTokenSource cancellation) : DbCommandInterceptor
+    {
+        public override Task CommandFailedAsync(
+            DbCommand command,
+            CommandErrorEventData eventData,
+            CancellationToken cancellationToken = default) =>
+            cancellation.CancelAsync();
+    }
 }

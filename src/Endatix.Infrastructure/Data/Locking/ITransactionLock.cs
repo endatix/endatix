@@ -26,9 +26,12 @@ public interface ITransactionLock
     /// <exception cref="TransactionLockTimeoutException">The lock was not free within the request's timeout.</exception>
     /// <exception cref="InvalidOperationException">
     /// No transaction is open, so the lock would end with the statement; or SQL Server gave the wait up to break a
-    /// deadlock, or refused the lock. PostgreSQL reports those as its own exception.
+    /// deadlock, cancelled it itself, or refused the lock. PostgreSQL reports those as its own exception.
     /// </exception>
-    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled during the wait.</exception>
+    /// <exception cref="OperationCanceledException">
+    /// <paramref name="cancellationToken"/> was cancelled during the wait. A provider error raised for another reason
+    /// is thrown as it is, even when the token was cancelled as well.
+    /// </exception>
     /// <remarks>
     /// A request without a timeout waits for as long as the command may run. When the command timeout ends the wait
     /// first, the provider's own exception is thrown as it is (a <c>SqlException</c> or an <c>NpgsqlException</c>),
