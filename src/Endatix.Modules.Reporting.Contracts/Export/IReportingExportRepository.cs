@@ -31,4 +31,10 @@ public interface IReportingExportRepository
         long formId,
         ExportQueryOptions options,
         CancellationToken cancellationToken);
+
+    /// <summary>Snapshot JSON for submissions on the form that have one. Export columns are the keys inside.</summary>
+    Task<IReadOnlyList<string>> ListPersonalizationSnapshotsAsync(
+        long tenantId,
+        long formId,
+        CancellationToken cancellationToken);
 }

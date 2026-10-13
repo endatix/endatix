@@ -113,7 +113,8 @@ internal sealed class ReportingExportRepository(
                     CompletedAt: submission.CompletedAt,
                     SubmitterId: submission.SubmitterId,
                     SubmitterDisplayId: submission.SubmitterDisplayId,
-                    DataJson: flattened.DataJson!);
+                    DataJson: flattened.DataJson!,
+                    PersonalizationSnapshot: submission.PersonalizationSnapshot);
             }
 
             if (batch.Count < pageSize)
@@ -123,6 +124,21 @@ internal sealed class ReportingExportRepository(
 
             afterSubmissionId = batch[^1].SubmissionId;
         }
+    }
+
+    public async Task<IReadOnlyList<string>> ListPersonalizationSnapshotsAsync(
+        long tenantId,
+        long formId,
+        CancellationToken cancellationToken)
+    {
+        List<string> snapshots = await appDbContext.Submissions
+            .AsNoTracking()
+            .Where(submission => submission.TenantId == tenantId &&
+                                 submission.FormId == formId &&
+                                 submission.PersonalizationSnapshot != null)
+            .Select(submission => submission.PersonalizationSnapshot!)
+            .ToListAsync(cancellationToken);
+        return snapshots;
     }
 
     private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(

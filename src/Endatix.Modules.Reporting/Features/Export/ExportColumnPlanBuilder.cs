@@ -103,6 +103,29 @@ internal static class ExportColumnPlanBuilder
         return new ExportColumnPlan(aliasedColumns);
     }
 
+    /// <summary>Appends frozen-audience columns after the question columns. Headers are already final.</summary>
+    internal static IExportColumnPlan WithAudience(
+        IExportColumnPlan plan,
+        IReadOnlyList<AudienceColumn> audience)
+    {
+        if (audience.Count == 0)
+        {
+            return plan;
+        }
+
+        List<ExportColumnDefinition> columns = [.. plan.Columns];
+        foreach (AudienceColumn column in audience)
+        {
+            columns.Add(new ExportColumnDefinition(
+                CanonicalKey: column.ExportKey,
+                ExportKey: column.ExportKey,
+                Source: ExportColumnSource.DataJson,
+                HeaderLabel: column.ExportKey));
+        }
+
+        return new ExportColumnPlan(columns);
+    }
+
     private static bool ShouldProjectCrunchShapes(ColumnAliasProfile aliasProfile, string keySeparator) =>
         aliasProfile is ColumnAliasProfile.Crunch ||
         string.Equals(
