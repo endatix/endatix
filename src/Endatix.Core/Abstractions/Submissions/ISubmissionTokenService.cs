@@ -1,3 +1,4 @@
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Abstractions.Submissions;
@@ -17,6 +18,13 @@ public interface ISubmissionTokenService
     /// <param name="cancellationToken">A cancellation token to cancel the operation if needed.</param>
     /// <returns>A Result containing the secure token string if successful</returns>
     Task<Result<string>> ObtainTokenAsync(long submissionId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A new token for a submission on <paramref name="form"/>, with the form's expiry or else the tenant's.
+    /// Nothing is saved: a create sets it before its insert, so the submission is never stored without one. A
+    /// second save could replace a token that a link open, taking the committed submission over, already returned.
+    /// </summary>
+    Task<Token> NewTokenAsync(Form form, CancellationToken cancellationToken);
 
     /// <summary>
     /// Resolves a secure token back to its original submission identifier.

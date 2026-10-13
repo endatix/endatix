@@ -99,12 +99,14 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
   an earlier open left (`FormId` + `AudienceLinkId`) or inserts one, issues the token, and claims with one update
   (`SubmissionId` still null). All of that commits together. A claim lost to a writer outside the lock rolls back
   and resumes that writer's submission. A link claimed before tokens were issued this way gets its first token
-  under the lock. A person removed before that claim is not found, and the link stays unopened: the snapshot reads
-  the cells before the membership, and a removal deletes both in one save. A person removed after open still resumes
+  under the lock. A person removed before that claim is not found, and the link stays unopened: every path under the
+  lock (insert or take-over) reads the snapshot, which reads the cells before the membership, and a removal deletes
+  both in one save. A person removed after open still resumes
   that submission while the form is enabled.
 - **One response per person.** On a one-response form the open resolves the person's Submitter before the lock:
   `Member.SubmitterId` when bound, else `Integration` + the identifier (what on-behalf resolves), created if missing
   and bound once. The link's submission carries it with the single-response gate, so `UX_Submissions_RestrictionKey`
   refuses a second one from either path. A refused insert rolls back, and the retry takes the other writer's
-  submission over. For email tenants the identifier is matched as first entered, so an on-behalf call with another
+  submission over. A create stores its token in its insert, so a take-over's token is never replaced by a later
+  save. For email tenants the identifier is matched as first entered, so an on-behalf call with another
   casing is a different Submitter until `Member.SubmitterId` is bound. See [ARCHITECTURE.md → Transaction locks](../../ARCHITECTURE.md#serializing-work-across-requests-transaction-locks).

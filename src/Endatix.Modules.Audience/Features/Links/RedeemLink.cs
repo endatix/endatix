@@ -153,6 +153,7 @@ internal sealed class RedeemLinkHandler(
     /// <summary>
     /// A response this open did not create becomes the link's: it is marked started, and it gets the live audience
     /// values when it has none (an on-behalf create before the person was in the audience). Values it has stay.
+    /// The snapshot is read either way: it is the check under the lock that the person is still there.
     /// <see langword="null"/> when the person was removed meanwhile.
     /// </summary>
     private async Task<Submission?> TakeOverAsync(
@@ -160,14 +161,14 @@ internal sealed class RedeemLinkHandler(
         Submission submission,
         CancellationToken cancellationToken)
     {
+        var snapshot = await SnapshotAsync(link, cancellationToken);
+        if (snapshot is null)
+        {
+            return null;
+        }
+
         if (submission.PersonalizationSnapshot is null)
         {
-            var snapshot = await SnapshotAsync(link, cancellationToken);
-            if (snapshot is null)
-            {
-                return null;
-            }
-
             submission.FreezePersonalization(link.Id, snapshot);
         }
 
