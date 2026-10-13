@@ -520,11 +520,15 @@ and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-
 
 ## Upgrading Quartz
 
+The packages pin Quartz exactly (`[4.2.2]`), because the module depends on its internals and every
+node sharing the store must run the same version; an upgrade bumps the pin.
+
 Unit tests in `Endatix.Modules.Jobs.Tests` pin what the module takes from Quartz, so an upgrade
 that changes it fails in CI rather than at deploy time:
 
-1. Bump `Quartz` and `Quartz.Dashboard` together in `Directory.Packages.props`, and the version
-   named under [What it is](#what-it-is) and in `THIRD-PARTY-NOTICES`.
+1. Bump `Quartz` and `Quartz.Dashboard` together in `Directory.Packages.props`, keeping the exact
+   `[x.y.z]` range, and the version named under [What it is](#what-it-is) and in
+   `THIRD-PARTY-NOTICES`.
 2. Run the module's tests.
 3. If `QuartzSchemaScriptsTests` fails on a pinned hash, Quartz's schema for that provider changed
    (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server). Add an idempotent
