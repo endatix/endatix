@@ -234,6 +234,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         var acquired = await store.SelectTriggersToAcquireAsync(2, limits => limits.ForGroup("A", 0).ForGroup("B", 1), ct);
 
         // Assert — the same key the PostgreSQL delegate returns on this fixture.
+        store.DriverDelegate.Should().BeOfType<ExecutionGroupFilteringSqlServerDelegate>();
         acquired.Should().Equal(behind);
     }
 

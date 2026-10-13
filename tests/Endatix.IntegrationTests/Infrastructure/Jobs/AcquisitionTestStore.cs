@@ -26,8 +26,6 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
     /// <summary>The job types every store has a durable job for.</summary>
     public static readonly string[] JobTypes = ["A", "B"];
 
-    private const string InstanceId = "acquisition-test";
-
     private readonly ServiceProvider _services;
     private readonly IScheduler _scheduler;
 
@@ -39,6 +37,13 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
     }
 
     public JobsTestDatabase Database { get; }
+
+    /// <summary>
+    /// The driver delegate the module registered for the configured provider, as the scheduler's job store
+    /// initialized it, so acquisition in a test runs through what a node would use.
+    /// </summary>
+    public IDriverDelegate DriverDelegate =>
+        _services.GetRequiredKeyedService<IDriverDelegate>(QuartzRegistration.SchedulerName);
 
     /// <summary>When every trigger a test seeds is due: well before now, and well after the misfire cut-off.</summary>
     public DateTimeOffset Due { get; } = DateTimeOffset.UtcNow.AddMinutes(-30);
@@ -187,19 +192,7 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         var dbProvider = _services.GetRequiredKeyedService<IDbProvider>(QuartzRegistration.SchedulerName);
-        IDriverDelegate driverDelegate = Database.Provider == TestDatabaseProvider.PostgreSql
-            ? new ExecutionGroupFilteringPostgreSqlDelegate()
-            : new ExecutionGroupFilteringSqlServerDelegate();
-        driverDelegate.Initialize(new DriverDelegateContext
-        {
-            TablePrefix = QuartzRegistration.TablePrefix,
-            SchedulerName = QuartzRegistration.SchedulerName,
-            InstanceId = InstanceId,
-            DbProvider = dbProvider,
-            TypeLoader = _services.GetRequiredService<ITypeLoader>(),
-            ObjectSerializer = _services.GetRequiredKeyedService<IObjectSerializer>(QuartzRegistration.SchedulerName),
-            UseProperties = true,
-        });
+        var driverDelegate = DriverDelegate;
 
         await using var connection = dbProvider.CreateConnection();
         await connection.OpenAsync(cancellationToken);

@@ -1,5 +1,6 @@
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Runtime;
 
 namespace Endatix.IntegrationTests;
 
@@ -28,6 +29,7 @@ public sealed class JobsPostgreSqlAcquisitionTests(DbIntegrationFixture fixture)
         var acquired = await store.SelectTriggersToAcquireAsync(2, limits => limits.ForGroup("A", 0).ForGroup("B", 1), ct);
 
         // Assert
+        store.DriverDelegate.Should().BeOfType<ExecutionGroupFilteringPostgreSqlDelegate>();
         acquired.Should().Equal(behind);
     }
 }

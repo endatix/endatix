@@ -115,11 +115,13 @@ internal sealed class JobHandlerRegistry
         _ when string.IsNullOrWhiteSpace(jobType) =>
             $"The background job handler {handlerType.FullName} declares no job type, so nothing can be routed to it.",
 
-        // Every job type is also an execution group, and the scheduler reserves these names for its own limits; a
-        // handler declaring one would fail building the scheduler on every host that registers it.
+        // Every job type is also an execution group, and the scheduler reserves these names for its own limits and
+        // its maintenance jobs; a handler declaring one would fail building the scheduler, or share the maintenance
+        // jobs' slots on SQL Server, whose collation ignores case, so either could starve the other.
         _ when IsReservedExecutionGroupName(jobType) =>
-            $"The job type '{jobType}' of the background job handler {handlerType.FullName} is a name the " +
-            "scheduler reserves for its execution limits, so no job could ever run under it.",
+            $"The job type '{jobType}' of the background job handler {handlerType.FullName} is, ignoring case, a " +
+            $"name the scheduler reserves for its execution limits or for its maintenance jobs ('{JobRetentionJob.Group}'), " +
+            "so no job could safely run under it.",
         { Length: > JobTypeMaxLength } =>
             $"The job type '{jobType}' of the background job handler {handlerType.FullName} is longer than " +
             $"{JobTypeMaxLength} characters, so no job could ever carry it.",
@@ -127,7 +129,9 @@ internal sealed class JobHandlerRegistry
     };
 
     private static bool IsReservedExecutionGroupName(string jobType) =>
-        jobType.Trim() is "*" or "_" || jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase);
+        jobType.Trim() is "*" or "_" ||
+        jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase) ||
+        jobType.Trim().Equals(JobRetentionJob.Group, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The handler <paramref name="jobType"/> routes to, from the scope the job runs in, or <see langword="null"/>
