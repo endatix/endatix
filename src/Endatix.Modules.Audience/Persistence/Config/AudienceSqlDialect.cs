@@ -10,6 +10,8 @@ namespace Endatix.Modules.Audience.Persistence.Config;
 /// <remarks>
 /// Every index and constraint is declared once, in the shared configurations, which take their SQL fragments from
 /// here. A change to an index therefore reaches every provider at once, and a provider supplies only its spelling.
+/// The Audience contexts do not scan <c>[ApplyConfigurationFor]</c> classes, so a new difference between providers
+/// becomes a member here, not a class under <c>Config/&lt;Provider&gt;/</c>.
 /// </remarks>
 internal sealed class AudienceSqlDialect
 {
