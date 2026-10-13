@@ -91,15 +91,21 @@ internal static class QuartzRegistration
             .WithIdentity(id, spec.JobType)
             .ForJob(JobKeyFor(spec.JobType))
             .WithExecutionGroup(spec.JobType)
-            .UsingJobData(TriggerData(id, spec));
+            .UsingJobData(TriggerData(spec));
         trigger = spec.StartAt is { } at ? trigger.StartAt(at) : trigger.StartNow();
         return trigger.Build();
     }
 
-    // A re-fire's data also says what it is for: taking the row over, or writing the outcome an earlier firing could not.
-    private static JobDataMap TriggerData(string id, JobTriggerSpec spec)
+    /// <summary>
+    /// The data of the trigger <paramref name="spec"/> describes: the job id, and on a re-fire what it is for, taking the
+    /// row over or writing the outcome an earlier firing could not.
+    /// </summary>
+    internal static JobDataMap TriggerData(JobTriggerSpec spec)
     {
-        var data = new JobDataMap { [BackgroundJobExecution.JobIdKey] = id };
+        var data = new JobDataMap
+        {
+            [BackgroundJobExecution.JobIdKey] = spec.JobId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
         if (spec.Reclaim)
         {
             data[BackgroundJobExecution.ReclaimKey] = bool.TrueString;

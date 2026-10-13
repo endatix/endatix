@@ -40,22 +40,24 @@ internal sealed class JobOutcomeRecorder(
         }
 
         var plan = PlanWrite(attempt, ending);
-        var written = await WriteAndCountAsync(plan);
+        var written = (await WriteAndCountAsync(plan)).Written;
         return new(written, written is OutcomeWrite.Unwritable ? plan.Unsaved : null);
     }
 
     /// <summary>
     /// Writes the outcome of an attempt of <paramref name="job"/> whose own write failed, fenced on that attempt, so a
     /// row that has moved on since — cancelled, taken over or already recorded — is left as it is. Its duration runs to
-    /// when the attempt ended, however much later this write lands.
+    /// when the attempt ended, however much later this write lands. A write that cannot be made is
+    /// <see cref="OutcomeWrite.Rejected"/> when the database answered all the same, and
+    /// <see cref="OutcomeWrite.Unwritable"/> otherwise.
     /// </summary>
     public async Task<OutcomeWrite> RecordUnsavedAsync(ReclaimableJob job, UnsavedOutcome unsaved)
     {
         var attempt = new EndedAttempt(
             new AttemptRef(job.JobId, unsaved.Attempt), job.JobType, policies.For(job.JobType), unsaved.ClaimedAt);
         var plan = new OutcomeWritePlan(attempt, unsaved.Write, unsaved.ErrorMessage, unsaved.EndedAt);
-        var written = await WriteAndCountAsync(plan);
-        if (written is OutcomeWrite.Landed)
+        var tried = await WriteAndCountAsync(plan);
+        if (tried.Written is OutcomeWrite.Landed)
         {
             logger.LogInformation(
                 "Background job {JobId} attempt {Attempt} had its outcome {Outcome} recorded after the attempt's own write failed",
@@ -64,7 +66,9 @@ internal sealed class JobOutcomeRecorder(
                 plan.Outcome);
         }
 
-        return written;
+        return tried.Failure is { } failure && await IsRejectedAsync(job.JobId, failure)
+            ? OutcomeWrite.Rejected
+            : tried.Written;
     }
 
     /// <summary>
@@ -75,15 +79,44 @@ internal sealed class JobOutcomeRecorder(
 
     // The event and duration are recorded once per attempt, by whichever firing's write lands, and the duration runs to
     // when the attempt ended, not to when its outcome was written.
-    private async Task<OutcomeWrite> WriteAndCountAsync(OutcomeWritePlan plan)
+    private async Task<WriteTry> WriteAndCountAsync(OutcomeWritePlan plan)
     {
-        var written = await WriteWithRetriesAsync(plan);
-        if (written is OutcomeWrite.Landed)
+        var tried = await WriteWithRetriesAsync(plan);
+        if (tried.Written is OutcomeWrite.Landed)
         {
             metrics.RecordEnd(plan.Attempt, plan.Outcome, plan.EndedAt);
         }
 
-        return written;
+        return tried;
+    }
+
+    /// <summary>
+    /// Whether a write that kept throwing with <paramref name="failure"/> was refused by a database that is up — by a
+    /// constraint or a trigger, say — which trying again does not clear, rather than lost to an outage, which does.
+    /// </summary>
+    /// <remarks>
+    /// A failure <see cref="DatabaseFailures.IsOutage"/> names — a timeout, a deadlock, a failover, a stopping server,
+    /// a lost connection — is an outage, and so is any failure once the host is stopping. Anything else is told apart
+    /// by reading the job's row: a read that lands means the database answered. No list of codes is complete, so the
+    /// read is what keeps an outage it misses from counting.
+    /// </remarks>
+    private async Task<bool> IsRejectedAsync(long jobId, Exception failure)
+    {
+        if (shutdownSignal.IsRaised || DatabaseFailures.IsOutage(failure))
+        {
+            return false;
+        }
+
+        try
+        {
+            await scopeFactory.WithStateRepositoryAsync(repository => repository.ReadAttemptAsync(jobId, CancellationToken.None));
+            return true;
+        }
+        catch (Exception readFailure) // Any failure: the database did not answer, so the write is not judged by it.
+        {
+            logger.LogDebug(readFailure, "Background job {JobId} could not be read after its outcome write failed", jobId);
+            return false;
+        }
     }
 
     // An end that writes nothing leaves the row as it is: a cancelled row keeps its status, and a superseded or
@@ -136,24 +169,21 @@ internal sealed class JobOutcomeRecorder(
             attempt.Ended, ending.Write, errorMessage, dateTimeProvider.UtcNow.UtcDateTime, ending.NextAttemptAt);
     }
 
-    private async Task<OutcomeWrite> WriteWithRetriesAsync(OutcomeWritePlan plan)
+    // Returns the last try: how it went, or, when the write could not be made, what that try threw.
+    private async Task<WriteTry> WriteWithRetriesAsync(OutcomeWritePlan plan)
     {
         // One first try, then one more after each delay.
+        var tried = default(WriteTry);
         for (var retry = 0; retry <= WriteRetryDelays.Length; retry++)
         {
-            var tried = await WriteOnceAsync(plan);
-            if (tried.Failure is null)
+            tried = await WriteOnceAsync(plan);
+            if (tried.Failure is null || !await WaitToRetryAsync(plan, tried.Failure, retry))
             {
-                return tried.Written;
-            }
-
-            if (!await WaitToRetryAsync(plan, tried.Failure, retry))
-            {
-                return OutcomeWrite.Unwritable;
+                return tried;
             }
         }
 
-        return OutcomeWrite.Unwritable;
+        return tried;
     }
 
     private async Task<WriteTry> WriteOnceAsync(OutcomeWritePlan plan)
@@ -313,6 +343,12 @@ internal enum OutcomeWrite
     Landed,
     RowMovedOn,
     Unwritable,
+
+    /// <summary>
+    /// The write kept throwing while the database answered: the database refused it, and trying again does not clear
+    /// that. Only the write of an outcome a re-fire carries is told apart from <see cref="Unwritable"/>.
+    /// </summary>
+    Rejected,
 
     /// <summary>
     /// The write was not made, because the trigger of the next attempt could not be stored; the row stays

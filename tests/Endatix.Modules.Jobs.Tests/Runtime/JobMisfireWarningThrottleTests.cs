@@ -1,8 +1,8 @@
 using System.Diagnostics.Metrics;
 using Endatix.Core.Abstractions;
 using Endatix.Modules.Jobs.Runtime;
+using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
 
@@ -18,7 +18,7 @@ public sealed class JobMisfireWarningThrottleTests : IDisposable
     private readonly ServiceProvider _services = new ServiceCollection().AddMetrics().BuildServiceProvider();
     private readonly MeterListener _meterListener = new();
     private readonly List<string?> _counted = [];
-    private readonly RecordingLogger _logger = new();
+    private readonly RecordingLogger<JobMisfireListener> _logger = new();
     private readonly IDateTimeProvider _clock = Substitute.For<IDateTimeProvider>();
 
     public JobMisfireWarningThrottleTests()
@@ -112,21 +112,4 @@ public sealed class JobMisfireWarningThrottleTests : IDisposable
             .ForJob(QuartzRegistration.JobKeyFor(jobType))
             .StartNow()
             .Build();
-
-    private sealed class RecordingLogger : ILogger<JobMisfireListener>
-    {
-        public List<string> Messages { get; } = [];
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter) =>
-            Messages.Add(formatter(state, exception));
-    }
 }

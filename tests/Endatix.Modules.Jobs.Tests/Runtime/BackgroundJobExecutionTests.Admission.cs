@@ -1,6 +1,9 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Modules.Jobs.Runtime;
+using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Quartz;
 using static Endatix.Modules.Jobs.Tests.Runtime.JobExecutionTestHost;
 
@@ -122,6 +125,55 @@ public sealed partial class BackgroundJobExecutionTests
         await act.Should().NotThrowAsync();
         repository.ReceivedCalls().Should().BeEmpty();
         context.Scheduler.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Execute_UnknownJobTypeCarryingOutcomeAndRefireRefused_WritesTheOutcomeInsteadOfDeadLettering()
+    {
+        // Arrange — a re-fire carrying a completion lands on a node without the handler, which cannot offer it again.
+        var repository = Substitute.For<IBackgroundJobStateRepository>();
+        repository.TryCompleteAsync(new AttemptRef(JobId, MaxAttempts), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        await using var provider = Services(repository, new ObservedRun());
+        var execution = ActivatorUtilities.CreateInstance<BackgroundJobExecution>(provider);
+        var context = FiringCarrying(FiringOf(JobId, jobType: "Orphan"), Carried(AttemptRowWrite.Completed));
+        RejectEveryTrigger(context.Scheduler);
+
+        // Act
+        await execution.Execute(context, TestContext.Current.CancellationToken);
+
+        // Assert
+        ScheduleJobCalls(context.Scheduler).Should().Be(RefusedRefire.MaxRefusals);
+        await repository.Received(1)
+            .TryCompleteAsync(new AttemptRef(JobId, MaxAttempts), Arg.Any<JobFinish>(), CancellationToken.None);
+        await repository.DidNotReceiveWithAnyArgs().TryDeadLetterAsync(default!, default!, TestContext.Current.CancellationToken);
+        await repository.DidNotReceiveWithAnyArgs().TryClaimAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AdmitAsync_FiringCarriesUnreadableOutcome_LogsWhyAndAdmitsItToReclaim()
+    {
+        // Arrange
+        await using var provider = Services(Substitute.For<IBackgroundJobStateRepository>(), new ObservedRun());
+        var logger = new RecordingLogger<JobFiringAdmission>();
+        var admission = ActivatorUtilities.CreateInstance<JobFiringAdmission>(provider, logger);
+        var context = JobTriggerFiringOf(JobId);
+        context.MergedJobDataMap.Returns(new JobDataMap
+        {
+            [BackgroundJobExecution.JobIdKey] = JobId.ToString(),
+            [BackgroundJobExecution.ReclaimKey] = bool.TrueString,
+            [UnsavedOutcome.DataKey] = "not json",
+        });
+
+        // Act
+        var firing = await admission.AdmitAsync(context);
+
+        // Assert
+        firing.Should().NotBeNull();
+        firing.Unsaved.Should().BeNull();
+        firing.Reclaiming.Should().BeTrue();
+        logger.Entries.Should().ContainSingle(entry => entry.Level == LogLevel.Warning).Which.Message.Should()
+            .Contain($"Background job {JobId} ").And.Contain("does not parse as an outcome");
     }
 
     private static async Task<ITrigger> DeclinedTriggerOfAsync(IJobExecutionContext context)

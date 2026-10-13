@@ -244,7 +244,18 @@ one class per step:
    dead-letter a last attempt that succeeded. A throw is not carried; the re-claim judges it against
    the attempt budget as it is then. Such a re-fire is still marked to re-claim, so a node of an
    earlier version, which does not read the outcome, takes the job over as before, and a re-fire an
-   earlier version stored carries no outcome and is re-claimed.
+   earlier version stored carries no outcome and is re-claimed, as is one whose outcome cannot be
+   read, with a warning saying why. While the database is away, the outcome is carried for as long
+   as it takes. Away means the write timed out, lost a deadlock, met a failover, a lost connection,
+   a server shutting down, or an Azure SQL database that is busy or paused (`DatabaseFailures` lists
+   the PostgreSQL SQLSTATEs and SQL Server error numbers), the driver marked the failure transient,
+   this host is stopping, or the job's row cannot be read either. A write the database refuses while
+   up, because of a constraint or a trigger, say, does not clear by trying again: such refusals are
+   counted on the outcome, and after 3 the outcome is dropped, with an error logged, and the row is
+   re-claimed. A node without the job type's handler declines such a re-fire, and the outcome stays
+   on its trigger; a firing that writes it because the scheduler keeps refusing its trigger counts
+   refusals the same way, carries the count on the trigger it stores once the scheduler takes it,
+   and dead-letters the job, fenced on the outcome's attempt, once the 3 are spent.
    The wrapper never throws to Quartz. Every retry gets a trigger of the job's own, stored for the
    next attempt's time before the row says `Retrying`:
 
@@ -260,9 +271,10 @@ one class per step:
 | host stopped waiting for it | stays `Processing`, nothing written | re-run on the next node to check in |
 | its node stopped during the last attempt | `DeadLettered` when recovered, the handler not run again | done |
 | row taken over by another attempt meanwhile | left to that attempt | done; the handler's token is cancelled |
-| returns success or a failure `Result`, but that outcome cannot be written (tried 4 times) | stays `Processing` | fires again 5 s later carrying the outcome, writes it if the row is still at that attempt, and is not run again; while it still cannot be written, fires again |
-| as above, but the scheduler rejects that re-fire 3 times | the carried outcome, written by the firing itself if the row is still at that attempt | done |
+| returns success or a failure `Result`, but that outcome cannot be written (tried 4 times) | stays `Processing` | fires again 5 s later carrying the outcome, writes it if the row is still at that attempt, and is not run again; while the database is away, fires again |
+| as above, but the scheduler rejects that re-fire 3 times | the carried outcome, written by the firing itself if the row is still at that attempt; `DeadLettered` if the database refuses that write while up | done |
 | as above, and the row was cancelled, taken over or recorded meanwhile | left as it is | done |
+| returns success or a failure `Result`, and the database, while up, refuses the carried write (a constraint or a trigger, say) on 3 re-fires | stays `Processing`; the outcome is dropped, with an error logged | fires again 5 s later and re-claims the row, as a throw's re-fire does |
 | returns success or a failure `Result`, but that outcome cannot be written while the host is stopping | stays `Processing`; the outcome is not carried, since nothing is stored once the scheduler has let go | re-run on the next node to check in, or `DeadLettered` there with the stopped-on-last-attempt message if that was its last attempt |
 | throws, and its outcome cannot be written (tried 4 times) | stays `Processing` | fires again 5 s later and re-claims the row |
 | not run: its claim threw | as it was | fires again 5 s later and claims the row |
@@ -282,7 +294,8 @@ A failure the database caused is tried until the trigger is stored. Any other re
 times, with the job type's durable job stored again first if it has gone missing, and then the
 firing settles the row itself, if it is still as the firing left it, and completes, so a rejection
 that will not clear does not hold a worker for good. A re-fire that carries an outcome writes that
-outcome, fenced on its attempt, and counts the attempt's end once; any other dead-letters the row.
+outcome, fenced on its attempt, and counts the attempt's end once; if the database refuses that write
+while up, or the re-fire carries no outcome, the firing dead-letters the row.
 Should that write fail too, the firing goes on trying as before.
 
 The row's `AttemptCount`, against the job type's `MaxAttempts` on the node that runs the attempt,

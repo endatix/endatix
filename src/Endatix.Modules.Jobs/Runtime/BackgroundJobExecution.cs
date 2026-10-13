@@ -68,14 +68,19 @@ internal sealed class BackgroundJobExecution(
 
     /// <summary>
     /// Writes the outcome of an attempt that finished on an earlier firing, which could not write it, instead of
-    /// claiming the row for another attempt; while it still cannot be written, the job is re-fired carrying it again.
+    /// claiming the row for another attempt; while it still cannot be written, the job is re-fired carrying it again,
+    /// for as long as the database is away, and until the database has refused it
+    /// <see cref="UnsavedOutcome.MaxRejections"/> times while up.
     /// </summary>
     private async Task RecordUnsavedAsync(IJobExecutionContext context, ReclaimableJob job, UnsavedOutcome unsaved)
     {
-        if (await outcomes.RecordUnsavedAsync(job, unsaved) is OutcomeWrite.Unwritable)
+        var written = await outcomes.RecordUnsavedAsync(job, unsaved);
+        await (written switch
         {
-            await refire.RefireUnsavedAsync(context, job, unsaved);
-        }
+            OutcomeWrite.Unwritable => refire.RefireUnsavedAsync(context, job, unsaved),
+            OutcomeWrite.Rejected => refire.RefireRejectedAsync(context, job, unsaved.Rejected()),
+            _ => Task.CompletedTask,
+        });
     }
 
     /// <summary>

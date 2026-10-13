@@ -44,7 +44,7 @@ public sealed partial class BackgroundJobExecutionTests
         // Assert — still marked to re-claim, so a node that cannot read the outcome takes the job over as before.
         var refire = rescheduled.Should().ContainSingle().Subject;
         refire.JobDataMap.GetString(BackgroundJobExecution.ReclaimKey).Should().Be(bool.TrueString);
-        UnsavedOutcome.TryRead(refire.JobDataMap).Should()
+        UnsavedOutcome.Read(refire.JobDataMap).Outcome.Should()
             .BeEquivalentTo(new { Attempt = MaxAttempts, Write = AttemptRowWrite.Completed, ErrorMessage = (string?)null });
         provider.GetRequiredService<IJobMetrics>().DidNotReceive().Record(JobLifecycleEvent.Completed, Arg.Any<string>());
     }
@@ -65,7 +65,7 @@ public sealed partial class BackgroundJobExecutionTests
         await execution.Execute(context, TestContext.Current.CancellationToken);
 
         // Assert
-        UnsavedOutcome.TryRead(rescheduled.Should().ContainSingle().Subject.JobDataMap).Should()
+        UnsavedOutcome.Read(rescheduled.Should().ContainSingle().Subject.JobDataMap).Outcome.Should()
             .BeEquivalentTo(new { Attempt = 1, Write = AttemptRowWrite.Failed, ErrorMessage = HandlerFailure });
     }
 
@@ -199,7 +199,7 @@ public sealed partial class BackgroundJobExecutionTests
         // Assert
         await repository.Received(JobOutcomeRecorder.WriteRetryDelays.Length + 1)
             .TryCompleteAsync(new AttemptRef(JobId, MaxAttempts), Arg.Any<JobFinish>(), CancellationToken.None);
-        UnsavedOutcome.TryRead(rescheduled.Should().ContainSingle().Subject.JobDataMap).Should().Be(carried);
+        UnsavedOutcome.Read(rescheduled.Should().ContainSingle().Subject.JobDataMap).Outcome.Should().Be(carried);
         provider.GetRequiredService<IJobMetrics>().DidNotReceive().Record(JobLifecycleEvent.Completed, Arg.Any<string>());
     }
 
@@ -320,7 +320,7 @@ public sealed partial class BackgroundJobExecutionTests
         var rescheduled = await DeclinedTriggerOfAsync(context);
 
         // Assert
-        UnsavedOutcome.TryRead(rescheduled.JobDataMap).Should().Be(carried);
+        UnsavedOutcome.Read(rescheduled.JobDataMap).Outcome.Should().Be(carried);
     }
 
     // A write that throws, as it does while the database is away, for its first tries, and then lands.

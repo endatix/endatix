@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Modules.Jobs.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Jobs.Tests.Shared;
 
@@ -48,4 +49,24 @@ internal sealed class TestJobsDbContext(
 internal sealed class FixedTenantContext(long tenantId) : ITenantContext
 {
     public long TenantId { get; } = tenantId;
+}
+
+/// <summary>Keeps every message logged through it, formatted, with its level.</summary>
+internal sealed class RecordingLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+    public List<string> Messages => Entries.ConvertAll(entry => entry.Message);
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter) =>
+        Entries.Add((logLevel, formatter(state, exception)));
 }

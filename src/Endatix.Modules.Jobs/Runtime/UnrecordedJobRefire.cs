@@ -25,7 +25,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <see cref="TriggerStoreBackoff.Max"/>, each time for the delay from then, so it never lands in the past. A refusal
 /// the database caused is tried until the trigger is stored; one of the scheduler's own is tried up to
 /// <see cref="RefusedRefire.MaxRefusals"/> times, and then the firing writes the outcome the re-fire carried, or
-/// dead-letters the job when it carried none.
+/// dead-letters the job when it carried none or the database keeps refusing that write.
 /// </para>
 /// <para>
 /// A stopping scheduler refuses every new trigger but still completes the firings it waits for. A firing that
@@ -126,6 +126,31 @@ internal sealed class UnrecordedJobRefire(
         }
     }
 
+    /// <summary>
+    /// Re-fires a job whose carried outcome the database refused, carrying <paramref name="rejected"/>, the outcome with
+    /// that refusal counted, again; once it is spent, the outcome is dropped and the job re-fired to re-claim the row,
+    /// as it was before outcomes were carried, so a write the database will never take does not re-fire for good.
+    /// </summary>
+    public async Task RefireRejectedAsync(IJobExecutionContext context, ReclaimableJob job, UnsavedOutcome rejected)
+    {
+        if (!rejected.IsSpent)
+        {
+            await RefireUnsavedAsync(context, job, rejected);
+            return;
+        }
+
+        logger.LogError(
+            "Background job {JobId} attempt {Attempt} ended as {Outcome}, which the database refused to record {Rejections} times; the outcome is dropped and the job is re-fired to re-claim the row",
+            job.JobId,
+            rejected.Attempt,
+            rejected.Write,
+            rejected.Rejections);
+        if (await StoreOrHoldAsync(context, ReclaimTrigger(job, rejected.Attempt, unsaved: null)) is { } fireAt)
+        {
+            logger.LogWarning("Background job {JobId} is re-fired at {FireAt:O} to be re-claimed", job.JobId, fireAt);
+        }
+    }
+
     /// <summary>Re-fires a job that its firing could not claim.</summary>
     public async Task RefireUnclaimedAsync(IJobExecutionContext context, ReclaimableJob job, Exception failure)
     {
@@ -156,7 +181,7 @@ internal sealed class UnrecordedJobRefire(
         new(
             job.JobId,
             Delay,
-            fireAt => QuartzRegistration.TriggerFor(job.ReclaimAt(fireAt, unsaved)),
+            (fireAt, carried) => QuartzRegistration.TriggerFor(job.ReclaimAt(fireAt, carried)),
             claimedAttempt,
             unsaved);
 
@@ -186,11 +211,11 @@ internal sealed class UnrecordedJobRefire(
 
     private async Task<DateTimeOffset?> StoreUntilSettledAsync(IJobExecutionContext context, JobRefireTrigger again)
     {
-        var unstored = new UnstoredTrigger(backoff);
+        var unstored = new UnstoredTrigger(backoff, again.Unsaved);
         while (true)
         {
             var now = dateTimeProvider.UtcNow;
-            var trigger = again.TriggerAt(now.Add(again.Delay));
+            var trigger = again.TriggerAt(now.Add(again.Delay), unstored.Carried);
             if (await TryScheduleAsync(context, trigger) is not { } failure)
             {
                 return now.Add(again.Delay);
@@ -314,19 +339,22 @@ internal sealed record ReclaimableJob(long JobId, string JobType)
 /// </summary>
 /// <param name="JobId">The job the trigger fires.</param>
 /// <param name="Delay">How long after it is stored the trigger fires.</param>
-/// <param name="TriggerAt">Builds the trigger for the time it fires at.</param>
+/// <param name="TriggerAt">
+/// Builds the trigger for the time it fires at, carrying the outcome as it stands when the trigger is stored: the
+/// firing may have counted refusals of its write while it waited to store it.
+/// </param>
 /// <param name="ClaimedAttempt">
 /// The attempt the firing claimed the row at, when it holds a claim: a firing that gives up on the trigger
 /// dead-letters the row only at that attempt.
 /// </param>
 /// <param name="Unsaved">
-/// The outcome the trigger carries, when it carries one: a firing that gives up on the trigger writes it instead of
-/// dead-lettering the row.
+/// The outcome the trigger carries, when it carries one, as the firing first tries to store it: a firing that gives
+/// up on the trigger writes it instead of dead-lettering the row.
 /// </param>
 internal sealed record JobRefireTrigger(
     long JobId,
     TimeSpan Delay,
-    Func<DateTimeOffset, ITrigger> TriggerAt,
+    Func<DateTimeOffset, UnsavedOutcome?, ITrigger> TriggerAt,
     int? ClaimedAttempt = null,
     UnsavedOutcome? Unsaved = null);
 
@@ -351,7 +379,7 @@ internal sealed record TriggerStoreBackoff(TimeSpan First, TimeSpan Max)
 /// is due to be logged, which the first one is and the rest at most once per <see cref="LogInterval"/>, so a store
 /// that stays down does not flood the log.
 /// </summary>
-internal sealed class UnstoredTrigger(TriggerStoreBackoff backoff)
+internal sealed class UnstoredTrigger(TriggerStoreBackoff backoff, UnsavedOutcome? carried)
 {
     internal static readonly TimeSpan LogInterval = TimeSpan.FromMinutes(1);
 
@@ -362,9 +390,17 @@ internal sealed class UnstoredTrigger(TriggerStoreBackoff backoff)
     /// <summary>The refusals the database did not cause, which <see cref="RefusedRefire"/> counts.</summary>
     public int Refusals { get; private set; }
 
+    /// <summary>
+    /// The outcome the trigger carries, with the refusals of its write met while this firing waited counted; none when
+    /// it carries none.
+    /// </summary>
+    public UnsavedOutcome? Carried { get; private set; } = carried;
+
     public TimeSpan NextWait => backoff.After(Failures);
 
     public void RecordRefusal() => Refusals++;
+
+    public void CarryRejected(UnsavedOutcome rejected) => Carried = rejected;
 
     /// <summary>Counts a refusal at <paramref name="now"/>, and returns whether it is due to be logged.</summary>
     public bool RecordFailureAt(DateTimeOffset now)
