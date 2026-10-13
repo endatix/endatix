@@ -21,7 +21,7 @@ internal sealed class OnBehalfPersonalizer(
     {
         if (request.Submitter is not SubmitterInput submitter
             || !CanFreeze(submitter)
-            || !await HasPropertiesAsync(request.FormId, cancellationToken))
+            || !await HasPropertiesAsync(request, cancellationToken))
         {
             return null;
         }
@@ -62,7 +62,7 @@ internal sealed class OnBehalfPersonalizer(
         var member = await FindMemberAsync(request.TenantId, subjectId, cancellationToken);
         var membershipId = member is null
             ? null
-            : await MembershipIdAsync(request.FormId, member.Id, cancellationToken);
+            : await MembershipIdAsync(member, request.FormId, cancellationToken);
         if (member is null || membershipId is null)
         {
             return Unknown(subjectId, request.FormId);
@@ -75,8 +75,12 @@ internal sealed class OnBehalfPersonalizer(
     private static bool CanFreeze(SubmitterInput submitter) =>
         !string.IsNullOrWhiteSpace(submitter.ExternalSubjectId);
 
-    private Task<bool> HasPropertiesAsync(long formId, CancellationToken cancellationToken) =>
-        db.Properties.AnyAsync(property => property.FormId == formId, cancellationToken);
+    private Task<bool> HasPropertiesAsync(
+        SubmissionPersonalizationRequest request,
+        CancellationToken cancellationToken) =>
+        db.Properties.AnyAsync(
+            property => property.TenantId == request.TenantId && property.FormId == request.FormId,
+            cancellationToken);
 
     private Task<int> BindOnceAsync(long memberId, long submitterId, CancellationToken cancellationToken) =>
         db.Members
@@ -106,11 +110,13 @@ internal sealed class OnBehalfPersonalizer(
     }
 
     private Task<long?> MembershipIdAsync(
+        Member member,
         long formId,
-        long memberId,
         CancellationToken cancellationToken) =>
         db.Memberships.AsNoTracking()
-            .Where(membership => membership.FormId == formId && membership.MemberId == memberId)
+            .Where(membership => membership.TenantId == member.TenantId
+                && membership.FormId == formId
+                && membership.MemberId == member.Id)
             .Select(membership => (long?)membership.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -119,7 +125,10 @@ internal sealed class OnBehalfPersonalizer(
         long membershipId,
         CancellationToken cancellationToken)
     {
-        var cells = await SnapshotCells.LoadAsync(db, membershipId, cancellationToken);
+        var cells = await SnapshotCells.LoadAsync(
+            db,
+            new SnapshotMembership(member.TenantId, membershipId),
+            cancellationToken);
         return PersonalizationSnapshotJson.Write(
             new SnapshotHeader(null, member.Identifier, DateTime.UtcNow, "on_behalf", member.Id),
             cells);

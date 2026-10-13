@@ -55,7 +55,7 @@ internal sealed class DeletePersonHandler(
     private async Task SoftDeleteAsync(Membership membership, CancellationToken cancellationToken)
     {
         List<PropertyValue> values = await db.PropertyValues
-            .Where(value => value.MembershipId == membership.Id)
+            .Where(value => value.TenantId == membership.TenantId && value.MembershipId == membership.Id)
             .ToListAsync(cancellationToken);
 
         foreach (PropertyValue value in values)

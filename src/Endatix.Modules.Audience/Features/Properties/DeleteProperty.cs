@@ -62,7 +62,7 @@ internal sealed class DeletePropertyHandler(
         await using IDbContextTransaction transaction =
             await ((DbContext)db).Database.BeginTransactionAsync(cancellationToken);
         await db.PropertyValues
-            .Where(value => value.PropertyId == property.Id)
+            .Where(value => value.TenantId == property.TenantId && value.PropertyId == property.Id)
             .SoftDeleteAllAsync(cancellationToken);
 
         property.Delete();

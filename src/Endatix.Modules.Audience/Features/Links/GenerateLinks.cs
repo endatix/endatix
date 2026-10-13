@@ -58,30 +58,30 @@ internal sealed class GenerateLinksHandler(
         GenerateLinksCommand request,
         CancellationToken cancellationToken)
     {
-        var membershipIds = await MembershipIdsAsync(request.FormId, cancellationToken);
+        var membershipIds = await MembershipIdsAsync(request, cancellationToken);
         if (membershipIds.Count > MaxLinks)
         {
             return Result.Invalid(new ValidationError("This form has more than 5,000 people."));
         }
 
-        var existing = await ExistingAsync(request.FormId, cancellationToken);
+        var existing = await ExistingAsync(request, cancellationToken);
         var issued = IssueMissing(request, membershipIds, existing);
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success<IReadOnlyList<IssuedLinkDto>>(issued);
     }
 
     /// <summary>Up to one more than the cap, so a form over it is refused without reading it all.</summary>
-    private Task<List<long>> MembershipIdsAsync(long formId, CancellationToken cancellationToken) =>
+    private Task<List<long>> MembershipIdsAsync(GenerateLinksCommand request, CancellationToken cancellationToken) =>
         db.Memberships
-            .Where(membership => membership.FormId == formId)
+            .Where(membership => membership.TenantId == request.TenantId && membership.FormId == request.FormId)
             .Select(membership => membership.Id)
             .Take(MaxLinks + 1)
             .ToListAsync(cancellationToken);
 
-    private async Task<HashSet<long>> ExistingAsync(long formId, CancellationToken cancellationToken)
+    private async Task<HashSet<long>> ExistingAsync(GenerateLinksCommand request, CancellationToken cancellationToken)
     {
         var ids = await db.Links
-            .Where(link => link.FormId == formId)
+            .Where(link => link.TenantId == request.TenantId && link.FormId == request.FormId)
             .Select(link => link.MembershipId)
             .ToListAsync(cancellationToken);
         return ids.ToHashSet();

@@ -30,16 +30,16 @@ internal sealed class ListPropertiesHandler(
             return gate.ToErrorResult<IReadOnlyList<PropertyDto>>();
         }
 
-        return Result.Success(await LoadAsync(request.FormId, cancellationToken));
+        return Result.Success(await LoadAsync(request, cancellationToken));
     }
 
     private async Task<IReadOnlyList<PropertyDto>> LoadAsync(
-        long formId,
+        ListPropertiesQuery request,
         CancellationToken cancellationToken)
     {
         List<Property> properties = await db.Properties
             .AsNoTracking()
-            .Where(property => property.FormId == formId)
+            .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
             .OrderBy(property => property.SortOrder)
             .ThenBy(property => property.Id)
             .ToListAsync(cancellationToken);

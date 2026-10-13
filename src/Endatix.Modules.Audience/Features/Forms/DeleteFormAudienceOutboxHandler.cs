@@ -35,7 +35,10 @@ internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : I
     {
         await db.PropertyValues
             .Where(value => value.TenantId == tenantId
-                && db.Memberships.Any(membership => membership.Id == value.MembershipId && membership.FormId == formId))
+                && db.Memberships
+                    .Where(membership => membership.TenantId == tenantId && membership.FormId == formId)
+                    .Select(membership => membership.Id)
+                    .Contains(value.MembershipId))
             .SoftDeleteAllAsync(cancellationToken);
         await db.Memberships
             .Where(membership => membership.TenantId == tenantId && membership.FormId == formId)

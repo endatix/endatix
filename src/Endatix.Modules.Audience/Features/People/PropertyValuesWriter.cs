@@ -127,7 +127,8 @@ internal static class PropertyValuesWriter
     {
         HashSet<long> propertyIds = write.Values.Keys.ToHashSet();
         return write.Db.PropertyValues
-            .Where(value => value.MembershipId == write.MembershipId
+            .Where(value => value.TenantId == write.TenantId
+                && value.MembershipId == write.MembershipId
                 && propertyIds.Contains(value.PropertyId))
             .ToDictionaryAsync(value => value.PropertyId, cancellationToken);
     }
