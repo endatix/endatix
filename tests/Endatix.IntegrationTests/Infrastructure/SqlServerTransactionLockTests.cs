@@ -31,6 +31,7 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
 
     private static readonly TimeSpan ShortWait = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan LongWait = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan LockWaitPoll = TimeSpan.FromMilliseconds(20);
     private static readonly TimeSpan DeadlockDetection = TimeSpan.FromSeconds(25);
     private static readonly TransactionLockRequest Exclusive = new(TransactionLockScopes.ReportingFormSchema, "lock-test");
     private static readonly TransactionLockRequest Shared = Exclusive with { Mode = TransactionLockMode.Shared };
@@ -60,9 +61,9 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
         await using var holder = await BeginAsync();
         await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
         await using var waiter = await BeginAsync();
+        var waiterSession = await SessionIdAsync(waiter);
         var waiting = _lock.AcquireAsync(waiter.Database, Exclusive with { Timeout = LongWait }, Cancellation);
-        await Task.Delay(ShortWait, Cancellation);
-        var waitedForTheHolder = !waiting.IsCompleted;
+        var waitedForTheHolder = await WaitsForAppLockAsync(waiterSession);
 
         // Act
         await holder.Database.CommitTransactionAsync(Cancellation);
@@ -80,9 +81,9 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
         await using var holder = await BeginAsync();
         await _lock.AcquireAsync(holder.Database, Exclusive, Cancellation);
         await using var waiter = await BeginAsync();
+        var waiterSession = await SessionIdAsync(waiter);
         var waiting = _lock.AcquireAsync(waiter.Database, Exclusive with { Timeout = LongWait }, Cancellation);
-        await Task.Delay(ShortWait, Cancellation);
-        var waitedForTheHolder = !waiting.IsCompleted;
+        var waitedForTheHolder = await WaitsForAppLockAsync(waiterSession);
 
         // Act
         await holder.Database.RollbackTransactionAsync(Cancellation);
@@ -298,8 +299,7 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
             .AddInterceptors(new CancelOnCommandFailure(cancellation)));
         var waiterSession = await SessionIdAsync(waiter);
         var waiting = _lock.AcquireAsync(waiter.Database, Exclusive, cancellation.Token);
-        await Task.Delay(ShortWait, Cancellation);
-        var waitedForTheHolder = !waiting.IsCompleted;
+        var waitedForTheHolder = await WaitsForAppLockAsync(waiterSession);
 
         // Act
         await KillAsync(waiterSession);
@@ -363,6 +363,35 @@ public sealed class SqlServerTransactionLockTests(DbIntegrationFixture fixture)
         context.Database
             .SqlQuery<short>($"SELECT @@SPID AS [Value]")
             .SingleAsync(Cancellation);
+
+    /// <summary>
+    /// Whether <paramref name="session"/> is seen waiting in <c>sp_getapplock</c> within <see cref="LongWait"/>, so the
+    /// test acts on a blocked waiter rather than on a session that has not reached the lock yet.
+    /// </summary>
+    private async Task<bool> WaitsForAppLockAsync(short session)
+    {
+        await using SqlConnection connection = new(fixture.ConnectionString);
+        await connection.OpenAsync(Cancellation);
+        await using SqlCommand waiting = new(
+            """
+            SELECT COUNT(*) FROM sys.dm_tran_locks
+            WHERE request_session_id = @session AND resource_type = 'APPLICATION' AND request_status = 'WAIT'
+            """,
+            connection);
+        waiting.Parameters.Add(new SqlParameter("@session", SqlDbType.SmallInt) { Value = session });
+        var deadline = DateTime.UtcNow + LongWait;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await waiting.ExecuteScalarAsync(Cancellation) is int and > 0)
+            {
+                return true;
+            }
+
+            await Task.Delay(LockWaitPoll, Cancellation);
+        }
+
+        return false;
+    }
 
     // KILL takes no variable and cannot run inside a transaction, so it is built on the server on a connection of its own.
     private async Task KillAsync(short session)

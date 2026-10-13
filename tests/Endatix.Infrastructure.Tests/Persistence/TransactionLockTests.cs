@@ -239,13 +239,10 @@ public class TransactionLockTests
     [Theory]
     [MemberData(nameof(ClientCancellations))]
     public void IsCancelledByClient_SqlClientCancellationWithOnlyInformationalMessagesBeside_IsTrue(
-        (int Number, byte Class)[] errors)
+        (int Number, byte Class)[] thrownErrors)
     {
-        // Arrange
-        var thrown = errors;
-
         // Act
-        var cancelled = SqlServerTransactionLock.IsCancelledByClient(thrown);
+        var cancelled = SqlServerTransactionLock.IsCancelledByClient(thrownErrors);
 
         // Assert
         cancelled.Should().BeTrue();
@@ -253,13 +250,11 @@ public class TransactionLockTests
 
     [Theory]
     [MemberData(nameof(OtherFailures))]
-    public void IsCancelledByClient_NoSqlClientCancellationOrAnErrorBesideIt_IsFalse((int Number, byte Class)[] errors)
+    public void IsCancelledByClient_NoSqlClientCancellationOrAnErrorBesideIt_IsFalse(
+        (int Number, byte Class)[] thrownErrors)
     {
-        // Arrange
-        var thrown = errors;
-
         // Act
-        var cancelled = SqlServerTransactionLock.IsCancelledByClient(thrown);
+        var cancelled = SqlServerTransactionLock.IsCancelledByClient(thrownErrors);
 
         // Assert
         cancelled.Should().BeFalse();
