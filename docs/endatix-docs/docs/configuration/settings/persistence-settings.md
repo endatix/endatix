@@ -33,7 +33,7 @@ Keep `READ_COMMITTED_SNAPSHOT` on for the database. A database that Endatix crea
 
 ```sql
 SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME();
-ALTER DATABASE [endatix] SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
 ```
 
 ## Usage Examples
