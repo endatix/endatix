@@ -8,9 +8,6 @@ namespace Endatix.Modules.Jobs.Tests.Persistence;
 
 public sealed partial class QuartzSchemaScriptsTests
 {
-    private const string PostgreSqlScriptResource = QuartzSchemaScripts.PostgreSqlResourceName;
-    private const string SqlServerScriptResource = QuartzSchemaScripts.SqlServerResourceName;
-
     // The Quartz version the hashes below were taken from. Existing databases have the tables of that version, and
     // a later Quartz whose script hashes the same needs no jobs migration for that provider.
     private const string PinnedQuartzVersion = "4.2.2";
@@ -24,10 +21,10 @@ public sealed partial class QuartzSchemaScriptsTests
         var quartz = typeof(Quartz.IScheduler).Assembly;
 
         // Act
-        var hash = Sha256OfScriptAsTheMigrationReadsIt(quartz, PostgreSqlScriptResource);
+        var hash = Sha256OfScriptAsTheMigrationReadsIt(QuartzSchemaScripts.PostgreSqlResourceName);
 
         // Assert
-        hash.Should().Be(PinnedPostgreSqlScriptSha256, SchemaChangedReason(quartz, "PostgreSQL", PostgreSqlScriptResource));
+        hash.Should().Be(PinnedPostgreSqlScriptSha256, SchemaChangedReason(quartz, "PostgreSQL", QuartzSchemaScripts.PostgreSqlResourceName));
     }
 
     [Fact]
@@ -37,10 +34,10 @@ public sealed partial class QuartzSchemaScriptsTests
         var quartz = typeof(Quartz.IScheduler).Assembly;
 
         // Act
-        var hash = Sha256OfScriptAsTheMigrationReadsIt(quartz, SqlServerScriptResource);
+        var hash = Sha256OfScriptAsTheMigrationReadsIt(QuartzSchemaScripts.SqlServerResourceName);
 
         // Assert
-        hash.Should().Be(PinnedSqlServerScriptSha256, SchemaChangedReason(quartz, "SQL Server", SqlServerScriptResource));
+        hash.Should().Be(PinnedSqlServerScriptSha256, SchemaChangedReason(quartz, "SQL Server", QuartzSchemaScripts.SqlServerResourceName));
     }
 
     [Fact]
@@ -210,23 +207,15 @@ public sealed partial class QuartzSchemaScriptsTests
     [GeneratedRegex(@"REFERENCES jobs\.(?<table>\w+)")]
     private static partial Regex ReferencedTable();
 
-    // Read as the migration reads it: decoded, with line endings normalized, so only a change to the statements
-    // or their comments changes the hash, not how Quartz's build checked the file out.
-    private static string Sha256OfScriptAsTheMigrationReadsIt(Assembly quartz, string resource)
-    {
-        using var stream = quartz.GetManifestResourceStream(resource);
-        stream.Should().NotBeNull($"Quartz {InformationalVersion(quartz)} no longer embeds {resource}");
-        using var reader = new StreamReader(stream);
-        var script = reader.ReadToEnd().ReplaceLineEndings("\n");
-        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(script)));
-    }
+    private static string Sha256OfScriptAsTheMigrationReadsIt(string resource) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(QuartzSchemaScripts.ScriptText(resource))));
 
     private static string SchemaChangedReason(Assembly quartz, string provider, string resource) =>
         $"the hash was pinned from Quartz {PinnedQuartzVersion} and this build references Quartz " +
-        $"{InformationalVersion(quartz)}. A different hash means the Quartz {provider} schema changed with this upgrade: " +
-        $"{provider} databases created before it keep the old tables, so add an idempotent {provider} jobs migration " +
-        $"that upgrades them (diff {resource} between the two versions to see what changed), then update the pinned " +
-        "hash and the Quartz version beside it";
+        $"{InformationalVersion(quartz)}. Diff {resource} between the two versions. If only comments or whitespace " +
+        "changed, update the pinned hash and the Quartz version beside it, and nothing else. Otherwise the Quartz " +
+        $"{provider} schema changed with this upgrade: {provider} databases created before it keep the old tables, so " +
+        $"add an idempotent {provider} jobs migration that upgrades them, then update the pinned hash and the version";
 
     private static string? InformationalVersion(Assembly assembly) =>
         assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];

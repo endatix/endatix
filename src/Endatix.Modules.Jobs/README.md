@@ -527,11 +527,13 @@ Unit tests in `Endatix.Modules.Jobs.Tests` pin what the module takes from Quartz
 that changes it fails in CI rather than at deploy time:
 
 1. Bump `Quartz` and `Quartz.Dashboard` together in `Directory.Packages.props`, keeping the exact
-   `[x.y.z]` range, and the version named under [What it is](#what-it-is) and in
+   `[x.y.z]` range, and every mention of the old version in this README and in
    `THIRD-PARTY-NOTICES`.
 2. Run the module's tests.
-3. If `QuartzSchemaScriptsTests` fails on a pinned hash, Quartz's schema for that provider changed
-   (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server). Add an idempotent
+3. If `QuartzSchemaScriptsTests` fails on a pinned hash, Quartz's create script for that provider changed
+   (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server). Diff that script
+   between the two versions. If only comments or whitespace changed, update the pinned hash and the
+   Quartz version beside it, and nothing else. Otherwise add an idempotent
    `jobs` migration for what changed, per provider whose hash moved, as
    [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes, then update that pinned hash
    and the Quartz version beside it.
