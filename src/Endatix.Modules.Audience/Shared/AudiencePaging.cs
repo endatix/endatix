@@ -1,7 +1,8 @@
 namespace Endatix.Modules.Audience.Shared;
 
 /// <summary>
-/// Paging limits for the audience directory (SOW AC-A11).
+/// Paging limits for the audience directory. Higher than the shared list limits, so up to 5,000 people on a
+/// form can be read in one page.
 /// </summary>
 internal static class AudiencePaging
 {
