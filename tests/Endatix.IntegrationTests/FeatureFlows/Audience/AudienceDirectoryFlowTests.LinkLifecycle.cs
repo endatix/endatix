@@ -11,7 +11,7 @@ namespace Endatix.IntegrationTests;
 public sealed partial class AudienceDirectoryFlowTests
 {
     [Fact]
-    public async Task RedeemLink_FormDisabled_DoesNotOpenUntilEnabled()
+    public async Task Opening_a_disabled_form_does_not_open_until_it_is_enabled()
     {
         // Arrange
         var world = await WorldAsync();
@@ -37,7 +37,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task RedeemLink_FormDisabledAfterOpen_ReturnsNotFoundAndKeepsTheSubmission()
+    public async Task Opening_a_link_after_the_form_is_disabled_is_not_found_and_keeps_the_submission()
     {
         // Arrange
         var world = await WorldAsync();
@@ -61,7 +61,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task RedeemLink_PersonRemovedBeforeOpen_ReturnsNotFound()
+    public async Task Opening_a_link_for_a_person_removed_before_open_is_not_found()
     {
         // Arrange
         var world = await WorldAsync();
@@ -82,7 +82,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task RedeemLink_PersonRemovedAfterOpen_ResumesTheSubmission()
+    public async Task Opening_a_link_after_the_person_was_removed_resumes_the_submission()
     {
         // Arrange
         var world = await WorldAsync();
@@ -103,7 +103,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task RedeemLink_OneResponseForm_OpensTheExistingOnBehalfSubmission()
+    public async Task Opening_a_one_response_form_uses_the_existing_on_behalf_submission()
     {
         // Arrange
         var world = await WorldAsync();
@@ -138,7 +138,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task RedeemLink_PublishAfterIssue_PinsTheDefinitionFromTheFirstOpen()
+    public async Task Opening_a_link_pins_the_definition_current_at_the_first_open()
     {
         // Arrange
         var world = await WorldAsync();
@@ -160,7 +160,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task RedeemLink_AudienceEdits_FreezeAtFirstOpen()
+    public async Task Opening_a_link_freezes_audience_values_at_the_first_open()
     {
         // Arrange
         var world = await WorldAsync();

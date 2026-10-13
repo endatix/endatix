@@ -103,8 +103,8 @@ internal sealed class RedeemLinkHandler(
     /// </summary>
     private async Task<Result<RedeemedLinkDto>?> OpenNewAsync(AudienceLink link, CancellationToken cancellationToken)
     {
-        var form = await forms.GetByIdAsync(link.FormId, cancellationToken);
-        if (form is not { IsEnabled: true, ActiveDefinitionId: long definitionId })
+        var form = await OpenFormAsync(link.FormId, cancellationToken);
+        if (form is not { IsEnabled: true, DefinitionId: long definitionId })
         {
             return Result.NotFound(form is null ? "Form not found." : LinkNotFound);
         }
@@ -149,21 +149,24 @@ internal sealed class RedeemLinkHandler(
     /// <summary>The submission this person already has on a one-response form.</summary>
     private async Task<long?> ExistingSubmissionIdAsync(AudienceLink link, CancellationToken cancellationToken)
     {
-        var submitterId = await db.Members.AsNoTracking()
-            .Where(member => db.Memberships.Any(membership =>
-                membership.Id == link.MembershipId && membership.MemberId == member.Id))
-            .Select(member => member.SubmitterId)
-            .FirstOrDefaultAsync(cancellationToken);
+        var submitterId = await (
+            from membership in db.Memberships.AsNoTracking()
+            join member in db.Members.AsNoTracking() on membership.MemberId equals member.Id
+            where membership.Id == link.MembershipId
+            select member.SubmitterId).FirstOrDefaultAsync(cancellationToken);
         if (submitterId is not long id)
         {
             return null;
         }
 
-        var existing = await submissions.FirstOrDefaultAsync(
-            new SubmissionForSubmitterSpec(link.FormId, id),
+        return await submissions.FirstOrDefaultAsync(
+            new SubmissionIdForSubmitterSpec(link.FormId, id),
             cancellationToken);
-        return existing?.Id;
     }
+
+    /// <summary>Enabled, definition, and one-response, untracked. A tracked form would be stale under the lock.</summary>
+    private Task<OpenForm?> OpenFormAsync(long formId, CancellationToken cancellationToken) =>
+        forms.FirstOrDefaultAsync(new OpenFormSpec(formId), cancellationToken);
 
     /// <summary>
     /// A link claimed before tokens were issued under the lock can name a submission without one. Its first
@@ -175,7 +178,7 @@ internal sealed class RedeemLinkHandler(
         long submissionId,
         CancellationToken cancellationToken)
     {
-        var form = await forms.GetByIdAsync(formId, cancellationToken);
+        var form = await OpenFormAsync(formId, cancellationToken);
         if (form is not { IsEnabled: true })
         {
             return Result.NotFound(LinkNotFound);
@@ -282,22 +285,39 @@ internal sealed class RedeemLinkHandler(
 }
 
 /// <summary>
+/// The id of the earliest live submission this person already has on the form.
+/// <c>FormId</c> seeks <c>IX_Submissions_FormId</c>; <c>SubmitterId</c> is indexed on its own.
+/// </summary>
+internal sealed class SubmissionIdForSubmitterSpec : Specification<Submission, long?>
+{
+    public SubmissionIdForSubmitterSpec(long formId, long submitterId) =>
+        Query.Where(submission => submission.FormId == formId && submission.SubmitterId == submitterId)
+            .OrderBy(submission => submission.Id)
+            .Select(submission => (long?)submission.Id);
+}
+
+/// <summary>
 /// The submission already written for this link, including one whose claim never committed. The form narrows
 /// it to <c>IX_Submissions_FormId</c>: <c>AudienceLinkId</c> has no index.
 /// </summary>
-/// <summary>The earliest live submission this person already has on the form.</summary>
-internal sealed class SubmissionForSubmitterSpec : Specification<Submission>
-{
-    public SubmissionForSubmitterSpec(long formId, long submitterId) =>
-        Query.Where(submission => submission.FormId == formId && submission.SubmitterId == submitterId)
-            .OrderBy(submission => submission.Id);
-}
 
 internal sealed class SubmissionForLinkSpec : Specification<Submission>
 {
     public SubmissionForLinkSpec(long formId, long audienceLinkId) =>
         Query.Where(submission => submission.FormId == formId && submission.AudienceLinkId == audienceLinkId)
             .OrderBy(submission => submission.Id);
+}
+
+/// <summary>Whether the form can be opened: enabled, its definition, and whether it allows one response.</summary>
+internal sealed record OpenForm(bool IsEnabled, long? DefinitionId, bool LimitOnePerUser);
+
+/// <summary>Those three columns only, untracked, so a locked open does not load the form aggregate.</summary>
+internal sealed class OpenFormSpec : Specification<Form, OpenForm>
+{
+    public OpenFormSpec(long formId) =>
+        Query.Where(form => form.Id == formId)
+            .AsNoTracking()
+            .Select(form => new OpenForm(form.IsEnabled, form.ActiveDefinitionId, form.LimitOnePerUser));
 }
 
 /// <summary>Whether a live submission has its token, untracked; <see langword="null"/> when there is none.</summary>
