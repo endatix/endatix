@@ -1,11 +1,13 @@
 extern alias EndatixWebHost;
 
+using System.Data.Common;
 using System.Net;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
@@ -113,12 +115,20 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
 
     private async Task<string?> TriggerStateAsync(long jobId, CancellationToken cancellationToken)
     {
-        await using var connection = new NpgsqlConnection(fixture.Database.ConnectionString);
+        await using var connection = FixtureDatabaseConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand(
-            $"SELECT trigger_state FROM jobs.qrtz_triggers WHERE trigger_name = '{jobId}'", connection);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT TRIGGER_STATE FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_NAME = '{jobId}'";
         return (string?)await command.ExecuteScalarAsync(cancellationToken);
     }
+
+    private DbConnection FixtureDatabaseConnection() => fixture.Database.Provider switch
+    {
+        TestDatabaseProvider.PostgreSql => new NpgsqlConnection(fixture.Database.ConnectionString),
+        TestDatabaseProvider.SqlServer => new SqlConnection(fixture.Database.ConnectionString),
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(fixture), fixture.Database.Provider, "Unsupported test database provider."),
+    };
 
     /// <summary>A second web host on the same database, with the dashboard enabled.</summary>
     private sealed class DashboardHost : IIntegrationTestHostFixture, IAsyncDisposable

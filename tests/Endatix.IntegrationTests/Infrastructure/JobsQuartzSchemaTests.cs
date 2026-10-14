@@ -190,6 +190,6 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         IReadOnlyCollection<long> jobIds,
         CancellationToken cancellationToken) =>
         database.CountAsync(
-            $"SELECT count(*) FROM jobs.qrtz_triggers WHERE trigger_name IN ({string.Join(',', jobIds.Select(id => $"'{id}'"))})",
+            $"SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_NAME IN ({string.Join(',', jobIds.Select(id => $"'{id}'"))})",
             cancellationToken);
 }

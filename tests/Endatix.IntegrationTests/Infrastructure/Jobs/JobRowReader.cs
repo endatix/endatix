@@ -77,7 +77,7 @@ internal static class JobRowReader
         this JobsTestDatabase database,
         long jobId,
         CancellationToken cancellationToken) =>
-        database.CountAsync($"SELECT count(*) FROM jobs.qrtz_triggers WHERE trigger_name = '{jobId}'", cancellationToken);
+        database.CountAsync($"SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_NAME = '{jobId}'", cancellationToken);
 
     /// <summary>The job's trigger as the scheduler stored it, or <see langword="null"/> when the job has none.</summary>
     public static async Task<StoredJobTrigger?> ReadTriggerAsync(
@@ -85,7 +85,7 @@ internal static class JobRowReader
         long jobId,
         CancellationToken cancellationToken) =>
         (await database.QueryAsync(
-            $"SELECT retry_policy, next_fire_time FROM jobs.qrtz_triggers WHERE trigger_name = '{jobId}'",
+            $"SELECT RETRY_POLICY, NEXT_FIRE_TIME FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_NAME = '{jobId}'",
             reader => new StoredJobTrigger(
                 reader.IsDBNull(0) ? null : reader.GetString(0),
                 reader.IsDBNull(1) ? null : new DateTime(reader.GetInt64(1), DateTimeKind.Utc)),

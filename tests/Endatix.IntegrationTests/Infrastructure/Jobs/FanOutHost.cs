@@ -66,13 +66,15 @@ internal sealed class FanOutHost : IAsyncDisposable
         return new FanOutHost(database, factory, logs);
     }
 
-    // CURRENT_TIMESTAMP and a quoted boolean literal read the same on both providers.
+    // The time is bound in UTC, which the columns hold, because a server clock function returns the server's local
+    // time on SQL Server. A quoted boolean literal reads the same on both providers.
     public Task InsertMessageAsync(OutboxRow message, CancellationToken cancellationToken) =>
         Database.ExecuteAsync(
             $"""
              INSERT INTO "OutboxMessages" ("Id", "EventType", "Payload", "TenantId", "OccurredAt", "SchemaVersion", "Status", "Attempts", "CreatedAt", "IsDeleted")
-             VALUES ({message.Id}, '{message.EventType}', '{message.Payload}', {message.TenantId}, CURRENT_TIMESTAMP, 1, 0, 0, CURRENT_TIMESTAMP, 'false')
+             VALUES ({message.Id}, '{message.EventType}', '{message.Payload}', {message.TenantId}, @now, 1, 0, 0, @now, 'false')
              """,
+            new Dictionary<string, object> { ["@now"] = DateTime.UtcNow },
             cancellationToken);
 
     /// <summary>Waits until the message's row reaches the state <paramref name="reached"/> accepts.</summary>

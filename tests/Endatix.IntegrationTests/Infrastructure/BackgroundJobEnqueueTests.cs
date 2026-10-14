@@ -40,7 +40,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
             reader => reader.GetInt64(0),
             cancellationToken);
         var triggerNames = await database.QueryAsync(
-            "SELECT trigger_name FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'",
+            "SELECT TRIGGER_NAME FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'",
             reader => reader.GetString(0),
             cancellationToken);
         pendingRows.Should().BeEquivalentTo(jobIds);
@@ -83,7 +83,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
         // Assert
         await enqueue.Should().ThrowAsync<Exception>();
         var rows = await database.CountAsync("""SELECT count(*) FROM jobs."BackgroundJobs" """, cancellationToken);
-        var triggers = await database.CountAsync("SELECT count(*) FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'", cancellationToken);
+        var triggers = await database.CountAsync("SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'", cancellationToken);
         rows.Should().Be(0);
         triggers.Should().Be(0);
     }
@@ -111,9 +111,9 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
 
         // Assert
         var durableJobs = await database.CountAsync(
-            $"SELECT count(*) FROM jobs.qrtz_job_details WHERE job_name = '{ProbePayload.JobType}'", cancellationToken);
+            $"SELECT count(*) FROM jobs.qrtz_JOB_DETAILS WHERE JOB_NAME = '{ProbePayload.JobType}'", cancellationToken);
         var triggerNames = await database.QueryAsync(
-            "SELECT trigger_name FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'",
+            "SELECT TRIGGER_NAME FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'",
             reader => reader.GetString(0),
             cancellationToken);
         durableJobs.Should().Be(1);

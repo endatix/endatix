@@ -137,7 +137,9 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-before-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
         await host.Database.ExecuteAsync(
-            $"""UPDATE "Submissions" SET "IsDeleted" = 'true', "DeletedAt" = CURRENT_TIMESTAMP WHERE "Id" = {submissionId}""", ct);
+            $"""UPDATE "Submissions" SET "IsDeleted" = 'true', "DeletedAt" = @deletedAt WHERE "Id" = {submissionId}""",
+            new Dictionary<string, object> { ["@deletedAt"] = DateTime.UtcNow },
+            ct);
 
         // Act — a flatten of that submission, such as a retry, runs after the deletion.
         await host.InsertMessageAsync(new OutboxRow(910, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);

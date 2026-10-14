@@ -134,5 +134,5 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         database.CountAsync("""SELECT count(*) FROM jobs."BackgroundJobs" """, ct);
 
     private static Task<long> CountTriggersAsync(JobsTestDatabase database, CancellationToken ct) =>
-        database.CountAsync("SELECT count(*) FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'", ct);
+        database.CountAsync("SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'", ct);
 }
