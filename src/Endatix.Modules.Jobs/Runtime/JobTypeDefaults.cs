@@ -15,7 +15,7 @@ internal sealed class JobTypeDefaults
 
     /// <summary>
     /// Throws <see cref="InvalidOperationException"/> naming the job type when two records declare the same one,
-    /// which would leave its settings ambiguous.
+    /// which would leave its settings ambiguous, and when a record declares none, which no job could run under.
     /// </summary>
     public JobTypeDefaults(IEnumerable<BackgroundJobTypeDefaults> declared)
     {
@@ -33,6 +33,15 @@ internal sealed class JobTypeDefaults
 
     private void Add(BackgroundJobTypeDefaults defaults)
     {
+        // A record registered as a plain singleton, not through AddBackgroundJobTypeDefaults, never had its job
+        // type set.
+        if (string.IsNullOrWhiteSpace(defaults.JobType))
+        {
+            throw new InvalidOperationException(
+                "A set of background job defaults is registered without a job type; register it with " +
+                "AddBackgroundJobTypeDefaults or AddBackgroundJobHandler, which name the job type it applies to.");
+        }
+
         if (!_byJobType.TryAdd(defaults.JobType, defaults))
         {
             throw new InvalidOperationException(
