@@ -521,7 +521,11 @@ and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-
 ## Upgrading Quartz
 
 The packages pin Quartz exactly (`[4.2.2]`), because the module depends on its internals and every
-node sharing the store must run the same version; an upgrade bumps the pin.
+node sharing the store must run the same version; an upgrade bumps the pin. An app that references
+`Endatix.Modules.Jobs` can take a Quartz patch before Endatix ships it only by overriding the pin
+with its own Quartz reference, which NuGet flags with NU1608 and which runs the module on a Quartz
+it was not tested with; when another package needs a different Quartz instead, restore fails with
+NU1107. That is deliberate: Quartz patches ship as Endatix releases.
 
 Unit tests in `Endatix.Modules.Jobs.Tests` pin what the module takes from Quartz, so an upgrade
 that changes it fails in CI rather than at deploy time:
@@ -529,20 +533,24 @@ that changes it fails in CI rather than at deploy time:
 1. Bump `Quartz` and `Quartz.Dashboard` together in `Directory.Packages.props`, keeping the exact
    `[x.y.z]` range, and every mention of the old version in this README and in
    `THIRD-PARTY-NOTICES`.
-2. Run the module's tests.
-3. If `QuartzSchemaScriptsTests` fails on a pinned hash, Quartz's create script for that provider changed
-   (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server). Diff that script
-   between the two versions. If only comments or whitespace changed, update the pinned hash and the
-   Quartz version beside it, and nothing else. Otherwise add an idempotent
-   `jobs` migration for what changed, per provider whose hash moved, as
-   [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes, then update that pinned hash
-   and the Quartz version beside it.
+2. Run the module's tests. `PinnedQuartzVersion`, beside the pinned hashes in
+   `QuartzSchemaScriptsTests`, names the Quartz the hashes were taken from, and a test fails on every
+   upgrade until it names the referenced Quartz: update it once the steps below pass.
+3. If `QuartzSchemaScriptsTests` fails on a pinned hash, the SQL that provider's migration runs
+   changed: the hash covers the statements `QuartzSchemaScripts` splits Quartz's create script into
+   (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server), without comment
+   lines or indentation. Diff that script between the two versions. If the diff changes no table,
+   column, index or constraint (a rewritten existence guard, keyword case, statement order), update
+   the pinned hash only. Otherwise add an idempotent `jobs` migration for what changed, as
+   [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes, then update the hash.
 4. If `GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql` fails for a provider, Quartz's
    acquisition statement changed. Review that provider's rewrite
    (`ExecutionGroupFilteringPostgreSqlDelegate` or `ExecutionGroupFilteringSqlServerDelegate`,
    `LimitEachGroupToItsFreeSlots`) against the new statement, and the `idx_endatix_qrtz_t_acquire`
-   index that serves it, then pin the new statements in `Quartz422AcquisitionSql`, renamed for the
-   new version.
+   index that serves it. Then pin the new statements in `Quartz422AcquisitionSql` and the rewrite of
+   them in `Quartz422RewrittenAcquisitionSql` (checked by
+   `LimitEachGroupToItsFreeSlots_Quartz422Statement_MatchesPinnedRewrite`), both renamed for the
+   new version, together with the tests named after the version and their mentions here.
 5. Whatever the tests say, re-read the other overrides of both delegates against the new Quartz
    `StdAdoDelegate` and `AdoJobStoreBase` acquisition code: `SelectTriggers` relies on acquisition
    loading the triggers it fires through it, and `SelectTriggersToAcquire` relies on the command

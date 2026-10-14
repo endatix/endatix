@@ -82,6 +82,23 @@ public sealed class ExecutionGroupFilteringSqlServerDelegateTests
 
     [Theory]
     [MemberData(nameof(Quartz422AcquisitionSql.Shapes), MemberType = typeof(Quartz422AcquisitionSql))]
+    public void LimitEachGroupToItsFreeSlots_Quartz422Statement_MatchesPinnedRewrite(
+        int maxCount, int _, string excludedJobTypes)
+    {
+        // Arrange
+        var shipped = Quartz422AcquisitionSql.SqlServer(maxCount, excludedJobTypes);
+
+        // Act
+        var rewritten = ExecutionGroupFilteringSqlServerDelegate.LimitEachGroupToItsFreeSlots(shipped, maxCount);
+
+        // Assert
+        Quartz422RewrittenAcquisitionSql.Normalized(rewritten).Should().Be(
+            Quartz422RewrittenAcquisitionSql.SqlServer(maxCount, excludedJobTypes),
+            Quartz422RewrittenAcquisitionSql.RewriteChanged);
+    }
+
+    [Theory]
+    [MemberData(nameof(Quartz422AcquisitionSql.Shapes), MemberType = typeof(Quartz422AcquisitionSql))]
     public void LimitEachGroupToItsFreeSlots_EveryQuartzShape_FiltersOnTheAcquireColumnAndKeepsQuartzClauses(
         int maxCount, int excludedJobTypeBucket, string excludedJobTypes)
     {

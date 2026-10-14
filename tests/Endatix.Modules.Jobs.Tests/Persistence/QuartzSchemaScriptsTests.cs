@@ -9,35 +9,50 @@ namespace Endatix.Modules.Jobs.Tests.Persistence;
 public sealed partial class QuartzSchemaScriptsTests
 {
     // The Quartz version the hashes below were taken from. Existing databases have the tables of that version, and
-    // a later Quartz whose script hashes the same needs no jobs migration for that provider.
+    // a later Quartz whose statements hash the same needs no jobs migration for that provider.
     private const string PinnedQuartzVersion = "4.2.2";
-    private const string PinnedPostgreSqlScriptSha256 = "2cee704d332085e3fed27d0f571405abfd9e6989ead422018243ab2e2485ad7d";
-    private const string PinnedSqlServerScriptSha256 = "027d36c80d89f6f059d03b14b6e5c5f98b3741b05d668de938e2b2041a23b8bf";
+    private const string PinnedPostgreSqlTablesSha256 = "00070af85c9032af0a502de01a06bf015ac1c069696bc1674ea12f42970902d1";
+    private const string PinnedSqlServerTablesSha256 = "c7a39f85a2c80393ab40e2f89557e99354ea33221cc367b05ae68cd20dddede8";
 
     [Fact]
-    public void PostgreSqlScript_FromReferencedQuartz_MatchesThePinnedHash()
+    public void PinnedQuartzVersion_FromReferencedQuartz_IsTheReferencedVersion()
     {
         // Arrange
         var quartz = typeof(Quartz.IScheduler).Assembly;
 
         // Act
-        var hash = Sha256OfScriptAsTheMigrationReadsIt(QuartzSchemaScripts.PostgreSqlResourceName);
+        var referenced = InformationalVersion(quartz);
 
         // Assert
-        hash.Should().Be(PinnedPostgreSqlScriptSha256, SchemaChangedReason(quartz, "PostgreSQL", QuartzSchemaScripts.PostgreSqlResourceName));
+        referenced.Should().Be(PinnedQuartzVersion,
+            $"the pinned hashes were taken from Quartz {PinnedQuartzVersion} and this build references Quartz " +
+            $"{referenced}. Re-check both pinned hashes against Quartz {referenced}, then update PinnedQuartzVersion");
     }
 
     [Fact]
-    public void SqlServerScript_FromReferencedQuartz_MatchesThePinnedHash()
+    public void PostgreSqlTables_FromReferencedQuartz_MatchThePinnedHash()
     {
         // Arrange
         var quartz = typeof(Quartz.IScheduler).Assembly;
 
         // Act
-        var hash = Sha256OfScriptAsTheMigrationReadsIt(QuartzSchemaScripts.SqlServerResourceName);
+        var hash = Sha256OfStatements(QuartzSchemaScripts.PostgreSqlTables());
 
         // Assert
-        hash.Should().Be(PinnedSqlServerScriptSha256, SchemaChangedReason(quartz, "SQL Server", QuartzSchemaScripts.SqlServerResourceName));
+        hash.Should().Be(PinnedPostgreSqlTablesSha256, SchemaChangedReason(quartz, "PostgreSQL", "create_postgres.sql"));
+    }
+
+    [Fact]
+    public void SqlServerTables_FromReferencedQuartz_MatchThePinnedHash()
+    {
+        // Arrange
+        var quartz = typeof(Quartz.IScheduler).Assembly;
+
+        // Act
+        var hash = Sha256OfStatements(QuartzSchemaScripts.SqlServerTables());
+
+        // Assert
+        hash.Should().Be(PinnedSqlServerTablesSha256, SchemaChangedReason(quartz, "SQL Server", "create_sqlServer.sql"));
     }
 
     [Fact]
@@ -207,15 +222,23 @@ public sealed partial class QuartzSchemaScriptsTests
     [GeneratedRegex(@"REFERENCES jobs\.(?<table>\w+)")]
     private static partial Regex ReferencedTable();
 
-    private static string Sha256OfScriptAsTheMigrationReadsIt(string resource) =>
-        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(QuartzSchemaScripts.ScriptText(resource))));
+    // The statements the migration runs, one batch each, joined by a separator line, so a batch boundary that moves
+    // changes the hash. Comment lines, blank lines and indentation are left out, so a change to them alone does not.
+    private static string Sha256OfStatements(IEnumerable<string> statements) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n--;;\n", statements.Select(SqlLinesOf)))));
 
-    private static string SchemaChangedReason(Assembly quartz, string provider, string resource) =>
+    private static string SqlLinesOf(string statement) =>
+        string.Join('\n', statement.Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && !line.StartsWith("--", StringComparison.Ordinal)));
+
+    private static string SchemaChangedReason(Assembly quartz, string provider, string script) =>
         $"the hash was pinned from Quartz {PinnedQuartzVersion} and this build references Quartz " +
-        $"{InformationalVersion(quartz)}. Diff {resource} between the two versions. If only comments or whitespace " +
-        "changed, update the pinned hash and the Quartz version beside it, and nothing else. Otherwise the Quartz " +
-        $"{provider} schema changed with this upgrade: {provider} databases created before it keep the old tables, so " +
-        $"add an idempotent {provider} jobs migration that upgrades them, then update the pinned hash and the version";
+        $"{InformationalVersion(quartz)}. A different hash means the SQL the {provider} jobs migration runs changed, " +
+        $"so {provider} databases created before this upgrade may keep the old tables: diff {script} between the two " +
+        "versions. If the diff changes no table, column, index or constraint, update the pinned hash only; otherwise " +
+        $"add an idempotent {provider} jobs migration that upgrades them, then update the hash";
 
     private static string? InformationalVersion(Assembly assembly) =>
         assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];

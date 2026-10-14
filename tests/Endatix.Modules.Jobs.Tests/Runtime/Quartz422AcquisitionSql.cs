@@ -33,7 +33,7 @@ internal static class Quartz422AcquisitionSql
         "AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel\r\n" +
         "                     OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))";
 
-    private const string ProjectionAndConditions =
+    private const string ProjectionAndCommonConditions =
         "\r\n" +
         "                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP\r\n" +
         "              FROM\r\n" +
@@ -44,26 +44,31 @@ internal static class Quartz422AcquisitionSql
         "                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))\r\n" +
         "                " + PreferredNodeCondition;
 
-    private const string Order =
-        "              ORDER BY\r\n" +
+    /// <summary>Quartz's order, which every rewrite keeps, both inside each group and across the groups.</summary>
+    public const string Order =
+        "ORDER BY\r\n" +
         "                NEXT_FIRE_TIME ASC, PRIORITY DESC";
 
     /// <summary>What <see cref="PostgreSQLDelegate"/> builds for the shape.</summary>
     public static string PostgreSql(int maxCount, string excludedJobTypes) =>
-        "SELECT" + Body(excludedJobTypes) + $" LIMIT {maxCount}";
+        "SELECT" + ProjectionAndConditions(excludedJobTypes) + Order + $" LIMIT {maxCount}";
 
     /// <summary>What <see cref="SqlServerDelegate"/> builds for the shape.</summary>
     public static string SqlServer(int maxCount, string excludedJobTypes) =>
-        $"SELECT TOP {maxCount} " + Body(excludedJobTypes);
+        $"SELECT TOP {maxCount} " + ProjectionAndConditions(excludedJobTypes) + Order;
 
     /// <summary>Quartz's job-type exclusion clause for the shape, which every rewrite has to keep.</summary>
     public static string ExclusionCondition(string excludedJobTypes) =>
         $"AND jd.JOB_CLASS_NAME NOT IN ({excludedJobTypes})";
 
-    private static string Body(string excludedJobTypes) =>
-        ProjectionAndConditions +
+    /// <summary>
+    /// Quartz's statement for the shape between its <c>SELECT</c> and its <c>ORDER BY</c>: the columns, joins and
+    /// conditions, which every rewrite keeps as they are.
+    /// </summary>
+    public static string ProjectionAndConditions(string excludedJobTypes) =>
+        ProjectionAndCommonConditions +
         (excludedJobTypes.Length == 0 ? "" : "\n                " + ExclusionCondition(excludedJobTypes)) +
-        "\r\n" + Order;
+        "\r\n              ";
 
     /// <summary>The PostgreSQL dialect's statement for a shape, through the hook the driver delegate overrides.</summary>
     public sealed class PostgreSqlDialect : PostgreSQLDelegate
