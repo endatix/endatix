@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -22,6 +23,13 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1","title":"Question 1"}]}]}""";
 
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
+
+    private static readonly Dictionary<string, string?> QuickFlattenRetries = new()
+    {
+        ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:MaxAttempts"] = "2",
+        ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:BackoffBaseSeconds"] = "1",
+        ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:BackoffCapSeconds"] = "1",
+    };
 
     [Fact]
     public async Task Flatten_runs_as_its_own_job()
@@ -128,7 +136,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    public async Task Flatten_of_a_submission_deleted_before_it_ran_completes_and_marks_its_row_deleted()
+    public async Task Flatten_of_a_submission_deleted_before_it_ran_completes_and_removes_its_row()
     {
         // Arrange — the submission was flattened once, then deleted without its own cleanup having run yet.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
@@ -145,12 +153,64 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await host.InsertMessageAsync(new OutboxRow(910, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
         var finished = await WaitForJobAsync(host, new ExpectedJob("910:ReportingFlattenSubmission", status => status is 3 or 4 or 5), ct);
 
-        // Assert — it succeeds on its first attempt instead of retrying, and the row is kept, marked deleted.
+        // Assert — it succeeds on its first attempt instead of retrying, and the row is removed as the cleanup would.
         finished.Should().BeTrue();
         (await JobAsync(host, "910:ReportingFlattenSubmission", ct)).Should().Be((3, 1));
         (await host.Database.CountAsync(
-            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId} AND "IsDeleted" = 'true'""", ct))
-            .Should().Be(1);
+            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId}""", ct))
+            .Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Flatten_of_a_submission_deleted_with_its_form_completes_without_retrying()
+    {
+        // Arrange — the form is deleted as the API deletes it, and its Reporting cleanup has run.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartHostAsync(reporting: true, ct);
+        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-form", ct);
+        await WaitForSeedingJobsAsync(host, ct);
+        await DeleteFormAsync(host, formId, ct);
+        await WaitForSeedingJobsAsync(host, ct);
+
+        // Act — a flatten of one of its submissions, queued before the deletion, runs after it.
+        await host.InsertMessageAsync(new OutboxRow(912, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
+        var finished = await WaitForJobAsync(host, new ExpectedJob("912:ReportingFlattenSubmission", status => status is 3 or 4 or 5), ct);
+
+        // Assert — it succeeds on its first attempt and does not bring back the row the cleanup removed.
+        finished.Should().BeTrue();
+        (await JobAsync(host, "912:ReportingFlattenSubmission", ct)).Should().Be((3, 1));
+        (await host.Database.CountAsync(
+            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId}""", ct))
+            .Should().Be(0);
+    }
+
+    [Fact]
+    [Trait("DbSpecific", "PostgreSql")]
+    public async Task Flatten_of_a_submission_left_live_when_its_form_was_deleted_completes_without_retrying()
+    {
+        // Arrange — the form and its definitions are deleted but the submission is not, as when it was created
+        // after the deleting request loaded the form, and the form's Reporting cleanup has run. Two attempts, a second
+        // apart, so a flatten that fails gives up quickly.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartHostAsync(reporting: true, ct, QuickFlattenRetries);
+        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-form-live-submission", ct);
+        await WaitForSeedingJobsAsync(host, ct);
+        await SoftDeleteFormRowsAsync(host, formId, ct);
+        await host.InsertMessageAsync(new OutboxRow(913, "form.deleted", tenantId, FormPayload(tenantId, formId)), ct);
+        await WaitForJobAsync(host, new ExpectedJob("913:ReportingSyncFormDeletion", status => status == 3), ct);
+
+        // Act
+        await host.InsertMessageAsync(new OutboxRow(914, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
+        var finished = await WaitForJobAsync(host, new ExpectedJob("914:ReportingFlattenSubmission", status => status is 3 or 4 or 5), ct);
+
+        // Assert
+        finished.Should().BeTrue();
+        (await JobAsync(host, "914:ReportingFlattenSubmission", ct)).Should().Be((3, 1));
+        (await host.Database.CountAsync(
+            $"""SELECT count(*) FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submissionId}""", ct))
+            .Should().Be(0);
     }
 
     [Fact]
@@ -159,12 +219,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         // Arrange — two attempts, a second apart, so the job gives up quickly.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await StartHostAsync(reporting: true, ct, new Dictionary<string, string?>
-        {
-            ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:MaxAttempts"] = "2",
-            ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:BackoffBaseSeconds"] = "1",
-            ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:BackoffCapSeconds"] = "1",
-        });
+        await using var host = await StartHostAsync(reporting: true, ct, QuickFlattenRetries);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-missing-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
         var neverExisted = submissionId + 1_000_000;
@@ -239,6 +294,27 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         host.Database.ExecuteAsync(
             $$$"""UPDATE "Submissions" SET "JsonData" = '{"q1":"{{{answer.Answer}}}"}', "Revision" = {{{answer.Revision}}} WHERE "Id" = {{{answer.SubmissionId}}}""",
             ct);
+
+    private static async Task DeleteFormAsync(FanOutHost host, long formId, CancellationToken ct)
+    {
+        using var scope = host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var form = await db.Forms
+            .Include(form => form.FormDefinitions)
+            .ThenInclude(definition => definition.Submissions)
+            .SingleAsync(form => form.Id == formId, ct);
+        form.Delete();
+        await db.SaveChangesAsync(ct);
+    }
+
+    // Writes the deletion straight to the rows, so no event fans out and the submission is left as it was.
+    private static async Task SoftDeleteFormRowsAsync(FanOutHost host, long formId, CancellationToken ct)
+    {
+        await host.Database.ExecuteAsync(
+            $"""UPDATE "FormDefinitions" SET "IsDeleted" = 'true', "DeletedAt" = CURRENT_TIMESTAMP WHERE "FormId" = {formId}""", ct);
+        await host.Database.ExecuteAsync(
+            $"""UPDATE "Forms" SET "IsDeleted" = 'true', "DeletedAt" = CURRENT_TIMESTAMP WHERE "Id" = {formId}""", ct);
+    }
 
     private static async Task FlattenAsync(FanOutHost host, SeededSubmission seeded, CancellationToken ct)
     {
@@ -328,6 +404,9 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
 
     private static string SubmissionPayload(long tenantId, long formId, long submissionId) =>
         $$"""{"formId":"{{formId}}","submissionId":"{{submissionId}}","tenantId":"{{tenantId}}"}""";
+
+    private static string FormPayload(long tenantId, long formId) =>
+        $$"""{"formId":"{{formId}}","tenantId":"{{tenantId}}"}""";
 
     private static Task<bool> WaitForJobAsync(FanOutHost host, ExpectedJob expected, CancellationToken ct) =>
         JobsTestWait.UntilAsync(

@@ -112,15 +112,52 @@ public sealed class SubmissionBackfillScopeIntegrationTests
 
         // Act
         var deleted = await repository.SingleOrDefaultAsync(
-            new SubmissionDeletionStateSpec(seed.DeletedDraft),
+            new SubmissionDeletionStateSpec(TenantId, seed.DeletedDraft),
             cancellationToken);
         var missing = await repository.SingleOrDefaultAsync(
-            new SubmissionDeletionStateSpec(long.MaxValue),
+            new SubmissionDeletionStateSpec(TenantId, long.MaxValue),
             cancellationToken);
 
         // Assert
-        deleted.Should().Be(new SubmissionDeletionState(TenantId, seed.FormId, IsDeleted: true));
+        deleted.Should().Be(new SubmissionDeletionState(seed.FormId, IsDeleted: true, FormIsDeleted: false));
         missing.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeletionStateSpec_WithOtherTenant_ReturnsNull()
+    {
+        // Arrange — the query filters are off for this read, so only its own tenant predicate keeps the row out.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedAsync(cancellationToken);
+        await using var appDb = CreateAppDbContext();
+
+        // Act
+        var state = await CreateSubmissionRepository(appDb).SingleOrDefaultAsync(
+            new SubmissionDeletionStateSpec(TenantId + 1, seed.DeletedDraft),
+            cancellationToken);
+
+        // Assert
+        state.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeletionStateSpec_LiveSubmissionOfDeletedForm_ReportsTheFormDeleted()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedAsync(cancellationToken);
+        await using var appDb = CreateAppDbContext();
+        await appDb.Forms
+            .Where(form => form.Id == seed.FormId)
+            .ExecuteUpdateAsync(updates => updates.SetProperty(form => form.IsDeleted, true), cancellationToken);
+
+        // Act
+        var state = await CreateSubmissionRepository(appDb).SingleOrDefaultAsync(
+            new SubmissionDeletionStateSpec(TenantId, seed.Completed1),
+            cancellationToken);
+
+        // Assert
+        state.Should().Be(new SubmissionDeletionState(seed.FormId, IsDeleted: false, FormIsDeleted: true));
     }
 
     [Fact]
