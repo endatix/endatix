@@ -301,6 +301,30 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
         // Arrange — PostgreSQL-only: FOR UPDATE, pg_backend_pid() and pg_stat_activity hold the row and watch the claim wait.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        var race = await ClaimWhileAnotherAttemptIsTakenAsync(PostgreSqlRowLock, cancellationToken);
+
+        // Assert — claiming here would hand this runner an attempt it did not take.
+        ShouldHaveLostTheClaim(race);
+    }
+
+    private static readonly RowLockProbe PostgreSqlRowLock = new(
+        jobId => $"""SELECT "Id" FROM jobs."BackgroundJobs" WHERE "Id" = {jobId} FOR UPDATE""",
+        $"""SELECT pg_backend_pid() AS "Value" """,
+        // pg_stat_activity is a per-transaction snapshot, so this is polled from outside any transaction.
+        holder => $"""
+            SELECT count(*)::int AS "Value"
+            FROM pg_stat_activity
+            WHERE {holder} = ANY(pg_blocking_pids(pid)) AND query LIKE 'UPDATE%'
+            """);
+
+    /// <summary>
+    /// Seeds a claimable job, holds its row lock on a second connection so the claim's read goes through and its
+    /// update waits, then takes and reaps another attempt under that lock: the job is claimable again, one attempt on.
+    /// </summary>
+    private async Task<ClaimRace> ClaimWhileAnotherAttemptIsTakenAsync(RowLockProbe rowLock, CancellationToken cancellationToken)
+    {
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
         await ClearJobsAsync(context, cancellationToken);
@@ -309,24 +333,14 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
         using var claimScope = fixture.Factory.Services.CreateScope();
         var repository = new BackgroundJobStateRepository(JobsContext(claimScope));
 
-        // A second connection holds the row lock, so the claim's read goes through and its update waits.
         using var lockScope = fixture.Factory.Services.CreateScope();
         var lockContext = JobsContext(lockScope);
         await using var transaction = await lockContext.Database.BeginTransactionAsync(cancellationToken);
-        await lockContext.Database.ExecuteSqlAsync(
-            $"""SELECT "Id" FROM jobs."BackgroundJobs" WHERE "Id" = {jobId} FOR UPDATE""",
-            cancellationToken);
-        var lockHolderPid = await lockContext.Database
-            .SqlQuery<int>($"""SELECT pg_backend_pid() AS "Value" """)
-            .SingleAsync(cancellationToken);
+        await lockContext.Database.ExecuteSqlAsync(rowLock.LockRow(jobId), cancellationToken);
+        var lockHolder = await lockContext.Database.SqlQuery<int>(rowLock.SessionId).SingleAsync(cancellationToken);
 
-        // Act
-        var claim = Task.Run(
-            () => repository.TryClaimAsync(ClaimOf(jobId), cancellationToken),
-            cancellationToken);
-        await WaitForUpdateBlockedByAsync(context, lockHolderPid, claim, cancellationToken);
-
-        // Another runner's attempt was claimed and reaped meanwhile: claimable again, one attempt on.
+        var claim = Task.Run(() => repository.TryClaimAsync(ClaimOf(jobId), cancellationToken), cancellationToken);
+        await WaitForUpdateBlockedByAsync(context, rowLock.BlockedUpdates(lockHolder), claim, cancellationToken);
         await lockContext.BackgroundJobs
             .Where(row => row.Id == jobId)
             .ExecuteUpdateAsync(
@@ -337,17 +351,33 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
                 cancellationToken);
         var movedOn = await ReadAsync(lockContext, jobId, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        var claimed = await claim;
 
-        // Assert — claiming here would hand this runner an attempt it did not take.
-        claimed.Should().BeNull();
-        var job = await ReadAsync(context, jobId, cancellationToken);
-        job.Status.Should().Be(JobStatus.Retrying);
-        job.AttemptCount.Should().Be(1);
-        job.NextAttemptAt.Should().Be(movedOn.NextAttemptAt);
-        job.StartedAt.Should().Be(movedOn.StartedAt);
-        job.ModifiedAt.Should().Be(movedOn.ModifiedAt);
+        return new ClaimRace(await claim, await ReadAsync(context, jobId, cancellationToken), movedOn);
     }
+
+    private static void ShouldHaveLostTheClaim(ClaimRace race)
+    {
+        race.Claimed.Should().BeNull();
+        race.Job.Status.Should().Be(JobStatus.Retrying);
+        race.Job.AttemptCount.Should().Be(1);
+        race.Job.NextAttemptAt.Should().Be(race.MovedOn.NextAttemptAt);
+        race.Job.StartedAt.Should().Be(race.MovedOn.StartedAt);
+        race.Job.ModifiedAt.Should().Be(race.MovedOn.ModifiedAt);
+    }
+
+    /// <summary>How a provider holds a job row's lock in a transaction and sees an update wait on it.</summary>
+    /// <param name="LockRow">Locks the row of a job id inside the open transaction.</param>
+    /// <param name="SessionId">The id of the session holding the lock.</param>
+    /// <param name="BlockedUpdates">How many updates the session with that id blocks.</param>
+    private sealed record RowLockProbe(
+        Func<long, FormattableString> LockRow,
+        FormattableString SessionId,
+        Func<int, FormattableString> BlockedUpdates);
+
+    /// <param name="Claimed">What the claim returned.</param>
+    /// <param name="Job">The job's row after both sides finished.</param>
+    /// <param name="MovedOn">The row as the attempt taken under the lock left it.</param>
+    private sealed record ClaimRace(ClaimedJob? Claimed, BackgroundJob Job, BackgroundJob MovedOn);
 
     private static JobClaim ClaimOf(long jobId) => new(jobId, RegisteredJobTypes, Now);
 
@@ -415,30 +445,16 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
             .Select(job => new ValueTuple<long, JobStatus, DateTime?>(job.Id, job.Status, job.ModifiedAt))
             .ToListAsync(cancellationToken);
 
-    // Polls from a connection outside any transaction, because pg_stat_activity is a per-transaction snapshot.
+    // Polls from a connection outside any transaction, so each poll sees the server's current waits.
     private static async Task WaitForUpdateBlockedByAsync(
         IJobsDbContext context,
-        int lockHolderPid,
+        FormattableString blockedUpdates,
         Task claim,
         CancellationToken cancellationToken)
     {
         var waited = Stopwatch.StartNew();
-        while (true)
+        while (await context.Database.SqlQuery<int>(blockedUpdates).SingleAsync(cancellationToken) == 0)
         {
-            var blockedUpdates = await context.Database
-                .SqlQuery<int>(
-                    $"""
-                    SELECT count(*)::int AS "Value"
-                    FROM pg_stat_activity
-                    WHERE {lockHolderPid} = ANY(pg_blocking_pids(pid)) AND query LIKE 'UPDATE%'
-                    """)
-                .SingleAsync(cancellationToken);
-
-            if (blockedUpdates > 0)
-            {
-                return;
-            }
-
             claim.IsCompleted.Should().BeFalse("the claim's update has to wait on the row lock");
             waited.Elapsed.Should().BeLessThan(LockWaitTimeout, "the claim's update never waited on the row lock");
             await Task.Delay(TimeSpan.FromMilliseconds(20), cancellationToken);
