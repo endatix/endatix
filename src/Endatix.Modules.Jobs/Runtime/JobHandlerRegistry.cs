@@ -17,8 +17,8 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// services such as a <c>DbContext</c>. A handler registered keyed by its job type is the only one a job run
 /// builds; one registered without a key is found by building every handler. Job types are compared ordinally: a
 /// job type is a routing key written by code, not text a person types. They must still be unique ignoring case,
-/// because a job store on SQL Server matches each trigger to its job type's execution group under the database
-/// collation, which ignores case by default, so two job types differing only in case would share one group.
+/// because a job store on SQL Server keys each job type's durable scheduler job under the database collation, which
+/// ignores case by default, so two job types differing only in case would share one durable job.
 /// </para>
 /// </remarks>
 internal sealed class JobHandlerRegistry
@@ -106,7 +106,7 @@ internal sealed class JobHandlerRegistry
 
         return $"The job types '{first.JobType}' of {first.HandlerType.FullName} and '{second.JobType}' of " +
             $"{second.HandlerType.FullName} differ only in case. Job types must be unique ignoring case, because " +
-            "a job store on SQL Server matches triggers to job types under a collation that ignores case.";
+            "a job store on SQL Server keys their scheduler jobs under a collation that ignores case.";
     }
 
     /// <summary>Why no job could run under <paramref name="jobType"/>, or <see langword="null"/> when one can.</summary>
@@ -117,7 +117,7 @@ internal sealed class JobHandlerRegistry
 
         // Every job type is also an execution group, and the scheduler reserves these names for its own limits and
         // its maintenance jobs; a handler declaring one would fail building the scheduler, or share the maintenance
-        // jobs' slots on SQL Server, whose collation ignores case, so either could starve the other.
+        // jobs' slots, so either could starve the other. Compared ignoring case, as job types are with each other.
         _ when IsReservedExecutionGroupName(jobType) =>
             $"The job type '{jobType}' of the background job handler {handlerType.FullName} is, ignoring case, a " +
             $"name the scheduler reserves for its execution limits or for its maintenance jobs ('{JobRetentionJob.Group}'), " +

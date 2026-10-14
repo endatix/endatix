@@ -1,3 +1,4 @@
+using Endatix.Modules.Jobs.Persistence.Migrations.SqlServer;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Data.SqlClient;
 using Quartz;
@@ -78,6 +79,21 @@ public sealed class ExecutionGroupFilteringSqlServerDelegateTests
 
         // Assert — the rewrite takes this statement apart; a Quartz upgrade that changes it must update the delegate.
         shipped.Should().Be(Quartz422AcquisitionSql.SqlServer(maxCount, excludedJobTypes));
+    }
+
+    [Fact]
+    public void LimitEachGroupToItsFreeSlots_AnyShape_ReadsFreeGroupsInTheAcquireColumnsCollation()
+    {
+        // Arrange — the migration pins the column's collation; the group names read from JSON must share it.
+        var collation = $"COLLATE {ExecutionGroupFilteringSqlServerDelegate.AcquireGroupCollation}";
+
+        // Act
+        var rewritten = ExecutionGroupFilteringSqlServerDelegate.LimitEachGroupToItsFreeSlots(
+            Quartz422AcquisitionSql.SqlServer(11, ""), 11);
+
+        // Assert
+        InitialBackgroundJobs.AddAcquireGroupColumn.Should().Contain($"COALESCE(EXECUTION_GROUP, JOB_NAME) {collation}");
+        rewritten.Should().Contain($"endatix_group nvarchar(200) {collation} '$.g'");
     }
 
     [Theory]

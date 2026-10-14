@@ -30,12 +30,18 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// of every waiting trigger.
 /// </para>
 /// <para>
-/// Group matching follows the database collation, which ignores case by default, so the scheduler refuses job types
-/// that differ only in case (<see cref="JobHandlerRegistry"/>).
+/// The column and the group names read from JSON share one collation, named on both sides, so the comparison is made
+/// in the collation the index is sorted in, and each group's read stays a seek, whatever collation the database had
+/// when the tables were created or has since. The collation is binary, so groups match ordinally, as on PostgreSQL.
 /// </para>
 /// </remarks>
 internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
 {
+    /// <summary>
+    /// The collation <c>ENDATIX_ACQUIRE_GROUP</c> is computed in, which the free groups are read in to match it.
+    /// </summary>
+    internal const string AcquireGroupCollation = "Latin1_General_100_BIN2";
+
     private const string DriverDelegate = "SQL Server";
     private const string FreeSlotsParameter = ExecutionGroupAcquisition.FreeSlotsParameter;
 
@@ -64,7 +70,7 @@ internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
         return string.Create(CultureInfo.InvariantCulture, $"""
             SELECT TOP ({batchSize}) acquirable.*
             FROM OPENJSON(@{FreeSlotsParameter})
-                WITH (endatix_group nvarchar(200) '$.g', endatix_free_slots int '$.s') AS free
+                WITH (endatix_group nvarchar(200) COLLATE {AcquireGroupCollation} '$.g', endatix_free_slots int '$.s') AS free
             CROSS APPLY (
                 SELECT TOP (free.endatix_free_slots) t.NEXT_FIRE_TIME, t.PRIORITY,{shipped.ProjectionAndConditions}
                 AND t.ENDATIX_ACQUIRE_GROUP = free.endatix_group

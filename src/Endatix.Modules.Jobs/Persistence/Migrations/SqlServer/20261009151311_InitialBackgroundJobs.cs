@@ -85,20 +85,44 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
             // Trigger acquisition keeps only the execution groups this node has a free slot in, and matches a
             // trigger without an execution group by its job name. The column holds that group, and the index
             // leads with it, so acquisition reads only the free groups' triggers however large a full group's
-            // backlog grows. The column expression and this index change together with the SQL Server
-            // acquisition delegate's group predicate, which filters on the column by name. The included columns
-            // are the rest of what acquisition reads from a trigger, so it needs no lookup into the table.
-            migrationBuilder.Sql(
-                """
-                ALTER TABLE jobs.qrtz_TRIGGERS ADD ENDATIX_ACQUIRE_GROUP AS COALESCE(EXECUTION_GROUP, JOB_NAME) PERSISTED;
-                """);
-            migrationBuilder.Sql(
-                """
-                CREATE INDEX idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS
-                    (SCHED_NAME, TRIGGER_STATE, ENDATIX_ACQUIRE_GROUP, NEXT_FIRE_TIME, PRIORITY DESC)
-                    INCLUDE (JOB_NAME, JOB_GROUP, EXECUTION_GROUP, MISFIRE_INSTR, PREFERRED_NODE);
-                """);
+            // backlog grows. The column expression, its collation and this index change together with the SQL
+            // Server acquisition delegate's group predicate, which filters on the column by name. The included
+            // columns are the rest of what acquisition reads from a trigger, so it needs no lookup into the table.
+            migrationBuilder.Sql(AddAcquireGroupColumn);
+            migrationBuilder.Sql(CreateAcquireIndex);
         }
+
+        /// <summary>The column trigger acquisition reads each trigger's group from.</summary>
+        /// <remarks>
+        /// Its collation is pinned rather than taken from the columns it is computed from, which follow the
+        /// database's default at the time the tables were created: the acquisition delegate reads the group
+        /// names it compares with this column in that same collation, so acquisition matches groups the same
+        /// way on every database, whatever its default is or later becomes. Binary, it compares group names
+        /// ordinally, as PostgreSQL and the scheduler's own limits do.
+        /// </remarks>
+        internal const string AddAcquireGroupColumn =
+            """
+            ALTER TABLE jobs.qrtz_TRIGGERS
+                ADD ENDATIX_ACQUIRE_GROUP AS COALESCE(EXECUTION_GROUP, JOB_NAME) COLLATE Latin1_General_100_BIN2 PERSISTED;
+            """;
+
+        /// <summary>The index trigger acquisition seeks, one group at a time, in acquisition order.</summary>
+        internal const string CreateAcquireIndex =
+            """
+            CREATE INDEX idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS
+                (SCHED_NAME, TRIGGER_STATE, ENDATIX_ACQUIRE_GROUP, NEXT_FIRE_TIME, PRIORITY DESC)
+                INCLUDE (JOB_NAME, JOB_GROUP, EXECUTION_GROUP, MISFIRE_INSTR, PREFERRED_NODE);
+            """;
+
+        /// <summary>Drops the acquisition index, then its column, each only if it is there.</summary>
+        internal const string DropAcquireIndexAndColumn =
+            """
+            IF OBJECT_ID(N'jobs.qrtz_TRIGGERS', N'U') IS NOT NULL
+            BEGIN
+                DROP INDEX IF EXISTS idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS;
+                ALTER TABLE jobs.qrtz_TRIGGERS DROP COLUMN IF EXISTS ENDATIX_ACQUIRE_GROUP;
+            END
+            """;
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
@@ -106,14 +130,7 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
             // The index and the column go first, since the column cannot be dropped while the index uses it. Both
             // drops run only while qrtz_TRIGGERS exists, and each also skips an index or column already gone, so
             // Down() completes on a partly removed schema, as the table drops below do.
-            migrationBuilder.Sql(
-                """
-                IF OBJECT_ID(N'jobs.qrtz_TRIGGERS', N'U') IS NOT NULL
-                BEGIN
-                    DROP INDEX IF EXISTS idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS;
-                    ALTER TABLE jobs.qrtz_TRIGGERS DROP COLUMN IF EXISTS ENDATIX_ACQUIRE_GROUP;
-                END
-                """);
+            migrationBuilder.Sql(DropAcquireIndexAndColumn);
 
             // SQL Server has no DROP TABLE ... CASCADE. The script creates every table after the tables it
             // references, so dropping in reverse order removes each table before anything it points at.
