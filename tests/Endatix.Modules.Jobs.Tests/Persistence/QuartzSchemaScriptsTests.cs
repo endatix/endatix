@@ -111,7 +111,8 @@ public sealed partial class QuartzSchemaScriptsTests
         statements.Should().NotBeEmpty();
         statements.Should().NotContain(statement => statement.Contains("--;;"));
         statements.Should().OnlyContain(statement =>
-            statement.Contains("CREATE TABLE IF NOT EXISTS") || statement.Contains("CREATE INDEX IF NOT EXISTS"));
+            CreatesOneObject(statement)
+            && (statement.Contains("CREATE TABLE IF NOT EXISTS") || statement.Contains("CREATE INDEX IF NOT EXISTS")));
     }
 
     [Fact]
@@ -160,6 +161,24 @@ public sealed partial class QuartzSchemaScriptsTests
         statements.SelectMany(statement => statement.Split('\n'))
             .Should().NotContain(line => line.Trim().Equals("GO", StringComparison.OrdinalIgnoreCase));
         statements.Should().NotContain(statement => statement.Contains("--;;"));
+    }
+
+    [Fact]
+    public void SqlServerTables_FromReferencedQuartz_GuardEachCreateByItsOwnExistenceCheck()
+    {
+        // Arrange — the migration and the store tests re-run these against a schema that may already hold them,
+        // so each one must create a single table or index, and only when that object is missing.
+
+        // Act
+        var statements = QuartzSchemaScripts.SqlServerTables();
+
+        // Assert
+        statements.Should().NotBeEmpty();
+        statements.Should().OnlyContain(
+            statement => CreatesOneObject(statement) && IsGuardedCreate(SqlLinesOf(statement)),
+            "re-running an unguarded create fails with \"There is already an object named …\". If Quartz reworded a " +
+            "guard, widen GuardedTable or GuardedIndex; if it dropped one, make QuartzSchemaScripts wrap that create in " +
+            "an existence check, then re-pin the hash");
     }
 
     [Fact]
@@ -222,6 +241,27 @@ public sealed partial class QuartzSchemaScriptsTests
     [GeneratedRegex(@"REFERENCES jobs\.(?<table>\w+)")]
     private static partial Regex ReferencedTable();
 
+    // A whole statement, nothing before the guard or after its END, so SQL added outside the guard fails it too.
+    [GeneratedRegex(
+        @"\AIF\s+OBJECT_ID\s*\(\s*N'(?<table>jobs\.\w+)'\s*,\s*N'U'\s*\)\s*IS\s+NULL\s+BEGIN\s+" +
+        @"CREATE\s+TABLE\s+\k<table>\s*\(.*\)\s*;?\s*END\s*;?\z",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex GuardedTable();
+
+    [GeneratedRegex(
+        @"\AIF\s+NOT\s+EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+sys\.indexes\s+WHERE\s+name\s*=\s*'(?<index>\w+)'\s+AND\s+" +
+        @"object_id\s*=\s*OBJECT_ID\s*\(\s*'(?<table>jobs\.\w+)'\s*\)\s*\)\s*BEGIN\s+" +
+        @"CREATE\s+INDEX\s+\k<index>\s+ON\s+\k<table>\s*\([^;]*\)\s*;?\s*END\s*;?\z",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex GuardedIndex();
+
+    [GeneratedRegex(@"\bCREATE\s", RegexOptions.IgnoreCase)]
+    private static partial Regex CreateKeyword();
+
+    private static bool IsGuardedCreate(string sql) => GuardedTable().IsMatch(sql) || GuardedIndex().IsMatch(sql);
+
+    private static bool CreatesOneObject(string statement) => CreateKeyword().Count(SqlLinesOf(statement)) == 1;
+
     // The statements the migration runs, one batch each, joined by a separator line, so a batch boundary that moves
     // changes the hash. Comment lines, blank lines and indentation are left out, so a change to them alone does not.
     private static string Sha256OfStatements(IEnumerable<string> statements) =>
@@ -236,7 +276,9 @@ public sealed partial class QuartzSchemaScriptsTests
     private static string SchemaChangedReason(Assembly quartz, string provider, string script) =>
         $"the hash was pinned from Quartz {PinnedQuartzVersion} and this build references Quartz " +
         $"{InformationalVersion(quartz)}. A different hash means the SQL the {provider} jobs migration runs changed, " +
-        $"so {provider} databases created before this upgrade may keep the old tables: diff {script} between the two " +
+        "with this Quartz or because QuartzRegistration.TablePrefix changed. A prefix change needs a jobs migration " +
+        "that renames the existing tables and indexes, then a re-pinned hash. For a Quartz change, " +
+        $"{provider} databases created before it may keep the old tables: diff {script} between the two " +
         "versions. If the diff changes no table, column, index or constraint, update the pinned hash only; otherwise " +
         $"add an idempotent {provider} jobs migration that upgrades them, then update the hash";
 

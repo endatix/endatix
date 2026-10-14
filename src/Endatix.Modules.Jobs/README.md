@@ -537,12 +537,22 @@ that changes it fails in CI rather than at deploy time:
    `QuartzSchemaScriptsTests`, names the Quartz the hashes were taken from, and a test fails on every
    upgrade until it names the referenced Quartz: update it once the steps below pass.
 3. If `QuartzSchemaScriptsTests` fails on a pinned hash, the SQL that provider's migration runs
-   changed: the hash covers the statements `QuartzSchemaScripts` splits Quartz's create script into
+   changed. The hash covers the statements `QuartzSchemaScripts` splits Quartz's create script into
    (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server), without comment
-   lines or indentation. Diff that script between the two versions. If the diff changes no table,
-   column, index or constraint (a rewritten existence guard, keyword case, statement order), update
-   the pinned hash only. Otherwise add an idempotent `jobs` migration for what changed, as
+   lines or indentation and with the table prefix filled in, so changing
+   `QuartzRegistration.TablePrefix` moves it too: a prefix change needs a `jobs` migration that
+   renames the existing tables and indexes, then a re-pinned hash. For a Quartz upgrade, diff that
+   script between the two versions. If the diff changes no table, column, index or constraint
+   (keyword case, statement order, a reworded existence guard), update the pinned hash only.
+   Otherwise add an idempotent `jobs` migration for what changed, as
    [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes, then update the hash.
+
+   The guard tests (`PostgreSqlTables_…_ReturnsOneStatementPerEntry`,
+   `SqlServerTables_…_GuardEachCreateByItsOwnExistenceCheck`) fail when a create would no longer be
+   skipped for an object that exists, which the migrations and the store tests rely on when they
+   re-run these statements. If Quartz reworded a guard, widen the test's pattern. If it dropped
+   one, add a step to `QuartzSchemaScripts` that wraps that create in an existence check (the
+   migrations and the store tests all read the statements through it), then re-pin the hash.
 4. If `GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql` fails for a provider, Quartz's
    acquisition statement changed. Review that provider's rewrite
    (`ExecutionGroupFilteringPostgreSqlDelegate` or `ExecutionGroupFilteringSqlServerDelegate`,
