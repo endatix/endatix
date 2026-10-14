@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;

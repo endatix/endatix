@@ -1,10 +1,12 @@
 using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -145,7 +147,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
     private static FlattenedSubmissionRepository CreateRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FlattenedSubmissionRepository(dbContext, unitOfWork);
+        return new FlattenedSubmissionRepository(dbContext, unitOfWork, new DateTimeProvider());
     }
 
     // Mirrors ReportingOutboxTestHelpers.FakeOutboxMessage (Reporting.Tests) and Infrastructure.Tests

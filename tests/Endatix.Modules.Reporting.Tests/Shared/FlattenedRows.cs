@@ -1,5 +1,5 @@
+using System.Reflection;
 using Endatix.Modules.Reporting.Contracts;
-using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 
 namespace Endatix.Modules.Reporting.Tests.Shared;
@@ -16,8 +16,8 @@ internal static class FlattenedRows
         string dataJson,
         DateTime sourceModifiedAt)
     {
-        FlattenedSubmission row = new(key.SubmissionId, key.TenantId, key.FormId);
         var processedAt = DateTime.UtcNow;
+        FlattenedSubmission row = new(key, processedAt);
         Set(row.Integration, nameof(SubmissionIntegrationState.Code), SubmissionIntegrationStatusCodes.Processed);
         Set(row.Integration, nameof(SubmissionIntegrationState.LastAttemptAt), processedAt);
         Set(row.Integration, nameof(SubmissionIntegrationState.ProcessedAt), processedAt);
@@ -27,6 +27,18 @@ internal static class FlattenedRows
         return row;
     }
 
-    private static void Set(object target, string property, object? value) =>
-        target.GetType().GetProperty(property)!.SetValue(target, value);
+    // A get-only auto-property has no setter to call, so its compiler-generated backing field is written instead, the
+    // way EF Core materializes it.
+    private static void Set(object target, string property, object? value)
+    {
+        var type = target.GetType();
+        var info = type.GetProperty(property)!;
+        if (info.CanWrite)
+        {
+            info.SetValue(target, value);
+            return;
+        }
+
+        type.GetField($"<{property}>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(target, value);
+    }
 }

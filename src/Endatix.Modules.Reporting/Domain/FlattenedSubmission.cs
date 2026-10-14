@@ -13,18 +13,21 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     private FlattenedSubmission() { }
 
     /// <summary>
-    /// Creates a tracking row when flattening is queued or first attempted.
+    /// Creates a tracking row for the submission <paramref name="key"/> locates, when flattening is queued or first
+    /// attempted at <paramref name="createdAt"/>.
     /// </summary>
-    public FlattenedSubmission(long submissionId, long tenantId, long formId)
+    public FlattenedSubmission(FlattenedSubmissionKey key, DateTime createdAt)
     {
-        Guard.Against.NegativeOrZero(submissionId);
-        Guard.Against.NegativeOrZero(tenantId);
-        Guard.Against.NegativeOrZero(formId);
+        Guard.Against.NegativeOrZero(key.SubmissionId);
+        Guard.Against.NegativeOrZero(key.TenantId);
+        Guard.Against.NegativeOrZero(key.FormId);
+        Guard.Against.Default(createdAt);
+        Guard.Against.Expression(dateTime => dateTime.Kind != DateTimeKind.Utc, createdAt, "createdAt must be in UTC");
 
-        SubmissionId = submissionId;
-        TenantId = tenantId;
-        FormId = formId;
-        CreatedAt = DateTime.UtcNow;
+        SubmissionId = key.SubmissionId;
+        TenantId = key.TenantId;
+        FormId = key.FormId;
+        CreatedAt = createdAt;
         Integration = SubmissionIntegrationState.CreatePending(CreatedAt);
     }
 
@@ -57,7 +60,11 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
 
     public DateTime CreatedAt { get; private set; }
 
-    public DateTime? ModifiedAt { get; private set; }
+    /// <summary>
+    /// Written by the repository's conditional writes and by the context when it saves a tracked change, never by
+    /// the entity itself.
+    /// </summary>
+    public DateTime? ModifiedAt { get; }
 
     /// <summary>
     /// The source submission's own <c>ModifiedAt ?? CreatedAt</c> for the version in <see cref="DataJson"/>.
@@ -71,7 +78,6 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     public void MarkDeleted()
     {
         IsDeleted = true;
-        ModifiedAt = DateTime.UtcNow;
     }
 
     public SubmissionIntegrationSnapshotDto ToIntegrationSnapshot() => Integration.ToSnapshot();

@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
@@ -12,7 +13,8 @@ namespace Endatix.Modules.Reporting.Data;
 /// </summary>
 internal sealed class FlattenedSubmissionRepository(
     IReportingDbContext dbContext,
-    IReportingUnitOfWork unitOfWork) : IFlattenedSubmissionRepository
+    IReportingUnitOfWork unitOfWork,
+    IDateTimeProvider dateTimeProvider) : IFlattenedSubmissionRepository
 {
     /// <inheritdoc />
     public async Task<FlattenedSubmission?> GetBySubmissionIdAsync(
@@ -62,14 +64,14 @@ internal sealed class FlattenedSubmissionRepository(
     {
         if (!await ExistsAsync(key.SubmissionId, cancellationToken))
         {
-            await InsertUnlessRacedAsync(new FlattenedSubmission(key.SubmissionId, key.TenantId, key.FormId), cancellationToken);
+            await InsertUnlessRacedAsync(new FlattenedSubmission(key, UtcNow), cancellationToken);
         }
     }
 
     /// <inheritdoc />
     public Task<bool> TryMarkProcessingAsync(FlattenedRevision write, CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
         return TryWriteAsync(
             write,
             setters => setters
@@ -85,7 +87,7 @@ internal sealed class FlattenedSubmissionRepository(
     {
         Guard.Against.NullOrEmpty(dataJson);
 
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
         return TryWriteAsync(
             write,
             setters => setters
@@ -104,7 +106,7 @@ internal sealed class FlattenedSubmissionRepository(
     /// <inheritdoc />
     public Task<bool> TryMarkSkippedAsync(FlattenedRevision write, CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
         return TryWriteAsync(
             write,
             setters => setters
@@ -122,7 +124,7 @@ internal sealed class FlattenedSubmissionRepository(
     /// <inheritdoc />
     public Task<bool> TryMarkFailedAsync(FlattenedRevision write, string error, CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
+        var now = UtcNow;
         var storedError = SubmissionIntegrationState.TruncateError(error);
         return TryWriteAsync(
             write,
@@ -133,6 +135,8 @@ internal sealed class FlattenedSubmissionRepository(
                 .SetProperty(row => row.ModifiedAt, now),
             cancellationToken);
     }
+
+    private DateTime UtcNow => dateTimeProvider.UtcNow.UtcDateTime;
 
     private async Task InsertUnlessRacedAsync(FlattenedSubmission created, CancellationToken cancellationToken)
     {

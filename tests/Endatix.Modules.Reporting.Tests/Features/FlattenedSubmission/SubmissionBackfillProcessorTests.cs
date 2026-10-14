@@ -6,6 +6,7 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Tests.Shared;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using FlattenedSubmissionKey = Endatix.Modules.Reporting.Domain.FlattenedSubmissionKey;
 using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmission;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;

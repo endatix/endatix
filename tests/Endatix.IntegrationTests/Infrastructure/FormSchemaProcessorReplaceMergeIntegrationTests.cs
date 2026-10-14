@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
@@ -256,7 +257,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         ReportingUnitOfWork unitOfWork = new(reportingDb);
         SyncFormDeletionOutboxHandler sync = new(
             new FormSchemaRepository(reportingDb, unitOfWork, ReportingTestSchema.TransactionLockFor(reportingDb)),
-            new FlattenedSubmissionRepository(reportingDb, unitOfWork),
+            new FlattenedSubmissionRepository(reportingDb, unitOfWork, new DateTimeProvider()),
             unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
         await sync.ProcessAsync(new SyncFormDeletionOutboxHandler.Input(TenantId, formId), outboxMessageId: 0, cancellationToken);
@@ -368,7 +369,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         return new FormSchemaProcessor(
             formsRepository,
             new FormSchemaRepository(reportingDb, unitOfWork, ReportingTestSchema.TransactionLockFor(reportingDb)),
-            new FlattenedSubmissionRepository(reportingDb, unitOfWork),
+            new FlattenedSubmissionRepository(reportingDb, unitOfWork, new DateTimeProvider()),
             unitOfWork,
             appDb,
             new FormSchemaCompiler(),

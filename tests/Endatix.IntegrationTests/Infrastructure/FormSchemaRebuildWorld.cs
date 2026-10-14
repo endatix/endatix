@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -279,14 +280,15 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
         return new FormSchemaProcessor(
             FormsRepository(),
             schemas,
-            flattenedRows ?? new FlattenedSubmissionRepository(reportingDb, unitOfWork),
+            flattenedRows ?? new FlattenedSubmissionRepository(reportingDb, unitOfWork, new DateTimeProvider()),
             unitOfWork,
             appDb,
             compiler,
             NullLogger<FormSchemaProcessor>.Instance);
     }
 
-    private FlattenedSubmissionRepository FlattenedRows() => new(reportingDb, new ReportingUnitOfWork(reportingDb));
+    private FlattenedSubmissionRepository FlattenedRows() =>
+        new(reportingDb, new ReportingUnitOfWork(reportingDb), new DateTimeProvider());
 
     private EfRepository<Submission> Submissions() => new(appDb, new EndatixSpecificationEvaluator([]));
 

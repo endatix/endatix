@@ -1,5 +1,6 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Infrastructure;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
@@ -44,7 +45,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         await using var dbContext = CreateContext(TenantId);
         ReportingUnitOfWork unitOfWork = new(dbContext);
         FormSchemaRepository schemaRepository = new(dbContext, unitOfWork, ReportingTestSchema.TransactionLockFor(dbContext));
-        FlattenedSubmissionRepository flattenedRepository = new(dbContext, unitOfWork);
+        FlattenedSubmissionRepository flattenedRepository = new(dbContext, unitOfWork, new DateTimeProvider());
 
         FormSchemaCompiler compiler = new();
         var compiled = compiler.CompilePersisted(
@@ -110,7 +111,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         ReportingUnitOfWork unitOfWork = new(dbContext);
         SyncFormDeletionOutboxHandler handler = new(
             new FormSchemaRepository(dbContext, unitOfWork, ReportingTestSchema.TransactionLockFor(dbContext)),
-            new FlattenedSubmissionRepository(dbContext, unitOfWork),
+            new FlattenedSubmissionRepository(dbContext, unitOfWork, new DateTimeProvider()),
             unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
 

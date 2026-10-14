@@ -14,6 +14,8 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class ReportingQueryFilterTests
 {
+    private static readonly DateTime FlattenedAt = new(2026, 3, 4, 5, 6, 7, DateTimeKind.Utc);
+
     private readonly DbIntegrationFixture _fixture;
 
     public ReportingQueryFilterTests(DbIntegrationFixture fixture)
@@ -47,8 +49,8 @@ public sealed class ReportingQueryFilterTests
                 new FormSchema(tenant2, formId: 2, formDefinitionRevision: 1, flatteningMap: """{"version":1,"columns":[{"key":"b"}]}""", codebook: FormSchema.EmptyCodebookJson) { Id = 202 });
 
             seedContext.FlattenedSubmissions.AddRange(
-                new FlattenedSubmission(submissionId: 301, tenantId: tenant1, formId: 1),
-                new FlattenedSubmission(submissionId: 302, tenantId: tenant2, formId: 2));
+                new FlattenedSubmission(new FlattenedSubmissionKey(tenant1, FormId: 1, SubmissionId: 301), FlattenedAt),
+                new FlattenedSubmission(new FlattenedSubmissionKey(tenant2, FormId: 2, SubmissionId: 302), FlattenedAt));
 
             seedContext.SurveyTypeExportMappings.AddRange(
                 new SurveyTypeExportMapping(tenant1, exportFormatId: 101) { Id = 401 },
