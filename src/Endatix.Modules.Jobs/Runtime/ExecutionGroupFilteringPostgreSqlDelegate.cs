@@ -32,7 +32,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// group's read into a scan of every waiting trigger.
 /// </para>
 /// </remarks>
-internal sealed class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
+internal class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
 {
     private const string DriverDelegate = "PostgreSQL";
     private const string FreeGroupsParameter = "endatix_free_groups";

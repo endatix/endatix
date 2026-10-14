@@ -34,7 +34,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// that differ only in case (<see cref="JobHandlerRegistry"/>).
 /// </para>
 /// </remarks>
-internal sealed class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
+internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
 {
     private const string DriverDelegate = "SQL Server";
     private const string FreeSlotsParameter = ExecutionGroupAcquisition.FreeSlotsParameter;

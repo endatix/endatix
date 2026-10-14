@@ -41,13 +41,14 @@ internal sealed class TriggerStoreFailures
 }
 
 /// <summary>
-/// Quartz's dialect for the node's provider, except that storing a new trigger of the probe job type throws while
-/// <see cref="TriggerStoreFailures"/> has failures left.
+/// The module's dialect for the node's provider, except that storing a new trigger of the probe job type throws
+/// while <see cref="TriggerStoreFailures"/> has failures left.
 /// </summary>
 /// <remarks>
-/// The node's own dialect only changes how triggers are acquired, which matters across several job types, not for
-/// the one probe type these nodes run. Every trigger the job wrapper stores, a retry's or a re-fire's, is a new row,
-/// because a reschedule deletes the row that fired before it inserts its replacement.
+/// Each failing dialect derives from the one the module registers, so a node that fails its stores still acquires
+/// per execution group, binds its free slots and maps recovered triggers to their job type's group as production
+/// does. Every trigger the job wrapper stores, a retry's or a re-fire's, is a new row, because a reschedule deletes
+/// the row that fired before it inserts its replacement.
 /// </remarks>
 internal static class FailingTriggerStoreDelegate
 {
@@ -68,7 +69,7 @@ internal static class FailingTriggerStoreDelegate
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
     };
 
-    private sealed class FailingPostgreSqlDelegate(TriggerStoreFailures failures) : PostgreSQLDelegate
+    private sealed class FailingPostgreSqlDelegate(TriggerStoreFailures failures) : ExecutionGroupFilteringPostgreSqlDelegate
     {
         public override ValueTask<int> InsertTrigger(
             ConnectionAndTransactionHolder conn,
@@ -79,7 +80,7 @@ internal static class FailingTriggerStoreDelegate
             failures.FailOrStore(trigger, () => base.InsertTrigger(conn, trigger, state, jobDetail, cancellationToken));
     }
 
-    private sealed class FailingSqlServerDelegate(TriggerStoreFailures failures) : SqlServerDelegate
+    private sealed class FailingSqlServerDelegate(TriggerStoreFailures failures) : ExecutionGroupFilteringSqlServerDelegate
     {
         public override ValueTask<int> InsertTrigger(
             ConnectionAndTransactionHolder conn,
