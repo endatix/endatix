@@ -324,6 +324,25 @@ public class BackgroundJobQueueTests : IDisposable
         collision.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(
+        "Eine Zeile mit doppeltem Schlüssel kann in das jobs.BackgroundJobs-Objekt mit dem eindeutigen " +
+        "IX_BackgroundJobs_DedupKey-Index nicht eingefügt werden. Der doppelte Schlüsselwert ist (5, Probe, k1).")]
+    [InlineData(
+        "Impossible d'insérer une ligne de clé en double dans l'objet « jobs.BackgroundJobs » avec un index unique " +
+        "« IX_BackgroundJobs_DedupKey ». La valeur de clé dupliquée est (5, Probe, k1).")]
+    public void IsDedupKeyCollision_SqlServer2601OnDedupIndexInAnotherLanguage_ReturnsTrue(string message)
+    {
+        // Arrange — a server in another language quotes the index name differently, or not at all.
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(message, 2601));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeTrue();
+    }
+
     [Fact]
     public void IsDedupKeyCollision_SqlServer2601OnOtherIndex_ReturnsFalse()
     {

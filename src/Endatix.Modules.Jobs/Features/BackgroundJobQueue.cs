@@ -169,13 +169,14 @@ internal sealed class BackgroundJobQueue(
     /// <summary>Whether the insert failed because another enqueue committed the same dedup key first.</summary>
     /// <remarks>
     /// PostgreSQL names the violated index in a field of its own; SQL Server names it only in the message, for a
-    /// duplicate in a unique index (2601) or a unique constraint (2627) alike.
+    /// duplicate in a unique index (2601) or a unique constraint (2627) alike. The message is in the server's
+    /// language, which quotes the name differently or not at all, so only the bare name is looked for.
     /// </remarks>
     internal static bool IsDedupKeyCollision(DbUpdateException exception) => exception.InnerException switch
     {
         PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: DedupKeyIndexName } => true,
         SqlException { Number: SqlServerDuplicateKeyInIndex or SqlServerDuplicateKeyInConstraint } sqlServer =>
-            sqlServer.Message.Contains($"'{DedupKeyIndexName}'", StringComparison.Ordinal),
+            sqlServer.Message.Contains(DedupKeyIndexName, StringComparison.Ordinal),
         _ => false,
     };
 
