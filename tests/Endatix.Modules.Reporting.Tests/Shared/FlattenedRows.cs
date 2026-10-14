@@ -10,20 +10,23 @@ namespace Endatix.Modules.Reporting.Tests.Shared;
 /// </summary>
 internal static class FlattenedRows
 {
-    /// <summary>A row processed with <paramref name="dataJson"/> from the version stamped <paramref name="sourceModifiedAt"/>.</summary>
+    /// <summary>
+    /// A row processed with <paramref name="dataJson"/> from the version stamped <paramref name="sourceModifiedAt"/>,
+    /// one second after that version, so its timestamps don't depend on the wall clock.
+    /// </summary>
     public static FlattenedSubmission Processed(
         FlattenedSubmissionKey key,
         string dataJson,
         DateTime sourceModifiedAt)
     {
-        var processedAt = DateTime.UtcNow;
+        var processedAt = DateTime.SpecifyKind(sourceModifiedAt, DateTimeKind.Utc).AddSeconds(1);
         FlattenedSubmission row = new(key, processedAt);
         Set(row.Integration, nameof(SubmissionIntegrationState.Code), SubmissionIntegrationStatusCodes.Processed);
         Set(row.Integration, nameof(SubmissionIntegrationState.LastAttemptAt), processedAt);
         Set(row.Integration, nameof(SubmissionIntegrationState.ProcessedAt), processedAt);
         Set(row, nameof(FlattenedSubmission.DataJson), dataJson);
         Set(row, nameof(FlattenedSubmission.SourceModifiedAt), sourceModifiedAt);
-        Set(row, nameof(FlattenedSubmission.ModifiedAt), DateTime.UtcNow);
+        Set(row, nameof(FlattenedSubmission.ModifiedAt), processedAt);
         return row;
     }
 
