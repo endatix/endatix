@@ -14,13 +14,11 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class JobsPostgreSqlAcquisitionTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason = "Runs the PostgreSQL driver delegate against PostgreSQL.";
-
     [Fact]
     public async Task SelectTriggersToAcquire_FullGroupAtHeadOfQueue_ReturnsOtherGroupsTrigger()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var ct = TestContext.Current.CancellationToken;
         await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.PostgreSql, fixture.ConnectionString, ct);
         var behind = await store.SeedHeadOfLineAsync(ct);

@@ -119,7 +119,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
     private static async Task<long> SeedAsync(JobsTestNode node, SeededRow row, CancellationToken ct)
     {
         await using var scope = node.Services.CreateAsyncScope();
-        var context = scope.ServiceProvider.GetRequiredService<JobsPostgreSqlDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<IJobsDbContext>();
         var job = new BackgroundJob("RetentionProbe", "{}", 5, DateTime.UtcNow);
         context.BackgroundJobs.Add(job);
         await context.SaveChangesAsync(ct);

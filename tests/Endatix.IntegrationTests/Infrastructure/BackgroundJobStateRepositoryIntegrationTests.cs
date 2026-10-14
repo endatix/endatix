@@ -362,16 +362,17 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
 
     private static JobClaim ClaimOf(long jobId) => new(jobId, RegisteredJobTypes, Now);
 
-    private static JobsPostgreSqlDbContext JobsContext(IServiceScope scope) =>
-        scope.ServiceProvider.GetRequiredService<JobsPostgreSqlDbContext>();
+    // The module registers the context of the configured provider behind this interface.
+    private static IJobsDbContext JobsContext(IServiceScope scope) =>
+        scope.ServiceProvider.GetRequiredService<IJobsDbContext>();
 
     // Ambient tenant 0 turns the tenant filter off, so this clears every tenant's rows.
-    private static Task ClearJobsAsync(JobsPostgreSqlDbContext context, CancellationToken cancellationToken) =>
+    private static Task ClearJobsAsync(IJobsDbContext context, CancellationToken cancellationToken) =>
         context.BackgroundJobs.ExecuteDeleteAsync(cancellationToken);
 
     // Columns are set directly: the entity's guarded transitions cannot reach every state a fence is tried against.
     private static async Task<long> SeedAsync(
-        JobsPostgreSqlDbContext context,
+        IJobsDbContext context,
         CancellationToken cancellationToken,
         JobStatus status = JobStatus.Pending,
         DateTime? nextAttemptAt = null,
@@ -402,7 +403,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     }
 
     private static Task SetStatusAsync(
-        JobsPostgreSqlDbContext context,
+        IJobsDbContext context,
         long jobId,
         JobStatus status,
         CancellationToken cancellationToken) =>
@@ -411,13 +412,13 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
             .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.Status, status), cancellationToken);
 
     private static Task<BackgroundJob> ReadAsync(
-        JobsPostgreSqlDbContext context,
+        IJobsDbContext context,
         long jobId,
         CancellationToken cancellationToken) =>
         context.BackgroundJobs.AsNoTracking().SingleAsync(job => job.Id == jobId, cancellationToken);
 
     private static async Task<List<(long Id, JobStatus Status, DateTime? ModifiedAt)>> SnapshotAsync(
-        JobsPostgreSqlDbContext context,
+        IJobsDbContext context,
         CancellationToken cancellationToken) =>
         await context.BackgroundJobs
             .AsNoTracking()
@@ -427,7 +428,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
 
     // Polls from a connection outside any transaction, because pg_stat_activity is a per-transaction snapshot.
     private static async Task WaitForUpdateBlockedByAsync(
-        JobsPostgreSqlDbContext context,
+        IJobsDbContext context,
         int lockHolderPid,
         Task claim,
         CancellationToken cancellationToken)

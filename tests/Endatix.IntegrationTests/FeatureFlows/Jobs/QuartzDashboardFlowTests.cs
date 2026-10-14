@@ -115,19 +115,18 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
 
     private async Task<string?> TriggerStateAsync(long jobId, CancellationToken cancellationToken)
     {
-        await using var connection = FixtureDatabaseConnection();
+        await using var connection = ConnectionTo(fixture.Database.Provider, fixture.Database.ConnectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = $"SELECT TRIGGER_STATE FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_NAME = '{jobId}'";
         return (string?)await command.ExecuteScalarAsync(cancellationToken);
     }
 
-    private DbConnection FixtureDatabaseConnection() => fixture.Database.Provider switch
+    private static DbConnection ConnectionTo(TestDatabaseProvider provider, string connectionString) => provider switch
     {
-        TestDatabaseProvider.PostgreSql => new NpgsqlConnection(fixture.Database.ConnectionString),
-        TestDatabaseProvider.SqlServer => new SqlConnection(fixture.Database.ConnectionString),
-        _ => throw new ArgumentOutOfRangeException(
-            nameof(fixture), fixture.Database.Provider, "Unsupported test database provider."),
+        TestDatabaseProvider.PostgreSql => new NpgsqlConnection(connectionString),
+        TestDatabaseProvider.SqlServer => new SqlConnection(connectionString),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
     };
 
     /// <summary>A second web host on the same database, with the dashboard enabled.</summary>
