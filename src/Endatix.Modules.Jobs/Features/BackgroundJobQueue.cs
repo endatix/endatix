@@ -7,10 +7,11 @@ using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Persistence;
 using Endatix.Modules.Jobs.Persistence.Config;
 using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Npgsql;
 using Microsoft.Extensions.Logging.Abstractions;
+using Npgsql;
 
 namespace Endatix.Modules.Jobs.Features;
 
@@ -42,6 +43,8 @@ internal sealed class BackgroundJobQueue(
     ILogger<BackgroundJobQueue>? logger = null) : IBackgroundJobQueue
 {
     private const string DedupKeyIndexName = BackgroundJobProviderConfiguration.DedupKeyIndexName;
+    private const int SqlServerDuplicateKeyInIndex = 2601;
+    private const int SqlServerDuplicateKeyInConstraint = 2627;
 
     // A collision means another enqueue of the same key committed between this one's read and its insert; the
     // next read sees it. More than a few in a row would mean something other than that race.
@@ -163,12 +166,18 @@ internal sealed class BackgroundJobQueue(
 
     private sealed record DedupRow(long Id, long TenantId, string JobType, string DedupKey);
 
-    private static bool IsDedupKeyCollision(DbUpdateException exception) =>
-        exception.InnerException is PostgresException
-        {
-            SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: DedupKeyIndexName,
-        };
+    /// <summary>Whether the insert failed because another enqueue committed the same dedup key first.</summary>
+    /// <remarks>
+    /// PostgreSQL names the violated index in a field of its own; SQL Server names it only in the message, for a
+    /// duplicate in a unique index (2601) or a unique constraint (2627) alike.
+    /// </remarks>
+    internal static bool IsDedupKeyCollision(DbUpdateException exception) => exception.InnerException switch
+    {
+        PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: DedupKeyIndexName } => true,
+        SqlException { Number: SqlServerDuplicateKeyInIndex or SqlServerDuplicateKeyInConstraint } sqlServer =>
+            sqlServer.Message.Contains($"'{DedupKeyIndexName}'", StringComparison.Ordinal),
+        _ => false,
+    };
 
     private async Task InsertAndScheduleAsync(IReadOnlyList<BackgroundJob> jobs, CancellationToken cancellationToken)
     {

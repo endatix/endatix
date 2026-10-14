@@ -1,10 +1,7 @@
-using Endatix.Infrastructure.Data;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Npgsql;
 using Quartz;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -23,10 +20,15 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// reports the outage — and the scheduler starts once the database answers, because restarting the process
 /// cannot fix a database.
 /// </para>
+/// <para>
+/// A SQL Server node set to enqueue without the trigger lock is refused before its scheduler is built unless the
+/// database reads committed snapshots (<see cref="JobStoreDatabase.RequireReadCommittedSnapshotUnlessLockingAsync"/>):
+/// at boot the host fails to start, and after a deferred start the refusal is logged as Critical.
+/// </para>
 /// </remarks>
 internal sealed class JobsSchedulerHostedService(
     IServiceProvider services,
-    IConfiguration configuration,
+    JobStoreDatabase database,
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
     JobsShutdownSignal shutdownSignal,
@@ -40,7 +42,7 @@ internal sealed class JobsSchedulerHostedService(
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (await IsDatabaseReachableAsync(cancellationToken))
+        if (await database.IsReachableAsync(cancellationToken))
         {
             await StartSchedulerAsync(cancellationToken);
             return;
@@ -102,6 +104,9 @@ internal sealed class JobsSchedulerHostedService(
 
     private async Task StartSchedulerAsync(CancellationToken cancellationToken)
     {
+        // Checked before the scheduler exists, so a node refused here never acquires a trigger.
+        await database.RequireReadCommittedSnapshotUnlessLockingAsync(options.Value, cancellationToken);
+
         var scheduler = await services
             .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
             .GetScheduler(cancellationToken);
@@ -110,8 +115,17 @@ internal sealed class JobsSchedulerHostedService(
         // stop that arrives mid-registration must still find it to shut it down.
         _scheduler = scheduler;
 
-        // Every host with a handler keeps its job type's durable job in the store, so a trigger enqueued anywhere
-        // has a job to point at.
+        await StoreDurableJobsAsync(scheduler, cancellationToken);
+        if (options.Value.RunInProcess)
+        {
+            await scheduler.Start(cancellationToken);
+        }
+    }
+
+    // Every host with a handler keeps its job type's durable job in the store, so a trigger enqueued anywhere has a
+    // job to point at.
+    private async Task StoreDurableJobsAsync(IScheduler scheduler, CancellationToken cancellationToken)
+    {
         foreach (var jobType in registry.JobTypes)
         {
             await scheduler.AddJob(
@@ -119,18 +133,13 @@ internal sealed class JobsSchedulerHostedService(
                 AddJobOptions.Replacing,
                 cancellationToken);
         }
-
-        if (options.Value.RunInProcess)
-        {
-            await scheduler.Start(cancellationToken);
-        }
     }
 
     private async Task StartWhenReachableAsync(CancellationToken stoppingToken)
     {
         try
         {
-            while (!await IsDatabaseReachableAsync(stoppingToken))
+            while (!await database.IsReachableAsync(stoppingToken))
             {
                 await Task.Delay(UnreachableRetryDelay, stoppingToken);
             }
@@ -145,21 +154,6 @@ internal sealed class JobsSchedulerHostedService(
         {
             // Startup has already finished, so there is no one left to fail; say it as loudly as possible.
             logger.LogCritical(exception, "The background jobs scheduler could not start; this host runs no jobs.");
-        }
-    }
-
-    private async Task<bool> IsDatabaseReachableAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await using var connection =
-                new NpgsqlConnection(ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration));
-            await connection.OpenAsync(cancellationToken);
-            return true;
-        }
-        catch (Exception exception) when (exception is NpgsqlException or TimeoutException)
-        {
-            return false;
         }
     }
 }

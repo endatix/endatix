@@ -295,6 +295,68 @@ public class BackgroundJobQueueTests : IDisposable
         metrics.ReceivedCalls().Should().BeEmpty();
     }
 
+    [Fact]
+    public void IsDedupKeyCollision_SqlServer2601OnDedupIndex_ReturnsTrue()
+    {
+        // Arrange — SQL Server reports a duplicate in a unique index as 2601, naming the index only in the message.
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(DuplicateInIndex("IX_BackgroundJobs_DedupKey"), 2601));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServer2627OnDedupIndex_ReturnsTrue()
+    {
+        // Arrange
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(
+            "Violation of UNIQUE KEY constraint 'IX_BackgroundJobs_DedupKey'. Cannot insert duplicate key in object " +
+            "'jobs.BackgroundJobs'. The duplicate key value is (5, Probe, k1).",
+            2627));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServer2601OnOtherIndex_ReturnsFalse()
+    {
+        // Arrange
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(DuplicateInIndex("IX_Other"), 2601));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServerOtherError_ReturnsFalse()
+    {
+        // Arrange — a foreign key or check failure that happens to mention the index is still not a duplicate.
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(
+            "The INSERT statement conflicted with the CHECK constraint near 'IX_BackgroundJobs_DedupKey'.", 547));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeFalse();
+    }
+
+    private static DbUpdateException SaveFailure(Exception cause) => new("The save failed.", cause);
+
+    private static string DuplicateInIndex(string indexName) =>
+        $"Cannot insert duplicate key row in object 'jobs.BackgroundJobs' with unique index '{indexName}'. " +
+        "The duplicate key value is (5, Probe, k1).";
+
     private sealed class FailingSaveInterceptor : SaveChangesInterceptor
     {
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(

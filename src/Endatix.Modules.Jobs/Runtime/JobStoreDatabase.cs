@@ -1,0 +1,84 @@
+using System.Data.Common;
+using Endatix.Infrastructure.Data;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using Npgsql;
+
+namespace Endatix.Modules.Jobs.Runtime;
+
+/// <summary>
+/// The database the scheduler's tables live in, beside the job rows, and what the scheduler checks of it before it
+/// starts.
+/// </summary>
+/// <param name="ConnectionString">The host's default connection string.</param>
+/// <param name="IsPostgreSql">Whether that database is PostgreSQL; otherwise it is SQL Server.</param>
+internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreSql)
+{
+    private const string LockOnInsertKey = $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.LockOnInsert)}";
+
+    public static JobStoreDatabase From(IConfiguration configuration) => new(
+        ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration),
+        DatabaseProviderResolver.IsPostgreSql(configuration));
+
+    /// <summary>Whether enqueueing holds the cluster-wide trigger lock until it commits.</summary>
+    /// <remarks>
+    /// On PostgreSQL an uncommitted trigger is invisible to every node's acquisition, so enqueue need not hold the
+    /// lock until it commits. On SQL Server, unless the database reads committed snapshots, an acquisition reading the
+    /// triggers waits on every open enqueue's uncommitted rows, which is what Quartz takes the lock on insert for:
+    /// holding it makes enqueues and acquisitions take turns. A host whose database reads committed snapshots may turn
+    /// it off, and a host may set it on either database.
+    /// </remarks>
+    public bool LocksOnInsert(BackgroundJobsOptions options) => options.LockOnInsert ?? !IsPostgreSql;
+
+    /// <summary>Whether a connection opens, so a database that is away is told from one that refuses.</summary>
+    public async Task<bool> IsReachableAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var connection = Connect();
+            await connection.OpenAsync(cancellationToken);
+            return true;
+        }
+        catch (Exception exception) when (exception is DbException or TimeoutException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Refuses a SQL Server store that enqueues without the trigger lock on a database that does not read committed
+    /// snapshots.
+    /// </summary>
+    /// <remarks>
+    /// Without snapshots, an acquisition waits on every enqueue's uncommitted triggers while that enqueue holds no
+    /// lock to take turns by, so a long enqueue transaction stalls every node's acquisition.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The store would enqueue lock-free without snapshots.</exception>
+    public async Task RequireReadCommittedSnapshotUnlessLockingAsync(
+        BackgroundJobsOptions options,
+        CancellationToken cancellationToken)
+    {
+        if (IsPostgreSql || LocksOnInsert(options) || await ReadsCommittedSnapshotsAsync(cancellationToken))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"The background jobs scheduler cannot start: '{LockOnInsertKey}' is false, and on SQL Server that needs " +
+            "READ_COMMITTED_SNAPSHOT on for the database, which is off. Turn it on " +
+            "(ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE), or remove " +
+            $"'{LockOnInsertKey}' so that enqueueing takes the trigger lock.");
+    }
+
+    private async Task<bool> ReadsCommittedSnapshotsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = Connect();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()";
+        return await command.ExecuteScalarAsync(cancellationToken) is true;
+    }
+
+    private DbConnection Connect() =>
+        IsPostgreSql ? new NpgsqlConnection(ConnectionString) : new SqlConnection(ConnectionString);
+}

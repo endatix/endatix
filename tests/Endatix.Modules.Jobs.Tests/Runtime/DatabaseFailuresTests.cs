@@ -1,7 +1,6 @@
 using System.Data.Common;
-using System.Reflection;
 using Endatix.Modules.Jobs.Runtime;
-using Microsoft.Data.SqlClient;
+using Endatix.Modules.Jobs.Tests.Shared;
 using Npgsql;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
@@ -18,12 +17,12 @@ public sealed class DatabaseFailuresTests
         { Wrapped(PostgresFailure(PostgresErrorCodes.QueryCanceled)), true }, // a statement_timeout
         { Wrapped(PostgresFailure(PostgresErrorCodes.ReadOnlySqlTransaction)), true }, // read-only after a failover
         { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
-        { Wrapped(SqlServerFailure(2627)), false }, // unique key violation: the database answered
-        { Wrapped(SqlServerFailure(1205)), true }, // deadlock victim
-        { Wrapped(SqlServerFailure(-2)), true }, // client timeout
-        { Wrapped(SqlServerFailure(3906)), true }, // read-only after a failover
-        { Wrapped(SqlServerFailure(42108)), true }, // serverless database paused
-        { Wrapped(SqlServerFailure(3621, 1205)), true }, // the deadlock is not the batch's first error
+        { Wrapped(SqlServerExceptions.WithNumbers(2627)), false }, // unique key violation: the database answered
+        { Wrapped(SqlServerExceptions.WithNumbers(1205)), true }, // deadlock victim
+        { Wrapped(SqlServerExceptions.WithNumbers(-2)), true }, // client timeout
+        { Wrapped(SqlServerExceptions.WithNumbers(3906)), true }, // read-only after a failover
+        { Wrapped(SqlServerExceptions.WithNumbers(42108)), true }, // serverless database paused
+        { Wrapped(SqlServerExceptions.WithNumbers(3621, 1205)), true }, // the deadlock is not the batch's first error
         { Wrapped(new OtherDriverException(1205)), false }, // another driver's error code is not SQL Server's
         { Wrapped(new TimeoutException("The pool is exhausted.")), true },
         { new InvalidOperationException("Unexpected."), false },
@@ -44,7 +43,7 @@ public sealed class DatabaseFailuresTests
     public void IsFromDatabase_RefusalTheDatabaseMade_ReturnsTrue()
     {
         // Arrange
-        var refusal = Wrapped(SqlServerFailure(2627));
+        var refusal = Wrapped(SqlServerExceptions.WithNumbers(2627));
 
         // Act
         var fromDatabase = DatabaseFailures.IsFromDatabase(refusal);
@@ -58,30 +57,6 @@ public sealed class DatabaseFailuresTests
 
     private static PostgresException PostgresFailure(string sqlState) =>
         new("The server refused the command.", "ERROR", "ERROR", sqlState);
-
-    // SqlClient makes its exceptions only internally, from the errors a batch raised, so this calls what it calls.
-    private static SqlException SqlServerFailure(params int[] numbers)
-    {
-        const BindingFlags Internal = BindingFlags.NonPublic | BindingFlags.Instance;
-        var errors = (SqlErrorCollection)Activator.CreateInstance(typeof(SqlErrorCollection), nonPublic: true)!;
-        var add = typeof(SqlErrorCollection).GetMethod("Add", Internal)!;
-        foreach (var number in numbers)
-        {
-            add.Invoke(errors, [SqlServerError(number)]);
-        }
-
-        var create = typeof(SqlException).GetMethod(
-            "CreateException", BindingFlags.NonPublic | BindingFlags.Static, [typeof(SqlErrorCollection), typeof(string)])!;
-        return (SqlException)create.Invoke(null, [errors, "16.00.1000"])!;
-    }
-
-    private static SqlError SqlServerError(int number)
-    {
-        var constructor = typeof(SqlError).GetConstructor(
-            BindingFlags.NonPublic | BindingFlags.Instance,
-            [typeof(int), typeof(byte), typeof(byte), typeof(string), typeof(string), typeof(string), typeof(int), typeof(Exception)])!;
-        return (SqlError)constructor.Invoke([number, (byte)1, (byte)16, "server", "The server refused the command.", "", 1, null]);
-    }
 
     // Another driver's failure, which carries an error code as SqlClient's carries a number.
     private sealed class OtherDriverException(int errorCode) : DbException("The server refused the command.", errorCode);
