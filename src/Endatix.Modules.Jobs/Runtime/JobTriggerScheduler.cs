@@ -23,15 +23,15 @@ internal interface IJobTriggerScheduler
 /// <inheritdoc cref="IJobTriggerScheduler" />
 internal sealed class QuartzJobTriggerScheduler(
     [FromKeyedServices(QuartzRegistration.SchedulerName)] ISchedulerFactory schedulerFactory,
-    StoredDurableJobs durableJobs) : IJobTriggerScheduler
+    StoredDurableJobs durableJobs,
+    ReadCommittedSnapshotRequirement readCommittedSnapshot) : IJobTriggerScheduler
 {
     public async Task ScheduleAndCommitAsync(
         IDbContextTransaction transaction,
         IReadOnlyList<BackgroundJob> jobs,
         CancellationToken cancellationToken)
     {
-        // Built before enlisting: the scheduler refuses to be started for the first time inside an enlistment.
-        var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
+        var scheduler = await ReadySchedulerAsync(cancellationToken);
         var jobTypes = jobs.Select(job => job.JobType).Distinct(StringComparer.Ordinal).ToList();
 
         // The enlistment flows with this async context only, so it is opened here, around both the scheduling
@@ -44,6 +44,14 @@ internal sealed class QuartzJobTriggerScheduler(
         }
 
         durableJobs.Remember(jobTypes);
+    }
+
+    // A node refused at its start, or whose start is still deferred, stores no trigger lock-free either. The
+    // scheduler is built here, before enlisting: it refuses to be started for the first time inside an enlistment.
+    private async Task<IScheduler> ReadySchedulerAsync(CancellationToken cancellationToken)
+    {
+        await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
+        return await schedulerFactory.GetScheduler(cancellationToken);
     }
 
     private async Task ScheduleTriggersAsync(

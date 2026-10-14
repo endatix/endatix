@@ -45,6 +45,29 @@ public sealed class JobsReadCommittedSnapshotTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task Refused_lock_free_node_stores_no_job_it_is_asked_to_enqueue()
+    {
+        // Arrange — a node refused at its start stays up when the refusal comes after a deferred start, and its
+        // queue must not store triggers lock-free in the meantime.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await using var node = JobsTestNode.Create(database, LockFree);
+        var start = () => node.StartAsync(ct);
+        await start.Should().ThrowAsync<InvalidOperationException>();
+
+        // Act
+        var enqueue = () => node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), ct);
+
+        // Assert
+        (await enqueue.Should().ThrowAsync<InvalidOperationException>())
+            .Which.Message.Should().Contain("READ_COMMITTED_SNAPSHOT");
+        (await database.CountAsync("""SELECT count(*) FROM jobs."BackgroundJobs" """, ct)).Should().Be(0);
+        (await database.CountAsync(
+            "SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'", ct)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task Node_starts_lock_free_with_read_committed_snapshot()
     {
         // Arrange

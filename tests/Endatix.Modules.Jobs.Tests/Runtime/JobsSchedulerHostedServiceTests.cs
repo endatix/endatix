@@ -47,12 +47,17 @@ public sealed class JobsSchedulerHostedServiceTests
         disposeAgain.Should().NotThrow();
     }
 
-    private static JobsSchedulerHostedService CreateService() =>
-        new(
+    private static JobsSchedulerHostedService CreateService()
+    {
+        var database = new JobStoreDatabase("Host=localhost", IsPostgreSql: true);
+        var options = Options.Create(new BackgroundJobsOptions());
+        return new(
             Substitute.For<IServiceProvider>(),
-            new JobStoreDatabase("Host=localhost", IsPostgreSql: true),
+            database,
+            new ReadCommittedSnapshotRequirement(database, options),
             JobHandlerRegistry.Build([]),
-            Options.Create(new BackgroundJobsOptions()),
+            options,
             new JobsShutdownSignal(),
             NullLogger<JobsSchedulerHostedService>.Instance);
+    }
 }

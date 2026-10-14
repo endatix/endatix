@@ -22,13 +22,14 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </para>
 /// <para>
 /// A SQL Server node set to enqueue without the trigger lock is refused before its scheduler is built unless the
-/// database reads committed snapshots (<see cref="JobStoreDatabase.RequireReadCommittedSnapshotUnlessLockingAsync"/>):
-/// at boot the host fails to start, and after a deferred start the refusal is logged as Critical.
+/// database reads committed snapshots (<see cref="ReadCommittedSnapshotRequirement"/>): at boot the host fails to
+/// start, and after a deferred start the refusal is logged as Critical and every enqueue on the node fails.
 /// </para>
 /// </remarks>
 internal sealed class JobsSchedulerHostedService(
     IServiceProvider services,
     JobStoreDatabase database,
+    ReadCommittedSnapshotRequirement readCommittedSnapshot,
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
     JobsShutdownSignal shutdownSignal,
@@ -105,7 +106,7 @@ internal sealed class JobsSchedulerHostedService(
     private async Task StartSchedulerAsync(CancellationToken cancellationToken)
     {
         // Checked before the scheduler exists, so a node refused here never acquires a trigger.
-        await database.RequireReadCommittedSnapshotUnlessLockingAsync(options.Value, cancellationToken);
+        await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
 
         var scheduler = await services
             .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)

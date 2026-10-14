@@ -156,6 +156,7 @@ internal static class QuartzRegistration
         var database = JobStoreDatabase.From(configuration);
 
         services.AddSingleton(database);
+        services.AddSingleton<ReadCommittedSnapshotRequirement>();
         services.AddJobExecution();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
