@@ -9,7 +9,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 /// Builds format-neutral SurveyJS-aligned codebook metadata for BI export projection.
 /// Shoji/Crunch-specific shapes are produced at export time, not stored here.
 /// </summary>
-internal static class FormSchemaCodebookBuilder
+internal static partial class FormSchemaCodebookBuilder
 {
     private const int CurrentVersion = 1;
 
@@ -175,8 +175,7 @@ internal static class FormSchemaCodebookBuilder
         out JsonElement existingColumn)
     {
         existingColumn = default;
-        // Calculated entries come from the column alone, so rebuilding them is cheap and drops stale ones.
-        if (column.Kind is FormSchemaColumnKind.Calculated || TryGetQuestionElement(column, questionElements, out _))
+        if (IsDescribedByColumnAlone(column) || TryGetQuestionElement(column, questionElements, out _))
         {
             return false;
         }
@@ -191,6 +190,10 @@ internal static class FormSchemaCodebookBuilder
         return true;
     }
 
+    // These entries come from the column alone, so rebuilding them is cheap and drops stale ones.
+    private static bool IsDescribedByColumnAlone(FormSchemaColumn column) =>
+        column.Kind is FormSchemaColumnKind.Calculated or FormSchemaColumnKind.Personalization;
+
     private static JsonElement CreateColumnEntry(
         FormSchemaColumn column,
         IReadOnlyDictionary<string, CollectedQuestion> questionElements)
@@ -198,6 +201,11 @@ internal static class FormSchemaCodebookBuilder
         if (column.Kind is FormSchemaColumnKind.Calculated)
         {
             return CreateCalculatedColumnEntry(column);
+        }
+
+        if (column.Kind is FormSchemaColumnKind.Personalization)
+        {
+            return CreatePersonalizationColumnEntry(column);
         }
 
         var parentKey = column.SourceQuestion ?? column.Key;

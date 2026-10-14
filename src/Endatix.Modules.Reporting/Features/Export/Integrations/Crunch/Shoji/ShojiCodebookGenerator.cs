@@ -11,7 +11,7 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// <summary>
 /// Generates native Crunch.io Shoji codebook JSON from format-neutral persisted schema artifacts.
 /// </summary>
-internal static class ShojiCodebookGenerator
+internal static partial class ShojiCodebookGenerator
 {
     /// <summary>
     /// Locale for the current synchronous <see cref="Generate"/> call only.
@@ -136,9 +136,9 @@ internal static class ShojiCodebookGenerator
         HashSet<string> seen = new(StringComparer.Ordinal);
 
         order.AddRange(_systemColumnOrder.Where(alias => written.Contains(alias) && seen.Add(alias)));
-        // Calculated values sit between the system block and the questions. The CSV keeps them last;
-        // Crunch matches CSV columns to variables by alias, so the two orders may differ.
-        order.AddRange(calculatedAliases.Where(seen.Add));
+        // Audience values, then calculated values, sit between the system block and the questions. The CSV keeps them
+        // last; Crunch matches CSV columns to variables by alias, so the two orders may differ.
+        order.AddRange(PersonalizationAliases(args.FlatteningMap).Where(written.Contains).Concat(calculatedAliases).Where(seen.Add));
 
         foreach (var column in args.FlatteningMap.Columns)
         {
@@ -258,21 +258,31 @@ internal static class ShojiCodebookGenerator
     {
         HashSet<string> writtenVariables = new(StringComparer.Ordinal);
         HashSet<string> usedDisplayNames = new(StringComparer.Ordinal);
+        ShojiVariableTracking tracking = new(writtenVariables, usedDisplayNames, orderAliases);
 
         WriteSystemVariables(writer, writtenVariables, usedDisplayNames, orderAliases);
+        WritePersonalizationVariables(writer, args, tracking);
         WriteGroupedVariables(writer, args.Questions, args.GroupedColumnKeys, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteTopLevelCategoricalVariables(writer, args.FlatteningMap, args.Questions, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteScalarVariables(writer, args.FlatteningMap, args.Questions, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteGapLeafVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteCheckboxOtherTextVariables(writer, args.FlatteningMap, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteLoopExpandedVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
+        return WriteCalculatedValueVariables(writer, args, tracking);
+    }
 
-        var firstCalculated = orderAliases.Count;
+    private static List<string> WriteCalculatedValueVariables(
+        Utf8JsonWriter writer,
+        ShojiCodebookWriteArgs args,
+        ShojiVariableTracking tracking)
+    {
+        var firstCalculated = tracking.OrderAliases.Count;
         foreach (var (alias, displayName) in CalculatedValueVariables(args))
         {
-            WriteSystemText(writer, alias, displayName, writtenVariables, usedDisplayNames, orderAliases);
+            WriteSystemText(writer, alias, displayName, tracking.WrittenVariables, tracking.UsedDisplayNames, tracking.OrderAliases);
         }
-        return orderAliases[firstCalculated..];
+
+        return tracking.OrderAliases[firstCalculated..];
     }
 
     private static void WriteSystemVariables(

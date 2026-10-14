@@ -30,4 +30,7 @@ internal static class FormSchemaCodebookPropertyNames
 
     /// <summary>SurveyJS class name of a calculated value (custom variable).</summary>
     public const string CalculatedValueSurveyJsType = "calculatedvalue";
+
+    /// <summary>Not a SurveyJS class: an audience value frozen on the response, which a survey reads as a variable.</summary>
+    public const string PersonalizationSurveyJsType = "personalization";
 }

@@ -79,4 +79,53 @@ public sealed class PersonalizationReaderTests
         read.Should().NotBeNull();
         read!.MemberId.Should().BeNull();
     }
+
+    [Fact]
+    public void Read_SnapshotWithValues_ReturnsEachPropertyNameAndDataType()
+    {
+        // Arrange
+        const string snapshot = """
+            {"identifier":"CG-1","variables":{"city":"Columbus","age":65},
+             "values":[{"propertyId":1,"variableName":"city","name":"City","dataType":"text","value":"Columbus"},
+                       {"propertyId":2,"variableName":"age","name":"Age","dataType":"number","value":65}]}
+            """;
+
+        // Act
+        var read = PersonalizationReader.Read(snapshot);
+
+        // Assert
+        read!.Values.Should().Equal(
+            new PersonalizationValue("city", "City", "text"),
+            new PersonalizationValue("age", "Age", "number"));
+    }
+
+    [Theory]
+    [InlineData("""{"variables":{"age":65}}""")]
+    [InlineData("""{"variables":{"age":65},"values":{"age":"number"}}""")]
+    [InlineData("""{"variables":{"age":65},"values":[42,{"name":"Age","dataType":"number"},{"variableName":"age","name":"Age"}]}""")]
+    public void Read_MissingOrMalformedValues_SkipsThemInsteadOfThrowing(string snapshot)
+    {
+        // Act
+        var read = PersonalizationReader.Read(snapshot);
+
+        // Assert
+        read.Should().NotBeNull();
+        read!.Values.Should().BeEmpty();
+        read.Variables.GetProperty("age").GetInt32().Should().Be(65);
+    }
+
+    [Fact]
+    public void Read_Serialized_KeepsValuesOffTheWire()
+    {
+        // Arrange
+        const string snapshot = """
+            {"identifier":"CG-1","variables":{"age":65},"values":[{"variableName":"age","name":"Age","dataType":"number","value":65}]}
+            """;
+
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(PersonalizationReader.Read(snapshot));
+
+        // Assert
+        json.Should().NotContain("Values").And.NotContain("dataType");
+    }
 }

@@ -1,7 +1,9 @@
 using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
@@ -57,6 +59,58 @@ public sealed class ExportColumnPlanBuilderTests
 
         plan.Columns.First(column => column.CanonicalKey == "qTagBox__adidas").ExportKey
             .Should().Be("qTagBox--adidas");
+    }
+
+    [Theory]
+    [InlineData("--")]
+    [InlineData(".")]
+    public void Build_AudienceColumnsWithAnyKeySeparator_KeepTheirStoredKeysAsOneBlockLast(string keySeparator)
+    {
+        // Arrange
+        var schema = PersonalizedSchema();
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(schema, keySeparator: keySeparator);
+
+        // Assert
+        plan.Columns.TakeLast(3).Select(column => (column.ExportKey, column.HeaderLabel)).Should().Equal(
+            ("AudienceIdentifier", "Audience identifier"),
+            ("audience_last_seen", "Last seen"),
+            ("audience_panel_member", "Panel member"));
+    }
+
+    [Fact]
+    public void Build_WithQuestionColumnScope_KeepsTheAudienceBlock()
+    {
+        // Arrange
+        var schema = PersonalizedSchema();
+        IReadOnlySet<string> columnScope = new HashSet<string>(["qName"], StringComparer.Ordinal);
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(schema, columnScope: columnScope);
+
+        // Assert
+        plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
+            "qName", "AudienceIdentifier", "audience_last_seen", "audience_panel_member");
+    }
+
+    private static FormSchemaEntity PersonalizedSchema()
+    {
+        const string definitionJson = """
+            {"pages":[{"name":"p1","elements":[{"type":"text","name":"qName"},{"type":"text","name":"qCity"}]}]}
+            """;
+        FormSchemaCompiler compiler = new();
+        var compiled = compiler.CompilePersisted(definitionJson);
+        var read = PersonalizationReader.Read("""
+            {"identifier":"CG-1","variables":{"panel_member":true,"last_seen":"2026-10-01T10:00:00"},
+             "values":[{"variableName":"panel_member","name":"Panel member","dataType":"boolean"},
+                       {"variableName":"last_seen","name":"Last seen","dataType":"date_time"}]}
+            """);
+        compiled = compiler.IncludePersonalization(
+            definitionJson,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            PersonalizationColumns.From(read));
+        return new FormSchemaEntity(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
     }
 
     [Fact]

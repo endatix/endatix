@@ -14,5 +14,4 @@ public sealed record FlattenedExportRow(
     DateTime? CompletedAt,
     long? SubmitterId,
     string? SubmitterDisplayId,
-    string DataJson,
-    string? PersonalizationSnapshot = null);
+    string DataJson);

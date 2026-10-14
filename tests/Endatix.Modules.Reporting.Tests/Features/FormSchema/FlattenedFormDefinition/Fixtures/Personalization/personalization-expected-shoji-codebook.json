@@ -1,0 +1,209 @@
+{
+  "element": "shoji:entity",
+  "body": {
+    "name": "Form export",
+    "description": "Shoji codebook metadata",
+    "table": {
+      "element": "crunch:table",
+      "metadata": {
+        "FormId": {
+          "type": "numeric",
+          "alias": "FormId",
+          "name": "Form ID",
+          "description": ""
+        },
+        "Id": {
+          "type": "numeric",
+          "alias": "Id",
+          "name": "Submission ID",
+          "description": ""
+        },
+        "IsComplete": {
+          "type": "categorical",
+          "alias": "IsComplete",
+          "name": "Is Complete",
+          "description": "",
+          "categories": [
+            {
+              "name": "False",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "True",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "CollectionStatus": {
+          "type": "text",
+          "alias": "CollectionStatus",
+          "name": "Collection Status",
+          "description": ""
+        },
+        "CreatedAt": {
+          "type": "datetime",
+          "alias": "CreatedAt",
+          "name": "Created At",
+          "description": "",
+          "resolution": "s"
+        },
+        "ModifiedAt": {
+          "type": "datetime",
+          "alias": "ModifiedAt",
+          "name": "Modified At",
+          "description": "",
+          "resolution": "s"
+        },
+        "StartedAt": {
+          "type": "datetime",
+          "alias": "StartedAt",
+          "name": "Started At",
+          "description": "",
+          "resolution": "s"
+        },
+        "CompletedAt": {
+          "type": "datetime",
+          "alias": "CompletedAt",
+          "name": "Completed At",
+          "description": "",
+          "resolution": "s"
+        },
+        "DurationSeconds": {
+          "type": "numeric",
+          "alias": "DurationSeconds",
+          "name": "Duration Seconds",
+          "description": ""
+        },
+        "SubmitterId": {
+          "type": "numeric",
+          "alias": "SubmitterId",
+          "name": "Submitter ID",
+          "description": ""
+        },
+        "SubmitterDisplayId": {
+          "type": "text",
+          "alias": "SubmitterDisplayId",
+          "name": "Submitter Display ID",
+          "description": ""
+        },
+        "AudienceIdentifier": {
+          "type": "text",
+          "alias": "AudienceIdentifier",
+          "name": "Audience identifier",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_age": {
+          "type": "text",
+          "alias": "audience_age",
+          "name": "Age",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_city": {
+          "type": "text",
+          "alias": "audience_city",
+          "name": "City",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_joined": {
+          "type": "datetime",
+          "alias": "audience_joined",
+          "name": "Joined",
+          "description": "Audience value frozen when the response was opened.",
+          "resolution": "D"
+        },
+        "audience_last_seen": {
+          "type": "datetime",
+          "alias": "audience_last_seen",
+          "name": "Last seen",
+          "description": "Audience value frozen when the response was opened.",
+          "resolution": "s"
+        },
+        "audience_panel_member": {
+          "type": "categorical",
+          "alias": "audience_panel_member",
+          "name": "Panel member",
+          "description": "Audience value frozen when the response was opened.",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "audience_score": {
+          "type": "numeric",
+          "alias": "audience_score",
+          "name": "score",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_tags": {
+          "type": "text",
+          "alias": "audience_tags",
+          "name": "tags",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "city": {
+          "type": "text",
+          "alias": "city",
+          "name": "Which city do you live in?",
+          "description": ""
+        },
+        "consent": {
+          "type": "categorical",
+          "alias": "consent",
+          "name": "Do you agree to the terms?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        }
+      },
+      "order": [
+        "FormId",
+        "Id",
+        "IsComplete",
+        "CollectionStatus",
+        "CreatedAt",
+        "ModifiedAt",
+        "StartedAt",
+        "CompletedAt",
+        "DurationSeconds",
+        "SubmitterId",
+        "SubmitterDisplayId",
+        "AudienceIdentifier",
+        "audience_age",
+        "audience_city",
+        "audience_joined",
+        "audience_last_seen",
+        "audience_panel_member",
+        "audience_score",
+        "audience_tags",
+        "city",
+        "consent"
+      ]
+    }
+  }
+}

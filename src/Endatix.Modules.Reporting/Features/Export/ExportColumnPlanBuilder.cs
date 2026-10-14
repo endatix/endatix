@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
@@ -50,13 +51,8 @@ internal static class ExportColumnPlanBuilder
                 HeaderLabel: systemKey));
         }
 
-        foreach (var column in flatteningMap.Columns)
+        foreach (var column in QuestionColumns(flatteningMap, scopedKeys))
         {
-            if (scopedKeys is not null && !scopedKeys.Contains(column.Key))
-            {
-                continue;
-            }
-
             if (projectCrunchShapes &&
                 TryExpandRangeSliderColumns(
                     column,
@@ -97,34 +93,30 @@ internal static class ExportColumnPlanBuilder
                     keySeparator),
             })
             .ToList();
+        aliasedColumns.AddRange(PersonalizationBlock(flatteningMap));
 
         EnsureUniqueExportKeys(aliasedColumns);
 
         return new ExportColumnPlan(aliasedColumns);
     }
 
-    /// <summary>Appends frozen-audience columns after the question columns. Headers are already final.</summary>
-    internal static IExportColumnPlan WithAudience(
-        IExportColumnPlan plan,
-        IReadOnlyList<AudienceColumn> audience)
-    {
-        if (audience.Count == 0)
-        {
-            return plan;
-        }
+    // The columns that answers fill, within the requested scope. Audience columns join after aliasing.
+    private static IEnumerable<FormSchemaColumn> QuestionColumns(MergedFormSchema flatteningMap, HashSet<string>? scopedKeys) =>
+        flatteningMap.Columns.Where(column =>
+            column.Kind is not FormSchemaColumnKind.Personalization &&
+            (scopedKeys is null || scopedKeys.Contains(column.Key)));
 
-        List<ExportColumnDefinition> columns = [.. plan.Columns];
-        foreach (AudienceColumn column in audience)
-        {
-            columns.Add(new ExportColumnDefinition(
-                CanonicalKey: column.ExportKey,
-                ExportKey: column.ExportKey,
+    // Audience values close the row as one block, and their keys are the headers as stored: no alias profile or key
+    // separator touches them, so a Crunch alias for an audience variable never changes between exports. They are not
+    // questions, so a question column scope does not drop them.
+    private static IEnumerable<ExportColumnDefinition> PersonalizationBlock(MergedFormSchema flatteningMap) =>
+        PersonalizationColumns.InBlockOrder(flatteningMap.Columns)
+            .Select(column => new ExportColumnDefinition(
+                CanonicalKey: column.Key,
+                ExportKey: column.Key,
                 Source: ExportColumnSource.DataJson,
-                HeaderLabel: column.ExportKey));
-        }
-
-        return new ExportColumnPlan(columns);
-    }
+                HeaderLabel: column.Label,
+                DataType: column.DataType));
 
     private static bool ShouldProjectCrunchShapes(ColumnAliasProfile aliasProfile, string keySeparator) =>
         aliasProfile is ColumnAliasProfile.Crunch ||

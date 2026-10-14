@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -61,6 +62,19 @@ internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
     }
 
     /// <summary>
+    /// Adds audience columns to a persisted schema and compiles it again from its definition, so the codebook
+    /// describes them. Never drops a column.
+    /// </summary>
+    public FormSchemaCompileResult IncludePersonalization(
+        string definitionJson,
+        PersistedSchemaJson existing,
+        IReadOnlyList<FormSchemaColumn> columns)
+    {
+        var map = PersonalizationColumns.IncludeIn(FormSchemaFlatteningMap.FromJson(existing.FlatteningMap), columns, _limits);
+        return CompilePersisted(definitionJson, FormSchemaFlatteningMap.ToJson(map), existing.Codebook, FormSchemaCompileMode.Merge);
+    }
+
+    /// <summary>
     /// Whether a persisted flattening map already has every column the definition compiles to, so merging the
     /// definition into it would add none.
     /// </summary>
@@ -83,6 +97,9 @@ internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
         return CompilePersisted(definitionJson, existingFlatteningMapJson).FlatteningMap;
     }
 }
+
+/// <summary>A schema's stored flattening map and codebook, as JSON.</summary>
+internal sealed record PersistedSchemaJson(string FlatteningMap, string Codebook);
 
 internal sealed record FormSchemaCompileResult(
     string FlatteningMapJson,

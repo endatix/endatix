@@ -12,7 +12,18 @@ public sealed record PersonalizationRead(
     DateTimeOffset CapturedAt,
     JsonElement Variables,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Source = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? MemberId = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? MemberId = null)
+{
+    /// <summary>
+    /// Each frozen value's property name and data type, for reporting. Kept off the wire: the API
+    /// returns only the typed <see cref="Variables"/>.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<PersonalizationValue> Values { get; init; } = [];
+}
+
+/// <summary>The property a frozen value came from, as it was when the snapshot was taken.</summary>
+public sealed record PersonalizationValue(string VariableName, string Name, string DataType);
 
 /// <summary>
 /// Every submission read maps through this reader, so it never throws: unreadable JSON or a snapshot
@@ -53,7 +64,45 @@ public static class PersonalizationReader
             CapturedAt(root),
             variables.Clone(),
             Text(root, "source"),
-            Long(root, "memberId"));
+            Long(root, "memberId"))
+        {
+            Values = ValuesOf(root),
+        };
+    }
+
+    // An entry without a variable name, name or data type is skipped rather than failing the read.
+    private static List<PersonalizationValue> ValuesOf(JsonElement root)
+    {
+        if (!root.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        List<PersonalizationValue> read = [];
+        foreach (var entry in values.EnumerateArray())
+        {
+            if (TryReadValue(entry, out var value))
+            {
+                read.Add(value);
+            }
+        }
+
+        return read;
+    }
+
+    private static bool TryReadValue(JsonElement entry, out PersonalizationValue value)
+    {
+        value = default!;
+        if (entry.ValueKind != JsonValueKind.Object
+            || Text(entry, "variableName") is not { Length: > 0 } variableName
+            || Text(entry, "name") is not { } name
+            || Text(entry, "dataType") is not { Length: > 0 } dataType)
+        {
+            return false;
+        }
+
+        value = new PersonalizationValue(variableName, name, dataType);
+        return true;
     }
 
     private static string? Text(JsonElement root, string name) =>

@@ -41,6 +41,9 @@ internal sealed class MergedFormSchema
         return new MergedFormSchema(Columns.Select(column => current._columnsByKey.GetValueOrDefault(column.Key) ?? column));
     }
 
+    public bool TryGetColumn(string key, out FormSchemaColumn column) =>
+        _columnsByKey.TryGetValue(key, out column!);
+
     /// <summary>Whether this schema already has a column with the key of every one in <paramref name="columns"/>.</summary>
     public bool HasColumnsFor(IEnumerable<FormSchemaColumn> columns) =>
         columns.All(column => _columnsByKey.ContainsKey(column.Key));

@@ -131,20 +131,9 @@ internal sealed class TabularExportDataSource(
             columnScope: columnScope,
             keySeparator: settings.KeySeparator,
             aliasRegistry: aliasTransformerRegistry);
-        IReadOnlyList<string> snapshots = await reportingExportRepository.ListPersonalizationSnapshotsAsync(
-            context.TenantId,
-            context.FormId,
-            cancellationToken) ?? [];
-        HashSet<string> questionKeys = plan.Columns
-            .Where(column => column.Source == ExportColumnSource.DataJson)
-            .Select(column => column.ExportKey)
-            .ToHashSet(StringComparer.Ordinal);
-        IReadOnlyList<AudienceColumn> audience = AudienceExport.Columns(snapshots, questionKeys);
-        plan = ExportColumnPlanBuilder.WithAudience(plan, audience);
         var columnPlan = MapColumnPlan(plan);
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
-        context.Options.Metadata[AudienceColumnsKey] = audience;
         context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
             CreateExecutionSettings(
                 context.Options,
@@ -193,7 +182,6 @@ internal sealed class TabularExportDataSource(
             settings,
             pageSize: context.ExportPageSize ?? 500);
         var projection = TryGetCrunchProjectionArtifacts(context.Options);
-        IReadOnlyList<AudienceColumn> audience = ReadAudienceColumns(context.Options);
 
         await foreach (var row in reportingExportRepository.StreamFlattenedSubmissionsAsync(
                            context.TenantId,
@@ -201,11 +189,9 @@ internal sealed class TabularExportDataSource(
                            options,
                            cancellationToken))
         {
-            yield return MapSubmissionRow(row, projection, audience);
+            yield return MapSubmissionRow(row, projection);
         }
     }
-
-    private const string AudienceColumnsKey = "AudienceExportColumns";
 
     private sealed record CrunchProjectionArtifacts(string FlatteningMapJson, string CodebookJson);
 
@@ -365,22 +351,9 @@ internal sealed class TabularExportDataSource(
             column.HeaderLabel,
             column.DataType)).ToList());
 
-    private static IReadOnlyList<AudienceColumn> ReadAudienceColumns(ExportOptions options)
-    {
-        if (options.Metadata is not null &&
-            options.Metadata.TryGetValue(AudienceColumnsKey, out var columns) &&
-            columns is IReadOnlyList<AudienceColumn> audience)
-        {
-            return audience;
-        }
-
-        return [];
-    }
-
     private static SubmissionExportRow MapSubmissionRow(
         FlattenedExportRow row,
-        CrunchProjectionArtifacts? projection,
-        IReadOnlyList<AudienceColumn> audience)
+        CrunchProjectionArtifacts? projection)
     {
         var answersModel = row.DataJson;
         if (projection is not null && !string.IsNullOrWhiteSpace(answersModel))
@@ -404,7 +377,7 @@ internal sealed class TabularExportDataSource(
             CompletedAt = row.CompletedAt,
             SubmitterId = row.SubmitterId,
             SubmitterDisplayId = row.SubmitterDisplayId,
-            AnswersModel = AudienceExport.Merge(answersModel, row.PersonalizationSnapshot, audience),
+            AnswersModel = answersModel,
         };
     }
 }

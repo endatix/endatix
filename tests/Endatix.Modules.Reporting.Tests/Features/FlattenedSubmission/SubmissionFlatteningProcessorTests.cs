@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -9,6 +10,7 @@ using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmiss
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Shared;
 using FluentAssertions;
@@ -27,6 +29,16 @@ public class SubmissionFlatteningProcessorTests
     private readonly IRepository<Submission> _submissions = Substitute.For<IRepository<Submission>>();
     private readonly IFlattenedSubmissionRepository _rows = Substitute.For<IFlattenedSubmissionRepository>();
     private readonly IFormSchemaProvider _schemas = Substitute.For<IFormSchemaProvider>();
+    private readonly IFormSchemaPersonalization _personalization = PassThroughPersonalization();
+
+    private static IFormSchemaPersonalization PassThroughPersonalization()
+    {
+        var personalization = Substitute.For<IFormSchemaPersonalization>();
+        personalization
+            .IncludeAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<PersonalizationRead?>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<FormSchemaEntity>());
+        return personalization;
+    }
 
     [Fact]
     public async Task ProcessAsync_CompletedSubmission_WritesFlattenedDataAtItsRevision()
@@ -50,6 +62,37 @@ public class SubmissionFlatteningProcessorTests
             Arg.Is<string>(json => json.Contains("firstName")),
             Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_SubmissionWithSnapshot_WritesTheFrozenValuesBesideTheAnswers()
+    {
+        // Arrange
+        var submission = CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 1);
+        submission.FreezeOnBehalf("""{"identifier":"CG-1","variables":{"city":"Columbus"}}""");
+        GivenSubmission(submission);
+        GivenSchema();
+        GivenRowAcceptsRevision(true);
+        _personalization
+            .IncludeAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<PersonalizationRead?>(), Arg.Any<CancellationToken>())
+            .Returns(call => WithAudienceColumns(call.Arg<FormSchemaEntity>(), call.Arg<PersonalizationRead?>()));
+        _submissions.AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        // Act
+        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _personalization.Received(1).IncludeAsync(
+            Arg.Any<FormSchemaEntity>(),
+            Arg.Is<PersonalizationRead?>(read => read != null && read.Identifier == "CG-1"),
+            Arg.Any<CancellationToken>());
+        await _rows.Received(1).TryMarkProcessedAsync(
+            Arg.Any<FlattenedRevision>(),
+            Arg.Is<string>(json =>
+                json.Contains("firstName") &&
+                json.Contains("\"AudienceIdentifier\":\"CG-1\"") &&
+                json.Contains("\"audience_city\":\"Columbus\"")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -250,7 +293,7 @@ public class SubmissionFlatteningProcessorTests
     }
 
     private SubmissionFlatteningProcessor Processor() =>
-        new(_submissions, _rows, _schemas, NullLogger<SubmissionFlatteningProcessor>.Instance);
+        new(_submissions, _rows, _schemas, _personalization, NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     private static Submission CompletedSubmission(string json, long revision)
     {
@@ -277,6 +320,15 @@ public class SubmissionFlatteningProcessorTests
         GivenSubmission(null);
         _submissions.SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>()).Returns(state);
         _rows.GetBySubmissionIdAsync(TenantId, SubmissionId, Arg.Any<CancellationToken>()).Returns(row);
+    }
+
+    private static FormSchemaEntity WithAudienceColumns(FormSchemaEntity schema, PersonalizationRead? personalization)
+    {
+        var compiled = new FormSchemaCompiler().IncludePersonalization(
+            FormSchemaFixtureLoader.LoadText("simple-definition.json"),
+            new PersistedSchemaJson(schema.FlatteningMap, schema.Codebook),
+            PersonalizationColumns.From(personalization));
+        return new FormSchemaEntity(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
     }
 
     private void GivenSchema()
