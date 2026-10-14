@@ -1,0 +1,76 @@
+[
+  {
+    "id": "link-open-every-type",
+    "answersFile": "AllQuestions/all-questions-submission.json",
+    "answers": { "city": "03. MIDWEST - COLUMBUS", "lastVisit": "2026-10-01T10:00" },
+    "snapshot": {
+      "schemaVersion": 1,
+      "source": "link",
+      "capturedAt": "2026-10-14T10:47:13Z",
+      "identifier": "CG-000001-01",
+      "memberId": 11,
+      "audienceLinkId": 21,
+      "variables": {
+        "full_name": "John Smith",
+        "age": 65,
+        "city": "03. MIDWEST - COLUMBUS",
+        "panel_member": true,
+        "joined": "2024-03-14",
+        "last_seen": "2026-10-01T10:00:00",
+        "tags": ["sports", "music"]
+      },
+      "values": [
+        { "propertyId": 1, "variableName": "full_name", "name": "Full name", "dataType": "text", "value": "John Smith" },
+        { "propertyId": 2, "variableName": "age", "name": "Age", "dataType": "number", "value": 65 },
+        { "propertyId": 3, "variableName": "city", "name": "City", "dataType": "text", "value": "03. MIDWEST - COLUMBUS" },
+        { "propertyId": 4, "variableName": "panel_member", "name": "Panel member", "dataType": "boolean", "value": true },
+        { "propertyId": 5, "variableName": "joined", "name": "Joined", "dataType": "date", "value": "2024-03-14" },
+        { "propertyId": 6, "variableName": "last_seen", "name": "Last seen", "dataType": "date_time", "value": "2026-10-01T10:00:00" },
+        { "propertyId": 7, "variableName": "tags", "name": "Tags", "dataType": "multiple_choice", "value": ["sports", "music"] }
+      ]
+    },
+    "system": {
+      "isComplete": true,
+      "startedAt": "2026-10-14T10:47:13Z",
+      "completedAt": "2026-10-14T10:47:26Z",
+      "submitterId": null,
+      "submitterDisplayId": null
+    }
+  },
+  {
+    "id": "on-behalf-some-values",
+    "answers": { "qText": "Ada Lovelace", "qTextNumber": 36, "city": "07. PACIFIC - PORTLAND", "qBoolean": false },
+    "snapshot": {
+      "schemaVersion": 1,
+      "source": "on_behalf",
+      "capturedAt": "2026-10-14T11:00:15Z",
+      "identifier": "CG-000002-01",
+      "memberId": 12,
+      "variables": { "age": 36, "city": "07. PACIFIC - PORTLAND", "panel_member": false },
+      "values": [
+        { "propertyId": 2, "variableName": "age", "name": "Age", "dataType": "number", "value": 36 },
+        { "propertyId": 3, "variableName": "city", "name": "City", "dataType": "text", "value": "07. PACIFIC - PORTLAND" },
+        { "propertyId": 4, "variableName": "panel_member", "name": "Panel member", "dataType": "boolean", "value": false }
+      ]
+    },
+    "system": {
+      "isComplete": true,
+      "startedAt": "2026-10-14T11:00:15Z",
+      "completedAt": "2026-10-14T11:00:30Z",
+      "submitterId": 1559880251633303000,
+      "submitterDisplayId": "CG-000002-01"
+    }
+  },
+  {
+    "id": "incomplete-without-snapshot",
+    "answers": { "qText": "No audience" },
+    "snapshot": null,
+    "system": {
+      "isComplete": false,
+      "startedAt": null,
+      "completedAt": null,
+      "submitterId": null,
+      "submitterDisplayId": null
+    }
+  }
+]

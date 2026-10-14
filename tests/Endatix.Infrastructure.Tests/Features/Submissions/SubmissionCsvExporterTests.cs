@@ -324,6 +324,41 @@ public sealed class SubmissionCsvExporterTests
         Assert.Equal("N/A", values[Array.IndexOf(headers, "SubmitterId")]);
     }
 
+    [Theory]
+    [InlineData("SubmitterId")]
+    [InlineData("SubmitterDisplayId")]
+    [InlineData("StartedAt")]
+    [InlineData("CompletedAt")]
+    [InlineData("DurationSeconds")]
+    public async Task StreamExportAsync_ShojiCsvWithMissingSystemValue_LeavesTheCellEmptyForCrunch(string column)
+    {
+        // Arrange: Crunch rejects any text in a numeric or datetime column ("CSV numeric format error").
+        SubmissionShojiCsvExporter shoji = new(Substitute.For<ILogger<SubmissionShojiCsvExporter>>(), _globalTransformers);
+        var records = CreateTestRecords(
+            new SubmissionExportRow
+            {
+                Id = 1,
+                FormId = 100,
+                IsComplete = false,
+                SubmitterId = null,
+                SubmitterDisplayId = null,
+                AnswersModel = """{"q1":"a"}"""
+            }
+        );
+        var pipe = new Pipe();
+
+        // Act
+        var result = await shoji.StreamExportAsync(records, null, CancellationToken.None, pipe.Writer);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        var content = await ReadPipeContent(pipe.Reader);
+        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var headers = ParseCsvFields(lines[0]);
+        var values = ParseCsvFields(lines[1]);
+        Assert.Equal(string.Empty, values[Array.IndexOf(headers, column)]);
+    }
+
     [Fact]
     public async Task StreamExportAsync_ShouldHandleInvalidJson_Gracefully()
     {

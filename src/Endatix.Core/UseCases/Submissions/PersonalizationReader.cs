@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -90,9 +91,9 @@ public static class PersonalizationReader
         return read;
     }
 
-    private static bool TryReadValue(JsonElement entry, out PersonalizationValue value)
+    private static bool TryReadValue(JsonElement entry, [NotNullWhen(true)] out PersonalizationValue? value)
     {
-        value = default!;
+        value = null;
         if (entry.ValueKind != JsonValueKind.Object
             || Text(entry, "variableName") is not { Length: > 0 } variableName
             || Text(entry, "name") is not { } name
