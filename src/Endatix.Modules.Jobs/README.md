@@ -120,8 +120,8 @@ Derive from `BackgroundJobHandler<TPayload>` and register it with
 `services.AddBackgroundJobHandler<THandler, TPayload>()`, which keys it by job type so a job run
 builds only its own handler. The job type comes from the payload; handlers may live in any
 assembly. Two handlers declaring the same job type, or job types that differ only in case, fail startup:
-on SQL Server the scheduler matches job types to their triggers under the database collation, which
-ignores case by default.
+on SQL Server the scheduler stores each job type's durable job under a key the database compares in its
+default collation, which ignores case by default.
 
 A job type that needs other settings than the global defaults declares them at the same call, so every
 host runs it as tuned: `AddBackgroundJobHandler<THandler, TPayload>(new BackgroundJobTypeDefaults
@@ -203,12 +203,65 @@ been deleted. Every node sharing the store must run the same Quartz version, and
 must agree within about a second.
 
 **Trigger lock.** Quartz serializes trigger state across the cluster through one row lock
-(`TRIGGER_ACCESS`). Enqueueing does not take it (`LockOnInsert` is off): on PostgreSQL a trigger is
-invisible to every node's acquisition until its transaction commits. Each acquisition takes it once
-for its whole batch, and so does firing that batch; each firing takes it once more as it completes,
-and an idle node takes it once per idle wait. A failed attempt with attempts left takes it once
-more, to store its retry's trigger: that replaces the trigger that fired, and Quartz takes the lock
-for every replacement, `LockOnInsert` or not.
+(`TRIGGER_ACCESS`). Each acquisition takes it once for its whole batch, and so does firing that
+batch; each firing takes it once more as it completes, and an idle node takes it once per idle wait.
+A failed attempt with attempts left takes it once more, to store its retry's trigger: that replaces
+the trigger that fired, and Quartz takes the lock for every replacement, `LockOnInsert` or not.
+Whether enqueueing takes it (`LockOnInsert`) depends on the provider:
+
+- **PostgreSQL** — off by default. A trigger is invisible to every node's acquisition until its
+  transaction commits, so enqueueing has nothing to take turns over.
+- **SQL Server** — on by default. Unless the database reads committed snapshots, an acquisition
+  reading the triggers would wait on every open enqueue's uncommitted rows. So every enqueue takes
+  the cluster-wide lock and holds it until its transaction commits: enqueues and acquisitions on
+  every node take turns, and a webhook fan-out, which stores one trigger per endpoint in one
+  transaction, holds it longest. [Trigger lock on SQL Server](#trigger-lock-on-sql-server) says what
+  that costs and when to turn it off.
+
+### Trigger lock on SQL Server
+
+Measured on SQL Server 2025 (Developer edition, in a Linux container under emulation on one laptop,
+so the absolute numbers are indicative; compare the rows with each other):
+
+| `READ_COMMITTED_SNAPSHOT` | `LockOnInsert` | Another enqueue / its job fires, while a 2 s enqueue transaction is open | Deadlocks (3 × 200 concurrent enqueues, 2 acquiring nodes) | Schedule / fire, triggers per second |
+|---|---|---|---|---|
+| off | `true` (default) | waits 2.0 s / fires after 2.1 s | 0 | 197–216 / 141–151 |
+| off | `false` (refused at startup) | 0.02 s / fires after 2.1 s | 0 | 224–227 / 124–145 |
+| on | `true` | waits 2.0 s / fires after 2.1 s | 0 | 208–209 / 148–149 |
+| on | `false` | 0.02 s / fires after 0.03–0.13 s (once 2.1 s) | 0 | 221–231 / 144–149 |
+
+Enqueue throughput, same machine, 8 concurrent enqueuers on one node while another node executes
+and acquires (two runs each; PostgreSQL with its default for comparison):
+
+| Database | `READ_COMMITTED_SNAPSHOT` | `LockOnInsert` | Single enqueues | Fan-out batches of 20 triggers |
+|---|---|---|---|---|
+| SQL Server | off | `true` (default) | 160–221/s, 36–50 ms each | 15–16/s (≈ 300 jobs/s), 510–540 ms each |
+| SQL Server | on | `true` | 178–216/s, 37–45 ms each | 15/s (≈ 300 jobs/s), 520–530 ms each |
+| SQL Server | on | `false` | 441–662/s, 12–18 ms each | 52–57/s (≈ 1,050–1,140 jobs/s), 140–150 ms each |
+| PostgreSQL | — | `false` (default) | 1,450–1,530/s, 5 ms each | 114–125/s (≈ 2,300–2,500 jobs/s), 64–70 ms each |
+
+With one enqueuer at a time the lock costs next to nothing (the throughput column of the first
+table). With many at once they take turns for the lock, cluster-wide, so SQL Server enqueues about a
+third as fast as without it, and a fan-out batch holds everyone else up for as long as it takes to
+store all its triggers. It causes no deadlocks either way: `LockOnInsert = false` is a **latency and
+throughput option, not a deadlock fix**. Keep the default unless enqueues queue behind each other,
+or jobs start late, at your volume: many concurrent enqueuers, large webhook fan-outs, or callers that
+enqueue inside a long unit of work. Without
+`READ_COMMITTED_SNAPSHOT`, turning the lock off only moves the wait from enqueueing to acquisition,
+which is why a node refuses that combination at startup, naming both settings.
+
+Switching is an operations change, not a release:
+
+1. A DBA turns on `READ_COMMITTED_SNAPSHOT` for the database. It needs a moment with no other
+   connection to it: `ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE`
+   ends the others. Check it with
+   `SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()`.
+2. The operator sets `Endatix:BackgroundJobs:LockOnInsert` to `false` on every node.
+3. The nodes restart. Until every node has, the ones still taking the lock take turns with each
+   other, which is harmless.
+
+To go back, remove the setting (or set it to `true`) and restart the nodes; the database setting can
+stay on.
 
 ### Retention
 
@@ -407,11 +460,9 @@ writes to.
 
 ## Migrations
 
-**PostgreSQL is currently the only supported provider.** With the flag off — the default —
-nothing is registered and other providers are unaffected. With the flag on and a different
-provider configured, the host fails at startup naming the constraint. The SQL Server context and
-its migration already exist, so a SQL Server database can be migrated and checked, but the module
-does not run on SQL Server yet.
+The module runs on **PostgreSQL** and on **SQL Server 2025 or later, or Azure SQL Database**, and
+registers the context of the configured provider only. With the flag off — the default — nothing is
+registered.
 
 Persistence is **provider-split**: `JobsPostgreSqlDbContext` and `JobsSqlServerDbContext` derive
 from `JobsDbContextBase`, and each owns its migrations and model snapshot under
@@ -431,7 +482,10 @@ record of them. From here on `jobs` migrations are append-only.
 
 SQL Server's chain starts with its own `InitialBackgroundJobs`, which creates everything the three
 PostgreSQL migrations create, including the trigger acquisition index. It needs **SQL Server 2025 or
-later, or Azure SQL Database**, for the native `json` column type.
+later, or Azure SQL Database**, for the native `json` column type. Trigger acquisition reads its free
+groups with `OPENJSON`, which needs database compatibility level 130 or later; that is already a
+requirement of the product, whose export procedures and `SqlServerJsonDbFunctions` use `OPENJSON` too,
+and a startup check for it is tracked in [#1217](https://github.com/endatix/endatix/issues/1217).
 
 Run the commands from the repository root, with `Endatix.WebHost` as the startup project. Each
 design-time factory pins its provider and reads `ConnectionStrings:DefaultConnection`, so set a
@@ -519,6 +573,15 @@ primary-key column never may). An upgrade
 migration that alters one of them drops `idx_endatix_qrtz_t_acquire`, then `ENDATIX_ACQUIRE_GROUP`,
 first, and re-creates both with the same definitions in the same migration.
 
+On SQL Server, `ENDATIX_ACQUIRE_GROUP` is computed in a pinned binary collation
+(`Latin1_General_100_BIN2`), and acquisition reads the free groups in the same one, so groups match
+ordinally, as on PostgreSQL, whatever the database's default collation is or later becomes. SQL Server
+refuses `ALTER DATABASE … COLLATE` while any schema-bound object depends on the collation (error 5075):
+check constraints, filtered indexes and computed columns, `ENDATIX_ACQUIRE_GROUP` among them. A DBA who
+changes it anyway drops those objects first and re-creates them afterwards; for this one, drop
+`idx_endatix_qrtz_t_acquire` and then `ENDATIX_ACQUIRE_GROUP`, and re-create both with the statements in
+the SQL Server `InitialBackgroundJobs`.
+
 See the Quartz.NET [database documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/db/)
 and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-4.x/operations.html).
 
@@ -530,6 +593,14 @@ node sharing the store must run the same version; an upgrade bumps the pin. An a
 with its own Quartz reference, which NuGet flags with NU1608 and which runs the module on a Quartz
 it was not tested with; when another package needs a different Quartz instead, restore fails with
 NU1107. That is deliberate: Quartz patches ship as Endatix releases.
+
+An upgrade comes down to two checks:
+
+- [ ] The acquisition-SQL snapshot tests pass for both providers
+  (`GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql` and
+  `LimitEachGroupToItsFreeSlots_Quartz422Statement_MatchesPinnedRewrite`; step 4).
+- [ ] When the schema changed, one inline upgrade migration per provider adds it, as
+  [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes (step 3).
 
 Unit tests in `Endatix.Modules.Jobs.Tests` pin what the module takes from Quartz, so an upgrade
 that changes it fails in CI rather than at deploy time:
