@@ -11,6 +11,13 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal interface IJobTriggerScheduler
 {
     /// <summary>
+    /// Makes sure this node may store triggers and that its scheduler is built, before the caller opens the
+    /// transaction the triggers join, so neither holds a second connection while that transaction is open.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">This node may not store triggers.</exception>
+    Task PrepareAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Schedules one trigger per job in <paramref name="transaction"/>, then commits it, so the rows and their
     /// triggers become visible together or not at all.
     /// </summary>
@@ -26,12 +33,21 @@ internal sealed class QuartzJobTriggerScheduler(
     StoredDurableJobs durableJobs,
     ReadCommittedSnapshotRequirement readCommittedSnapshot) : IJobTriggerScheduler
 {
+    // A node refused at its start, or whose start is still deferred, stores no trigger lock-free either. The
+    // scheduler is built here too, outside any enlistment: it refuses to be started for the first time inside one.
+    public async Task PrepareAsync(CancellationToken cancellationToken)
+    {
+        await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
+        await schedulerFactory.GetScheduler(cancellationToken);
+    }
+
     public async Task ScheduleAndCommitAsync(
         IDbContextTransaction transaction,
         IReadOnlyList<BackgroundJob> jobs,
         CancellationToken cancellationToken)
     {
-        var scheduler = await ReadySchedulerAsync(cancellationToken);
+        // Already built by PrepareAsync, so this returns the factory's cached scheduler.
+        var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
         var jobTypes = jobs.Select(job => job.JobType).Distinct(StringComparer.Ordinal).ToList();
 
         // The enlistment flows with this async context only, so it is opened here, around both the scheduling
@@ -44,14 +60,6 @@ internal sealed class QuartzJobTriggerScheduler(
         }
 
         durableJobs.Remember(jobTypes);
-    }
-
-    // A node refused at its start, or whose start is still deferred, stores no trigger lock-free either. The
-    // scheduler is built here, before enlisting: it refuses to be started for the first time inside an enlistment.
-    private async Task<IScheduler> ReadySchedulerAsync(CancellationToken cancellationToken)
-    {
-        await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
-        return await schedulerFactory.GetScheduler(cancellationToken);
     }
 
     private async Task ScheduleTriggersAsync(

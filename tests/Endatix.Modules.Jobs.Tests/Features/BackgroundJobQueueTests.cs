@@ -196,6 +196,23 @@ public class BackgroundJobQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task EnqueueAsync_NodeMayNotStoreTriggers_ThrowsBeforeWritingRows()
+    {
+        // Arrange — refused before the transaction opens, so it never holds a second connection while one is open.
+        _triggerScheduler
+            .PrepareAsync(default)
+            .ReturnsForAnyArgs(Task.FromException(new InvalidOperationException("Refused.")));
+
+        // Act
+        var act = () => _queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        await _triggerScheduler.DidNotReceiveWithAnyArgs().ScheduleAndCommitAsync(default!, default!, default);
+        (await _dbContext.BackgroundJobs.CountAsync(TestContext.Current.CancellationToken)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task EnqueueAsync_SchedulingFails_Throws()
     {
         // Arrange
@@ -341,6 +358,19 @@ public class BackgroundJobQueueTests : IDisposable
 
         // Assert
         collision.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServer2601OnIndexWhoseNameExtendsTheDedupIndex_ReturnsFalse()
+    {
+        // Arrange — the name is matched as a whole word, so a later index named after it is not mistaken for it.
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(DuplicateInIndex("IX_BackgroundJobs_DedupKeyV2"), 2601));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeFalse();
     }
 
     [Fact]

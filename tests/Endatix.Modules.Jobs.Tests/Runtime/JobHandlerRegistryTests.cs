@@ -25,7 +25,7 @@ public sealed class JobHandlerRegistryTests
     [Fact]
     public void Build_JobTypesDifferingOnlyInCase_Throws()
     {
-        // Arrange — a job store on SQL Server would match both to one execution group.
+        // Arrange — a job store on SQL Server would key both to one durable scheduler job.
         IBackgroundJobHandler[] handlers = [new NamedHandler("ProbeJob"), new NamedHandler("probejob")];
 
         // Act
@@ -112,6 +112,23 @@ public sealed class JobHandlerRegistryTests
 
         // Assert
         build.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain($"'{jobType}'");
+    }
+
+    [Theory]
+    [InlineData("Export ")]
+    [InlineData(" Export")]
+    [InlineData("Export\t")]
+    public void Build_JobTypeWithSurroundingWhitespace_Throws(string jobType)
+    {
+        // Arrange — no job could carry it, so every enqueue of it would fail.
+        IBackgroundJobHandler[] handlers = [new NamedHandler(jobType)];
+
+        // Act
+        var build = () => JobHandlerRegistry.Build(handlers);
+
+        // Assert
+        build.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain($"'{jobType}'").And.Contain("starts or ends with whitespace");
     }
 
     [Fact]

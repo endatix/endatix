@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
@@ -35,7 +36,7 @@ namespace Endatix.Modules.Jobs.Features;
 /// them, so a failing metrics sink can neither fail the enqueue nor change the ids the caller gets.
 /// </para>
 /// </remarks>
-internal sealed class BackgroundJobQueue(
+internal sealed partial class BackgroundJobQueue(
     IJobsDbContext dbContext,
     IDateTimeProvider dateTimeProvider,
     IJobTriggerScheduler triggerScheduler,
@@ -170,18 +171,22 @@ internal sealed class BackgroundJobQueue(
     /// <remarks>
     /// PostgreSQL names the violated index in a field of its own; SQL Server names it only in the message, for a
     /// duplicate in a unique index (2601) or a unique constraint (2627) alike. The message is in the server's
-    /// language, which quotes the name differently or not at all, so only the bare name is looked for.
+    /// language, which quotes the name differently or not at all, so the name is looked for as a whole word.
     /// </remarks>
     internal static bool IsDedupKeyCollision(DbUpdateException exception) => exception.InnerException switch
     {
         PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: DedupKeyIndexName } => true,
         SqlException { Number: SqlServerDuplicateKeyInIndex or SqlServerDuplicateKeyInConstraint } sqlServer =>
-            sqlServer.Message.Contains(DedupKeyIndexName, StringComparison.Ordinal),
+            DedupKeyIndexNamed().IsMatch(sqlServer.Message),
         _ => false,
     };
 
+    [GeneratedRegex($@"\b{DedupKeyIndexName}\b", RegexOptions.CultureInvariant)]
+    private static partial Regex DedupKeyIndexNamed();
+
     private async Task InsertAndScheduleAsync(IReadOnlyList<BackgroundJob> jobs, CancellationToken cancellationToken)
     {
+        await triggerScheduler.PrepareAsync(cancellationToken);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         dbContext.BackgroundJobs.AddRange(jobs);
 
