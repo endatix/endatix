@@ -53,7 +53,6 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Each statement is a batch of its own: a batch that adds a column cannot also compile an index on it.
             migrationBuilder.Sql(DropAcquireIndexAndColumn);
             migrationBuilder.Sql(AddAcquireGroupColumn);
             migrationBuilder.Sql(CreateAcquireIndex);
@@ -62,9 +61,17 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(DropAcquireIndexAndColumn);
-            migrationBuilder.Sql(AddUnpinnedAcquireGroupColumn);
-            migrationBuilder.Sql(CreateAcquireIndex);
+            // Runs only while qrtz_TRIGGERS exists, so Down() completes on a partly removed schema, as the initial
+            // migration's Down() does.
+            migrationBuilder.Sql(
+                $"""
+                IF OBJECT_ID(N'jobs.qrtz_TRIGGERS', N'U') IS NOT NULL
+                BEGIN
+                    {DropAcquireIndexAndColumn}
+                    EXEC(N'{AddUnpinnedAcquireGroupColumn.Trim()}');
+                    EXEC(N'{CreateAcquireIndex.Trim()}');
+                END
+                """);
         }
     }
 }

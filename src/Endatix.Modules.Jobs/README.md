@@ -250,9 +250,9 @@ or jobs start late, at your volume: many concurrent enqueuers, large webhook fan
 enqueue inside a long unit of work. Without
 `READ_COMMITTED_SNAPSHOT`, turning the lock off only moves the wait from enqueueing to acquisition,
 which is why a node refuses that combination at startup, naming both settings. The node checks the
-database once, when its scheduler starts or its first enqueue runs, whichever comes first, and every
-enqueue on a refused node fails; a database that turns snapshots off later is noticed only when the
-nodes restart.
+database when its scheduler starts and before each enqueue until a check passes, and not again once
+it has: every enqueue on a refused node checks again and fails, and a database that turns snapshots
+off later is noticed only when the nodes restart.
 
 Switching is an operations change, not a release:
 
@@ -487,7 +487,9 @@ record of them. From here on `jobs` migrations are append-only.
 
 SQL Server's chain starts with its own `InitialBackgroundJobs`, which creates everything the three
 PostgreSQL migrations create, including the trigger acquisition index; `PinTriggerAcquisitionGroupCollation`
-then re-creates the acquisition column in a pinned binary collation, with its index. It needs **SQL Server 2025 or
+then re-creates the acquisition column in a pinned binary collation, with its index. On an upgraded
+database that rebuilds the persisted column, which rewrites `qrtz_TRIGGERS` under a schema lock, so
+acquisition pauses for the length of the migration, briefly unless the trigger backlog is large. It needs **SQL Server 2025 or
 later, or Azure SQL Database**, for the native `json` column type. Trigger acquisition reads its free
 groups with `OPENJSON`, which needs database compatibility level 130 or later; that is already a
 requirement of the product, whose export procedures (`export_form_submissions_v1`–`v5`) use `OPENJSON` too,
