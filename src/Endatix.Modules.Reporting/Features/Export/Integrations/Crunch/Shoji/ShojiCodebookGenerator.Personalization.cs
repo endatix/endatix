@@ -23,10 +23,10 @@ internal static partial class ShojiCodebookGenerator
         public static PersonalizationShape Of(string dataType) =>
             dataType switch
             {
-                "number" => new(ShojiCodebookPropertyNames.VariableTypeNumeric),
-                "boolean" => new(ShojiCodebookPropertyNames.VariableTypeCategorical),
-                "date" => new(ShojiCodebookPropertyNames.VariableTypeDatetime, DayResolution),
-                "date_time" => new(
+                PersonalizationColumns.NumberType => new(ShojiCodebookPropertyNames.VariableTypeNumeric),
+                PersonalizationColumns.BooleanType => new(ShojiCodebookPropertyNames.VariableTypeCategorical),
+                PersonalizationColumns.DateType => new(ShojiCodebookPropertyNames.VariableTypeDatetime, DayResolution),
+                PersonalizationColumns.DateTimeType => new(
                     ShojiCodebookPropertyNames.VariableTypeDatetime,
                     ShojiCodebookPropertyNames.DatetimeResolutionSeconds),
                 _ => new(ShojiCodebookPropertyNames.VariableTypeText),

@@ -107,9 +107,7 @@ internal sealed class SubmissionFlatteningProcessor(
                 $"Form export schema is not available for form {run.Key.FormId}, definition {submission.FormDefinitionId}.");
 
         var personalization = PersonalizationReader.Read(submission.PersonalizationSnapshot);
-        schema = await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken);
-
-        var mergedSchema = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
+        var mergedSchema = (await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken)).FlatteningMap;
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
         var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, personalization);
         return FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);

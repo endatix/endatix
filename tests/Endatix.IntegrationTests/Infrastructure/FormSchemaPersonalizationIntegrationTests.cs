@@ -80,6 +80,30 @@ public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixtu
         (await _world.ReadFlattenedAsync(withCity)).DataJson.Should().Contain("Columbus");
     }
 
+    [Fact]
+    public async Task A_flatten_on_a_newer_definition_of_a_test_only_form_keeps_the_audience_columns()
+    {
+        // Arrange
+        var form = await _world.SeedFormAsync([BaseDefinition, AddsQuestionA]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        var withCity = await _world.AddPersonalizedSubmissionAsync(
+            form.FormId,
+            form.DefinitionIds[0],
+            """{"identifier":"CG-1","variables":{"city":"Columbus"}}""",
+            isTestSubmission: true);
+        await _world.FlattenAsync(form.FormId, withCity);
+        var onNewer = await _world.AddTestSubmissionAsync(form.FormId, form.DefinitionIds[1], """{"qa":"newer answer"}""");
+
+        // Act: the schema is replaced from the newer definition, and the flattened rows are kept
+        await _world.FlattenAsync(form.FormId, onNewer);
+
+        // Assert
+        var schema = await _world.ReadSchemaAsync(form.FormId);
+        ColumnKeys(schema).Should().Contain(["q0", "qa", IdentifierKey, "audience_city"]);
+        schema.Codebook.Should().Contain("\"audience_city\"");
+        (await _world.ReadFlattenedAsync(withCity)).DataJson.Should().Contain("Columbus");
+    }
+
     // variablesJson is the snapshot's variables object, without its braces: "city":"Columbus".
     private Task<long> AddPersonalizedAsync(RebuildForm form, string identifier, string variablesJson) =>
         _world.AddPersonalizedSubmissionAsync(

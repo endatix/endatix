@@ -9,9 +9,10 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 /// flattened response actually carries, so properties nobody was ever personalised with never reach the schema.
 /// </summary>
 /// <remarks>
-/// Keys never share a namespace with questions: the append-only merge keeps the first column a key had, so a question
-/// added later under a variable's name would otherwise be lost. Property variable names are lowercase slugs, so they
-/// can never produce <see cref="IdentifierKey"/>, which follows the system columns' casing.
+/// Keys share the schema with question keys, and the append-only merge keeps the first column a key had: a question
+/// named like an audience key (<c>audience_city</c>) keeps that key and the audience value is not exported (#1230).
+/// Exports and Shoji let the question win the same way when only its export key matches. Property variable names are
+/// lowercase slugs, so they can never produce <see cref="IdentifierKey"/>, which follows the system columns' casing.
 /// </remarks>
 internal static class PersonalizationColumns
 {
@@ -19,10 +20,12 @@ internal static class PersonalizationColumns
     public const string VariablePrefix = "audience_";
     public const string IdentifierLabel = "Audience identifier";
 
-    // Audience data type codes as the snapshot writes them.
+    // Audience data type codes as the snapshot writes them (AudienceDataTypeCodes in the Audience contracts).
     public const string TextType = "text";
-    private const string NumberType = "number";
-    private const string BooleanType = "boolean";
+    public const string NumberType = "number";
+    public const string BooleanType = "boolean";
+    public const string DateType = "date";
+    public const string DateTimeType = "date_time";
     private const string MultipleChoiceType = "multiple_choice";
 
     /// <summary>The identifier column, then one column per frozen variable, in variable-name order.</summary>
@@ -79,6 +82,12 @@ internal static class PersonalizationColumns
         MergedFormSchema widened = new(schema.Columns.Select(existing => Widened(existing, incoming)));
         return widened.MergeAppendOnly(columns, limits);
     }
+
+    /// <summary>The audience columns a persisted flattening map already has.</summary>
+    public static IReadOnlyList<FormSchemaColumn> In(string flatteningMapJson) =>
+        FormSchemaFlatteningMap.FromJson(flatteningMapJson).Columns
+            .Where(column => column.Kind is FormSchemaColumnKind.Personalization)
+            .ToList();
 
     /// <summary>The personalization columns as one block: the identifier, then variables by key.</summary>
     public static IEnumerable<FormSchemaColumn> InBlockOrder(IEnumerable<FormSchemaColumn> columns) =>

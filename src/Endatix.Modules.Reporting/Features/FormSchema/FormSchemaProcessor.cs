@@ -3,6 +3,7 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -158,9 +159,7 @@ internal sealed class FormSchemaProcessor(
     // Null when the compile changed nothing, so there is nothing to save and, for a replace, nothing to clear.
     private FormSchemaEntity? CompileSchema(SchemaRebuild rebuild, FormSchemaEntity? existing, FormSchemaCompileMode mode)
     {
-        var compiled = Compiling(
-            rebuild.Target,
-            () => compiler.CompilePersisted(rebuild.Definition.Json, existing?.FlatteningMap, existing?.Codebook, mode));
+        var compiled = Compiling(rebuild.Target, () => Compile(rebuild, existing, mode));
         if (existing is null)
         {
             return NewSchema(rebuild.Target, compiled);
@@ -174,6 +173,22 @@ internal sealed class FormSchemaProcessor(
 
         next.ApplyTo(existing);
         return existing;
+    }
+
+    // A replace that keeps the flattened rows keeps their audience columns too: the rows still hold those values, and
+    // only a later flatten carrying the same variables would bring the columns back.
+    private FormSchemaCompileResult Compile(SchemaRebuild rebuild, FormSchemaEntity? existing, FormSchemaCompileMode mode)
+    {
+        var compiled = compiler.CompilePersisted(rebuild.Definition.Json, existing?.FlatteningMap, existing?.Codebook, mode);
+        var kept = mode == FormSchemaCompileMode.Replace && !rebuild.ClearsFlattenedRows && existing is not null
+            ? PersonalizationColumns.In(existing.FlatteningMap)
+            : [];
+        return kept.Count == 0
+            ? compiled
+            : compiler.IncludePersonalization(
+                rebuild.Definition.Json,
+                new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+                kept);
     }
 
     private static FormSchemaEntity NewSchema(CompileTarget target, FormSchemaCompileResult compiled) =>

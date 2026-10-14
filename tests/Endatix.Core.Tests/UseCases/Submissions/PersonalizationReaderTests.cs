@@ -99,6 +99,23 @@ public sealed class PersonalizationReaderTests
             new PersonalizationValue("age", "Age", "number"));
     }
 
+    [Fact]
+    public void Read_WithoutValues_SkipsThemAndKeepsTheVariables()
+    {
+        // Arrange
+        const string snapshot = """
+            {"identifier":"CG-1","variables":{"city":"Columbus"},
+             "values":[{"variableName":"city","name":"City","dataType":"text","value":"Columbus"}]}
+            """;
+
+        // Act
+        var read = PersonalizationReader.Read(snapshot, includeValues: false);
+
+        // Assert
+        read!.Values.Should().BeEmpty();
+        read.Variables.GetProperty("city").GetString().Should().Be("Columbus");
+    }
+
     [Theory]
     [InlineData("""{"variables":{"age":65}}""")]
     [InlineData("""{"variables":{"age":65},"values":{"age":"number"}}""")]

@@ -34,7 +34,7 @@ public sealed class FormSchemaPersonalizationTests
         var result = await Personalization().IncludeAsync(schema, null, TestContext.Current.CancellationToken);
 
         // Assert
-        result.Should().BeSameAs(schema);
+        result.Schema.Should().BeSameAs(schema);
         await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
     }
 
@@ -48,7 +48,7 @@ public sealed class FormSchemaPersonalizationTests
         var result = await Personalization().IncludeAsync(schema, PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Should().BeSameAs(schema);
+        result.Schema.Should().BeSameAs(schema);
         await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
     }
 
@@ -64,11 +64,11 @@ public sealed class FormSchemaPersonalizationTests
         var result = await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Should().BeSameAs(locked);
-        FormSchemaFlatteningMap.FromJson(result.FlatteningMap).Columns.Select(column => column.Key)
+        result.Schema.Should().BeSameAs(locked);
+        result.FlatteningMap.Columns.Select(column => column.Key)
             .Should().Equal("city", "AudienceIdentifier", "audience_city");
-        result.Codebook.Should().Contain("\"audience_city\"");
-        result.FormDefinitionRevision.Should().Be(FormDefinitionId);
+        result.Schema.Codebook.Should().Contain("\"audience_city\"");
+        result.Schema.FormDefinitionRevision.Should().Be(FormDefinitionId);
         await _schemas.Received(1).SaveAsync(locked, Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
     }
@@ -116,8 +116,8 @@ public sealed class FormSchemaPersonalizationTests
 
         // Assert
         await _forms.Received(2).SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
-        result.FormDefinitionRevision.Should().Be(newerDefinitionId);
-        FormSchemaFlatteningMap.FromJson(result.FlatteningMap).Columns.Should().Contain(column => column.Key == "audience_city");
+        result.Schema.FormDefinitionRevision.Should().Be(newerDefinitionId);
+        result.FlatteningMap.Columns.Should().Contain(column => column.Key == "audience_city");
     }
 
     [Fact]
@@ -135,8 +135,25 @@ public sealed class FormSchemaPersonalizationTests
         await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
     }
 
-    private FormSchemaPersonalization Personalization() =>
-        new(_forms, _schemas, _unitOfWork, new FormSchemaCompiler(), NullLogger<FormSchemaPersonalization>.Instance);
+    [Fact]
+    public async Task IncludeAsync_ColumnsWouldExceedTheColumnLimit_ReturnsTheSchemaWithoutThemAndSavesNothing()
+    {
+        // Arrange: the form's one question fits; the two audience columns would not.
+        var locked = Compiled();
+        GivenLocked(locked);
+        GivenDefinition();
+        FormSchemaCompiler compiler = new(new SchemaCompilationLimits { MaxColumns = 2 });
+
+        // Act
+        var result = await Personalization(compiler).IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.FlatteningMap.Columns.Select(column => column.Key).Should().Equal("city");
+        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+    }
+
+    private FormSchemaPersonalization Personalization(FormSchemaCompiler? compiler = null) =>
+        new(_forms, _schemas, _unitOfWork, compiler ?? new FormSchemaCompiler(), NullLogger<FormSchemaPersonalization>.Instance);
 
     private static FormSchemaEntity Compiled(bool withSnapshot = false)
     {

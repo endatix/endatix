@@ -49,7 +49,7 @@ public class SubmissionMapper
         SubmitterProfile = ParseSubmitterProfile(submission.SubmitterProfileSnapshot),
         IsTestSubmission = submission.IsTestSubmission,
         CollectionStatus = submission.CollectionStatus.Code,
-        Personalization = PersonalizationReader.Read(submission.PersonalizationSnapshot),
+        Personalization = PersonalizationReader.Read(submission.PersonalizationSnapshot, includeValues: false),
     };
 
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)

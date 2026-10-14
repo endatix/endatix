@@ -20,15 +20,16 @@ internal sealed class FormSchemaPersonalization(
     FormSchemaCompiler compiler,
     ILogger<FormSchemaPersonalization> logger) : IFormSchemaPersonalization
 {
-    public async Task<FormSchemaEntity> IncludeAsync(
+    public async Task<PersonalizedSchema> IncludeAsync(
         FormSchemaEntity schema,
         PersonalizationRead? personalization,
         CancellationToken cancellationToken)
     {
         var columns = PersonalizationColumns.From(personalization);
-        if (IsCovered(schema, columns))
+        var resolved = PersonalizedSchema.Of(schema);
+        if (IsCovered(resolved.FlatteningMap, columns))
         {
-            return schema;
+            return resolved;
         }
 
         // Read before the lock, as a definition rebuild does, so the lock covers only the merge, compile and save.
@@ -36,7 +37,7 @@ internal sealed class FormSchemaPersonalization(
         var saved = await unitOfWork.InTransactionAsync(
             () => IncludeLockedAsync(schema, include, cancellationToken),
             cancellationToken);
-        return saved ?? schema;
+        return saved is null ? resolved : PersonalizedSchema.Of(saved);
     }
 
     private sealed record Include(IReadOnlyList<FormSchemaColumn> Columns, DefinitionAt Definition);
@@ -51,15 +52,14 @@ internal sealed class FormSchemaPersonalization(
         CancellationToken cancellationToken)
     {
         var existing = await schemaRepository.LockAndGetByFormIdAsync(schema.TenantId, schema.FormId, cancellationToken);
-        if (existing is null || IsCovered(existing, include.Columns))
+        if (existing is null || IsCovered(FormSchemaFlatteningMap.FromJson(existing.FlatteningMap), include.Columns))
         {
             return existing;
         }
 
         var definition = await DefinitionForAsync(existing, include.Definition, cancellationToken);
-        if (definition.Json is not null)
+        if (definition.Json is not null && TryApplyColumns(existing, definition.Json, include.Columns))
         {
-            ApplyColumns(existing, definition.Json, include.Columns);
             await schemaRepository.SaveAsync(existing, cancellationToken);
         }
 
@@ -75,24 +75,38 @@ internal sealed class FormSchemaPersonalization(
             ? readBeforeLock
             : await ReadDefinitionAsync(existing, cancellationToken);
 
-    private void ApplyColumns(FormSchemaEntity existing, string definitionJson, IReadOnlyList<FormSchemaColumn> columns)
+    // Over a compile limit the response is still flattened with its answers, only without the new audience columns,
+    // as it was before audience columns existed. Each later personalized flatten of the form tries again.
+    private bool TryApplyColumns(FormSchemaEntity existing, string definitionJson, IReadOnlyList<FormSchemaColumn> columns)
     {
         try
         {
-            var compiled = compiler.IncludePersonalization(
-                definitionJson,
-                new PersistedSchemaJson(existing.FlatteningMap, existing.Codebook),
-                columns);
-            existing.UpdateSchema(
-                existing.FormDefinitionRevision,
-                compiled.FlatteningMapJson,
-                compiled.CodebookJson,
-                compiled.LocalesJson);
+            ApplyColumns(existing, definitionJson, columns);
+            return true;
         }
         catch (SchemaCompilationLimitExceededException ex)
         {
-            throw ex.ForForm(existing.FormId);
+            logger.LogWarning(
+                ex,
+                "Audience columns not added to the schema of form {FormId}: the schema would exceed its {LimitKind} limit of {Limit}",
+                existing.FormId,
+                ex.LimitKind,
+                ex.Limit);
+            return false;
         }
+    }
+
+    private void ApplyColumns(FormSchemaEntity existing, string definitionJson, IReadOnlyList<FormSchemaColumn> columns)
+    {
+        var compiled = compiler.IncludePersonalization(
+            definitionJson,
+            new PersistedSchemaJson(existing.FlatteningMap, existing.Codebook),
+            columns);
+        existing.UpdateSchema(
+            existing.FormDefinitionRevision,
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson,
+            compiled.LocalesJson);
     }
 
     // The schema's definition can only be gone with its form, whose deletion sync removes the schema too.
@@ -111,7 +125,6 @@ internal sealed class FormSchemaPersonalization(
         return new DefinitionAt(schema.FormDefinitionRevision, definition?.JsonData);
     }
 
-    private static bool IsCovered(FormSchemaEntity schema, IReadOnlyList<FormSchemaColumn> columns) =>
-        columns.Count == 0 ||
-        PersonalizationColumns.AreCoveredBy(FormSchemaFlatteningMap.FromJson(schema.FlatteningMap), columns);
+    private static bool IsCovered(MergedFormSchema flatteningMap, IReadOnlyList<FormSchemaColumn> columns) =>
+        columns.Count == 0 || PersonalizationColumns.AreCoveredBy(flatteningMap, columns);
 }

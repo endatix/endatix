@@ -94,6 +94,31 @@ public sealed class ExportColumnPlanBuilderTests
             "qName", "AudienceIdentifier", "audience_last_seen", "audience_panel_member");
     }
 
+    [Fact]
+    public void Build_QuestionExportKeyMatchesAnAudienceKey_TheQuestionKeepsTheKey()
+    {
+        // Arrange: with "_" as the separator, question "audience__region" exports as "audience_region".
+        const string definitionJson = """
+            {"pages":[{"name":"p1","elements":[{"type":"text","name":"audience__region"}]}]}
+            """;
+        FormSchemaCompiler compiler = new();
+        var compiled = compiler.CompilePersisted(definitionJson);
+        compiled = compiler.IncludePersonalization(
+            definitionJson,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            PersonalizationColumns.From(PersonalizationReader.Read("""{"identifier":"CG-1","variables":{"region":"North"}}""")));
+        FormSchemaEntity schema = new(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+
+        // Act
+        IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, keySeparator: "_");
+
+        // Assert
+        plan.Columns.Where(column => column.ExportKey == "audience_region")
+            .Select(column => column.CanonicalKey)
+            .Should().Equal("audience__region");
+        plan.Columns.Should().Contain(column => column.ExportKey == PersonalizationColumns.IdentifierKey);
+    }
+
     private static FormSchemaEntity PersonalizedSchema()
     {
         const string definitionJson = """

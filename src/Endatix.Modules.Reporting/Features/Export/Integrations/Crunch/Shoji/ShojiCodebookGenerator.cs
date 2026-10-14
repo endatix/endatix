@@ -250,8 +250,8 @@ internal static partial class ShojiCodebookGenerator
     }
 
     /// <summary>
-    /// Writes calculated values last, so questions keep their names and aliases. Crunch orders
-    /// variables by the order array, not by this metadata order.
+    /// Writes calculated values, then audience values, last, so questions keep their names and aliases. Crunch
+    /// orders variables by the order array, not by this metadata order.
     /// </summary>
     /// <returns>The aliases of the calculated-value variables written.</returns>
     private static List<string> WriteShojiVariables(Utf8JsonWriter writer, ShojiCodebookWriteArgs args, List<string> orderAliases)
@@ -261,14 +261,15 @@ internal static partial class ShojiCodebookGenerator
         ShojiVariableTracking tracking = new(writtenVariables, usedDisplayNames, orderAliases);
 
         WriteSystemVariables(writer, writtenVariables, usedDisplayNames, orderAliases);
-        WritePersonalizationVariables(writer, args, tracking);
         WriteGroupedVariables(writer, args.Questions, args.GroupedColumnKeys, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteTopLevelCategoricalVariables(writer, args.FlatteningMap, args.Questions, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteScalarVariables(writer, args.FlatteningMap, args.Questions, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteGapLeafVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteCheckboxOtherTextVariables(writer, args.FlatteningMap, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteLoopExpandedVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
-        return WriteCalculatedValueVariables(writer, args, tracking);
+        var calculatedAliases = WriteCalculatedValueVariables(writer, args, tracking);
+        WritePersonalizationVariables(writer, args, tracking);
+        return calculatedAliases;
     }
 
     private static List<string> WriteCalculatedValueVariables(

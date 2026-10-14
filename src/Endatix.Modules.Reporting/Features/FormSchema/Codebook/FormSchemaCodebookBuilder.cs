@@ -215,20 +215,6 @@ internal static partial class FormSchemaCodebookBuilder
             WriteColumnMetadata(writer, column, parentKey, hasQuestion, questionElement));
     }
 
-    // A calculated value is not a question, even when one shares its name: it never takes a
-    // question's type, shape or title.
-    private static JsonElement CreateCalculatedColumnEntry(FormSchemaColumn column) =>
-        WriteColumnEntry(writer =>
-        {
-            writer.WriteString(FormSchemaCodebookPropertyNames.ParentKey, column.Key);
-            writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, FormSchemaCodebookPropertyNames.CalculatedValueSurveyJsType);
-            writer.WriteString(FormSchemaCodebookPropertyNames.ExportShape, FormSchemaCodebookExportShape.FromColumnKind(column.Kind).Name);
-            writer.WritePropertyName(SurveyJsPropertyNames.Title);
-            SurveyJsLocalizationHelper.WriteLocalizedStrings(
-                writer,
-                new Dictionary<string, string> { [FormSchemaCodebookPropertyNames.Default] = column.Key });
-        });
-
     private static bool TryGetQuestionElement(
         FormSchemaColumn column,
         IReadOnlyDictionary<string, CollectedQuestion> questionElements,

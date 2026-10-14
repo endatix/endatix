@@ -33,7 +33,12 @@ public sealed record PersonalizationValue(string VariableName, string Name, stri
 /// </summary>
 public static class PersonalizationReader
 {
-    public static PersonalizationRead? Read(string? snapshot)
+    /// <param name="snapshot">The submission's personalization snapshot JSON.</param>
+    /// <param name="includeValues">
+    /// Whether to read <see cref="PersonalizationRead.Values"/>. Reporting needs them; an API read does not, since they
+    /// never reach the wire.
+    /// </param>
+    public static PersonalizationRead? Read(string? snapshot, bool includeValues = true)
     {
         if (string.IsNullOrWhiteSpace(snapshot))
         {
@@ -43,7 +48,7 @@ public static class PersonalizationReader
         try
         {
             using var document = JsonDocument.Parse(snapshot);
-            return FromRoot(document.RootElement);
+            return FromRoot(document.RootElement, includeValues);
         }
         catch (JsonException)
         {
@@ -51,7 +56,7 @@ public static class PersonalizationReader
         }
     }
 
-    private static PersonalizationRead? FromRoot(JsonElement root)
+    private static PersonalizationRead? FromRoot(JsonElement root, bool includeValues)
     {
         if (root.ValueKind != JsonValueKind.Object
             || !root.TryGetProperty("variables", out var variables)
@@ -67,7 +72,7 @@ public static class PersonalizationReader
             Text(root, "source"),
             Long(root, "memberId"))
         {
-            Values = ValuesOf(root),
+            Values = includeValues ? ValuesOf(root) : [],
         };
     }
 

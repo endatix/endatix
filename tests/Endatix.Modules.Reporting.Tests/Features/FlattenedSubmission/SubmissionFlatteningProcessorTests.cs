@@ -36,7 +36,7 @@ public class SubmissionFlatteningProcessorTests
         var personalization = Substitute.For<IFormSchemaPersonalization>();
         personalization
             .IncludeAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<PersonalizationRead?>(), Arg.Any<CancellationToken>())
-            .Returns(call => call.Arg<FormSchemaEntity>());
+            .Returns(call => PersonalizedSchema.Of(call.Arg<FormSchemaEntity>()));
         return personalization;
     }
 
@@ -322,13 +322,14 @@ public class SubmissionFlatteningProcessorTests
         _rows.GetBySubmissionIdAsync(TenantId, SubmissionId, Arg.Any<CancellationToken>()).Returns(row);
     }
 
-    private static FormSchemaEntity WithAudienceColumns(FormSchemaEntity schema, PersonalizationRead? personalization)
+    private static PersonalizedSchema WithAudienceColumns(FormSchemaEntity schema, PersonalizationRead? personalization)
     {
         var compiled = new FormSchemaCompiler().IncludePersonalization(
             FormSchemaFixtureLoader.LoadText("simple-definition.json"),
             new PersistedSchemaJson(schema.FlatteningMap, schema.Codebook),
             PersonalizationColumns.From(personalization));
-        return new FormSchemaEntity(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
+        return PersonalizedSchema.Of(
+            new FormSchemaEntity(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson));
     }
 
     private void GivenSchema()

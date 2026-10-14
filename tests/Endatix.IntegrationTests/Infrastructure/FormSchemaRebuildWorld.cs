@@ -145,15 +145,20 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
             .ProcessAsync(TenantId, formId, submissionId, Cancellation);
     }
 
-    /// <summary>A completed real submission with audience values frozen on it, as an on-behalf create leaves it.</summary>
-    public Task<long> AddPersonalizedSubmissionAsync(long formId, long formDefinitionId, string snapshot)
+    /// <summary>A completed submission with audience values frozen on it, as an on-behalf create leaves it.</summary>
+    public Task<long> AddPersonalizedSubmissionAsync(
+        long formId,
+        long formDefinitionId,
+        string snapshot,
+        bool isTestSubmission = false)
     {
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TenantId,
             FormId: formId,
             FormDefinitionId: formDefinitionId,
             JsonData: """{"q0":"answer"}""",
-            IsComplete: true));
+            IsComplete: true,
+            IsTestSubmission: isTestSubmission));
         submission.FreezeOnBehalf(snapshot);
         return AddSubmissionAsync(submission);
     }

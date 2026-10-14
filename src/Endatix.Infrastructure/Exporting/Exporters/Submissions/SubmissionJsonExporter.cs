@@ -67,7 +67,7 @@ internal sealed partial class SubmissionJsonExporter(
                         catch (Exception ex)
                         {
                             LogCellLevelError(col.Name, row.Id, ex);
-                            jsonWriter.WriteStringValue(NOT_AVAILABLE_VALUE);
+                            jsonWriter.WriteStringValue(MissingValue(options));
                         }
                     }
                     jsonWriter.WriteEndObject();

@@ -93,7 +93,7 @@ internal static class ExportColumnPlanBuilder
                     keySeparator),
             })
             .ToList();
-        aliasedColumns.AddRange(PersonalizationBlock(flatteningMap));
+        aliasedColumns.AddRange(PersonalizationBlock(flatteningMap, aliasedColumns));
 
         EnsureUniqueExportKeys(aliasedColumns);
 
@@ -108,15 +108,23 @@ internal static class ExportColumnPlanBuilder
 
     // Audience values close the row as one block, and their keys are the headers as stored: no alias profile or key
     // separator touches them, so a Crunch alias for an audience variable never changes between exports. They are not
-    // questions, so a question column scope does not drop them.
-    private static IEnumerable<ExportColumnDefinition> PersonalizationBlock(MergedFormSchema flatteningMap) =>
-        PersonalizationColumns.InBlockOrder(flatteningMap.Columns)
+    // questions, so a question column scope does not drop them. A question whose export key matches one keeps it, as
+    // in the schema, instead of failing the export (#1230).
+    private static List<ExportColumnDefinition> PersonalizationBlock(
+        MergedFormSchema flatteningMap,
+        List<ExportColumnDefinition> questionColumns)
+    {
+        HashSet<string> taken = new(questionColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
+        return PersonalizationColumns.InBlockOrder(flatteningMap.Columns)
+            .Where(column => !taken.Contains(column.Key))
             .Select(column => new ExportColumnDefinition(
                 CanonicalKey: column.Key,
                 ExportKey: column.Key,
                 Source: ExportColumnSource.DataJson,
                 HeaderLabel: column.Label,
-                DataType: column.DataType));
+                DataType: column.DataType))
+            .ToList();
+    }
 
     private static bool ShouldProjectCrunchShapes(ColumnAliasProfile aliasProfile, string keySeparator) =>
         aliasProfile is ColumnAliasProfile.Crunch ||
