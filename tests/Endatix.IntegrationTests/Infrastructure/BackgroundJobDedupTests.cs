@@ -26,7 +26,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
 
         // Act
@@ -45,7 +45,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
 
         // Act
@@ -63,7 +63,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
         var existingId = await node.EnqueueAsync(Request(tenantId: 5, "k1"), ct);
         var rowsBefore = await CountRowsAsync(database, ct);
@@ -86,7 +86,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
 
         // Act
@@ -104,7 +104,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
 
         // Act — each call on its own scope, so each has its own context and transaction.
@@ -127,7 +127,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     private static async Task<JobsTestNode> StartScheduleOnlyNodeAsync(JobsTestDatabase database, CancellationToken ct)
     {
         var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
         await node.StartAsync(ct);
         return node;

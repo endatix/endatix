@@ -22,7 +22,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — the node that enqueues allows two attempts; the node started afterwards to run the job, four.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(2), ct);
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Throw), ct);
@@ -44,10 +44,10 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — the first claim throws, as it would while the database is away.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             FastAttempts(3),
             services =>
             {
@@ -73,7 +73,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — the trigger carries a retry policy of one retry, as earlier versions stored it.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(3), ct);
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Throw), ct);
@@ -96,7 +96,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — a backoff long enough that the retry is still waiting when the test looks.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(3), ct);
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Throw), ct);
         await GiveTriggerRetryPolicyAsync(scheduleOnly, jobId, ct);
@@ -123,7 +123,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // scheduler gives up on it and deletes it while the row is still Pending.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, new(), ct);
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
@@ -146,7 +146,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — the retry's trigger and the first three tries of the re-fire that replaces it cannot be stored.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = TriggerStoreFailures.DatabaseDown(stores: 4);
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(3), ct);
@@ -171,7 +171,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         // Arrange — the handler always throws, and the first attempt's retry and re-fire cannot be stored for a while.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = TriggerStoreFailures.DatabaseDown(stores: 4);
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(2), ct);
@@ -202,7 +202,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         CancellationToken ct)
     {
         var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?>(settings) { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
         await node.StartAsync(ct);
         return node;
@@ -213,7 +213,8 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         ProbeNodeSetup setup,
         TriggerStoreFailures failures,
         CancellationToken ct) =>
-        StartNodeFailingAsync(setup, services => FailingTriggerStoreDelegate.Register(services, failures), ct);
+        StartNodeFailingAsync(
+            setup, services => FailingTriggerStoreDelegate.Register(services, setup.Database.Provider, failures), ct);
 
     private static Task<IScheduler> SchedulerOfAsync(JobsTestNode node, CancellationToken ct) =>
         node.Services.GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName).GetScheduler(ct).AsTask();

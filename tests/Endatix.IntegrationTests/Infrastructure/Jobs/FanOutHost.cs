@@ -33,14 +33,15 @@ internal sealed class FanOutHost : IAsyncDisposable
 
     public IServiceProvider Services => _factory.Services;
 
+    /// <summary>Starts a host on a new database of the fixture's provider, on the fixture's server.</summary>
     public static async Task<FanOutHost> StartAsync(
-        string serverConnectionString,
+        DbIntegrationFixture fixture,
         FanOutHostSetup setup,
         CancellationToken cancellationToken)
     {
-        var database = await JobsTestDatabase.CreateAsync(serverConnectionString, cancellationToken);
+        var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var logs = new CapturingLoggerProvider();
-        var factory = new EndatixWebApplicationFactory(database.ConnectionString, TestDatabaseProvider.PostgreSql)
+        var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider)
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("Endatix:Outbox:DeliverToJobQueue", setup.DeliverToJobQueue.ToString());
@@ -65,11 +66,12 @@ internal sealed class FanOutHost : IAsyncDisposable
         return new FanOutHost(database, factory, logs);
     }
 
+    // CURRENT_TIMESTAMP and a quoted boolean literal read the same on both providers.
     public Task InsertMessageAsync(OutboxRow message, CancellationToken cancellationToken) =>
         Database.ExecuteAsync(
             $"""
              INSERT INTO "OutboxMessages" ("Id", "EventType", "Payload", "TenantId", "OccurredAt", "SchemaVersion", "Status", "Attempts", "CreatedAt", "IsDeleted")
-             VALUES ({message.Id}, '{message.EventType}', '{message.Payload}', {message.TenantId}, now(), 1, 0, 0, now(), false)
+             VALUES ({message.Id}, '{message.EventType}', '{message.Payload}', {message.TenantId}, CURRENT_TIMESTAMP, 1, 0, 0, CURRENT_TIMESTAMP, 'false')
              """,
             cancellationToken);
 

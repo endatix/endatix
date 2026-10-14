@@ -29,10 +29,10 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runs = new NamedProbeRuns();
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?>
             {
                 [$"Endatix:BackgroundJobs:JobTypes:{Export}:MaxConcurrency"] = "1",
@@ -71,16 +71,16 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         // size of the worker's pool could be filled with exports alone.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var scheduleOnly = JobsTestNode.Create(
-            database.ConnectionString, new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
+            database, new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
         await scheduleOnly.StartAsync(ct);
         var exports = await scheduleOnly.EnqueueManyAsync(Requests(Export, count: 12, holdMilliseconds: 500), ct);
         var webhooks = await scheduleOnly.EnqueueManyAsync(Requests(WebHook, count: 12, holdMilliseconds: 500), ct);
         var runs = new NamedProbeRuns();
         using var batches = TriggerBatchRecorder.Start("batching-worker");
         await using var worker = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?>
             {
                 ["Endatix:BackgroundJobs:Clustering:InstanceId"] = "batching-worker",
@@ -106,11 +106,11 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         // Arrange — the crashed node runs three webhooks at once; the survivor's cap is one.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runsOnA = new NamedProbeRuns();
         var runsOnB = new NamedProbeRuns();
         var nodeA = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { [$"Endatix:BackgroundJobs:JobTypes:{WebHook}:MaxConcurrency"] = "3" },
             services => AddNamedProbes(services, runsOnA, WebHook));
         await nodeA.StartAsync(ct);
@@ -119,7 +119,7 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
             ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(runsOnA.Count == 3), TimeSpan.FromSeconds(15), ct);
         await using var nodeB = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { [$"Endatix:BackgroundJobs:JobTypes:{WebHook}:MaxConcurrency"] = "1" },
             services => AddNamedProbes(services, runsOnB, WebHook));
         await nodeB.StartAsync(ct);
@@ -140,12 +140,12 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         // Arrange — host A runs TypeR; host B runs something else, on the same store.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runsOnA = new NamedProbeRuns();
         var runsOnB = new NamedProbeRuns();
         var logsOnB = new CapturingLoggerProvider();
         await using var hostB = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             configureServices: services =>
             {
                 AddNamedProbes(services, runsOnB, "OtherType");
@@ -160,7 +160,7 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         var claimedWhileOnlyB = await database.CountAsync(
             $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "AttemptCount" > 0 AND "Id" IN ({jobIds.IdList()})""", ct);
         await using var hostA = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             configureServices: services => AddNamedProbes(services, runsOnA, "TypeR"));
         await hostA.StartAsync(ct);
         var allCompleted = await AllCompletedOnFirstAttemptAsync(database, jobIds, ct);
@@ -180,10 +180,10 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         using var misfires = JobMisfireCounter.Start();
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var logs = new CapturingLoggerProvider();
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?>
             {
                 [$"Endatix:BackgroundJobs:JobTypes:{WebHook}:MaxConcurrency"] = "1",

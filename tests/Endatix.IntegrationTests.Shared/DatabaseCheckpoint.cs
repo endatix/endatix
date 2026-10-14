@@ -14,7 +14,7 @@ public sealed class DatabaseCheckpoint
 {
     private static readonly string[] _postgresSchemas = ["public", "identity", "agents", "reporting", "jobs", "audience"];
 
-    private static readonly string[] _sqlServerSchemas = ["dbo", "identity", "agents", "reporting", "audience"];
+    private static readonly string[] _sqlServerSchemas = ["dbo", "identity", "agents", "reporting", "jobs", "audience"];
 
     private readonly SemaphoreSlim _init = new(1, 1);
     private readonly Dictionary<TestDatabaseProvider, Respawner> _respawners = [];
@@ -136,17 +136,21 @@ public sealed class DatabaseCheckpoint
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)
     {
-        if (provider != TestDatabaseProvider.PostgreSql)
-        {
-            return [];
-        }
-
         await using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT table_name
-            FROM information_schema.tables
-            WHERE table_schema = 'jobs' AND table_name LIKE 'qrtz\_%'
-            """;
+        command.CommandText = provider switch
+        {
+            TestDatabaseProvider.PostgreSql => """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'jobs' AND table_name LIKE 'qrtz\_%'
+                """,
+            TestDatabaseProvider.SqlServer => """
+                SELECT TABLE_NAME
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = 'jobs' AND TABLE_NAME LIKE 'qrtz[_]%'
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
+        };
 
         var tables = new List<Table>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);

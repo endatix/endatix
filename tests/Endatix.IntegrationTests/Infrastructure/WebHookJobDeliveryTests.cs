@@ -131,7 +131,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
 
     private Task<FanOutHost> StartHostAsync(CancellationToken ct, IReadOnlyDictionary<string, string?>? settings = null) =>
         FanOutHost.StartAsync(
-            fixture.ConnectionString,
+            fixture,
             new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = settings ?? new Dictionary<string, string?>() },
             ct);
 
@@ -187,7 +187,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
 
     private static Task<List<WebHookJob>> WebHookJobsAsync(FanOutHost host, CancellationToken ct) =>
         host.Database.QueryAsync(
-            """SELECT "PayloadJson"::text, "DedupKey", "Status", "AttemptCount" FROM jobs."BackgroundJobs" WHERE "JobType" = 'WebHookDelivery'""",
+            """SELECT "PayloadJson", "DedupKey", "Status", "AttemptCount" FROM jobs."BackgroundJobs" WHERE "JobType" = 'WebHookDelivery'""",
             reader => new WebHookJob(reader.GetString(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3)),
             ct);
 

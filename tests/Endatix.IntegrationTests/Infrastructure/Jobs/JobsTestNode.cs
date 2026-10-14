@@ -24,11 +24,12 @@ internal sealed class JobsTestNode : IAsyncDisposable
     public IServiceProvider Services => _host.Services;
 
     /// <summary>
-    /// Builds a node. It applies the jobs migrations before its scheduler starts, as a host with automatic
-    /// migrations on does, unless <paramref name="migrate"/> is off.
+    /// Builds a node on <paramref name="database"/>, with that database's provider. It applies the jobs migrations
+    /// before its scheduler starts, as a host with automatic migrations on does, unless <paramref name="migrate"/>
+    /// is off.
     /// </summary>
     public static JobsTestNode Create(
-        string connectionString,
+        JobsTestDatabase database,
         IDictionary<string, string?>? settings = null,
         Action<IServiceCollection>? configureServices = null,
         bool migrate = true)
@@ -41,8 +42,8 @@ internal sealed class JobsTestNode : IAsyncDisposable
 
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:DefaultConnection"] = connectionString,
-            ["ConnectionStrings:DefaultConnection_DbProvider"] = "postgresql",
+            ["ConnectionStrings:DefaultConnection"] = database.ConnectionString,
+            ["ConnectionStrings:DefaultConnection_DbProvider"] = database.Provider.ToString(),
             // Short cluster timings, so a stopped node's work is recovered within a test's patience.
             ["Endatix:BackgroundJobs:IdleWaitTimeSeconds"] = "1",
             ["Endatix:BackgroundJobs:Clustering:CheckinIntervalSeconds"] = "1",
