@@ -54,17 +54,19 @@ internal sealed class JobsSchedulerHostedService(
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         await _stopping.CancelAsync();
+        await (_deferredStart ?? Task.CompletedTask);
 
-        if (_deferredStart is not null)
+        try
         {
-            await _deferredStart;
+            await ShutdownSchedulerAsync(cancellationToken);
         }
-
-        await ShutdownSchedulerAsync(cancellationToken);
-
-        // Only now, with the scheduler no longer listening, are the jobs still running told to stop: they record
-        // nothing, and the firing the scheduler abandoned is what runs them again.
-        shutdownSignal.Raise();
+        finally
+        {
+            // Only now, with the scheduler no longer listening, are the jobs still running told to stop: they record
+            // nothing, and the firing the scheduler abandoned is what runs them again. Told even when the shutdown
+            // threw: a handler never told would run on as if its host were still up.
+            shutdownSignal.Raise();
+        }
     }
 
     /// <summary>

@@ -87,8 +87,8 @@ public class BackgroundTaskWebHookServiceTests
             "https://tenant-level.example.com/webhooks"
         });
 
-        _formRepository.GetByIdAsync(TEST_FORM_ID, Arg.Any<CancellationToken>())
-            .Returns(form);
+        _formRepository.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<FormSpecifications.ByIdForTenant>().Evaluate([form]).FirstOrDefault());
         _tenantSettingsRepository.FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(tenantSettings);
 

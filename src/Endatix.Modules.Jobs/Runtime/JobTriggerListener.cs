@@ -102,7 +102,7 @@ internal sealed class JobTriggerListener : ITriggerListener
 
     private void ReportUnfinished(ReclaimableJob job, JobStatus status)
     {
-        _retriesExhaustedMismatches.Add(1, new KeyValuePair<string, object?>("endatix.job.type", job.JobType));
+        _retriesExhaustedMismatches.Add(1, new KeyValuePair<string, object?>(BackgroundJobsTelemetry.JobTypeTag, job.JobType));
         _logger.LogWarning(
             "The scheduler ran out of retries for background job {JobId} of type {JobType}, whose row is still {Status}; the job is re-fired to be taken over",
             job.JobId,

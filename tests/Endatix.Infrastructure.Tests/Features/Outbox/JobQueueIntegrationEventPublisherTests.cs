@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
@@ -88,6 +89,33 @@ public sealed class JobQueueIntegrationEventPublisherTests
         enqueued.Should().ContainSingle().Which.TenantId.Should().Be(31);
     }
 
+    [Fact]
+    public async Task PublishAsync_JobsEnqueued_CountsThemTaggedWithEventType()
+    {
+        // Arrange
+        var queue = Substitute.For<IBackgroundJobQueue>();
+        queue.EnqueueManyAsync(Arg.Any<IReadOnlyList<BackgroundJobRequest>>(), Arg.Any<CancellationToken>())
+            .Returns([1L, 2L]);
+        await using var provider = Services(queue, services =>
+        {
+            services.AddOutboxJobSubscription("x.happened", message => new FirstPayload(message.Id));
+            services.AddOutboxJobSubscription("x.happened", message => new SecondPayload(message.Id));
+        });
+        using var fanOut = new FanOutJobsListener(provider.GetRequiredService<IMeterFactory>());
+        var publisher = provider.GetRequiredService<JobQueueIntegrationEventPublisher>();
+
+        // Act
+        await publisher.PublishAsync(new OutboxMessageStub(81, "x.happened", "{}", 5), TestContext.Current.CancellationToken);
+
+        // Assert
+        var measurement = fanOut.Measurements.Should().ContainSingle().Subject;
+        measurement.Value.Should().Be(2L);
+        measurement.Tags.Should().BeEquivalentTo(new Dictionary<string, object?>
+        {
+            ["endatix.outbox.event_type"] = "x.happened",
+        });
+    }
+
     private static ServiceProvider Services(IBackgroundJobQueue queue, Action<IServiceCollection> subscribe)
     {
         var services = new ServiceCollection();
@@ -99,6 +127,32 @@ public sealed class JobQueueIntegrationEventPublisherTests
         subscribe(services);
         return services.BuildServiceProvider();
     }
+
+    /// <summary>Records the fan-out counter of one service provider's meters only, as tests run in parallel.</summary>
+    private sealed class FanOutJobsListener : IDisposable
+    {
+        private readonly MeterListener _listener = new();
+
+        public FanOutJobsListener(IMeterFactory meterFactory)
+        {
+            _listener.InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Name == "endatix.outbox.fanout.jobs" && instrument.Meter.Scope == meterFactory)
+                {
+                    listener.EnableMeasurementEvents(instrument);
+                }
+            };
+            _listener.SetMeasurementEventCallback<long>((_, value, tags, _) =>
+                Measurements.Add(new FanOutMeasurement(value, tags.ToArray().ToDictionary(tag => tag.Key, tag => tag.Value))));
+            _listener.Start();
+        }
+
+        public List<FanOutMeasurement> Measurements { get; } = [];
+
+        public void Dispose() => _listener.Dispose();
+    }
+
+    private sealed record FanOutMeasurement(long Value, Dictionary<string, object?> Tags);
 
     internal sealed record FirstPayload(long OutboxMessageId) : IBackgroundJobPayload
     {

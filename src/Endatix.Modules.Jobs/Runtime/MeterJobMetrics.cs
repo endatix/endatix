@@ -4,7 +4,6 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 internal sealed class MeterJobMetrics : IJobMetrics
 {
-    private const string JobTypeTag = "endatix.job.type";
     private const string JobEventTag = "endatix.job.event";
     private const string JobOutcomeTag = "endatix.job.outcome";
 
@@ -36,10 +35,10 @@ internal sealed class MeterJobMetrics : IJobMetrics
     }
 
     public void Record(JobLifecycleEvent lifecycleEvent, string jobType) =>
-        _events.Add(1, new(JobTypeTag, jobType), new(JobEventTag, TagValue(lifecycleEvent)));
+        _events.Add(1, new(BackgroundJobsTelemetry.JobTypeTag, jobType), new(JobEventTag, TagValue(lifecycleEvent)));
 
     public void ObserveDuration(string jobType, TimeSpan duration, JobAttemptOutcome outcome) =>
-        _duration.Record(duration.TotalSeconds, new(JobTypeTag, jobType), new(JobOutcomeTag, TagValue(outcome)));
+        _duration.Record(duration.TotalSeconds, new(BackgroundJobsTelemetry.JobTypeTag, jobType), new(JobOutcomeTag, TagValue(outcome)));
 
     private static string TagValue(JobLifecycleEvent lifecycleEvent) => lifecycleEvent switch
     {

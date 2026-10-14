@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
@@ -21,13 +22,15 @@ public sealed class WebHookEventConfigReader(
 {
     /// <summary>
     /// The configuration of the event <paramref name="lookup"/> names, or <see langword="null"/> when neither the
-    /// form nor the tenant configures it.
+    /// form nor the tenant configures it. Throws for a lookup without a tenant: that is a bug upstream, and a quiet
+    /// "not configured" would drop the webhook with nothing pointing at the cause.
     /// </summary>
     public async Task<WebHookEventConfig?> GetEventConfigAsync(
         WebHookEventLookup lookup,
         CancellationToken cancellationToken)
     {
-        var config = await FormConfigAsync(lookup.FormId, cancellationToken)
+        Guard.Against.NegativeOrZero(lookup.TenantId);
+        var config = await FormConfigAsync(lookup.FormId, lookup.TenantId, cancellationToken)
             ?? await TenantConfigAsync(lookup.TenantId, cancellationToken);
 
         // Event names are snake case on the wire and Pascal case as configuration keys, e.g.
@@ -48,14 +51,21 @@ public sealed class WebHookEventConfigReader(
             lookup.TenantId,
             lookup.FormId);
 
-    private async Task<WebHookConfiguration?> FormConfigAsync(long? formId, CancellationToken cancellationToken)
+    // Scoped to the tenant explicitly: in a background job nothing else scopes this read, and a form of another
+    // tenant must not lend its endpoints to this one's event.
+    private async Task<WebHookConfiguration?> FormConfigAsync(
+        long? formId,
+        long tenantId,
+        CancellationToken cancellationToken)
     {
         if (formId is not { } id)
         {
             return null;
         }
 
-        var form = await formRepository.GetByIdAsync(id, cancellationToken);
+        var form = await formRepository.FirstOrDefaultAsync(
+            new FormSpecifications.ByIdForTenant(id, tenantId),
+            cancellationToken);
         return form is not null && !string.IsNullOrEmpty(form.WebHookSettingsJson) ? form.WebHookSettings : null;
     }
 

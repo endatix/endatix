@@ -3,11 +3,14 @@ using System.Diagnostics;
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
-/// The tracing source job execution is reported on.
+/// The tracing source job execution is reported on, and the tag names the module's spans and metrics share.
 /// </summary>
 internal static class BackgroundJobsTelemetry
 {
     public const string ActivitySourceName = JobsModule.ActivitySourceName;
+
+    /// <summary>The tag every job span and metric carries its job type in.</summary>
+    public const string JobTypeTag = "endatix.job.type";
 
     private const string ExecuteActivityName = "background_job.execute";
 
@@ -34,7 +37,7 @@ internal static class BackgroundJobsTelemetry
             tags:
             [
                 new("endatix.job.id", job.Id),
-                new("endatix.job.type", job.JobType),
+                new(JobTypeTag, job.JobType),
                 new("endatix.job.attempt", job.AttemptCount),
             ]);
     }
