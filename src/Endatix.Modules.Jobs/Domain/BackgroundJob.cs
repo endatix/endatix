@@ -89,11 +89,17 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     }
 
     // Refused here, naming the limit, rather than by the database as a truncation error that fails every other job
-    // in the same batch without saying which key was too long.
-    private static string? DedupKeyError(string? dedupKey) =>
-        dedupKey is { Length: > DedupKeyMaxLength }
-            ? $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}."
-            : null;
+    // in the same batch without saying which key was too long. A key with whitespace at either end is refused too:
+    // SQL Server ignores trailing spaces when it compares, so its unique index would hold "k1 " to be "k1" while the
+    // queue's lookup tells them apart, and the enqueue would fail on every retry instead of returning the job.
+    private static string? DedupKeyError(string? dedupKey) => dedupKey switch
+    {
+        { Length: > DedupKeyMaxLength } =>
+            $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
+        { } key when !string.IsNullOrWhiteSpace(key) && (char.IsWhiteSpace(key[0]) || char.IsWhiteSpace(key[^1])) =>
+            "A dedup key cannot start or end with whitespace.",
+        _ => null,
+    };
 
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>
     public string JobType { get; private set; } = null!;

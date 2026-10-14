@@ -77,6 +77,37 @@ public class BackgroundJobTests
         act.Should().Throw<ArgumentException>().WithParameterName("request");
     }
 
+    [Theory]
+    [InlineData("k1 ")]
+    [InlineData(" k1")]
+    [InlineData("k1\t")]
+    public void FromRequest_DedupKeyWithSurroundingWhitespace_Throws(string dedupKey)
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: dedupKey);
+
+        // Act
+        var act = () => BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("request")
+            .WithMessage("A dedup key cannot start or end with whitespace.*");
+    }
+
+    [Fact]
+    public void FromRequest_DedupKeyWithInnerWhitespace_KeepsTheKey()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: "form 7:export");
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.DedupKey.Should().Be("form 7:export");
+    }
+
     [Fact]
     public void FromRequest_BlankDedupKey_StoresNoKey()
     {
