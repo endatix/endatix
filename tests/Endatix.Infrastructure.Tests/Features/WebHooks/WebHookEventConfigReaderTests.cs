@@ -79,17 +79,17 @@ public sealed class WebHookEventConfigReaderTests
     }
 
     [Fact]
-    public async Task GetEventConfigAsync_NoTenant_ReturnsNullWithoutReadingSettings()
+    public async Task GetEventConfigAsync_NoTenant_ThrowsWithoutReadingSettings()
     {
         // Arrange
         SeedTenantSettings(TenantId);
         var reader = CreateReader();
 
         // Act
-        var config = await reader.GetEventConfigAsync(new WebHookEventLookup(0, EventName, FormId), CancellationToken.None);
+        var read = () => reader.GetEventConfigAsync(new WebHookEventLookup(0, EventName, FormId), CancellationToken.None);
 
-        // Assert
-        config.Should().BeNull();
+        // Assert — a missing tenant fails the delivery visibly instead of reading as "not configured".
+        await read.Should().ThrowAsync<ArgumentException>();
         _formRepository.ReceivedCalls().Should().BeEmpty();
         _tenantSettingsRepository.ReceivedCalls().Should().BeEmpty();
     }

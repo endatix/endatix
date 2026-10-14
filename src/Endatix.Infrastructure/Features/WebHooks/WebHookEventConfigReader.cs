@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
@@ -21,13 +22,16 @@ public sealed class WebHookEventConfigReader(
 {
     /// <summary>
     /// The configuration of the event <paramref name="lookup"/> names, or <see langword="null"/> when neither the
-    /// form nor the tenant configures it.
+    /// form nor the tenant configures it. Throws for a lookup without a tenant: that is a bug upstream, and a quiet
+    /// "not configured" would drop the webhook with nothing pointing at the cause.
     /// </summary>
     public async Task<WebHookEventConfig?> GetEventConfigAsync(
         WebHookEventLookup lookup,
         CancellationToken cancellationToken)
     {
-        var config = await ConfigAsync(lookup, cancellationToken);
+        Guard.Against.NegativeOrZero(lookup.TenantId);
+        var config = await FormConfigAsync(lookup.FormId, lookup.TenantId, cancellationToken)
+            ?? await TenantConfigAsync(lookup.TenantId, cancellationToken);
 
         // Event names are snake case on the wire and Pascal case as configuration keys, e.g.
         // "form_created" -> "FormCreated".
@@ -46,18 +50,6 @@ public sealed class WebHookEventConfigReader(
             lookup.EventName,
             lookup.TenantId,
             lookup.FormId);
-
-    private async Task<WebHookConfiguration?> ConfigAsync(WebHookEventLookup lookup, CancellationToken cancellationToken)
-    {
-        // Defensive: a lookup without a tenant reads no form and no tenant settings.
-        if (lookup.TenantId <= 0)
-        {
-            return null;
-        }
-
-        return await FormConfigAsync(lookup.FormId, lookup.TenantId, cancellationToken)
-            ?? await TenantConfigAsync(lookup.TenantId, cancellationToken);
-    }
 
     // Scoped to the tenant explicitly: in a background job nothing else scopes this read, and a form of another
     // tenant must not lend its endpoints to this one's event.
