@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Persistence;
@@ -23,9 +24,7 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     public async Task Tenant_admin_reads_a_job_in_their_own_tenant_and_not_one_in_another()
     {
         // Arrange — the module is PostgreSQL-only, so the flag is off on a SQL Server run.
-        Assert.SkipWhen(
-            fixture.Provider != TestDatabaseProvider.PostgreSql,
-            "Background jobs are PostgreSQL-only; the module is not registered on this provider.");
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
 
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
@@ -58,9 +57,7 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     public async Task Anonymous_callers_are_refused()
     {
         // Arrange
-        Assert.SkipWhen(
-            fixture.Provider != TestDatabaseProvider.PostgreSql,
-            "Background jobs are PostgreSQL-only; the module is not registered on this provider.");
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
 
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
@@ -81,9 +78,7 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     public async Task Job_status_response_carries_only_state_fields()
     {
         // Arrange
-        Assert.SkipWhen(
-            fixture.Provider != TestDatabaseProvider.PostgreSql,
-            "Background jobs are PostgreSQL-only; the module is not registered on this provider.");
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
 
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(

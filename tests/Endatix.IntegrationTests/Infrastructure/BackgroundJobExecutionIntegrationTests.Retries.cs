@@ -20,7 +20,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Job_enqueued_with_two_attempts_and_run_with_four_is_dead_lettered_at_attempt_four()
     {
         // Arrange — the node that enqueues allows two attempts; the node started afterwards to run the job, four.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -42,7 +42,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Job_whose_claim_fails_once_uses_all_its_attempts_then_is_dead_lettered()
     {
         // Arrange — the first claim throws, as it would while the database is away.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -71,7 +71,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Job_on_a_trigger_stored_with_a_retry_policy_is_retried_until_its_attempts_run_out()
     {
         // Arrange — the trigger carries a retry policy of one retry, as earlier versions stored it.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -94,7 +94,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Retry_of_a_job_on_a_trigger_stored_with_a_retry_policy_waits_on_a_trigger_without_one()
     {
         // Arrange — a backoff long enough that the retry is still waiting when the test looks.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var scheduleOnly = await StartScheduleOnlyNodeAsync(database, FastAttempts(3), ct);
@@ -121,7 +121,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     {
         // Arrange — the job's only trigger is one whose firings throw to the scheduler, with one retry, so the
         // scheduler gives up on it and deletes it while the row is still Pending.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -144,7 +144,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Job_whose_trigger_stores_fail_for_a_while_is_still_retried_and_completes()
     {
         // Arrange — the retry's trigger and the first three tries of the re-fire that replaces it cannot be stored.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -169,7 +169,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Job_whose_trigger_stores_fail_for_a_while_is_dead_lettered_at_its_last_attempt()
     {
         // Arrange — the handler always throws, and the first attempt's retry and re-fire cannot be stored for a while.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();

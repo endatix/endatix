@@ -19,14 +19,11 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class JobRetentionTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
-
     [Fact]
     public async Task RunAsync_ExpiredTerminalRows_DeletesOnlyThose()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -58,7 +55,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
     public async Task RunAsync_BatchLimits_StopsAfterMaxBatches()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct, new Dictionary<string, string?>
@@ -83,7 +80,7 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
     public async Task TerminalWrite_NullExpiresAt_SetsRetention()
     {
         // Arrange — a webhook delivery job, whose rows are kept three days.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = JobsTestNode.Create(

@@ -2,6 +2,7 @@ extern alias EndatixWebHost;
 
 using System.Net;
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -20,14 +21,12 @@ namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SeedPassword = "Password123!";
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
 
     [Fact]
     public async Task Quartz_dashboard_is_unmapped_by_default()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
@@ -44,7 +43,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
     public async Task Quartz_dashboard_refuses_non_platform_admins()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new DashboardHost(fixture, allowWrites: false);
         var world = await host.PrepareWorldAsync(
@@ -65,7 +64,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
     public async Task Quartz_dashboard_is_read_only_by_default()
     {
         // Arrange — a job of a type no host handles, so its trigger stays waiting for the whole test.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new DashboardHost(fixture, allowWrites: false);
         var world = await host.PrepareWorldAsync(
@@ -98,7 +97,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
     public async Task Quartz_dashboard_gets_the_blazor_framework_script_it_needs_to_be_interactive()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new DashboardHost(fixture, allowWrites: false);
         using var client = host.CreateClient();

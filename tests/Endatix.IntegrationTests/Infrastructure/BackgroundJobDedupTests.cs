@@ -15,16 +15,13 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
-
     private const string JobType = "T";
 
     [Fact]
     public async Task EnqueueAsync_SameDedupKey_ReturnsExistingJob()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -43,7 +40,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueAsync_NoDedupKey_CreatesIndependentJobs()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -61,7 +58,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueManyAsync_PartialCollision_ReturnsExistingAndNewIdsInOrder()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -84,7 +81,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueAsync_SameKeyOtherTenant_CreatesSecondJob()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -102,7 +99,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueAsync_ConcurrentSameKey_CreatesOneJob()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);

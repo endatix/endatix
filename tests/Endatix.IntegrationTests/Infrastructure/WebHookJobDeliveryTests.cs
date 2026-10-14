@@ -20,9 +20,6 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
-
     private const long MissingFormId = 424242;
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
@@ -30,7 +27,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
     public async Task Each_endpoint_gets_its_own_job()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
         await using var host = await StartHostAsync(ct);
@@ -56,7 +53,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
     public async Task Dead_endpoint_does_not_affect_healthy_ones()
     {
         // Arrange — endpoint B always answers 503; retries are one second apart to keep the test short.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
         await using var host = await StartHostAsync(ct, new Dictionary<string, string?>
@@ -93,7 +90,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
     public async Task Disabled_event_creates_no_webhook_jobs()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
         await using var host = await StartHostAsync(ct);
@@ -111,7 +108,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
     public async Task Form_config_overrides_tenant_config()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
         await using var host = await StartHostAsync(ct);

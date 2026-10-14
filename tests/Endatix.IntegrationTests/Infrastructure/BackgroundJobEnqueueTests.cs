@@ -16,14 +16,11 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
-
     [Fact]
     public async Task EnqueueManyAsync_Commits_RowsAndTriggersTogether()
     {
         // Arrange — a schedule-only node, so nothing fires the triggers before they are counted.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
@@ -51,11 +48,12 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    [Trait("DbSpecific", "PostgreSql")]
     public async Task EnqueueManyAsync_FailureWhileScheduling_LeavesNeitherRowsNorTriggers()
     {
         // Arrange — the database refuses the second trigger any one transaction inserts, which is a failure
         // after the rows are already written.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
@@ -95,7 +93,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     {
         // Arrange — the first enqueue stores the job type's durable job and the node remembers it; then it is deleted
         // behind the node's back, with the trigger that pointed at it.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
@@ -126,7 +124,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     public async Task Enqueued_job_executes_exactly_once()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var invocations = new ProbeInvocations();
