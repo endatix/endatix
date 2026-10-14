@@ -27,7 +27,7 @@ public sealed class WebHookEventConfigReader(
         WebHookEventLookup lookup,
         CancellationToken cancellationToken)
     {
-        var config = await FormConfigAsync(lookup.FormId, cancellationToken)
+        var config = await FormConfigAsync(lookup.FormId, lookup.TenantId, cancellationToken)
             ?? await TenantConfigAsync(lookup.TenantId, cancellationToken);
 
         // Event names are snake case on the wire and Pascal case as configuration keys, e.g.
@@ -48,14 +48,21 @@ public sealed class WebHookEventConfigReader(
             lookup.TenantId,
             lookup.FormId);
 
-    private async Task<WebHookConfiguration?> FormConfigAsync(long? formId, CancellationToken cancellationToken)
+    // Scoped to the tenant explicitly: in a background job nothing else scopes this read, and a form of another
+    // tenant must not lend its endpoints to this one's event.
+    private async Task<WebHookConfiguration?> FormConfigAsync(
+        long? formId,
+        long tenantId,
+        CancellationToken cancellationToken)
     {
         if (formId is not { } id)
         {
             return null;
         }
 
-        var form = await formRepository.GetByIdAsync(id, cancellationToken);
+        var form = await formRepository.FirstOrDefaultAsync(
+            new FormSpecifications.ByIdForTenant(id, tenantId),
+            cancellationToken);
         return form is not null && !string.IsNullOrEmpty(form.WebHookSettingsJson) ? form.WebHookSettings : null;
     }
 
