@@ -7,9 +7,9 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Modules.Jobs.Domain;
 
 /// <summary>
-/// One durable unit of background work. The row <em>is</em> the queue entry and the single source of
-/// truth for the job's state — there is no second system holding a competing status, attempt count,
-/// or lease to reconcile against.
+/// One durable unit of background work. The row is the job's record and the single source of truth
+/// for its state: status, progress, attempt count and outcome. Quartz is the queue; its trigger says
+/// when and where the job runs next, never what state the job is in.
 /// </summary>
 /// <remarks>
 /// <para>

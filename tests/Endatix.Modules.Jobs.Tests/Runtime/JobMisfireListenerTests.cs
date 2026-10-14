@@ -26,7 +26,7 @@ public sealed class JobMisfireListenerTests : IDisposable
             }
         };
         _listener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
-            _misfiredJobTypes.Add(tags.ToArray().Single(tag => tag.Key == "job_type").Value as string));
+            _misfiredJobTypes.Add(tags.ToArray().Single(tag => tag.Key == "endatix.job.type").Value as string));
         _listener.Start();
     }
 

@@ -36,7 +36,7 @@ internal sealed class JobMisfireCounter : IDisposable
     {
         foreach (var tag in tags)
         {
-            if (tag.Key == "job_type")
+            if (tag.Key == "endatix.job.type")
             {
                 return tag.Value as string;
             }

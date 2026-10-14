@@ -185,7 +185,7 @@ node ever fires a job type it has no handler for, the wrapper declines it withou
 and offers the trigger again 30 seconds later.
 
 **Backlog warning.** A job that waited past `MisfireThresholdSeconds` for a slot increments
-`endatix.jobs.misfired` (tag `job_type`), and again at every threshold while it waits. The warning
+`endatix.jobs.misfired` (tag `endatix.job.type`), and again at every threshold while it waits. The warning
 `Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of
 this type misfired since the last warning.` is logged at most once per job type per threshold. A job type no running node can handle shows up here:
 deploy the module that handles it.
@@ -329,6 +329,7 @@ pipeline to it.
 | `endatix.jobs.events` | counter | `{event}` | `endatix.job.type`, `endatix.job.event` |
 | `endatix.jobs.duration` | histogram | `s` | `endatix.job.type`, `endatix.job.outcome` |
 | `endatix.jobs.retries_exhausted_mismatch` | counter | `{job}` | `endatix.job.type` |
+| `endatix.jobs.misfired` | counter | `{trigger}` | `endatix.job.type` |
 
 ## Configuration
 

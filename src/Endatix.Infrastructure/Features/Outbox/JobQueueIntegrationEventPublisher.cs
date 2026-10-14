@@ -61,7 +61,9 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
         var queue = _services.GetRequiredService<IBackgroundJobQueue>();
         await queue.EnqueueManyAsync(requests, cancellationToken);
 
-        _fannedOutJobs.Add(requests.Count, new KeyValuePair<string, object?>("event_type", message.EventType));
+        _fannedOutJobs.Add(
+            requests.Count,
+            new KeyValuePair<string, object?>("endatix.outbox.event_type", message.EventType));
     }
 
     // The jobs capture the current trace at enqueue, so running under the message's trace carries the originating

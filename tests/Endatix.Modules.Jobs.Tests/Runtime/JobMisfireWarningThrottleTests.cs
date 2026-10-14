@@ -33,7 +33,7 @@ public sealed class JobMisfireWarningThrottleTests : IDisposable
             }
         };
         _meterListener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
-            _counted.Add(tags.ToArray().Single(tag => tag.Key == "job_type").Value as string));
+            _counted.Add(tags.ToArray().Single(tag => tag.Key == "endatix.job.type").Value as string));
         _meterListener.Start();
         _clock.UtcNow.Returns(Start);
     }
