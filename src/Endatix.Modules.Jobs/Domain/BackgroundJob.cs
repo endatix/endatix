@@ -9,7 +9,7 @@ namespace Endatix.Modules.Jobs.Domain;
 /// <summary>
 /// One durable unit of background work. The row is the job's record and the single source of truth
 /// for its state: status, progress, attempt count and outcome. Quartz is the queue; its trigger says
-/// when and where the job runs next, never what state the job is in.
+/// when the job runs next, never what state the job is in.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,10 +26,6 @@ namespace Endatix.Modules.Jobs.Domain;
 /// them with <c>ExecuteUpdateAsync</c>, because a tracked entity write could not be fenced on the
 /// claimed attempt and would drag <see cref="BaseEntity.ModifiedAt"/> along with it. Both paths must
 /// agree on the rules, which is why the rules live here.
-/// </para>
-/// <para>
-/// The row is the job's record, not its schedule: the scheduler decides when a job runs, and this row
-/// says what state it is in.
 /// </para>
 /// </remarks>
 public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned

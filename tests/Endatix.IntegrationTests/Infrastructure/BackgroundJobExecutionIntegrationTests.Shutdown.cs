@@ -15,7 +15,8 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     [Fact]
     public async Task Stopping_node_whose_wait_for_running_jobs_runs_out_tells_their_handlers_to_stop()
     {
-        // Arrange — the handler waits on its token, which only the shutdown signal cancels, so the wait runs out.
+        // Arrange — pins the scheduler's own behaviour, which the signal relies on: a wait that runs out does not
+        // throw. The handler waits on its token, which only the shutdown signal cancels, so the wait runs out.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
