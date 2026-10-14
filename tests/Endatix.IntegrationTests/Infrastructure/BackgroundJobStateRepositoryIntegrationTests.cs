@@ -11,14 +11,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The job state repository against PostgreSQL: its writes are conditional <c>ExecuteUpdate</c>
+/// The job state repository against a real database: its writes are conditional <c>ExecuteUpdate</c>
 /// statements, which only a real database runs. This part covers claiming a job; the writes that end an attempt
 /// are in <c>BackgroundJobStateRepositoryIntegrationTests.OutcomeWrites.cs</c>.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed partial class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string KnownJobType = "Known";
@@ -50,7 +49,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryClaimAsync_EligibleJob_ClaimsAndConsumesAttempt()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -76,7 +74,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryClaimAsync_AlreadyClaimed_ReturnsNull()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -98,7 +95,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryClaimAsync_RetryingBeforeItsNextAttempt_Claims()
     {
         // Arrange — the scheduler decides when a retry fires, so the claim no longer second-guesses the time.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -123,7 +119,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryClaimAsync_Canceled_ReturnsNull()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -145,7 +140,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryClaimAsync_RecoveringProcessingRow_ReclaimsFencedOnSeenAttempt()
     {
         // Arrange — a run died while Processing; its recovery takes a new attempt.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -174,7 +168,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryDeadLetterSpentAsync_ProcessingRowOnLastAttempt_DeadLettersWithoutNewAttempt()
     {
         // Arrange — the run that died was the job's last attempt.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -201,7 +194,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryDeadLetterSpentAsync_ProcessingRowWithAttemptsLeft_ChangesNothing()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -226,7 +218,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryClaimAsync_UnregisteredJobType_ReturnsNull()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -250,7 +241,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryClaimAsync_Retry_KeepsStartedAt()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -280,7 +270,6 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     public async Task TryClaimAsync_ConcurrentClaims_OneWins()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var seedScope = fixture.Factory.Services.CreateScope();
         var seedContext = JobsContext(seedScope);
@@ -309,7 +298,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
     [Trait("DbSpecific", "PostgreSql")]
     public async Task TryClaimAsync_AttemptCountChangedSinceRead_ReturnsNull()
     {
-        // Arrange
+        // Arrange — PostgreSQL-only: FOR UPDATE, pg_backend_pid() and pg_stat_activity hold the row and watch the claim wait.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();

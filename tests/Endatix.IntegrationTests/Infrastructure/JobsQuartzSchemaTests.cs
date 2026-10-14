@@ -10,13 +10,12 @@ using Quartz;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The scheduler's tables and roles against PostgreSQL. Each test runs its nodes on a database of its own, so
-/// only the migrations those nodes apply shape it.
+/// The scheduler's tables and roles. Each test runs its nodes on a database of its own, so only the migrations those
+/// nodes apply shape it.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
 {
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(60);
@@ -25,7 +24,8 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
     [Trait("DbSpecific", "PostgreSql")]
     public async Task JobsMigrations_FreshDatabase_CreatesQuartzTablesOnlyInJobsSchema()
     {
-        // Arrange — the PostgreSQL migration chain and the lower-case table names it creates.
+        // Arrange — PostgreSQL-only: information_schema holds the lower-case names its chain creates; SQL Server's
+        // chain is checked in JobsSqlServerStoreTests.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
@@ -62,35 +62,28 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    [Trait("DbSpecific", "PostgreSql")]
     public async Task JobsMigrations_FreshDatabase_IndexesTriggersByAcquisitionGroup()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(database);
+        var (keyColumnsSql, expectedKeyColumns) = AcquisitionIndexKeyColumns(database.Provider);
 
         // Act
         await node.StartAsync(cancellationToken);
 
-        // Assert — the index leads with the expression trigger acquisition filters on.
-        var definitions = await database.QueryAsync(
-            """
-            SELECT indexdef FROM pg_indexes
-            WHERE schemaname = 'jobs' AND tablename = 'qrtz_triggers' AND indexname = 'idx_endatix_qrtz_t_acquire'
-            """,
-            reader => reader.GetString(0),
-            cancellationToken);
-        definitions.Should().ContainSingle()
-            .Which.Should().Contain("sched_name, trigger_state, ((COALESCE(execution_group, (job_name)::character varying))::text), next_fire_time, priority DESC");
+        // Assert — the index leads with the group trigger acquisition filters on.
+        var keyColumns = await database.QueryAsync(keyColumnsSql, reader => reader.GetString(0), cancellationToken);
+        keyColumns.Should().ContainSingle().Which.Should().Contain(expectedKeyColumns);
     }
 
     [Fact]
     [Trait("DbSpecific", "PostgreSql")]
     public async Task QuartzValidation_MissingTables_FailsStartup()
     {
-        // Arrange
+        // Arrange — PostgreSQL-only: DROP TABLE … CASCADE and the lower-case table name; SQL Server's twin is in
+        // JobsSqlServerStoreTests.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
@@ -118,7 +111,6 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
     public async Task Schedule_only_host_enqueues_but_never_executes()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var invocations = new ProbeInvocations();
@@ -151,6 +143,29 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         triggersWhileOnlyScheduling.Should().Be(3);
         completed.Should().BeTrue("the executing node runs every job the schedule-only node enqueued");
     }
+
+    // PostgreSQL indexes the group expression itself; SQL Server indexes the column computed from it.
+    private static (string Sql, string Expected) AcquisitionIndexKeyColumns(TestDatabaseProvider provider) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => (
+            """
+            SELECT indexdef FROM pg_indexes
+            WHERE schemaname = 'jobs' AND tablename = 'qrtz_triggers' AND indexname = 'idx_endatix_qrtz_t_acquire'
+            """,
+            "sched_name, trigger_state, ((COALESCE(execution_group, (job_name)::character varying))::text), next_fire_time, priority DESC"),
+        TestDatabaseProvider.SqlServer => (
+            """
+            SELECT STRING_AGG(c.name + IIF(ic.is_descending_key = 1, ' DESC', ''), ', ') WITHIN GROUP (ORDER BY ic.key_ordinal)
+            FROM sys.indexes i
+            JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+            JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+            WHERE i.object_id = OBJECT_ID('jobs.qrtz_TRIGGERS') AND i.name = 'idx_endatix_qrtz_t_acquire'
+              AND ic.is_included_column = 0
+            GROUP BY i.name
+            """,
+            "SCHED_NAME, TRIGGER_STATE, ENDATIX_ACQUIRE_GROUP, NEXT_FIRE_TIME, PRIORITY DESC"),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
+    };
 
     private static Task<List<string>> AppliedJobsMigrationsAsync(
         JobsTestDatabase database,

@@ -1,0 +1,112 @@
+using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.IntegrationTests.Infrastructure.Jobs;
+using Endatix.IntegrationTests.Shared;
+
+namespace Endatix.IntegrationTests;
+
+/// <summary>
+/// A SQL Server node that enqueues without the trigger lock needs the database to read committed snapshots; one that
+/// takes the lock, as SQL Server nodes do by default, needs nothing. Each test runs on a database of its own, whose
+/// snapshot setting it chooses.
+/// </summary>
+[Collection(nameof(DbIntegrationTestCollection))]
+[Trait("Category", "Infrastructure")]
+[Trait("Priority", "P1")]
+[Trait("DbSpecific", "SqlServer")]
+public sealed class JobsReadCommittedSnapshotTests(DbIntegrationFixture fixture)
+{
+    private const string SkipReason = "Asserts SQL Server's READ_COMMITTED_SNAPSHOT database option.";
+
+    private static readonly Dictionary<string, string?> LockFree =
+        new() { ["Endatix:BackgroundJobs:LockOnInsert"] = "false" };
+
+    private static readonly TimeSpan RunTimeout = TimeSpan.FromSeconds(30);
+
+    [Fact]
+    public async Task Node_refuses_lock_free_enqueue_without_read_committed_snapshot()
+    {
+        // Arrange — a job waits in the store, enqueued by a node that takes the lock, as the default does.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        var waitingJobId = await EnqueueFromALockingNodeAsync(database, ct);
+        var invocations = new ProbeInvocations();
+        await using var node = JobsTestNode.Create(database, LockFree, services => services.AddProbe(invocations));
+
+        // Act
+        var start = () => node.StartAsync(ct);
+
+        // Assert — refused before its scheduler was built, so it never acquires the waiting job.
+        (await start.Should().ThrowAsync<InvalidOperationException>())
+            .Which.Message.Should().Contain("Endatix:BackgroundJobs:LockOnInsert").And.Contain("READ_COMMITTED_SNAPSHOT");
+        await Task.Delay(TimeSpan.FromSeconds(3), ct);
+        invocations.CountFor(waitingJobId).Should().Be(0);
+        (await TriggerStateAsync(database, waitingJobId, ct)).Should().Be("WAITING");
+    }
+
+    [Fact]
+    public async Task Node_starts_lock_free_with_read_committed_snapshot()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await database.ExecuteAsync(
+            "ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE", ct);
+
+        // Act
+        var ran = await StartAndRunAJobAsync(database, LockFree, ct);
+
+        // Assert
+        ran.Should().BeTrue("a node that may enqueue lock-free runs jobs once the database reads committed snapshots");
+    }
+
+    [Fact]
+    public async Task Node_starts_with_default_lock_on_insert_without_read_committed_snapshot()
+    {
+        // Arrange
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+
+        // Act
+        var ran = await StartAndRunAJobAsync(database, settings: null, ct);
+
+        // Assert
+        ran.Should().BeTrue("a node that takes the trigger lock on insert needs no snapshot reads");
+    }
+
+    // Whether a node started with these settings runs a job it enqueues.
+    private static async Task<bool> StartAndRunAJobAsync(
+        JobsTestDatabase database,
+        Dictionary<string, string?>? settings,
+        CancellationToken ct)
+    {
+        var invocations = new ProbeInvocations();
+        await using var node = JobsTestNode.Create(database, settings, services => services.AddProbe(invocations));
+        await node.StartAsync(ct);
+        var jobId = await node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), ct);
+        return await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), RunTimeout, ct);
+    }
+
+    // A schedule-only node, stopped once it has enqueued, so the job's trigger is left waiting.
+    private static async Task<long> EnqueueFromALockingNodeAsync(JobsTestDatabase database, CancellationToken ct)
+    {
+        await using var node = JobsTestNode.Create(
+            database,
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
+        await node.StartAsync(ct);
+        var jobId = await node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), ct);
+        await node.StopAsync(ct);
+        return jobId;
+    }
+
+    private static async Task<string> TriggerStateAsync(JobsTestDatabase database, long jobId, CancellationToken ct)
+    {
+        var states = await database.QueryAsync(
+            $"SELECT TRIGGER_STATE FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_NAME = '{jobId}'",
+            reader => reader.GetString(0),
+            ct);
+        return states.Single();
+    }
+}

@@ -14,7 +14,6 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
 {
     private const string Export = "SubmissionExport";
@@ -24,7 +23,6 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
     public async Task Webhook_jobs_keep_their_slots_while_an_export_runs()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runs = new NamedProbeRuns();
@@ -66,7 +64,6 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
     {
         // Arrange — a backlog of both job types, the exports oldest, waits before the worker starts, so a batch the
         // size of the worker's pool could be filled with exports alone.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var scheduleOnly = JobsTestNode.Create(
@@ -101,7 +98,6 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
     public async Task Recovered_jobs_of_a_crashed_node_run_within_the_survivors_cap()
     {
         // Arrange — the crashed node runs three webhooks at once; the survivor's cap is one.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runsOnA = new NamedProbeRuns();
@@ -135,7 +131,6 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
     public async Task Host_without_handler_never_claims_its_jobs()
     {
         // Arrange — host A runs TypeR; host B runs something else, on the same store.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runsOnA = new NamedProbeRuns();
@@ -174,7 +169,6 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
     public async Task Misfired_trigger_logs_backlog_warning()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         using var misfires = JobMisfireCounter.Start();
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
