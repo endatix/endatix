@@ -27,8 +27,7 @@ public sealed class WebHookEventConfigReader(
         WebHookEventLookup lookup,
         CancellationToken cancellationToken)
     {
-        var config = await FormConfigAsync(lookup.FormId, lookup.TenantId, cancellationToken)
-            ?? await TenantConfigAsync(lookup.TenantId, cancellationToken);
+        var config = await ConfigAsync(lookup, cancellationToken);
 
         // Event names are snake case on the wire and Pascal case as configuration keys, e.g.
         // "form_created" -> "FormCreated".
@@ -47,6 +46,18 @@ public sealed class WebHookEventConfigReader(
             lookup.EventName,
             lookup.TenantId,
             lookup.FormId);
+
+    private async Task<WebHookConfiguration?> ConfigAsync(WebHookEventLookup lookup, CancellationToken cancellationToken)
+    {
+        // Defensive: a lookup without a tenant reads no form and no tenant settings.
+        if (lookup.TenantId <= 0)
+        {
+            return null;
+        }
+
+        return await FormConfigAsync(lookup.FormId, lookup.TenantId, cancellationToken)
+            ?? await TenantConfigAsync(lookup.TenantId, cancellationToken);
+    }
 
     // Scoped to the tenant explicitly: in a background job nothing else scopes this read, and a form of another
     // tenant must not lend its endpoints to this one's event.

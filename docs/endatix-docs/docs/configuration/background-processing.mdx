@@ -223,6 +223,16 @@ SELECT "Status", COUNT(*) FROM "OutboxMessages" GROUP BY "Status";
 
 The relay also emits structured logs (message id, event type, attempt, next retry time) - look for the `OutboxRelayBackgroundService` log source. So if a webhook did not arrive, one query tells you whether the event was never captured (no row), is still retrying (Pending with growing `Attempts`), or was dead-lettered (Failed) - which separates a relay problem from a receiving-endpoint problem.
 
+### Metrics
+
+With `DeliverToJobQueue` on, the relay's fan-out reports on the `Endatix.Outbox` meter, which the host's OpenTelemetry metrics pipeline subscribes to:
+
+| Instrument | Type | Unit | Tags |
+|------------|------|------|------|
+| `endatix.outbox.fanout.jobs` | counter | `{job}` | `endatix.outbox.event_type` |
+
+Each publish of a message adds the number of jobs it asked the queue for. A message published again, for example after the relay stopped before marking it **Sent**, is counted again, although its dedup keys keep the jobs unique. The jobs report on the `Endatix.Jobs` meter (`endatix.jobs.*`, tagged `endatix.job.type`).
+
 ### Failure Handling
 
 When webhook delivery fails, expect:

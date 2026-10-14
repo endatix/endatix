@@ -21,10 +21,7 @@ internal abstract class ReportingOutboxJobHandler<TPayload>(IRepository<OutboxMe
     : BackgroundJobHandler<TPayload>(logger)
     where TPayload : IReportingOutboxJobPayload
 {
-    // The job reads the outbox row on every attempt, so any outbox retention must skip messages whose jobs have not
-    // finished, or keep a message longer than any job reading it can live: the job type's MaxAttempts × MaxRuntime,
-    // its backoff total, and however long it waits to run. Otherwise a retrying job fails with this and the event is
-    // lost.
+    // Each attempt re-reads the outbox row, so outbox retention must allow for it: see background-processing.mdx.
     public const string MessageGone = "The outbox message no longer exists.";
     public const string MessageUnreadable = "The outbox message could not be read.";
     public const string OtherTenant = "The outbox message belongs to another tenant.";

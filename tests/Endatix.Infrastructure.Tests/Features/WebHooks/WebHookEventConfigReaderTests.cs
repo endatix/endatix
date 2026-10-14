@@ -78,6 +78,22 @@ public sealed class WebHookEventConfigReaderTests
         config.Should().BeNull();
     }
 
+    [Fact]
+    public async Task GetEventConfigAsync_NoTenant_ReturnsNullWithoutReadingSettings()
+    {
+        // Arrange
+        SeedTenantSettings(TenantId);
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(new WebHookEventLookup(0, EventName, FormId), CancellationToken.None);
+
+        // Assert
+        config.Should().BeNull();
+        _formRepository.ReceivedCalls().Should().BeEmpty();
+        _tenantSettingsRepository.ReceivedCalls().Should().BeEmpty();
+    }
+
     private static WebHookEventLookup Lookup() => new(TenantId, EventName, FormId);
 
     private WebHookEventConfigReader CreateReader() =>

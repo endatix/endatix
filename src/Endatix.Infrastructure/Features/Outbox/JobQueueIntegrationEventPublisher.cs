@@ -63,7 +63,7 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
 
         _fannedOutJobs.Add(
             requests.Count,
-            new KeyValuePair<string, object?>("endatix.outbox.event_type", message.EventType));
+            new KeyValuePair<string, object?>(OutboxTelemetry.EventTypeTag, message.EventType));
     }
 
     // The jobs capture the current trace at enqueue, so running under the message's trace carries the originating
@@ -73,7 +73,7 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
             "outbox.fan_out",
             ActivityKind.Consumer,
             ParentOf(message),
-            tags: [new("endatix.outbox.message_id", message.Id), new("endatix.outbox.event_type", message.EventType)]);
+            tags: [new("endatix.outbox.message_id", message.Id), new(OutboxTelemetry.EventTypeTag, message.EventType)]);
 
     private async Task<List<BackgroundJobRequest>> RequestsForAsync(
         IOutboxMessage message,

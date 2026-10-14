@@ -50,7 +50,7 @@ internal sealed class JobMisfireListener : ITriggerListener
         }
 
         var jobType = trigger.JobKey.Name;
-        _misfired.Add(1, new KeyValuePair<string, object?>("endatix.job.type", jobType));
+        _misfired.Add(1, new KeyValuePair<string, object?>(BackgroundJobsTelemetry.JobTypeTag, jobType));
         WarnOncePerThreshold(trigger, jobType);
         return default;
     }

@@ -37,10 +37,7 @@ internal sealed class WebHookDeliveryJobHandler(
     /// <summary>The HTTP client webhook jobs send with: the webhook client's settings, without its retries.</summary>
     public const string HttpClientName = "webhook-job-delivery";
 
-    // The job reads the outbox row on every attempt, so any outbox retention must skip messages whose jobs have not
-    // finished, or keep a message longer than any job reading it can live: the job type's MaxAttempts × MaxRuntime,
-    // its backoff total, and however long it waits to run. Otherwise a retrying job fails with this and the event is
-    // lost.
+    // Each attempt re-reads the outbox row, so outbox retention must allow for it: see background-processing.mdx.
     public const string MessageGone = "The outbox message no longer exists.";
     public const string EndpointGone = "The webhook endpoint is no longer configured.";
     public const string EventDisabled = "Webhook delivery for this event is disabled.";

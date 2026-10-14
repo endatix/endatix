@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 
@@ -77,13 +78,15 @@ public static class FormSpecifications
     }
 
     /// <summary>
-    /// One form as NoTracking, only when it belongs to <paramref name="tenantId"/>. Background work reads by the
-    /// tenant it runs for, because outside a request nothing else scopes the read.
+    /// One form as NoTracking, only when it belongs to the given tenant. Background work reads by the tenant it
+    /// runs for, because outside a request nothing else scopes the read.
     /// </summary>
     public sealed class ByIdForTenant : Specification<Form>, ISingleResultSpecification<Form>
     {
         public ByIdForTenant(long id, long tenantId)
         {
+            Guard.Against.NegativeOrZero(tenantId);
+
             Query
                 .Where(f => f.Id == id && f.TenantId == tenantId)
                 .AsNoTracking();

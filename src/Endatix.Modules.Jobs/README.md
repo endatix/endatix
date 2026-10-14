@@ -331,6 +331,9 @@ pipeline to it.
 | `endatix.jobs.retries_exhausted_mismatch` | counter | `{job}` | `endatix.job.type` |
 | `endatix.jobs.misfired` | counter | `{trigger}` | `endatix.job.type` |
 
+The outbox relay's fan-out into jobs reports on a meter of its own, `Endatix.Outbox`; its instrument is listed
+in the Background Processing docs (`docs/endatix-docs/docs/configuration/background-processing.mdx`, Metrics).
+
 ## Configuration
 
 Under `Endatix:BackgroundJobs`, with per-job-type settings under `JobTypes:{JobType}`.
