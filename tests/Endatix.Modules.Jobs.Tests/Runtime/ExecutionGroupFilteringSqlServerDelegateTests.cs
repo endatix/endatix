@@ -92,7 +92,7 @@ public sealed class ExecutionGroupFilteringSqlServerDelegateTests
             Quartz422AcquisitionSql.SqlServer(11, ""), 11);
 
         // Assert
-        InitialBackgroundJobs.AddAcquireGroupColumn.Should().Contain($"COALESCE(EXECUTION_GROUP, JOB_NAME) {collation}");
+        PinTriggerAcquisitionGroupCollation.AddAcquireGroupColumn.Should().Contain($"COALESCE(EXECUTION_GROUP, JOB_NAME) {collation}");
         rewritten.Should().Contain($"endatix_group nvarchar(200) {collation} '$.g'");
     }
 

@@ -105,7 +105,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
             ("IX_BackgroundJobs_DedupKey", true, "([DedupKey] IS NOT NULL)"),
             ("IX_BackgroundJobs_Expiry", false, null),
             ("IX_BackgroundJobs_Tenant", false, null));
-        appliedMigrations.Should().Be(1);
+        appliedMigrations.Should().Be(2);
         await ShouldHaveTheAcquisitionColumnAndIndexAsync(database, ct);
     }
 
@@ -441,10 +441,10 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
     {
         var columns = await database.QueryAsync(
             """
-            SELECT is_persisted, definition FROM sys.computed_columns
+            SELECT is_persisted, definition, collation_name FROM sys.computed_columns
             WHERE object_id = OBJECT_ID('jobs.qrtz_TRIGGERS') AND name = 'ENDATIX_ACQUIRE_GROUP'
             """,
-            reader => (IsPersisted: reader.GetBoolean(0), Definition: reader.GetString(1)),
+            reader => (IsPersisted: reader.GetBoolean(0), Definition: reader.GetString(1), Collation: reader.GetString(2)),
             ct);
         var indexColumns = await database.QueryAsync(
             """
@@ -460,6 +460,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
 
         columns.Should().ContainSingle().Which.IsPersisted.Should().BeTrue();
         columns[0].Definition.Should().ContainEquivalentOf("coalesce([EXECUTION_GROUP],[JOB_NAME])");
+        columns[0].Collation.Should().Be(ExecutionGroupFilteringSqlServerDelegate.AcquireGroupCollation);
         indexColumns.Where(column => !column.Included).Should().Equal(
             ("SCHED_NAME", false, false),
             ("TRIGGER_STATE", false, false),

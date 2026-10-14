@@ -1,6 +1,7 @@
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Persistence.Migrations.SqlServer;
+using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Data.SqlClient;
 
 namespace Endatix.IntegrationTests;
@@ -10,6 +11,9 @@ public sealed partial class JobsSqlServerStoreTests
 {
     // Differs from the default the test servers create databases with, which the scheduler's tables keep.
     private const string ChangedCollation = "Latin1_General_100_CS_AS";
+
+    // The SQL Server chain as released before the acquisition collation was pinned.
+    private const string InitialMigrationId = "20261009151311_InitialBackgroundJobs";
 
     [Fact]
     public async Task SelectTriggersToAcquire_DatabaseCollationChangedAfterMigrating_ReturnsOtherGroupsTriggerWithFlatReads()
@@ -35,6 +39,41 @@ public sealed partial class JobsSqlServerStoreTests
         ShouldReturnOnlyAndReadFlat(acquisitions, behind.Key);
     }
 
+    [Fact]
+    public async Task SelectTriggersToAcquire_DatabaseOnTheInitialMigration_PinsTheGroupCollationOnUpgradeAndAcquires()
+    {
+        // Arrange — a database left where the initial migration alone leaves it, with the head-of-line triggers
+        // already stored, as a node of the earlier version would have it.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        var behind = await store.SeedHeadOfLineAsync(ct);
+        await store.MigrateToAsync(InitialMigrationId, ct);
+        var collationBefore = await AcquireGroupCollationAsync(store.Database, ct);
+
+        // Act
+        await store.MigrateToAsync(targetMigration: null, ct);
+        var acquired = await store.SelectTriggersToAcquireAsync(2, limits => limits.ForGroup("A", 0).ForGroup("B", 1), ct);
+
+        // Assert
+        collationBefore.Should().NotBe(ExecutionGroupFilteringSqlServerDelegate.AcquireGroupCollation);
+        (await AcquireGroupCollationAsync(store.Database, ct))
+            .Should().Be(ExecutionGroupFilteringSqlServerDelegate.AcquireGroupCollation);
+        acquired.Should().Equal(behind);
+    }
+
+    private static async Task<string> AcquireGroupCollationAsync(JobsTestDatabase database, CancellationToken ct)
+    {
+        var collations = await database.QueryAsync(
+            """
+            SELECT collation_name FROM sys.computed_columns
+            WHERE object_id = OBJECT_ID('jobs.qrtz_TRIGGERS') AND name = 'ENDATIX_ACQUIRE_GROUP'
+            """,
+            reader => reader.GetString(0),
+            ct);
+        return collations.Single();
+    }
+
     // SQL Server refuses to change a database's collation while any schema-bound object depends on it: here the job
     // table's check constraint and filtered dedup index, and the acquisition column with its index. The job table's
     // two are dropped for good, since acquisition never reads them and the database is the test's own; the
@@ -48,7 +87,7 @@ public sealed partial class JobsSqlServerStoreTests
             DROP INDEX IX_BackgroundJobs_DedupKey ON jobs.BackgroundJobs;
             """,
             ct);
-        await database.ExecuteAsync(InitialBackgroundJobs.DropAcquireIndexAndColumn, ct);
+        await database.ExecuteAsync(PinTriggerAcquisitionGroupCollation.DropAcquireIndexAndColumn, ct);
         await database.ExecuteAsync(
             $"""
             ALTER DATABASE CURRENT SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
@@ -57,8 +96,8 @@ public sealed partial class JobsSqlServerStoreTests
             """,
             ct);
         SqlConnection.ClearAllPools();
-        await database.ExecuteAsync(InitialBackgroundJobs.AddAcquireGroupColumn, ct);
-        await database.ExecuteAsync(InitialBackgroundJobs.CreateAcquireIndex, ct);
+        await database.ExecuteAsync(PinTriggerAcquisitionGroupCollation.AddAcquireGroupColumn, ct);
+        await database.ExecuteAsync(PinTriggerAcquisitionGroupCollation.CreateAcquireIndex, ct);
     }
 
     // The database's default collation, and that of a column the acquisition column is computed from.
