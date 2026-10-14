@@ -22,7 +22,7 @@ public abstract class SubmissionExporterBase(
     protected readonly ILogger _logger = logger;
     private readonly List<IValueTransformer> _globalTransformers = globalTransformers?.ToList() ?? [];
 
-    // The second argument is what a missing value is written as: see MissingSystemValue.
+    // The second argument is what a missing value is written as: see MissingValue.
     private static readonly Dictionary<string, Func<SubmissionExportRow, string, object?>> _staticColumnAccessors = new()
     {
         [SubmissionExportRow.SystemColumns.FormId] = (row, _) => row.FormId,
@@ -105,19 +105,23 @@ public abstract class SubmissionExporterBase(
     /// Booleans render as codebook category ids (<c>1</c>/<c>0</c>) for Shoji and for reporting
     /// runs that ask for it; every other format renders them as <c>true</c>/<c>false</c>.
     /// </summary>
-    protected bool UsesCategoryIdBooleans(ExportOptions? options) =>
+    protected bool UsesCategoryIdBooleans(ExportOptions? options) => IsCrunchShaped(options);
+
+    /// <summary>
+    /// What a missing or unreadable value is written as. Crunch rejects any text in a numeric or datetime column,
+    /// so a Crunch-shaped export leaves the cell empty; every other export writes <c>N/A</c>.
+    /// </summary>
+    protected string MissingValue(ExportOptions? options) =>
+        IsCrunchShaped(options) ? string.Empty : NOT_AVAILABLE_VALUE;
+
+    // Crunch-shaped: the csv-shoji format, or a reporting run whose settings target Crunch (they ask for category-id
+    // booleans exactly then).
+    private bool IsCrunchShaped(ExportOptions? options) =>
         string.Equals(Format, "csv-shoji", StringComparison.OrdinalIgnoreCase) ||
         (options?.Metadata is not null &&
          options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settings) &&
          settings is SubmissionExportExecutionSettings executionSettings &&
          executionSettings.EncodeBooleansAsCategoryIds);
-
-    /// <summary>
-    /// What a missing system value is written as. Crunch rejects any text in a numeric or datetime column, so a
-    /// Crunch-shaped export leaves the cell empty; every other export writes <c>N/A</c>.
-    /// </summary>
-    protected string MissingSystemValue(ExportOptions? options) =>
-        UsesCategoryIdBooleans(options) ? string.Empty : NOT_AVAILABLE_VALUE;
 
     /// <summary>
     /// Yields (row, answers doc, columns) for streaming export.
@@ -196,7 +200,7 @@ public abstract class SubmissionExporterBase(
             throw new InvalidOperationException($"Unsupported system export column '{exportKey}'.");
         }
 
-        var missing = MissingSystemValue(options);
+        var missing = MissingValue(options);
         return new StaticColumnDefinition<SubmissionExportRow>(exportKey, row => accessor(row, missing));
     }
 

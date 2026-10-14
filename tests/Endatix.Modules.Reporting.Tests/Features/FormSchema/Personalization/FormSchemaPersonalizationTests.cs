@@ -78,13 +78,46 @@ public sealed class FormSchemaPersonalizationTests
     {
         // Arrange
         GivenLocked(Compiled(withSnapshot: true));
+        GivenDefinition();
 
         // Act
         await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
         await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
-        await _forms.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(default(DefinitionByFormAndDefinitionIdSpec)!, default);
+    }
+
+    [Fact]
+    public async Task IncludeAsync_DefinitionReadBeforeTheLock_IsNotReadAgainUnderIt()
+    {
+        // Arrange
+        GivenLocked(Compiled());
+        GivenDefinition();
+
+        // Act
+        await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
+
+        // Assert
+        await _forms.Received(1).SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
+        await _schemas.Received(1).SaveAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IncludeAsync_RebuildMovedTheSchemaToANewerDefinitionWhileWaiting_CompilesFromTheNewerOne()
+    {
+        // Arrange: the flatten read definition 200; a rebuild to 201 committed before it took the lock.
+        const long newerDefinitionId = 201;
+        var compiled = new FormSchemaCompiler().CompilePersisted(Definition);
+        GivenLocked(new FormSchemaEntity(TenantId, FormId, newerDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson));
+        GivenDefinition();
+
+        // Act
+        var result = await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
+
+        // Assert
+        await _forms.Received(2).SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
+        result.FormDefinitionRevision.Should().Be(newerDefinitionId);
+        FormSchemaFlatteningMap.FromJson(result.FlatteningMap).Columns.Should().Contain(column => column.Key == "audience_city");
     }
 
     [Fact]

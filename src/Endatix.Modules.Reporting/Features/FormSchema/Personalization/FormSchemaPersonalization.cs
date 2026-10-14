@@ -31,43 +31,49 @@ internal sealed class FormSchemaPersonalization(
             return schema;
         }
 
+        // Read before the lock, as a definition rebuild does, so the lock covers only the merge, compile and save.
+        Include include = new(columns, await ReadDefinitionAsync(schema, cancellationToken));
         var saved = await unitOfWork.InTransactionAsync(
-            () => IncludeLockedAsync(schema, columns, cancellationToken),
+            () => IncludeLockedAsync(schema, include, cancellationToken),
             cancellationToken);
         return saved ?? schema;
     }
 
+    private sealed record Include(IReadOnlyList<FormSchemaColumn> Columns, DefinitionAt Definition);
+
+    /// <summary>A definition's JSON as read for one schema revision; null when it was not found.</summary>
+    private sealed record DefinitionAt(long Revision, string? Json);
+
     // Read again under the lock: a flatten that waited finds the columns the one before it added, and saves nothing.
     private async Task<FormSchemaEntity?> IncludeLockedAsync(
         FormSchemaEntity schema,
-        IReadOnlyList<FormSchemaColumn> columns,
+        Include include,
         CancellationToken cancellationToken)
     {
         var existing = await schemaRepository.LockAndGetByFormIdAsync(schema.TenantId, schema.FormId, cancellationToken);
-        if (existing is not null &&
-            !IsCovered(existing, columns) &&
-            await TryApplyColumnsAsync(existing, columns, cancellationToken))
+        if (existing is null || IsCovered(existing, include.Columns))
         {
+            return existing;
+        }
+
+        var definition = await DefinitionForAsync(existing, include.Definition, cancellationToken);
+        if (definition.Json is not null)
+        {
+            ApplyColumns(existing, definition.Json, include.Columns);
             await schemaRepository.SaveAsync(existing, cancellationToken);
         }
 
         return existing;
     }
 
-    private async Task<bool> TryApplyColumnsAsync(
+    // A definition rebuild that committed while this flatten waited may have moved the schema to another revision.
+    private async Task<DefinitionAt> DefinitionForAsync(
         FormSchemaEntity existing,
-        IReadOnlyList<FormSchemaColumn> columns,
-        CancellationToken cancellationToken)
-    {
-        var definitionJson = await ReadDefinitionJsonAsync(existing, cancellationToken);
-        if (definitionJson is null)
-        {
-            return false;
-        }
-
-        ApplyColumns(existing, definitionJson, columns);
-        return true;
-    }
+        DefinitionAt readBeforeLock,
+        CancellationToken cancellationToken) =>
+        existing.FormDefinitionRevision == readBeforeLock.Revision
+            ? readBeforeLock
+            : await ReadDefinitionAsync(existing, cancellationToken);
 
     private void ApplyColumns(FormSchemaEntity existing, string definitionJson, IReadOnlyList<FormSchemaColumn> columns)
     {
@@ -90,7 +96,7 @@ internal sealed class FormSchemaPersonalization(
     }
 
     // The schema's definition can only be gone with its form, whose deletion sync removes the schema too.
-    private async Task<string?> ReadDefinitionJsonAsync(FormSchemaEntity schema, CancellationToken cancellationToken)
+    private async Task<DefinitionAt> ReadDefinitionAsync(FormSchemaEntity schema, CancellationToken cancellationToken)
     {
         DefinitionByFormAndDefinitionIdSpec spec = new(schema.FormId, schema.FormDefinitionRevision);
         var definition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
@@ -102,7 +108,7 @@ internal sealed class FormSchemaPersonalization(
                 schema.FormDefinitionRevision);
         }
 
-        return definition?.JsonData;
+        return new DefinitionAt(schema.FormDefinitionRevision, definition?.JsonData);
     }
 
     private static bool IsCovered(FormSchemaEntity schema, IReadOnlyList<FormSchemaColumn> columns) =>
