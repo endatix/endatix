@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Quartz;
+using Quartz.Impl.AdoJobStore;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
 
@@ -177,6 +178,74 @@ public sealed class QuartzRegistrationTests
         // Assert
         lockOnInsert.Should().BeFalse();
     }
+
+    [Fact]
+    public void AddJobsScheduler_SqlServer_UsesTheSqlServerDelegateAndLocksOnInsert()
+    {
+        // Arrange
+        using var provider = StoreServices("sqlserver", new Dictionary<string, string?>());
+
+        // Act
+        var store = StoreOf(provider);
+
+        // Assert
+        store.Should().Be((typeof(ExecutionGroupFilteringSqlServerDelegate), DataSourceOptions.Providers.SqlServer, true));
+    }
+
+    [Fact]
+    public void AddJobsScheduler_PostgreSql_UsesThePostgreSqlDelegate()
+    {
+        // Arrange
+        using var provider = StoreServices("postgresql", new Dictionary<string, string?>());
+
+        // Act
+        var store = StoreOf(provider);
+
+        // Assert
+        store.Should().Be((typeof(ExecutionGroupFilteringPostgreSqlDelegate), DataSourceOptions.Providers.Npgsql, false));
+    }
+
+    [Theory]
+    [InlineData("sqlserver", "false", false)]
+    [InlineData("postgresql", "true", true)]
+    public void AddJobsScheduler_LockOnInsertConfigured_OverridesTheProviderDefault(
+        string databaseProvider, string configured, bool expected)
+    {
+        // Arrange
+        using var provider = StoreServices(
+            databaseProvider,
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:LockOnInsert"] = configured });
+
+        // Act
+        var lockOnInsert = SchedulerOptions<AdoJobStoreOptions>(provider).LockOnInsert;
+
+        // Assert
+        lockOnInsert.Should().Be(expected);
+    }
+
+    // The scheduler's own registration alone, because the module itself still refuses SQL Server.
+    private static ServiceProvider StoreServices(string databaseProvider, Dictionary<string, string?> settings)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=jobs",
+                ["ConnectionStrings:DefaultConnection_DbProvider"] = databaseProvider,
+            })
+            .AddInMemoryCollection(settings)
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(JobHandlerRegistry.Build([Handler("A")]));
+        services.AddJobsScheduler(configuration);
+        return services.BuildServiceProvider();
+    }
+
+    // The driver delegate, the database provider and the trigger-lock mode the scheduler's store is built with.
+    private static (Type DriverDelegate, string? DatabaseProvider, bool LockOnInsert) StoreOf(IServiceProvider provider) => (
+        provider.GetRequiredKeyedService<IDriverDelegate>(QuartzRegistration.SchedulerName).GetType(),
+        SchedulerOptions<DataSourceOptions>(provider).Provider,
+        SchedulerOptions<AdoJobStoreOptions>(provider).LockOnInsert);
 
     // The module's own registration, with a handler registry of the given job types in place of the host's handlers.
     private static ServiceProvider SchedulerServices(

@@ -23,6 +23,52 @@ public sealed class JobHandlerRegistryTests
     }
 
     [Fact]
+    public void Build_JobTypesDifferingOnlyInCase_Throws()
+    {
+        // Arrange — a job store on SQL Server would match both to one execution group.
+        IBackgroundJobHandler[] handlers = [new NamedHandler("ProbeJob"), new NamedHandler("probejob")];
+
+        // Act
+        var build = () => JobHandlerRegistry.Build(handlers);
+
+        // Assert
+        build.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain("'ProbeJob'").And.Contain("'probejob'").And.Contain("differ only in case");
+    }
+
+    [Fact]
+    public void Contains_JobTypeInAnotherCase_ReturnsFalse()
+    {
+        // Arrange
+        var registry = JobHandlerRegistry.Build([new NamedHandler("ProbeJob")]);
+
+        // Act
+        var exactCase = registry.Contains("ProbeJob");
+        var otherCase = registry.Contains("probejob");
+
+        // Assert — refusing case variants does not make routing ignore case.
+        exactCase.Should().BeTrue();
+        otherCase.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("JobRetention")]
+    [InlineData("jobretention")]
+    [InlineData(" JOBRETENTION ")]
+    public void Build_JobTypeMatchingReservedGroupIgnoringCase_Throws(string jobType)
+    {
+        // Arrange — the maintenance jobs' execution group.
+        IBackgroundJobHandler[] handlers = [new NamedHandler(jobType)];
+
+        // Act
+        var build = () => JobHandlerRegistry.Build(handlers);
+
+        // Assert
+        build.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain($"'{jobType}'").And.Contain($"'{JobRetentionJob.Group}'");
+    }
+
+    [Fact]
     public void Build_UnknownJobType_IsNotAnError()
     {
         // Arrange — "Orphan" has no handler on this host; another host may run it.

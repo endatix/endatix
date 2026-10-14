@@ -50,6 +50,14 @@ public class SubmissionTokenService : ISubmissionTokenService
         return Result<string>.Success(submission!.Token!.Value);
     }
 
+    public async Task<Token> NewTokenAsync(Form form, CancellationToken cancellationToken)
+    {
+        Guard.Against.Null(form);
+
+        var formExpiry = new FormProjections.FormSessionTokenExpiryDto(form.Id, form.SubmissionTokenExpiryHours);
+        return new Token(await GetTokenExpiryHoursAsync(formExpiry, form.TenantId, cancellationToken));
+    }
+
     private static void IssueOrExtend(Submission submission, int? tokenExpiryHours)
     {
         if (submission.Token == null)

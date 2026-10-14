@@ -119,7 +119,9 @@ drop the rest.
 Derive from `BackgroundJobHandler<TPayload>` and register it with
 `services.AddBackgroundJobHandler<THandler, TPayload>()`, which keys it by job type so a job run
 builds only its own handler. The job type comes from the payload; handlers may live in any
-assembly. Two handlers declaring the same job type fail startup.
+assembly. Two handlers declaring the same job type, or job types that differ only in case, fail startup:
+on SQL Server the scheduler matches job types to their triggers under the database collation, which
+ignores case by default.
 
 A job type that needs other settings than the global defaults declares them at the same call, so every
 host runs it as tuned: `AddBackgroundJobHandler<THandler, TPayload>(new BackgroundJobTypeDefaults
@@ -378,6 +380,7 @@ from; a value from code is named by the `JobTypes` key that replaces it.
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
 | `MisfireThresholdSeconds` | `60` | How long a due job may wait for a slot before the backlog warning |
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
+| `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); read when an attempt ends, so a change also applies to jobs already waiting |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |
@@ -514,6 +517,57 @@ first, and re-creates both with the same definitions in the same migration.
 
 See the Quartz.NET [database documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/db/)
 and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-4.x/operations.html).
+
+## Upgrading Quartz
+
+The packages pin Quartz exactly (`[4.2.2]`), because the module depends on its internals and every
+node sharing the store must run the same version; an upgrade bumps the pin. An app that references
+`Endatix.Modules.Jobs` can take a Quartz patch before Endatix ships it only by overriding the pin
+with its own Quartz reference, which NuGet flags with NU1608 and which runs the module on a Quartz
+it was not tested with; when another package needs a different Quartz instead, restore fails with
+NU1107. That is deliberate: Quartz patches ship as Endatix releases.
+
+Unit tests in `Endatix.Modules.Jobs.Tests` pin what the module takes from Quartz, so an upgrade
+that changes it fails in CI rather than at deploy time:
+
+1. Bump `Quartz` and `Quartz.Dashboard` together in `Directory.Packages.props`, keeping the exact
+   `[x.y.z]` range, and every mention of the old version in this README and in
+   `THIRD-PARTY-NOTICES`.
+2. Run the module's tests. `PinnedQuartzVersion`, beside the pinned hashes in
+   `QuartzSchemaScriptsTests`, names the Quartz the hashes were taken from, and a test fails on every
+   upgrade until it names the referenced Quartz: update it once the steps below pass.
+3. If `QuartzSchemaScriptsTests` fails on a pinned hash, the SQL that provider's migration runs
+   changed. The hash covers the statements `QuartzSchemaScripts` splits Quartz's create script into
+   (`create_postgres.sql` for PostgreSQL, `create_sqlServer.sql` for SQL Server), without comment
+   lines or indentation and with the table prefix filled in, so changing
+   `QuartzRegistration.TablePrefix` moves it too: a prefix change needs a `jobs` migration that
+   renames the existing tables and indexes, then a re-pinned hash. For a Quartz upgrade, diff that
+   script between the two versions. If the diff changes no table, column, index or constraint
+   (keyword case, statement order, a reworded existence guard), update the pinned hash only.
+   Otherwise add an idempotent `jobs` migration for what changed, as
+   [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes, then update the hash.
+
+   The guard tests (`PostgreSqlTables_…_ReturnsOneStatementPerEntry`,
+   `SqlServerTables_…_GuardEachCreateByItsOwnExistenceCheck`) fail when a create would no longer be
+   skipped for an object that exists, which the migrations and the store tests rely on when they
+   re-run these statements. If Quartz reworded a guard, widen the test's pattern. If it dropped
+   one, add a step to `QuartzSchemaScripts` that wraps that create in an existence check (the
+   migrations and the store tests all read the statements through it), then re-pin the hash.
+4. If `GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql` fails for a provider, Quartz's
+   acquisition statement changed. Review that provider's rewrite
+   (`ExecutionGroupFilteringPostgreSqlDelegate` or `ExecutionGroupFilteringSqlServerDelegate`,
+   `LimitEachGroupToItsFreeSlots`) against the new statement, and the `idx_endatix_qrtz_t_acquire`
+   index that serves it. Then pin the new statements in `Quartz422AcquisitionSql` and the rewrite of
+   them in `Quartz422RewrittenAcquisitionSql` (checked by
+   `LimitEachGroupToItsFreeSlots_Quartz422Statement_MatchesPinnedRewrite`), both renamed for the
+   new version, together with the tests named after the version and their mentions here.
+5. Whatever the tests say, re-read the other overrides of both delegates against the new Quartz
+   `StdAdoDelegate` and `AdoJobStoreBase` acquisition code: `SelectTriggers` relies on acquisition
+   loading the triggers it fires through it, and `SelectTriggersToAcquire` relies on the command
+   being prepared inside the base call. No test sees a change there, and if `SelectTriggers` stopped
+   being called, recovered triggers would no longer count against their job type's cap.
+6. Roll the upgrade out to every node sharing the store: they must all run the same Quartz version
+   (see [Runtime](#runtime)).
 
 ## Third-party licence
 

@@ -30,8 +30,8 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
-        await using var node = JobsTestNode.Create(database.ConnectionString);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
+        await using var node = JobsTestNode.Create(database);
 
         // Act
         await node.StartAsync(cancellationToken);
@@ -69,8 +69,8 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
-        await using var node = JobsTestNode.Create(database.ConnectionString);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
+        await using var node = JobsTestNode.Create(database);
 
         // Act
         await node.StartAsync(cancellationToken);
@@ -93,15 +93,15 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
-        await using (var migrated = JobsTestNode.Create(database.ConnectionString))
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
+        await using (var migrated = JobsTestNode.Create(database))
         {
             await migrated.StartAsync(cancellationToken);
             await migrated.StopAsync(cancellationToken);
         }
 
         await database.ExecuteAsync("DROP TABLE jobs.qrtz_triggers CASCADE", cancellationToken);
-        await using var node = JobsTestNode.Create(database.ConnectionString);
+        await using var node = JobsTestNode.Create(database);
 
         // Act
         var start = () => node.StartAsync(cancellationToken);
@@ -120,14 +120,14 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var invocations = new ProbeInvocations();
         await using var scheduleOnly = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" },
             services => services.AddProbe(invocations));
         await using var worker = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             configureServices: services => services.AddProbe(invocations));
         await scheduleOnly.StartAsync(cancellationToken);
 

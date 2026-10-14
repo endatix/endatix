@@ -25,9 +25,9 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
         // Arrange — a schedule-only node, so nothing fires the triggers before they are counted.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
         await node.StartAsync(cancellationToken);
         var requests = Enumerable.Range(0, 3)
@@ -57,9 +57,9 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
         // after the rows are already written.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
         await node.StartAsync(cancellationToken);
         await database.ExecuteAsync(
@@ -97,9 +97,9 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
         // behind the node's back, with the trigger that pointed at it.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
         await node.StartAsync(cancellationToken);
         await node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), cancellationToken);
@@ -128,10 +128,10 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, cancellationToken);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var invocations = new ProbeInvocations();
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             configureServices: services => services.AddProbe(invocations));
         await node.StartAsync(cancellationToken);
 

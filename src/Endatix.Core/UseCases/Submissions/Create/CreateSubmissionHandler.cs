@@ -126,6 +126,7 @@ public class CreateSubmissionHandler(
                 StringComparison.Ordinal)));
 
         ApplySnapshot(submission, request.PersonalizationSnapshot);
+        submission.UpdateToken(await tokenService.NewTokenAsync(formWithActiveDefinition, cancellationToken));
         if (screenOut)
         {
             submission.ScreenOut();
@@ -138,8 +139,6 @@ public class CreateSubmissionHandler(
         {
             return conflict;
         }
-
-        await tokenService.ObtainTokenAsync(submission.Id, cancellationToken);
 
         if (submission.IsComplete)
         {

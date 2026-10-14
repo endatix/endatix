@@ -31,7 +31,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2), ct);
+        await using var host = await FanOutHost.StartAsync(fixture, JobQueueWith(SubscribeS1AndS2), ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(77, "x.happened", TenantId: 5), ct);
@@ -52,7 +52,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         // Arrange — a message whose jobs were enqueued but which was never marked sent is delivered again.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2), ct);
+        await using var host = await FanOutHost.StartAsync(fixture, JobQueueWith(SubscribeS1AndS2), ct);
         var message = new DeliveredMessage(88, "x.happened", "{}", 5);
         await PublishAsync(host, message, ct);
 
@@ -69,7 +69,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2), ct);
+        await using var host = await FanOutHost.StartAsync(fixture, JobQueueWith(SubscribeS1AndS2), ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(99, "y.happened", TenantId: 5), ct);
@@ -86,7 +86,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await FanOutHost.StartAsync(fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2), ct);
+        await using var host = await FanOutHost.StartAsync(fixture, JobQueueWith(SubscribeS1AndS2), ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(100, "x.happened", TenantId: 0), ct);
@@ -108,7 +108,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(
-            fixture.ConnectionString, JobQueueWith(SubscribeS1AndS2) with { JobsModule = false }, ct);
+            fixture, JobQueueWith(SubscribeS1AndS2) with { JobsModule = false }, ct);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(201, "x.happened", TenantId: 5), ct);
@@ -136,7 +136,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var inline = new RecordingInlineHandler("submission.completed");
         await using var host = await FanOutHost.StartAsync(
-            fixture.ConnectionString,
+            fixture,
             new FanOutHostSetup(
                 DeliverToJobQueue: false,
                 services =>
@@ -164,7 +164,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(
-            fixture.ConnectionString,
+            fixture,
             JobQueueWith(services =>
             {
                 services.AddOutboxJobSubscription("slow.happened", message => new SlowPayload(message.Id));

@@ -29,7 +29,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(new(database, new ProbeInvocations()), ct);
 
         // Act
@@ -49,7 +49,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(new(database, new ProbeInvocations()), ct);
 
         // Act
@@ -69,7 +69,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(
             new(
                 database,
@@ -99,7 +99,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange — a backoff long enough to observe the row while it waits.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(
             new(
                 database,
@@ -125,7 +125,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange — the column is jsonb, so unreadable input is well-formed JSON of the wrong shape.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var node = await StartNodeAsync(new(database, invocations), ct);
 
@@ -147,10 +147,10 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange — the row is finished before its trigger ever fires.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var scheduleOnly = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
         await scheduleOnly.StartAsync(ct);
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
@@ -175,7 +175,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
         var nodeA = await StartNodeAsync(new(database, onA, InstanceId("node-a")), ct);
@@ -200,7 +200,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange — the survivor's backoff is long, so the retry is still waiting when the test looks.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
         var nodeA = await StartNodeAsync(new(database, onA, InstanceId("node-a")), ct);
@@ -228,7 +228,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // refuses the trigger the next attempt needs.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var nodeA = await StartNodeAsync(new(database, invocations, InstanceId("node-a")), ct);
         var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.BlockFirstThenThrowWhileStopping), ct);
@@ -258,11 +258,11 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange — every try at recording the first attempt's completion fails, as while the database is away.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: JobOutcomeRecorder.WriteRetryDelays.Length + 1);
         await using var node = JobsTestNode.Create(
-            database.ConnectionString,
+            database,
             configureServices: services =>
             {
                 services.AddProbe(invocations);
@@ -286,7 +286,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var node = await StartNodeAsync(
             new(
@@ -317,7 +317,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(
             new(
                 database,
@@ -347,7 +347,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         await using var node = await StartNodeAsync(new(database, invocations), ct);
         long jobId;
@@ -374,7 +374,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var settings = new Dictionary<string, string?>
         {
@@ -407,7 +407,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
         using var lifecycle = JobLifecycleEventListener.Start();
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(new(database, new ProbeInvocations()), ct);
 
         // Act
@@ -442,7 +442,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     private static async Task<JobsTestNode> StartNodeAsync(ProbeNodeSetup setup, CancellationToken ct)
     {
         var node = JobsTestNode.Create(
-            setup.Database.ConnectionString,
+            setup.Database,
             setup.Settings,
             services => services.AddProbe(setup.Invocations));
         await node.StartAsync(ct);

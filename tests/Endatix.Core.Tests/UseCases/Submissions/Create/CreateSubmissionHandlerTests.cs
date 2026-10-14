@@ -135,6 +135,8 @@ public class CreateSubmissionHandlerTests
             Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
             Arg.Any<CancellationToken>())
             .Returns(form);
+        var token = new Token(24);
+        _submissionTokenService.NewTokenAsync(form, Arg.Any<CancellationToken>()).Returns(token);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -144,10 +146,8 @@ public class CreateSubmissionHandlerTests
         result.Status.Should().Be(ResultStatus.Created);
         result.Value.Should().NotBeNull();
 
-        await _submissionTokenService.Received(1).ObtainTokenAsync(
-            Arg.Any<long>(),
-            Arg.Any<CancellationToken>()
-        );
+        await _submissionsRepository.Received(1).AddAsync(
+            Arg.Is<Submission>(s => s.Token == token), Arg.Any<CancellationToken>());
     }
 
     [Fact]

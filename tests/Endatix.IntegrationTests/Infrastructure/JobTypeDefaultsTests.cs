@@ -56,7 +56,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         // Arrange — the webhook handler is swapped for one that holds its slot, leaving the declared settings.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runs = new NamedProbeRuns();
         await using var host = HostWithoutJobSettings(database, services => ReplaceWebHookHandler(services, runs));
 
@@ -83,7 +83,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var host = HostWithoutJobSettings(database, _ => { });
 
         // Act
@@ -105,7 +105,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var host = StartedHost(database, ReportingOn);
 
         // Act
@@ -124,7 +124,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var host = StartedHost(database, builder =>
         {
             ReportingOn(builder);

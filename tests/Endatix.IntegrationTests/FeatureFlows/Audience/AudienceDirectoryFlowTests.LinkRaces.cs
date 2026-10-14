@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -24,7 +25,7 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// Opens of one personalised link that overlap, forced with a gate that pauses the first open at
-/// its insert while it holds the link's lock.
+/// its insert, or at its first read of a submission, while it holds the link's lock.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
@@ -41,14 +42,14 @@ public sealed partial class AudienceDirectoryFlowTests
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Canton");
         using var anonymous = world.AnonymousClient();
-        var gate = new SubmissionInsertGate();
+        var gate = SubmissionCommandGate.AtInsert();
         await using var scope = world.Services.CreateAsyncScope();
         await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
         await using var firstOpen = PausedOpen.Start(
             gate,
             HandlerWith(scope.ServiceProvider, gatedApp),
             new RedeemLinkCommand(formId, token));
-        await firstOpen.ReachedInsertAsync();
+        await firstOpen.ReachedGateAsync();
 
         var audienceConnection = ((DbContext)scope.ServiceProvider.GetRequiredService<IAudienceDbContext>())
             .Database.GetDbConnection();
@@ -83,14 +84,14 @@ public sealed partial class AudienceDirectoryFlowTests
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Mentor");
-        var gate = new SubmissionInsertGate();
+        var gate = SubmissionCommandGate.AtInsert();
         await using var scope = world.Services.CreateAsyncScope();
         await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
         await using var firstOpen = PausedOpen.Start(
             gate,
             HandlerWith(scope.ServiceProvider, gatedApp),
             new RedeemLinkCommand(formId, token));
-        await firstOpen.ReachedInsertAsync();
+        await firstOpen.ReachedGateAsync();
         var otherWritersId = await ClaimWithoutTheLockAsync(world.Services, formId);
 
         // Act
@@ -101,6 +102,72 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.False(opened.Value.Created);
         Assert.Equal(otherWritersId, opened.Value.SubmissionId);
         await AssertOnlySubmissionAsync(world.Services, formId, otherWritersId);
+    }
+
+    /// <summary>
+    /// An on-behalf create for the same person commits while this open, on a one-response form, is paused at its
+    /// insert. <c>UX_Submissions_RestrictionKey</c> refuses this open's insert, and the open takes the on-behalf
+    /// submission over instead of leaving the person with two.
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_link_while_an_on_behalf_create_for_the_person_commits_takes_that_submission_over()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Parma", limitOnePerUser: true);
+        var gate = SubmissionCommandGate.AtInsert();
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
+        await using var firstOpen = PausedOpen.Start(
+            gate,
+            HandlerWith(scope.ServiceProvider, gatedApp),
+            new RedeemLinkCommand(link.FormId, link.Token));
+        await firstOpen.ReachedGateAsync();
+        using var created = await OnBehalfAsync(admin, link.FormId, link.Identifier);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var onBehalfId = IdOf(await admin.ReadAsync(created), "id");
+
+        // Act
+        var opened = await firstOpen.ReleaseAsync();
+
+        // Assert
+        Assert.True(opened.IsSuccess);
+        Assert.False(opened.Value.Created);
+        Assert.Equal(onBehalfId, opened.Value.SubmissionId);
+        await AssertOnlySubmissionAsync(world.Services, link.FormId, onBehalfId);
+    }
+
+    /// <summary>
+    /// The person is removed after the open passed <see cref="LinkOpenGates"/>, while it holds the lock. The open
+    /// would take over their on-behalf submission, which already has values; the check under the lock refuses it.
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_link_for_a_person_removed_after_its_gate_check_is_not_found()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Elyria", limitOnePerUser: true);
+        using var created = await OnBehalfAsync(admin, link.FormId, link.Identifier);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var gate = SubmissionCommandGate.AtFirstRead();
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
+        await using var open = PausedOpen.Start(
+            gate,
+            HandlerWith(scope.ServiceProvider, gatedApp),
+            new RedeemLinkCommand(link.FormId, link.Token));
+        await open.ReachedGateAsync();
+        using var removed = await admin.Client.DeleteAsync(link.PersonUrl, admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+
+        // Act
+        var opened = await open.ReleaseAsync();
+
+        // Assert
+        Assert.Equal(ResultStatus.NotFound, opened.Status);
+        Assert.Null(await LinkSubmissionIdAsync(world.Services, link.FormId));
     }
 
     /// <summary>
@@ -141,7 +208,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using var response = await anonymous.PostAsJsonAsync(
-            $"/api/forms/{formId}/audience/links/{token}/redeem", new { }, admin.CancellationToken);
+            RedeemUrl(formId, token), new { }, admin.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -201,7 +268,7 @@ public sealed partial class AudienceDirectoryFlowTests
     private static readonly TimeSpan SecondOpenProbe = TimeSpan.FromSeconds(2);
 
     /// <summary>The host's <see cref="AppDbContext"/> options plus the gate, so only this open pauses.</summary>
-    private static AppDbContext GatedAppDbContext(IServiceProvider services, SubmissionInsertGate gate)
+    private static AppDbContext GatedAppDbContext(IServiceProvider services, SubmissionCommandGate gate)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>(
                 services.GetRequiredService<DbContextOptions<AppDbContext>>())
@@ -222,22 +289,23 @@ public sealed partial class AudienceDirectoryFlowTests
         var submissions = new EfRepository<Submission>(app, evaluator);
         var tokens = new SubmissionTokenService(submissions, forms, new EfRepository<TenantSettings>(app, evaluator));
         var linkLock = new LinkOpenLock(audience, app, services.GetRequiredService<ITransactionLock>());
-        return new RedeemLinkHandler(audience, forms, submissions, tokens, linkLock);
+        var gates = new LinkOpenGates(audience, forms, services.GetRequiredService<ISubmitterResolver>());
+        return new RedeemLinkHandler(audience, submissions, tokens, linkLock, gates);
     }
 
     /// <summary>
-    /// An open held at its insert. Disposing releases it and waits for it and for the requests
+    /// An open held at its gate. Disposing releases it and waits for it and for the requests
     /// made alongside it, so a failed assert never leaves one running into the next test.
     /// </summary>
-    private sealed class PausedOpen(SubmissionInsertGate gate, Task<Result<RedeemedLinkDto>> open) : IAsyncDisposable
+    private sealed class PausedOpen(SubmissionCommandGate gate, Task<Result<RedeemedLinkDto>> open) : IAsyncDisposable
     {
-        public static PausedOpen Start(SubmissionInsertGate gate, RedeemLinkHandler handler, RedeemLinkCommand open) =>
+        public static PausedOpen Start(SubmissionCommandGate gate, RedeemLinkHandler handler, RedeemLinkCommand open) =>
             new(gate, handler.Handle(open, TestContext.Current.CancellationToken));
 
-        public async Task ReachedInsertAsync()
+        public async Task ReachedGateAsync()
         {
             await Task.WhenAny(gate.Reached, open).WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
-            Assert.True(gate.Reached.IsCompleted, "The first open never reached its insert.");
+            Assert.True(gate.Reached.IsCompleted, "The first open never reached its gate.");
         }
 
         public Task<Result<RedeemedLinkDto>> ReleaseAsync()
@@ -266,9 +334,17 @@ public sealed partial class AudienceDirectoryFlowTests
         private readonly List<Task> _companions = [];
     }
 
-    /// <summary>Holds the first insert into <c>Submissions</c> until the test releases it.</summary>
-    private sealed partial class SubmissionInsertGate : DbCommandInterceptor
+    /// <summary>Holds the first matching command on <c>Submissions</c> until the test releases it.</summary>
+    private sealed partial class SubmissionCommandGate(Regex statement) : DbCommandInterceptor
     {
+        /// <summary>The open's insert of its new submission.</summary>
+        public static SubmissionCommandGate AtInsert() => new(SubmissionInsert());
+
+        /// <summary>
+        /// The open's first read of a submission: under the lock, after <see cref="LinkOpenGates"/>, which reads none.
+        /// </summary>
+        public static SubmissionCommandGate AtFirstRead() => new(SubmissionRead());
+
         private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -282,7 +358,7 @@ public sealed partial class AudienceDirectoryFlowTests
             InterceptionResult<DbDataReader> result,
             CancellationToken cancellationToken = default)
         {
-            await HoldInsertAsync(command, cancellationToken);
+            await HoldAsync(command, cancellationToken);
             return result;
         }
 
@@ -292,7 +368,7 @@ public sealed partial class AudienceDirectoryFlowTests
             InterceptionResult<int> result,
             CancellationToken cancellationToken = default)
         {
-            await HoldInsertAsync(command, cancellationToken);
+            await HoldAsync(command, cancellationToken);
             return result;
         }
 
@@ -300,9 +376,12 @@ public sealed partial class AudienceDirectoryFlowTests
         [GeneratedRegex("""INSERT INTO ["\[]Submissions["\]]""")]
         private static partial Regex SubmissionInsert();
 
-        private async Task HoldInsertAsync(DbCommand command, CancellationToken cancellationToken)
+        [GeneratedRegex("""FROM ["\[]Submissions["\]]""")]
+        private static partial Regex SubmissionRead();
+
+        private async Task HoldAsync(DbCommand command, CancellationToken cancellationToken)
         {
-            if (SubmissionInsert().IsMatch(command.CommandText) && _reached.TrySetResult())
+            if (statement.IsMatch(command.CommandText) && _reached.TrySetResult())
             {
                 await _released.Task.WaitAsync(cancellationToken);
             }
