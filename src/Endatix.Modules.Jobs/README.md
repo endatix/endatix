@@ -231,7 +231,8 @@ so the absolute numbers are indicative; compare the rows with each other):
 | on | `false` | 0.02 s / fires after 0.03–0.13 s (once 2.1 s) | 0 | 221–231 / 144–149 |
 
 Enqueue throughput, same machine, 8 concurrent enqueuers on one node while another node executes
-and acquires (two runs each; PostgreSQL with its default for comparison):
+and acquires (two runs each; PostgreSQL with its default for comparison, running natively rather
+than under emulation, so its row is not a like-for-like comparison):
 
 | Database | `READ_COMMITTED_SNAPSHOT` | `LockOnInsert` | Single enqueues | Fan-out batches of 20 triggers |
 |---|---|---|---|---|
@@ -248,11 +249,15 @@ throughput option, not a deadlock fix**. Keep the default unless enqueues queue 
 or jobs start late, at your volume: many concurrent enqueuers, large webhook fan-outs, or callers that
 enqueue inside a long unit of work. Without
 `READ_COMMITTED_SNAPSHOT`, turning the lock off only moves the wait from enqueueing to acquisition,
-which is why a node refuses that combination at startup, naming both settings.
+which is why a node refuses that combination at startup, naming both settings. The node checks the
+database once, when its scheduler starts or its first enqueue runs, whichever comes first, and every
+enqueue on a refused node fails; a database that turns snapshots off later is noticed only when the
+nodes restart.
 
 Switching is an operations change, not a release:
 
-1. A DBA turns on `READ_COMMITTED_SNAPSHOT` for the database. It needs a moment with no other
+1. A DBA turns on `READ_COMMITTED_SNAPSHOT` for the database. Azure SQL Database has it on by
+   default, so there this step is already done. It needs a moment with no other
    connection to it: `ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE`
    ends the others. Check it with
    `SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()`.
@@ -481,10 +486,11 @@ needs a Quartz trigger as well as its row. Back up `jobs."BackgroundJobs"` first
 record of them. From here on `jobs` migrations are append-only.
 
 SQL Server's chain starts with its own `InitialBackgroundJobs`, which creates everything the three
-PostgreSQL migrations create, including the trigger acquisition index. It needs **SQL Server 2025 or
+PostgreSQL migrations create, including the trigger acquisition index; `PinTriggerAcquisitionGroupCollation`
+then re-creates the acquisition column in a pinned binary collation, with its index. It needs **SQL Server 2025 or
 later, or Azure SQL Database**, for the native `json` column type. Trigger acquisition reads its free
 groups with `OPENJSON`, which needs database compatibility level 130 or later; that is already a
-requirement of the product, whose export procedures and `SqlServerJsonDbFunctions` use `OPENJSON` too,
+requirement of the product, whose export procedures (`export_form_submissions_v1`–`v5`) use `OPENJSON` too,
 and a startup check for it is tracked in [#1217](https://github.com/endatix/endatix/issues/1217).
 
 Run the commands from the repository root, with `Endatix.WebHost` as the startup project. Each
@@ -580,7 +586,7 @@ refuses `ALTER DATABASE … COLLATE` while any schema-bound object depends on th
 check constraints, filtered indexes and computed columns, `ENDATIX_ACQUIRE_GROUP` among them. A DBA who
 changes it anyway drops those objects first and re-creates them afterwards; for this one, drop
 `idx_endatix_qrtz_t_acquire` and then `ENDATIX_ACQUIRE_GROUP`, and re-create both with the statements in
-the SQL Server `InitialBackgroundJobs`.
+the SQL Server `PinTriggerAcquisitionGroupCollation` migration.
 
 See the Quartz.NET [database documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/db/)
 and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-4.x/operations.html).
