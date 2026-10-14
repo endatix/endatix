@@ -95,6 +95,35 @@ public class BackgroundJobTests
             .WithMessage("A dedup key cannot start or end with whitespace.*");
     }
 
+    [Theory]
+    [InlineData("SubmissionExport ")]
+    [InlineData(" SubmissionExport")]
+    [InlineData("SubmissionExport\t")]
+    public void Constructor_JobTypeWithSurroundingWhitespace_Throws(string jobType)
+    {
+        // Arrange
+        // Act
+        var act = () => new BackgroundJob(jobType, "{}", tenantId: 5, nextAttemptAt: Now);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("jobType")
+            .WithMessage("A job type cannot start or end with whitespace.*");
+    }
+
+    [Fact]
+    public void FromRequest_JobTypeWithSurroundingWhitespace_Throws()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SubmissionExport ", "{}", TenantId: 5);
+
+        // Act
+        var act = () => BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        act.Should().Throw<ArgumentException>().WithMessage("A job type cannot start or end with whitespace.*");
+    }
+
     [Fact]
     public void FromRequest_DedupKeyWithInnerWhitespace_KeepsTheKey()
     {

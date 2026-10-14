@@ -44,7 +44,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         DateTime? expiresAt = null,
         string? traceId = null)
     {
-        Guard.Against.NullOrWhiteSpace(jobType);
+        GuardJobType(jobType);
         Guard.Against.NullOrWhiteSpace(payloadJson);
         // Every job belongs to a tenant. Zero is the value the tenant context reports when there is
         // no ambient tenant at all, so a row carrying it belongs to nobody rather than to everybody
@@ -96,10 +96,22 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     {
         { Length: > DedupKeyMaxLength } =>
             $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
-        { } key when !string.IsNullOrWhiteSpace(key) && (char.IsWhiteSpace(key[0]) || char.IsWhiteSpace(key[^1])) =>
+        { } key when !string.IsNullOrWhiteSpace(key) && HasEdgeWhitespace(key) =>
             "A dedup key cannot start or end with whitespace.",
         _ => null,
     };
+
+    // SQL Server ignores trailing spaces when it compares, so "Export " would be a second name for "Export".
+    private static void GuardJobType(string jobType)
+    {
+        Guard.Against.NullOrWhiteSpace(jobType);
+        if (HasEdgeWhitespace(jobType))
+        {
+            throw new ArgumentException("A job type cannot start or end with whitespace.", nameof(jobType));
+        }
+    }
+
+    private static bool HasEdgeWhitespace(string value) => char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]);
 
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>
     public string JobType { get; private set; } = null!;
