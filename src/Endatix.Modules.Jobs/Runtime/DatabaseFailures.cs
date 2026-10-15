@@ -36,18 +36,24 @@ internal static class DatabaseFailures
     private static readonly FrozenSet<int> SqlServerOutageNumbers =
     [
         -2, // the client's command timeout
+        2, // Windows native SNI: the server was not found
         20, // the connection failed in the pre-login handshake
+        40, // Windows native SNI: could not open a connection to the server
+        53, // Windows native SNI: the network path was not found
         64, // the network name is no longer available: the connection broke during login
         121, // the semaphore timeout expired: the connection broke
         233, // no process on the other end of the pipe
+        258, // the connection attempt timed out: a host that drops packets, or a failover address not yet moved
         1205, // chosen as a deadlock victim
         1222, // lock request timed out
         3906, // the database is read-only: the primary failed over and is now a secondary
         4060, // cannot open the database the login asked for
         4221, // an availability group secondary, recycled, is not yet ready for logins
+        18401, // logins refused while the server runs its upgrade scripts after an update restart
         10053, // connection aborted by the host
         10054, // connection reset by the peer
         10060, // connection attempt timed out
+        10061, // Windows native SNI: the server refused the connection, as a stopped or restarting one does
         10928, // Azure SQL: the database reached a resource limit
         10929, // Azure SQL: the server is too busy to give the database its minimum resources
         40143, // Azure SQL: the service failed to process the request
@@ -70,14 +76,17 @@ internal static class DatabaseFailures
 
     /// <summary>
     /// Whether <paramref name="failure"/>, raised while connecting to the database or talking to it, says the database
-    /// is away: an outage, or a driver failure caused by a socket that broke or never connected, which SqlClient
-    /// reports without an error number. A refusal, such as a failed login, is not.
+    /// is away: an outage, or a driver failure with a socket failure anywhere under it, which SqlClient reports
+    /// without an error number and sometimes wrapped again, in an <see cref="IOException"/> for a connection reset
+    /// during the handshake. A refusal, such as a failed login, is not.
     /// </summary>
     /// <remarks>
-    /// Only for database calls: elsewhere a broken socket is as likely an HTTP endpoint's as the database's.
+    /// Only for database calls, and only under a driver's failure: elsewhere a broken socket is as likely an HTTP
+    /// endpoint's as the database's.
     /// </remarks>
     public static bool IsUnreachable(Exception failure) =>
-        IsOutage(failure) || failure.HasCause(cause => cause is DbException { InnerException: SocketException });
+        IsOutage(failure)
+        || (failure.HasCause(cause => cause is DbException) && failure.HasCause(cause => cause is SocketException));
 
     /// <summary>
     /// Whether <paramref name="failure"/> came from the database at all: a timeout, or any failure the driver reported.

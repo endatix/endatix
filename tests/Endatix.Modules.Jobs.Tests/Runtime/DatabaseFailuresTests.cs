@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Data.Common;
 using System.Net.Sockets;
 using Endatix.Modules.Jobs.Runtime;
@@ -57,6 +58,19 @@ public sealed class DatabaseFailuresTests
     {
         // SqlClient reports a refused or broken connection with error number 0 and the socket's failure inside.
         { Wrapped(new ConnectFailureException(new SocketException((int)SocketError.ConnectionRefused))), true },
+        // A host that drops packets: the connect times out, with the system's own error inside.
+        { Wrapped(SqlServerExceptions.WithInner(258, new Win32Exception(110, "Connection timed out"))), true },
+        // A reset during the pre-login handshake: number 0, the socket's failure under an IOException.
+        {
+            Wrapped(SqlServerExceptions.WithInner(
+                0, new IOException("Broken pipe", new SocketException((int)SocketError.ConnectionReset)))),
+            true
+        },
+        { Wrapped(SqlServerExceptions.WithNumbers(18401)), true }, // logins refused while upgrade scripts run
+        { Wrapped(SqlServerExceptions.WithNumbers(10061)), true }, // Windows native SNI: connection refused
+        { Wrapped(SqlServerExceptions.WithNumbers(53)), true }, // Windows native SNI: network path not found
+        { Wrapped(SqlServerExceptions.WithNumbers(40)), true }, // Windows native SNI: could not open a connection
+        { Wrapped(SqlServerExceptions.WithNumbers(2)), true }, // Windows native SNI: server not found
         { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // login failed: the database answered
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
