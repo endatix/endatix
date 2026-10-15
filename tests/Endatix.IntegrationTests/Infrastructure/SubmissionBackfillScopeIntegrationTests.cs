@@ -112,15 +112,81 @@ public sealed class SubmissionBackfillScopeIntegrationTests
 
         // Act
         var deleted = await repository.SingleOrDefaultAsync(
-            new SubmissionDeletionStateSpec(seed.DeletedDraft),
+            new SubmissionDeletionStateSpec(TenantId, seed.DeletedDraft),
             cancellationToken);
         var missing = await repository.SingleOrDefaultAsync(
-            new SubmissionDeletionStateSpec(long.MaxValue),
+            new SubmissionDeletionStateSpec(TenantId, long.MaxValue),
             cancellationToken);
 
         // Assert
-        deleted.Should().Be(new SubmissionDeletionState(TenantId, seed.FormId, IsDeleted: true));
+        deleted.Should().Be(new SubmissionDeletionState(seed.FormId, IsDeleted: true, FormIsDeleted: false));
         missing.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeletionStateSpec_WithOtherTenant_ReturnsNull()
+    {
+        // Arrange — the query filters are off for this read, so only its own tenant predicate keeps the row out.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedAsync(cancellationToken);
+        await using var appDb = CreateAppDbContext();
+
+        // Act
+        var state = await CreateSubmissionRepository(appDb).SingleOrDefaultAsync(
+            new SubmissionDeletionStateSpec(TenantId + 1, seed.DeletedDraft),
+            cancellationToken);
+
+        // Assert
+        state.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeletionStateSpec_LiveSubmissionOfDeletedForm_ReportsTheFormDeleted()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedAsync(cancellationToken);
+        await using var appDb = CreateAppDbContext();
+        await appDb.Forms
+            .Where(form => form.Id == seed.FormId)
+            .ExecuteUpdateAsync(updates => updates.SetProperty(form => form.IsDeleted, true), cancellationToken);
+
+        // Act
+        var state = await CreateSubmissionRepository(appDb).SingleOrDefaultAsync(
+            new SubmissionDeletionStateSpec(TenantId, seed.Completed1),
+            cancellationToken);
+
+        // Assert
+        state.Should().Be(new SubmissionDeletionState(seed.FormId, IsDeleted: false, FormIsDeleted: true));
+    }
+
+    [Fact]
+    public async Task Flatten_FormDeletedWhileFlattening_RemovesTheRowItWrote()
+    {
+        // Arrange — only the form is soft-deleted, after the submission was read and before its row is written; the
+        // submission and its definition stay live, so the form's own deletion is all there is to see.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedAsync(cancellationToken);
+        await using var appDb = CreateAppDbContext();
+        await using var reportingDb = CreateReportingDbContext();
+        var schemas = Substitute.For<IFormSchemaProvider>();
+        schemas.GetOrCompileAsync(TenantId, seed.FormId, seed.DefinitionId, Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                await SoftDeleteFormAsync(appDb, seed.FormId, cancellationToken);
+                return CompiledSchema(seed);
+            });
+        var processor = CreateFlatteningProcessor(appDb, reportingDb, schemas);
+
+        // Act
+        await processor.ProcessAsync(TenantId, seed.FormId, seed.Completed1, cancellationToken);
+
+        // Assert
+        reportingDb.ChangeTracker.Clear();
+        (await reportingDb.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .AnyAsync(row => row.SubmissionId == seed.Completed1, cancellationToken))
+            .Should().BeFalse("the form's deletion sync may already have run, so nothing else would remove the row");
     }
 
     [Fact]
@@ -304,7 +370,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
         SeededForms seed,
         CancellationToken cancellationToken)
     {
-        FormSchemaRepository schemaRepository = new(reportingDb, new ReportingUnitOfWork(reportingDb), ReportingTestSchema.TransactionLockFor(reportingDb));
+        var schemaRepository = CreateSchemaRepository(reportingDb);
         var compiled = new FormSchemaCompiler().CompilePersisted(DefinitionJson);
         await schemaRepository.SaveAsync(
             new FormSchema(TenantId, seed.FormId, seed.DefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson),
@@ -317,23 +383,43 @@ public sealed class SubmissionBackfillScopeIntegrationTests
             NullLogger<SubmissionBackfillProcessor>.Instance);
     }
 
-    private static SubmissionFlatteningProcessor CreateFlatteningProcessor(AppDbContext appDb, ReportingDbContextBase reportingDb)
-    {
-        FormSchemaRepository schemas = new(reportingDb, new ReportingUnitOfWork(reportingDb), ReportingTestSchema.TransactionLockFor(reportingDb));
-        return new(
+    private static SubmissionFlatteningProcessor CreateFlatteningProcessor(AppDbContext appDb, ReportingDbContextBase reportingDb) =>
+        CreateFlatteningProcessor(
+            appDb,
+            reportingDb,
+            new FormSchemaProvider(
+                CreateSchemaRepository(reportingDb),
+                Substitute.For<IFormSchemaProcessor>(),
+                new FormSchemaCoverage(Substitute.For<IFormsRepository>(), new FormSchemaCompiler())));
+
+    private static SubmissionFlatteningProcessor CreateFlatteningProcessor(
+        AppDbContext appDb,
+        ReportingDbContextBase reportingDb,
+        IFormSchemaProvider schemaProvider) =>
+        new(
             CreateSubmissionRepository(appDb),
             new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb), new DateTimeProvider()),
-            new FormSchemaProvider(
-                schemas,
-                Substitute.For<IFormSchemaProcessor>(),
-                new FormSchemaCoverage(Substitute.For<IFormsRepository>(), new FormSchemaCompiler())),
+            schemaProvider,
             new FormSchemaPersonalization(
                 Substitute.For<IFormsRepository>(),
-                schemas,
+                CreateSchemaRepository(reportingDb),
                 new ReportingUnitOfWork(reportingDb),
                 new FormSchemaCompiler(),
                 NullLogger<FormSchemaPersonalization>.Instance),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
+
+    private static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase reportingDb) =>
+        new(reportingDb, new ReportingUnitOfWork(reportingDb), ReportingTestSchema.TransactionLockFor(reportingDb));
+
+    private static Task SoftDeleteFormAsync(AppDbContext appDb, long formId, CancellationToken cancellationToken) =>
+        appDb.Forms
+            .Where(form => form.Id == formId)
+            .ExecuteUpdateAsync(updates => updates.SetProperty(form => form.IsDeleted, true), cancellationToken);
+
+    private static FormSchema CompiledSchema(SeededForms seed)
+    {
+        var compiled = new FormSchemaCompiler().CompilePersisted(DefinitionJson);
+        return new FormSchema(TenantId, seed.FormId, seed.DefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
     }
 
     private static EfRepository<Submission> CreateSubmissionRepository(AppDbContext appDb) =>

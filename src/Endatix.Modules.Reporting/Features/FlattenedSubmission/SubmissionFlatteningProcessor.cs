@@ -22,10 +22,10 @@ namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 /// from a newer one, so an older flatten finishing last changes nothing.
 /// </para>
 /// <para>
-/// A submission that cannot be read never gets a row. When it was soft-deleted in the requested tenant and form, an
-/// existing row is marked deleted and the flatten succeeds; any other miss throws, so it is retried and then reported
-/// as failed. A submission deleted after it was read loses the row this flatten wrote, as its deletion sync would
-/// have removed it.
+/// A submission that cannot be read never gets a row. When it or its form was soft-deleted in the requested tenant and
+/// form, an existing row is removed and the flatten succeeds; any other miss throws, so it is retried and then
+/// reported as failed. A submission or form deleted after the submission was read loses the row this flatten wrote,
+/// as its deletion sync would have removed it; so does one whose schema the form's deletion already removed.
 /// </para>
 /// </remarks>
 internal sealed class SubmissionFlatteningProcessor(
@@ -89,23 +89,31 @@ internal sealed class SubmissionFlatteningProcessor(
             return false;
         }
 
-        var dataJson = await FlattenedDataAsync(run, cancellationToken);
+        var schema = await SchemaOfAsync(run, cancellationToken);
+        if (schema is null)
+        {
+            await HandleMissingSchemaAsync(run, cancellationToken);
+            return false;
+        }
+
+        var dataJson = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
         return LogUnlessLanded(
             await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, dataJson, cancellationToken),
             run.Write);
     }
 
-    private async Task<string> FlattenedDataAsync(FlattenRun run, CancellationToken cancellationToken)
-    {
-        var submission = run.Submission;
-        var schema = await schemaProvider.GetOrCompileAsync(
+    private Task<Domain.FormSchema?> SchemaOfAsync(FlattenRun run, CancellationToken cancellationToken) =>
+        schemaProvider.GetOrCompileAsync(
             run.Key.TenantId,
             run.Key.FormId,
-            submission.FormDefinitionId,
-            cancellationToken)
-            ?? throw new InvalidOperationException(
-                $"Form export schema is not available for form {run.Key.FormId}, definition {submission.FormDefinitionId}.");
+            run.Submission.FormDefinitionId,
+            cancellationToken);
 
+    private async Task<string> FlattenedDataAsync(
+        Submission submission,
+        Domain.FormSchema schema,
+        CancellationToken cancellationToken)
+    {
         var personalization = PersonalizationReader.Read(submission.PersonalizationSnapshot);
         var mergedSchema = await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken);
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
@@ -113,45 +121,64 @@ internal sealed class SubmissionFlatteningProcessor(
         return FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);
     }
 
-    // A soft-delete after the submission was queued or paged mirrors onto an existing row. Anything else — never
-    // existed, or another tenant's or form's — throws, so a job retries and then dead-letters, and a backfill counts
-    // it as failed, instead of hiding it.
+    // A soft-delete of the submission or its form after the submission was queued or paged removes its row, as the
+    // deletion syncs do. Anything else — never existed, or another tenant's or form's — throws, so a job retries and
+    // then dead-letters, and a backfill counts it as failed, instead of hiding it.
     private async Task HandleMissingSubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
     {
-        var state = await submissionRepository.SingleOrDefaultAsync(
-            new SubmissionDeletionStateSpec(key.SubmissionId),
-            cancellationToken);
-        var deletedHere = state is { IsDeleted: true } && state.TenantId == key.TenantId && state.FormId == key.FormId;
-        if (!deletedHere)
+        if (!await RemoveRowIfDeletedHereAsync(key, cancellationToken))
         {
             throw new InvalidOperationException(
                 $"Submission {key.SubmissionId} for form {key.FormId} was not found while flattening.");
         }
+    }
 
-        var row = await flattenedSubmissionRepository.GetBySubmissionIdAsync(key.TenantId, key.SubmissionId, cancellationToken);
-        if (row is not null)
+    // A form deleted after its submission was read, with its cleanup already run, leaves no schema to flatten with.
+    // The row this flatten created is removed as that cleanup removed the others. Any other missing schema throws.
+    private async Task HandleMissingSchemaAsync(FlattenRun run, CancellationToken cancellationToken)
+    {
+        if (!await RemoveRowIfDeletedHereAsync(run.Key, cancellationToken))
         {
-            row.MarkDeleted();
-            await flattenedSubmissionRepository.SaveAsync(row, cancellationToken);
+            throw new InvalidOperationException(
+                $"Form export schema is not available for form {run.Key.FormId}, definition {run.Submission.FormDefinitionId}.");
         }
     }
 
-    // A deletion whose sync ran between this flatten's read and its write would otherwise leave the row behind. The
-    // deletion is committed before its sync runs, so reading again after the write sees it, and the row is removed
-    // as the sync would have removed it.
-    private async Task RemoveRowIfDeletedMeanwhileAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
+    /// <summary>
+    /// Removes the row when the submission or its form was soft-deleted in the key's tenant and form; returns whether
+    /// it was.
+    /// </summary>
+    private async Task<bool> RemoveRowIfDeletedHereAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
     {
-        if (await submissionRepository.AnyAsync(
-                new SubmissionWithDefinitionAndFormSpec(key.FormId, key.SubmissionId),
-                cancellationToken))
+        var state = await submissionRepository.SingleOrDefaultAsync(
+            new SubmissionDeletionStateSpec(key.TenantId, key.SubmissionId),
+            cancellationToken);
+        if (state is null || !state.IsDeletedIn(key.FormId))
         {
-            logger.LogInformation("Flattened submission {SubmissionId} for form {FormId}", key.SubmissionId, key.FormId);
-            return;
+            return false;
         }
 
+        await RemoveRowOfDeletedSubmissionAsync(key, cancellationToken);
+        return true;
+    }
+
+    // A deletion of the submission or its form whose sync ran between this flatten's read and its write would
+    // otherwise leave the row behind. The deletion is committed before its sync runs, so reading again after the
+    // write sees it, and the row is removed as the sync would have removed it. The same lookup as for a missing
+    // submission, because a criteria-only re-read of the submission would not see the form's own deletion.
+    private async Task RemoveRowIfDeletedMeanwhileAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
+    {
+        if (!await RemoveRowIfDeletedHereAsync(key, cancellationToken))
+        {
+            logger.LogInformation("Flattened submission {SubmissionId} for form {FormId}", key.SubmissionId, key.FormId);
+        }
+    }
+
+    private async Task RemoveRowOfDeletedSubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
+    {
         var removed = await flattenedSubmissionRepository.DeleteBySubmissionAsync(key, cancellationToken);
         logger.LogInformation(
-            "Submission {SubmissionId} of form {FormId} was deleted while it was flattened; removed {Removed} flattened row(s)",
+            "Submission {SubmissionId} of form {FormId}, or the form, was deleted; removed {Removed} flattened row(s)",
             key.SubmissionId,
             key.FormId,
             removed);
