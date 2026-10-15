@@ -509,6 +509,261 @@ public sealed class SubmissionsGridSpikeTests
         Log("perf.pg.mitigations", sb.ToString());
     }
 
+    // Round 2: scan once (ids in one pass, page by id), forced parallel scan (PG), narrow search column (both).
+    [Fact]
+    public async Task Risk3_Round2()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        if (Environment.GetEnvironmentVariable("SPIKE_PERF") != "3") { return; }
+        var sql = _fixture.Provider == TestDatabaseProvider.SqlServer;
+        string Q(string n) => sql ? $"[{n}]" : $"\"{n}\"";
+        await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, ct);
+        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, ct);
+        await using var app = CreateAppDb(TenantId);
+        await SeedTenantAsync(app, TenantId, ct);
+        var (formId, defId) = await SeedFormAsync(app, TenantId, ct);
+        var templateId = await SeedSubmissionAsync(app, TenantId, formId, defId, true, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ct);
+        var expected = await LoadDatasetAsync(app, formId, templateId, 50000, 1000, ct);
+        await AnalyzeAsync(app, ct);
+        var conn = app.Database.GetDbConnection();
+        var sb = new StringBuilder($"## {_fixture.Provider} round 2 (50k x 1000), p50 / p95 over 7 runs, ms\n");
+        sb.AppendLine("cpus: " + Environment.ProcessorCount + " (host)");
+
+        async Task Measure(string label, Func<Task<int>> run, int expectedTotal)
+        {
+            var times = new List<double>();
+            for (var i = -2; i < 7; i++)
+            {
+                var t = Stopwatch.GetTimestamp();
+                var total = await run();
+                if (i >= 0) times.Add(Stopwatch.GetElapsedTime(t).TotalMilliseconds);
+                total.Should().Be(expectedTotal, label);
+            }
+            sb.AppendLine($"| {label} | {expectedTotal} | {P(times, .5):F0} | {P(times, .95):F0} |");
+        }
+
+        // Scan once through EF: ids + sort key of every match, count and page in memory, then the page's rows by id.
+        async Task<int> ScanOnceEf(Func<ReportingDbContextBase, IQueryable<GridRow>> build, Func<ReportingDbContextBase, Task>? prepare = null)
+        {
+            await using var db = ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, new IntegrationTenantContext(TenantId));
+            if (prepare is not null) { await db.Database.OpenConnectionAsync(ct); await prepare(db); }
+            var keys = await build(db).AsNoTracking().Select(r => new { r.Id, r.CreatedAt }).ToListAsync(ct);
+            var pageIds = keys.OrderByDescending(k => k.CreatedAt).ThenBy(k => k.Id).Take(50).Select(k => k.Id).ToList();
+            var page = await db.FlattenedSubmissions.AsNoTracking().Where(f => pageIds.Contains(f.SubmissionId)).Select(f => new { f.SubmissionId, f.DataJson }).ToListAsync(ct);
+            page.Count.Should().Be(pageIds.Count);
+            return keys.Count;
+        }
+
+        // Same, in raw SQL against a column the EF model does not know (the narrow search column).
+        async Task<int> ScanOnceRaw(string where)
+        {
+            var rows = await QueryAsync(conn, $"SELECT f.{Q("SubmissionId")}, s.{Q("CreatedAt")} FROM {Q("Submissions")} s JOIN {Q("reporting")}.{Q("FlattenedSubmissions")} f ON f.{Q("SubmissionId")} = s.{Q("Id")} WHERE s.{Q("FormId")} = {formId} AND s.{Q("TenantId")} = {TenantId} AND f.{Q("TenantId")} = {TenantId} AND f.{Q("IntegrationStatus")} = 'processed' AND f.{Q("SourceModifiedAt")} = COALESCE(s.{Q("ModifiedAt")}, s.{Q("CreatedAt")}) AND {where}", ct);
+            var pageIds = rows.OrderByDescending(r => (DateTime)r[1]!).ThenBy(r => (long)r[0]!).Take(50).Select(r => (long)r[0]!).ToList();
+            if (pageIds.Count > 0)
+            {
+                var page = await QueryAsync(conn, $"SELECT {Q("SubmissionId")}, {Q("DataJson")} FROM {Q("reporting")}.{Q("FlattenedSubmissions")} WHERE {Q("SubmissionId")} IN ({string.Join(",", pageIds)})", ct);
+                page.Count.Should().Be(pageIds.Count);
+            }
+            return rows.Count;
+        }
+
+        IQueryable<GridRow> One(ReportingDbContextBase db) => Contains(FreshOnly(BaseQuery(db, formId)), "q0010", "zebra");
+        IQueryable<GridRow> Wide(ReportingDbContextBase db) => Contains(FreshOnly(BaseQuery(db, formId)), "q0990", "mango");
+        IQueryable<GridRow> Three(ReportingDbContextBase db) => Contains(Contains(Contains(FreshOnly(BaseQuery(db, formId)), "q0990", "mango"), "q0500", "kiwi"), "q0010", "zebra");
+        IQueryable<GridRow> None(ReportingDbContextBase db) => Contains(FreshOnly(BaseQuery(db, formId)), "q0500", "qqqqqq");
+
+        sb.AppendLine("| variant | total | p50 | p95 |");
+        sb.AppendLine("|---|---|---|---|");
+        await Measure("scan once, DataJson: 1 contains (1%)", () => ScanOnceEf(One), expected.Zebra);
+        await Measure("scan once, DataJson: 1 contains (25%, key #990)", () => ScanOnceEf(Wide), expected.Mango);
+        await Measure("scan once, DataJson: 3 contains (25% first)", () => ScanOnceEf(Three), expected.All3);
+        await Measure("scan once, DataJson: no match", () => ScanOnceEf(None), 0);
+
+        if (!sql)
+        {
+            Task Parallel(ReportingDbContextBase db) => db.Database.ExecuteSqlRawAsync(
+                "SET max_parallel_workers_per_gather = 4; SET parallel_setup_cost = 0; SET parallel_tuple_cost = 0; SET min_parallel_table_scan_size = 0;", ct);
+            await Measure("scan once + parallel(4), DataJson: 1 contains (1%)", () => ScanOnceEf(One, Parallel), expected.Zebra);
+            await Measure("scan once + parallel(4), DataJson: 3 contains (25% first)", () => ScanOnceEf(Three, Parallel), expected.All3);
+            await Measure("scan once + parallel(4), DataJson: no match", () => ScanOnceEf(None, Parallel), 0);
+        }
+
+        // Narrow search column: keys q0001..q0100 plus the two deep filter keys, lowercased.
+        var keys = Enumerable.Range(1, 100).Select(k => $"q{k:D4}").Concat(["q0500", "q0990"]).ToList();
+        var F = $"{Q("reporting")}.{Q("FlattenedSubmissions")}";
+        if (sql)
+        {
+            await ExecAsync(conn, $"ALTER TABLE {F} ADD [SearchJson] json NULL", ct);
+            var pairs = string.Join(", ", keys.Select(k => $"'{k}': LOWER(JSON_VALUE([DataJson], '$.{k}'))"));
+            await ExecAsync(conn, $"UPDATE {F} SET [SearchJson] = CAST(JSON_OBJECT({pairs}) AS json)", ct);
+            await ExecAsync(conn, $"UPDATE STATISTICS {F} WITH FULLSCAN", ct);
+        }
+        else
+        {
+            var chunks = keys.Chunk(40).Select(c => "jsonb_build_object(" + string.Join(", ", c.Select(k => $"'{k}', lower(jsonb_extract_path_text(\"DataJson\", '{k}'))")) + ")");
+            await ExecAsync(conn, $"ALTER TABLE {F} ADD COLUMN \"SearchJson\" jsonb; UPDATE {F} SET \"SearchJson\" = {string.Join(" || ", chunks)}; VACUUM ANALYZE {F};", ct);
+        }
+
+        sb.AppendLine("avg SearchJson bytes: " + await ScalarAsync<object>(conn, sql ? $"SELECT AVG(CAST(DATALENGTH([SearchJson]) AS bigint)) FROM {F}" : $"SELECT avg(pg_column_size(\"SearchJson\")) FROM {F}", ct));
+        string K(string key) => sql ? $"JSON_VALUE(f.[SearchJson], '$.{key}')" : $"jsonb_extract_path_text(f.\"SearchJson\", '{key}')";
+        await Measure("scan once, SearchJson: 1 contains (1%)", () => ScanOnceRaw($"{K("q0010")} LIKE '%zebra%'"), expected.Zebra);
+        await Measure("scan once, SearchJson: 1 contains (25%, key #990)", () => ScanOnceRaw($"{K("q0990")} LIKE '%mango%'"), expected.Mango);
+        await Measure("scan once, SearchJson: 3 contains (25% first)", () => ScanOnceRaw($"{K("q0990")} LIKE '%mango%' AND {K("q0500")} LIKE '%kiwi%' AND {K("q0010")} LIKE '%zebra%'"), expected.All3);
+        await Measure("scan once, SearchJson: 3 contains + date range", () => ScanOnceRaw($"{K("q0990")} LIKE '%mango%' AND {K("q0500")} LIKE '%kiwi%' AND {K("q0010")} LIKE '%zebra%' AND {K("q0007")} >= '2025-01-01' AND {K("q0007")} < '2026-01-01'"), expected.All3InYear);
+        await Measure("scan once, SearchJson: no match", () => ScanOnceRaw($"{K("q0500")} LIKE '%qqqqqq%'"), 0);
+        if (!sql)
+        {
+            await ExecAsync(conn, "SET max_parallel_workers_per_gather = 4; SET parallel_setup_cost = 0; SET parallel_tuple_cost = 0; SET min_parallel_table_scan_size = 0;", ct);
+            await Measure("scan once + parallel(4), SearchJson: 3 contains (25% first)", () => ScanOnceRaw($"{K("q0990")} LIKE '%mango%' AND {K("q0500")} LIKE '%kiwi%' AND {K("q0010")} LIKE '%zebra%'"), expected.All3);
+            await Measure("scan once + parallel(4), SearchJson: no match", () => ScanOnceRaw($"{K("q0500")} LIKE '%qqqqqq%'"), 0);
+            await ExecAsync(conn, "RESET ALL;", ct);
+        }
+
+        // Write cost of the extra column: rebuild SearchJson for all rows once (a forced backfill's extra work).
+        var w = Stopwatch.StartNew();
+        if (sql)
+        {
+            var pairs = string.Join(", ", keys.Select(k => $"'{k}': LOWER(JSON_VALUE([DataJson], '$.{k}'))"));
+            await ExecAsync(conn, $"UPDATE {F} SET [SearchJson] = CAST(JSON_OBJECT({pairs}) AS json)", ct);
+        }
+        else
+        {
+            var chunks = keys.Chunk(40).Select(c => "jsonb_build_object(" + string.Join(", ", c.Select(k => $"'{k}', lower(jsonb_extract_path_text(\"DataJson\", '{k}'))")) + ")");
+            await ExecAsync(conn, $"UPDATE {F} SET \"SearchJson\" = {string.Join(" || ", chunks)}", ct);
+        }
+        sb.AppendLine($"rebuild SearchJson for 50k rows in SQL (upper bound of the extra write): {w.Elapsed.TotalSeconds:F1}s");
+        Log("perf.round2." + _fixture.Provider, sb.ToString());
+    }
+
+    // Round 3 (PG): does a table-level parallel_workers setting alone make the planner parallelise the scan?
+    [Fact]
+    public async Task Risk3_PgTableParallel()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        if (Environment.GetEnvironmentVariable("SPIKE_PERF") != "4" || _fixture.Provider != TestDatabaseProvider.PostgreSql) { return; }
+        await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, ct);
+        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, ct);
+        await using var app = CreateAppDb(TenantId);
+        await SeedTenantAsync(app, TenantId, ct);
+        var (formId, defId) = await SeedFormAsync(app, TenantId, ct);
+        var templateId = await SeedSubmissionAsync(app, TenantId, formId, defId, true, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ct);
+        var expected = await LoadDatasetAsync(app, formId, templateId, 50000, 1000, ct);
+        await AnalyzeAsync(app, ct);
+        var conn = app.Database.GetDbConnection();
+        var sb = new StringBuilder();
+        sb.AppendLine("defaults: " + string.Join(", ", (await QueryAsync(conn, "SELECT name || '=' || setting FROM pg_settings WHERE name IN ('max_parallel_workers_per_gather','max_parallel_workers','max_worker_processes','parallel_setup_cost','parallel_tuple_cost','min_parallel_table_scan_size')", ct)).Select(r => r[0])));
+
+        async Task Run(string label)
+        {
+            var times = new List<double>();
+            for (var i = -2; i < 7; i++)
+            {
+                await using var db = ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, new IntegrationTenantContext(TenantId));
+                var t = Stopwatch.GetTimestamp();
+                var keys = await Contains(Contains(Contains(FreshOnly(BaseQuery(db, formId)), "q0990", "mango"), "q0500", "kiwi"), "q0010", "zebra")
+                    .AsNoTracking().Select(r => new { r.Id, r.CreatedAt }).ToListAsync(ct);
+                var pageIds = keys.OrderByDescending(k => k.CreatedAt).ThenBy(k => k.Id).Take(50).Select(k => k.Id).ToList();
+                _ = await db.FlattenedSubmissions.AsNoTracking().Where(f => pageIds.Contains(f.SubmissionId)).Select(f => f.DataJson).ToListAsync(ct);
+                if (i >= 0) times.Add(Stopwatch.GetElapsedTime(t).TotalMilliseconds);
+                keys.Count.Should().Be(expected.All3);
+            }
+            await using var ex = ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, new IntegrationTenantContext(TenantId));
+            var sqlText = InlineParameters(Contains(Contains(Contains(FreshOnly(BaseQuery(ex, formId)), "q0990", "mango"), "q0500", "kiwi"), "q0010", "zebra").Select(r => new { r.Id, r.CreatedAt }).ToQueryString());
+            var plan = string.Join("\n", (await QueryAsync(conn, "EXPLAIN (ANALYZE, BUFFERS) " + sqlText, ct)).Select(r => r[0]));
+            sb.AppendLine($"### {label}: scan once, 3 contains: p50={P(times, .5):F0}ms p95={P(times, .95):F0}ms");
+            sb.AppendLine(plan);
+        }
+
+        await Run("defaults");
+        await ExecAsync(conn, "ALTER TABLE reporting.\"FlattenedSubmissions\" SET (parallel_workers = 4)", ct);
+        await Run("table parallel_workers=4, default costs");
+        Log("perf.pg.tableparallel", sb.ToString());
+    }
+
+    // Round 4: every key searchable, split into fixed buckets (bucket = key number % B), one small doc per bucket.
+    [Fact]
+    public async Task Risk3_BucketedSearch()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        if (Environment.GetEnvironmentVariable("SPIKE_PERF") != "5") { return; }
+        var sql = _fixture.Provider == TestDatabaseProvider.SqlServer;
+        string Q(string n) => sql ? $"[{n}]" : $"\"{n}\"";
+        await _fixture.Checkpoint.ResetAsync(_fixture.ConnectionString, _fixture.Provider, ct);
+        await ReportingTestSchema.EnsureMigratedAsync(_fixture.ConnectionString, _fixture.Provider, ct);
+        await using var app = CreateAppDb(TenantId);
+        await SeedTenantAsync(app, TenantId, ct);
+        var (formId, defId) = await SeedFormAsync(app, TenantId, ct);
+        var templateId = await SeedSubmissionAsync(app, TenantId, formId, defId, true, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ct);
+        var expected = await LoadDatasetAsync(app, formId, templateId, 50000, 1000, ct);
+        var conn = app.Database.GetDbConnection();
+        var sb = new StringBuilder($"## {_fixture.Provider} bucketed search (50k x 1000, all keys searchable), ms\n");
+        var F = $"{Q("reporting")}.{Q("FlattenedSubmissions")}";
+        var buckets = (Environment.GetEnvironmentVariable("SPIKE_BUCKETS") ?? "32").Split(',').Select(int.Parse).ToList();
+
+        foreach (var b in buckets)
+        {
+            var S = $"{Q("reporting")}.{Q("SpikeSearch" + b)}";
+            var w = Stopwatch.StartNew();
+            if (sql)
+            {
+                await ExecAsync(conn, $"CREATE TABLE {S} ([FormId] bigint NOT NULL, [Bucket] smallint NOT NULL, [SubmissionId] bigint NOT NULL, [Doc] json NOT NULL, CONSTRAINT [PK_SpikeSearch{b}] PRIMARY KEY ([FormId], [Bucket], [SubmissionId]))", ct);
+                await ExecAsync(conn, $"INSERT INTO {S} SELECT f.[FormId], CAST(CAST(SUBSTRING(j.[key], 2, 4) AS int) % {b} AS smallint), f.[SubmissionId], CAST(JSON_OBJECTAGG(j.[key] : LOWER(j.[value])) AS json) FROM {F} f CROSS APPLY OPENJSON(f.[DataJson]) j GROUP BY f.[FormId], CAST(SUBSTRING(j.[key], 2, 4) AS int) % {b}, f.[SubmissionId]", ct);
+                await ExecAsync(conn, $"UPDATE STATISTICS {S} WITH FULLSCAN", ct);
+            }
+            else
+            {
+                await ExecAsync(conn, $"CREATE TABLE {S} (\"FormId\" bigint NOT NULL, \"Bucket\" smallint NOT NULL, \"SubmissionId\" bigint NOT NULL, \"Doc\" jsonb NOT NULL, PRIMARY KEY (\"FormId\", \"Bucket\", \"SubmissionId\"))", ct);
+                await ExecAsync(conn, $"INSERT INTO {S} SELECT f.\"FormId\", (substr(j.key, 2)::int % {b})::smallint, f.\"SubmissionId\", jsonb_object_agg(j.key, lower(j.value)) FROM {F} f, jsonb_each_text(f.\"DataJson\") j GROUP BY 1, 2, 3", ct);
+                await ExecAsync(conn, $"VACUUM ANALYZE {S}; VACUUM ANALYZE {F}; VACUUM ANALYZE \"Submissions\";", ct);
+            }
+
+            sb.AppendLine($"### B={b}: built {50000 * b} rows in {w.Elapsed.TotalSeconds:F0}s (SQL, from DataJson)");
+            sb.AppendLine("avg doc bytes: " + await ScalarAsync<object>(conn, sql ? $"SELECT AVG(CAST(DATALENGTH([Doc]) AS bigint)) FROM {S}" : $"SELECT avg(pg_column_size(\"Doc\")) FROM {S}", ct)
+                + "; table size: " + await ScalarAsync<object>(conn, sql ? $"SELECT SUM(a.total_pages) * 8 / 1024 FROM sys.partitions p JOIN sys.allocation_units a ON a.container_id = p.partition_id WHERE p.object_id = OBJECT_ID('reporting.SpikeSearch{b}')" : $"SELECT pg_size_pretty(pg_total_relation_size('{S}'))", ct));
+
+            string K(string doc, string key) => sql ? $"JSON_VALUE({doc}.[Doc], '$.{key}')" : $"jsonb_extract_path_text({doc}.\"Doc\", '{key}')";
+            string Has(string key, string cond, int n) =>
+                $"EXISTS (SELECT 1 FROM {S} x{n} WHERE x{n}.{Q("FormId")} = {formId} AND x{n}.{Q("Bucket")} = {int.Parse(key[1..]) % b} AND x{n}.{Q("SubmissionId")} = s.{Q("Id")} AND {K("x" + n, key)} {cond})";
+
+            async Task<int> ScanOnce(string where)
+            {
+                var rows = await QueryAsync(conn, $"SELECT s.{Q("Id")}, s.{Q("CreatedAt")} FROM {Q("Submissions")} s JOIN {F} f ON f.{Q("SubmissionId")} = s.{Q("Id")} WHERE s.{Q("FormId")} = {formId} AND s.{Q("TenantId")} = {TenantId} AND f.{Q("TenantId")} = {TenantId} AND f.{Q("IntegrationStatus")} = 'processed' AND f.{Q("SourceModifiedAt")} = COALESCE(s.{Q("ModifiedAt")}, s.{Q("CreatedAt")}) AND {where}", ct);
+                var pageIds = rows.OrderByDescending(r => (DateTime)r[1]!).ThenBy(r => (long)r[0]!).Take(50).Select(r => (long)r[0]!).ToList();
+                if (pageIds.Count > 0) { _ = await QueryAsync(conn, $"SELECT {Q("DataJson")} FROM {F} WHERE {Q("SubmissionId")} IN ({string.Join(",", pageIds)})", ct); }
+                return rows.Count;
+            }
+
+            async Task Measure(string label, string where, int exp)
+            {
+                var times = new List<double>();
+                for (var i = -2; i < 7; i++)
+                {
+                    var t = Stopwatch.GetTimestamp();
+                    var total = await ScanOnce(where);
+                    if (i >= 0) times.Add(Stopwatch.GetElapsedTime(t).TotalMilliseconds);
+                    total.Should().Be(exp, label);
+                }
+                sb.AppendLine($"| B={b} {label} | {exp} | {P(times, .5):F0} | {P(times, .95):F0} |");
+            }
+
+            sb.AppendLine("| variant | total | p50 | p95 |");
+            sb.AppendLine("|---|---|---|---|");
+            await Measure("1 contains (1%)", Has("q0010", "LIKE '%zebra%'", 1), expected.Zebra);
+            await Measure("1 contains (25%, key #990)", Has("q0990", "LIKE '%mango%'", 1), expected.Mango);
+            await Measure("3 contains (25% first)", Has("q0990", "LIKE '%mango%'", 1) + " AND " + Has("q0500", "LIKE '%kiwi%'", 2) + " AND " + Has("q0010", "LIKE '%zebra%'", 3), expected.All3);
+            await Measure("3 contains + date range", Has("q0990", "LIKE '%mango%'", 1) + " AND " + Has("q0500", "LIKE '%kiwi%'", 2) + " AND " + Has("q0010", "LIKE '%zebra%'", 3) + " AND " + Has("q0007", ">= '2025-01-01'", 4) + " AND " + Has("q0007", "< '2026-01-01'", 5), expected.All3InYear);
+            await Measure("1 contains, no match", Has("q0500", "LIKE '%qqqqqq%'", 1), 0);
+
+            if (!sql)
+            {
+                var plan = string.Join("\n", (await QueryAsync(conn, $"EXPLAIN (ANALYZE, BUFFERS) SELECT s.\"Id\" FROM \"Submissions\" s WHERE s.\"FormId\" = {formId} AND " + Has("q0990", "LIKE '%mango%'", 1) + " AND " + Has("q0500", "LIKE '%kiwi%'", 2) + " AND " + Has("q0010", "LIKE '%zebra%'", 3), ct)).Select(r => r[0]));
+                sb.AppendLine("```").AppendLine(plan).AppendLine("```");
+            }
+        }
+
+        Log("perf.buckets." + _fixture.Provider, sb.ToString());
+    }
+
     private sealed record Expected(int Total, int Zebra, int Mango, int All3, int Dates, int All3InYear);
 
     private async Task<Expected> LoadDatasetAsync(AppDbContext app, long formId, long templateId, int rows, int cols, CancellationToken ct)
