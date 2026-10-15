@@ -89,30 +89,32 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     }
 
     // Refused here, naming the limit, rather than by the database as a truncation error that fails every other job
-    // in the same batch without saying which key was too long. A key with whitespace at either end is refused too:
-    // SQL Server ignores trailing spaces when it compares, so its unique index would hold "k1 " to be "k1" while the
-    // queue's lookup tells them apart, and the enqueue would fail on every retry instead of returning the job.
+    // in the same batch without saying which key was too long. A key ending in a space is refused too: SQL Server
+    // ignores trailing spaces (U+0020 only) when it compares, so its unique index would hold "k1 " to be "k1" while
+    // the queue's lookup tells them apart, and the enqueue would fail on every retry instead of returning the job.
+    // Other whitespace, leading or trailing, compares as written on both providers, so it is allowed.
     // A blank key means no key, whatever its length, so it is let through before the length check.
     private static string? DedupKeyError(string? dedupKey) => dedupKey switch
     {
         _ when string.IsNullOrWhiteSpace(dedupKey) => null,
         { Length: > DedupKeyMaxLength } =>
             $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
-        { } key when HasEdgeWhitespace(key) => "A dedup key cannot start or end with whitespace.",
+        { } key when EndsWithSpace(key) => "A dedup key cannot end with a space.",
         _ => null,
     };
 
-    // SQL Server ignores trailing spaces when it compares, so "Export " would be a second name for "Export".
+    // SQL Server ignores trailing spaces (U+0020 only) when it compares, so "Export " would be a second name for
+    // "Export".
     private static void GuardJobType(string jobType)
     {
         Guard.Against.NullOrWhiteSpace(jobType);
-        if (HasEdgeWhitespace(jobType))
+        if (EndsWithSpace(jobType))
         {
-            throw new ArgumentException("A job type cannot start or end with whitespace.", nameof(jobType));
+            throw new ArgumentException("A job type cannot end with a space.", nameof(jobType));
         }
     }
 
-    private static bool HasEdgeWhitespace(string value) => char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]);
+    private static bool EndsWithSpace(string value) => value[^1] == ' ';
 
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>
     public string JobType { get; private set; } = null!;

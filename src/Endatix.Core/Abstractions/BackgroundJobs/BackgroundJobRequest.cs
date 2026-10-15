@@ -28,9 +28,9 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// <param name="DedupKey">
 /// Optional identity of the unit of work, unique within a tenant and job type. Enqueueing the same key
 /// again does not create a second job: it returns the id of the job that already exists, and schedules
-/// nothing. It must name the work, not the attempt, so it never contains a timestamp or a counter. A key that
-/// starts or ends with whitespace is refused, because SQL Server would hold it equal to the key without it; a key
-/// that is all whitespace means no key.
+/// nothing. It must name the work, not the attempt, so it never contains a timestamp or a counter. A key that ends
+/// with a space (U+0020) is refused, because SQL Server would hold it equal to the key without it; a key that is all
+/// whitespace means no key.
 /// </param>
 public sealed record BackgroundJobRequest(
     string JobType,

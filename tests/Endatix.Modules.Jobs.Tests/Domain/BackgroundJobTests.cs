@@ -91,14 +91,11 @@ public class BackgroundJobTests
         job.DedupKey.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData("k1 ")]
-    [InlineData(" k1")]
-    [InlineData("k1\t")]
-    public void FromRequest_DedupKeyWithSurroundingWhitespace_Throws(string dedupKey)
+    [Fact]
+    public void FromRequest_DedupKeyEndingInASpace_Throws()
     {
-        // Arrange
-        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: dedupKey);
+        // Arrange — SQL Server's unique index would hold "k1 " equal to "k1".
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: "k1 ");
 
         // Act
         var act = () => BackgroundJob.FromRequest(request, Now, traceId: null);
@@ -106,27 +103,52 @@ public class BackgroundJobTests
         // Assert
         act.Should().Throw<ArgumentException>()
             .WithParameterName("request")
-            .WithMessage("A dedup key cannot start or end with whitespace.*");
+            .WithMessage("A dedup key cannot end with a space.*");
     }
 
     [Theory]
-    [InlineData("SubmissionExport ")]
-    [InlineData(" SubmissionExport")]
-    [InlineData("SubmissionExport\t")]
-    public void Constructor_JobTypeWithSurroundingWhitespace_Throws(string jobType)
+    [InlineData(" k1")]
+    [InlineData("k1\t")]
+    public void FromRequest_DedupKeyWithOtherEdgeWhitespace_KeepsTheKey(string dedupKey)
+    {
+        // Arrange — both providers compare these as written.
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: dedupKey);
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.DedupKey.Should().Be(dedupKey);
+    }
+
+    [Fact]
+    public void Constructor_JobTypeEndingInASpace_Throws()
     {
         // Arrange
         // Act
-        var act = () => new BackgroundJob(jobType, "{}", tenantId: 5, nextAttemptAt: Now);
+        var act = () => new BackgroundJob("SubmissionExport ", "{}", tenantId: 5, nextAttemptAt: Now);
 
         // Assert
         act.Should().Throw<ArgumentException>()
             .WithParameterName("jobType")
-            .WithMessage("A job type cannot start or end with whitespace.*");
+            .WithMessage("A job type cannot end with a space.*");
+    }
+
+    [Theory]
+    [InlineData(" SubmissionExport")]
+    [InlineData("SubmissionExport\t")]
+    public void Constructor_JobTypeWithOtherEdgeWhitespace_KeepsTheType(string jobType)
+    {
+        // Arrange
+        // Act
+        var job = new BackgroundJob(jobType, "{}", tenantId: 5, nextAttemptAt: Now);
+
+        // Assert
+        job.JobType.Should().Be(jobType);
     }
 
     [Fact]
-    public void FromRequest_JobTypeWithSurroundingWhitespace_Throws()
+    public void FromRequest_JobTypeEndingInASpace_Throws()
     {
         // Arrange
         var request = new BackgroundJobRequest("SubmissionExport ", "{}", TenantId: 5);
@@ -135,7 +157,7 @@ public class BackgroundJobTests
         var act = () => BackgroundJob.FromRequest(request, Now, traceId: null);
 
         // Assert
-        act.Should().Throw<ArgumentException>().WithMessage("A job type cannot start or end with whitespace.*");
+        act.Should().Throw<ArgumentException>().WithMessage("A job type cannot end with a space.*");
     }
 
     [Fact]

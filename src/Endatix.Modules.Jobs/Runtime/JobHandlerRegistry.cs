@@ -111,8 +111,8 @@ internal sealed class JobHandlerRegistry
 
     /// <summary>Why no job could run under <paramref name="jobType"/>, or <see langword="null"/> when one can.</summary>
     /// <remarks>
-    /// A job refuses a type with whitespace at either end, since SQL Server ignores trailing spaces when it compares;
-    /// refusing it here names the handler at startup rather than failing every enqueue of it.
+    /// A job refuses a type that ends with a space, since SQL Server ignores trailing spaces (U+0020 only) when it
+    /// compares; refusing it here names the handler at startup rather than failing every enqueue of it.
     /// </remarks>
     private static string? JobTypeError(string? jobType, Type handlerType) => jobType switch
     {
@@ -126,8 +126,8 @@ internal sealed class JobHandlerRegistry
             $"The job type '{jobType}' of the background job handler {handlerType.FullName} is, ignoring case, a " +
             $"name the scheduler reserves for its execution limits or for its maintenance jobs ('{JobRetentionJob.Group}'), " +
             "so no job could safely run under it.",
-        { } type when char.IsWhiteSpace(type[0]) || char.IsWhiteSpace(type[^1]) =>
-            $"The job type '{jobType}' of the background job handler {handlerType.FullName} starts or ends with whitespace.",
+        { } type when type[^1] == ' ' =>
+            $"The job type '{jobType}' of the background job handler {handlerType.FullName} ends with a space.",
         { Length: > JobTypeMaxLength } =>
             $"The job type '{jobType}' of the background job handler {handlerType.FullName} is longer than " +
             $"{JobTypeMaxLength} characters, so no job could ever carry it.",

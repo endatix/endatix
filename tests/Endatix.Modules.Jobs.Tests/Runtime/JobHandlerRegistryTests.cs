@@ -114,21 +114,33 @@ public sealed class JobHandlerRegistryTests
         build.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain($"'{jobType}'");
     }
 
-    [Theory]
-    [InlineData("Export ")]
-    [InlineData(" Export")]
-    [InlineData("Export\t")]
-    public void Build_JobTypeWithSurroundingWhitespace_Throws(string jobType)
+    [Fact]
+    public void Build_JobTypeEndingInASpace_Throws()
     {
         // Arrange — no job could carry it, so every enqueue of it would fail.
-        IBackgroundJobHandler[] handlers = [new NamedHandler(jobType)];
+        IBackgroundJobHandler[] handlers = [new NamedHandler("Export ")];
 
         // Act
         var build = () => JobHandlerRegistry.Build(handlers);
 
         // Assert
         build.Should().Throw<InvalidOperationException>()
-            .Which.Message.Should().Contain($"'{jobType}'").And.Contain("starts or ends with whitespace");
+            .Which.Message.Should().Contain("'Export '").And.Contain("ends with a space");
+    }
+
+    [Theory]
+    [InlineData(" Export")]
+    [InlineData("Export\t")]
+    public void Build_JobTypeWithOtherEdgeWhitespace_Registers(string jobType)
+    {
+        // Arrange
+        IBackgroundJobHandler[] handlers = [new NamedHandler(jobType)];
+
+        // Act
+        var registry = JobHandlerRegistry.Build(handlers);
+
+        // Assert
+        registry.JobTypes.Should().Equal(jobType);
     }
 
     [Fact]
