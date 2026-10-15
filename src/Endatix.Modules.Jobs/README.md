@@ -102,11 +102,14 @@ var jobId = await backgroundJobQueue.EnqueueAsync(
 `{outboxMessageId}:{subscriber}`. It is unique per tenant and job type (a filtered unique index,
 `IX_BackgroundJobs_DedupKey`), and enqueueing a key that already exists returns the existing job's
 id without a second row or trigger, even when two enqueues race. Requests without a key never
-collide. It names the work, never the attempt: no timestamps or counters in it.
+collide. It names the work, never the attempt: no timestamps or counters in it. A key that ends with
+a space (U+0020) is refused, because SQL Server ignores trailing spaces when it compares; a blank key
+means no key.
 
 Use `EnqueueManyAsync` for fan-out — one job per webhook endpoint, say. The batch commits in
 a single transaction, so a partial fan-out cannot deliver to some destinations and silently
-drop the rest.
+drop the rest. A batch inserts its keyed jobs ordered by tenant, job type and key, so two batches that
+share keys lock them in the same order and one waits for the other instead of deadlocking.
 
 > [!IMPORTANT]
 > Enqueueing is **not** transactionally joined to app-schema writes: jobs live on their own
@@ -119,7 +122,8 @@ drop the rest.
 Derive from `BackgroundJobHandler<TPayload>` and register it with
 `services.AddBackgroundJobHandler<THandler, TPayload>()`, which keys it by job type so a job run
 builds only its own handler. The job type comes from the payload; handlers may live in any
-assembly. Two handlers declaring the same job type, or job types that differ only in case, fail startup:
+assembly. A job type that ends with a space fails startup, as a dedup key that does is refused. Two
+handlers declaring the same job type, or job types that differ only in case, fail startup:
 on SQL Server the scheduler stores each job type's durable job under a key the database compares in its
 default collation, which ignores case by default.
 
@@ -250,9 +254,10 @@ or jobs start late, at your volume: many concurrent enqueuers, large webhook fan
 enqueue inside a long unit of work. Without
 `READ_COMMITTED_SNAPSHOT`, turning the lock off only moves the wait from enqueueing to acquisition,
 which is why a node refuses that combination at startup, naming both settings. The node checks the
-database when its scheduler starts and before each enqueue until a check passes, and not again once
-it has: every enqueue on a refused node checks again and fails, and a database that turns snapshots
-off later is noticed only when the nodes restart.
+database once, when its scheduler starts or at its first enqueue, and keeps the answer: a refused node
+fails every enqueue without asking again, and needs a restart once a DBA has turned
+`READ_COMMITTED_SNAPSHOT` on, just as a database that turns snapshots off later is noticed only when
+the nodes restart. The switch below restarts the nodes after the DBA's step, so it never meets either.
 
 Switching is an operations change, not a release:
 
@@ -262,8 +267,8 @@ Switching is an operations change, not a release:
    ends the others. Check it with
    `SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()`.
 2. The operator sets `Endatix:BackgroundJobs:LockOnInsert` to `false` on every node.
-3. The nodes restart. Until every node has, the ones still taking the lock take turns with each
-   other, which is harmless.
+3. The nodes restart, after step 1: a node checks the database once, at its start. Until every node
+   has restarted, the ones still taking the lock take turns with each other, which is harmless.
 
 To go back, remove the setting (or set it to `true`) and restart the nodes; the database setting can
 stay on.
