@@ -92,12 +92,13 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     // in the same batch without saying which key was too long. A key with whitespace at either end is refused too:
     // SQL Server ignores trailing spaces when it compares, so its unique index would hold "k1 " to be "k1" while the
     // queue's lookup tells them apart, and the enqueue would fail on every retry instead of returning the job.
+    // A blank key means no key, whatever its length, so it is let through before the length check.
     private static string? DedupKeyError(string? dedupKey) => dedupKey switch
     {
+        _ when string.IsNullOrWhiteSpace(dedupKey) => null,
         { Length: > DedupKeyMaxLength } =>
             $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
-        { } key when !string.IsNullOrWhiteSpace(key) && HasEdgeWhitespace(key) =>
-            "A dedup key cannot start or end with whitespace.",
+        { } key when HasEdgeWhitespace(key) => "A dedup key cannot start or end with whitespace.",
         _ => null,
     };
 

@@ -77,6 +77,20 @@ public class BackgroundJobTests
         act.Should().Throw<ArgumentException>().WithParameterName("request");
     }
 
+    [Fact]
+    public void FromRequest_BlankDedupKeyLongerThanColumn_HasNoDedupKey()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest(
+            "SubmissionExport", "{}", TenantId: 5, DedupKey: new string(' ', BackgroundJob.DedupKeyMaxLength + 1));
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.DedupKey.Should().BeNull();
+    }
+
     [Theory]
     [InlineData("k1 ")]
     [InlineData(" k1")]
