@@ -20,13 +20,11 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
 {
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(60);
 
-    [Fact]
-    [Trait("DbSpecific", "PostgreSql")]
+    [PostgreSqlSpecificFact]
     public async Task JobsMigrations_FreshDatabase_CreatesQuartzTablesOnlyInJobsSchema()
     {
         // Arrange — PostgreSQL-only: information_schema holds the lower-case names its chain creates; SQL Server's
         // chain is checked in JobsSqlServerStoreTests.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(database);
@@ -78,13 +76,11 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         keyColumns.Should().ContainSingle().Which.Should().Contain(expectedKeyColumns);
     }
 
-    [Fact]
-    [Trait("DbSpecific", "PostgreSql")]
+    [PostgreSqlSpecificFact]
     public async Task QuartzValidation_MissingTables_FailsStartup()
     {
         // Arrange — PostgreSQL-only: DROP TABLE … CASCADE and the lower-case table name; SQL Server's twin is in
         // JobsSqlServerStoreTests.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using (var migrated = JobsTestNode.Create(database))

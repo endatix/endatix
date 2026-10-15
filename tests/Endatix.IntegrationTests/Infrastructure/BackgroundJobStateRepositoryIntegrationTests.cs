@@ -294,12 +294,10 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests(Endatix
         job.AttemptCount.Should().Be(1);
     }
 
-    [Fact]
-    [Trait("DbSpecific", "PostgreSql")]
+    [PostgreSqlSpecificFact]
     public async Task TryClaimAsync_AttemptCountChangedSinceRead_ReturnsNull()
     {
         // Arrange — PostgreSQL-only: FOR UPDATE, pg_backend_pid() and pg_stat_activity hold the row and watch the claim wait.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
 
         // Act
