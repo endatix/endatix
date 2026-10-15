@@ -35,4 +35,29 @@ public sealed partial class ShojiCodebookGeneratorTests
         ReadOrder(table).Skip(SubmissionExportRow.SystemColumns.Count)
             .Should().Equal(PersonalizationColumns.IdentifierKey, "audience_city", "qCity");
     }
+
+    [Fact]
+    public void Generate_QuestionAliasMatchesAnAudienceKey_TheQuestionKeepsItsPlaceInTheOrder()
+    {
+        // Arrange: with "_" as the separator, item "region" of question "audience" takes the alias "audience_region".
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"text","name":"qFirst"},
+              {"type":"multipletext","name":"audience","items":[{"name":"region"}]}
+            ]}]}
+            """;
+        FormSchemaCompiler compiler = new();
+        var compiled = compiler.CompilePersisted(definitionJson);
+        compiled = compiler.IncludePersonalization(
+            definitionJson,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            PersonalizationColumns.From(PersonalizationReader.Read("""{"identifier":"CG-1","variables":{"region":"North"}}""")));
+
+        // Act
+        var table = GenerateTable(compiled, keySeparator: "_");
+
+        // Assert
+        ReadOrder(table).Skip(SubmissionExportRow.SystemColumns.Count)
+            .Should().Equal(PersonalizationColumns.IdentifierKey, "qFirst", "audience_region");
+    }
 }

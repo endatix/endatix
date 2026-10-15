@@ -20,16 +20,16 @@ internal sealed class FormSchemaPersonalization(
     FormSchemaCompiler compiler,
     ILogger<FormSchemaPersonalization> logger) : IFormSchemaPersonalization
 {
-    public async Task<PersonalizedSchema> IncludeAsync(
+    public async Task<MergedFormSchema> IncludeAsync(
         FormSchemaEntity schema,
         PersonalizationRead? personalization,
         CancellationToken cancellationToken)
     {
         var columns = PersonalizationColumns.From(personalization);
-        var resolved = PersonalizedSchema.Of(schema);
-        if (IsCovered(resolved.FlatteningMap, columns))
+        var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
+        if (IsCovered(flatteningMap, columns) || !Fits(schema, flatteningMap, columns))
         {
-            return resolved;
+            return flatteningMap;
         }
 
         // Read before the lock, as a definition rebuild does, so the lock covers only the merge, compile and save.
@@ -37,7 +37,23 @@ internal sealed class FormSchemaPersonalization(
         var saved = await unitOfWork.InTransactionAsync(
             () => IncludeLockedAsync(schema, include, cancellationToken),
             cancellationToken);
-        return saved is null ? resolved : PersonalizedSchema.Of(saved);
+        return saved is null ? flatteningMap : FormSchemaFlatteningMap.FromJson(saved.FlatteningMap);
+    }
+
+    // With real submissions a schema only grows, so a form over a limit stays over it. Checking the parsed map first
+    // keeps every later flatten of such a form off the lock, the definition read and the compile.
+    private bool Fits(FormSchemaEntity schema, MergedFormSchema flatteningMap, IReadOnlyList<FormSchemaColumn> columns)
+    {
+        try
+        {
+            compiler.IncludePersonalizationColumns(flatteningMap, columns);
+            return true;
+        }
+        catch (SchemaCompilationLimitExceededException ex)
+        {
+            LogOverLimit(schema, ex);
+            return false;
+        }
     }
 
     private sealed record Include(IReadOnlyList<FormSchemaColumn> Columns, DefinitionAt Definition);
@@ -76,7 +92,7 @@ internal sealed class FormSchemaPersonalization(
             : await ReadDefinitionAsync(existing, cancellationToken);
 
     // Over a compile limit the response is still flattened with its answers, only without the new audience columns,
-    // as it was before audience columns existed. Each later personalized flatten of the form tries again.
+    // as it was before audience columns existed. Reached when another flatten added columns while this one waited.
     private bool TryApplyColumns(FormSchemaEntity existing, string definitionJson, IReadOnlyList<FormSchemaColumn> columns)
     {
         try
@@ -86,15 +102,18 @@ internal sealed class FormSchemaPersonalization(
         }
         catch (SchemaCompilationLimitExceededException ex)
         {
-            logger.LogWarning(
-                ex,
-                "Audience columns not added to the schema of form {FormId}: the schema would exceed its {LimitKind} limit of {Limit}",
-                existing.FormId,
-                ex.LimitKind,
-                ex.Limit);
+            LogOverLimit(existing, ex);
             return false;
         }
     }
+
+    private void LogOverLimit(FormSchemaEntity schema, SchemaCompilationLimitExceededException ex) =>
+        logger.LogWarning(
+            ex,
+            "Audience columns not added to the schema of form {FormId}: the schema would exceed its {LimitKind} limit of {Limit}",
+            schema.FormId,
+            ex.LimitKind,
+            ex.Limit);
 
     private void ApplyColumns(FormSchemaEntity existing, string definitionJson, IReadOnlyList<FormSchemaColumn> columns)
     {

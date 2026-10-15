@@ -34,7 +34,7 @@ public sealed class FormSchemaPersonalizationTests
         var result = await Personalization().IncludeAsync(schema, null, TestContext.Current.CancellationToken);
 
         // Assert
-        result.Schema.Should().BeSameAs(schema);
+        result.Columns.Select(column => column.Key).Should().Equal("city");
         await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
     }
 
@@ -48,7 +48,7 @@ public sealed class FormSchemaPersonalizationTests
         var result = await Personalization().IncludeAsync(schema, PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Schema.Should().BeSameAs(schema);
+        result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
         await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
     }
 
@@ -64,11 +64,9 @@ public sealed class FormSchemaPersonalizationTests
         var result = await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Schema.Should().BeSameAs(locked);
-        result.FlatteningMap.Columns.Select(column => column.Key)
-            .Should().Equal("city", "AudienceIdentifier", "audience_city");
-        result.Schema.Codebook.Should().Contain("\"audience_city\"");
-        result.Schema.FormDefinitionRevision.Should().Be(FormDefinitionId);
+        result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
+        locked.Codebook.Should().Contain("\"audience_city\"");
+        locked.FormDefinitionRevision.Should().Be(FormDefinitionId);
         await _schemas.Received(1).SaveAsync(locked, Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
     }
@@ -108,7 +106,8 @@ public sealed class FormSchemaPersonalizationTests
         // Arrange: the flatten read definition 200; a rebuild to 201 committed before it took the lock.
         const long newerDefinitionId = 201;
         var compiled = new FormSchemaCompiler().CompilePersisted(Definition);
-        GivenLocked(new FormSchemaEntity(TenantId, FormId, newerDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson));
+        FormSchemaEntity locked = new(TenantId, FormId, newerDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
+        GivenLocked(locked);
         GivenDefinition();
 
         // Act
@@ -116,8 +115,8 @@ public sealed class FormSchemaPersonalizationTests
 
         // Assert
         await _forms.Received(2).SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
-        result.Schema.FormDefinitionRevision.Should().Be(newerDefinitionId);
-        result.FlatteningMap.Columns.Should().Contain(column => column.Key == "audience_city");
+        locked.FormDefinitionRevision.Should().Be(newerDefinitionId);
+        result.Columns.Should().Contain(column => column.Key == "audience_city");
     }
 
     [Fact]
@@ -136,19 +135,38 @@ public sealed class FormSchemaPersonalizationTests
     }
 
     [Fact]
-    public async Task IncludeAsync_ColumnsWouldExceedTheColumnLimit_ReturnsTheSchemaWithoutThemAndSavesNothing()
+    public async Task IncludeAsync_ColumnsWouldExceedTheColumnLimit_ReturnsTheSchemaWithoutThemAndDoesNotLock()
     {
         // Arrange: the form's one question fits; the two audience columns would not.
-        var locked = Compiled();
-        GivenLocked(locked);
-        GivenDefinition();
         FormSchemaCompiler compiler = new(new SchemaCompilationLimits { MaxColumns = 2 });
 
         // Act
         var result = await Personalization(compiler).IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        result.FlatteningMap.Columns.Select(column => column.Key).Should().Equal("city");
+        result.Columns.Select(column => column.Key).Should().Equal("city");
+        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
+        await _forms.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), default);
+    }
+
+    [Fact]
+    public async Task IncludeAsync_ColumnsAddedWhileWaitingReachTheColumnLimit_ReturnsTheLockedSchemaAndSavesNothing()
+    {
+        // Arrange: the schema this flatten read has room for its three columns; another flatten added audience_city
+        // before the lock, and audience_age no longer fits.
+        GivenLocked(Compiled(withSnapshot: true));
+        GivenDefinition();
+        FormSchemaCompiler compiler = new(new SchemaCompilationLimits { MaxColumns = 3 });
+
+        // Act
+        var result = await Personalization(compiler).IncludeAsync(
+            Compiled(),
+            PersonalizationReader.Read("""{"identifier":"CG-1","variables":{"age":65}}"""),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
+        await _schemas.Received(1).LockAndGetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>());
         await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
     }
 

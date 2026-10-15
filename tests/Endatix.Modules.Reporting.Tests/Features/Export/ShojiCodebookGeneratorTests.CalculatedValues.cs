@@ -190,13 +190,15 @@ public sealed partial class ShojiCodebookGeneratorTests
         metadata.GetProperty("totalAmount").GetProperty("name").GetString().Should().Be("totalAmount -- totalAmount");
     }
 
-    private static JsonElement GenerateTable(FormSchemaCompileResult compiled)
+    private static JsonElement GenerateTable(
+        FormSchemaCompileResult compiled,
+        string keySeparator = ExportFormatSettings.InterimCrunchKeySeparator)
     {
         using var document = JsonDocument.Parse(
             ShojiCodebookGenerator.Generate(
                 compiled.FlatteningMapJson,
                 compiled.CodebookJson,
-                ExportFormatSettings.InterimCrunchKeySeparator));
+                keySeparator));
         return document.RootElement.GetProperty("body").GetProperty("table").Clone();
     }
 

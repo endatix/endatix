@@ -307,7 +307,7 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
         await reportingDb.DisposeAsync();
     }
 
-    private FormSchemaProcessor Processor(
+    public FormSchemaProcessor Processor(
         IFormSchemaRepository schemas,
         IFlattenedSubmissionRepository? flattenedRows,
         FormSchemaCompiler compiler)

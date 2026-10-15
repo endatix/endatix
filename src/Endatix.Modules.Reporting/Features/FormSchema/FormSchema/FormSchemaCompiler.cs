@@ -70,9 +70,13 @@ internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
         PersistedSchemaJson existing,
         IReadOnlyList<FormSchemaColumn> columns)
     {
-        var map = PersonalizationColumns.IncludeIn(FormSchemaFlatteningMap.FromJson(existing.FlatteningMap), columns, _limits);
+        var map = IncludePersonalizationColumns(FormSchemaFlatteningMap.FromJson(existing.FlatteningMap), columns);
         return CompilePersisted(definitionJson, FormSchemaFlatteningMap.ToJson(map), existing.Codebook, FormSchemaCompileMode.Merge);
     }
+
+    /// <summary>Adds audience columns to a parsed map, without a compile; throws when the map would exceed a limit.</summary>
+    public MergedFormSchema IncludePersonalizationColumns(MergedFormSchema map, IReadOnlyList<FormSchemaColumn> columns) =>
+        PersonalizationColumns.IncludeIn(map, columns, _limits);
 
     /// <summary>
     /// Whether a persisted flattening map already has every column the definition compiles to, so merging the

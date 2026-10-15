@@ -34,15 +34,15 @@ internal static partial class ShojiCodebookGenerator
     }
 
     // The alias is the column key as stored, the same text as the CSV header: the export plan never runs these keys
-    // through an alias profile or key separator, and Crunch matches CSV columns to variables by alias.
-    private static IEnumerable<string> PersonalizationAliases(MergedFormSchema flatteningMap) =>
-        PersonalizationColumns.InBlockOrder(flatteningMap.Columns).Select(column => column.Key);
-
-    private static void WritePersonalizationVariables(
+    // through an alias profile or key separator, and Crunch matches CSV columns to variables by alias. An alias a
+    // question already took stays the question's, and keeps its place among the questions.
+    /// <returns>The aliases of the audience variables written.</returns>
+    private static List<string> WritePersonalizationVariables(
         Utf8JsonWriter writer,
         ShojiCodebookWriteArgs args,
         ShojiVariableTracking tracking)
     {
+        var firstPersonalization = tracking.OrderAliases.Count;
         foreach (var column in PersonalizationColumns.InBlockOrder(args.FlatteningMap.Columns))
         {
             if (!TryTrackVariable(tracking.WrittenVariables, tracking.OrderAliases, column.Key))
@@ -50,15 +50,20 @@ internal static partial class ShojiCodebookGenerator
                 continue;
             }
 
-            args.CodebookColumns.TryGetValue(column.Key, out var columnMetadata);
-            WritePersonalizationVariable(
-                writer,
-                new PersonalizationVariable(column, ReadColumnTitle(columnMetadata, column.Label)),
-                tracking.UsedDisplayNames);
+            WritePersonalizationVariable(writer, PersonalizationVariable.Of(column, args), tracking.UsedDisplayNames);
         }
+
+        return tracking.OrderAliases[firstPersonalization..];
     }
 
-    private sealed record PersonalizationVariable(FormSchemaColumn Column, string DisplayName);
+    private sealed record PersonalizationVariable(FormSchemaColumn Column, string DisplayName)
+    {
+        public static PersonalizationVariable Of(FormSchemaColumn column, ShojiCodebookWriteArgs args)
+        {
+            args.CodebookColumns.TryGetValue(column.Key, out var columnMetadata);
+            return new(column, ReadColumnTitle(columnMetadata, column.Label));
+        }
+    }
 
     private static void WritePersonalizationVariable(
         Utf8JsonWriter writer,

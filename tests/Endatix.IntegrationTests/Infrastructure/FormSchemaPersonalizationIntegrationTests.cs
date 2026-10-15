@@ -1,4 +1,5 @@
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using static Endatix.IntegrationTests.FormSchemaRebuildWorld;
 
 namespace Endatix.IntegrationTests;
@@ -101,6 +102,32 @@ public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixtu
         var schema = await _world.ReadSchemaAsync(form.FormId);
         ColumnKeys(schema).Should().Contain(["q0", "qa", IdentifierKey, "audience_city"]);
         schema.Codebook.Should().Contain("\"audience_city\"");
+        (await _world.ReadFlattenedAsync(withCity)).DataJson.Should().Contain("Columbus");
+    }
+
+    [Fact]
+    public async Task A_row_keeping_replace_whose_audience_columns_exceed_the_column_limit_drops_them_and_succeeds()
+    {
+        // Arrange: the newer definition's two questions fit; keeping the two audience columns would not.
+        var form = await _world.SeedFormAsync([BaseDefinition, AddsQuestionA]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        var withCity = await _world.AddPersonalizedSubmissionAsync(
+            form.FormId,
+            form.DefinitionIds[0],
+            """{"identifier":"CG-1","variables":{"city":"Columbus"}}""",
+            isTestSubmission: true);
+        await _world.FlattenAsync(form.FormId, withCity);
+        FormSchemaCompiler limited = new(new SchemaCompilationLimits { MaxColumns = 2 });
+
+        // Act
+        await using (var scope = _world.OpenScope())
+        {
+            await scope.Processor(scope.Schemas(), flattenedRows: null, limited)
+                .IncludeDefinitionAsync(TenantId, form.FormId, form.DefinitionIds[1], TestContext.Current.CancellationToken);
+        }
+
+        // Assert
+        ColumnKeys(await _world.ReadSchemaAsync(form.FormId)).Should().Equal("q0", "qa");
         (await _world.ReadFlattenedAsync(withCity)).DataJson.Should().Contain("Columbus");
     }
 

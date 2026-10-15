@@ -183,13 +183,37 @@ internal sealed class FormSchemaProcessor(
         var kept = mode == FormSchemaCompileMode.Replace && !rebuild.ClearsFlattenedRows && existing is not null
             ? PersonalizationColumns.In(existing.FlatteningMap)
             : [];
-        return kept.Count == 0
-            ? compiled
-            : compiler.IncludePersonalization(
+        return kept.Count == 0 ? compiled : KeepingAudienceColumns(rebuild, compiled, kept);
+    }
+
+    // Audience columns never fail a rebuild: over a limit the replace goes ahead without them, as a flatten that
+    // cannot add them still flattens the answers.
+    private FormSchemaCompileResult KeepingAudienceColumns(
+        SchemaRebuild rebuild,
+        FormSchemaCompileResult compiled,
+        IReadOnlyList<FormSchemaColumn> kept)
+    {
+        try
+        {
+            return compiler.IncludePersonalization(
                 rebuild.Definition.Json,
                 new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
                 kept);
+        }
+        catch (SchemaCompilationLimitExceededException ex)
+        {
+            LogAudienceColumnsDropped(rebuild, ex);
+            return compiled;
+        }
     }
+
+    private void LogAudienceColumnsDropped(SchemaRebuild rebuild, SchemaCompilationLimitExceededException ex) =>
+        logger.LogWarning(
+            ex,
+            "Audience columns dropped from the schema of form {FormId}: keeping them would exceed its {LimitKind} limit of {Limit}",
+            rebuild.Target.FormId,
+            ex.LimitKind,
+            ex.Limit);
 
     private static FormSchemaEntity NewSchema(CompileTarget target, FormSchemaCompileResult compiled) =>
         new(target.TenantId, target.FormId, target.FormDefinitionId,
