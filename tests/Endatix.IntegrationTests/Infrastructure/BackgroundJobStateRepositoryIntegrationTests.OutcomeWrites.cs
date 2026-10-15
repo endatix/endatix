@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +13,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
     public async Task TryCompleteAsync_CanceledRow_LeavesItCanceled()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -54,7 +55,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
     public async Task TryFailAsync_LongMessage_Truncates()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -88,7 +89,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
     public async Task RecordFailedAttemptAsync_AttemptsRemainingOrExhausted_RetriesOrDeadLetters()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -129,7 +130,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
     public async Task RecordFailedAttemptAsync_LongMessage_Truncates()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);
@@ -155,7 +156,7 @@ public sealed partial class BackgroundJobStateRepositoryIntegrationTests
     public async Task FailureWriters_NullOrWhiteSpaceMessage_ThrowWithoutWriting(string? errorMessage)
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         using var scope = fixture.Factory.Services.CreateScope();
         var context = JobsContext(scope);

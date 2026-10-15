@@ -19,16 +19,14 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
-
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(60);
 
     [Fact]
+    [Trait("DbSpecific", "PostgreSql")]
     public async Task JobsMigrations_FreshDatabase_CreatesQuartzTablesOnlyInJobsSchema()
     {
-        // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        // Arrange — the PostgreSQL migration chain and the lower-case table names it creates.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(database);
@@ -64,10 +62,11 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    [Trait("DbSpecific", "PostgreSql")]
     public async Task JobsMigrations_FreshDatabase_IndexesTriggersByAcquisitionGroup()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(database);
@@ -88,10 +87,11 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    [Trait("DbSpecific", "PostgreSql")]
     public async Task QuartzValidation_MissingTables_FailsStartup()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using (var migrated = JobsTestNode.Create(database))
@@ -118,7 +118,7 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
     public async Task Schedule_only_host_enqueues_but_never_executes()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var invocations = new ProbeInvocations();
@@ -190,6 +190,6 @@ public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
         IReadOnlyCollection<long> jobIds,
         CancellationToken cancellationToken) =>
         database.CountAsync(
-            $"SELECT count(*) FROM jobs.qrtz_triggers WHERE trigger_name IN ({string.Join(',', jobIds.Select(id => $"'{id}'"))})",
+            $"SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_NAME IN ({string.Join(',', jobIds.Select(id => $"'{id}'"))})",
             cancellationToken);
 }

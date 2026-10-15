@@ -18,9 +18,6 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
-
     private const string DefinitionJson =
         """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1","title":"Question 1"}]}]}""";
 
@@ -30,7 +27,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Flatten_runs_as_its_own_job()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-flatten", ct);
@@ -54,7 +51,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Failing_webhook_does_not_retry_flatten()
     {
         // Arrange — the tenant's webhook endpoint answers 503 to the same message.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
         await using var host = await StartHostAsync(reporting: true, ct, new Dictionary<string, string?>
@@ -92,7 +89,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Tenant_created_seeds_formats_as_new_tenant_job()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
 
@@ -116,7 +113,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Reporting_off_creates_no_reporting_jobs()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: false, ct);
 
@@ -134,13 +131,15 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Flatten_of_a_submission_deleted_before_it_ran_completes_and_marks_its_row_deleted()
     {
         // Arrange — the submission was flattened once, then deleted without its own cleanup having run yet.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-before-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
         await host.Database.ExecuteAsync(
-            $"""UPDATE "Submissions" SET "IsDeleted" = 'true', "DeletedAt" = CURRENT_TIMESTAMP WHERE "Id" = {submissionId}""", ct);
+            $"""UPDATE "Submissions" SET "IsDeleted" = 'true', "DeletedAt" = @deletedAt WHERE "Id" = {submissionId}""",
+            new Dictionary<string, object> { ["@deletedAt"] = DateTime.UtcNow },
+            ct);
 
         // Act — a flatten of that submission, such as a retry, runs after the deletion.
         await host.InsertMessageAsync(new OutboxRow(910, "submission.completed", tenantId, SubmissionPayload(tenantId, formId, submissionId)), ct);
@@ -158,7 +157,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Flatten_of_a_submission_that_never_existed_retries_and_then_dead_letters()
     {
         // Arrange — two attempts, a second apart, so the job gives up quickly.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct, new Dictionary<string, string?>
         {
@@ -186,7 +185,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Flatten_of_an_older_revision_finishing_last_leaves_the_newer_data()
     {
         // Arrange — the processor is driven directly with the submission at revision 5, then at revision 3.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-stale-flatten", ct);
@@ -213,7 +212,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Flatten_of_a_newer_revision_replaces_the_older_data()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-newer-flatten", ct);

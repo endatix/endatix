@@ -1,10 +1,13 @@
 extern alias EndatixWebHost;
 
+using System.Data.Common;
 using System.Net;
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
@@ -20,14 +23,12 @@ namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SeedPassword = "Password123!";
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
 
     [Fact]
     public async Task Quartz_dashboard_is_unmapped_by_default()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
@@ -44,7 +45,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
     public async Task Quartz_dashboard_refuses_non_platform_admins()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new DashboardHost(fixture, allowWrites: false);
         var world = await host.PrepareWorldAsync(
@@ -65,7 +66,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
     public async Task Quartz_dashboard_is_read_only_by_default()
     {
         // Arrange — a job of a type no host handles, so its trigger stays waiting for the whole test.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new DashboardHost(fixture, allowWrites: false);
         var world = await host.PrepareWorldAsync(
@@ -98,7 +99,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
     public async Task Quartz_dashboard_gets_the_blazor_framework_script_it_needs_to_be_interactive()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new DashboardHost(fixture, allowWrites: false);
         using var client = host.CreateClient();
@@ -114,12 +115,19 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
 
     private async Task<string?> TriggerStateAsync(long jobId, CancellationToken cancellationToken)
     {
-        await using var connection = new NpgsqlConnection(fixture.Database.ConnectionString);
+        await using var connection = ConnectionTo(fixture.Database.Provider, fixture.Database.ConnectionString);
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand(
-            $"SELECT trigger_state FROM jobs.qrtz_triggers WHERE trigger_name = '{jobId}'", connection);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT TRIGGER_STATE FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_NAME = '{jobId}'";
         return (string?)await command.ExecuteScalarAsync(cancellationToken);
     }
+
+    private static DbConnection ConnectionTo(TestDatabaseProvider provider, string connectionString) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => new NpgsqlConnection(connectionString),
+        TestDatabaseProvider.SqlServer => new SqlConnection(connectionString),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
+    };
 
     /// <summary>A second web host on the same database, with the dashboard enabled.</summary>
     private sealed class DashboardHost : IIntegrationTestHostFixture, IAsyncDisposable

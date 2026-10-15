@@ -16,14 +16,11 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
-
     [Fact]
     public async Task EnqueueManyAsync_Commits_RowsAndTriggersTogether()
     {
         // Arrange — a schedule-only node, so nothing fires the triggers before they are counted.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
@@ -43,7 +40,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
             reader => reader.GetInt64(0),
             cancellationToken);
         var triggerNames = await database.QueryAsync(
-            "SELECT trigger_name FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'",
+            "SELECT TRIGGER_NAME FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'",
             reader => reader.GetString(0),
             cancellationToken);
         pendingRows.Should().BeEquivalentTo(jobIds);
@@ -51,11 +48,12 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    [Trait("DbSpecific", "PostgreSql")]
     public async Task EnqueueManyAsync_FailureWhileScheduling_LeavesNeitherRowsNorTriggers()
     {
         // Arrange — the database refuses the second trigger any one transaction inserts, which is a failure
         // after the rows are already written.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
@@ -85,7 +83,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
         // Assert
         await enqueue.Should().ThrowAsync<Exception>();
         var rows = await database.CountAsync("""SELECT count(*) FROM jobs."BackgroundJobs" """, cancellationToken);
-        var triggers = await database.CountAsync("SELECT count(*) FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'", cancellationToken);
+        var triggers = await database.CountAsync("SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'", cancellationToken);
         rows.Should().Be(0);
         triggers.Should().Be(0);
     }
@@ -95,7 +93,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     {
         // Arrange — the first enqueue stores the job type's durable job and the node remembers it; then it is deleted
         // behind the node's back, with the trigger that pointed at it.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using var node = JobsTestNode.Create(
@@ -113,9 +111,9 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
 
         // Assert
         var durableJobs = await database.CountAsync(
-            $"SELECT count(*) FROM jobs.qrtz_job_details WHERE job_name = '{ProbePayload.JobType}'", cancellationToken);
+            $"SELECT count(*) FROM jobs.qrtz_JOB_DETAILS WHERE JOB_NAME = '{ProbePayload.JobType}'", cancellationToken);
         var triggerNames = await database.QueryAsync(
-            "SELECT trigger_name FROM jobs.qrtz_triggers WHERE trigger_group <> 'endatix-maintenance'",
+            "SELECT TRIGGER_NAME FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'",
             reader => reader.GetString(0),
             cancellationToken);
         durableJobs.Should().Be(1);
@@ -126,7 +124,7 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     public async Task Enqueued_job_executes_exactly_once()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var invocations = new ProbeInvocations();

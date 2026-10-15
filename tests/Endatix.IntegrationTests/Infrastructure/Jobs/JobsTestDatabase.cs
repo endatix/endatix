@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Data.SqlClient;
@@ -10,6 +11,8 @@ namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 /// </summary>
 internal sealed class JobsTestDatabase : IAsyncDisposable
 {
+    private static readonly IReadOnlyDictionary<string, object> NoParameters = new Dictionary<string, object>();
+
     private readonly ConnectionTarget _server;
     private readonly ConnectionTarget _database;
     private readonly string _name;
@@ -37,12 +40,19 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
     {
         var server = new ConnectionTarget(provider, serverConnectionString);
         var name = $"jobs_{Guid.NewGuid():N}"[..20];
-        await server.ExecuteAsync($"CREATE DATABASE {name}", cancellationToken);
+        await server.ExecuteAsync($"CREATE DATABASE {name}", NoParameters, cancellationToken);
         return new JobsTestDatabase(server, name);
     }
 
     public Task ExecuteAsync(string sql, CancellationToken cancellationToken) =>
-        _database.ExecuteAsync(sql, cancellationToken);
+        _database.ExecuteAsync(sql, NoParameters, cancellationToken);
+
+    /// <summary>
+    /// Runs <paramref name="sql"/> with each of <paramref name="parameters"/> bound by its name, which the statement
+    /// refers to as <c>@name</c> on either provider.
+    /// </summary>
+    public Task ExecuteAsync(string sql, IReadOnlyDictionary<string, object> parameters, CancellationToken cancellationToken) =>
+        _database.ExecuteAsync(sql, parameters, cancellationToken);
 
     public async Task<long> CountAsync(string sql, CancellationToken cancellationToken)
     {
@@ -72,7 +82,7 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
     {
         // Pooled connections hold the database open, and both providers refuse to drop a database in use.
         _server.ClearPools();
-        await _server.ExecuteAsync(DropDatabaseSql(_server.Provider, _name), CancellationToken.None);
+        await _server.ExecuteAsync(DropDatabaseSql(_server.Provider, _name), NoParameters, CancellationToken.None);
     }
 
     private static string DropDatabaseSql(TestDatabaseProvider provider, string name) => provider switch
@@ -118,10 +128,18 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
             }
         }
 
-        public async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
+        public async Task ExecuteAsync(
+            string sql,
+            IReadOnlyDictionary<string, object> parameters,
+            CancellationToken cancellationToken)
         {
             await using var connection = await OpenAsync(cancellationToken);
             await using var command = CommandFor(connection, sql);
+            foreach (var (name, value) in parameters)
+            {
+                command.Parameters.Add(ParameterFor(command, name, value));
+            }
+
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -143,6 +161,21 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
                 await connection.DisposeAsync();
                 throw;
             }
+        }
+
+        // SQL Server gets a time as datetime2, because datetime, its default for a DateTime, rounds to about 3 ms.
+        // PostgreSQL keeps its default: a UTC DateTime as timestamptz, which datetime2 would turn into a timestamp.
+        private DbParameter ParameterFor(DbCommand command, string name, object value)
+        {
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value;
+            if (value is DateTime && Provider == TestDatabaseProvider.SqlServer)
+            {
+                parameter.DbType = DbType.DateTime2;
+            }
+
+            return parameter;
         }
 
         public static DbCommand CommandFor(DbConnection connection, string sql)

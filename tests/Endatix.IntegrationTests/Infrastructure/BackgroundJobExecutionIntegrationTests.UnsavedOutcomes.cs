@@ -21,7 +21,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Last_attempt_that_succeeded_but_could_not_save_its_result_completes_once_the_database_is_back()
     {
         // Arrange — the first firing's writes all fail, and so do the re-fire's first two.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         using var lifecycle = JobLifecycleEventListener.Start();
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
@@ -47,7 +47,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Last_attempt_that_returned_a_failure_but_could_not_save_it_ends_failed_not_dead_lettered()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -69,7 +69,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Last_attempt_whose_completion_cannot_be_saved_or_refired_completes_instead_of_dead_lettering()
     {
         // Arrange — the first firing's writes all fail, and the scheduler refuses every re-fire carrying the completion.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         using var lifecycle = JobLifecycleEventListener.Start();
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
@@ -105,7 +105,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Job_canceled_while_its_unsaved_completion_waits_stays_canceled()
     {
         // Arrange — the first firing's writes all fail, so its completion waits on the re-fire.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -131,7 +131,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Attempt_with_attempts_left_that_threw_and_could_not_save_its_retry_is_reclaimed_and_runs_again()
     {
         // Arrange — the retry's backoff is longer than the re-fire's delay, which replaces the retry's trigger.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -158,7 +158,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     public async Task Reclaim_trigger_without_a_carried_outcome_dead_letters_a_job_left_processing_on_its_last_attempt()
     {
         // Arrange — a re-fire as earlier versions stored it, for a last attempt that left its row Processing.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();

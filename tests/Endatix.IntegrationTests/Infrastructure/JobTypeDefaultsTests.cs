@@ -28,9 +28,6 @@ namespace Endatix.IntegrationTests;
 [Trait("DbSpecific", "PostgreSql")]
 public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
 {
-    private const string SkipReason =
-        "Background jobs are PostgreSQL-only; the module is not registered on this provider.";
-
     private const string WebHook = "WebHookDelivery";
     private const string ReportingFlatten = "ReportingFlattenSubmission";
 
@@ -54,7 +51,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     public async Task Webhook_jobs_run_four_at_a_time_on_a_host_without_job_settings()
     {
         // Arrange — the webhook handler is swapped for one that holds its slot, leaving the declared settings.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runs = new NamedProbeRuns();
@@ -81,7 +78,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     public async Task Reporting_jobs_get_their_declared_settings_and_threads_on_a_host_without_job_settings()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var host = HostWithoutJobSettings(database, _ => { });
@@ -103,7 +100,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     public async Task WebHost_with_its_shipped_settings_runs_webhook_and_reporting_jobs_as_tuned()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var host = StartedHost(database, ReportingOn);
@@ -122,7 +119,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     public async Task A_global_job_setting_the_host_configures_applies_to_the_tuned_job_types()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, SkipReason);
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var host = StartedHost(database, builder =>

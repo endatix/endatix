@@ -1,3 +1,4 @@
+using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 
 namespace Endatix.IntegrationTests;
@@ -15,10 +16,8 @@ public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture 
     [Fact]
     public async Task BackgroundJobsTable_AfterMigrations_HasNoResultJsonColumn()
     {
-        // Arrange — the module is PostgreSQL-only, so the flag is off on a SQL Server run.
-        Assert.SkipWhen(
-            fixture.Provider != TestDatabaseProvider.PostgreSql,
-            "Background jobs are PostgreSQL-only; the module is not registered on this provider.");
+        // Arrange — a jsonb column and a SELECT of a boolean expression are PostgreSQL's.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
 
         // The collection fixture starts the host, and with it the migrations, before any test in it
         // runs, so the schema is already in place here.
