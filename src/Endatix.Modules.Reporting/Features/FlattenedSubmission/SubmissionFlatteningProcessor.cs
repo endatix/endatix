@@ -162,20 +162,16 @@ internal sealed class SubmissionFlatteningProcessor(
         return true;
     }
 
-    // A deletion whose sync ran between this flatten's read and its write would otherwise leave the row behind. The
-    // deletion is committed before its sync runs, so reading again after the write sees it, and the row is removed
-    // as the sync would have removed it.
+    // A deletion of the submission or its form whose sync ran between this flatten's read and its write would
+    // otherwise leave the row behind. The deletion is committed before its sync runs, so reading again after the
+    // write sees it, and the row is removed as the sync would have removed it. The same lookup as for a missing
+    // submission, because a criteria-only re-read of the submission would not see the form's own deletion.
     private async Task RemoveRowIfDeletedMeanwhileAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
     {
-        if (await submissionRepository.AnyAsync(
-                new SubmissionWithDefinitionAndFormSpec(key.FormId, key.SubmissionId),
-                cancellationToken))
+        if (!await RemoveRowIfDeletedHereAsync(key, cancellationToken))
         {
             logger.LogInformation("Flattened submission {SubmissionId} for form {FormId}", key.SubmissionId, key.FormId);
-            return;
         }
-
-        await RemoveRowOfDeletedSubmissionAsync(key, cancellationToken);
     }
 
     private async Task RemoveRowOfDeletedSubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)

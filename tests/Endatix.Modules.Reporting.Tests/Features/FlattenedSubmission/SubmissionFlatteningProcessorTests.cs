@@ -47,7 +47,7 @@ public class SubmissionFlatteningProcessorTests
         GivenSubmission(submission);
         GivenSchema();
         GivenRowAcceptsRevision(true);
-        _submissions.AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>()).Returns(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
 
         // Act
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
@@ -75,7 +75,7 @@ public class SubmissionFlatteningProcessorTests
         _personalization
             .IncludeAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<PersonalizationRead?>(), Arg.Any<CancellationToken>())
             .Returns(call => WithAudienceColumns(call.Arg<FormSchemaEntity>(), call.Arg<PersonalizationRead?>()));
-        _submissions.AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>()).Returns(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
 
         // Act
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
@@ -142,20 +142,25 @@ public class SubmissionFlatteningProcessorTests
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
     }
 
-    [Fact]
-    public async Task ProcessAsync_SubmissionGoneAfterWrite_RemovesTheRowItWrote()
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task ProcessAsync_SubmissionOrItsFormDeletedAfterRead_RemovesTheRowItWrote(
+        bool submissionDeleted,
+        bool formDeleted)
     {
-        // Arrange — the submission is deleted, and its cleanup has run, while this flatten was running.
+        // Arrange — deleted, and its cleanup run, while this flatten was running.
         GivenSubmission(CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 2));
         GivenSchema();
         GivenRowAcceptsRevision(true);
-        _submissions.AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>()).Returns(false);
+        GivenDeletionState(new SubmissionDeletionState(FormId, submissionDeleted, formDeleted));
 
         // Act
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         // Assert — the row is removed as the deletion's own sync would have removed it.
-        await _rows.Received(1).DeleteBySubmissionAsync(new FlattenedSubmissionKey(TenantId, FormId, SubmissionId), Arg.Any<CancellationToken>());
+        await _rows.Received(1).TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
     }
 
@@ -190,7 +195,7 @@ public class SubmissionFlatteningProcessorTests
 
         // Assert
         await act.Should().NotThrowAsync();
-        await _submissions.DidNotReceiveWithAnyArgs().AnyAsync(default(SubmissionWithDefinitionAndFormSpec)!, default);
+        await _submissions.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(default(SubmissionDeletionStateSpec)!, default);
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
     }
 
@@ -221,7 +226,7 @@ public class SubmissionFlatteningProcessorTests
         GivenSubmission(draft);
         GivenSchema();
         GivenRowAcceptsRevision(true);
-        _submissions.AnyAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>()).Returns(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
 
         // Act
         await Processor().ProcessAsync(
@@ -269,7 +274,7 @@ public class SubmissionFlatteningProcessorTests
         // Assert
         await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
-        await _submissions.DidNotReceiveWithAnyArgs().AnyAsync(default(SubmissionWithDefinitionAndFormSpec)!, default);
+        await _submissions.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
