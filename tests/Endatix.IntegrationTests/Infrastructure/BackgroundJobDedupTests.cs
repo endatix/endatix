@@ -113,6 +113,34 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task EnqueueManyAsync_OverlappingBatchesInOppositeOrder_CreateEachJobOnce()
+    {
+        // Arrange — two fan-outs sharing keys, the second listing them backwards, run at once a few times over: in
+        // the order given, each would lock a key the other needs next. Batches this large deadlock on both providers
+        // when inserted in request order.
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await using var node = await StartScheduleOnlyNodeAsync(database, ct);
+        const int Rounds = 5;
+        const int KeysPerBatch = 300;
+
+        // Act
+        List<IReadOnlyList<long>[]> rounds = [];
+        for (var round = 0; round < Rounds; round++)
+        {
+            var forward = Enumerable.Range(0, KeysPerBatch).Select(key => Request(tenantId: 5, $"{round}:{key}")).ToList();
+            rounds.Add(await Task.WhenAll(
+                node.EnqueueManyAsync(forward, ct),
+                node.EnqueueManyAsync([.. Enumerable.Reverse(forward)], ct)));
+        }
+
+        // Assert — in every round each batch got the same job for each key, whichever of them inserted it.
+        rounds.Should().AllSatisfy(batches => batches[0].Should().Equal(batches[1].Reverse()));
+        (await CountRowsAsync(database, ct)).Should().Be(Rounds * KeysPerBatch);
+        (await CountTriggersAsync(database, ct)).Should().Be(Rounds * KeysPerBatch);
+    }
+
+    [Fact]
     public async Task EnqueueAsync_DedupKeyWithTrailingSpace_IsRefusedAndLeavesTheExistingJob()
     {
         // Arrange — SQL Server's unique index holds "k1 " equal to "k1", which the queue's own lookup does not.
@@ -125,7 +153,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         var enqueue = () => node.EnqueueAsync(Request(tenantId: 5, "k1 "), ct);
 
         // Assert
-        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("A dedup key cannot start or end with whitespace.*");
+        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("A dedup key cannot end with a space.*");
         (await CountRowsAsync(database, ct)).Should().Be(1);
         (await CountTriggersAsync(database, ct)).Should().Be(1);
     }
