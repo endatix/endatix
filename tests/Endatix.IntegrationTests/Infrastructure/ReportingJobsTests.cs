@@ -159,7 +159,6 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     public async Task Flatten_of_a_submission_deleted_with_its_form_completes_without_retrying()
     {
         // Arrange — the form is deleted as the API deletes it, and its Reporting cleanup has run.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-form", ct);
@@ -180,13 +179,11 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    [Trait("DbSpecific", "PostgreSql")]
     public async Task Flatten_of_a_submission_left_live_when_its_form_was_deleted_completes_without_retrying()
     {
         // Arrange — the form and its definitions are deleted but the submission is not, as when it was created
         // after the deleting request loaded the form, and the form's Reporting cleanup has run. Two attempts, a second
         // apart, so a flatten that fails gives up quickly.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct, QuickFlattenRetries);
         var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-form-live-submission", ct);
@@ -298,13 +295,19 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await db.SaveChangesAsync(ct);
     }
 
-    // Writes the deletion straight to the rows, so no event fans out and the submission is left as it was.
+    // Writes the deletion straight to the rows, so no event fans out and the submission is left as it was. The flag
+    // and the time are parameters, so each provider gets its own boolean and a UTC time.
     private static async Task SoftDeleteFormRowsAsync(FanOutHost host, long formId, CancellationToken ct)
     {
+        var deletion = new Dictionary<string, object> { ["deleted"] = true, ["now"] = DateTime.UtcNow, ["formId"] = formId };
         await host.Database.ExecuteAsync(
-            $"""UPDATE "FormDefinitions" SET "IsDeleted" = 'true', "DeletedAt" = CURRENT_TIMESTAMP WHERE "FormId" = {formId}""", ct);
+            """UPDATE "FormDefinitions" SET "IsDeleted" = @deleted, "DeletedAt" = @now WHERE "FormId" = @formId""",
+            deletion,
+            ct);
         await host.Database.ExecuteAsync(
-            $"""UPDATE "Forms" SET "IsDeleted" = 'true', "DeletedAt" = CURRENT_TIMESTAMP WHERE "Id" = {formId}""", ct);
+            """UPDATE "Forms" SET "IsDeleted" = @deleted, "DeletedAt" = @now WHERE "Id" = @formId""",
+            deletion,
+            ct);
     }
 
     private static async Task FlattenAsync(FanOutHost host, SeededSubmission seeded, CancellationToken ct)
