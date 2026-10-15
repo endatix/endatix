@@ -339,7 +339,7 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
         /// A form with no token expiry of its own: the test tenant has no tenant settings either, so
         /// every submission token here takes the new-tenant default.
         /// </summary>
-        public async Task<long> CreateFormAsync(bool limitOnePerUser = false)
+        public async Task<long> CreateFormAsync(bool limitOnePerUser = false, string? definition = null)
         {
             using var response = await PostAsync(
                 "/api/forms",
@@ -348,7 +348,7 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
                     name = $"Audience {Guid.NewGuid():N}",
                     isEnabled = true,
                     limitOnePerUser,
-                    formDefinitionJsonData = FormDefinition,
+                    formDefinitionJsonData = definition ?? FormDefinition,
                 });
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             return IdOf(await ReadAsync(response), "id");
