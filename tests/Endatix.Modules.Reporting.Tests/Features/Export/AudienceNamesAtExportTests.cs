@@ -35,8 +35,8 @@ public sealed class AudienceNamesAtExportTests
     // Frozen as "City" and "Age"; since then city was renamed "Town" and moved before age (key order is age, city).
     private static readonly PersonalizationVariableInfo[] _current =
     [
-        new("city", "Town", SortOrder: 1, IsDeleted: false),
-        new("age", "Age", SortOrder: 2, IsDeleted: false),
+        new("city", "Town", SortOrder: 1),
+        new("age", "Age", SortOrder: 2),
     ];
 
     private readonly IFormSchemaRepository _schemas = Substitute.For<IFormSchemaRepository>();

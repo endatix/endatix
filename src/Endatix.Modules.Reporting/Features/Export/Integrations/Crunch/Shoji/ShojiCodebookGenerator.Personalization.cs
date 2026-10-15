@@ -33,10 +33,6 @@ internal static partial class ShojiCodebookGenerator
             };
     }
 
-    // The alias is the column key as stored, the same text as the CSV header: the export plan never runs these keys
-    // through an alias profile or key separator, and Crunch matches CSV columns to variables by alias. An alias a
-    // question already took stays the question's, and keeps its place among the questions.
-    /// <returns>The aliases of the audience variables written.</returns>
     // The audience columns go last, in the codebook's block order, so the writers meet them in that order.
     private static MergedFormSchema ShojiFlatteningMap(
         string flatteningMapJson,
@@ -46,6 +42,10 @@ internal static partial class ShojiCodebookGenerator
             WithCodebookColumnKinds(FormSchemaFlatteningMap.FromJson(flatteningMapJson), codebookColumns),
             codebook);
 
+    // The alias is the column key as stored, the same text as the CSV header: the export plan never runs these keys
+    // through an alias profile or key separator, and Crunch matches CSV columns to variables by alias. An alias a
+    // question already took stays the question's, and keeps its place among the questions.
+    /// <returns>The aliases of the audience variables written.</returns>
     private static List<string> WritePersonalizationVariables(
         Utf8JsonWriter writer,
         ShojiCodebookWriteArgs args,

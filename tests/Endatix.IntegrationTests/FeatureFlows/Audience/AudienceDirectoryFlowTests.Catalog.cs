@@ -6,11 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
-/// <summary>The personalization catalog exports read: a form's properties as they are now, deleted ones included.</summary>
+/// <summary>The personalization catalog exports read: a form's live properties as they are now.</summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
     [Fact]
-    public async Task The_personalization_catalog_lists_current_names_and_order_with_deleted_properties()
+    public async Task The_personalization_catalog_lists_current_names_and_order_of_live_properties()
     {
         // Arrange
         var world = await WorldAsync();
@@ -33,8 +33,8 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(
-            [("age", "Age", false), ("city", "Town", false), ("plan", "Plan", true)],
-            variables.Select(variable => (variable.VariableName, variable.Name, variable.IsDeleted)).OrderBy(variable => variable.VariableName));
+            [("age", "Age"), ("city", "Town")],
+            variables.Select(variable => (variable.VariableName, variable.Name)).OrderBy(variable => variable.VariableName));
         Assert.Equal(7, variables.Single(variable => variable.VariableName == "city").SortOrder);
     }
 

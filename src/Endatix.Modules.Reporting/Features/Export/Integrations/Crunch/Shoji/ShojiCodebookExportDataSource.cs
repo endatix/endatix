@@ -65,8 +65,8 @@ internal sealed class ShojiCodebookExportDataSource(
                 requestLocale);
         }
 
-        context.Options.Metadata ??= new Dictionary<string, object>();
-        context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
+        await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
+        context.Options.Metadata![SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             settings with { Locale = requestLocale };
 
         return Result.Success(context.Options);
@@ -89,7 +89,7 @@ internal sealed class ShojiCodebookExportDataSource(
             cancellationToken);
         var codebookJson = ShojiCodebookGenerator.Generate(
             schema.FlatteningMap,
-            await exportSchemas.CodebookAsync(schema, cancellationToken),
+            await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken),
             settings.KeySeparator,
             requestLocale,
             datasetName,

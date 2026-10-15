@@ -52,8 +52,8 @@ internal sealed class FormSchemaCodebookExportDataSource(
             return ReportingExportSchemaHelper.InvalidSchemaArtifactsResult<ExportOptions>();
         }
 
-        context.Options.Metadata ??= new Dictionary<string, object>();
-        context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
+        await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
+        context.Options.Metadata![SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             ResolveSettings(context.Options);
 
         return Result.Success(context.Options);
@@ -72,7 +72,7 @@ internal sealed class FormSchemaCodebookExportDataSource(
             yield break;
         }
 
-        yield return new DynamicExportRow { Data = await exportSchemas.CodebookAsync(schema, cancellationToken) };
+        yield return new DynamicExportRow { Data = await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken) };
     }
 
     private ExportFormatSettings ResolveSettings(ExportOptions options)

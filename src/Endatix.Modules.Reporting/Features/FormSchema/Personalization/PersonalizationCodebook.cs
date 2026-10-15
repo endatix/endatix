@@ -24,14 +24,14 @@ internal static class PersonalizationCodebook
 
     /// <summary>
     /// Returns the codebook with current audience names and the <c>personalization</c> block; unchanged when the
-    /// schema has no audience columns.
+    /// schema has no audience columns or the form has no properties (the Audience module is off).
     /// </summary>
     public static string Overlay(
         string codebookJson,
         MergedFormSchema flatteningMap,
         IReadOnlyList<PersonalizationVariableInfo> variables)
     {
-        var block = InCatalogOrder(flatteningMap, variables);
+        var block = variables.Count == 0 ? [] : InCatalogOrder(flatteningMap, variables);
         if (block.Count == 0)
         {
             return codebookJson;
@@ -67,20 +67,21 @@ internal static class PersonalizationCodebook
             .Where(column => column.Kind is not FormSchemaColumnKind.Personalization)
             .Concat(InBlockOrder(flatteningMap, codebook)));
 
-    // The identifier, then live properties by sort order, then deleted ones, then variables no property describes
-    // (the module is off, or the property row is gone). A known property shows its current name.
+    // The identifier, then properties by sort order, then variables no live property describes (deleted, or never a
+    // property), by key. A known property shows its current name; the rest keep the name frozen in the schema.
     private static List<FormSchemaColumn> InCatalogOrder(
         MergedFormSchema flatteningMap,
         IReadOnlyList<PersonalizationVariableInfo> variables)
     {
-        var byKey = variables.ToDictionary(
-            variable => PersonalizationColumns.KeyOf(variable.VariableName),
-            StringComparer.Ordinal);
+        // A catalog returns one entry per variable name; a duplicate keeps the first rather than failing the export.
+        var byKey = variables
+            .DistinctBy(variable => variable.VariableName, StringComparer.Ordinal)
+            .ToDictionary(variable => PersonalizationColumns.KeyOf(variable.VariableName), StringComparer.Ordinal);
         return flatteningMap.Columns
             .Where(column => column.Kind is FormSchemaColumnKind.Personalization)
             .Select(column => (Column: column, Variable: byKey.GetValueOrDefault(column.Key)))
             .OrderBy(entry => CatalogRank(entry.Column, entry.Variable))
-            .ThenBy(entry => entry.Variable is { IsDeleted: false } live ? live.SortOrder : 0)
+            .ThenBy(entry => entry.Variable?.SortOrder ?? 0)
             .ThenBy(entry => entry.Column.Key, StringComparer.Ordinal)
             .Select(entry => entry.Variable is null ? entry.Column : entry.Column with { Label = entry.Variable.Name })
             .ToList();
@@ -88,8 +89,7 @@ internal static class PersonalizationCodebook
 
     private static int CatalogRank(FormSchemaColumn column, PersonalizationVariableInfo? variable) =>
         column.Key == PersonalizationColumns.IdentifierKey ? 0
-        : variable is null ? 3
-        : variable.IsDeleted ? 2
+        : variable is null ? 2
         : 1;
 
     private static void Retitle(JsonObject? columns, IReadOnlyList<FormSchemaColumn> block)

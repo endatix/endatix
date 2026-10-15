@@ -6,10 +6,7 @@ namespace Endatix.Core.Abstractions.Submissions;
 /// </summary>
 public interface IPersonalizationCatalog
 {
-    /// <summary>
-    /// The form's properties, deleted ones included: their columns stay in exports. One entry per variable name; a
-    /// live property wins over deleted ones with the same name, otherwise the most recently deleted one.
-    /// </summary>
+    /// <summary>The form's live properties, one per variable name.</summary>
     Task<IReadOnlyList<PersonalizationVariableInfo>> ListForFormAsync(
         long tenantId,
         long formId,
@@ -17,4 +14,4 @@ public interface IPersonalizationCatalog
 }
 
 /// <summary>One audience property as an export shows it: current name and sort order.</summary>
-public sealed record PersonalizationVariableInfo(string VariableName, string Name, int SortOrder, bool IsDeleted);
+public sealed record PersonalizationVariableInfo(string VariableName, string Name, int SortOrder);
