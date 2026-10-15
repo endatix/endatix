@@ -13,6 +13,15 @@ internal static class FormSchemaFixtureLoader
     internal static string SourceAllQuestionsFixturesRoot =>
         Path.Combine(SourceFixturesRoot, "AllQuestions");
 
+    internal static string SourcePersonalizationFixturesRoot =>
+        Path.Combine(SourceFixturesRoot, "Personalization");
+
+    internal static JsonElement LoadPersonalization(string fixtureName) =>
+        LoadJson(Path.Combine("Personalization", fixtureName));
+
+    internal static string LoadPersonalizationText(string fixtureName) =>
+        LoadText(Path.Combine("Personalization", fixtureName));
+
     private static string FixturesRoot =>
         Path.Combine(
             AppContext.BaseDirectory,

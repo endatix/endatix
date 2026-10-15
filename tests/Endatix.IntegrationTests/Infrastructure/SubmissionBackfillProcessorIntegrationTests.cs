@@ -13,6 +13,7 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -236,6 +237,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
             submissionRepository,
             flattenedSubmissionRepository,
             schemaProvider,
+            NoSnapshotPersonalization(formSchemaRepository),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
 
         return new SubmissionBackfillProcessor(
@@ -244,6 +246,15 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
             flatteningProcessor,
             NullLogger<SubmissionBackfillProcessor>.Instance);
     }
+
+    // These submissions carry no snapshot, so the include returns before it reads a definition or takes a lock.
+    private static FormSchemaPersonalization NoSnapshotPersonalization(FormSchemaRepository formSchemaRepository) =>
+        new(
+            Substitute.For<IFormsRepository>(),
+            formSchemaRepository,
+            Substitute.For<IReportingUnitOfWork>(),
+            new FormSchemaCompiler(),
+            NullLogger<FormSchemaPersonalization>.Instance);
 
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {

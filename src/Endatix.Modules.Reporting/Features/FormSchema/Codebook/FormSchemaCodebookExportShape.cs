@@ -34,10 +34,13 @@ internal sealed record FormSchemaCodebookExportShape
     public static readonly FormSchemaCodebookExportShape Scalar = new("scalar");
     /// <summary>Calculated value saved to the survey results (one column, any value).</summary>
     public static readonly FormSchemaCodebookExportShape Calculated = new("calculated");
+    /// <summary>Audience value frozen on the response (one column, typed by the audience property).</summary>
+    public static readonly FormSchemaCodebookExportShape Personalization = new("personalization");
 
     public static FormSchemaCodebookExportShape FromColumnKind(FormSchemaColumnKind kind) =>
         kind switch
         {
+            FormSchemaColumnKind.Personalization => Personalization,
             FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText => MultipleResponse,
             FormSchemaColumnKind.MatrixRow => CategoricalArray,
             FormSchemaColumnKind.MatrixCell => MatrixCell,

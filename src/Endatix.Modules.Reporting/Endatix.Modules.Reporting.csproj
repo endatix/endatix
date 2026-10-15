@@ -40,5 +40,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Endatix.Modules.Reporting.Tests" />
     <InternalsVisibleTo Include="Endatix.IntegrationTests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 </Project>

@@ -10,6 +10,7 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -316,15 +317,24 @@ public sealed class SubmissionBackfillScopeIntegrationTests
             NullLogger<SubmissionBackfillProcessor>.Instance);
     }
 
-    private static SubmissionFlatteningProcessor CreateFlatteningProcessor(AppDbContext appDb, ReportingDbContextBase reportingDb) =>
-        new(
+    private static SubmissionFlatteningProcessor CreateFlatteningProcessor(AppDbContext appDb, ReportingDbContextBase reportingDb)
+    {
+        FormSchemaRepository schemas = new(reportingDb, new ReportingUnitOfWork(reportingDb), ReportingTestSchema.TransactionLockFor(reportingDb));
+        return new(
             CreateSubmissionRepository(appDb),
             new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb), new DateTimeProvider()),
             new FormSchemaProvider(
-                new FormSchemaRepository(reportingDb, new ReportingUnitOfWork(reportingDb), ReportingTestSchema.TransactionLockFor(reportingDb)),
+                schemas,
                 Substitute.For<IFormSchemaProcessor>(),
                 new FormSchemaCoverage(Substitute.For<IFormsRepository>(), new FormSchemaCompiler())),
+            new FormSchemaPersonalization(
+                Substitute.For<IFormsRepository>(),
+                schemas,
+                new ReportingUnitOfWork(reportingDb),
+                new FormSchemaCompiler(),
+                NullLogger<FormSchemaPersonalization>.Instance),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
+    }
 
     private static EfRepository<Submission> CreateSubmissionRepository(AppDbContext appDb) =>
         new(appDb, new EndatixSpecificationEvaluator([]));

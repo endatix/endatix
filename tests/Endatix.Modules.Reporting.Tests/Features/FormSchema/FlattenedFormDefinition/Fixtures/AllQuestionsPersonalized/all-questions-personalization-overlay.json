@@ -1,0 +1,32 @@
+{
+  "$comment": "Personalization on top of AllQuestions/all-questions-definition.json. Edit this file, then run the regenerate test in AllQuestionsPersonalizedTests to rewrite all-questions-personalized-definition.json and the expected files. customVariables are declared as SurveyJS custom variables (no expression); bindings set or replace properties of an existing question, found by name anywhere in the survey; addElements are appended to the first page.",
+  "customVariables": ["full_name", "age", "city", "panel_member", "joined", "last_seen", "tags"],
+  "bindings": {
+    "qText": { "defaultValueExpression": "{full_name}" },
+    "qTextNumber": { "defaultValueExpression": "{age}" },
+    "qTextDate": { "defaultValueExpression": "{joined}" },
+    "qBoolean": { "defaultValueExpression": "{panel_member}" },
+    "qDropdown": { "visibleIf": "{age} >= 18" },
+    "qComment": {
+      "title": {
+        "default": "Anything else about life in {city}?",
+        "es": "¿Algo más sobre la vida en {city}?"
+      }
+    }
+  },
+  "addElements": [
+    {
+      "type": "text",
+      "name": "city",
+      "title": "Confirm the city you live in",
+      "defaultValueExpression": "{city}"
+    },
+    {
+      "type": "text",
+      "inputType": "datetime-local",
+      "name": "lastVisit",
+      "title": "When did you last visit us?",
+      "defaultValueExpression": "{last_seen}"
+    }
+  ]
+}

@@ -2,10 +2,12 @@ using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
@@ -30,6 +32,7 @@ internal sealed class SubmissionFlatteningProcessor(
     IRepository<Submission> submissionRepository,
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
     IFormSchemaProvider schemaProvider,
+    IFormSchemaPersonalization schemaPersonalization,
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
     private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
@@ -103,9 +106,10 @@ internal sealed class SubmissionFlatteningProcessor(
             ?? throw new InvalidOperationException(
                 $"Form export schema is not available for form {run.Key.FormId}, definition {submission.FormDefinitionId}.");
 
-        var mergedSchema = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
+        var personalization = PersonalizationReader.Read(submission.PersonalizationSnapshot);
+        var mergedSchema = await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken);
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
-        var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema);
+        var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, personalization);
         return FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);
     }
 

@@ -16,6 +16,7 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -135,10 +136,32 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
         await scope.Processor(scope.Schemas()).ProcessAsync(TenantId, formId, formDefinitionId, replace: true, Cancellation);
     }
 
-    public async Task FlattenAsync(long formId, long submissionId)
+    public async Task FlattenAsync(
+        long formId,
+        long submissionId,
+        Func<IFormSchemaRepository, IFormSchemaRepository>? wrapPersonalizationSchemas = null)
     {
         await using var scope = OpenScope();
-        await scope.Flattening(scope.TransactionLock).ProcessAsync(TenantId, formId, submissionId, Cancellation);
+        await scope.Flattening(scope.TransactionLock, wrapPersonalizationSchemas)
+            .ProcessAsync(TenantId, formId, submissionId, Cancellation);
+    }
+
+    /// <summary>A completed submission with audience values frozen on it, as an on-behalf create leaves it.</summary>
+    public Task<long> AddPersonalizedSubmissionAsync(
+        long formId,
+        long formDefinitionId,
+        string snapshot,
+        bool isTestSubmission = false)
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: TenantId,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: """{"q0":"answer"}""",
+            IsComplete: true,
+            IsTestSubmission: isTestSubmission));
+        submission.FreezeOnBehalf(snapshot);
+        return AddSubmissionAsync(submission);
     }
 
     // Runs the flatten as the background job runs it, from the outbox message of the submission's completion.
@@ -244,12 +267,26 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
             counter is null ? Processor(schemas) : Processor(schemas, counter),
             new FormSchemaCoverage(FormsRepository(), new FormSchemaCompiler()));
 
-    public SubmissionFlatteningProcessor Flattening(ITransactionLock transactionLock) =>
-        new(
+    public SubmissionFlatteningProcessor Flattening(
+        ITransactionLock transactionLock,
+        Func<IFormSchemaRepository, IFormSchemaRepository>? wrapPersonalizationSchemas = null)
+    {
+        var schemas = Schemas(transactionLock);
+        return new(
             Submissions(),
             FlattenedRows(),
-            Provider(Schemas(transactionLock)),
+            Provider(schemas),
+            Personalization(wrapPersonalizationSchemas is null ? schemas : wrapPersonalizationSchemas(schemas)),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
+    }
+
+    public FormSchemaPersonalization Personalization(IFormSchemaRepository schemas) =>
+        new(
+            FormsRepository(),
+            schemas,
+            new ReportingUnitOfWork(reportingDb),
+            new FormSchemaCompiler(),
+            NullLogger<FormSchemaPersonalization>.Instance);
 
     public FlattenSubmissionJobHandler FlattenJob(ITransactionLock transactionLock, OutboxMessage message)
     {
@@ -271,7 +308,7 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
         await reportingDb.DisposeAsync();
     }
 
-    private FormSchemaProcessor Processor(
+    public FormSchemaProcessor Processor(
         IFormSchemaRepository schemas,
         IFlattenedSubmissionRepository? flattenedRows,
         FormSchemaCompiler compiler)

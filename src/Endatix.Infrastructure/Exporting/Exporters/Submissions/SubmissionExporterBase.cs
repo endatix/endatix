@@ -22,32 +22,33 @@ public abstract class SubmissionExporterBase(
     protected readonly ILogger _logger = logger;
     private readonly List<IValueTransformer> _globalTransformers = globalTransformers?.ToList() ?? [];
 
-    private static readonly Dictionary<string, Func<SubmissionExportRow, object?>> _staticColumnAccessors = new()
+    // The second argument is what a missing value is written as: see MissingValue.
+    private static readonly Dictionary<string, Func<SubmissionExportRow, string, object?>> _staticColumnAccessors = new()
     {
-        [SubmissionExportRow.SystemColumns.FormId] = row => row.FormId,
-        [SubmissionExportRow.SystemColumns.Id] = row => row.Id,
-        [SubmissionExportRow.SystemColumns.IsComplete] = row => row.IsComplete,
-        [SubmissionExportRow.SystemColumns.CollectionStatus] = row => row.CollectionStatus,
-        [SubmissionExportRow.SystemColumns.CreatedAt] = row => row.CreatedAt,
-        [SubmissionExportRow.SystemColumns.ModifiedAt] = row => row.ModifiedAt,
-        [SubmissionExportRow.SystemColumns.StartedAt] = row => row.StartedAt is null ? NOT_AVAILABLE_VALUE : row.StartedAt,
-        [SubmissionExportRow.SystemColumns.CompletedAt] = row => row.CompletedAt is null ? NOT_AVAILABLE_VALUE : row.CompletedAt,
+        [SubmissionExportRow.SystemColumns.FormId] = (row, _) => row.FormId,
+        [SubmissionExportRow.SystemColumns.Id] = (row, _) => row.Id,
+        [SubmissionExportRow.SystemColumns.IsComplete] = (row, _) => row.IsComplete,
+        [SubmissionExportRow.SystemColumns.CollectionStatus] = (row, _) => row.CollectionStatus,
+        [SubmissionExportRow.SystemColumns.CreatedAt] = (row, _) => row.CreatedAt,
+        [SubmissionExportRow.SystemColumns.ModifiedAt] = (row, _) => row.ModifiedAt,
+        [SubmissionExportRow.SystemColumns.StartedAt] = (row, missing) => row.StartedAt is null ? missing : row.StartedAt,
+        [SubmissionExportRow.SystemColumns.CompletedAt] = (row, missing) => row.CompletedAt is null ? missing : row.CompletedAt,
         [SubmissionExportRow.SystemColumns.DurationSeconds] = GetDurationSecondsExportValue,
-        [SubmissionExportRow.SystemColumns.SubmitterId] = row => row.SubmitterId is null ? NOT_AVAILABLE_VALUE : row.SubmitterId,
-        [SubmissionExportRow.SystemColumns.SubmitterDisplayId] = row => row.SubmitterDisplayId ?? NOT_AVAILABLE_VALUE
+        [SubmissionExportRow.SystemColumns.SubmitterId] = (row, missing) => row.SubmitterId is null ? missing : row.SubmitterId,
+        [SubmissionExportRow.SystemColumns.SubmitterDisplayId] = (row, missing) => row.SubmitterDisplayId ?? missing
     };
 
-    private static object GetDurationSecondsExportValue(SubmissionExportRow row)
+    private static object GetDurationSecondsExportValue(SubmissionExportRow row, string missing)
     {
         if (!row.IsComplete)
         {
-            return NOT_AVAILABLE_VALUE;
+            return missing;
         }
 
         var durationSeconds = SubmissionExportRow.CalculateDurationSeconds(row.StartedAt, row.CompletedAt);
         if (durationSeconds is null)
         {
-            return NOT_AVAILABLE_VALUE;
+            return missing;
         }
 
         return durationSeconds.Value;
@@ -104,7 +105,18 @@ public abstract class SubmissionExporterBase(
     /// Booleans render as codebook category ids (<c>1</c>/<c>0</c>) for Shoji and for reporting
     /// runs that ask for it; every other format renders them as <c>true</c>/<c>false</c>.
     /// </summary>
-    protected bool UsesCategoryIdBooleans(ExportOptions? options) =>
+    protected bool UsesCategoryIdBooleans(ExportOptions? options) => IsCrunchShaped(options);
+
+    /// <summary>
+    /// What a missing or unreadable value is written as. Crunch rejects any text in a numeric or datetime column,
+    /// so a Crunch-shaped export leaves the cell empty; every other export writes <c>N/A</c>.
+    /// </summary>
+    protected string MissingValue(ExportOptions? options) =>
+        IsCrunchShaped(options) ? string.Empty : NOT_AVAILABLE_VALUE;
+
+    // Crunch-shaped: the csv-shoji format, or a reporting run whose settings target Crunch (they ask for category-id
+    // booleans exactly then).
+    private bool IsCrunchShaped(ExportOptions? options) =>
         string.Equals(Format, "csv-shoji", StringComparison.OrdinalIgnoreCase) ||
         (options?.Metadata is not null &&
          options.Metadata.TryGetValue(SubmissionExportMetadataKeys.ExecutionSettings, out var settings) &&
@@ -166,7 +178,7 @@ public abstract class SubmissionExporterBase(
         foreach (var entry in plan.Columns)
         {
             var column = entry.Source == SubmissionExportColumnSources.System
-                ? BuildStaticColumn(entry.ExportKey)
+                ? BuildStaticColumn(entry.ExportKey, options)
                 : BuildJsonColumn(entry.ExportKey, entry.CanonicalKey);
 
             if (options.Formatters is not null && options.Formatters.TryGetValue(column.Name, out var formatter))
@@ -181,14 +193,15 @@ public abstract class SubmissionExporterBase(
         return columns;
     }
 
-    private static StaticColumnDefinition<SubmissionExportRow> BuildStaticColumn(string exportKey)
+    private StaticColumnDefinition<SubmissionExportRow> BuildStaticColumn(string exportKey, ExportOptions? options)
     {
         if (!_staticColumnAccessors.TryGetValue(exportKey, out var accessor))
         {
             throw new InvalidOperationException($"Unsupported system export column '{exportKey}'.");
         }
 
-        return new StaticColumnDefinition<SubmissionExportRow>(exportKey, accessor);
+        var missing = MissingValue(options);
+        return new StaticColumnDefinition<SubmissionExportRow>(exportKey, row => accessor(row, missing));
     }
 
     private ColumnDefinition<SubmissionExportRow> BuildJsonColumn(string exportKey, string canonicalKey)
@@ -214,7 +227,7 @@ public abstract class SubmissionExporterBase(
         var result = new List<ColumnDefinition<SubmissionExportRow>>();
         foreach (var name in selectedNames)
         {
-            var column = BuildColumnDefinition(name);
+            var column = BuildColumnDefinition(name, options);
 
             if (options?.Formatters is not null && options.Formatters.TryGetValue(column.Name, out var formatter))
             {
@@ -227,11 +240,11 @@ public abstract class SubmissionExporterBase(
         return result;
     }
 
-    private ColumnDefinition<SubmissionExportRow> BuildColumnDefinition(string name)
+    private ColumnDefinition<SubmissionExportRow> BuildColumnDefinition(string name, ExportOptions? options)
     {
         if (_staticColumnAccessors.ContainsKey(name))
         {
-            return new StaticColumnDefinition<SubmissionExportRow>(name, _staticColumnAccessors[name]);
+            return BuildStaticColumn(name, options);
         }
 
         var jsonColumn = new JsonColumnDefinition<SubmissionExportRow>(name, name);

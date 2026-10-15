@@ -1,0 +1,25 @@
+{
+  "title": "Panel check-in",
+  "calculatedValues": [
+    { "name": "city" },
+    { "name": "age" }
+  ],
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "text",
+          "name": "city",
+          "title": "Which city do you live in?",
+          "defaultValueExpression": "{city}"
+        },
+        {
+          "type": "boolean",
+          "name": "consent",
+          "title": "Do you agree to the terms?"
+        }
+      ]
+    }
+  ]
+}

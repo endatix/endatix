@@ -11,7 +11,7 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// <summary>
 /// Generates native Crunch.io Shoji codebook JSON from format-neutral persisted schema artifacts.
 /// </summary>
-internal static class ShojiCodebookGenerator
+internal static partial class ShojiCodebookGenerator
 {
     /// <summary>
     /// Locale for the current synchronous <see cref="Generate"/> call only.
@@ -113,9 +113,9 @@ internal static class ShojiCodebookGenerator
         writer.WritePropertyName(ShojiCodebookPropertyNames.Metadata);
         writer.WriteStartObject();
         List<string> writtenAliases = [];
-        var calculatedAliases = WriteShojiVariables(writer, args, writtenAliases);
+        var nonQuestionAliases = WriteShojiVariables(writer, args, writtenAliases);
         writer.WriteEndObject();
-        WriteOrder(writer, BuildAppearanceOrder(args, writtenAliases, calculatedAliases));
+        WriteOrder(writer, BuildAppearanceOrder(args, writtenAliases, nonQuestionAliases));
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.WriteEndObject();
@@ -129,16 +129,16 @@ internal static class ShojiCodebookGenerator
     private static List<string> BuildAppearanceOrder(
         ShojiCodebookWriteArgs args,
         IReadOnlyList<string> writtenAliases,
-        IReadOnlyList<string> calculatedAliases)
+        NonQuestionAliases nonQuestionAliases)
     {
         HashSet<string> written = new(writtenAliases, StringComparer.Ordinal);
         List<string> order = [];
         HashSet<string> seen = new(StringComparer.Ordinal);
 
         order.AddRange(_systemColumnOrder.Where(alias => written.Contains(alias) && seen.Add(alias)));
-        // Calculated values sit between the system block and the questions. The CSV keeps them last;
-        // Crunch matches CSV columns to variables by alias, so the two orders may differ.
-        order.AddRange(calculatedAliases.Where(seen.Add));
+        // Audience values, then calculated values, sit between the system block and the questions. The CSV keeps them
+        // last; Crunch matches CSV columns to variables by alias, so the two orders may differ.
+        order.AddRange(nonQuestionAliases.Personalization.Concat(nonQuestionAliases.Calculated).Where(seen.Add));
 
         foreach (var column in args.FlatteningMap.Columns)
         {
@@ -250,14 +250,15 @@ internal static class ShojiCodebookGenerator
     }
 
     /// <summary>
-    /// Writes calculated values last, so questions keep their names and aliases. Crunch orders
-    /// variables by the order array, not by this metadata order.
+    /// Writes calculated values, then audience values, last, so questions keep their names and aliases. Crunch
+    /// orders variables by the order array, not by this metadata order.
     /// </summary>
-    /// <returns>The aliases of the calculated-value variables written.</returns>
-    private static List<string> WriteShojiVariables(Utf8JsonWriter writer, ShojiCodebookWriteArgs args, List<string> orderAliases)
+    /// <returns>The aliases of the calculated-value and audience variables written.</returns>
+    private static NonQuestionAliases WriteShojiVariables(Utf8JsonWriter writer, ShojiCodebookWriteArgs args, List<string> orderAliases)
     {
         HashSet<string> writtenVariables = new(StringComparer.Ordinal);
         HashSet<string> usedDisplayNames = new(StringComparer.Ordinal);
+        ShojiVariableTracking tracking = new(writtenVariables, usedDisplayNames, orderAliases);
 
         WriteSystemVariables(writer, writtenVariables, usedDisplayNames, orderAliases);
         WriteGroupedVariables(writer, args.Questions, args.GroupedColumnKeys, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
@@ -266,13 +267,25 @@ internal static class ShojiCodebookGenerator
         WriteGapLeafVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteCheckboxOtherTextVariables(writer, args.FlatteningMap, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteLoopExpandedVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
+        var calculatedAliases = WriteCalculatedValueVariables(writer, args, tracking);
+        return new NonQuestionAliases(calculatedAliases, WritePersonalizationVariables(writer, args, tracking));
+    }
 
-        var firstCalculated = orderAliases.Count;
+    /// <summary>The variables written for columns no question owns; an alias a question took is in neither.</summary>
+    private sealed record NonQuestionAliases(IReadOnlyList<string> Calculated, IReadOnlyList<string> Personalization);
+
+    private static List<string> WriteCalculatedValueVariables(
+        Utf8JsonWriter writer,
+        ShojiCodebookWriteArgs args,
+        ShojiVariableTracking tracking)
+    {
+        var firstCalculated = tracking.OrderAliases.Count;
         foreach (var (alias, displayName) in CalculatedValueVariables(args))
         {
-            WriteSystemText(writer, alias, displayName, writtenVariables, usedDisplayNames, orderAliases);
+            WriteSystemText(writer, alias, displayName, tracking.WrittenVariables, tracking.UsedDisplayNames, tracking.OrderAliases);
         }
-        return orderAliases[firstCalculated..];
+
+        return tracking.OrderAliases[firstCalculated..];
     }
 
     private static void WriteSystemVariables(

@@ -14,4 +14,7 @@ internal enum FormSchemaColumnKind
     RankingChoice,
     MultipleTextItem,
     FileUpload,
+
+    /// <summary>An audience value frozen on the response, read from its personalization snapshot, not its answers.</summary>
+    Personalization,
 }

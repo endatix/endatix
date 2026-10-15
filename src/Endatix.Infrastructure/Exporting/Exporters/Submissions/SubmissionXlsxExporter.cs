@@ -112,7 +112,7 @@ public sealed class SubmissionXlsxExporter(
         var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
 
         var categoryIdBooleans = UsesCategoryIdBooleans(options);
-        var formatter = new DefaultCsvFormatter(categoryIdBooleans);
+        XlsxCellFormat format = new(new DefaultCsvFormatter(categoryIdBooleans), categoryIdBooleans, MissingValue(options));
         SubmissionExportRow? firstRow = null;
 
         using (var xmlWriter = OpenXmlWriter.Create(worksheetPart))
@@ -134,7 +134,7 @@ public sealed class SubmissionXlsxExporter(
                         headerWritten = true;
                     }
 
-                    WriteDataRow(xmlWriter, row, doc, columns, formatter, categoryIdBooleans);
+                    WriteDataRow(xmlWriter, row, doc, columns, format);
                 }
             }
 
@@ -154,6 +154,9 @@ public sealed class SubmissionXlsxExporter(
         return firstRow;
     }
 
+    /// <summary>How a data row's cells are written: the formatter, boolean encoding and the missing-value text.</summary>
+    private sealed record XlsxCellFormat(DefaultCsvFormatter Formatter, bool CategoryIdBooleans, string MissingValue);
+
     private static void WriteHeaderRow(
         OpenXmlWriter xmlWriter,
         List<ColumnDefinition<SubmissionExportRow>> columns)
@@ -172,8 +175,7 @@ public sealed class SubmissionXlsxExporter(
         SubmissionExportRow row,
         JsonDocument? doc,
         List<ColumnDefinition<SubmissionExportRow>> columns,
-        DefaultCsvFormatter formatter,
-        bool categoryIdBooleans)
+        XlsxCellFormat format)
     {
         var context = new TransformationContext<SubmissionExportRow>(row, doc, _logger);
         xmlWriter.WriteStartElement(new Row());
@@ -182,12 +184,12 @@ public sealed class SubmissionXlsxExporter(
             try
             {
                 var value = col.GetValue(context);
-                WriteCell(xmlWriter, col.Name, value, formatter.Format(value, context), categoryIdBooleans);
+                WriteCell(xmlWriter, col.Name, value, format.Formatter.Format(value, context), format.CategoryIdBooleans);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing column {ColumnName} for row {RowId}", col.Name, row.Id);
-                WriteInlineString(xmlWriter, NOT_AVAILABLE_VALUE);
+                WriteInlineString(xmlWriter, format.MissingValue);
             }
         }
 

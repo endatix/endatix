@@ -1,0 +1,56 @@
+{
+  "link-open": {
+    "city": "Columbus",
+    "consent": true,
+    "AudienceIdentifier": "CG-000001-01",
+    "audience_age": 65,
+    "audience_city": "03. MIDWEST - COLUMBUS"
+  },
+  "renamed-and-new-properties": {
+    "city": "Portland (edited by the respondent)",
+    "consent": null,
+    "AudienceIdentifier": "CG-000002-01",
+    "audience_age": null,
+    "audience_city": "07. PACIFIC - PORTLAND",
+    "audience_joined": "2024-03-14",
+    "audience_last_seen": "2026-10-01T10:00:00",
+    "audience_panel_member": true
+  },
+  "property-recreated-as-text": {
+    "city": "Austin",
+    "consent": null,
+    "AudienceIdentifier": "CG-000003-01",
+    "audience_age": "sixty-two",
+    "audience_city": null,
+    "audience_joined": null,
+    "audience_last_seen": null,
+    "audience_panel_member": null
+  },
+  "legacy-snapshot-without-values": {
+    "city": null,
+    "consent": false,
+    "AudienceIdentifier": "CG-000004-01",
+    "audience_age": null,
+    "audience_city": null,
+    "audience_joined": null,
+    "audience_last_seen": null,
+    "audience_panel_member": null,
+    "audience_score": 12.5,
+    "audience_tags": [
+      "sports",
+      "music"
+    ]
+  },
+  "no-snapshot": {
+    "city": "Nowhere",
+    "consent": true,
+    "AudienceIdentifier": null,
+    "audience_age": null,
+    "audience_city": null,
+    "audience_joined": null,
+    "audience_last_seen": null,
+    "audience_panel_member": null,
+    "audience_score": null,
+    "audience_tags": null
+  }
+}

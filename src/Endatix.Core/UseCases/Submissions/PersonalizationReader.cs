@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -12,7 +13,18 @@ public sealed record PersonalizationRead(
     DateTimeOffset CapturedAt,
     JsonElement Variables,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Source = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? MemberId = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? MemberId = null)
+{
+    /// <summary>
+    /// Each frozen value's property name and data type, for reporting. Kept off the wire: the API
+    /// returns only the typed <see cref="Variables"/>.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<PersonalizationValue> Values { get; init; } = [];
+}
+
+/// <summary>The property a frozen value came from, as it was when the snapshot was taken.</summary>
+public sealed record PersonalizationValue(string VariableName, string Name, string DataType);
 
 /// <summary>
 /// Every submission read maps through this reader, so it never throws: unreadable JSON or a snapshot
@@ -21,7 +33,12 @@ public sealed record PersonalizationRead(
 /// </summary>
 public static class PersonalizationReader
 {
-    public static PersonalizationRead? Read(string? snapshot)
+    /// <param name="snapshot">The submission's personalization snapshot JSON.</param>
+    /// <param name="includeValues">
+    /// Whether to read <see cref="PersonalizationRead.Values"/>. Reporting needs them; an API read does not, since they
+    /// never reach the wire.
+    /// </param>
+    public static PersonalizationRead? Read(string? snapshot, bool includeValues = true)
     {
         if (string.IsNullOrWhiteSpace(snapshot))
         {
@@ -31,7 +48,7 @@ public static class PersonalizationReader
         try
         {
             using var document = JsonDocument.Parse(snapshot);
-            return FromRoot(document.RootElement);
+            return FromRoot(document.RootElement, includeValues);
         }
         catch (JsonException)
         {
@@ -39,7 +56,7 @@ public static class PersonalizationReader
         }
     }
 
-    private static PersonalizationRead? FromRoot(JsonElement root)
+    private static PersonalizationRead? FromRoot(JsonElement root, bool includeValues)
     {
         if (root.ValueKind != JsonValueKind.Object
             || !root.TryGetProperty("variables", out var variables)
@@ -53,7 +70,45 @@ public static class PersonalizationReader
             CapturedAt(root),
             variables.Clone(),
             Text(root, "source"),
-            Long(root, "memberId"));
+            Long(root, "memberId"))
+        {
+            Values = includeValues ? ValuesOf(root) : [],
+        };
+    }
+
+    // An entry without a variable name, name or data type is skipped rather than failing the read.
+    private static List<PersonalizationValue> ValuesOf(JsonElement root)
+    {
+        if (!root.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        List<PersonalizationValue> read = [];
+        foreach (var entry in values.EnumerateArray())
+        {
+            if (TryReadValue(entry, out var value))
+            {
+                read.Add(value);
+            }
+        }
+
+        return read;
+    }
+
+    private static bool TryReadValue(JsonElement entry, [NotNullWhen(true)] out PersonalizationValue? value)
+    {
+        value = null;
+        if (entry.ValueKind != JsonValueKind.Object
+            || Text(entry, "variableName") is not { Length: > 0 } variableName
+            || Text(entry, "name") is not { } name
+            || Text(entry, "dataType") is not { Length: > 0 } dataType)
+        {
+            return false;
+        }
+
+        value = new PersonalizationValue(variableName, name, dataType);
+        return true;
     }
 
     private static string? Text(JsonElement root, string name) =>

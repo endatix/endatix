@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
@@ -9,15 +11,22 @@ namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 /// </summary>
 internal static class FlattenedSubmissionFlattener
 {
+    /// <summary>
+    /// One value per schema column: answers come from <paramref name="submission"/>, audience values from the
+    /// snapshot frozen on the response (<paramref name="personalization"/>), never from the live audience.
+    /// </summary>
     public static Dictionary<string, JsonElement?> Flatten(
         JsonElement submission,
-        MergedFormSchema formSchema)
+        MergedFormSchema formSchema,
+        PersonalizationRead? personalization = null)
     {
         Dictionary<string, JsonElement?> result = new(StringComparer.Ordinal);
 
         foreach (var column in formSchema.Columns)
         {
-            result[column.Key] = ExtractValue(submission, column);
+            result[column.Key] = column.Kind is FormSchemaColumnKind.Personalization
+                ? PersonalizationColumns.ValueOf(column, personalization)
+                : ExtractValue(submission, column);
         }
 
         return result;

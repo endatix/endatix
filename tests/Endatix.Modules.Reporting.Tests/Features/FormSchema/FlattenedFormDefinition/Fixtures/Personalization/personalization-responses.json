@@ -1,0 +1,72 @@
+[
+  {
+    "id": "link-open",
+    "answers": { "city": "Columbus", "consent": true },
+    "snapshot": {
+      "schemaVersion": 1,
+      "source": "link",
+      "capturedAt": "2026-10-08T08:00:00Z",
+      "identifier": "CG-000001-01",
+      "memberId": 11,
+      "audienceLinkId": 21,
+      "variables": { "city": "03. MIDWEST - COLUMBUS", "age": 65 },
+      "values": [
+        { "propertyId": 1, "variableName": "city", "name": "City", "dataType": "text", "value": "03. MIDWEST - COLUMBUS" },
+        { "propertyId": 2, "variableName": "age", "name": "Age", "dataType": "number", "value": 65 }
+      ]
+    }
+  },
+  {
+    "id": "renamed-and-new-properties",
+    "answers": { "city": "Portland (edited by the respondent)" },
+    "snapshot": {
+      "schemaVersion": 1,
+      "source": "on_behalf",
+      "capturedAt": "2026-10-09T08:00:00Z",
+      "identifier": "CG-000002-01",
+      "memberId": 12,
+      "variables": {
+        "city": "07. PACIFIC - PORTLAND",
+        "panel_member": true,
+        "joined": "2024-03-14",
+        "last_seen": "2026-10-01T10:00:00"
+      },
+      "values": [
+        { "propertyId": 1, "variableName": "city", "name": "Home city", "dataType": "text", "value": "07. PACIFIC - PORTLAND" },
+        { "propertyId": 3, "variableName": "panel_member", "name": "Panel member", "dataType": "boolean", "value": true },
+        { "propertyId": 4, "variableName": "joined", "name": "Joined", "dataType": "date", "value": "2024-03-14" },
+        { "propertyId": 5, "variableName": "last_seen", "name": "Last seen", "dataType": "date_time", "value": "2026-10-01T10:00:00" }
+      ]
+    }
+  },
+  {
+    "id": "property-recreated-as-text",
+    "answers": { "city": "Austin" },
+    "snapshot": {
+      "schemaVersion": 1,
+      "source": "link",
+      "capturedAt": "2026-10-10T08:00:00Z",
+      "identifier": "CG-000003-01",
+      "memberId": 13,
+      "audienceLinkId": 23,
+      "variables": { "age": "sixty-two" },
+      "values": [
+        { "propertyId": 6, "variableName": "age", "name": "Age", "dataType": "text", "value": "sixty-two" }
+      ]
+    }
+  },
+  {
+    "id": "legacy-snapshot-without-values",
+    "answers": { "consent": false },
+    "snapshot": {
+      "capturedAt": "2026-10-05T08:00:00Z",
+      "identifier": "CG-000004-01",
+      "variables": { "tags": ["sports", "music"], "score": 12.5 }
+    }
+  },
+  {
+    "id": "no-snapshot",
+    "answers": { "city": "Nowhere", "consent": true },
+    "snapshot": null
+  }
+]

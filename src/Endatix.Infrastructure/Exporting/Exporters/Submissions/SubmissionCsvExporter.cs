@@ -68,7 +68,7 @@ public class SubmissionCsvExporter(
                         catch (Exception ex)
                         {
                             _logger.LogError(ex, "Error processing column {ColumnName} for row {RowId}", col.Name, row.Id);
-                            csv.WriteField(NOT_AVAILABLE_VALUE);
+                            csv.WriteField(MissingValue(options));
                         }
                     }
                     await csv.NextRecordAsync();
