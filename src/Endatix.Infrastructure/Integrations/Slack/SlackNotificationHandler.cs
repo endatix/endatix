@@ -47,7 +47,13 @@ public class SlackNotificationHandler : INotificationHandler<SubmissionCompleted
 
         var tenantSettings = await _tenantSettingsRepository.FirstOrDefaultAsync(
             new TenantSettingsByTenantIdSpec(notification.Submission.TenantId), cancellationToken);
-        Guard.Against.Null(tenantSettings, "Tenant settings must be configured.");
+        if (tenantSettings is null)
+        {
+            _logger.LogWarning(
+                "Tenant settings are not configured for tenant {TenantId}; skipping Slack notification.",
+                notification.Submission.TenantId);
+            return;
+        }
 
         var form = await _formRepository.GetByIdAsync(notification.Submission.FormId, cancellationToken);
 
