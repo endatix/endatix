@@ -66,7 +66,7 @@ internal sealed class ShojiCodebookExportDataSource(
         }
 
         await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
-        context.Options.Metadata![SubmissionExportMetadataKeys.ResolvedFormatSettings] =
+        (context.Options.Metadata ??= new Dictionary<string, object>())[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             settings with { Locale = requestLocale };
 
         return Result.Success(context.Options);

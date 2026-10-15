@@ -37,7 +37,7 @@ internal static class PersonalizationCodebook
             return codebookJson;
         }
 
-        var codebook = JsonNode.Parse(codebookJson)!.AsObject();
+        var codebook = JsonNode.Parse(codebookJson).AsObject();
         Retitle(codebook[FormSchemaCodebookPropertyNames.Columns]?.AsObject(), block);
         codebook[BlockPropertyName] = Block(block);
         return codebook.ToJsonString();
@@ -87,10 +87,15 @@ internal static class PersonalizationCodebook
             .ToList();
     }
 
-    private static int CatalogRank(FormSchemaColumn column, PersonalizationVariableInfo? variable) =>
-        column.Key == PersonalizationColumns.IdentifierKey ? 0
-        : variable is null ? 2
-        : 1;
+    private static int CatalogRank(FormSchemaColumn column, PersonalizationVariableInfo? variable)
+    {
+        if (column.Key == PersonalizationColumns.IdentifierKey)
+        {
+            return 0;
+        }
+
+        return variable is null ? 2 : 1;
+    }
 
     private static void Retitle(JsonObject? columns, IReadOnlyList<FormSchemaColumn> block)
     {
@@ -106,9 +111,9 @@ internal static class PersonalizationCodebook
     private static JsonObject Block(IReadOnlyList<FormSchemaColumn> block)
     {
         JsonObject variables = [];
-        foreach (var column in block.Where(column => column.Key != PersonalizationColumns.IdentifierKey))
+        foreach (var columnKey in block.Where(c => c.Key != PersonalizationColumns.IdentifierKey).Select(c => c.Key))
         {
-            variables[column.Key[PersonalizationColumns.VariablePrefix.Length..]] = column.Key;
+            variables[columnKey[PersonalizationColumns.VariablePrefix.Length..]] = columnKey;
         }
 
         JsonObject result = new()
@@ -133,13 +138,13 @@ internal static class PersonalizationCodebook
 
         if (Child(block, IdentifierPropertyName, JsonValueKind.String) is { } identifier)
         {
-            yield return identifier.GetString()!;
+            yield return identifier.GetString() ?? string.Empty;
         }
 
         var variables = Child(block, VariablesPropertyName, JsonValueKind.Object)?.EnumerateObject() ?? default;
         foreach (var variable in variables.Where(variable => variable.Value.ValueKind is JsonValueKind.String))
         {
-            yield return variable.Value.GetString()!;
+            yield return variable.Value.GetString() ?? string.Empty;
         }
     }
 

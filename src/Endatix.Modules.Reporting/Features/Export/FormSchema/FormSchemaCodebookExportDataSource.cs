@@ -53,7 +53,7 @@ internal sealed class FormSchemaCodebookExportDataSource(
         }
 
         await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
-        context.Options.Metadata![SubmissionExportMetadataKeys.ResolvedFormatSettings] =
+        (context.Options.Metadata ??= new Dictionary<string, object>())[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             ResolveSettings(context.Options);
 
         return Result.Success(context.Options);
