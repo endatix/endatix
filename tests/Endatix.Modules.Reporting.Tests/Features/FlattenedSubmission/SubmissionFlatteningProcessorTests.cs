@@ -5,6 +5,7 @@ using Endatix.Core.Specifications;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
+using FlattenedSubmissionKey = Endatix.Modules.Reporting.Domain.FlattenedSubmissionKey;
 using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
@@ -23,6 +24,7 @@ public class SubmissionFlatteningProcessorTests
     private const long FormId = 100;
     private const long FormDefinitionId = 200;
     private const long SubmissionId = 500;
+    private static readonly DateTime FlattenedAt = new(2026, 3, 4, 5, 6, 7, DateTimeKind.Utc);
 
     private readonly IRepository<Submission> _submissions = Substitute.For<IRepository<Submission>>();
     private readonly IFlattenedSubmissionRepository _rows = Substitute.For<IFlattenedSubmissionRepository>();
@@ -104,7 +106,7 @@ public class SubmissionFlatteningProcessorTests
             "deleted in another tenant" => new SubmissionDeletionState(TenantId: 2, FormId, IsDeleted: true),
             _ => new SubmissionDeletionState(TenantId, FormId, IsDeleted: false),
         };
-        FlattenedSubmissionRow row = new(SubmissionId, TenantId, FormId);
+        FlattenedSubmissionRow row = new(new FlattenedSubmissionKey(TenantId, FormId, SubmissionId), FlattenedAt);
         GivenMissingSubmission(state, row);
 
         // Act

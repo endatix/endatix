@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Contracts;
@@ -6,6 +7,7 @@ using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 
 namespace Endatix.IntegrationTests;
 
@@ -19,12 +21,25 @@ public sealed class FlattenedSubmissionRepositoryTests
     private const long FormId = 100;
     private const long SubmissionId = 500;
     private const string ProcessedDataJson = """{"firstName": "Ada"}""";
+    private static readonly DateTimeOffset CreatedAt = new(2026, 9, 2, 8, 0, 0, TimeSpan.Zero);
+
+    private static readonly Dictionary<string, Func<FlattenedSubmissionRepository, CancellationToken, Task<bool>>> AttemptWrites = new()
+    {
+        [nameof(FlattenedSubmissionRepository.TryMarkProcessingAsync)] = (repository, cancellationToken) =>
+            repository.TryMarkProcessingAsync(WriteOf(revision: 1), cancellationToken),
+        [nameof(FlattenedSubmissionRepository.TryMarkSkippedAsync)] = (repository, cancellationToken) =>
+            repository.TryMarkSkippedAsync(WriteOf(revision: 1), cancellationToken),
+        [nameof(FlattenedSubmissionRepository.TryMarkFailedAsync)] = (repository, cancellationToken) =>
+            repository.TryMarkFailedAsync(WriteOf(revision: 1), "Flatten failed.", cancellationToken),
+    };
 
     private readonly DbIntegrationFixture _fixture;
+    private readonly IDateTimeProvider _clock = Substitute.For<IDateTimeProvider>();
 
     public FlattenedSubmissionRepositoryTests(DbIntegrationFixture fixture)
     {
         _fixture = fixture;
+        _clock.UtcNow.Returns(CreatedAt);
     }
 
     [Fact]
@@ -122,6 +137,75 @@ public sealed class FlattenedSubmissionRepositoryTests
         persisted.SourceRevision.Should().Be(3);
         persisted.SourceModifiedAt.Should().Be(sourceModifiedAt);
         persisted.IsDeleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task EnsureExistsAsync_OnNewRow_StampsCreationAndFirstAttemptFromTheClock()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+
+        // Act
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+
+        // Assert
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        persisted.CreatedAt.Should().Be(CreatedAt.UtcDateTime);
+        persisted.Integration.LastAttemptAt.Should().Be(CreatedAt.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task TryMarkProcessedAsync_OnExistingRow_StampsAttemptProcessedAndModifiedFromTheClock()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        var processedAt = CreatedAt.AddMinutes(5);
+        _clock.UtcNow.Returns(processedAt);
+
+        // Act
+        await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedDataJson, cancellationToken);
+
+        // Assert
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        persisted.CreatedAt.Should().Be(CreatedAt.UtcDateTime);
+        persisted.Integration.LastAttemptAt.Should().Be(processedAt.UtcDateTime);
+        persisted.Integration.ProcessedAt.Should().Be(processedAt.UtcDateTime);
+        persisted.ModifiedAt.Should().Be(processedAt.UtcDateTime);
+    }
+
+    public static TheoryData<string> AttemptWriteNames => new(AttemptWrites.Keys);
+
+    [Theory]
+    [MemberData(nameof(AttemptWriteNames))]
+    public async Task TryMarkAsync_OnExistingRow_StampsAttemptAndModifiedFromTheClock(string write)
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        var attemptedAt = CreatedAt.AddMinutes(5);
+        _clock.UtcNow.Returns(attemptedAt);
+
+        // Act
+        var landed = await AttemptWrites[write](repository, cancellationToken);
+
+        // Assert
+        landed.Should().BeTrue();
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        persisted.Integration.LastAttemptAt.Should().Be(attemptedAt.UtcDateTime);
+        persisted.ModifiedAt.Should().Be(attemptedAt.UtcDateTime);
     }
 
     [Fact]
@@ -233,8 +317,10 @@ public sealed class FlattenedSubmissionRepositoryTests
         row.IsDeleted.Should().BeTrue();
         var persisted = await dbContext.FlattenedSubmissions
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .SingleAsync(row => row.SubmissionId == SubmissionId, cancellationToken);
         persisted.IsDeleted.Should().BeTrue();
+        persisted.ModifiedAt.Should().NotBeNull("the context stamps a tracked save");
 
         var filtered = await repository.GetBySubmissionIdAsync(
             TenantId,
@@ -332,9 +418,9 @@ public sealed class FlattenedSubmissionRepositoryTests
         return ReportingTestSchema.CreateContext(_fixture.ConnectionString, _fixture.Provider, tenantContext);
     }
 
-    private static FlattenedSubmissionRepository CreateRepository(ReportingDbContextBase dbContext)
+    private FlattenedSubmissionRepository CreateRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FlattenedSubmissionRepository(dbContext, unitOfWork);
+        return new FlattenedSubmissionRepository(dbContext, unitOfWork, _clock);
     }
 }

@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
@@ -262,7 +263,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
     private static FlattenedSubmissionRepository CreateRepository(ReportingDbContextBase dbContext)
     {
         ReportingUnitOfWork unitOfWork = new(dbContext);
-        return new FlattenedSubmissionRepository(dbContext, unitOfWork);
+        return new FlattenedSubmissionRepository(dbContext, unitOfWork, new DateTimeProvider());
     }
 
     private static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase dbContext)

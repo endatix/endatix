@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
@@ -14,7 +15,8 @@ internal sealed class FlattenedRowSeed(ReportingDbContextBase dbContext)
     // Every seeded write uses one revision, and a write from the same revision as the row's still lands.
     private const long SeedRevision = 1;
 
-    private readonly FlattenedSubmissionRepository _repository = new(dbContext, new ReportingUnitOfWork(dbContext));
+    private readonly FlattenedSubmissionRepository _repository =
+        new(dbContext, new ReportingUnitOfWork(dbContext), new DateTimeProvider());
 
     /// <summary>Creates a pending row and returns it tracked by the seed's context.</summary>
     public async Task<FlattenedSubmission> PendingAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)

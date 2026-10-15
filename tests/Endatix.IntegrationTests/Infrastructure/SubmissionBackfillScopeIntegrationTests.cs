@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
@@ -310,7 +311,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
 
         return new SubmissionBackfillProcessor(
             CreateSubmissionRepository(appDb),
-            new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
+            new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb), new DateTimeProvider()),
             CreateFlatteningProcessor(appDb, reportingDb),
             NullLogger<SubmissionBackfillProcessor>.Instance);
     }
@@ -318,7 +319,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
     private static SubmissionFlatteningProcessor CreateFlatteningProcessor(AppDbContext appDb, ReportingDbContextBase reportingDb) =>
         new(
             CreateSubmissionRepository(appDb),
-            new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb)),
+            new FlattenedSubmissionRepository(reportingDb, new ReportingUnitOfWork(reportingDb), new DateTimeProvider()),
             new FormSchemaProvider(
                 new FormSchemaRepository(reportingDb, new ReportingUnitOfWork(reportingDb), ReportingTestSchema.TransactionLockFor(reportingDb)),
                 Substitute.For<IFormSchemaProcessor>(),
