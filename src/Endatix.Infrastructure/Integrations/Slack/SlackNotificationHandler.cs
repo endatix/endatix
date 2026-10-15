@@ -75,7 +75,7 @@ public class SlackNotificationHandler : INotificationHandler<SubmissionCompleted
             return;
         }
 
-        var message = await BuildMessageAsync(submission, slackSettings.EndatixHubBaseUrl!, cancellationToken);
+        var message = await BuildMessageAsync(submission, slackSettings.EndatixHubBaseUrl, cancellationToken);
         await PostMessageAsync(message, slackSettings, cancellationToken);
     }
 
