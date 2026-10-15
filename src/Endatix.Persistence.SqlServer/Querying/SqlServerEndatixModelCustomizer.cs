@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
 namespace Endatix.Persistence.SqlServer.Querying;
 
@@ -17,5 +18,20 @@ public sealed class SqlServerEndatixModelCustomizer(ModelCustomizerDependencies 
         modelBuilder.HasDbFunction(SqlServerJsonDbFunctions.JsonValueMethod)
             .HasName("JSON_VALUE")
             .IsBuiltIn();
+
+        // SPIKE: lax JSON_VALUE returns NULL above 4,000 characters; RETURNING nvarchar(max) lifts the limit.
+        modelBuilder.HasDbFunction(SqlServerJsonDbFunctions.JsonValueMaxMethod)
+            .HasTranslation(args =>
+            {
+                var path = (string)((SqlConstantExpression)args[1]).Value!;
+                var fragment = new SqlFragmentExpression($"N'{path.Replace("'", "''", StringComparison.Ordinal)}' RETURNING nvarchar(max)");
+                return new SqlFunctionExpression(
+                    "JSON_VALUE",
+                    [args[0], fragment],
+                    nullable: true,
+                    argumentsPropagateNullability: [true, false],
+                    typeof(string),
+                    args[1].TypeMapping);
+            });
     }
 }

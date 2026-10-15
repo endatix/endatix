@@ -34,6 +34,8 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
 
     public DbSet<SurveyTypeExportMapping> SurveyTypeExportMappings => Set<SurveyTypeExportMapping>();
 
+    public DbSet<CoreSubmissionRow> CoreSubmissionRows => Set<CoreSubmissionRow>();
+
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
     /// <inheritdoc />
@@ -51,6 +53,11 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
 
         modelBuilder.ApplySnowflakeIdValueGenerators(Database);
         modelBuilder.ApplyModuleTableNames();
+
+        // SPIKE: after ApplyModuleTableNames, which would reset the schema to the module default.
+        modelBuilder.Entity<CoreSubmissionRow>()
+            .HasNoKey()
+            .ToTable(TableNamePrefix.GetTableName("Submission"), schema: CoreSchema, t => t.ExcludeFromMigrations());
     }
 
     // Applied explicitly rather than by attribute scan: the shared configurations belong to every derived
@@ -69,6 +76,9 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
     /// names it rather than at whichever mapping first uses a provider-specific feature.
     /// </summary>
     protected abstract void EnsureSupportedProvider();
+
+    /// <summary>SPIKE: the schema core tables live in on this provider (core sets no default schema).</summary>
+    protected abstract string CoreSchema { get; }
 
     /// <summary>
     /// Applies the configurations belonging to this provider's context. Each derived context scans for

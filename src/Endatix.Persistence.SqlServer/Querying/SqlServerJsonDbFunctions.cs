@@ -15,6 +15,14 @@ public static class SqlServerJsonDbFunctions
             nameof(JsonValue),
             [typeof(string), typeof(string)]);
 
+    /// <summary>SPIKE: JSON_VALUE ... RETURNING nvarchar(max).</summary>
+    public static readonly MethodInfo JsonValueMaxMethod =
+        typeof(SqlServerJsonDbFunctions).GetMethod(nameof(JsonValueMax), [typeof(string), typeof(string)]);
+
+    /// <summary>SPIKE: JSON_VALUE(json, path RETURNING nvarchar(max)); not limited to 4,000 characters.</summary>
+    public static string? JsonValueMax(string? json, string path)
+        => throw new InvalidOperationException("database function");
+
     /// <summary>
     /// Extracts a JSON scalar by path (<c>JSON_VALUE</c>). Pass a full path such as <c>$.default</c>.
     /// </summary>

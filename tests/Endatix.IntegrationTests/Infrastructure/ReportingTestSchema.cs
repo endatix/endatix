@@ -6,6 +6,7 @@ using Endatix.Modules.Reporting.Persistence;
 using Endatix.Persistence.PostgreSql.Locking;
 using Endatix.Persistence.SqlServer.Locking;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -102,6 +103,17 @@ internal static class ReportingTestSchema
     {
         DbContextOptionsBuilder<TContext> optionsBuilder = new();
         optionsBuilder.ConfigureModuleDbContext(configuration, ReportingPersistence.ConfigureDbContextOptions);
+
+        // SPIKE: the Reporting contexts do not register the JSON DbFunctions today; WhereKeyMatches needs them.
+        if (configuration["ConnectionStrings:DefaultConnection_DbProvider"] == nameof(TestDatabaseProvider.SqlServer))
+        {
+            optionsBuilder.ReplaceService<IModelCustomizer, Endatix.Persistence.SqlServer.Querying.SqlServerEndatixModelCustomizer>();
+        }
+        else
+        {
+            optionsBuilder.ReplaceService<IModelCustomizer, Endatix.Persistence.PostgreSql.Querying.NpgsqlEndatixModelCustomizer>();
+        }
+
         return optionsBuilder.Options;
     }
 

@@ -26,7 +26,7 @@ public sealed class SqlServerJsonObjectKeyFilter : RelationalJsonObjectKeyFilter
     /// <inheritdoc />
     protected override Expression ExtractKeyText(Expression jsonProperty, string jsonObjectKey) =>
         Expression.Call(
-            SqlServerJsonDbFunctions.JsonValueMethod,
+            Environment.GetEnvironmentVariable("SPIKE_JSON_MAX") == "1" ? SqlServerJsonDbFunctions.JsonValueMaxMethod : SqlServerJsonDbFunctions.JsonValueMethod,
             jsonProperty,
             Expression.Constant(BuildJsonValuePath(jsonObjectKey)));
 
