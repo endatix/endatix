@@ -37,13 +37,23 @@ internal static partial class ShojiCodebookGenerator
     // through an alias profile or key separator, and Crunch matches CSV columns to variables by alias. An alias a
     // question already took stays the question's, and keeps its place among the questions.
     /// <returns>The aliases of the audience variables written.</returns>
+    // The audience columns go last, in the codebook's block order, so the writers meet them in that order.
+    private static MergedFormSchema ShojiFlatteningMap(
+        string flatteningMapJson,
+        JsonElement codebook,
+        IReadOnlyDictionary<string, JsonElement> codebookColumns) =>
+        PersonalizationCodebook.WithBlockLast(
+            WithCodebookColumnKinds(FormSchemaFlatteningMap.FromJson(flatteningMapJson), codebookColumns),
+            codebook);
+
     private static List<string> WritePersonalizationVariables(
         Utf8JsonWriter writer,
         ShojiCodebookWriteArgs args,
         ShojiVariableTracking tracking)
     {
         var firstPersonalization = tracking.OrderAliases.Count;
-        foreach (var column in PersonalizationColumns.InBlockOrder(args.FlatteningMap.Columns))
+        // Generate puts the audience columns last, in the codebook's block order.
+        foreach (var column in args.FlatteningMap.Columns.Where(column => column.Kind is FormSchemaColumnKind.Personalization))
         {
             if (!TryTrackVariable(tracking.WrittenVariables, tracking.OrderAliases, column.Key))
             {

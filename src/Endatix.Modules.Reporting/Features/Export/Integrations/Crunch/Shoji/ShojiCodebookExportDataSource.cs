@@ -12,7 +12,7 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// Crunch.io Shoji codebook export — projects neutral FormSchema artifacts to Shoji JSON.
 /// </summary>
 internal sealed class ShojiCodebookExportDataSource(
-    IFormSchemaRepository formSchemaRepository,
+    ExportSchemas exportSchemas,
     IFormsRepository formsRepository,
     ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
@@ -42,7 +42,7 @@ internal sealed class ShojiCodebookExportDataSource(
         ExportDataSourceContext context,
         CancellationToken cancellationToken)
     {
-        var schema = await formSchemaRepository.GetByFormIdAsync(
+        var schema = await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
             cancellationToken);
@@ -76,7 +76,7 @@ internal sealed class ShojiCodebookExportDataSource(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = (await formSchemaRepository.GetByFormIdAsync(
+        var schema = (await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
             cancellationToken))!;
@@ -89,7 +89,7 @@ internal sealed class ShojiCodebookExportDataSource(
             cancellationToken);
         var codebookJson = ShojiCodebookGenerator.Generate(
             schema.FlatteningMap,
-            schema.Codebook,
+            await exportSchemas.CodebookAsync(schema, cancellationToken),
             settings.KeySeparator,
             requestLocale,
             datasetName,

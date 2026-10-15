@@ -93,7 +93,7 @@ internal static class ExportColumnPlanBuilder
                     keySeparator),
             })
             .ToList();
-        aliasedColumns.AddRange(PersonalizationBlock(flatteningMap, aliasedColumns));
+        aliasedColumns.AddRange(PersonalizationBlock(schema, flatteningMap, aliasedColumns));
 
         EnsureUniqueExportKeys(aliasedColumns);
 
@@ -106,16 +106,18 @@ internal static class ExportColumnPlanBuilder
             column.Kind is not FormSchemaColumnKind.Personalization &&
             (scopedKeys is null || scopedKeys.Contains(column.Key)));
 
-    // Audience values close the row as one block, and their keys are the headers as stored: no alias profile or key
-    // separator touches them, so a Crunch alias for an audience variable never changes between exports. They are not
-    // questions, so a question column scope does not drop them. A question whose export key matches one keeps it, as
-    // in the schema, instead of failing the export (#1230).
+    // Audience values close the row as one block, in the codebook's block order and under its titles, and their keys
+    // are the headers as stored: no alias profile or key separator touches them, so a Crunch alias for an audience
+    // variable never changes between exports. They are not questions, so a question column scope does not drop them.
+    // A question whose export key matches one keeps it, as in the schema, instead of failing the export (#1243).
     private static List<ExportColumnDefinition> PersonalizationBlock(
+        FormSchemaEntity schema,
         MergedFormSchema flatteningMap,
         List<ExportColumnDefinition> questionColumns)
     {
         HashSet<string> taken = new(questionColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
-        return PersonalizationColumns.InBlockOrder(flatteningMap.Columns)
+        using var codebook = JsonDocument.Parse(schema.Codebook);
+        return PersonalizationCodebook.InBlockOrder(flatteningMap, codebook.RootElement)
             .Where(column => !taken.Contains(column.Key))
             .Select(column => new ExportColumnDefinition(
                 CanonicalKey: column.Key,

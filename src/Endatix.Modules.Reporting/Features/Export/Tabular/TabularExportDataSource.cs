@@ -6,6 +6,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 
@@ -13,7 +14,7 @@ namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 /// Streams flattened submission rows from the reporting read model for tabular export (CSV/JSON/XLSX).
 /// </summary>
 internal sealed class TabularExportDataSource(
-    IFormSchemaRepository formSchemaRepository,
+    ExportSchemas exportSchemas,
     IReportingExportRepository reportingExportRepository,
     ExportFormatSettingsParser exportFormatSettingsParser,
     IColumnAliasTransformerRegistry aliasTransformerRegistry) : IExportDataSource
@@ -83,7 +84,7 @@ internal sealed class TabularExportDataSource(
         ExportDataSourceContext context,
         CancellationToken cancellationToken)
     {
-        var schema = await formSchemaRepository.GetByFormIdAsync(
+        var schema = await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
             cancellationToken);
@@ -121,17 +122,8 @@ internal sealed class TabularExportDataSource(
                 await ResolveEmptyExportMessageAsync(context, cancellationToken));
         }
 
-        IReadOnlySet<string>? columnScope = settings.ColumnScope is null
-            ? null
-            : new HashSet<string>(settings.ColumnScope, StringComparer.Ordinal);
-        var plan = ExportColumnPlanBuilder.Build(
-            schema,
-            locale: settings.Locale,
-            aliasProfile: settings.AliasProfile,
-            columnScope: columnScope,
-            keySeparator: settings.KeySeparator,
-            aliasRegistry: aliasTransformerRegistry);
-        var columnPlan = MapColumnPlan(plan);
+        var exported = ExportSchemas.WithCodebook(schema, await exportSchemas.CodebookAsync(schema, cancellationToken));
+        var columnPlan = MapColumnPlan(BuildPlan(exported, settings));
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
         context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
@@ -143,12 +135,21 @@ internal sealed class TabularExportDataSource(
         if (ShouldProjectCrunchShapes(context.Request.Format, settings))
         {
             context.Options.Metadata[CrunchProjectionArtifactsKey] = new CrunchProjectionArtifacts(
-                schema.FlatteningMap,
-                schema.Codebook);
+                exported.FlatteningMap,
+                exported.Codebook);
         }
 
         return Result.Success(context.Options);
     }
+
+    private IExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings) =>
+        ExportColumnPlanBuilder.Build(
+            schema,
+            locale: settings.Locale,
+            aliasProfile: settings.AliasProfile,
+            columnScope: settings.ColumnScope is null ? null : new HashSet<string>(settings.ColumnScope, StringComparer.Ordinal),
+            keySeparator: settings.KeySeparator,
+            aliasRegistry: aliasTransformerRegistry);
 
     private async Task<string> ResolveEmptyExportMessageAsync(
         ExportDataSourceContext context,

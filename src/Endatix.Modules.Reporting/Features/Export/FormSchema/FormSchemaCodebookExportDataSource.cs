@@ -3,7 +3,6 @@ using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Data;
 
 namespace Endatix.Modules.Reporting.Features.Export.FormSchema;
 
@@ -11,7 +10,7 @@ namespace Endatix.Modules.Reporting.Features.Export.FormSchema;
 /// Streams the persisted multi-locale form-schema codebook JSON (no request locale filter).
 /// </summary>
 internal sealed class FormSchemaCodebookExportDataSource(
-    IFormSchemaRepository formSchemaRepository,
+    ExportSchemas exportSchemas,
     ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
     internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
@@ -38,7 +37,7 @@ internal sealed class FormSchemaCodebookExportDataSource(
         ExportDataSourceContext context,
         CancellationToken cancellationToken)
     {
-        var schema = await formSchemaRepository.GetByFormIdAsync(
+        var schema = await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
             cancellationToken);
@@ -64,7 +63,7 @@ internal sealed class FormSchemaCodebookExportDataSource(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = await formSchemaRepository.GetByFormIdAsync(
+        var schema = await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
             cancellationToken);
@@ -73,7 +72,7 @@ internal sealed class FormSchemaCodebookExportDataSource(
             yield break;
         }
 
-        yield return new DynamicExportRow { Data = schema.Codebook };
+        yield return new DynamicExportRow { Data = await exportSchemas.CodebookAsync(schema, cancellationToken) };
     }
 
     private ExportFormatSettings ResolveSettings(ExportOptions options)
