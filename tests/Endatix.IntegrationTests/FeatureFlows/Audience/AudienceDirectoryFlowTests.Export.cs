@@ -70,7 +70,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal("city", root.GetProperty("personalization").GetProperty("variables").EnumerateObject().First().Name);
     }
 
-    // Completing a submission raises the Slack handler, which needs the tenant's settings row.
+    // Completing a submission raises the Slack handler, which needs the tenant's settings row (#1250).
     private static async Task EnsureTenantSettingsAsync(IntegrationTestWorld world)
     {
         await using var scope = world.Services.CreateAsyncScope();
