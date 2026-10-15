@@ -18,7 +18,9 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <para>
 /// A database that cannot be reached at all is a different failure. The host stays up — its readiness probe
 /// reports the outage — and the scheduler starts once the database answers, because restarting the process
-/// cannot fix a database.
+/// cannot fix a database. That holds for an outage at any step of the start, not only the first connection. A
+/// database that answers and refuses, such as a login it does not accept, fails the start instead: waiting would
+/// never fix it.
 /// </para>
 /// <para>
 /// A SQL Server node set to enqueue without the trigger lock is refused before its scheduler is built unless the
@@ -43,9 +45,8 @@ internal sealed class JobsSchedulerHostedService(
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (await database.IsReachableAsync(cancellationToken))
+        if (await TryStartSchedulerAsync(cancellationToken))
         {
-            await StartSchedulerAsync(cancellationToken);
             return;
         }
 
@@ -136,16 +137,36 @@ internal sealed class JobsSchedulerHostedService(
         }
     }
 
+    /// <summary>
+    /// Starts the scheduler, or returns <see langword="false"/> when the database is away, whether before the start or
+    /// during it. A failure the database answered with is thrown.
+    /// </summary>
+    private async Task<bool> TryStartSchedulerAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await database.IsReachableAsync(cancellationToken))
+            {
+                return false;
+            }
+
+            await StartSchedulerAsync(cancellationToken);
+            return true;
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested && DatabaseFailures.IsUnreachable(exception))
+        {
+            return false;
+        }
+    }
+
     private async Task StartWhenReachableAsync(CancellationToken stoppingToken)
     {
         try
         {
-            while (!await database.IsReachableAsync(stoppingToken))
+            while (!await TryStartSchedulerAsync(stoppingToken))
             {
                 await Task.Delay(UnreachableRetryDelay, stoppingToken);
             }
-
-            await StartSchedulerAsync(stoppingToken);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {

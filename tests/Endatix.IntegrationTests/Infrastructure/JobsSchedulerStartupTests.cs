@@ -1,7 +1,13 @@
+using System.Data.Common;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Npgsql;
+using Quartz;
 
 namespace Endatix.IntegrationTests;
 
@@ -36,6 +42,83 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
         logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
     }
+
+    [Fact]
+    public async Task Scheduler_whose_login_is_refused_fails_startup()
+    {
+        // Arrange — the server is there and says no, which waiting would never change.
+        var ct = TestContext.Current.CancellationToken;
+        var logs = new CapturingLoggerProvider();
+        await using var node = JobsTestNode.Create(
+            WrongPassword(fixture.Provider, fixture.ConnectionString),
+            configureServices: services => services.AddSingleton<ILoggerProvider>(logs),
+            migrate: false);
+
+        // Act
+        var start = () => node.StartAsync(ct);
+
+        // Assert
+        await start.Should().ThrowAsync<DbException>();
+        logs.Entries.Should().NotContain((LogLevel.Error, DeferredStartError));
+    }
+
+    [Fact]
+    public async Task Scheduler_whose_database_goes_away_after_the_probe_waits_and_starts()
+    {
+        // Arrange — the database answers the probe, then the scheduler cannot be built once, as in a failover.
+        var ct = TestContext.Current.CancellationToken;
+        var scheduler = Substitute.For<IScheduler>();
+        var schedulers = Substitute.For<ISchedulerFactory>();
+        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
+            _ => throw new SchedulerException("The store failed.", new TimeoutException("The database did not answer.")),
+            _ => ValueTask.FromResult(scheduler));
+        var logs = new CapturingLoggerProvider();
+        using var service = HostedServiceOver(fixture, schedulers, logs);
+
+        // Act
+        await service.StartAsync(ct);
+        var started = await JobsTestWait.UntilAsync(
+            () => Task.FromResult(scheduler.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IScheduler.Start))),
+            TimeSpan.FromSeconds(20),
+            ct);
+        await service.StopAsync(ct);
+
+        // Assert
+        started.Should().BeTrue("the start waits out an outage at any step, not only at the probe");
+        logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
+        logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    // The hosted service alone, over the fixture's database, with the scheduler factory a test controls.
+    private static JobsSchedulerHostedService HostedServiceOver(
+        DbIntegrationFixture fixture,
+        ISchedulerFactory schedulers,
+        CapturingLoggerProvider logs)
+    {
+        var services = new ServiceCollection()
+            .AddKeyedSingleton(QuartzRegistration.SchedulerName, schedulers)
+            .BuildServiceProvider();
+        var database = new JobStoreDatabase(fixture.ConnectionString, fixture.Provider == TestDatabaseProvider.PostgreSql);
+        var options = Options.Create(new BackgroundJobsOptions());
+        return new JobsSchedulerHostedService(
+            services,
+            database,
+            new ReadCommittedSnapshotRequirement(database, options),
+            JobHandlerRegistry.Build([]),
+            options,
+            new JobsShutdownSignal(),
+            new LoggerFactory([logs]).CreateLogger<JobsSchedulerHostedService>());
+    }
+
+    private static JobsTestNodeDatabase WrongPassword(TestDatabaseProvider provider, string connectionString) =>
+        provider switch
+        {
+            TestDatabaseProvider.PostgreSql => new(
+                provider, new NpgsqlConnectionStringBuilder(connectionString) { Password = "wrong" }.ConnectionString),
+            TestDatabaseProvider.SqlServer => new(
+                provider, new SqlConnectionStringBuilder(connectionString) { Password = "wrong" }.ConnectionString),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
+        };
 
     private static JobsTestNodeDatabase ClosedPort(TestDatabaseProvider provider) => provider switch
     {

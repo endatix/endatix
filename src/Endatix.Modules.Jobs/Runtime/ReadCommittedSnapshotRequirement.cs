@@ -9,22 +9,32 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <remarks>
 /// The scheduler's start is one gate and enqueueing is the other, because a node whose start was deferred while the
 /// database was away logs the refusal and stays up: without this, it would still store triggers lock-free on every
-/// enqueue. Once the check has passed it is not repeated, so it costs one query per process; a database that turns
-/// snapshots off later is not noticed until the nodes restart.
+/// enqueue. Its outcome is kept, so it costs one query per process: a refused node fails every enqueue without asking
+/// the database again, and turning snapshots on, or off, takes effect when the nodes restart. A check the database
+/// could not answer is not kept, and runs again.
 /// </remarks>
 internal sealed class ReadCommittedSnapshotRequirement(JobStoreDatabase database, IOptions<BackgroundJobsOptions> options)
 {
     private volatile bool _met;
+    private volatile string? _refusal;
 
     /// <exception cref="InvalidOperationException">The node would enqueue lock-free without snapshots.</exception>
-    public async Task EnsureMetAsync(CancellationToken cancellationToken)
+    public Task EnsureMetAsync(CancellationToken cancellationToken) => (_met, _refusal) switch
     {
-        if (_met)
+        (true, _) => Task.CompletedTask,
+        (_, { } refusal) => Task.FromException(new InvalidOperationException(refusal)),
+        _ => CheckAsync(cancellationToken),
+    };
+
+    // A refusal is kept; a check the database could not answer throws, and is not.
+    private async Task CheckAsync(CancellationToken cancellationToken)
+    {
+        if (await database.ReadCommittedSnapshotRefusalAsync(options.Value, cancellationToken) is { } refusal)
         {
-            return;
+            _refusal = refusal;
+            throw new InvalidOperationException(refusal);
         }
 
-        await database.RequireReadCommittedSnapshotUnlessLockingAsync(options.Value, cancellationToken);
         _met = true;
     }
 }

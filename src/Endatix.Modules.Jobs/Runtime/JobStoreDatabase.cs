@@ -30,7 +30,10 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
     /// </remarks>
     public bool LocksOnInsert(BackgroundJobsOptions options) => options.LockOnInsert ?? !IsPostgreSql;
 
-    /// <summary>Whether a connection opens, so a database that is away is told from one that refuses.</summary>
+    /// <summary>
+    /// Whether a connection opens: <see langword="false"/> when the database is away, and the failure itself when it
+    /// answered and refused, such as a login it does not accept, which waiting would never fix.
+    /// </summary>
     public async Task<bool> IsReachableAsync(CancellationToken cancellationToken)
     {
         try
@@ -39,35 +42,34 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
             await connection.OpenAsync(cancellationToken);
             return true;
         }
-        catch (Exception exception) when (exception is DbException or TimeoutException)
+        catch (Exception exception) when (DatabaseFailures.IsUnreachable(exception))
         {
             return false;
         }
     }
 
     /// <summary>
-    /// Refuses a SQL Server store that enqueues without the trigger lock on a database that does not read committed
-    /// snapshots.
+    /// Why a SQL Server store that enqueues without the trigger lock may not run on this database, which does not read
+    /// committed snapshots, or <see langword="null"/> when it may.
     /// </summary>
     /// <remarks>
     /// Without snapshots, an acquisition waits on every enqueue's uncommitted triggers while that enqueue holds no
-    /// lock to take turns by, so a long enqueue transaction stalls every node's acquisition.
+    /// lock to take turns by, so a long enqueue transaction stalls every node's acquisition. The refusal is returned,
+    /// not thrown, so a caller can tell it from a failure to ask the database.
     /// </remarks>
-    /// <exception cref="InvalidOperationException">The store would enqueue lock-free without snapshots.</exception>
-    public async Task RequireReadCommittedSnapshotUnlessLockingAsync(
+    public async Task<string?> ReadCommittedSnapshotRefusalAsync(
         BackgroundJobsOptions options,
         CancellationToken cancellationToken)
     {
         if (IsPostgreSql || LocksOnInsert(options) || await ReadsCommittedSnapshotsAsync(cancellationToken))
         {
-            return;
+            return null;
         }
 
-        throw new InvalidOperationException(
-            $"The background jobs scheduler cannot start: '{LockOnInsertKey}' is false, and on SQL Server that needs " +
-            "READ_COMMITTED_SNAPSHOT on for the database, which is off. Turn it on " +
+        return $"The background jobs scheduler cannot start: '{LockOnInsertKey}' is false, and on SQL Server that " +
+            "needs READ_COMMITTED_SNAPSHOT on for the database, which is off. Turn it on " +
             "(ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE), or remove " +
-            $"'{LockOnInsertKey}' so that enqueueing takes the trigger lock.");
+            $"'{LockOnInsertKey}' so that enqueueing takes the trigger lock.";
     }
 
     private async Task<bool> ReadsCommittedSnapshotsAsync(CancellationToken cancellationToken)

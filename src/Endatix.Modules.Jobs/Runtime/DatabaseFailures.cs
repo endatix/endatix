@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Data.Common;
+using System.Net.Sockets;
 using Microsoft.Data.SqlClient;
 using Npgsql;
 
@@ -66,6 +67,17 @@ internal static class DatabaseFailures
     /// refused: a timeout, a failure the driver marks transient, or one whose code is an outage's.
     /// </summary>
     public static bool IsOutage(Exception failure) => failure.HasCause(IsOutageCause);
+
+    /// <summary>
+    /// Whether <paramref name="failure"/>, raised while connecting to the database or talking to it, says the database
+    /// is away: an outage, or a driver failure caused by a socket that broke or never connected, which SqlClient
+    /// reports without an error number. A refusal, such as a failed login, is not.
+    /// </summary>
+    /// <remarks>
+    /// Only for database calls: elsewhere a broken socket is as likely an HTTP endpoint's as the database's.
+    /// </remarks>
+    public static bool IsUnreachable(Exception failure) =>
+        IsOutage(failure) || failure.HasCause(cause => cause is DbException { InnerException: SocketException });
 
     /// <summary>
     /// Whether <paramref name="failure"/> came from the database at all: a timeout, or any failure the driver reported.

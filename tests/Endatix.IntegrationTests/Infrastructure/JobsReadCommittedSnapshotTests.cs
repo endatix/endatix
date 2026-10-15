@@ -68,6 +68,29 @@ public sealed class JobsReadCommittedSnapshotTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task Refused_node_keeps_refusing_until_it_restarts()
+    {
+        // Arrange — the node keeps its answer, so turning snapshots on reaches it only through a restart.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await using var refused = JobsTestNode.Create(database, LockFree);
+        var start = () => refused.StartAsync(ct);
+        await start.Should().ThrowAsync<InvalidOperationException>();
+        await database.ExecuteAsync(
+            "ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE", ct);
+
+        // Act
+        var enqueueOnRefused = () => refused.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), ct);
+        var ranAfterRestart = await StartAndRunAJobAsync(database, LockFree, ct);
+
+        // Assert
+        (await enqueueOnRefused.Should().ThrowAsync<InvalidOperationException>())
+            .Which.Message.Should().Contain("READ_COMMITTED_SNAPSHOT");
+        ranAfterRestart.Should().BeTrue("a node started after the DBA's change checks the database afresh");
+    }
+
+    [Fact]
     public async Task Node_starts_lock_free_with_read_committed_snapshot()
     {
         // Arrange

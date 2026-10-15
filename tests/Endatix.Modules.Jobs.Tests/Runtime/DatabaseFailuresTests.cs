@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Net.Sockets;
 using Endatix.Modules.Jobs.Runtime;
 using Endatix.Modules.Jobs.Tests.Shared;
 using Npgsql;
@@ -52,6 +53,29 @@ public sealed class DatabaseFailuresTests
         fromDatabase.Should().BeTrue();
     }
 
+    public static TheoryData<Exception, bool> ConnectFailures() => new()
+    {
+        // SqlClient reports a refused or broken connection with error number 0 and the socket's failure inside.
+        { Wrapped(new ConnectFailureException(new SocketException((int)SocketError.ConnectionRefused))), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // login failed: the database answered
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
+        { Wrapped(new TimeoutException("The pool is exhausted.")), true },
+        // A broken socket under anything but a database driver is not the database's.
+        { Wrapped(new HttpRequestException("The endpoint is down.", new SocketException((int)SocketError.ConnectionRefused))), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(ConnectFailures))]
+    public void IsUnreachable_ConnectFailure_TellsADatabaseThatIsAwayFromOneThatRefuses(Exception failure, bool expected)
+    {
+        // Act
+        var unreachable = DatabaseFailures.IsUnreachable(failure);
+
+        // Assert
+        unreachable.Should().Be(expected);
+    }
+
     // EF Core and the scheduler wrap the driver's exception in their own.
     private static InvalidOperationException Wrapped(Exception cause) => new("The write failed.", cause);
 
@@ -60,4 +84,7 @@ public sealed class DatabaseFailuresTests
 
     // Another driver's failure, which carries an error code as SqlClient's carries a number.
     private sealed class OtherDriverException(int errorCode) : DbException("The server refused the command.", errorCode);
+
+    // A driver's failure to connect, carrying the socket's failure as SqlClient's does.
+    private sealed class ConnectFailureException(SocketException socket) : DbException("The server was not found.", socket);
 }
