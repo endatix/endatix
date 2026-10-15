@@ -25,7 +25,8 @@ namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 /// A submission that cannot be read never gets a row. When it or its form was soft-deleted in the requested tenant and
 /// form, an existing row is removed and the flatten succeeds; any other miss throws, so it is retried and then
 /// reported as failed. A submission or form deleted after the submission was read loses the row this flatten wrote,
-/// as its deletion sync would have removed it; so does one whose schema the form's deletion already removed.
+/// processed or skipped, or a newer flatten's write that replaced it, as its deletion sync would have removed it; so
+/// does one whose schema the form's deletion already removed.
 /// </para>
 /// </remarks>
 internal sealed class SubmissionFlatteningProcessor(
@@ -66,7 +67,10 @@ internal sealed class SubmissionFlatteningProcessor(
             new SubmissionWithDefinitionAndFormSpec(key.FormId, key.SubmissionId),
             cancellationToken);
 
-    /// <summary>Returns whether the flattened data landed on the row.</summary>
+    /// <summary>
+    /// Returns whether the after-write deletion check still has to run: true once this flatten's Processing write
+    /// landed, unless the missing-schema path already ran it.
+    /// </summary>
     private async Task<bool> FlattenAsync(FlattenRun run, CancellationToken cancellationToken)
     {
         if (run.Mismatched)
@@ -81,12 +85,13 @@ internal sealed class SubmissionFlatteningProcessor(
             && await StoreFlattenedDataAsync(run, cancellationToken);
     }
 
+    /// <summary>Returns whether the row is left for the after-write deletion check.</summary>
     private async Task<bool> StoreFlattenedDataAsync(FlattenRun run, CancellationToken cancellationToken)
     {
-        if (!run.Submission.IsComplete && !run.IncludeIncomplete)
+        if (run.IsSkipped)
         {
             LogUnlessLanded(await flattenedSubmissionRepository.TryMarkSkippedAsync(run.Write, cancellationToken), run.Write);
-            return false;
+            return true;
         }
 
         var schema = await SchemaOfAsync(run, cancellationToken);
@@ -96,8 +101,14 @@ internal sealed class SubmissionFlatteningProcessor(
             return false;
         }
 
+        await StoreProcessedAsync(run, schema, cancellationToken);
+        return true;
+    }
+
+    private async Task StoreProcessedAsync(FlattenRun run, Domain.FormSchema schema, CancellationToken cancellationToken)
+    {
         var dataJson = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
-        return LogUnlessLanded(
+        LogUnlessLanded(
             await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, dataJson, cancellationToken),
             run.Write);
     }
@@ -163,14 +174,18 @@ internal sealed class SubmissionFlatteningProcessor(
     }
 
     // A deletion of the submission or its form whose sync ran between this flatten's read and its write would
-    // otherwise leave the row behind. The deletion is committed before its sync runs, so reading again after the
-    // write sees it, and the row is removed as the sync would have removed it. The same lookup as for a missing
-    // submission, because a criteria-only re-read of the submission would not see the form's own deletion.
+    // otherwise leave the row behind, whether the flatten marked it processed or skipped or lost it to a newer
+    // revision's write. The deletion is committed before its sync runs, so reading again after the write sees it,
+    // and the row is removed as the sync would have removed it. The same lookup as for a missing submission, because
+    // a criteria-only re-read of the submission would not see the form's own deletion.
     private async Task RemoveRowIfDeletedMeanwhileAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
     {
         if (!await RemoveRowIfDeletedHereAsync(key, cancellationToken))
         {
-            logger.LogInformation("Flattened submission {SubmissionId} for form {FormId}", key.SubmissionId, key.FormId);
+            logger.LogInformation(
+                "Finished flattening submission {SubmissionId} for form {FormId}",
+                key.SubmissionId,
+                key.FormId);
         }
     }
 
@@ -205,5 +220,7 @@ internal sealed class SubmissionFlatteningProcessor(
             new(Key.TenantId, Key.SubmissionId, Submission.Revision, Submission.ModifiedAt ?? Submission.CreatedAt);
 
         public bool Mismatched => Submission.TenantId != Key.TenantId || Submission.FormId != Key.FormId;
+
+        public bool IsSkipped => !Submission.IsComplete && !IncludeIncomplete;
     }
 }

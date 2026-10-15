@@ -178,6 +178,7 @@ public class SubmissionFlatteningProcessorTests
         // Assert — the stale flatten succeeds without writing data or flipping the row back.
         await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
         await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, default);
+        await _submissions.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -189,14 +190,34 @@ public class SubmissionFlatteningProcessorTests
         GivenSchema();
         _rows.TryMarkProcessingAsync(WriteOf(submission), Arg.Any<CancellationToken>()).Returns(true);
         _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
 
         // Act
         var act = () => Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         // Assert
         await act.Should().NotThrowAsync();
-        await _submissions.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(default(SubmissionDeletionStateSpec)!, default);
+        await _submissions.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_NewerRevisionWrittenMeanwhileThenFormDeleted_RemovesTheRow()
+    {
+        // Arrange — this flatten's processing write lands, a newer flatten's data replaces it, and the form is
+        // deleted, with its cleanup run, before this flatten finishes.
+        var submission = CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 2);
+        GivenSubmission(submission);
+        GivenSchema();
+        _rows.TryMarkProcessingAsync(WriteOf(submission), Arg.Any<CancellationToken>()).Returns(true);
+        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: true));
+
+        // Act
+        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -214,6 +235,28 @@ public class SubmissionFlatteningProcessorTests
         // Assert
         await _rows.Received(1).TryMarkSkippedAsync(WriteOf(submission), Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task ProcessAsync_IncompleteSubmissionOrItsFormDeletedAfterRead_RemovesTheSkippedRowItWrote(
+        bool submissionDeleted,
+        bool formDeleted)
+    {
+        // Arrange — deleted, and its cleanup run, while this flatten of a draft was running.
+        var draft = Submission.Create(new SubmissionCreateArgs(TenantId, FormId, FormDefinitionId, "{}", IsComplete: false));
+        draft.Id = SubmissionId;
+        GivenSubmission(draft);
+        GivenRowAcceptsRevision(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, submissionDeleted, formDeleted));
+
+        // Act
+        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert — the skipped row goes too, as the deletion's own sync would have removed it.
+        await _rows.Received(1).TryMarkSkippedAsync(WriteOf(draft), Arg.Any<CancellationToken>());
+        await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -295,6 +338,7 @@ public class SubmissionFlatteningProcessorTests
             "Submission tenant or form does not match the flatten request.",
             Arg.Any<CancellationToken>());
         await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, default);
+        await _submissions.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 
     private SubmissionFlatteningProcessor Processor() =>
