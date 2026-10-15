@@ -43,6 +43,12 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// </summary>
     public string? DataJson { get; private set; }
 
+    /// <summary>SPIKE: capped search document (64 filterable keys, lowercased).</summary>
+    public string? SearchJson64 { get; private set; }
+
+    /// <summary>SPIKE: capped search document (128 filterable keys, lowercased).</summary>
+    public string? SearchJson128 { get; private set; }
+
     /// <summary>Reporting pipeline sync state (source of truth for integration/export readiness).</summary>
     public SubmissionIntegrationState Integration { get; private set; } = null!;
 

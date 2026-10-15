@@ -12,5 +12,17 @@ internal sealed class FlattenedSubmissionConfigurationPostgreSql : IEntityTypeCo
     {
         builder.Property(x => x.DataJson)
             .HasColumnType("jsonb");
+
+        // SPIKE: the capped search columns exist only in POC runs (added by the test with ALTER TABLE).
+        if (Environment.GetEnvironmentVariable("SPIKE_SEARCH") == "1")
+        {
+            builder.Property(x => x.SearchJson64).HasColumnType("jsonb");
+            builder.Property(x => x.SearchJson128).HasColumnType("jsonb");
+        }
+        else
+        {
+            builder.Ignore(x => x.SearchJson64);
+            builder.Ignore(x => x.SearchJson128);
+        }
     }
 }

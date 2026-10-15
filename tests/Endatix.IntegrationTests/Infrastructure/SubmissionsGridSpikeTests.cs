@@ -22,7 +22,7 @@ namespace Endatix.IntegrationTests;
 /// <summary>SPIKE (throwaway): de-risks the reporting submissions grid plan (endatix#1255 / #1091).</summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
-public sealed class SubmissionsGridSpikeTests
+public sealed partial class SubmissionsGridSpikeTests
 {
     // Random ids: a SQL Server Respawn reset can leave an earlier test's tenant behind.
     private readonly long TenantId = Random.Shared.NextInt64(10_000, 900_000);
@@ -43,6 +43,8 @@ public sealed class SubmissionsGridSpikeTests
         public string? IntegrationStatus { get; set; }
         public DateTime? SourceModifiedAt { get; set; }
         public string? DataJson { get; set; }
+        public string? SearchJson64 { get; set; }
+        public string? SearchJson128 { get; set; }
     }
 
     private IRelationalJsonObjectKeyFilter KeyFilter() =>

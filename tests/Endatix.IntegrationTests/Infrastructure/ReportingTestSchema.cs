@@ -114,6 +114,9 @@ internal static class ReportingTestSchema
             optionsBuilder.ReplaceService<IModelCustomizer, Endatix.Persistence.PostgreSql.Querying.NpgsqlEndatixModelCustomizer>();
         }
 
+        // SPIKE: the POC's SearchJson columns are in the model but added by ALTER TABLE, not by a migration.
+        optionsBuilder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+
         return optionsBuilder.Options;
     }
 
