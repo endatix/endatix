@@ -45,6 +45,36 @@ public sealed class SubmissionCompleteWithoutTenantSettingsFlowTests(
             row => row.TenantId == tenantId, cancellationToken));
     }
 
+    [Fact]
+    public async Task Completing_a_draft_without_tenant_settings_succeeds()
+    {
+        // Arrange — a draft saved first, the common Hub flow, with no TenantSettings row
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" },
+            cancellationToken);
+
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
+        var formId = await CreateEnabledFormAsync(client, cancellationToken);
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/forms/{formId}/submissions",
+            new { isComplete = false, jsonData = "{}", currentPage = 0 },
+            cancellationToken);
+        createResponse.EnsureSuccessStatusCode();
+        await using var stream = await createResponse.Content.ReadAsStreamAsync(cancellationToken);
+        using var created = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        var submissionId = created.RootElement.GetProperty("id").GetString();
+
+        // Act — complete via PATCH, which raises SubmissionCompletedEvent
+        var response = await client.PatchAsJsonAsync(
+            $"/api/forms/{formId}/submissions/{submissionId}",
+            new { isComplete = true, jsonData = """{"q":"done"}""" },
+            cancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     private static async Task<string> CreateEnabledFormAsync(
         HttpClient client, CancellationToken cancellationToken)
     {

@@ -39,7 +39,6 @@ public sealed class SubmissionScreenOutFlowTests
             cancellationToken);
 
         var tenantId = world.Tenants[0].Id;
-        await EnsureTenantSettingsAsync(world.Services, tenantId, cancellationToken);
 
         using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
         var formId = await CreateEnabledFormAsync(client, cancellationToken);
@@ -113,22 +112,6 @@ public sealed class SubmissionScreenOutFlowTests
     {
         using var document = JsonDocument.Parse(jsonData);
         return document.RootElement.GetProperty("age").GetString();
-    }
-
-    private static async Task EnsureTenantSettingsAsync(
-        IServiceProvider services,
-        long tenantId,
-        CancellationToken cancellationToken)
-    {
-        await using var scope = services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var exists = await db.TenantSettings.AnyAsync(row => row.TenantId == tenantId, cancellationToken);
-        if (!exists)
-        {
-            db.TenantSettings.Add(new TenantSettings(tenantId));
-            await db.SaveChangesAsync(cancellationToken);
-        }
     }
 
     private static async Task<string> CreateEnabledFormAsync(HttpClient client, CancellationToken cancellationToken)
