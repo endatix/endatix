@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -18,6 +19,8 @@ using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.Outbox;
+using Endatix.Modules.Reporting.Features.SearchCopy;
+using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -137,6 +140,20 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
         await using var scope = OpenScope();
         var schemas = wrapSchemas is null ? scope.Schemas() : wrapSchemas(scope.Schemas());
         await scope.Processor(schemas).ProcessAsync(TenantId, formId, formDefinitionId, cancellationToken: Cancellation);
+    }
+
+    /// <summary>A form of <paramref name="definition"/>, compiled, with one flattened submission per answer.</summary>
+    public async Task<RebuildForm> SeedFlattenedFormAsync(string definition, params object[] answers)
+    {
+        var form = await SeedFormAsync([definition]);
+        await CompileAsync(form.FormId, form.DefinitionIds[0]);
+        foreach (var answer in answers)
+        {
+            var submissionId = await AddRealSubmissionAsync(form.FormId, form.DefinitionIds[0], JsonSerializer.Serialize(answer));
+            await FlattenAsync(form.FormId, submissionId);
+        }
+
+        return form;
     }
 
     public async Task ReplaceAsync(long formId, long formDefinitionId)
@@ -307,6 +324,15 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
             new FlattenSubmissionOutboxHandler(Flattening(transactionLock), NullLogger<FlattenSubmissionOutboxHandler>.Instance),
             NullLogger<FlattenSubmissionJobHandler>.Instance);
     }
+
+    public UserSearchKeys UserSearchKeys() => new(FormsRepository(), Schemas(), new ReportingUnitOfWork(reportingDb));
+
+    public AddSearchKeyHandler AddSearchKey() =>
+        new(UserSearchKeys(), ReportingTestSchema.SearchCopyFor(reportingDb), FlattenedRows());
+
+    public RemoveSearchKeyHandler RemoveSearchKey() => new(UserSearchKeys(), FlattenedRows());
+
+    public ListSubmissionGridColumns GridColumns() => new(Schemas(), FlattenedRows(), FormsRepository(), Submissions());
 
     public SubmissionBackfillProcessor Backfill(ITransactionLock transactionLock) =>
         new(Submissions(), FlattenedRows(), Flattening(transactionLock), NullLogger<SubmissionBackfillProcessor>.Instance);

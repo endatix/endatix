@@ -10,10 +10,14 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// <remarks>
 /// <para>
 /// Parameters: <c>@tenantId</c>, <c>@formId</c>, <c>@afterId</c> (the last submission id of the previous batch),
-/// <c>@batchSize</c>, and on PostgreSQL <c>@keys</c>, a JSON object of search key to filter type (SQL Server writes
-/// the keys into the statement). The statement updates the next
+/// <c>@batchSize</c>, <c>@revision</c> (the form's search keys revision), and on PostgreSQL <c>@keys</c>, a JSON object
+/// of search key to filter type (SQL Server writes the keys into the statement). The statement updates the next
 /// <c>@batchSize</c> processed rows by submission id and returns the last id it updated and how many it did, or a
 /// null id when no row was left.
+/// </para>
+/// <para>
+/// Only rows stamped with an older revision are rewritten, and each is stamped with <c>@revision</c>. A rebuild that
+/// was cut off therefore resumes where it stopped, and one that read older keys never overwrites a newer row.
 /// </para>
 /// <para>
 /// Date shapes are matched with a binary collation on SQL Server, so <c>[0-9]</c> means ASCII digits whatever the
@@ -30,13 +34,14 @@ internal static class SearchCopyRebuildSql
         WITH batch AS (
             SELECT "SubmissionId" FROM {{table}}
             WHERE "TenantId" = @tenantId AND "FormId" = @formId AND "SubmissionId" > @afterId AND "DataJson" IS NOT NULL
+              AND "SearchKeysRevision" < @revision
             ORDER BY "SubmissionId"
             LIMIT @batchSize),
         updated AS (
             UPDATE {{table}} AS f
-            SET "SearchJson" = {{PostgreSqlSearchCopy()}}
+            SET "SearchJson" = {{PostgreSqlSearchCopy()}}, "SearchKeysRevision" = @revision
             FROM batch
-            WHERE f."SubmissionId" = batch."SubmissionId"
+            WHERE f."SubmissionId" = batch."SubmissionId" AND f."SearchKeysRevision" < @revision
             RETURNING f."SubmissionId")
         SELECT max("SubmissionId"), count(*) FROM updated;
         """;
@@ -58,11 +63,12 @@ internal static class SearchCopyRebuildSql
     public static string SqlServer(string table, FormSearchKeys searchKeys) => $$"""
         DECLARE @updated TABLE (SubmissionId bigint NOT NULL);
         WITH batch AS (
-            SELECT TOP (@batchSize) SubmissionId, DataJson, SearchJson FROM {{table}}
+            SELECT TOP (@batchSize) SubmissionId, DataJson, SearchJson, SearchKeysRevision FROM {{table}}
             WHERE TenantId = @tenantId AND FormId = @formId AND SubmissionId > @afterId AND DataJson IS NOT NULL
+              AND SearchKeysRevision < @revision
             ORDER BY SubmissionId)
         UPDATE batch
-        SET SearchJson = CAST({{SqlServerSearchCopy(searchKeys)}} AS json)
+        SET SearchJson = CAST({{SqlServerSearchCopy(searchKeys)}} AS json), SearchKeysRevision = @revision
         OUTPUT inserted.SubmissionId INTO @updated;
         SELECT MAX(SubmissionId), COUNT(*) FROM @updated;
         """;

@@ -71,11 +71,26 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
     /// </summary>
     public string SearchKeys { get; private set; } = EmptySearchKeysJson;
 
-    /// <summary>Replaces the search keys; the caller has applied the append-only and cap rules.</summary>
-    public void UpdateSearchKeys(string searchKeys)
+    /// <summary>
+    /// Counts the changes to <see cref="SearchKeys"/> that left existing rows without a value they need. Each
+    /// flattened row is stamped with the revision it was written from (<see cref="FlattenedSubmission.SearchKeysRevision"/>).
+    /// </summary>
+    public int SearchKeysRevision { get; private set; }
+
+    /// <summary>
+    /// Replaces the search keys at <paramref name="revision"/>; the caller has applied the append-only and cap rules.
+    /// </summary>
+    public void UpdateSearchKeys(string searchKeys, int revision)
     {
         Guard.Against.NullOrWhiteSpace(searchKeys);
+        if (revision < SearchKeysRevision)
+        {
+            throw new InvalidOperationException(
+                $"Cannot roll back SearchKeysRevision from {SearchKeysRevision} to {revision}.");
+        }
+
         SearchKeys = searchKeys;
+        SearchKeysRevision = revision;
     }
 
     public void UpdateSchema(

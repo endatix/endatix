@@ -33,7 +33,8 @@ public sealed class ReportingMigrationsAvailabilityTests
             "20260904194346_SeedDefaultExportFormats",
             "20260929125737_AddFlattenedSubmissionSourceModifiedAt",
             "20260930070117_AddFlattenedSubmissionSourceRevision",
-            "20261016102336_AddSearchCopy");
+            "20261016102336_AddSearchCopy",
+            "20261016164018_AddSearchKeysRevision");
     }
 
     [Fact]
@@ -62,7 +63,10 @@ public sealed class ReportingMigrationsAvailabilityTests
         var sqlServerMigrationIds = sqlServerContext.Database.GetMigrations().ToList();
 
         // Assert
-        sqlServerMigrationIds.Should().Equal("20261012154208_InitialReporting", "20261016102338_AddSearchCopy");
+        sqlServerMigrationIds.Should().Equal(
+            "20261012154208_InitialReporting",
+            "20261016102338_AddSearchCopy",
+            "20261016164020_AddSearchKeysRevision");
         sqlServerMigrationIds.Should().NotIntersectWith(
             postgreSqlContext.Database.GetMigrations(),
             "each provider's context must see only its own migrations");

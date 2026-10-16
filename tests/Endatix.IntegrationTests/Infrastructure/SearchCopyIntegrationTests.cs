@@ -140,18 +140,7 @@ public sealed class SearchCopyIntegrationTests(DbIntegrationFixture fixture)
 
     private IRelationalJsonObjectKeyFilter Filter => KeyFilter(fixture.Provider);
 
-    private async Task<RebuildForm> FlattenedFormAsync(params object[] answers)
-    {
-        var form = await _world.SeedFormAsync([Mixed]);
-        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
-        foreach (var answer in answers)
-        {
-            var submissionId = await _world.AddRealSubmissionAsync(form.FormId, form.DefinitionIds[0], Answers(answer));
-            await _world.FlattenAsync(form.FormId, submissionId);
-        }
-
-        return form;
-    }
+    private Task<RebuildForm> FlattenedFormAsync(params object[] answers) => _world.SeedFlattenedFormAsync(Mixed, answers);
 
     private async Task<int> CountAsync(RebuildForm form, Func<IQueryable<FlattenedSubmission>, IQueryable<FlattenedSubmission>> filter)
     {

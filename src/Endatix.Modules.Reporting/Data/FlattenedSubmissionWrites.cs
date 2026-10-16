@@ -11,17 +11,20 @@ public readonly record struct FlattenedRevision(long TenantId, long SubmissionId
 
 /// <summary>
 /// The data a processed flatten stores: the flattened answers, and their search copy built from the schema's search
-/// keys.
+/// keys at <see cref="SearchKeysRevision"/>.
 /// </summary>
 public sealed record FlattenedRowData
 {
-    public FlattenedRowData(string dataJson, string searchJson)
+    public FlattenedRowData(string dataJson, string searchJson, int searchKeysRevision)
     {
         DataJson = Guard.Against.NullOrEmpty(dataJson);
         SearchJson = Guard.Against.NullOrEmpty(searchJson);
+        SearchKeysRevision = Guard.Against.Negative(searchKeysRevision);
     }
 
     public string DataJson { get; }
 
     public string SearchJson { get; }
+
+    public int SearchKeysRevision { get; }
 }

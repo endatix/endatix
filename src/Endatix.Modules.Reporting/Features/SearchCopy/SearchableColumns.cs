@@ -3,6 +3,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.SearchCopy;
 
@@ -25,10 +26,8 @@ internal static class SearchableColumns
         List<SearchableColumn> searchable = [];
         foreach (var column in schema.Columns)
         {
-            var questionName = column.SourceQuestion ?? column.Key;
-            JsonElement? question = questions.TryGetValue(questionName, out var found) ? found : null;
-            var filterType = SubmissionGridFilterTypes.Resolve(column, question);
-            if (filterType is not null && !readOnly.Contains(questionName))
+            var filterType = FilterTypeOf(column, questions);
+            if (filterType is not null && !readOnly.Contains(QuestionName(column)))
             {
                 searchable.Add(new SearchableColumn(column.Key, filterType));
             }
@@ -36,6 +35,27 @@ internal static class SearchableColumns
 
         return searchable;
     }
+
+    /// <summary>
+    /// The column of the compiled schema a person can make searchable, read-only questions included: they are left
+    /// out of the automatic keys only because nobody fills them in, not because they cannot be filtered. Null when the
+    /// schema has no such column, or the grid has no filter for it.
+    /// </summary>
+    public static SearchableColumn? ChosenColumn(FormSchemaEntity schema, string key)
+    {
+        var column = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap).Columns
+            .FirstOrDefault(candidate => candidate.Key == key);
+        var filterType = column is null ? null : FilterTypeOf(column, FormSchemaCodebookReader.ReadQuestions(schema.Codebook));
+        return filterType is null ? null : new SearchableColumn(key, filterType);
+    }
+
+    private static string? FilterTypeOf(FormSchemaColumn column, IReadOnlyDictionary<string, JsonElement> questions)
+    {
+        JsonElement? question = questions.TryGetValue(QuestionName(column), out var found) ? found : null;
+        return SubmissionGridFilterTypes.Resolve(column, question);
+    }
+
+    private static string QuestionName(FormSchemaColumn column) => column.SourceQuestion ?? column.Key;
 
     private static HashSet<string> ReadOnlyQuestionNames(JsonElement definition)
     {

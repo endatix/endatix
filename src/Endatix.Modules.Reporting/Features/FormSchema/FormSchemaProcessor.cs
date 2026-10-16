@@ -174,7 +174,7 @@ internal sealed class FormSchemaProcessor(
         }
 
         var revision = CompiledSchema.NextRevision(existing, rebuild.Target.FormDefinitionId, mode);
-        CompiledSchema next = new(revision, compiled, searchKeys.Keys.ToJson());
+        CompiledSchema next = new(revision, compiled, searchKeys.Keys);
         if (!rebuild.ForceReplace && next.Matches(existing))
         {
             return null;
@@ -228,7 +228,7 @@ internal sealed class FormSchemaProcessor(
     {
         FormSchemaEntity schema = new(target.TenantId, target.FormId, target.FormDefinitionId,
             compiled.FlatteningMapJson, compiled.CodebookJson, compiled.LocalesJson);
-        schema.UpdateSearchKeys(searchKeys.ToJson());
+        schema.UpdateSearchKeys(searchKeys.ToJson(), searchKeys.Revision);
         return schema;
     }
 

@@ -128,6 +128,41 @@ public sealed class ListSubmissionGridColumnsTests
         column.PageName.Should().Be("about");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_UserKeyNewerThanOldestRow_ReportsItSearchablePendingAndCountsTheSlot()
+    {
+        // Arrange
+        GivenForm(SampleData.TENANT_ID);
+        var schema = new FormSchemaEntity(SampleData.TENANT_ID, FormId, 1, FlatteningMapJson, CodebookJson);
+        schema.UpdateSearchKeys(
+            """[{"key":"city","source":"user","filterType":"text","addedAt":"2026-10-16T00:00:00Z","revision":1}]""",
+            revision: 1);
+        _formSchemaRepository.GetByFormIdAsync(SampleData.TENANT_ID, FormId, Arg.Any<CancellationToken>()).Returns(schema);
+        _flattenedSubmissionRepository.OldestSearchKeysRevisionAsync(SampleData.TENANT_ID, FormId, Arg.Any<CancellationToken>())
+            .Returns(0);
+
+        // Act
+        var result = await _sut.ExecuteAsync(Query(), CancellationToken.None);
+
+        // Assert
+        var column = result.Value.Columns.Should().ContainSingle().Subject;
+        (column.Searchable, column.SearchPending, column.SearchSource).Should().Be((true, true, "user"));
+        result.Value.SearchSlots.Should().Be(new SubmissionGridSearchSlots(Used: 1, Max: 64, UserUsed: 1, UserMax: 14));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutSchema_ReportsNoSearchSlotsUsed()
+    {
+        // Arrange
+        GivenForm(SampleData.TENANT_ID);
+
+        // Act
+        var result = await _sut.ExecuteAsync(Query(), CancellationToken.None);
+
+        // Assert
+        result.Value.SearchSlots.Should().Be(new SubmissionGridSearchSlots(Used: 0, Max: 64, UserUsed: 0, UserMax: 14));
+    }
+
     private static SubmissionGridColumnsQuery Query() => new(SampleData.TENANT_ID, FormId, "default");
 
     private void GivenForm(long tenantId) =>

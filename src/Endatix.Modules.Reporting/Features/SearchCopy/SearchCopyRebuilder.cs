@@ -15,9 +15,11 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// changed. Submissions are not flattened again, and the answers are not changed.
 /// </summary>
 /// <remarks>
-/// Rows go in batches by submission id, one statement per batch, so no statement holds many rows' locks for long. A
-/// flatten that read the schema's keys before they changed and writes after its row's batch leaves that row with the
-/// old keys until it is flattened again.
+/// Rows go in batches by submission id, one statement per batch, so no statement holds many rows' locks for long. Only
+/// rows stamped with an older search keys revision than the schema's are rewritten (<see cref="SearchCopyRebuildSql"/>),
+/// so running it again after an interrupted run finishes the rest. A flatten that read the schema's keys before they
+/// changed and writes after its row's batch stamps the row with the old revision: filters count it as not checked
+/// on the new keys until the next rebuild or flatten.
 /// </remarks>
 internal sealed class SearchCopyRebuilder(
     IReportingDbContext dbContext,
@@ -41,8 +43,8 @@ internal sealed class SearchCopyRebuilder(
             return 0;
         }
 
-        var searchKeys = FormSearchKeys.FromJson(schema.SearchKeys);
-        RebuildRun run = new(tenantId, formId, KeysParameter(searchKeys), Statement(searchKeys));
+        var searchKeys = FormSearchKeys.Of(schema);
+        RebuildRun run = new(tenantId, formId, searchKeys.Revision, KeysParameter(searchKeys), Statement(searchKeys));
         var rows = await RunBatchesAsync(run, cancellationToken);
         logger.LogInformation("Rebuilt the search copy of {Rows} flattened row(s) of form {FormId}", rows, formId);
         return rows;
@@ -89,6 +91,7 @@ internal sealed class SearchCopyRebuilder(
         command.CommandTimeout = dbContext.Database.GetCommandTimeout() ?? command.CommandTimeout;
         AddParameter(command, "tenantId", run.TenantId);
         AddParameter(command, "formId", run.FormId);
+        AddParameter(command, "revision", run.Revision);
         AddParameter(command, "afterId", afterId);
         AddParameter(command, "batchSize", BatchSize);
         AddParameter(command, "keys", run.KeysJson);
@@ -116,7 +119,7 @@ internal sealed class SearchCopyRebuilder(
     private static string KeysParameter(FormSearchKeys searchKeys) =>
         JsonSerializer.Serialize(searchKeys.Keys.ToDictionary(key => key.Key, key => key.FilterType, StringComparer.Ordinal));
 
-    private sealed record RebuildRun(long TenantId, long FormId, string KeysJson, string Sql);
+    private sealed record RebuildRun(long TenantId, long FormId, int Revision, string KeysJson, string Sql);
 
     private sealed record BatchResult(long LastSubmissionId, int Rows);
 }
