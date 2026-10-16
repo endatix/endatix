@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Net.Sockets;
 using Endatix.Modules.Jobs.Runtime;
 using Endatix.Modules.Jobs.Tests.Shared;
+using Microsoft.Data.SqlClient;
 using Npgsql;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
@@ -168,7 +169,8 @@ public sealed class DatabaseFailuresTests
     public static TheoryData<Exception, bool> SocketFailures() => new()
     {
         { Wrapped(NpgsqlConnectTimeout()), false }, // Npgsql reports its connect timeout with no socket failure
-        { Wrapped(SqlServerExceptions.WithInner(-2, new SocketException((int)SocketError.TimedOut))), true },
+        { Wrapped(SqlServerRefused()), true },
+        { Wrapped(SqlServerUnroutedHost()), false }, // SqlClient reports a host that never answers with no socket failure
         { Wrapped(SqlServerExceptions.WithNumbers(-2)), false }, // a command timeout on a live connection
         { Wrapped(new HttpRequestException("The endpoint is down.", new SocketException((int)SocketError.ConnectionRefused))), false },
     };
@@ -191,7 +193,11 @@ public sealed class DatabaseFailuresTests
             Wrapped(new NpgsqlException("Failed to connect to 127.0.0.1:1", new SocketException((int)SocketError.ConnectionRefused))),
             true
         },
-        { Wrapped(SqlServerExceptions.WithInner(-2, new SocketException((int)SocketError.TimedOut))), true },
+        { Wrapped(SqlServerUnroutedHost()), true },
+        { Wrapped(SqlServerPreLoginTimeout()), true },
+        { Wrapped(SqlServerRefused()), true },
+        // SqlClient's command timeout has the pre-login timeout's shape, but the connection was open: a lock wait.
+        { Wrapped(SqlServerCommandTimeout()), false },
         // Npgsql's command timeout has the connect timeout's shape, but the connection was open: a lock wait.
         {
             Wrapped(new NpgsqlException("Exception while reading from stream", new TimeoutException("Timeout during reading attempt"))),
@@ -249,6 +255,33 @@ public sealed class DatabaseFailuresTests
 
     // EF Core and the scheduler wrap the driver's exception in their own.
     private static InvalidOperationException Wrapped(Exception cause) => new("The write failed.", cause);
+
+    // What SqlClient 7.0.2 reports, as read from real connections against SQL Server 2025: a host that never
+    // answers, a listener that never answers the pre-login handshake, a refused port, and a command that ran past its
+    // timeout on a live connection.
+    private static SqlException SqlServerUnroutedHost() =>
+        SqlServerExceptions.WithInner(
+            258,
+            new Win32Exception(258, "The connection attempt timed out."),
+            "A network-related or instance-specific error occurred while establishing a connection to SQL Server. (provider: TCP Provider, error: 35 - An internal exception was caught)");
+
+    private static SqlException SqlServerPreLoginTimeout() =>
+        SqlServerExceptions.WithInner(
+            -2,
+            new Win32Exception(258),
+            "Connection Timeout Expired.  The timeout period elapsed while attempting to consume the pre-login handshake acknowledgement.");
+
+    private static SqlException SqlServerRefused() =>
+        SqlServerExceptions.WithInner(
+            0,
+            new SocketException(0),
+            "A network-related or instance-specific error occurred while establishing a connection to SQL Server. (provider: TCP Provider, error: 35 - An internal exception was caught)");
+
+    private static SqlException SqlServerCommandTimeout() =>
+        SqlServerExceptions.WithInner(
+            -2,
+            new Win32Exception(258),
+            "Execution Timeout Expired.  The timeout period elapsed prior to completion of the operation or the server is not responding.");
 
     // What Npgsql 10 reports when its connect timeout runs out, as read from a real connection to an address that
     // never answers.

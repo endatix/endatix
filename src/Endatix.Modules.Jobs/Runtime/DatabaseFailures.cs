@@ -45,6 +45,14 @@ internal static class DatabaseFailures
     // stream"). The message is the only difference between the two.
     private const string NpgsqlConnectFailurePrefix = "Failed to connect to ";
 
+    // SqlClient 7.0.2 reports a server that accepts the connection but never answers the pre-login handshake as -2,
+    // "Connection Timeout Expired.", over a Win32Exception 258, and a command that timed out on a live connection as
+    // -2, "Execution Timeout Expired.", over the same Win32Exception: again the message is the only difference. A host
+    // that never answers at all is 258 ("The connection attempt timed out"), also over a Win32Exception, not a socket
+    // failure. Measured against SQL Server 2025.
+    private const string SqlServerConnectTimeoutPrefix = "Connection Timeout Expired.";
+    private const int SqlServerConnectAttemptTimedOut = 258;
+
     // SQL Server error numbers of a database that answered but lost a race with another transaction.
     private const int SqlServerDeadlockVictim = 1205;
     private const int SqlServerCommandTimeout = -2;
@@ -71,7 +79,7 @@ internal static class DatabaseFailures
         64, // the network name is no longer available: the connection broke during login
         121, // the semaphore timeout expired: the connection broke
         233, // no process on the other end of the pipe
-        258, // the connection attempt timed out: a host that drops packets, or a failover address not yet moved
+        SqlServerConnectAttemptTimedOut, // a host that drops packets, or a failover address not yet moved
         3906, // the database is read-only: the primary failed over and is now a secondary
         4060, // cannot open the database the login asked for
         4221, // an availability group secondary, recycled, is not yet ready for logins
@@ -141,12 +149,18 @@ internal static class DatabaseFailures
 
     /// <summary>
     /// Whether <paramref name="failure"/> is a driver's failure to reach the server at all, whatever it reports on
-    /// top: a socket failure under it (<see cref="HasSocketFailure"/>), or Npgsql's failure to connect, which carries
-    /// none when its connect timeout ran out.
+    /// top: a socket failure under it (<see cref="HasSocketFailure"/>), or a connect timeout, which neither driver
+    /// reports with one: Npgsql's failure to connect, SqlClient's pre-login timeout, or a host that never answered.
     /// </summary>
-    public static bool FailedToConnect(Exception failure) =>
-        HasSocketFailure(failure) || failure.HasCause(cause => cause is NpgsqlException and not PostgresException
-            && cause.Message.StartsWith(NpgsqlConnectFailurePrefix, StringComparison.Ordinal));
+    public static bool FailedToConnect(Exception failure) => HasSocketFailure(failure) || failure.HasCause(cause => cause switch
+    {
+        PostgresException => false,
+        NpgsqlException npgsql => npgsql.Message.StartsWith(NpgsqlConnectFailurePrefix, StringComparison.Ordinal),
+        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error =>
+            error.Number == SqlServerConnectAttemptTimedOut
+            || error.Message.StartsWith(SqlServerConnectTimeoutPrefix, StringComparison.Ordinal)),
+        _ => false,
+    });
 
     /// <summary>
     /// Whether <paramref name="failure"/> says the database the connection names could not be opened: on SQL Server

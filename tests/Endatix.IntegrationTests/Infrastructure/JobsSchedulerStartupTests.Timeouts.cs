@@ -1,4 +1,7 @@
+using System.Net;
+using System.Net.Sockets;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Quartz;
@@ -10,15 +13,19 @@ public sealed partial class JobsSchedulerStartupTests
 {
     private const string LostRaceWarning = "lost a race";
 
-    [Fact]
-    public async Task Scheduler_whose_build_times_out_while_connecting_waits_as_an_outage()
+    [Theory]
+    [InlineData("Npgsql")]
+    [InlineData("SqlClient")]
+    public async Task Scheduler_whose_build_times_out_while_connecting_waits_as_an_outage(string driver)
     {
         // Arrange — the probe connected, then a connection Quartz opened timed out in a network blip, which the network
-        // is back from by the time anyone asks again. The failure is the driver's own, from a real connection to an
-        // address that never answers: Npgsql reports its connect timeout with no socket failure under it.
+        // is back from by the time anyone asks again. The failure is the driver's own, from a real connection: Npgsql's
+        // to an address that never answers, SqlClient's to a listener that never answers its handshake. Neither carries
+        // a socket failure, and each has the shape of the driver's command timeout.
         var ct = TestContext.Current.CancellationToken;
-        var schedulers = new SchedulerFactoryFailingOnce(async () =>
-            new SchedulerException("The store failed.", await NpgsqlConnectFailureAsync()));
+        var schedulers = new SchedulerFactoryFailingOnce(async () => new SchedulerException(
+            "The store failed.",
+            driver == "Npgsql" ? await NpgsqlConnectFailureAsync() : await SqlServerHandshakeTimeoutAsync()));
         var logs = new CapturingLoggerProvider();
         using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
@@ -70,6 +77,27 @@ public sealed partial class JobsSchedulerStartupTests
         }
 
         throw new InvalidOperationException("A connection to an unrouted address opened.");
+    }
+
+    // A listener that accepts the connection and never answers SQL Server's pre-login handshake, as a server too busy
+    // to does.
+    private static async Task<Exception> SqlServerHandshakeTimeoutAsync()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        await using var connection = new SqlConnection(
+            $"Server=127.0.0.1,{port};User ID=endatix;Password=endatix;Connect Timeout=1;TrustServerCertificate=True;Pooling=false");
+        try
+        {
+            await connection.OpenAsync();
+        }
+        catch (SqlException failure)
+        {
+            return failure;
+        }
+
+        throw new InvalidOperationException("A connection to a listener that never answers opened.");
     }
 
     // Fails the first build with what the test supplies, then builds a scheduler that does nothing.
