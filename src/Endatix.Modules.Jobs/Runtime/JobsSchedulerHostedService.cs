@@ -34,6 +34,7 @@ internal sealed class JobsSchedulerHostedService(
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
     JobsShutdownSignal shutdownSignal,
+    IHostApplicationLifetime lifetime,
     ILogger<JobsSchedulerHostedService> logger) : IHostedService, IDisposable
 {
     private static readonly TimeSpan UnreachableRetryDelay = TimeSpan.FromSeconds(5);
@@ -47,7 +48,10 @@ internal sealed class JobsSchedulerHostedService(
     // is seen without flooding the log.
     private const int TriesPerRepeatedWarning = 12;
 
-    private readonly CancellationTokenSource _stopping = new();
+    // A start still waiting for the database stops waiting as soon as the host starts stopping, before this service is
+    // stopped: from then on Quartz refuses to rebuild a scheduler, and a try made then would only fail.
+    private readonly CancellationTokenSource _stopping =
+        CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
     private IScheduler? _scheduler;
     private Task? _deferredStart;
     private int _contendedTries;
@@ -233,9 +237,10 @@ internal sealed class JobsSchedulerHostedService(
         {
             await RetryUntilStartedAsync(result, stoppingToken);
         }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        catch (Exception) when (stoppingToken.IsCancellationRequested)
         {
-            // The host stopped before the database came back.
+            // The host stopped before the database came back; a try that failed because it is stopping, as Quartz
+            // refusing to rebuild the scheduler does, is part of the stop.
         }
         catch (Exception exception)
         {
