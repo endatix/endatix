@@ -182,7 +182,8 @@ the shared store. `Endatix:BackgroundJobs:RunInProcess` decides what it does wit
 That is what allows API and worker roles to be deployed separately from the same image.
 
 **Starting without a database.** A node whose database is away (unreachable, failing over, timing
-out while connecting) starts without its scheduler, logs that it could not reach its database, and
+out while connecting) starts without its scheduler, logs that it could not reach its database, with
+the driver's failure (which never includes the password), on the first try and every 12th after, and
 starts the scheduler once it can; a database that refuses, such as a login it does not accept, fails
 the start. A database that cannot be opened (SQL Server 4060, PostgreSQL 3D000) is retried too, with an
 error naming it ("cannot open database …: it is missing, offline or being restored, or not created

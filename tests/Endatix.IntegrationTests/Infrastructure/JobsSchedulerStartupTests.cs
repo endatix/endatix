@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Net.Sockets;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Runtime;
@@ -20,8 +21,9 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
 {
+    // How the error a deferred start logs begins; the count of tries and the driver's failure follow.
     private const string DeferredStartError =
-        "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs.";
+        "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs";
 
     [Fact]
     public async Task Scheduler_with_unreachable_database_defers_start()
@@ -39,8 +41,31 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
         await Task.Delay(TimeSpan.FromSeconds(10), ct);
 
         // Assert
-        logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
+        LoggedError(logs, DeferredStartError).Should().BeTrue();
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    [Fact]
+    public async Task Scheduler_whose_host_does_not_resolve_logs_the_driver_failure_without_the_password()
+    {
+        // Arrange — a mistyped host is waited out as an outage is, so only the driver's failure in the log tells the
+        // operator which of the two it is.
+        var ct = TestContext.Current.CancellationToken;
+        const string password = "Never-Logged-Pa55word";
+        var logs = new CapturingLoggerProvider();
+        await using var node = JobsTestNode.Create(
+            UnresolvableHost(fixture.Provider, password),
+            configureServices: services => services.AddSingleton<ILoggerProvider>(logs),
+            migrate: false);
+
+        // Act
+        await node.StartAsync(ct);
+
+        // Assert
+        logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Error
+            && entry.Message.StartsWith(DeferredStartError, StringComparison.Ordinal)
+            && entry.Message.Contains(nameof(SocketException)));
+        logs.Entries.Should().NotContain(entry => entry.Message.Contains(password));
     }
 
     [Fact]
@@ -85,7 +110,7 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
 
         // Assert
         await start.Should().ThrowAsync<DbException>();
-        logs.Entries.Should().NotContain((LogLevel.Error, DeferredStartError));
+        LoggedError(logs, DeferredStartError).Should().BeFalse();
     }
 
     [Fact]
@@ -105,11 +130,9 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
         await node.StartAsync(ct);
 
         // Assert
-        logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
-        logs.Entries.Should().Contain((
-            LogLevel.Error,
-            $"The background jobs scheduler cannot open database '{missingName}': it is missing, offline or being restored, or not created yet. Retrying."));
-        logs.Entries.Should().NotContain(entry => entry.Message.Contains("Password", StringComparison.OrdinalIgnoreCase));
+        LoggedError(logs, $"The background jobs scheduler cannot open database '{missingName}': it is missing, offline or being restored, or not created yet. It will start once it can")
+            .Should().BeTrue();
+        logs.Entries.Should().NotContain(entry => entry.Message.Contains(PasswordIn(fixture.Provider, fixture.ConnectionString)));
     }
 
     [Fact]
@@ -138,7 +161,7 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
         // Assert
         started.Should().BeTrue();
         logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("lost a race"));
-        logs.Entries.Should().NotContain((LogLevel.Error, DeferredStartError));
+        LoggedError(logs, DeferredStartError).Should().BeFalse();
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
     }
 
@@ -167,7 +190,7 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
         // Assert
         started.Should().BeTrue();
         logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("lost a race"));
-        logs.Entries.Should().NotContain((LogLevel.Error, DeferredStartError));
+        LoggedError(logs, DeferredStartError).Should().BeFalse();
     }
 
     [Fact]
@@ -195,9 +218,12 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
 
         // Assert
         started.Should().BeTrue("the start waits out an outage at any step, not only at the probe");
-        logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
+        LoggedError(logs, DeferredStartError).Should().BeTrue();
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
     }
+
+    private static bool LoggedError(CapturingLoggerProvider logs, string start) =>
+        logs.Entries.Any(entry => entry.Level == LogLevel.Error && entry.Message.StartsWith(start, StringComparison.Ordinal));
 
     // The hosted service alone, over the fixture's database, with the scheduler factory a test controls.
     private static JobsSchedulerHostedService HostedServiceOver(
@@ -239,6 +265,24 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
                 provider, new SqlConnectionStringBuilder(connectionString) { Password = "wrong" }.ConnectionString),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
         };
+
+    private static string PasswordIn(TestDatabaseProvider provider, string connectionString) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => new NpgsqlConnectionStringBuilder(connectionString).Password!,
+        TestDatabaseProvider.SqlServer => new SqlConnectionStringBuilder(connectionString).Password,
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
+    };
+
+    // .invalid never resolves (RFC 2606).
+    private static JobsTestNodeDatabase UnresolvableHost(TestDatabaseProvider provider, string password) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => new(
+            provider, $"Host=jobs-db.invalid;Database=endatix;Username=endatix;Password={password};Timeout=2"),
+        TestDatabaseProvider.SqlServer => new(
+            provider,
+            $"Server=jobs-db.invalid;Database=endatix;User ID=endatix;Password={password};Connect Timeout=2;TrustServerCertificate=True"),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
+    };
 
     private static JobsTestNodeDatabase ClosedPort(TestDatabaseProvider provider) => provider switch
     {

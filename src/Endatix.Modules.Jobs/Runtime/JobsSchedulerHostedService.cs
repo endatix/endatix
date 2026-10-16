@@ -43,15 +43,15 @@ internal sealed class JobsSchedulerHostedService(
     private static readonly TimeSpan ContendedRetryDelay = TimeSpan.FromSeconds(1);
     private const int QuickContendedTries = 3;
 
-    // A lost race, or a database SQL Server cannot open, is logged the first time and then one in this many tries,
-    // so one that keeps recurring is seen without flooding the log.
+    // A lost race, or an outage, is logged the first time and then one in this many tries, so one that keeps recurring
+    // is seen without flooding the log.
     private const int TriesPerRepeatedWarning = 12;
 
     private readonly CancellationTokenSource _stopping = new();
     private IScheduler? _scheduler;
     private Task? _deferredStart;
     private int _contendedTries;
-    private int _unavailableTries;
+    private int _unreachableTries;
 
     private enum StartResult
     {
@@ -67,12 +67,6 @@ internal sealed class JobsSchedulerHostedService(
         if (result == StartResult.Started)
         {
             return;
-        }
-
-        if (result == StartResult.Unreachable)
-        {
-            logger.LogError(
-                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs.");
         }
 
         _deferredStart = StartWhenReadyAsync(result, _stopping.Token);
@@ -261,16 +255,32 @@ internal sealed class JobsSchedulerHostedService(
         while (result != StartResult.Started);
     }
 
-    // A database SQL Server cannot open is named, since a misnamed one is reported as a restoring one is, and only
-    // the operator can tell them apart; logged on the first try and then one in as many as a lost race is.
+    // Logged with the driver's failure, on the first try and then one in as many as a lost race is: only the operator
+    // can tell an outage from a mistake, such as a mistyped host. A database that cannot be opened is named too, since
+    // SQL Server reports a misnamed one as it reports a restoring one. Drivers leave the password out of what they
+    // report, so the failure is safe to log.
     private StartResult Unreachable(Exception away)
     {
         _contendedTries = 0;
-        if (DatabaseFailures.IsDatabaseUnavailable(away) && ++_unavailableTries % TriesPerRepeatedWarning == 1)
+        if (++_unreachableTries % TriesPerRepeatedWarning != 1)
+        {
+            return StartResult.Unreachable;
+        }
+
+        if (DatabaseFailures.IsDatabaseUnavailable(away))
         {
             logger.LogError(
-                "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. Retrying.",
-                database.DatabaseName);
+                away,
+                "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. It will start once it can; until then this host runs no jobs ({Tries} tries so far).",
+                database.DatabaseName,
+                _unreachableTries);
+        }
+        else
+        {
+            logger.LogError(
+                away,
+                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs ({Tries} tries so far).",
+                _unreachableTries);
         }
 
         return StartResult.Unreachable;

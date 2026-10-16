@@ -27,7 +27,7 @@ public sealed partial class JobsSchedulerStartupTests
         await service.StopAsync(ct);
 
         // Assert — reported and paced as an outage, not as a lock wait.
-        logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
+        LoggedError(logs, DeferredStartError).Should().BeTrue();
         logs.Entries.Should().NotContain(entry => entry.Message.Contains(LostRaceWarning));
     }
 
@@ -52,7 +52,6 @@ public sealed partial class JobsSchedulerStartupTests
         await service.StopAsync(ct);
 
         // Assert
-        logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
         logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Error && entry.Message.Contains("cannot open database"));
         logs.Entries.Should().NotContain(entry => entry.Message.Contains(LostRaceWarning));
     }
