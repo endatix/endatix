@@ -58,6 +58,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         AddPersistence(builder);
         AddRepositories(builder.Services);
         builder.Services.AddScoped<ListSubmissionGridColumns>();
+        builder.Services.AddScoped<ListSubmissionGridRows>();
         AddExports(builder.Services);
         AddFormSchemaCompiler(builder.Services);
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
