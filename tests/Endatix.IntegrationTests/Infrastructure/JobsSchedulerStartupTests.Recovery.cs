@@ -41,7 +41,8 @@ public sealed partial class JobsSchedulerStartupTests
     [Fact]
     public async Task Scheduler_rebuilt_after_a_failed_build_is_built_as_a_normal_start_builds_it()
     {
-        // Arrange — the same node built normally, and again after its first build failed and Quartz rebuilt it.
+        // Arrange — the same node built normally, and again after its first build failed and Quartz rebuilt it. The
+        // retention schedule the first build stored is deleted in between, so only the rebuild can store it again.
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         SchedulerShape built;
@@ -52,15 +53,23 @@ public sealed partial class JobsSchedulerStartupTests
             await normal.StopAsync(ct);
         }
 
+        await database.ExecuteAsync(DeleteRetentionSchedule, ct);
+
         await using var node = await NodeWhoseFirstBuildFailedAsync(database, services => services.AddProbe(new ProbeInvocations()), ct);
         await EnqueueOnceTheSchedulerIsBackAsync(node, ct);
 
         // Act
         var rebuilt = await SchedulerShape.ReadAsync(node, ct);
 
-        // Assert — sized to the job types, batching as many triggers, on the same dialect, with the same listeners.
+        // Assert — the same pool, store, timing, listeners, execution limits and retention schedule.
         rebuilt.Should().Be(built);
     }
+
+    private const string DeleteRetentionSchedule = """
+        DELETE FROM jobs.qrtz_CRON_TRIGGERS WHERE TRIGGER_GROUP = 'endatix-maintenance';
+        DELETE FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP = 'endatix-maintenance';
+        DELETE FROM jobs.qrtz_JOB_DETAILS WHERE JOB_GROUP = 'endatix-maintenance';
+        """;
 
     private static async Task MigrateAsync(JobsTestDatabase database, CancellationToken ct)
     {
