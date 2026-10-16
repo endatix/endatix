@@ -25,6 +25,11 @@ internal static class FormSchemaCodebookPropertyNames
 
     public const string Id = "id";
 
+    /// <summary>The audience block an export adds: its title, identifier column and variable columns.</summary>
+    public const string Personalization = "personalization";
+    public const string Identifier = "identifier";
+    public const string Variables = "variables";
+
     /// <inheritdoc cref="Domain.SurveyJs.SurveyJsElementType.DefaultLocale"/>
     public const string Default = Domain.SurveyJs.SurveyJsElementType.DefaultLocale;
 
