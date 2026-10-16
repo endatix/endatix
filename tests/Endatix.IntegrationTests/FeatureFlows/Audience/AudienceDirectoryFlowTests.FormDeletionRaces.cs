@@ -76,6 +76,49 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.True(deleteWaited, "The delete did not wait for the open under way.");
     }
 
+    /// <summary>
+    /// A link claimed before its token was saved issues that token on a later open, under the link's lock alone. The
+    /// form's deletion between that open's read and its save leaves no token on the deleted submission.
+    /// </summary>
+    [Fact]
+    public async Task Resuming_a_link_while_its_form_is_deleted_is_not_found()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Toledo");
+        using var anonymous = world.AnonymousClient();
+        var submissionId = IdOf(await RedeemAsync(anonymous, formId, token), "submissionId");
+        await ClearTokenAsync(world.Services, submissionId);
+        await using var requests = new StartedRequests();
+        using var pause = world.Services.GetRequiredService<AppCommandGate>().PauseAt(OpenTokenSave());
+        var resuming = requests.Add(
+            anonymous.PostAsJsonAsync(RedeemUrl(formId, token), new { }, admin.CancellationToken));
+        await PausedAsync(pause, resuming);
+        using var deleted = await admin.Client.DeleteAsync($"/api/forms/{formId}", admin.CancellationToken)
+            .WaitAsync(_gateTimeout, admin.CancellationToken);
+
+        // Act
+        pause.Release();
+        using var resumed = await resuming.WaitAsync(_gateTimeout, admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, resumed.StatusCode);
+        Assert.Null(await TokenOfAsync(world.Services, submissionId));
+    }
+
+    private static async Task<string?> TokenOfAsync(IServiceProvider services, long submissionId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        return await app.Submissions.AsNoTracking()
+            .IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete, EndatixQueryFilterNames.Tenant])
+            .Where(item => item.Id == submissionId)
+            .Select(item => item.Token!.Value)
+            .SingleAsync(TestContext.Current.CancellationToken);
+    }
+
     private static async Task PausedAsync(CommandPause pause, Task paused)
     {
         await Task.WhenAny(pause.Reached, paused).WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
@@ -97,7 +140,7 @@ public sealed partial class AudienceDirectoryFlowTests
     [GeneratedRegex("""UPDATE ["\[]Forms["\]]""")]
     private static partial Regex FormUpdate();
 
-    /// <summary>The open's save of its new submission's token: after it read the form, before it commits.</summary>
+    /// <summary>An open's save of a submission's token: after it read the form, before it commits.</summary>
     [GeneratedRegex("""UPDATE ["\[]Submissions["\]]""")]
     private static partial Regex OpenTokenSave();
 }

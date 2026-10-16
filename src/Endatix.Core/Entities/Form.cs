@@ -308,11 +308,16 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
                new WebHookConfiguration();
     }
 
+    /// <summary>
+    /// Soft-deletes the form, and the definitions and submissions loaded with it, and raises
+    /// <see cref="FormDeletedEvent"/>. It reaches only what is loaded: <c>DeleteFormHandler</c> deletes all of a form's
+    /// submissions by form, through <c>IFormsRepository.DeleteSubmissionsAsync</c>.
+    /// </summary>
     public override void Delete()
     {
         if (!IsDeleted)
         {
-            // Delete all related form definitions
+            // Only the definitions loaded with the form.
             foreach (var definition in _formDefinitions)
             {
                 definition.Delete();

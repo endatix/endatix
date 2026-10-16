@@ -54,11 +54,15 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
         IsDraft = isDraft ?? IsDraft;
     }
 
+    /// <summary>
+    /// Soft-deletes the definition and the submissions loaded with it. It reaches only those: a form's deletion
+    /// deletes all of the form's submissions by form instead (<c>IFormsRepository.DeleteSubmissionsAsync</c>).
+    /// </summary>
     public override void Delete()
     {
         if (!IsDeleted)
         {
-            // Delete all related submissions
+            // Only the submissions loaded with the definition.
             foreach (var submission in _submissions)
             {
                 submission.Delete();

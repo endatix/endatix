@@ -114,9 +114,6 @@ public sealed partial class FormDeletionFlowTests
     [GeneratedRegex("""INSERT INTO ["\[]Submissions["\]]""")]
     private static partial Regex SubmissionInsert();
 
-    [GeneratedRegex("""UPDATE ["\[]Submissions["\]]""")]
-    private static partial Regex SubmissionUpdate();
-
     /// <summary>The first transaction lock the host's context asks for: PostgreSQL's shared advisory lock, or SQL Server's applock.</summary>
     [GeneratedRegex("pg_advisory_xact_lock_shared|sp_getapplock")]
     private static partial Regex LockStatement();

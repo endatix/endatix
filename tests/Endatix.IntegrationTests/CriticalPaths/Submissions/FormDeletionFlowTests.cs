@@ -28,14 +28,6 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
 
     private static readonly object DraftSubmission = new { isComplete = false, jsonData = "{}", currentPage = 0 };
 
-    public static TheoryData<string, string, string> SubmissionWrites => new()
-    {
-        { "PATCH", "", """{"jsonData":"{\"q\":\"changed\"}"}""" },
-        { "PATCH", "", """{"isComplete":true,"jsonData":"{\"q\":\"done\"}"}""" },
-        { "PUT", "", """{"isComplete":false,"jsonData":"{\"q\":\"replaced\"}","currentPage":1}""" },
-        { "POST", "/status", $$"""{"status":"{{SubmissionStatusCodes.Read}}"}""" },
-    };
-
     /// <summary>
     /// The submissions go by form in one statement, not one by one: each is stamped deleted, and the form's own
     /// deletion event is the only one raised for them.
@@ -67,25 +59,24 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
     [Theory]
     [MemberData(nameof(SubmissionWrites))]
     public async Task Writing_to_a_submission_left_live_under_a_deleted_form_is_not_found(
-        string method,
-        string pathSuffix,
-        string body)
+        string write)
     {
         // Arrange
         var (world, admin) = await AdminAsync();
         var formId = await CreateFormAsync(admin);
-        var submissionId = await CreateSubmissionAsync(admin, formId);
+        var target = await WriteTargetAsync(world.Services, admin, formId);
+        var before = await StateAsync(world.Services, target.SubmissionId);
         using var deleted = await admin.DeleteAsync($"/api/forms/{formId}", Ct);
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
-        await LeaveLiveAsync(world.Services, submissionId);
-        using var request = WriteRequest(new SubmissionWrite(formId, submissionId, method, pathSuffix, body));
+        await LeaveLiveAsync(world.Services, target.SubmissionId);
+        using var request = WriteRequest(ChangingWrites[write], target);
 
         // Act
         using var response = await admin.SendAsync(request, Ct);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        await AssertUnchangedAsync(world.Services, submissionId);
+        Assert.Equal(before, await StateAsync(world.Services, target.SubmissionId));
     }
 
     /// <summary>
@@ -98,27 +89,20 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
         // Arrange
         var (world, admin) = await AdminAsync();
         var formId = await CreateFormAsync(admin);
-        var submissionId = await CreateSubmissionAsync(admin, formId);
+        var target = await WriteTargetAsync(world.Services, admin, formId);
+        var before = await StateAsync(world.Services, target.SubmissionId);
         await DeleteOnlyTheFormRowAsync(world.Services, formId);
-        using var request = WriteRequest(new SubmissionWrite(formId, submissionId, "PATCH", "", """{"jsonData":"{\"q\":\"changed\"}"}"""));
+        using var request = WriteRequest(new SubmissionWrite("PATCH", "{id}", ChangedAnswers), target);
 
         // Act
         using var response = await admin.SendAsync(request, Ct);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        await AssertUnchangedAsync(world.Services, submissionId);
+        Assert.Equal(before, await StateAsync(world.Services, target.SubmissionId));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    private sealed record SubmissionWrite(long FormId, long SubmissionId, string Method, string PathSuffix, string Body);
-
-    private static HttpRequestMessage WriteRequest(SubmissionWrite write) =>
-        new(new HttpMethod(write.Method), $"/api/forms/{write.FormId}/submissions/{write.SubmissionId}{write.PathSuffix}")
-        {
-            Content = new StringContent(write.Body, System.Text.Encoding.UTF8, "application/json"),
-        };
 
     private async Task<(IntegrationTestWorld World, HttpClient Admin)> AdminAsync()
     {
@@ -175,16 +159,6 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
             .Where(form => form.Id == formId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(form => form.IsDeleted, true), Ct);
         Assert.Equal(1, updated);
-    }
-
-    private static async Task AssertUnchangedAsync(IServiceProvider services, long submissionId)
-    {
-        await using var scope = services.CreateAsyncScope();
-        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var row = await AllSubmissions(app).AsNoTracking().SingleAsync(item => item.Id == submissionId, Ct);
-        Assert.Equal("{}", row.JsonData);
-        Assert.False(row.IsComplete);
-        Assert.Equal(SubmissionStatusCodes.New, row.Status.Code);
     }
 
     /// <summary>Whether each submission of the form is soft-deleted, by id.</summary>
