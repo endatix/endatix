@@ -17,4 +17,7 @@ internal enum FormSchemaColumnKind
 
     /// <summary>An audience value frozen on the response, read from its personalization snapshot, not its answers.</summary>
     Personalization,
+
+    /// <summary>A submitter profile field, read from the response's profile snapshot, not its answers.</summary>
+    SubmitterProfile,
 }

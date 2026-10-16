@@ -36,20 +36,26 @@ internal sealed record FormSchemaCodebookExportShape
     public static readonly FormSchemaCodebookExportShape Calculated = new("calculated");
     /// <summary>Audience value frozen on the response (one column, typed by the audience property).</summary>
     public static readonly FormSchemaCodebookExportShape Personalization = new("personalization");
+    /// <summary>Submitter profile field captured with the response (one text column).</summary>
+    public static readonly FormSchemaCodebookExportShape SubmitterProfile = new("submitter_profile");
+
+    // Declared after the shapes it holds: static fields initialize in declaration order.
+    private static readonly Dictionary<FormSchemaColumnKind, FormSchemaCodebookExportShape> _byColumnKind = new()
+    {
+        [FormSchemaColumnKind.Personalization] = Personalization,
+        [FormSchemaColumnKind.SubmitterProfile] = SubmitterProfile,
+        [FormSchemaColumnKind.ChoiceIndicator] = MultipleResponse,
+        [FormSchemaColumnKind.CheckboxOtherText] = MultipleResponse,
+        [FormSchemaColumnKind.MatrixRow] = CategoricalArray,
+        [FormSchemaColumnKind.MatrixCell] = MatrixCell,
+        [FormSchemaColumnKind.RankingChoice] = Ranking,
+        [FormSchemaColumnKind.MultipleTextItem] = MultipleText,
+        [FormSchemaColumnKind.FileUpload] = File,
+        [FormSchemaColumnKind.Calculated] = Calculated,
+    };
 
     public static FormSchemaCodebookExportShape FromColumnKind(FormSchemaColumnKind kind) =>
-        kind switch
-        {
-            FormSchemaColumnKind.Personalization => Personalization,
-            FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText => MultipleResponse,
-            FormSchemaColumnKind.MatrixRow => CategoricalArray,
-            FormSchemaColumnKind.MatrixCell => MatrixCell,
-            FormSchemaColumnKind.RankingChoice => Ranking,
-            FormSchemaColumnKind.MultipleTextItem => MultipleText,
-            FormSchemaColumnKind.FileUpload => File,
-            FormSchemaColumnKind.Calculated => Calculated,
-            _ => Scalar,
-        };
+        _byColumnKind.GetValueOrDefault(kind, Scalar);
 
     public static FormSchemaCodebookExportShape FromQuestionElement(JsonElement questionElement)
     {

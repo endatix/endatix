@@ -4,6 +4,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
@@ -94,16 +95,17 @@ internal static class ExportColumnPlanBuilder
             })
             .ToList();
         aliasedColumns.AddRange(PersonalizationBlock(schema, flatteningMap, aliasedColumns));
+        aliasedColumns.AddRange(SubmitterProfileBlock(flatteningMap, aliasedColumns));
 
         EnsureUniqueExportKeys(aliasedColumns);
 
         return new ExportColumnPlan(aliasedColumns);
     }
 
-    // The columns that answers fill, within the requested scope. Audience columns join after aliasing.
+    // The columns that answers fill, within the requested scope. Audience and submitter columns join after aliasing.
     private static IEnumerable<FormSchemaColumn> QuestionColumns(MergedFormSchema flatteningMap, HashSet<string>? scopedKeys) =>
         flatteningMap.Columns.Where(column =>
-            column.Kind is not FormSchemaColumnKind.Personalization &&
+            column.Kind is not (FormSchemaColumnKind.Personalization or FormSchemaColumnKind.SubmitterProfile) &&
             (scopedKeys is null || scopedKeys.Contains(column.Key)));
 
     // Audience values close the row as one block, in the codebook's block order and under its titles, and their keys
@@ -123,6 +125,19 @@ internal static class ExportColumnPlanBuilder
 
         using var codebook = JsonDocument.Parse(schema.Codebook);
         return PersonalizationCodebook.InBlockOrder(flatteningMap, codebook.RootElement)
+            .Where(column => !taken.Contains(column.Key))
+            .Select(ToColumn)
+            .ToList();
+    }
+
+    // Submitter profile fields follow as one more block, with the same key rules as audience values. They come last so
+    // that listing a field leaves every column an export had before where it was.
+    private static List<ExportColumnDefinition> SubmitterProfileBlock(
+        MergedFormSchema flatteningMap,
+        List<ExportColumnDefinition> precedingColumns)
+    {
+        HashSet<string> taken = new(precedingColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
+        return SubmitterProfileColumns.InBlockOrder(flatteningMap.Columns)
             .Where(column => !taken.Contains(column.Key))
             .Select(ToColumn)
             .ToList();

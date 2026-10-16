@@ -12,4 +12,11 @@ public sealed class ReportingOptions
     /// at application startup.
     /// </summary>
     public bool ApplyMigrationsAtStartup { get; set; } = true;
+
+    /// <summary>
+    /// The submitter profile fields copied into prepared submissions, each as a <c>submitter_&lt;field&gt;</c> column.
+    /// A field is a key of the submission's profile snapshot. Empty (the default) adds no column.
+    /// </summary>
+    /// <remarks>The snapshot holds personal data, so only the fields named here reach reporting.</remarks>
+    public List<string> SubmitterProfileFields { get; set; } = [];
 }

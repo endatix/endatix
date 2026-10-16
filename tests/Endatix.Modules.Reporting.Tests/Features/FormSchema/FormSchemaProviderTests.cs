@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using FluentAssertions;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 using NSubstitute;
@@ -171,6 +172,26 @@ public class FormSchemaProviderTests
         var thrown = await act.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage($"*form {FormId}*");
         thrown.Which.InnerException.Should().BeOfType<SchemaCompilationLimitExceededException>();
+    }
+
+    [Fact]
+    public async Task FormSchemaProvider_GetOrCompileAsync_WithCurrentSchemaLackingAListedSubmitterField_InvokesProcessor()
+    {
+        // Arrange
+        _schemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(Schema(FormDefinitionId, CompiledMap(CurrentDefinitionJson)));
+        FormSchemaCompiler listingEmail = new(submitterProfileFields: new SubmitterProfileFields(["email"]));
+        FormSchemaProvider provider = new(_schemaRepository, _schemaProcessor, new FormSchemaCoverage(_formsRepository, listingEmail));
+
+        // Act
+        await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _schemaProcessor.Received(1).IncludeDefinitionAsync(
+            TenantId,
+            FormId,
+            FormDefinitionId,
+            Arg.Any<CancellationToken>());
     }
 
     private Task<FormSchemaEntity?> GetOrCompileAsync(long formDefinitionId) =>

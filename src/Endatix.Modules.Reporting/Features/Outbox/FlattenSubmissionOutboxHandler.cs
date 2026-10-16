@@ -61,15 +61,18 @@ internal sealed class FlattenSubmissionOutboxHandler(
         var changeKindWireValue = JsonElementReader.TryGetString(payload, "changeKind");
         var changeKind = SubmissionChangeKindsExtensions.ParseWireValue(changeKindWireValue);
 
-        // A mark as real must bring back the row a schema replace may have cleared while the submission was a test.
-        // Flattening is idempotent, so a mark as test flattens too.
-        if (changeKind.AffectsSubmissionData() || changeKind.HasFlag(SubmissionChangeKinds.Test))
+        // Answers, schema alignment, and submitter profile fields all live on the flattened row. A mark as real
+        // must bring back a row a schema replace may have cleared while the submission was a test. Flattening is
+        // idempotent, so a mark as test flattens too. Core's data mask leaves the submitter out on purpose.
+        if (changeKind.AffectsSubmissionData()
+            || changeKind.HasFlag(SubmissionChangeKinds.Submitter)
+            || changeKind.HasFlag(SubmissionChangeKinds.Test))
         {
             return false;
         }
 
         logger.LogDebug(
-            "Skipping submission flatten for outbox message {OutboxMessageId}: changeKind '{ChangeKind}' does not affect submission data",
+            "Skipping submission flatten for outbox message {OutboxMessageId}: changeKind '{ChangeKind}' does not affect flattened data",
             message.Id,
             changeKindWireValue ?? string.Empty);
 
