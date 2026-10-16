@@ -34,8 +34,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests
         _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(_restarted));
         var factory = Factory();
-        var firstBuild = () => factory.GetScheduler().AsTask();
-        await firstBuild.Should().ThrowAsync<SchedulerException>();
+        await FirstBuildFailsAsync(factory);
 
         // Act
         await AskAsync(factory, caller);
@@ -55,8 +54,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests
         _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
             .Returns(ValueTask.FromResult(_restarted));
         var factory = Factory();
-        var firstBuild = () => factory.GetScheduler().AsTask();
-        await firstBuild.Should().ThrowAsync<SchedulerException>();
+        await FirstBuildFailsAsync(factory);
 
         // Act
         await factory.GetScheduler();
@@ -76,8 +74,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests
         _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
             .Returns(new ValueTask<IScheduler>(failing.Task), new ValueTask<IScheduler>(succeeding.Task));
         var factory = Factory();
-        var firstBuild = () => factory.GetScheduler().AsTask();
-        await firstBuild.Should().ThrowAsync<SchedulerException>();
+        await FirstBuildFailsAsync(factory);
 
         // Act — five callers while the first rebuild runs, then five while the second does.
         var duringFirst = await CallersWaitingOnRestartAsync(factory, restarts: 1);
@@ -101,13 +98,12 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests
         var rebuilding = new TaskCompletionSource<IScheduler>(TaskCreationOptions.RunContinuationsAsynchronously);
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
         _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns(new ValueTask<IScheduler>(rebuilding.Task));
+            .Returns(_ => new ValueTask<IScheduler>(rebuilding.Task));
         var factory = Factory();
-        var firstBuild = () => factory.GetScheduler().AsTask();
-        await firstBuild.Should().ThrowAsync<SchedulerException>();
+        await FirstBuildFailsAsync(factory);
         using var cancelled = new CancellationTokenSource();
-        var leaving = factory.GetScheduler(cancelled.Token).AsTask();
-        var staying = factory.GetScheduler().AsTask();
+        var leaving = SchedulerOfAsync(factory, cancelled.Token);
+        var staying = SchedulerOfAsync(factory, CancellationToken.None);
         await RestartsAsync(1);
 
         // Act
@@ -142,6 +138,24 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests
         await afterShutdown.Should().ThrowAsync<SchedulerException>();
         await afterShutdown.Should().ThrowAsync<SchedulerException>();
         await _runtime.DidNotReceiveWithAnyArgs().Restart(default!, default!, default);
+    }
+
+    private static async Task<IScheduler> SchedulerOfAsync(ISchedulerFactory factory, CancellationToken cancellationToken) =>
+        await factory.GetScheduler(cancellationToken);
+
+    private static async Task FirstBuildFailsAsync(ISchedulerFactory factory)
+    {
+        var failure = default(Exception);
+        try
+        {
+            await factory.GetScheduler();
+        }
+        catch (SchedulerException exception)
+        {
+            failure = exception;
+        }
+
+        failure.Should().NotBeNull("the first build fails");
     }
 
     // Starts five callers and waits until the rebuild they share has asked for its restart.

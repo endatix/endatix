@@ -48,8 +48,8 @@ internal sealed record SchedulerShape(
         $"clustered={Member(store, "Clustered")} checkinMisfire={Member(store, "ClusterCheckinMisfireThreshold")} " +
         $"misfire={Member(store, "MisfireThreshold")} misfirePass={Member(store, "MisfireHandlerFrequency")}";
 
-    private static string LimitsOf(ExecutionLimits limits) =>
-        string.Join(";", limits.Groups.Select(group => string.Join(
+    private static string LimitsOf(ExecutionLimits? limits) =>
+        string.Join(";", (limits?.Groups ?? []).Select(group => string.Join(
             ",",
             group.GetType().GetProperties().Select(property => $"{property.Name}={property.GetValue(group)}"))).Order(StringComparer.Ordinal));
 

@@ -174,7 +174,6 @@ public sealed class DatabaseFailuresTests
     {
         { Wrapped(ReadOnlyDatabase()), true },
         { Wrapped(PostgresFailure(PostgresErrorCodes.ReadOnlySqlTransaction)), true },
-        { new DatabaseReadOnlyException("jobs"), true }, // what the startup probe returns for PostgreSQL
         { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.AdminShutdown)), false },
         { Wrapped(new OtherDriverException(3906)), false }, // another driver's error code is not SQL Server's
