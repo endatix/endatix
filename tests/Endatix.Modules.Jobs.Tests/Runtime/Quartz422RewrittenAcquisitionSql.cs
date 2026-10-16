@@ -32,7 +32,7 @@ internal static class Quartz422RewrittenAcquisitionSql
     public static string SqlServer(int maxCount, string excludedJobTypes) => Normalized(
         $"SELECT TOP ({maxCount}) acquirable.*\n" +
         "FROM OPENJSON(@endatix_free_slots)\n" +
-        "    WITH (endatix_group nvarchar(200) '$.g', endatix_free_slots int '$.s') AS free\n" +
+        "    WITH (endatix_group nvarchar(200) COLLATE Latin1_General_100_BIN2 '$.g', endatix_free_slots int '$.s') AS free\n" +
         "CROSS APPLY (\n" +
         "    SELECT TOP (free.endatix_free_slots) t.NEXT_FIRE_TIME, t.PRIORITY," +
         Quartz422AcquisitionSql.ProjectionAndConditions(excludedJobTypes) + "\n" +

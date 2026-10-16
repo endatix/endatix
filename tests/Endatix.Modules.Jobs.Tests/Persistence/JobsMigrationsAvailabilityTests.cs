@@ -31,7 +31,7 @@ public sealed class JobsMigrationsAvailabilityTests
     }
 
     [Fact]
-    public void GetMigrations_SqlServerContext_ReturnsOnlyItsInitialMigration()
+    public void GetMigrations_SqlServerContext_ReturnsOnlyItsOwnChain()
     {
         // Arrange — none of the PostgreSQL chain, which shares the assembly.
         using var context = CreateSqlServerContext();
@@ -40,7 +40,9 @@ public sealed class JobsMigrationsAvailabilityTests
         var migrations = context.Database.GetMigrations();
 
         // Assert
-        migrations.Should().Equal("20261009151311_InitialBackgroundJobs");
+        migrations.Should().Equal(
+            "20261009151311_InitialBackgroundJobs",
+            "20261015080000_PinTriggerAcquisitionGroupCollation");
     }
 
     [Fact]

@@ -1,10 +1,7 @@
-using Endatix.Infrastructure.Data;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Npgsql;
 using Quartz;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -21,12 +18,19 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <para>
 /// A database that cannot be reached at all is a different failure. The host stays up — its readiness probe
 /// reports the outage — and the scheduler starts once the database answers, because restarting the process
-/// cannot fix a database.
+/// cannot fix a database. That holds for an outage at any step of the start, not only the first connection. A
+/// database that answers and refuses, such as a login it does not accept, fails the start instead: waiting would
+/// never fix it.
+/// </para>
+/// <para>
+/// A SQL Server node set to enqueue without the trigger lock is refused before its scheduler is built unless the
+/// database reads committed snapshots (<see cref="ReadCommittedSnapshotGatedSchedulerFactory"/>): at boot the host fails to
+/// start, and after a deferred start the refusal is logged as Critical and every enqueue on the node fails.
 /// </para>
 /// </remarks>
 internal sealed class JobsSchedulerHostedService(
     IServiceProvider services,
-    IConfiguration configuration,
+    JobStoreDatabase database,
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
     JobsShutdownSignal shutdownSignal,
@@ -34,21 +38,43 @@ internal sealed class JobsSchedulerHostedService(
 {
     private static readonly TimeSpan UnreachableRetryDelay = TimeSpan.FromSeconds(5);
 
+    // A lost race clears as soon as the other transaction ends, so the first few are tried again sooner than an
+    // outage; one that keeps coming back is something else, and is tried at the outage's pace.
+    private static readonly TimeSpan ContendedRetryDelay = TimeSpan.FromSeconds(1);
+    private const int QuickContendedTries = 3;
+
+    // A lost race, or a database SQL Server cannot open, is logged the first time and then one in this many tries,
+    // so one that keeps recurring is seen without flooding the log.
+    private const int TriesPerRepeatedWarning = 12;
+
     private readonly CancellationTokenSource _stopping = new();
     private IScheduler? _scheduler;
     private Task? _deferredStart;
+    private int _contendedTries;
+    private int _unavailableTries;
+
+    private enum StartResult
+    {
+        Started,
+        Unreachable,
+        Contended,
+    }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (await IsDatabaseReachableAsync(cancellationToken))
+        var result = await TryStartSchedulerAsync(cancellationToken);
+        if (result == StartResult.Started)
         {
-            await StartSchedulerAsync(cancellationToken);
             return;
         }
 
-        logger.LogError(
-            "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs.");
-        _deferredStart = StartWhenReachableAsync(_stopping.Token);
+        if (result == StartResult.Unreachable)
+        {
+            logger.LogError(
+                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs.");
+        }
+
+        _deferredStart = StartWhenReadyAsync(result, _stopping.Token);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -102,6 +128,8 @@ internal sealed class JobsSchedulerHostedService(
 
     private async Task StartSchedulerAsync(CancellationToken cancellationToken)
     {
+        // The factory checks the snapshot requirement before it builds the scheduler, so a node refused here never
+        // acquires a trigger.
         var scheduler = await services
             .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
             .GetScheduler(cancellationToken);
@@ -110,8 +138,17 @@ internal sealed class JobsSchedulerHostedService(
         // stop that arrives mid-registration must still find it to shut it down.
         _scheduler = scheduler;
 
-        // Every host with a handler keeps its job type's durable job in the store, so a trigger enqueued anywhere
-        // has a job to point at.
+        await StoreDurableJobsAsync(scheduler, cancellationToken);
+        if (options.Value.RunInProcess)
+        {
+            await scheduler.Start(cancellationToken);
+        }
+    }
+
+    // Every host with a handler keeps its job type's durable job in the store, so a trigger enqueued anywhere has a
+    // job to point at.
+    private async Task StoreDurableJobsAsync(IScheduler scheduler, CancellationToken cancellationToken)
+    {
         foreach (var jobType in registry.JobTypes)
         {
             await scheduler.AddJob(
@@ -119,23 +156,71 @@ internal sealed class JobsSchedulerHostedService(
                 AddJobOptions.Replacing,
                 cancellationToken);
         }
-
-        if (options.Value.RunInProcess)
-        {
-            await scheduler.Start(cancellationToken);
-        }
     }
 
-    private async Task StartWhenReachableAsync(CancellationToken stoppingToken)
+    /// <summary>
+    /// Starts the scheduler, or says why not when it is worth trying again: the database is away, before the start
+    /// or during it, or it lost a race with another node's transaction, such as two nodes storing their durable jobs
+    /// at once. A failure the database refused with is thrown.
+    /// </summary>
+    private async Task<StartResult> TryStartSchedulerAsync(CancellationToken cancellationToken)
     {
         try
         {
-            while (!await IsDatabaseReachableAsync(stoppingToken))
+            if (await database.UnreachableBecauseAsync(cancellationToken) is { } away)
             {
-                await Task.Delay(UnreachableRetryDelay, stoppingToken);
+                return Unreachable(away);
             }
 
-            await StartSchedulerAsync(stoppingToken);
+            await StartSchedulerAsync(cancellationToken);
+            return StartResult.Started;
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested && IsWorthRetrying(exception))
+        {
+            return await RetryAfterAsync(exception, cancellationToken);
+        }
+    }
+
+    private static bool IsWorthRetrying(Exception exception) =>
+        DatabaseFailures.IsContention(exception) || DatabaseFailures.IsTimeout(exception)
+        || DatabaseFailures.IsUnreachable(exception);
+
+    // Why a failed start is worth trying again. Only what failed after the probe connected arrives here, so a wait
+    // that ran out is a lock wait, contention, unless the database went away meanwhile: the probe is asked again to
+    // tell the two apart. A refusal the probe meets is thrown.
+    private async Task<StartResult> RetryAfterAsync(Exception exception, CancellationToken cancellationToken)
+    {
+        if (DatabaseFailures.IsContention(exception))
+        {
+            return Contended(exception);
+        }
+
+        if (!DatabaseFailures.IsTimeout(exception))
+        {
+            return Unreachable(exception);
+        }
+
+        return await database.UnreachableBecauseAsync(cancellationToken) is { } away ? Unreachable(away) : Contended(exception);
+    }
+
+    private StartResult Contended(Exception lostRace)
+    {
+        if (++_contendedTries % TriesPerRepeatedWarning == 1)
+        {
+            logger.LogWarning(
+                lostRace,
+                "The background jobs scheduler lost a race with another transaction while starting, a deadlock or a wait on a lock that timed out, and will try again ({Tries} tries so far).",
+                _contendedTries);
+        }
+
+        return StartResult.Contended;
+    }
+
+    private async Task StartWhenReadyAsync(StartResult result, CancellationToken stoppingToken)
+    {
+        try
+        {
+            await RetryUntilStartedAsync(result, stoppingToken);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
@@ -148,18 +233,32 @@ internal sealed class JobsSchedulerHostedService(
         }
     }
 
-    private async Task<bool> IsDatabaseReachableAsync(CancellationToken cancellationToken)
+    // Waits after each failed try for as long as its kind of failure takes to clear, then tries again.
+    private async Task RetryUntilStartedAsync(StartResult result, CancellationToken stoppingToken)
     {
-        try
+        do
         {
-            await using var connection =
-                new NpgsqlConnection(ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration));
-            await connection.OpenAsync(cancellationToken);
-            return true;
+            await Task.Delay(DelayAfter(result), stoppingToken);
+            result = await TryStartSchedulerAsync(stoppingToken);
         }
-        catch (Exception exception) when (exception is NpgsqlException or TimeoutException)
-        {
-            return false;
-        }
+        while (result != StartResult.Started);
     }
+
+    // A database SQL Server cannot open is named, since a misnamed one is reported as a restoring one is, and only
+    // the operator can tell them apart; logged on the first try and then one in as many as a lost race is.
+    private StartResult Unreachable(Exception away)
+    {
+        _contendedTries = 0;
+        if (DatabaseFailures.IsDatabaseUnavailable(away) && ++_unavailableTries % TriesPerRepeatedWarning == 1)
+        {
+            logger.LogError(
+                "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. Retrying.",
+                database.DatabaseName);
+        }
+
+        return StartResult.Unreachable;
+    }
+
+    private TimeSpan DelayAfter(StartResult result) =>
+        result == StartResult.Contended && _contendedTries <= QuickContendedTries ? ContendedRetryDelay : UnreachableRetryDelay;
 }

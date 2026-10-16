@@ -7,6 +7,8 @@ using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Persistence;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
@@ -200,16 +202,29 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
         return await use(driverDelegate, holder);
     }
 
+    /// <summary>
+    /// Migrates the store's database up or down to <paramref name="targetMigration"/>, or to the latest migration when
+    /// it is <see langword="null"/>, as a deployment of that version would leave it.
+    /// </summary>
+    public async Task MigrateToAsync(string? targetMigration, CancellationToken cancellationToken)
+    {
+        await using var context = ContextFor(Database.Provider, Configuration(Database.Provider, Database.ConnectionString));
+        await context.GetService<IMigrator>().MigrateAsync(targetMigration, cancellationToken: cancellationToken);
+    }
+
     private static async Task MigrateAsync(
         TestDatabaseProvider provider,
         IConfiguration configuration,
         CancellationToken cancellationToken)
     {
-        await using DbContext context = provider == TestDatabaseProvider.PostgreSql
-            ? new JobsPostgreSqlDbContext(OptionsFor<JobsPostgreSqlDbContext>(configuration), DesignTimeDbContextDependencies.TenantContext)
-            : new JobsSqlServerDbContext(OptionsFor<JobsSqlServerDbContext>(configuration), DesignTimeDbContextDependencies.TenantContext);
+        await using var context = ContextFor(provider, configuration);
         await context.Database.MigrateAsync(cancellationToken);
     }
+
+    private static DbContext ContextFor(TestDatabaseProvider provider, IConfiguration configuration) =>
+        provider == TestDatabaseProvider.PostgreSql
+            ? new JobsPostgreSqlDbContext(OptionsFor<JobsPostgreSqlDbContext>(configuration), DesignTimeDbContextDependencies.TenantContext)
+            : new JobsSqlServerDbContext(OptionsFor<JobsSqlServerDbContext>(configuration), DesignTimeDbContextDependencies.TenantContext);
 
     // Built the way the module registers its context, so the test migrates with the runtime's options.
     private static DbContextOptions<TContext> OptionsFor<TContext>(IConfiguration configuration)

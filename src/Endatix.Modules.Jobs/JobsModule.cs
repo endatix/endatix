@@ -51,7 +51,6 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
 
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
-        DatabaseProviderResolver.RequirePostgreSql(builder.Configuration, "Background Jobs", FeatureFlags.JobsModule);
         AddPersistence(builder);
         builder.Services.AddScoped<IBackgroundJobQueue, BackgroundJobQueue>();
         AddValidatedOptions(builder.Services);
@@ -62,11 +61,24 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
         builder.Services.AddJobsDashboard(builder.Configuration);
     }
 
-    // Consumers see the context only as IJobsDbContext, so nothing downstream branches on the provider.
     private static void AddPersistence(EndatixModuleBuilder builder)
     {
-        builder.AddDbContextWithMigrations<JobsPostgreSqlDbContext>(JobsPersistence.ConfigureDbContextOptions);
-        builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<JobsPostgreSqlDbContext>());
+        if (DatabaseProviderResolver.IsPostgreSql(builder.Configuration))
+        {
+            AddContext<JobsPostgreSqlDbContext>(builder);
+        }
+        else
+        {
+            AddContext<JobsSqlServerDbContext>(builder);
+        }
+    }
+
+    // Consumers see the context only as IJobsDbContext, so nothing downstream branches on the provider.
+    private static void AddContext<TContext>(EndatixModuleBuilder builder)
+        where TContext : JobsDbContextBase
+    {
+        builder.AddDbContextWithMigrations<TContext>(JobsPersistence.ConfigureDbContextOptions);
+        builder.Services.AddScoped<IJobsDbContext>(sp => sp.GetRequiredService<TContext>());
     }
 
     private static void AddValidatedOptions(IServiceCollection services)

@@ -11,14 +11,13 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class JobsPostgreSqlAcquisitionTests(DbIntegrationFixture fixture)
 {
-    [Fact]
+    [PostgreSqlSpecificFact]
     public async Task SelectTriggersToAcquire_FullGroupAtHeadOfQueue_ReturnsOtherGroupsTrigger()
     {
-        // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
+        // Arrange — PostgreSQL-only: the PostgreSQL store and its unnest/LATERAL acquisition; SQL Server's twin is in
+        // JobsSqlServerStoreTests.
         var ct = TestContext.Current.CancellationToken;
         await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.PostgreSql, fixture.ConnectionString, ct);
         var behind = await store.SeedHeadOfLineAsync(ct);
