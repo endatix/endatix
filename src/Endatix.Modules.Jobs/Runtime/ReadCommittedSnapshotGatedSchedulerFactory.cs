@@ -14,7 +14,10 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// when it is looked up by name.
 /// </para>
 /// <para>
-/// Every member also builds the scheduler the same way, one build at a time. A build that fails, as one does while
+/// Every member also builds the scheduler the same way, one build at a time: a caller that asks while a build runs
+/// waits for that build rather than starting another, and a build that fails is not kept, so the next caller to ask
+/// once it has ended starts a fresh one. A build runs for whoever asked first and for everyone who asked meanwhile, so
+/// no caller's cancellation cancels it; a caller that is cancelled only stops waiting for it. A build that fails, as one does while
 /// the database is away, leaves Quartz holding a scheduler it has shut down, which it refuses to hand out or build
 /// again; until a build succeeds, the next one is therefore a <see cref="ISchedulerRuntime.Restart"/>, which builds
 /// another from the same registration. So no caller, the hosted service's start, an enqueue or the dashboard, can
@@ -26,9 +29,10 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
     ISchedulerFactory shipped,
     IServiceProvider services,
-    ReadCommittedSnapshotRequirement readCommittedSnapshot) : ISchedulerFactory, IDisposable
+    ReadCommittedSnapshotRequirement readCommittedSnapshot) : ISchedulerFactory
 {
-    private readonly SemaphoreSlim _building = new(1, 1);
+    private readonly Lock _gate = new();
+    private Task<IScheduler>? _build;
     private volatile bool _built;
     private bool _buildFailed;
 
@@ -53,7 +57,7 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
     public async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
     {
         await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
-        return _built ? await shipped.GetScheduler(cancellationToken) : await BuildAsync(cancellationToken);
+        return _built ? await shipped.GetScheduler(cancellationToken) : await SharedBuild().WaitAsync(cancellationToken);
     }
 
     /// <exception cref="InvalidOperationException">The node would store triggers lock-free without snapshots.</exception>
@@ -70,20 +74,32 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
         return await shipped.LookupScheduler(schedulerName, cancellationToken);
     }
 
-    public void Dispose() => _building.Dispose();
-
-    private async ValueTask<IScheduler> BuildAsync(CancellationToken cancellationToken)
+    // The build under way, or a new one when none is.
+    private Task<IScheduler> SharedBuild()
     {
-        await _building.WaitAsync(cancellationToken);
+        lock (_gate)
+        {
+            return _build ??= BuildOnceAsync();
+        }
+    }
+
+    // Runs on no caller's token, since it runs for every caller waiting on it. Its first step yields, so it is
+    // published as the build under way before it can end and clear itself.
+    private async Task<IScheduler> BuildOnceAsync()
+    {
+        await Task.Yield();
         try
         {
-            var scheduler = _built ? await shipped.GetScheduler(cancellationToken) : await BuildNextAsync(cancellationToken);
+            var scheduler = _built ? await shipped.GetScheduler(CancellationToken.None) : await BuildNextAsync(CancellationToken.None);
             _built = true;
             return scheduler;
         }
         finally
         {
-            _building.Release();
+            lock (_gate)
+            {
+                _build = null;
+            }
         }
     }
 
