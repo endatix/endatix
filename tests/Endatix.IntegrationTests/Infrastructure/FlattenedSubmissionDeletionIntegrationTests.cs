@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Persistence;
@@ -104,6 +105,29 @@ public sealed class FlattenedSubmissionDeletionIntegrationTests(DbIntegrationFix
         // Assert
         (await RowExistsAsync(reportingDb, seed.Completed1, cancellationToken))
             .Should().BeFalse("the form's deletion sync may already have run, so nothing else would remove the row");
+    }
+
+    [Fact]
+    public async Task Flatten_DraftOfLiveForm_LeavesASkippedRow()
+    {
+        // Arrange — the draft of the test below, with nothing deleted: the control that its flatten writes a row.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await _world.SeedAsync(cancellationToken);
+        await using var appDb = _world.CreateAppDbContext();
+        await using var reportingDb = _world.CreateReportingDbContext();
+        var processor = CreateFlatteningProcessor(
+            CreateSubmissionRepository(appDb),
+            reportingDb,
+            Substitute.For<IFormSchemaProvider>());
+
+        // Act
+        await processor.ProcessAsync(TenantId, seed.FormId, seed.Draft1, cancellationToken);
+
+        // Assert
+        reportingDb.ChangeTracker.Clear();
+        var row = await reportingDb.FlattenedSubmissions
+            .SingleAsync(candidate => candidate.SubmissionId == seed.Draft1, cancellationToken);
+        row.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Skipped);
     }
 
     [Fact]
