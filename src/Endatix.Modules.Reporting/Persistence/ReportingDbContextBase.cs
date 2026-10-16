@@ -67,7 +67,7 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
         modelBuilder.Entity<CoreSubmissionRow>()
             .HasNoKey()
             .ToTable(
-                TableNamePrefix.GetTableName(typeof(Submission).FullName!, CoreSubmissionsTable),
+                TableNamePrefix.GetTableName(typeof(Submission).FullName ?? nameof(Submission), CoreSubmissionsTable),
                 CoreSchema,
                 table => table.ExcludeFromMigrations());
 
