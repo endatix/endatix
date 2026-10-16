@@ -16,6 +16,7 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
     private readonly ConnectionTarget _server;
     private readonly ConnectionTarget _database;
     private readonly string _name;
+    private bool _away;
 
     private JobsTestDatabase(ConnectionTarget server, string name)
     {
@@ -78,8 +79,50 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         return rows;
     }
 
+    /// <summary>
+    /// Makes the database impossible to open, as during a failover or a restore, until
+    /// <see cref="BringBackAsync"/>: SQL Server takes it offline (4060), PostgreSQL renames it away (3D000).
+    /// </summary>
+    public async Task TakeAwayAsync(CancellationToken cancellationToken)
+    {
+        _server.ClearPools();
+        await _server.ExecuteAsync(TakeAwaySql(_server.Provider, _name), NoParameters, cancellationToken);
+        _away = true;
+    }
+
+    /// <summary>Makes the database open again, after <see cref="TakeAwayAsync"/>.</summary>
+    public async Task BringBackAsync(CancellationToken cancellationToken)
+    {
+        _server.ClearPools();
+        await _server.ExecuteAsync(BringBackSql(_server.Provider, _name), NoParameters, cancellationToken);
+        _away = false;
+    }
+
+    private static string TakeAwaySql(TestDatabaseProvider provider, string name) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => $"""
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{name}' AND pid <> pg_backend_pid();
+            ALTER DATABASE {name} RENAME TO {name}_away;
+            """,
+        TestDatabaseProvider.SqlServer => $"ALTER DATABASE [{name}] SET OFFLINE WITH ROLLBACK IMMEDIATE",
+        _ => throw ConnectionTarget.Unsupported(provider),
+    };
+
+    private static string BringBackSql(TestDatabaseProvider provider, string name) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => $"ALTER DATABASE {name}_away RENAME TO {name}",
+        TestDatabaseProvider.SqlServer => $"ALTER DATABASE [{name}] SET ONLINE",
+        _ => throw ConnectionTarget.Unsupported(provider),
+    };
+
     public async ValueTask DisposeAsync()
     {
+        // A test that failed while its database was away still drops it: neither provider drops it from there.
+        if (_away)
+        {
+            await BringBackAsync(CancellationToken.None);
+        }
+
         // Pooled connections hold the database open, and both providers refuse to drop a database in use.
         _server.ClearPools();
         await _server.ExecuteAsync(DropDatabaseSql(_server.Provider, _name), NoParameters, CancellationToken.None);
