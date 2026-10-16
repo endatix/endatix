@@ -262,11 +262,16 @@ internal sealed class JobsSchedulerHostedService(
     private StartResult Unreachable(Exception away)
     {
         _contendedTries = 0;
-        if (++_unreachableTries % TriesPerRepeatedWarning != 1)
+        if (++_unreachableTries % TriesPerRepeatedWarning == 1)
         {
-            return StartResult.Unreachable;
+            LogUnreachable(away);
         }
 
+        return StartResult.Unreachable;
+    }
+
+    private void LogUnreachable(Exception away)
+    {
         if (DatabaseFailures.IsDatabaseUnavailable(away))
         {
             logger.LogError(
@@ -274,16 +279,13 @@ internal sealed class JobsSchedulerHostedService(
                 "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. It will start once it can; until then this host runs no jobs ({Tries} tries so far).",
                 database.DatabaseName,
                 _unreachableTries);
-        }
-        else
-        {
-            logger.LogError(
-                away,
-                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs ({Tries} tries so far).",
-                _unreachableTries);
+            return;
         }
 
-        return StartResult.Unreachable;
+        logger.LogError(
+            away,
+            "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs ({Tries} tries so far).",
+            _unreachableTries);
     }
 
     private TimeSpan DelayAfter(StartResult result) =>

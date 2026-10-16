@@ -77,27 +77,31 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
         await _building.WaitAsync(cancellationToken);
         try
         {
-            if (_built)
-            {
-                return await shipped.GetScheduler(cancellationToken);
-            }
-
-            // The runtime is resolved only when it is needed: Quartz builds it from services that include this
-            // factory's own registration, so resolving it while this factory is being created never ends.
-            var scheduler = _buildFailed
-                ? await services.GetRequiredService<ISchedulerRuntime>().Restart(QuartzRegistration.SchedulerName, SchedulerRestartOptions.WithoutStarting, cancellationToken)
-                : await shipped.GetScheduler(cancellationToken);
+            var scheduler = _built ? await shipped.GetScheduler(cancellationToken) : await BuildNextAsync(cancellationToken);
             _built = true;
             return scheduler;
+        }
+        finally
+        {
+            _building.Release();
+        }
+    }
+
+    // The runtime is resolved only when it is needed: Quartz builds it from services that include this factory's own
+    // registration, so resolving it while this factory is being created never ends.
+    private async ValueTask<IScheduler> BuildNextAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return _buildFailed
+                ? await services.GetRequiredService<ISchedulerRuntime>().Restart(
+                    QuartzRegistration.SchedulerName, SchedulerRestartOptions.WithoutStarting, cancellationToken)
+                : await shipped.GetScheduler(cancellationToken);
         }
         catch
         {
             _buildFailed = true;
             throw;
-        }
-        finally
-        {
-            _building.Release();
         }
     }
 }
