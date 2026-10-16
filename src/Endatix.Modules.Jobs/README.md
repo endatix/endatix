@@ -102,9 +102,9 @@ var jobId = await backgroundJobQueue.EnqueueAsync(
 `{outboxMessageId}:{subscriber}`. It is unique per tenant and job type (a filtered unique index,
 `IX_BackgroundJobs_DedupKey`), and enqueueing a key that already exists returns the existing job's
 id without a second row or trigger, even when two enqueues race. Requests without a key never
-collide. It names the work, never the attempt: no timestamps or counters in it. A key that ends with
-a space (U+0020) is refused, because SQL Server ignores trailing spaces when it compares; a blank key
-means no key.
+collide. It names the work, never the attempt: no timestamps or counters in it. On SQL Server a key
+that ends with a space (U+0020) is refused, because SQL Server ignores trailing spaces when it
+compares; PostgreSQL compares keys as written and takes it. A blank key means no key.
 
 Use `EnqueueManyAsync` for fan-out — one job per webhook endpoint, say. The batch commits in
 a single transaction, so a partial fan-out cannot deliver to some destinations and silently
@@ -122,7 +122,8 @@ share keys lock them in the same order and one waits for the other instead of de
 Derive from `BackgroundJobHandler<TPayload>` and register it with
 `services.AddBackgroundJobHandler<THandler, TPayload>()`, which keys it by job type so a job run
 builds only its own handler. The job type comes from the payload; handlers may live in any
-assembly. A job type that ends with a space fails startup, as a dedup key that does is refused. Two
+assembly. A job type that ends with a space fails startup on either database: job types are code
+constants, and SQL Server would hold one equal to the type without the space. Two
 handlers declaring the same job type, or job types that differ only in case, fail startup:
 on SQL Server the scheduler stores each job type's durable job under a key the database compares in its
 default collation, which ignores case by default.

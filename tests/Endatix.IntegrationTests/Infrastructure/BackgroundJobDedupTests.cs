@@ -141,9 +141,11 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    public async Task EnqueueAsync_DedupKeyWithTrailingSpace_IsRefusedAndLeavesTheExistingJob()
+    [Trait("DbSpecific", "SqlServer")]
+    public async Task EnqueueAsync_SqlServerDedupKeyWithTrailingSpace_IsRefusedAndLeavesTheExistingJob()
     {
-        // Arrange — SQL Server's unique index holds "k1 " equal to "k1", which the queue's own lookup does not.
+        // Arrange — SQL Server-only: its unique index holds "k1 " equal to "k1", which the queue's own lookup does not.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, "Asserts SQL Server's trailing-space comparison.");
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -153,9 +155,28 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         var enqueue = () => node.EnqueueAsync(Request(tenantId: 5, "k1 "), ct);
 
         // Assert
-        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("A dedup key cannot end with a space.*");
+        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("The dedup key 'k1 ' ends with a space*");
         (await CountRowsAsync(database, ct)).Should().Be(1);
         (await CountTriggersAsync(database, ct)).Should().Be(1);
+    }
+
+    [PostgreSqlSpecificFact]
+    public async Task EnqueueAsync_PostgreSqlDedupKeyWithTrailingSpace_IsADistinctKey()
+    {
+        // Arrange — PostgreSQL-only: it compares "k1 " and "k1" as written, as it did before SQL Server was supported.
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await using var node = await StartScheduleOnlyNodeAsync(database, ct);
+        var withoutSpace = await node.EnqueueAsync(Request(tenantId: 5, "k1"), ct);
+
+        // Act
+        var withSpace = await node.EnqueueAsync(Request(tenantId: 5, "k1 "), ct);
+        var again = await node.EnqueueAsync(Request(tenantId: 5, "k1 "), ct);
+
+        // Assert
+        withSpace.Should().NotBe(withoutSpace);
+        again.Should().Be(withSpace);
+        (await CountRowsAsync(database, ct)).Should().Be(2);
     }
 
     private static BackgroundJobRequest Request(long tenantId, string? dedupKey) =>

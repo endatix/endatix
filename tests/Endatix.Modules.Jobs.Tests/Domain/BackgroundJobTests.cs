@@ -91,27 +91,13 @@ public class BackgroundJobTests
         job.DedupKey.Should().BeNull();
     }
 
-    [Fact]
-    public void FromRequest_DedupKeyEndingInASpace_Throws()
-    {
-        // Arrange — SQL Server's unique index would hold "k1 " equal to "k1".
-        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: "k1 ");
-
-        // Act
-        var act = () => BackgroundJob.FromRequest(request, Now, traceId: null);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithParameterName("request")
-            .WithMessage("A dedup key cannot end with a space.*");
-    }
-
     [Theory]
+    [InlineData("k1 ")]
     [InlineData(" k1")]
     [InlineData("k1\t")]
     public void FromRequest_DedupKeyWithOtherEdgeWhitespace_KeepsTheKey(string dedupKey)
     {
-        // Arrange — both providers compare these as written.
+        // Arrange — the entity keeps a key as written; whether the database can tell it apart is the queue's to say.
         var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: dedupKey);
 
         // Act

@@ -46,6 +46,7 @@ internal sealed partial class BackgroundJobQueue(
     private const string DedupKeyIndexName = BackgroundJobProviderConfiguration.DedupKeyIndexName;
     private const int SqlServerDuplicateKeyInIndex = 2601;
     private const int SqlServerDuplicateKeyInConstraint = 2627;
+    private const int SqlServerDeadlockVictim = 1205;
 
     // A collision means another enqueue of the same key committed between this one's read and its insert; the
     // next read sees it. More than a few in a row would mean something other than that race.
@@ -70,9 +71,29 @@ internal sealed partial class BackgroundJobQueue(
         CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(requests);
+        RefuseKeysTheDatabaseCannotTellApart(requests);
 
         return requests.Count == 0 ? [] : await EnqueueWithCollisionRetriesAsync(requests, cancellationToken);
     }
+
+    // SQL Server ignores trailing spaces (U+0020 only) when it compares, so its unique index holds "k1 " to be "k1"
+    // while the lookup here tells them apart, and the enqueue would fail on every retry instead of returning the job.
+    // PostgreSQL compares keys as written, so it takes them, as it always has.
+    private void RefuseKeysTheDatabaseCannotTellApart(IReadOnlyList<BackgroundJobRequest> requests)
+    {
+        if (!dbContext.Database.IsSqlServer()
+            || requests.FirstOrDefault(request => EndsWithSpace(request.DedupKey)) is not { } refused)
+        {
+            return;
+        }
+
+        throw new ArgumentException(
+            $"The dedup key '{refused.DedupKey}' ends with a space, which SQL Server ignores when it compares keys.",
+            nameof(requests));
+    }
+
+    // A blank key means no key, so it has nothing to compare.
+    private static bool EndsWithSpace(string? dedupKey) => !string.IsNullOrWhiteSpace(dedupKey) && dedupKey[^1] == ' ';
 
     private async Task<IReadOnlyList<long>> EnqueueWithCollisionRetriesAsync(
         IReadOnlyList<BackgroundJobRequest> requests,
@@ -80,9 +101,10 @@ internal sealed partial class BackgroundJobQueue(
     {
         // A redelivered fan-out races the first delivery's enqueue only in the window between two commits, so a
         // collision the database reports is resolved by reading what won and trying once more.
+        var deadlockRetry = new DeadlockRetry();
         for (var attempt = 1; attempt < MaxCollisionAttempts; attempt++)
         {
-            if (await EnqueueUnlessCollidingAsync(requests, cancellationToken) is { } ids)
+            if (await EnqueueUnlessRacingAsync(requests, deadlockRetry, cancellationToken) is { } ids)
             {
                 return ids;
             }
@@ -92,19 +114,53 @@ internal sealed partial class BackgroundJobQueue(
         return await EnqueueOnceAsync(requests, cancellationToken);
     }
 
-    /// <summary>The ids, or <see langword="null"/> when another enqueue of a dedup key committed first.</summary>
-    private async Task<IReadOnlyList<long>?> EnqueueUnlessCollidingAsync(
+    /// <summary>
+    /// The ids, or <see langword="null"/> when another enqueue of a dedup key committed first, or deadlocked with
+    /// this one for the first time; either way the transaction rolled back, rows and triggers alike, and the next try
+    /// reads what the other enqueue left.
+    /// </summary>
+    private async Task<IReadOnlyList<long>?> EnqueueUnlessRacingAsync(
         IReadOnlyList<BackgroundJobRequest> requests,
+        DeadlockRetry deadlockRetry,
         CancellationToken cancellationToken)
     {
         try
         {
             return await EnqueueOnceAsync(requests, cancellationToken);
         }
-        catch (DbUpdateException exception) when (IsDedupKeyCollision(exception))
+        catch (DbUpdateException exception) when (IsDedupKeyCollision(exception) || deadlockRetry.TrySpend(exception))
         {
             dbContext.ChangeTracker.Clear();
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Whether the insert lost a deadlock: two enqueues inserting the same dedup keys can each lock one the other
+    /// needs next, whatever order the rows are sent in, since SQL Server's batched insert decides the order rows reach
+    /// the unique index itself.
+    /// </summary>
+    internal static bool IsInsertDeadlock(DbUpdateException exception) => exception.InnerException switch
+    {
+        PostgresException { SqlState: PostgresErrorCodes.DeadlockDetected } => true,
+        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error => error.Number == SqlServerDeadlockVictim),
+        _ => false,
+    };
+
+    // One retry of a deadlocked insert per enqueue: a second deadlock is not the race it is for, and is thrown.
+    private sealed class DeadlockRetry
+    {
+        private bool _spent;
+
+        public bool TrySpend(DbUpdateException exception)
+        {
+            if (_spent || !IsInsertDeadlock(exception))
+            {
+                return false;
+            }
+
+            _spent = true;
+            return true;
         }
     }
 

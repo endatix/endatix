@@ -89,17 +89,14 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     }
 
     // Refused here, naming the limit, rather than by the database as a truncation error that fails every other job
-    // in the same batch without saying which key was too long. A key ending in a space is refused too: SQL Server
-    // ignores trailing spaces (U+0020 only) when it compares, so its unique index would hold "k1 " to be "k1" while
-    // the queue's lookup tells them apart, and the enqueue would fail on every retry instead of returning the job.
-    // Other whitespace, leading or trailing, compares as written on both providers, so it is allowed.
+    // in the same batch without saying which key was too long. Whether a key may end with a space depends on the
+    // database, so the queue decides that.
     // A blank key means no key, whatever its length, so it is let through before the length check.
     private static string? DedupKeyError(string? dedupKey) => dedupKey switch
     {
         _ when string.IsNullOrWhiteSpace(dedupKey) => null,
         { Length: > DedupKeyMaxLength } =>
             $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
-        { } key when EndsWithSpace(key) => "A dedup key cannot end with a space.",
         _ => null,
     };
 
