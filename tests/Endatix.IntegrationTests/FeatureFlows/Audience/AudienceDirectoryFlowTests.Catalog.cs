@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Endatix.Core.Abstractions.Submissions;
+using Endatix.Modules.Audience.Contracts;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,7 +28,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         await using var scope = world.Services.CreateAsyncScope();
-        var catalog = scope.ServiceProvider.GetRequiredService<IPersonalizationCatalog>();
+        var catalog = scope.ServiceProvider.GetRequiredService<IAudiencePropertyCatalog>();
         var variables = await catalog.ListForFormAsync(world.Tenants[0].Id, formId, api.CancellationToken);
 
         // Assert

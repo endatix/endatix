@@ -71,8 +71,17 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     // Completing a submission raises the Slack handler, which needs the tenant's settings row (#1250).
-    private static async Task EnsureTenantSettingsAsync(IntegrationTestWorld world) =>
-        await PagedListWindowFlowTests.EnsureTenantSettingsAsync(world.Services, world.Tenants[0].Id, TestContext.Current.CancellationToken);
+    private static async Task EnsureTenantSettingsAsync(IntegrationTestWorld world)
+    {
+        await using var scope = world.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var tenantId = world.Tenants[0].Id;
+        if (!await db.TenantSettings.AnyAsync(row => row.TenantId == tenantId, TestContext.Current.CancellationToken))
+        {
+            db.TenantSettings.Add(new TenantSettings(tenantId));
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+    }
 
     private static string PersonalizedDefinition() =>
         File.ReadAllText(Path.Combine(
