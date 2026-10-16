@@ -34,6 +34,7 @@
     <ProjectReference Include="..\Endatix.Framework\Endatix.Framework.csproj" />
     <ProjectReference Include="..\Endatix.Infrastructure\Endatix.Infrastructure.csproj" />
     <ProjectReference Include="..\Endatix.Api\Endatix.Api.csproj" />
+    <ProjectReference Include="..\Endatix.Modules.Audience.Contracts\Endatix.Modules.Audience.Contracts.csproj" />
     <ProjectReference Include="..\Endatix.Modules.Reporting.Contracts\Endatix.Modules.Reporting.Contracts.csproj" />
   </ItemGroup>
 

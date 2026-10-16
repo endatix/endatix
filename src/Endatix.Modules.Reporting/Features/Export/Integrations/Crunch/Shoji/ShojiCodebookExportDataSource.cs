@@ -5,6 +5,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 
@@ -12,11 +13,12 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// Crunch.io Shoji codebook export — projects neutral FormSchema artifacts to Shoji JSON.
 /// </summary>
 internal sealed class ShojiCodebookExportDataSource(
-    IFormSchemaRepository formSchemaRepository,
+    ExportSchemas exportSchemas,
     IFormsRepository formsRepository,
     ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
     private const string DefaultDatasetName = "Form export";
+    private const string PreparedSchemaKey = "ReportingPreparedShojiSchema";
 
     internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
     [
@@ -42,7 +44,7 @@ internal sealed class ShojiCodebookExportDataSource(
         ExportDataSourceContext context,
         CancellationToken cancellationToken)
     {
-        var schema = await formSchemaRepository.GetByFormIdAsync(
+        var schema = await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
             cancellationToken);
@@ -65,9 +67,10 @@ internal sealed class ShojiCodebookExportDataSource(
                 requestLocale);
         }
 
-        context.Options.Metadata ??= new Dictionary<string, object>();
-        context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
+        await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
+        (context.Options.Metadata ??= new Dictionary<string, object>())[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             settings with { Locale = requestLocale };
+        context.Options.Metadata[PreparedSchemaKey] = schema.FlatteningMap;
 
         return Result.Success(context.Options);
     }
@@ -76,26 +79,32 @@ internal sealed class ShojiCodebookExportDataSource(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = (await formSchemaRepository.GetByFormIdAsync(
+        var schema = await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
-            cancellationToken))!;
+            cancellationToken);
+        if (schema is null)
+        {
+            yield break;
+        }
 
         var settings = ResolveSettings(context.Options);
         var requestLocale = ReportingExportSchemaHelper.ResolveLocaleOrDefault(settings.Locale);
         var (datasetName, datasetDescription) = await ResolveDatasetMetadataAsync(
-            context.FormId,
-            requestLocale,
-            cancellationToken);
+            context.FormId, requestLocale, cancellationToken);
+        var flatteningMap = PreparedFlatteningMap(context, schema);
         var codebookJson = ShojiCodebookGenerator.Generate(
-            schema.FlatteningMap,
-            schema.Codebook,
-            settings.KeySeparator,
-            requestLocale,
-            datasetName,
-            datasetDescription);
+            flatteningMap,
+            await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken),
+            settings.KeySeparator, requestLocale, datasetName, datasetDescription);
         yield return new DynamicExportRow { Data = codebookJson };
     }
+
+    // The flattening map captured during PrepareOptionsAsync, so the map and codebook come from one read.
+    private static string PreparedFlatteningMap(ExportDataSourceContext context, FormSchemaEntity schema) =>
+        context.Options.Metadata?.TryGetValue(PreparedSchemaKey, out var map) == true
+            ? map as string ?? schema.FlatteningMap
+            : schema.FlatteningMap;
 
     private async Task<(string? DatasetName, string DatasetDescription)> ResolveDatasetMetadataAsync(
         long formId,
