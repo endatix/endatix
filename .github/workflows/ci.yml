@@ -84,8 +84,9 @@ jobs:
           -assemblyfilters:"-Endatix.Hosting;-Endatix.WebHost;-Endatix.Api.Host;-Endatix.Persistence.SqlServer;-Endatix.Persistence.PostgreSql"
       # Re-merge through dotnet-coverage as before: it writes branch="True", which
       # Coveralls ignores, so the Coveralls number stays line coverage as it has been.
+      # Both tools are pinned because that depends on their exact behaviour.
       - name: Install DotNet Coverage
-        run: dotnet tool update --global dotnet-coverage
+        run: dotnet tool install --global dotnet-coverage --version 18.12.0
       - name: 📊 Coveralls report
         run: dotnet-coverage merge .coverage/report/Cobertura.xml -f cobertura -o .coverage/merged.cobertura.xml
       - name: 📊 Upload to Coveralls
@@ -93,6 +94,7 @@ jobs:
         with:
           format: cobertura
           file: .coverage/merged.cobertura.xml
+          coverage-reporter-version: v0.6.22
       - name: 📝 Output Summary Report
         run: |
           echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
@@ -126,12 +128,14 @@ jobs:
           else
             echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Priority!=P2&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
           fi
+      # Debug, like the unit run: Debug gives braces their own sequence points, so a
+      # Release report would leave them 0-hit in the merged Sonar coverage.
       - name: Build integration tests
-        run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
+        run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj
       - name: Run integration tests
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
-            -c Release --no-build --verbosity minimal \
+            --no-build --verbosity minimal \
             --filter "$INTEGRATION_TEST_FILTER" \
             --collect:"XPlat Code Coverage;Format=opencover" \
             --results-directory:.coverage \
@@ -159,12 +163,14 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+      # Debug, like the unit run: Debug gives braces their own sequence points, so a
+      # Release report would leave them 0-hit in the merged Sonar coverage.
       - name: Build integration tests
-        run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
+        run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj
       - name: Run SQL Server integration tests
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
-            -c Release --no-build --verbosity minimal \
+            --no-build --verbosity minimal \
             --filter "Category!=Keycloak&DbSpecific!=PostgreSql" \
             --collect:"XPlat Code Coverage;Format=opencover" \
             --results-directory:.coverage \
@@ -239,6 +245,7 @@ jobs:
         run: dotnet tool install --global dotnet-sonarscanner --version 11.3.0
       - name: 🔎 Build & analyze
         # qualitygate.wait fails this job when the SonarCloud quality gate is red.
+        # These exclusions replace the ones set in the SonarCloud project.
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
           for a in unit integration integration-sqlserver; do
@@ -251,7 +258,7 @@ jobs:
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.xml" \
-            /d:sonar.exclusions="tests/**" \
+            /d:sonar.exclusions="tests/**,**/Migrations/**" \
             /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,docs/**,samples/**" \
             /d:sonar.qualitygate.wait=true
           dotnet build
