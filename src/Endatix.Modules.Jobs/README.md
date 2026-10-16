@@ -197,7 +197,10 @@ asked for it, is waited out the same way. Quartz never hands out a scheduler who
 the next try rebuilds it from the module's Quartz registration, with the same thread pool, batch
 size, store and listeners as a first build; it is started by the waiting start, as a first build is,
 and only on a node that runs jobs. A node stopping while it waits stops waiting at once. Meanwhile
-the host's readiness probe reports the database as down.
+the host's readiness probe reports the database as down. A rebuild replays only what was configured
+inside the module's Quartz registration: anything a host registers for the scheduler next to
+`AddJobsScheduler` instead, such as a keyed `IDriverDelegate`, a plugin or a history store, is
+lost on a rebuild, and the rebuilt scheduler runs without it.
 
 **Each job type is its own Quartz execution group**, capped per node at
 `JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
