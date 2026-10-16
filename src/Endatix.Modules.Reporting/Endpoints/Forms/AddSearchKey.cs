@@ -28,21 +28,15 @@ public sealed class AddSearchKey(IMediator mediator, ITenantContext tenantContex
             summary.Description =
                 "Adds a column of the form's reporting schema to the keys answer filters read, beside those chosen " +
                 $"automatically. People may add {FormSearchKeys.MaxUserKeys}, and a form has at most " +
-                $"{FormSearchKeys.MaxKeys}. Read-only questions may be added. The form's prepared rows are rebuilt " +
-                "for the new key before the response; rows not rebuilt yet are reported as pending and count as not " +
-                "checked. Adding a key the form already has changes nothing and finishes a rebuild that was cut off.";
-            summary.Responses[200] = "The form's search keys after the change.";
+                $"{FormSearchKeys.MaxKeys}. Read-only questions may be added. The response comes at once, with the " +
+                "key pending; the form's prepared rows are rebuilt for it in the background, and until then they " +
+                "count as not checked. Adding a key the form already has changes nothing and asks for the rebuild " +
+                "again, which finishes one that was cut off.";
             summary.Responses[400] = "Invalid input data, a column no answer filter supports, or no free slot.";
-            summary.Responses[401] = "No tenant in the request.";
             summary.Responses[404] = "Form or reporting schema not found.";
-            summary.Responses[503] = "The form's reporting schema is being changed; try again.";
+            SearchKeyEndpointDocs.DescribeSharedResponses(summary);
         });
-        Description(builder => builder
-            .Produces<SubmissionGridSearchKeys>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
+        Description(builder => builder.ProducesSearchKeys());
     }
 
     /// <inheritdoc />

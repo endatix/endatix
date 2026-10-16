@@ -29,18 +29,11 @@ public sealed class RemoveSearchKey(IMediator mediator, ITenantContext tenantCon
                 "Removes a column a person added from the keys answer filters read; filters on it are refused at " +
                 "once. Columns chosen automatically cannot be removed. The key is a query parameter, because column " +
                 "keys may hold characters a path segment cannot.";
-            summary.Responses[200] = "The form's search keys after the change.";
             summary.Responses[400] = "Invalid input data, or a column chosen automatically.";
-            summary.Responses[401] = "No tenant in the request.";
             summary.Responses[404] = "Form, reporting schema or search key not found.";
-            summary.Responses[503] = "The form's reporting schema is being changed; try again.";
+            SearchKeyEndpointDocs.DescribeSharedResponses(summary);
         });
-        Description(builder => builder
-            .Produces<SubmissionGridSearchKeys>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
+        Description(builder => builder.ProducesSearchKeys());
     }
 
     /// <inheritdoc />
