@@ -41,8 +41,10 @@ internal sealed class JobOutcomeRecorder(
         }
 
         var plan = PlanWrite(attempt, ending);
-        var written = (await WriteAndCountAsync(plan)).Written;
-        return new(written, written is OutcomeWrite.Unwritable ? plan.Unsaved : null);
+        var tried = await WriteAndCountAsync(plan);
+        var carried = tried.Written is OutcomeWrite.Unwritable ? plan.Unsaved : null;
+        WarnIfCarriedPastReadOnly(tried, carried is not null);
+        return new(tried.Written, carried);
     }
 
     /// <summary>
@@ -60,16 +62,31 @@ internal sealed class JobOutcomeRecorder(
         var tried = await WriteAndCountAsync(plan);
         if (tried.Written is OutcomeWrite.Landed)
         {
-            logger.LogInformation(
-                "Background job {JobId} attempt {Attempt} had its outcome {Outcome} recorded after the attempt's own write failed",
-                job.JobId,
-                unsaved.Attempt,
-                plan.Outcome);
+            LogRecordedLate(plan);
         }
 
-        return tried.Failure is { } failure && await IsRejectedAsync(job.JobId, failure)
+        var written = tried.Failure is { } failure && await IsRejectedAsync(job.JobId, failure)
             ? OutcomeWrite.Rejected
             : tried.Written;
+        WarnIfCarriedPastReadOnly(tried, written is OutcomeWrite.Unwritable);
+        return written;
+    }
+
+    private void LogRecordedLate(OutcomeWritePlan plan) =>
+        logger.LogInformation(
+            "Background job {JobId} attempt {Attempt} had its outcome {Outcome} recorded after the attempt's own write failed",
+            plan.Attempt.Ref.JobId,
+            plan.Attempt.Ref.AttemptCount,
+            plan.Outcome);
+
+    // Says why an outcome carried to the next firing could not be written, when a read-only database refused it. A
+    // stopping host carries nothing on, so it says nothing.
+    private void WarnIfCarriedPastReadOnly(WriteTry tried, bool carried)
+    {
+        if (carried && !shutdownSignal.IsRaised && tried.Failure is { } failure)
+        {
+            readOnlyWarning.WarnIfReadOnly(failure);
+        }
     }
 
     /// <summary>
@@ -215,7 +232,6 @@ internal sealed class JobOutcomeRecorder(
         var attempt = plan.Attempt.Ref;
         if (retry == WriteRetryDelays.Length || shutdownSignal.IsRaised)
         {
-            readOnlyWarning.WarnIfReadOnly(failure);
             logger.LogError(
                 failure, "Recording {Outcome} for background job {JobId} attempt {Attempt} failed", plan.Outcome, attempt.JobId, attempt.AttemptCount);
             return false;
