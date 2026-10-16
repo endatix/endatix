@@ -27,7 +27,7 @@ internal static class SubmissionGridRows
     {
         var rowState = RowStateOf(submission, prepared);
         var usePrepared = rowState is SubmissionGridRowStates.Prepared;
-        var answers = PickAnswers(usePrepared ? prepared!.DataJson : submission.JsonData, columns);
+        var answers = PickAnswers(usePrepared ? prepared?.DataJson : submission.JsonData, columns);
 
         return new SubmissionGridRow(
             submission.Id,
