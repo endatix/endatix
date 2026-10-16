@@ -9,6 +9,7 @@ using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Tests.TestUtils;
 using Endatix.Core.Exceptions;
 using Endatix.Core.UseCases.Submissions.Create;
 using MediatR;
@@ -37,6 +38,8 @@ public class CreateSubmissionHandlerTests
         _submitterResolver = Substitute.For<ISubmitterResolver>();
         _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(null, null, null));
+        _formsRepository.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,
@@ -44,7 +47,8 @@ public class CreateSubmissionHandlerTests
             _recaptchaService,
             _mediator,
             _authorizationService,
-            _submitterResolver);
+            _submitterResolver,
+            new FormSubmissionsLockStub().Lock);
     }
 
     [Fact]

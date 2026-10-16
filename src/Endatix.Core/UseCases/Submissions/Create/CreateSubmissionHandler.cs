@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Features.ReCaptcha;
@@ -22,7 +23,8 @@ public class CreateSubmissionHandler(
     IReCaptchaPolicyService recaptchaService,
     IMediator mediator,
     ICurrentUserAuthorizationService authorizationService,
-    ISubmitterResolver submitterResolver
+    ISubmitterResolver submitterResolver,
+    IFormSubmissionsLock formSubmissionsLock
     ) : ICommandHandler<CreateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
@@ -30,6 +32,7 @@ public class CreateSubmissionHandler(
     private const string DEFAULT_METADATA = "{}";
 
     private const string DEFAULT_JSON_DATA = "{}";
+    private const string FORM_NOT_FOUND_MESSAGE = "Form not found. Cannot create a submission";
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -43,19 +46,13 @@ public class CreateSubmissionHandler(
 
         if (formWithActiveDefinition?.ActiveDefinition is null || !formWithActiveDefinition.IsEnabled)
         {
-            return Result.NotFound("Form not found. Cannot create a submission");
+            return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
 
-        if (!formWithActiveDefinition.IsPublic)
+        var accessResult = await AuthorizeAsync(formWithActiveDefinition, request.RequiredPermission, cancellationToken);
+        if (!accessResult.IsSuccess)
         {
-            var accessResult = await authorizationService.ValidateAccessAsync(
-                request.RequiredPermission,
-                cancellationToken);
-
-            if (!accessResult.IsSuccess)
-            {
-                return accessResult;
-            }
+            return accessResult;
         }
 
         var submitterResolution = await submitterResolver.EnsureSubmitterAsync(
@@ -70,15 +67,10 @@ public class CreateSubmissionHandler(
         var canBypassSingleSubmissionLimit = false;
         if (formWithActiveDefinition.LimitOnePerUser && submitterId is not null && !hasTrustedSubmitterPayload)
         {
-            var hasTestPermissionResult = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
+            var hasTestPermissionResult = await HasTestPermissionAsync(cancellationToken);
             if (!hasTestPermissionResult.IsSuccess)
             {
-                return hasTestPermissionResult.Status switch
-                {
-                    ResultStatus.Unauthorized => Result.Unauthorized($"Permission '{Actions.Forms.Test}' access check failed."),
-                    ResultStatus.Forbidden => Result.Forbidden($"Permission '{Actions.Forms.Test}' required to access this resource."),
-                    _ => Result.Error($"Permission '{Actions.Forms.Test}' access check failed.")
-                };
+                return hasTestPermissionResult.ToErrorResult<Submission>();
             }
 
             canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
@@ -130,12 +122,12 @@ public class CreateSubmissionHandler(
             submission.ScreenOut();
         }
 
-        Result<Submission>? conflict = await PersistAsync(
+        Result<Submission>? refused = await PersistAsync(
             new PersistArgs(submission, shouldEnforceSingleSubmissionGate, submitterId, request.FormId),
             cancellationToken);
-        if (conflict is not null)
+        if (refused is not null)
         {
-            return conflict;
+            return refused;
         }
 
         if (submission.IsComplete)
@@ -146,6 +138,29 @@ public class CreateSubmissionHandler(
         return Result<Submission>.Created(submission);
     }
 
+    /// <summary>A public form takes submissions from anyone; any other needs <paramref name="requiredPermission"/>.</summary>
+    private async Task<Result> AuthorizeAsync(Form form, string requiredPermission, CancellationToken cancellationToken) =>
+        form.IsPublic
+            ? Result.Success()
+            : await authorizationService.ValidateAccessAsync(requiredPermission, cancellationToken);
+
+    /// <summary>Whether the caller may test the form, which lets them past its one-response limit.</summary>
+    private async Task<Result<bool>> HasTestPermissionAsync(CancellationToken cancellationToken)
+    {
+        var result = await authorizationService.HasPermissionAsync(Actions.Forms.Test, cancellationToken);
+        if (result.IsSuccess)
+        {
+            return result;
+        }
+
+        return result.Status switch
+        {
+            ResultStatus.Unauthorized => Result.Unauthorized($"Permission '{Actions.Forms.Test}' access check failed."),
+            ResultStatus.Forbidden => Result.Forbidden($"Permission '{Actions.Forms.Test}' required to access this resource."),
+            _ => Result.Error($"Permission '{Actions.Forms.Test}' access check failed.")
+        };
+    }
+
     private static void ApplySnapshot(Submission submission, string? snapshot)
     {
         if (!string.IsNullOrEmpty(snapshot))
@@ -154,23 +169,47 @@ public class CreateSubmissionHandler(
         }
     }
 
+    /// <summary>Stores the submission; <see langword="null"/> when it is stored, else why it was refused.</summary>
     private async Task<Result<Submission>?> PersistAsync(PersistArgs args, CancellationToken cancellationToken)
     {
+        Result<Submission>? conflict = await ExistingConflictAsync(args, cancellationToken);
+        if (conflict is not null)
+        {
+            return conflict;
+        }
+
         try
         {
-            Result<Submission>? conflict = await ExistingConflictAsync(args, cancellationToken);
-            if (conflict is not null)
-            {
-                return conflict;
-            }
-
-            await submissionRepository.AddAsync(args.Submission, cancellationToken);
-            return null;
+            return await InsertLockedAsync(args, cancellationToken);
         }
         catch (DuplicateSubmissionException)
         {
             return await DuplicateConflictAsync(Spec(args), cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Inserts under the form's lock, after reading the form again: the check in <see cref="Handle"/> ran before
+    /// the lock, and a create that waited for the form's deletion finds the form gone here.
+    /// </summary>
+    private async Task<Result<Submission>?> InsertLockedAsync(PersistArgs args, CancellationToken cancellationToken)
+    {
+        var locked = await formSubmissionsLock.BeginAddingAsync(args.FormId, cancellationToken);
+        if (!locked.IsSuccess)
+        {
+            return locked.ToErrorResult<Submission>();
+        }
+
+        await using var section = locked.Value;
+        var formSpec = new FormSpecifications.ByIdForTenant(args.FormId, args.Submission.TenantId);
+        if (!await formRepository.AnyAsync(formSpec, cancellationToken))
+        {
+            return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
+        }
+
+        await submissionRepository.AddAsync(args.Submission, cancellationToken);
+        await section.CommitAsync(cancellationToken);
+        return null;
     }
 
     private async Task<Result<Submission>?> ExistingConflictAsync(

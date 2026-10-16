@@ -45,5 +45,11 @@ namespace Endatix.Infrastructure.Repositories
                 throw;
             }
         }
+
+        /// <inheritdoc/>
+        public Task<int> DeleteSubmissionsAsync(Form form, CancellationToken cancellationToken) =>
+            _dbContext.Submissions
+                .Where(submission => submission.TenantId == form.TenantId && submission.FormId == form.Id)
+                .SoftDeleteAllAsync(cancellationToken);
     }
 }

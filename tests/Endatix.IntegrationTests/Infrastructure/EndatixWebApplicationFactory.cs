@@ -1,5 +1,6 @@
 extern alias EndatixWebHost;
 
+using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using System.Net;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -72,14 +74,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
     {
         builder.UseEnvironment(Environments.Staging);
 
-        // Test-only throwing route; see UnhandledExceptionRouteStartupFilter.
-        builder.ConfigureServices(services =>
-        {
-            services.AddSingleton<IStartupFilter, UnhandledExceptionRouteStartupFilter>();
-            // TestServer has no peer address. FastEndpoints throttle forbids the call when it
-            // cannot tell clients apart, so give the host a loopback address.
-            services.AddSingleton<IStartupFilter, LoopbackClientIpStartupFilter>();
-        });
+        builder.ConfigureServices(AddTestServices);
 
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
         builder.UseSetting("ConnectionStrings:DefaultConnection_DbProvider", provider.ToString());
@@ -105,6 +100,19 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
         builder.UseSetting("Logging:LogLevel:Microsoft", "Warning");
         builder.UseSetting("Logging:LogLevel:System", "Warning");
+    }
+
+    private static void AddTestServices(IServiceCollection services)
+    {
+        // Test-only throwing route; see UnhandledExceptionRouteStartupFilter.
+        services.AddSingleton<IStartupFilter, UnhandledExceptionRouteStartupFilter>();
+        // TestServer has no peer address. FastEndpoints throttle forbids the call when it
+        // cannot tell clients apart, so give the host a loopback address.
+        services.AddSingleton<IStartupFilter, LoopbackClientIpStartupFilter>();
+        // Inert until a test arms it; lets a test pause one request at a chosen statement.
+        services.AddSingleton<AppCommandGate>();
+        services.ConfigureDbContext<AppDbContext>((provider, options) =>
+            options.AddInterceptors(provider.GetRequiredService<AppCommandGate>()));
     }
 
     private static void ConfigureFeatureFlags(IWebHostBuilder builder)

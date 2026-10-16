@@ -19,7 +19,8 @@ public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Res
 
 /// <summary>
 /// The first open of a link, and the first token of a link claimed without one, run under
-/// <see cref="LinkOpenLock"/>, so parallel opens of one link take turns. Everything else runs unlocked.
+/// <see cref="LinkOpenLock"/>, so parallel opens of one link take turns. A first open also holds its form's lock
+/// against the form's deletion. Everything else runs unlocked.
 /// </summary>
 internal sealed class RedeemLinkHandler(
     IAudienceDbContext db,
@@ -127,7 +128,7 @@ internal sealed class RedeemLinkHandler(
         LinkOpening opening,
         CancellationToken cancellationToken)
     {
-        await using var locked = await linkLock.BeginAsync(opening.Link.Id, cancellationToken);
+        await using var locked = await linkLock.BeginOpenAsync(opening.Link, cancellationToken);
         if (await ClaimedIdAsync(opening.Link.Id, cancellationToken) is not null)
         {
             return null;

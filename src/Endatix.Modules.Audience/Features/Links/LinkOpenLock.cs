@@ -1,6 +1,7 @@
 using System.Globalization;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
+using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -20,6 +21,31 @@ internal sealed class LinkOpenLock(IAudienceDbContext db, AppDbContext app, ITra
 {
     /// <summary>Long enough for a first open to finish; a waiter past it gets a retryable 503, not a held connection.</summary>
     internal static readonly TimeSpan Wait = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// The link's lock, then its form's shared <see cref="FormSubmissionsLock"/>, for a first open, which may add a
+    /// submission: the form's deletion then waits for it, or it waits for the deletion and finds the form gone when
+    /// it reads it for the token. The two are always taken in this order, before anything is read or written, and
+    /// no section takes a form's lock before another one, so the opens and the deletion never wait in a cycle.
+    /// </summary>
+    /// <exception cref="TransactionLockTimeoutException">Another open held the link, or the form's deletion held the form, for longer than its wait.</exception>
+    public async Task<LockedLink> BeginOpenAsync(AudienceLink link, CancellationToken cancellationToken)
+    {
+        var locked = await BeginAsync(link.Id, cancellationToken);
+        try
+        {
+            await transactionLock.AcquireAsync(
+                ((DbContext)db).Database,
+                FormSubmissionsLock.Adding(link.FormId),
+                cancellationToken);
+            return locked;
+        }
+        catch
+        {
+            await locked.DisposeAsync();
+            throw;
+        }
+    }
 
     /// <exception cref="TransactionLockTimeoutException">Another open held the link for longer than <see cref="Wait"/>.</exception>
     public async Task<LockedLink> BeginAsync(long linkId, CancellationToken cancellationToken)
