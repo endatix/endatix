@@ -37,6 +37,40 @@ internal static partial class GridPerformanceSql
         return rows;
     }
 
+    /// <summary>
+    /// Writes the core submission of every loaded row, created when the row was prepared, so the grid's join finds
+    /// each row current.
+    /// </summary>
+    public static async Task LoadCoreSubmissionsAsync(
+        DbConnection connection,
+        TestDatabaseProvider provider,
+        RebuildForm form,
+        CancellationToken cancellationToken)
+    {
+        var definitionId = form.DefinitionIds[0];
+        if (provider == TestDatabaseProvider.SqlServer)
+        {
+            await ExecuteAsync(connection, $$"""
+                INSERT INTO dbo.Submissions (Id, TenantId, FormId, FormDefinitionId, IsComplete, IsDeleted, IsTestSubmission,
+                  JsonData, CreatedAt, Revision, Status, CollectionStatus)
+                SELECT SubmissionId, TenantId, FormId, {{definitionId}}, 1, 0, 0, CAST('{}' AS json), SourceModifiedAt, 1,
+                  'new', 'complete'
+                FROM reporting.FlattenedSubmissions WHERE FormId = {{form.FormId}};
+                UPDATE STATISTICS dbo.Submissions WITH FULLSCAN;
+                """, cancellationToken);
+            return;
+        }
+
+        await ExecuteAsync(connection, $$"""
+            INSERT INTO "Submissions" ("Id", "TenantId", "FormId", "FormDefinitionId", "IsComplete", "IsDeleted",
+              "IsTestSubmission", "JsonData", "CreatedAt", "Revision", "Status", "CollectionStatus")
+            SELECT "SubmissionId", "TenantId", "FormId", {{definitionId}}, true, false, false, '{}'::jsonb, "SourceModifiedAt", 1,
+              'new', 'complete'
+            FROM reporting."FlattenedSubmissions" WHERE "FormId" = {{form.FormId}};
+            ANALYZE "Submissions";
+            """, cancellationToken);
+    }
+
     public static Task AnalyzeAsync(DbConnection connection, TestDatabaseProvider provider, CancellationToken cancellationToken) =>
         ExecuteAsync(
             connection,
