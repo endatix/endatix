@@ -47,6 +47,8 @@ jobs:
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: 📦 Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -96,6 +98,8 @@ jobs:
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: 📦 Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -152,40 +156,62 @@ jobs:
   # CI-based SonarCloud analysis with unit + PostgreSQL integration coverage.
   # Automatic Analysis (the SonarCloud app's own scan) cannot import coverage,
   # so it must be OFF in SonarCloud → Administration → Analysis Method.
-  # Skipped on fork PRs, which get no SONAR_TOKEN.
+  # The token comes from Infisical over OIDC, as in endatix-relay and the shared
+  # canary workflow (same identity, bound to the Production environment). Fork
+  # and Dependabot PRs get no OIDC secrets, so they skip the fetch and the scan.
   sonar:
     name: "Endatix API: SonarCloud"
     needs: [unit-tests, integration-tests]
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    environment:
+      name: Production
+    permissions:
+      contents: read
+      id-token: write # OIDC for Infisical, not repo write
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # Sonar needs history for new-code and blame
           persist-credentials: false
+      - name: 🔐 Fetch secrets (Infisical, OIDC)
+        if: >-
+          github.actor != 'dependabot[bot]' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: Infisical/secrets-action@03d3fa38607956c493f53c6633f94006a13c47ae # v1.0.7
+        with:
+          method: "oidc"
+          env-slug: "dev"
+          project-slug: "github-actions-for-endatix"
+          identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
+          recursive: true
       - name: 📦 Setup .NET
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
       - name: 📊 Download coverage
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: coverage-*
           path: .sonar-coverage
-      - name: Install SonarScanner
+      - name: 🔧 Install SonarScanner
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: dotnet tool update --global dotnet-sonarscanner
       - name: 🔎 Build & analyze
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # qualitygate.wait fails this job when the SonarCloud quality gate is red.
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
           dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" \
             /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.xml" \
-            /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,docs/**,samples/**"
+            /d:sonar.exclusions="tests/**" \
+            /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,docs/**,samples/**" \
+            /d:sonar.qualitygate.wait=true
           dotnet build
-          dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+          dotnet-sonarscanner end /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN"
 
   # Build validation on PRs; canary release on main — publishes only after ALL
   # tests above pass. docker-image makes the shared workflow log into GHCR and
