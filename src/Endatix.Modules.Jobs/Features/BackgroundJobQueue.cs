@@ -71,6 +71,11 @@ internal sealed partial class BackgroundJobQueue(
         CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(requests);
+        if (requests.Any(request => request is null))
+        {
+            throw new ArgumentNullException(nameof(requests), "A request in the batch is null.");
+        }
+
         RefuseKeysTheDatabaseCannotTellApart(requests);
 
         return requests.Count == 0 ? [] : await EnqueueWithCollisionRetriesAsync(requests, cancellationToken);
@@ -82,14 +87,14 @@ internal sealed partial class BackgroundJobQueue(
     private void RefuseKeysTheDatabaseCannotTellApart(IReadOnlyList<BackgroundJobRequest> requests)
     {
         if (!dbContext.Database.IsSqlServer()
-            || requests.FirstOrDefault(request => EndsWithSpace(request.DedupKey)) is not { } refused)
+            || !requests.Any(request => EndsWithSpace(request.DedupKey)))
         {
             return;
         }
 
+        // The key is left out of the message: keys can carry user data.
         throw new ArgumentException(
-            $"The dedup key '{refused.DedupKey}' ends with a space, which SQL Server ignores when it compares keys.",
-            nameof(requests));
+            "A dedup key ends with a space, which SQL Server ignores when it compares keys.", nameof(requests));
     }
 
     // A blank key means no key, so it has nothing to compare.
@@ -136,13 +141,13 @@ internal sealed partial class BackgroundJobQueue(
     }
 
     /// <summary>
-    /// Whether the insert lost a deadlock: two enqueues inserting the same dedup keys can each lock one the other
-    /// needs next, whatever order the rows are sent in, since SQL Server's batched insert decides the order rows reach
-    /// the unique index itself.
+    /// Whether the insert lost a race with another enqueue of the same dedup keys: a deadlock, which SQL Server's
+    /// batched insert can meet whatever order the rows are sent in, since its plan decides the order they reach the
+    /// unique index, or a serialization failure, which PostgreSQL reports for the same race at a stricter isolation.
     /// </summary>
     internal static bool IsInsertDeadlock(DbUpdateException exception) => exception.InnerException switch
     {
-        PostgresException { SqlState: PostgresErrorCodes.DeadlockDetected } => true,
+        PostgresException { SqlState: PostgresErrorCodes.DeadlockDetected or PostgresErrorCodes.SerializationFailure } => true,
         SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error => error.Number == SqlServerDeadlockVictim),
         _ => false,
     };

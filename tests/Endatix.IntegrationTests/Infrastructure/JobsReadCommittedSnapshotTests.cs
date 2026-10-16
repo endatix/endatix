@@ -1,9 +1,10 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
-using Quartz;
-using Microsoft.Extensions.DependencyInjection;
 using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Quartz;
+using Quartz.Extensibility;
 
 namespace Endatix.IntegrationTests;
 
@@ -95,6 +96,15 @@ public sealed class JobsReadCommittedSnapshotTests(DbIntegrationFixture fixture)
         (await write.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("READ_COMMITTED_SNAPSHOT");
         var lookup = () => schedulers.LookupScheduler(QuartzRegistration.SchedulerName, ct).AsTask();
         await lookup.Should().ThrowAsync<InvalidOperationException>("looking a scheduler up by name builds it");
+
+        // The dashboard and its HTTP API find their scheduler in the repository, and the container's IScheduler
+        // builds one on first use: neither has one to write through.
+        node.Services.GetRequiredService<ISchedulerRepository>().Lookup(QuartzRegistration.SchedulerName).Should().BeNull();
+        var keyed = node.Services.GetRequiredKeyedService<IScheduler>(QuartzRegistration.SchedulerName);
+        var writeThroughKeyed = () => keyed.ScheduleJob(
+            TriggerBuilder.Create().ForJob(QuartzRegistration.JobKeyFor(ProbePayload.JobType)).StartNow().Build(),
+            cancellationToken: ct).AsTask();
+        await writeThroughKeyed.Should().ThrowAsync<InvalidOperationException>();
         (await database.CountAsync("SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'", ct))
             .Should().Be(0);
     }

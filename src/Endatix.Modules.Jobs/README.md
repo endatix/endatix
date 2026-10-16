@@ -108,8 +108,11 @@ compares; PostgreSQL compares keys as written and takes it. A blank key means no
 
 Use `EnqueueManyAsync` for fan-out — one job per webhook endpoint, say. The batch commits in
 a single transaction, so a partial fan-out cannot deliver to some destinations and silently
-drop the rest. A batch inserts its keyed jobs ordered by tenant, job type and key, so two batches that
-share keys lock them in the same order and one waits for the other instead of deadlocking.
+drop the rest. A batch inserts its keyed jobs ordered by tenant, job type and key. On PostgreSQL that
+makes two batches that share keys lock them in the same order, so one waits for the other instead of
+deadlocking. On SQL Server the query plan picks the order the rows reach the index, so two such batches
+can still deadlock; the queue then rolls back, reads the keys again and retries once, and the caller
+gets the existing jobs.
 
 > [!IMPORTANT]
 > Enqueueing is **not** transactionally joined to app-schema writes: jobs live on their own

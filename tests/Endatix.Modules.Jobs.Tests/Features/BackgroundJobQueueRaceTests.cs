@@ -23,17 +23,30 @@ public sealed class BackgroundJobQueueRaceTests
     public async Task EnqueueAsync_SqlServerKeyEndingInASpace_ThrowsBeforeTouchingTheDatabase()
     {
         // Arrange — nothing listens there, so any query would fail with something else.
-        var options = new DbContextOptionsBuilder<TestJobsDbContext>()
-            .UseSqlServer("Server=127.0.0.1,1;Database=not_connected;User Id=x;Password=x;Connect Timeout=1")
-            .Options;
-        await using var context = new TestJobsDbContext(options, new FixedTenantContext(0));
+        await using var context = SqlServerContext();
         var queue = QueueOver(context);
 
         // Act
         var enqueue = () => queue.EnqueueAsync(Keyed("Survey "), TestContext.Current.CancellationToken);
 
         // Assert
-        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("The dedup key 'Survey ' ends with a space*");
+        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("A dedup key ends with a space*");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task EnqueueManyAsync_BatchWithANullRequest_ThrowsArgumentNullOnEitherDatabase(bool sqlServer)
+    {
+        // Arrange
+        await using var context = sqlServer ? SqlServerContext() : new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
+        var queue = QueueOver(context);
+
+        // Act
+        var enqueue = () => queue.EnqueueManyAsync([Keyed("k1"), null!], TestContext.Current.CancellationToken);
+
+        // Assert
+        await enqueue.Should().ThrowAsync<ArgumentNullException>().WithParameterName("requests");
     }
 
     [Fact]
@@ -88,7 +101,15 @@ public sealed class BackgroundJobQueueRaceTests
     {
         SqlServerExceptions.WithNumbers(1205),
         new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected),
+        new PostgresException("could not serialize access", "ERROR", "ERROR", PostgresErrorCodes.SerializationFailure),
     };
+
+    // A SQL Server context over a server that is not there, so any query would fail.
+    private static TestJobsDbContext SqlServerContext() => new(
+        new DbContextOptionsBuilder<TestJobsDbContext>()
+            .UseSqlServer("Server=127.0.0.1,1;Database=not_connected;User Id=x;Password=x;Connect Timeout=1")
+            .Options,
+        new FixedTenantContext(0));
 
     private BackgroundJobQueue QueueOver(TestJobsDbContext context)
     {

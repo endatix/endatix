@@ -155,7 +155,7 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         var enqueue = () => node.EnqueueAsync(Request(tenantId: 5, "k1 "), ct);
 
         // Assert
-        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("The dedup key 'k1 ' ends with a space*");
+        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("A dedup key ends with a space*");
         (await CountRowsAsync(database, ct)).Should().Be(1);
         (await CountTriggersAsync(database, ct)).Should().Be(1);
     }

@@ -28,11 +28,13 @@ internal sealed class EnqueuePlan
     /// tenant, job type and key, then the jobs without one in request order.
     /// </summary>
     /// <remarks>
-    /// Inserting a dedup key locks it in the unique index until the transaction ends. Two batches that inserted the
-    /// same keys in opposite orders would each wait on a key the other holds, a deadlock the queue cannot tell from a
-    /// failure; in one order for every batch, the second waits for the first and then sees its keys as a collision,
-    /// which it resolves by returning the existing jobs. A job without a key takes no lock in that index, so its
-    /// place does not matter, and it keeps the caller's order.
+    /// Inserting a dedup key locks it in the unique index until the transaction ends, and two batches that inserted
+    /// the same keys in opposite orders would each wait on a key the other holds. On PostgreSQL, which inserts the rows
+    /// in the order given, one order for every batch prevents that: the second waits for the first and then sees its
+    /// keys as a collision, which the queue resolves by returning the existing jobs. On SQL Server the query plan picks
+    /// the order the rows reach the index, so a deadlock can still happen there, and the queue retries an insert that
+    /// lost one once. A job without a key takes no lock in that index, so its place does not matter, and it keeps the
+    /// caller's order.
     /// </remarks>
     public IReadOnlyList<BackgroundJob> NewJobs { get; private set; }
 

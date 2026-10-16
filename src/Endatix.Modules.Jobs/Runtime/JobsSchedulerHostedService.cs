@@ -38,12 +38,18 @@ internal sealed class JobsSchedulerHostedService(
 {
     private static readonly TimeSpan UnreachableRetryDelay = TimeSpan.FromSeconds(5);
 
-    // A lost race clears as soon as the other transaction ends, so it is tried again sooner than an outage.
+    // A lost race clears as soon as the other transaction ends, so the first few are tried again sooner than an
+    // outage; one that keeps coming back is something else, and is tried at the outage's pace.
     private static readonly TimeSpan ContendedRetryDelay = TimeSpan.FromSeconds(1);
+    private const int QuickContendedTries = 3;
+
+    // The first lost race is logged, then one in this many, so a race that keeps recurring is seen without flooding.
+    private const int ContendedTriesPerWarning = 12;
 
     private readonly CancellationTokenSource _stopping = new();
     private IScheduler? _scheduler;
     private Task? _deferredStart;
+    private int _contendedTries;
 
     private enum StartResult
     {
@@ -178,6 +184,7 @@ internal sealed class JobsSchedulerHostedService(
     {
         if (DatabaseFailures.IsUnreachable(exception))
         {
+            _contendedTries = 0;
             return StartResult.Unreachable;
         }
 
@@ -186,9 +193,14 @@ internal sealed class JobsSchedulerHostedService(
             return null;
         }
 
-        logger.LogWarning(
-            exception,
-            "The background jobs scheduler lost a race with another transaction while starting, a deadlock or a lock timeout, and will try again.");
+        if (++_contendedTries % ContendedTriesPerWarning == 1)
+        {
+            logger.LogWarning(
+                exception,
+                "The background jobs scheduler lost a race with another transaction while starting, a deadlock or a lock timeout, and will try again ({Tries} tries so far).",
+                _contendedTries);
+        }
+
         return StartResult.Contended;
     }
 
@@ -214,9 +226,12 @@ internal sealed class JobsSchedulerHostedService(
     {
         do
         {
-            await Task.Delay(result == StartResult.Contended ? ContendedRetryDelay : UnreachableRetryDelay, stoppingToken);
+            await Task.Delay(DelayAfter(result), stoppingToken);
             result = await TryStartSchedulerAsync(stoppingToken);
         }
         while (result != StartResult.Started);
     }
+
+    private TimeSpan DelayAfter(StartResult result) =>
+        result == StartResult.Contended && _contendedTries <= QuickContendedTries ? ContendedRetryDelay : UnreachableRetryDelay;
 }
