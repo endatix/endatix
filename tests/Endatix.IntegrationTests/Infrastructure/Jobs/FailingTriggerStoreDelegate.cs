@@ -11,11 +11,11 @@ namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 /// <summary>How many stores of a probe trigger still fail, and how, shared by a test node's scheduler.</summary>
 internal sealed class TriggerStoreFailures
 {
-    private readonly Func<Exception> _failure;
+    private readonly StoreFailure _failure;
     private int _stores;
     private int _storesFirst;
 
-    private TriggerStoreFailures(int stores, Func<Exception> failure, int storesFirst = 0)
+    private TriggerStoreFailures(int stores, StoreFailure failure, int storesFirst = 0)
     {
         _stores = stores;
         _failure = failure;
@@ -27,7 +27,7 @@ internal sealed class TriggerStoreFailures
 
     /// <summary>Stores that fail as they do while the database is unreachable, which the scheduler wraps.</summary>
     public static TriggerStoreFailures DatabaseDown(int stores) =>
-        new(stores, () => new TimeoutException("The database did not answer."));
+        new(stores, new StoreFailure(() => new TimeoutException("The database did not answer.")));
 
     /// <summary>
     /// Stores that lose a deadlock to another transaction, as the driver reports it; a PostgreSQL deadlock, which is
@@ -38,22 +38,56 @@ internal sealed class TriggerStoreFailures
     /// fails has already written triggers its rollback must take back.
     /// </remarks>
     public static TriggerStoreFailures Deadlocked(int stores, int after = 0) =>
-        new(stores, () => new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected), after);
+        new(stores, new StoreFailure(() => new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected)), after);
+
+    /// <summary>
+    /// One store, after <paramref name="after"/> succeed, that runs <paramref name="deadlock"/> on the connection and
+    /// transaction the enqueue enlisted the scheduler in, so the database itself ends that transaction; the store
+    /// fails with what the database raised.
+    /// </summary>
+    public static TriggerStoreFailures DeadlockedByTheDatabase(
+        int after,
+        Func<ConnectionAndTransactionHolder, CancellationToken, Task> deadlock) =>
+        new(1, new StoreFailure(() => new InvalidOperationException("The deadlock the test arranged did not happen."), deadlock), after);
 
     /// <summary>Stores the scheduler refuses for a reason of its own, which trying again does not change.</summary>
     public static TriggerStoreFailures Rejected(int stores) =>
-        new(stores, () => new JobPersistenceException("The trigger was refused."));
+        new(stores, new StoreFailure(() => new JobPersistenceException("The trigger was refused.")));
 
     /// <summary>
     /// Throws the next failure when <paramref name="trigger"/> is a new probe trigger and failures are left;
     /// otherwise stores it with <paramref name="store"/>.
     /// </summary>
-    public ValueTask<int> FailOrStore(IOperableTrigger trigger, Func<ValueTask<int>> store) =>
-        trigger.Key.Group == ProbePayload.JobType && TryConsume() is { } failure ? throw failure : store();
+    public async ValueTask<int> FailOrStore(PendingStore pending)
+    {
+        if (pending.Trigger.Key.Group != ProbePayload.JobType || TryConsume() is not { } failure)
+        {
+            return await pending.Store();
+        }
+
+        if (_failure.Before is { } before)
+        {
+            await before(pending.Connection, pending.CancellationToken);
+        }
+
+        throw failure;
+    }
 
     private Exception? TryConsume() =>
-        Interlocked.Decrement(ref _storesFirst) < 0 && Interlocked.Decrement(ref _stores) >= 0 ? _failure() : null;
+        Interlocked.Decrement(ref _storesFirst) < 0 && Interlocked.Decrement(ref _stores) >= 0 ? _failure.Exception() : null;
 }
+
+/// <summary>What a failing store throws, and what it runs on the enlisted connection first, if anything.</summary>
+internal sealed record StoreFailure(
+    Func<Exception> Exception,
+    Func<ConnectionAndTransactionHolder, CancellationToken, Task>? Before = null);
+
+/// <summary>A trigger about to be stored, on the connection and transaction the scheduler stores it in.</summary>
+internal sealed record PendingStore(
+    IOperableTrigger Trigger,
+    ConnectionAndTransactionHolder Connection,
+    Func<ValueTask<int>> Store,
+    CancellationToken CancellationToken);
 
 /// <summary>
 /// The module's dialect for the node's provider, except that storing a new trigger of the probe job type throws
@@ -92,7 +126,8 @@ internal static class FailingTriggerStoreDelegate
             StoredTriggerState state,
             IJobDetail jobDetail,
             CancellationToken cancellationToken = default) =>
-            failures.FailOrStore(trigger, () => base.InsertTrigger(conn, trigger, state, jobDetail, cancellationToken));
+            failures.FailOrStore(new PendingStore(
+                trigger, conn, () => base.InsertTrigger(conn, trigger, state, jobDetail, cancellationToken), cancellationToken));
     }
 
     private sealed class FailingSqlServerDelegate(TriggerStoreFailures failures) : ExecutionGroupFilteringSqlServerDelegate
@@ -103,6 +138,7 @@ internal static class FailingTriggerStoreDelegate
             StoredTriggerState state,
             IJobDetail jobDetail,
             CancellationToken cancellationToken = default) =>
-            failures.FailOrStore(trigger, () => base.InsertTrigger(conn, trigger, state, jobDetail, cancellationToken));
+            failures.FailOrStore(new PendingStore(
+                trigger, conn, () => base.InsertTrigger(conn, trigger, state, jobDetail, cancellationToken), cancellationToken));
     }
 }
