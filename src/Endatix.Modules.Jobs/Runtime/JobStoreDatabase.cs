@@ -74,7 +74,9 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
         {
             await using var connection = Connect();
             await connection.OpenAsync(cancellationToken);
-            return null;
+            return IsPostgreSql && await TransactionsAreReadOnlyAsync(connection, cancellationToken)
+                ? new DatabaseReadOnlyException(DatabaseName)
+                : null;
         }
         catch (Exception exception) when (DatabaseFailures.IsAwayAtStartup(exception))
         {
@@ -111,6 +113,17 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()";
         return await command.ExecuteScalarAsync(cancellationToken) is true;
+    }
+
+    // A read-only PostgreSQL database, a standby or one with default_transaction_read_only on, refuses the scheduler's
+    // first write with 25006 inside the lock Quartz takes, and Quartz then reports only the 25P02 ("current transaction
+    // is aborted") of its next statement, which says nothing of why. So the probe asks; SQL Server's 3906 reaches the
+    // start as it is.
+    private static async Task<bool> TransactionsAreReadOnlyAsync(DbConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SHOW transaction_read_only";
+        return await command.ExecuteScalarAsync(cancellationToken) is "on";
     }
 
     private DbConnection Connect() =>

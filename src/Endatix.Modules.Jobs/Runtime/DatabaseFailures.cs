@@ -27,7 +27,7 @@ internal static class DatabaseFailures
         PostgresErrorCodes.CrashShutdown,
         PostgresErrorCodes.CannotConnectNow,
         PostgresErrorCodes.QueryCanceled, // which a statement_timeout raises
-        PostgresErrorCodes.ReadOnlySqlTransaction, // the primary failed over and is now a standby
+        PostgresErrorCodes.ReadOnlySqlTransaction, // read-only: a standby after a failover, or on purpose; see IsReadOnly
         PostgresErrorCodes.TooManyConnections,
     ];
 
@@ -71,9 +71,11 @@ internal static class DatabaseFailures
     // SQL Server answers 3906 (class 16, state 1, "Failed to update database … because the database is read-only.") to
     // every write on a database set READ_ONLY on purpose — an INSERT, an UPDATE, an EF ExecuteUpdate and a Quartz trigger
     // insert alike, measured against SQL Server 2025 with SqlClient 7.0.2 — and documents the same error for a write
-    // that reaches an availability group's secondary. The number cannot tell a read-only database, which waiting never
-    // fixes, from a failover, so once a node runs, a write it refuses is a refusal: an outcome write is dropped after
-    // its rejections rather than carried for ever. Only the start waits it out, as it waits out 4060.
+    // that reaches an availability group's secondary; PostgreSQL's 25006 is the same for a standby and for
+    // default_transaction_read_only. The error cannot tell a database read-only on purpose, which waiting never fixes,
+    // from a failover, which it does. Both are outages, at the start and while a node runs: dropping an outcome during a
+    // failover would run finished work again, while a database read-only on purpose only keeps the node retrying, and
+    // the node says so in its log (IsReadOnly).
     private const int ReadOnlyDatabase = 3906;
 
     // SQL Server error numbers that a database which is away, or will be back, reports.
@@ -88,6 +90,7 @@ internal static class DatabaseFailures
         121, // the semaphore timeout expired: the connection broke
         233, // no process on the other end of the pipe
         SqlServerConnectAttemptTimedOut, // a host that drops packets, or a failover address not yet moved
+        ReadOnlyDatabase, // a write to a read-only database: a failover's secondary, or read-only on purpose
         4060, // cannot open the database the login asked for
         4221, // an availability group secondary, recycled, is not yet ready for logins
         18401, // logins refused while the server runs its upgrade scripts after an update restart
@@ -199,26 +202,33 @@ internal static class DatabaseFailures
     });
 
     /// <summary>
-    /// Whether <paramref name="failure"/> keeps a node from starting its scheduler for now: the database is away, the
-    /// one the connection names cannot be opened yet (<see cref="IsDatabaseUnavailable"/>), or SQL Server refuses to
-    /// write to it because it is read-only (3906).
+    /// Whether <paramref name="failure"/> keeps a node from starting its scheduler for now: the database is away, or
+    /// the one the connection names cannot be opened yet (<see cref="IsDatabaseUnavailable"/>).
     /// </summary>
     /// <remarks>
-    /// Only the start waits for a database that cannot be opened or written to: a pipeline may still be creating or
-    /// restoring it, or a failover may be moving it. Once a node runs, PostgreSQL's missing database (3D000) and SQL
-    /// Server's read-only one (3906) are not outages to a job's outcome, which fails loudly; SQL Server's 4060 was an
-    /// outage to it already.
+    /// Only the start waits for a database that cannot be opened: a pipeline may still be creating or restoring it.
+    /// Once a node runs, PostgreSQL's missing database (3D000) is not an outage to a job's outcome, which fails loudly
+    /// as before; SQL Server's 4060 was an outage to it already.
     /// </remarks>
-    public static bool IsAwayAtStartup(Exception failure) =>
-        IsUnreachable(failure) || IsDatabaseUnavailable(failure) || IsReadOnly(failure);
+    public static bool IsAwayAtStartup(Exception failure) => IsUnreachable(failure) || IsDatabaseUnavailable(failure);
 
     /// <summary>
     /// Whether <paramref name="failure"/> came from the database at all: a timeout, or any failure the driver reported.
     /// </summary>
     public static bool IsFromDatabase(Exception failure) => failure.HasCause(cause => cause is DbException or TimeoutException);
 
-    private static bool IsReadOnly(Exception failure) => failure.HasCause(cause =>
-        cause is SqlException sqlServer && sqlServer.Errors.Cast<SqlError>().Any(error => error.Number == ReadOnlyDatabase));
+    /// <summary>
+    /// Whether <paramref name="failure"/> is a write the database refused because it is read-only: SQL Server 3906 or
+    /// PostgreSQL 25006, or the startup probe finding PostgreSQL's transactions read-only. It is an outage, but one that
+    /// may never clear, so it is named wherever it is retried.
+    /// </summary>
+    public static bool IsReadOnly(Exception failure) => failure.HasCause(cause => cause switch
+    {
+        DatabaseReadOnlyException => true,
+        PostgresException postgres => postgres.SqlState == PostgresErrorCodes.ReadOnlySqlTransaction,
+        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error => error.Number == ReadOnlyDatabase),
+        _ => false,
+    });
 
     private static bool IsAwayCause(Exception cause) => cause switch
     {

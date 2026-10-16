@@ -17,6 +17,7 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
     private readonly ConnectionTarget _database;
     private readonly string _name;
     private bool _away;
+    private bool _readOnly;
 
     private JobsTestDatabase(ConnectionTarget server, string name)
     {
@@ -98,6 +99,28 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         _away = false;
     }
 
+    /// <summary>
+    /// Makes every write to the database fail, as on a failover's secondary or a database read-only on purpose:
+    /// SQL Server sets it READ_ONLY (3906), PostgreSQL makes every new transaction read-only (25006). Open sessions are
+    /// ended, so none keeps writing.
+    /// </summary>
+    public async Task SetReadOnlyAsync(bool readOnly, CancellationToken cancellationToken)
+    {
+        _server.ClearPools();
+        await _server.ExecuteAsync(ReadOnlySql(_server.Provider, _name, readOnly), NoParameters, cancellationToken);
+        _readOnly = readOnly;
+    }
+
+    private static string ReadOnlySql(TestDatabaseProvider provider, string name, bool readOnly) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => $"""
+            ALTER DATABASE {name} SET default_transaction_read_only = {(readOnly ? "on" : "off")};
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{name}' AND pid <> pg_backend_pid();
+            """,
+        TestDatabaseProvider.SqlServer => $"ALTER DATABASE [{name}] SET {(readOnly ? "READ_ONLY" : "READ_WRITE")} WITH ROLLBACK IMMEDIATE",
+        _ => throw ConnectionTarget.Unsupported(provider),
+    };
+
     private static string TakeAwaySql(TestDatabaseProvider provider, string name) => provider switch
     {
         TestDatabaseProvider.PostgreSql => $"""
@@ -121,6 +144,11 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         if (_away)
         {
             await BringBackAsync(CancellationToken.None);
+        }
+
+        if (_readOnly)
+        {
+            await SetReadOnlyAsync(false, CancellationToken.None);
         }
 
         // Pooled connections hold the database open, and both providers refuse to drop a database in use.

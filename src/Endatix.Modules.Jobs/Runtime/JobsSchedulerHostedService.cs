@@ -279,19 +279,35 @@ internal sealed class JobsSchedulerHostedService(
     {
         if (DatabaseFailures.IsDatabaseUnavailable(away))
         {
+            LogCannotOpen(away);
+        }
+        else if (DatabaseFailures.IsReadOnly(away))
+        {
+            LogReadOnly(away);
+        }
+        else
+        {
             logger.LogError(
                 away,
-                "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. It will start once it can; until then this host runs no jobs ({Tries} tries so far).",
-                database.DatabaseName,
+                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs ({Tries} tries so far).",
                 _unreachableTries);
-            return;
         }
+    }
 
+    private void LogCannotOpen(Exception away) =>
         logger.LogError(
             away,
-            "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs ({Tries} tries so far).",
+            "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. It will start once it can; until then this host runs no jobs ({Tries} tries so far).",
+            database.DatabaseName,
             _unreachableTries);
-    }
+
+    // Read-only on purpose never clears by waiting, so the log says it may be either.
+    private void LogReadOnly(Exception away) =>
+        logger.LogError(
+            away,
+            "The background jobs scheduler cannot write to database '{Database}': it is read-only, as during a failover, or set read-only on purpose. It will start once it can write; until then this host runs no jobs ({Tries} tries so far).",
+            database.DatabaseName,
+            _unreachableTries);
 
     private TimeSpan DelayAfter(StartResult result) =>
         result == StartResult.Contended && _contendedTries <= QuickContendedTries ? ContendedRetryDelay : UnreachableRetryDelay;
