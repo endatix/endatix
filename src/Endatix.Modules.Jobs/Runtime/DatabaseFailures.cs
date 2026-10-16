@@ -221,6 +221,17 @@ internal static class DatabaseFailures
     public static bool IsAwayAtStartup(Exception failure) => IsUnreachable(failure) || IsDatabaseUnavailable(failure);
 
     /// <summary>
+    /// Whether <paramref name="failure"/>, or any exception it wraps, is PostgreSQL's 25P02: a statement refused because
+    /// an earlier one in its transaction failed, which says nothing of why.
+    /// </summary>
+    /// <remarks>
+    /// Quartz's lock handler reports it in place of the failure that caused it, such as a 25006 when its connection
+    /// landed on a read-only session, so only asking the database again tells what it was.
+    /// </remarks>
+    public static bool IsAbortedTransaction(Exception failure) => failure.HasCause(cause =>
+        cause is PostgresException { SqlState: PostgresErrorCodes.InFailedSqlTransaction });
+
+    /// <summary>
     /// Whether <paramref name="failure"/> came from the database at all: a timeout, or any failure the driver reported.
     /// </summary>
     public static bool IsFromDatabase(Exception failure) => failure.HasCause(cause => cause is DbException or TimeoutException);

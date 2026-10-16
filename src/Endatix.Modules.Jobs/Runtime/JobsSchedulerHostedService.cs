@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -56,12 +57,22 @@ internal sealed class JobsSchedulerHostedService(
     private Task? _deferredStart;
     private int _contendedTries;
     private int _unreachableTries;
+    private int _unreachableTriesSinceLogged;
+    private OutageKind? _loggedOutage;
 
     private enum StartResult
     {
         Started,
         Unreachable,
         Contended,
+    }
+
+    // What an outage at the start is, each with its own message.
+    private enum OutageKind
+    {
+        Unreachable,
+        CannotOpen,
+        ReadOnly,
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -196,7 +207,7 @@ internal sealed class JobsSchedulerHostedService(
 
     private static bool IsWorthRetrying(Exception exception) =>
         DatabaseFailures.IsContention(exception) || DatabaseFailures.IsTimeout(exception)
-        || DatabaseFailures.IsAwayAtStartup(exception);
+        || DatabaseFailures.IsAwayAtStartup(exception) || DatabaseFailures.IsAbortedTransaction(exception);
 
     // Why a failed start is worth trying again. What arrives here failed after the probe connected, but Quartz opens
     // connections of its own while it starts: a timeout while connecting is the network, and any other timeout is a
@@ -209,6 +220,13 @@ internal sealed class JobsSchedulerHostedService(
             return Contended(exception);
         }
 
+        return DatabaseFailures.IsAbortedTransaction(exception)
+            ? await ExplainAbortedTransactionAsync(exception, cancellationToken)
+            : await RetryAfterOutageAsync(exception, cancellationToken);
+    }
+
+    private async Task<StartResult> RetryAfterOutageAsync(Exception exception, CancellationToken cancellationToken)
+    {
         // A timeout while connecting is the network, not a lock: a connection Quartz opened timed out in a blip.
         if (!DatabaseFailures.IsTimeout(exception) || DatabaseFailures.FailedToConnect(exception))
         {
@@ -216,6 +234,20 @@ internal sealed class JobsSchedulerHostedService(
         }
 
         return await database.UnreachableBecauseAsync(cancellationToken) is { } away ? Unreachable(away) : Contended(exception);
+    }
+
+    // A 25P02 hides why its transaction failed, such as a connection that landed on a read-only session during a
+    // switchover after the probe found a writable one, so the probe is asked again; a failure it cannot explain stays a
+    // refusal.
+    private async Task<StartResult> ExplainAbortedTransactionAsync(Exception aborted, CancellationToken cancellationToken)
+    {
+        if (await database.UnreachableBecauseAsync(cancellationToken) is { } explained)
+        {
+            return Unreachable(explained);
+        }
+
+        ExceptionDispatchInfo.Throw(aborted);
+        return StartResult.Started; // Not reached: Throw does not return.
     }
 
     private StartResult Contended(Exception lostRace)
@@ -264,33 +296,49 @@ internal sealed class JobsSchedulerHostedService(
     // can tell an outage from a mistake, such as a mistyped host. A database that cannot be opened is named too, since
     // SQL Server reports a misnamed one as it reports a restoring one. Drivers leave the password out of what they
     // report, so the failure is safe to log.
+    // An outage of a different kind from the one last logged is logged at once, so a change, from unreachable to
+    // read-only say, is not held back behind the other's cadence.
     private StartResult Unreachable(Exception away)
     {
         _contendedTries = 0;
-        if (++_unreachableTries % TriesPerRepeatedWarning == 1)
+        _unreachableTries++;
+        var kind = KindOf(away);
+        if (kind != _loggedOutage || ++_unreachableTriesSinceLogged >= TriesPerRepeatedWarning)
         {
-            LogUnreachable(away);
+            LogUnreachable(away, kind);
+            _loggedOutage = kind;
+            _unreachableTriesSinceLogged = 0;
         }
 
         return StartResult.Unreachable;
     }
 
-    private void LogUnreachable(Exception away)
+    private static OutageKind KindOf(Exception away)
     {
         if (DatabaseFailures.IsDatabaseUnavailable(away))
         {
-            LogCannotOpen(away);
+            return OutageKind.CannotOpen;
         }
-        else if (DatabaseFailures.IsReadOnly(away))
+
+        return DatabaseFailures.IsReadOnly(away) ? OutageKind.ReadOnly : OutageKind.Unreachable;
+    }
+
+    private void LogUnreachable(Exception away, OutageKind kind)
+    {
+        switch (kind)
         {
-            LogReadOnly(away);
-        }
-        else
-        {
-            logger.LogError(
-                away,
-                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs ({Tries} tries so far).",
-                _unreachableTries);
+            case OutageKind.CannotOpen:
+                LogCannotOpen(away);
+                break;
+            case OutageKind.ReadOnly:
+                LogReadOnly(away);
+                break;
+            default:
+                logger.LogError(
+                    away,
+                    "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs ({Tries} tries so far).",
+                    _unreachableTries);
+                break;
         }
     }
 
