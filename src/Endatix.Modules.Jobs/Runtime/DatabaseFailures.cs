@@ -102,8 +102,7 @@ internal static class DatabaseFailures
     /// Whether <paramref name="failure"/>, raised while connecting to the database or talking to it, says the database
     /// is away: an outage that is not contention, or a driver failure with a socket failure anywhere under it, which
     /// SqlClient reports without an error number and sometimes wrapped again, in an <see cref="IOException"/> for a
-    /// connection reset during the handshake. A refusal, such as a failed login or a database that does not exist, is
-    /// not.
+    /// connection reset during the handshake. A refusal, such as a failed login, is not.
     /// </summary>
     /// <remarks>
     /// Only for database calls, and only under a driver's failure: elsewhere a broken socket is as likely an HTTP
