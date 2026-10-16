@@ -179,6 +179,14 @@ the shared store. `Endatix:BackgroundJobs:RunInProcess` decides what it does wit
 
 That is what allows API and worker roles to be deployed separately from the same image.
 
+**Starting without a database.** A node whose database is away (unreachable, failing over, timing
+out) starts without its scheduler, logs that it could not reach its database, and starts the scheduler
+once it can; a database that refuses, such as a login it does not accept, fails the start. A
+misnamed SQL Server database is retried too, with an error naming it ("cannot open database …: it is
+missing, offline or being restored"), because SQL Server reports a missing database exactly as it
+reports one that is offline or being restored. Meanwhile the host's readiness probe reports the
+database as down.
+
 **Each job type is its own Quartz execution group**, capped per node at
 `JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
 capped at `0`, so a node never takes a job it cannot run; the job waits for a node that can. The

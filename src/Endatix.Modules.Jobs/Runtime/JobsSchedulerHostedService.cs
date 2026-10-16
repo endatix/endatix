@@ -43,13 +43,15 @@ internal sealed class JobsSchedulerHostedService(
     private static readonly TimeSpan ContendedRetryDelay = TimeSpan.FromSeconds(1);
     private const int QuickContendedTries = 3;
 
-    // The first lost race is logged, then one in this many, so a race that keeps recurring is seen without flooding.
-    private const int ContendedTriesPerWarning = 12;
+    // A lost race, or a database SQL Server cannot open, is logged the first time and then one in this many tries,
+    // so one that keeps recurring is seen without flooding the log.
+    private const int TriesPerRepeatedWarning = 12;
 
     private readonly CancellationTokenSource _stopping = new();
     private IScheduler? _scheduler;
     private Task? _deferredStart;
     private int _contendedTries;
+    private int _unavailableTries;
 
     private enum StartResult
     {
@@ -165,9 +167,9 @@ internal sealed class JobsSchedulerHostedService(
     {
         try
         {
-            if (!await database.IsReachableAsync(cancellationToken))
+            if (await database.UnreachableBecauseAsync(cancellationToken) is { } away)
             {
-                return StartResult.Unreachable;
+                return Unreachable(away);
             }
 
             await StartSchedulerAsync(cancellationToken);
@@ -184,19 +186,18 @@ internal sealed class JobsSchedulerHostedService(
     {
         if (DatabaseFailures.IsUnreachable(exception))
         {
-            _contendedTries = 0;
-            return StartResult.Unreachable;
+            return Unreachable(exception);
         }
 
-        if (!DatabaseFailures.IsContention(exception))
-        {
-            return null;
-        }
+        return DatabaseFailures.IsContention(exception) ? Contended(exception) : null;
+    }
 
-        if (++_contendedTries % ContendedTriesPerWarning == 1)
+    private StartResult Contended(Exception lostRace)
+    {
+        if (++_contendedTries % TriesPerRepeatedWarning == 1)
         {
             logger.LogWarning(
-                exception,
+                lostRace,
                 "The background jobs scheduler lost a race with another transaction while starting, a deadlock or a lock timeout, and will try again ({Tries} tries so far).",
                 _contendedTries);
         }
@@ -230,6 +231,21 @@ internal sealed class JobsSchedulerHostedService(
             result = await TryStartSchedulerAsync(stoppingToken);
         }
         while (result != StartResult.Started);
+    }
+
+    // A database SQL Server cannot open is named, since a misnamed one is reported as a restoring one is, and only
+    // the operator can tell them apart; logged on the first try and then one in as many as a lost race is.
+    private StartResult Unreachable(Exception away)
+    {
+        _contendedTries = 0;
+        if (DatabaseFailures.IsDatabaseUnavailable(away) && ++_unavailableTries % TriesPerRepeatedWarning == 1)
+        {
+            logger.LogError(
+                "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored. Retrying.",
+                database.DatabaseName);
+        }
+
+        return StartResult.Unreachable;
     }
 
     private TimeSpan DelayAfter(StartResult result) =>

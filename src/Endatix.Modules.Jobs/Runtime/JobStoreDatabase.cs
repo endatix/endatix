@@ -30,21 +30,26 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
     /// </remarks>
     public bool LocksOnInsert(BackgroundJobsOptions options) => options.LockOnInsert ?? !IsPostgreSql;
 
+    /// <summary>The database the connection string names, for messages; never the credentials.</summary>
+    public string DatabaseName => IsPostgreSql
+        ? new NpgsqlConnectionStringBuilder(ConnectionString).Database ?? ""
+        : new SqlConnectionStringBuilder(ConnectionString).InitialCatalog;
+
     /// <summary>
-    /// Whether a connection opens: <see langword="false"/> when the database is away, and the failure itself when it
-    /// answered and refused, such as a login it does not accept, which waiting would never fix.
+    /// Why a connection does not open when the database is away, or <see langword="null"/> when it opens. A failure
+    /// the database answered and refused with, such as a login it does not accept, is thrown: waiting never fixes it.
     /// </summary>
-    public async Task<bool> IsReachableAsync(CancellationToken cancellationToken)
+    public async Task<Exception?> UnreachableBecauseAsync(CancellationToken cancellationToken)
     {
         try
         {
             await using var connection = Connect();
             await connection.OpenAsync(cancellationToken);
-            return true;
+            return null;
         }
         catch (Exception exception) when (DatabaseFailures.IsUnreachable(exception))
         {
-            return false;
+            return exception;
         }
     }
 

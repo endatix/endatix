@@ -64,23 +64,31 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
 
     [Fact]
     [Trait("DbSpecific", "SqlServer")]
-    public async Task Scheduler_whose_database_does_not_exist_fails_startup()
+    public async Task Scheduler_whose_database_cannot_be_opened_defers_start_and_names_the_database()
     {
-        // Arrange — SQL Server-only: it reports a missing database as 4060 together with a failed login, 18456.
+        // Arrange — SQL Server-only: it answers a missing database with 4060 and 18456, as it answers one being
+        // restored, so the node waits and says which database it cannot open.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, "Asserts SQL Server's 4060 and 18456.");
         var ct = TestContext.Current.CancellationToken;
         var missing = new SqlConnectionStringBuilder(fixture.ConnectionString)
         {
             InitialCatalog = $"t9_missing_{Guid.NewGuid():N}"[..24],
         };
+        var logs = new CapturingLoggerProvider();
         await using var node = JobsTestNode.Create(
-            new JobsTestNodeDatabase(TestDatabaseProvider.SqlServer, missing.ConnectionString), migrate: false);
+            new JobsTestNodeDatabase(TestDatabaseProvider.SqlServer, missing.ConnectionString),
+            configureServices: services => services.AddSingleton<ILoggerProvider>(logs),
+            migrate: false);
 
         // Act
-        var start = () => node.StartAsync(ct);
+        await node.StartAsync(ct);
 
         // Assert
-        (await start.Should().ThrowAsync<SqlException>()).Which.Number.Should().BeOneOf(4060, 18456);
+        logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
+        logs.Entries.Should().Contain((
+            LogLevel.Error,
+            $"The background jobs scheduler cannot open database '{missing.InitialCatalog}': it is missing, offline or being restored. Retrying."));
+        logs.Entries.Should().NotContain(entry => entry.Message.Contains("Password", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

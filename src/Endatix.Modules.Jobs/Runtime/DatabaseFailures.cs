@@ -46,10 +46,10 @@ internal static class DatabaseFailures
         1222, // lock request timed out
     ];
 
-    // 4060 alone is a database being restored or failing over; with 18456 it is a database the login names that
-    // does not exist, which waiting never fixes.
+    // SQL Server answers 4060, together with 18456, for a database that is missing, OFFLINE, RESTORING, or in
+    // SINGLE_USER use by another session alike, so the pair cannot tell a misnamed database from maintenance; it is
+    // waited out as an outage, and the scheduler names the database while it waits.
     private const int CannotOpenDatabase = 4060;
-    private const int LoginFailed = 18456;
 
     // SQL Server error numbers that a database which is away, or will be back, reports.
     private static readonly FrozenSet<int> SqlServerAwayNumbers =
@@ -114,6 +114,14 @@ internal static class DatabaseFailures
         || (failure.HasCause(cause => cause is DbException) && failure.HasCause(cause => cause is SocketException));
 
     /// <summary>
+    /// Whether <paramref name="failure"/> says SQL Server could not open the database the connection names: missing,
+    /// offline, being restored, or held in single-user mode by another session, which it reports alike.
+    /// </summary>
+    public static bool IsDatabaseUnavailable(Exception failure) =>
+        failure.HasCause(cause => cause is SqlException sqlServer
+            && sqlServer.Errors.Cast<SqlError>().Any(error => error.Number == CannotOpenDatabase));
+
+    /// <summary>
     /// Whether <paramref name="failure"/> came from the database at all: a timeout, or any failure the driver reported.
     /// </summary>
     public static bool IsFromDatabase(Exception failure) => failure.HasCause(cause => cause is DbException or TimeoutException);
@@ -138,14 +146,6 @@ internal static class DatabaseFailures
         sqlState.StartsWith(PostgresConnectionClass, StringComparison.Ordinal) || PostgresAwayStates.Contains(sqlState);
 
     // One exception carries every error the batch raised, and the one that tells need not be the first.
-    private static bool HasSqlServerAway(SqlErrorCollection errors)
-    {
-        var numbers = errors.Cast<SqlError>().Select(error => error.Number).ToHashSet();
-        if (numbers.Contains(LoginFailed))
-        {
-            numbers.Remove(CannotOpenDatabase);
-        }
-
-        return numbers.Overlaps(SqlServerAwayNumbers);
-    }
+    private static bool HasSqlServerAway(SqlErrorCollection errors) =>
+        errors.Cast<SqlError>().Any(error => SqlServerAwayNumbers.Contains(error.Number));
 }

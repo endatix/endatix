@@ -72,8 +72,9 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(40)), true }, // Windows native SNI: could not open a connection
         { Wrapped(SqlServerExceptions.WithNumbers(2)), true }, // Windows native SNI: server not found
         { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // login failed: the database answered
-        { Wrapped(SqlServerExceptions.WithNumbers(4060)), true }, // the database is being restored or failing over
-        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), false }, // the login names a database that does not exist
+        { Wrapped(SqlServerExceptions.WithNumbers(4060)), true }, // the database cannot be opened
+        // How SQL Server answers for a missing, offline, restoring or single-user database alike: waited out.
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), true },
         { Wrapped(SqlServerExceptions.WithNumbers(1205)), false }, // a deadlock victim: contention, not an outage
         { Wrapped(SqlServerExceptions.WithNumbers(1222)), false }, // a lock wait timed out: contention, not an outage
         { Wrapped(PostgresFailure(PostgresErrorCodes.DeadlockDetected)), false },
