@@ -189,7 +189,9 @@ error naming it ("cannot open database …: it is missing, offline or being rest
 yet"): SQL Server reports a missing database exactly as it reports one that is offline or being
 restored, and PostgreSQL's may still be being created. A deadlock, or a statement that times out once
 the node has connected, is a lost race rather than an outage, and is retried as one, with its own
-warning. Meanwhile the host's readiness probe reports the database as down.
+warning. An outage that fails building the scheduler, whether the start, an enqueue or the dashboard
+asked for it, is waited out the same way: the next try builds another scheduler, since Quartz never
+hands out one it has shut down. Meanwhile the host's readiness probe reports the database as down.
 
 **Each job type is its own Quartz execution group**, capped per node at
 `JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
