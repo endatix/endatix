@@ -17,8 +17,9 @@ name: Build, Test & Release
 # branch required by semantic-release's branch validation.
 
 on:
+  # Every PR, stacked ones included (base = another feature branch): they need
+  # tests and the SonarCloud coverage too. The canary job only builds on PRs.
   pull_request:
-    branches: [main, "hotfix/**"] # PRs into maintenance-line branches validate too
   push:
     branches: [main, "hotfix/**"] # hotfix/X.Y.x pushes publish vX.Y.Z-hotfix.N builds
   workflow_dispatch:
@@ -58,9 +59,15 @@ jobs:
         run: |
           dotnet test --no-build \
             --filter "FullyQualifiedName!~Endatix.IntegrationTests" \
-            --collect:"XPlat Code Coverage;Format=cobertura" \
+            --collect:"XPlat Code Coverage;Format=cobertura,opencover" \
             --results-directory:.coverage \
             --settings coverlet.runsettings
+      - name: 📊 Upload unit coverage for SonarCloud
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-unit
+          path: .coverage/**/coverage.opencover.xml
+          retention-days: 1
       - name: Install DotNet Coverage
         run: dotnet tool update --global dotnet-coverage
       - name: 📊 Merge Coverage Reports
@@ -109,7 +116,16 @@ jobs:
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             -c Release --no-build --verbosity minimal \
-            --filter "$INTEGRATION_TEST_FILTER"
+            --filter "$INTEGRATION_TEST_FILTER" \
+            --collect:"XPlat Code Coverage;Format=opencover" \
+            --results-directory:.coverage \
+            --settings coverlet.integration.runsettings
+      - name: 📊 Upload integration coverage for SonarCloud
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-integration
+          path: .coverage/**/coverage.opencover.xml
+          retention-days: 1
 
   integration-tests-sqlserver:
     name: "Endatix API: SQL Server integration tests"
@@ -132,6 +148,44 @@ jobs:
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             -c Release --no-build --verbosity minimal \
             --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
+
+  # CI-based SonarCloud analysis with unit + PostgreSQL integration coverage.
+  # Automatic Analysis (the SonarCloud app's own scan) cannot import coverage,
+  # so it must be OFF in SonarCloud → Administration → Analysis Method.
+  # Skipped on fork PRs, which get no SONAR_TOKEN.
+  sonar:
+    name: "Endatix API: SonarCloud"
+    needs: [unit-tests, integration-tests]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # Sonar needs history for new-code and blame
+          persist-credentials: false
+      - name: 📦 Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: 📊 Download coverage
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-*
+          path: .sonar-coverage
+      - name: Install SonarScanner
+        run: dotnet tool update --global dotnet-sonarscanner
+      - name: 🔎 Build & analyze
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.xml" \
+            /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,docs/**,samples/**"
+          dotnet build
+          dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
   # Build validation on PRs; canary release on main — publishes only after ALL
   # tests above pass. docker-image makes the shared workflow log into GHCR and
