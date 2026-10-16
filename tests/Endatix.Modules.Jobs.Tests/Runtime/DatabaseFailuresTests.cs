@@ -27,6 +27,8 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(3621, 1205)), true }, // the deadlock is not the batch's first error
         { Wrapped(new OtherDriverException(1205)), false }, // another driver's error code is not SQL Server's
         { Wrapped(new TimeoutException("The pool is exhausted.")), true },
+        // A database dropped while a node runs fails a job's outcome write loudly, as it always has.
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), false },
         { new InvalidOperationException("Unexpected."), false },
     };
 
@@ -79,7 +81,8 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(1222)), false }, // a lock wait timed out: contention, not an outage
         { Wrapped(PostgresFailure(PostgresErrorCodes.DeadlockDetected)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.LockNotAvailable)), false },
-        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // the database is missing: waited out
+        // A missing database: only the start waits for one (IsAwayAtStartup); to a running node it is not away.
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
         { Wrapped(new TimeoutException("The pool is exhausted.")), true },
@@ -140,6 +143,51 @@ public sealed class DatabaseFailuresTests
 
         // Assert
         unavailable.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> AwayAtStartup() => new()
+    {
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // being created or restored
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), true },
+        { Wrapped(new ConnectFailureException(new SocketException((int)SocketError.ConnectionRefused))), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(AwayAtStartup))]
+    public void IsAwayAtStartup_ConnectFailure_WaitsForADatabaseThatIsAwayOrNotThereYet(Exception failure, bool expected)
+    {
+        // Act
+        var away = DatabaseFailures.IsAwayAtStartup(failure);
+
+        // Assert
+        away.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> SocketFailures() => new()
+    {
+        // Npgsql's connect timeout: its failure, over a timeout, over the socket that timed out.
+        {
+            Wrapped(new NpgsqlException(
+                "Exception while connecting",
+                new TimeoutException("The operation has timed out.", new SocketException((int)SocketError.TimedOut)))),
+            true
+        },
+        { Wrapped(SqlServerExceptions.WithInner(-2, new SocketException((int)SocketError.TimedOut))), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(-2)), false }, // a command timeout on a live connection
+        { Wrapped(new HttpRequestException("The endpoint is down.", new SocketException((int)SocketError.ConnectionRefused))), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(SocketFailures))]
+    public void HasSocketFailure_DriverFailure_TellsANetworkFailureFromALockWait(Exception failure, bool expected)
+    {
+        // Act
+        var socket = DatabaseFailures.HasSocketFailure(failure);
+
+        // Assert
+        socket.Should().Be(expected);
     }
 
     public static TheoryData<Exception, bool> Timeouts() => new()
