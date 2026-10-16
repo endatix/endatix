@@ -64,7 +64,7 @@ internal sealed class SubmitterProfileFields
         Dictionary<string, string> values = new(StringComparer.Ordinal);
         foreach (var field in profile.EnumerateObject().Where(IsListedText))
         {
-            values[field.Name] = field.Value.GetString()!;
+            values[field.Name] = field.Value.GetString();
         }
 
         return values.Count == 0 ? null : values;

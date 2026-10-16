@@ -17,14 +17,13 @@ internal static partial class ShojiCodebookGenerator
         ShojiVariableTracking tracking)
     {
         var firstSubmitterProfile = tracking.OrderAliases.Count;
-        foreach (var column in SubmitterProfileColumns.InBlockOrder(args.FlatteningMap.Columns))
+        var trackedColumns = SubmitterProfileColumns.InBlockOrder(args.FlatteningMap.Columns)
+            .Where(column => TryTrackVariable(tracking.WrittenVariables, tracking.OrderAliases, column.Key));
+        foreach (var column in trackedColumns)
         {
-            if (TryTrackVariable(tracking.WrittenVariables, tracking.OrderAliases, column.Key))
-            {
-                args.CodebookColumns.TryGetValue(column.Key, out var columnMetadata);
-                SubmitterProfileVariable variable = new(column.Key, ReadColumnTitle(columnMetadata, column.Label));
-                WriteSubmitterProfileVariable(writer, variable, tracking.UsedDisplayNames);
-            }
+            args.CodebookColumns.TryGetValue(column.Key, out var columnMetadata);
+            SubmitterProfileVariable variable = new(column.Key, ReadColumnTitle(columnMetadata, column.Label));
+            WriteSubmitterProfileVariable(writer, variable, tracking.UsedDisplayNames);
         }
 
         return tracking.OrderAliases[firstSubmitterProfile..];
