@@ -15,19 +15,22 @@ internal static class SqlServerExceptions
     /// A failure whose batch raised errors with <paramref name="numbers"/>, each reporting <paramref name="message"/>.
     /// </summary>
     // SqlClient makes its exceptions only internally, from the errors a batch raised, so this calls what it calls.
-    public static SqlException WithMessage(string message, params int[] numbers)
+    public static SqlException WithMessage(string message, params int[] numbers) =>
+        WithErrors([.. numbers.Select(number => (number, message))]);
+
+    /// <summary>A failure whose batch raised <paramref name="errors"/>, each with its own number and message, in order.</summary>
+    public static SqlException WithErrors(params (int Number, string Message)[] errors)
     {
-        const BindingFlags Internal = BindingFlags.NonPublic | BindingFlags.Instance;
-        var errors = (SqlErrorCollection)Activator.CreateInstance(typeof(SqlErrorCollection), nonPublic: true)!;
-        var add = typeof(SqlErrorCollection).GetMethod("Add", Internal)!;
-        foreach (var number in numbers)
+        var collection = (SqlErrorCollection)Activator.CreateInstance(typeof(SqlErrorCollection), nonPublic: true)!;
+        var add = typeof(SqlErrorCollection).GetMethod("Add", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        foreach (var (number, message) in errors)
         {
-            add.Invoke(errors, [Error(number, message)]);
+            add.Invoke(collection, [Error(number, message)]);
         }
 
         var create = typeof(SqlException).GetMethod(
             "CreateException", BindingFlags.NonPublic | BindingFlags.Static, [typeof(SqlErrorCollection), typeof(string)])!;
-        return (SqlException)create.Invoke(null, [errors, "16.00.1000"])!;
+        return (SqlException)create.Invoke(null, [collection, "16.00.1000"])!;
     }
 
     /// <summary>A failure with <paramref name="number"/> that wraps <paramref name="inner"/>, as a failed connect does.</summary>

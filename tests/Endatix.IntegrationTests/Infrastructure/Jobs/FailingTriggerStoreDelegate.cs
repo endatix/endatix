@@ -1,6 +1,7 @@
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Quartz;
 using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
@@ -25,6 +26,13 @@ internal sealed class TriggerStoreFailures
     /// <summary>Stores that fail as they do while the database is unreachable, which the scheduler wraps.</summary>
     public static TriggerStoreFailures DatabaseDown(int stores) =>
         new(stores, () => new TimeoutException("The database did not answer."));
+
+    /// <summary>
+    /// Stores that lose a deadlock to another transaction, as the driver reports it; a PostgreSQL deadlock, which is
+    /// classified by its type, so it stands in on either provider.
+    /// </summary>
+    public static TriggerStoreFailures Deadlocked(int stores) =>
+        new(stores, () => new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected));
 
     /// <summary>Stores the scheduler refuses for a reason of its own, which trying again does not change.</summary>
     public static TriggerStoreFailures Rejected(int stores) =>

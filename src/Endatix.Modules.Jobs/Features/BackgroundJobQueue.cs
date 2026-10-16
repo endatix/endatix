@@ -46,7 +46,6 @@ internal sealed partial class BackgroundJobQueue(
     private const string DedupKeyIndexName = BackgroundJobProviderConfiguration.DedupKeyIndexName;
     private const int SqlServerDuplicateKeyInIndex = 2601;
     private const int SqlServerDuplicateKeyInConstraint = 2627;
-    private const int SqlServerDeadlockVictim = 1205;
 
     // A collision means another enqueue of the same key committed between this one's read and its insert; the
     // next read sees it. More than a few in a row would mean something other than that race.
@@ -81,12 +80,12 @@ internal sealed partial class BackgroundJobQueue(
         return requests.Count == 0 ? [] : await EnqueueWithCollisionRetriesAsync(requests, cancellationToken);
     }
 
-    // SQL Server ignores trailing spaces (U+0020 only) when it compares, so its unique index holds "k1 " to be "k1"
-    // while the lookup here tells them apart, and the enqueue would fail on every retry instead of returning the job.
-    // PostgreSQL compares keys as written, so it takes them, as it always has.
+    // A database that ignores trailing spaces when it compares (SQL Server; U+0020 only) holds "k1 " to be "k1" in
+    // its unique index while the lookup here tells them apart, so the enqueue would fail on every retry instead of
+    // returning the job. A database that compares keys as written (PostgreSQL) takes them, as it always has.
     private void RefuseKeysTheDatabaseCannotTellApart(IReadOnlyList<BackgroundJobRequest> requests)
     {
-        if (!dbContext.Database.IsSqlServer()
+        if (!dbContext.IgnoresTrailingSpacesInKeys
             || !requests.Any(request => EndsWithSpace(request.DedupKey)))
         {
             return;
@@ -120,9 +119,10 @@ internal sealed partial class BackgroundJobQueue(
     }
 
     /// <summary>
-    /// The ids, or <see langword="null"/> when another enqueue of a dedup key committed first, or deadlocked with
-    /// this one for the first time; either way the transaction rolled back, rows and triggers alike, and the next try
-    /// reads what the other enqueue left.
+    /// The ids, or <see langword="null"/> when another enqueue of a dedup key committed first, or lost a deadlock or a
+    /// serialization failure to another transaction for the first time, anywhere in the attempt: inserting the rows,
+    /// storing their triggers and durable jobs, or committing. Either way the transaction rolled back, rows and
+    /// triggers alike, and the next try opens a new one and reads what the other enqueue left.
     /// </summary>
     private async Task<IReadOnlyList<long>?> EnqueueUnlessRacingAsync(
         IReadOnlyList<BackgroundJobRequest> requests,
@@ -133,33 +133,25 @@ internal sealed partial class BackgroundJobQueue(
         {
             return await EnqueueOnceAsync(requests, cancellationToken);
         }
-        catch (DbUpdateException exception) when (IsDedupKeyCollision(exception) || deadlockRetry.TrySpend(exception))
+        catch (Exception exception) when (
+            (exception is DbUpdateException update && IsDedupKeyCollision(update)) || deadlockRetry.TrySpend(exception))
         {
             dbContext.ChangeTracker.Clear();
             return null;
         }
     }
 
-    /// <summary>
-    /// Whether the insert lost a race with another enqueue of the same dedup keys: a deadlock, which SQL Server's
-    /// batched insert can meet whatever order the rows are sent in, since its plan decides the order they reach the
-    /// unique index, or a serialization failure, which PostgreSQL reports for the same race at a stricter isolation.
-    /// </summary>
-    internal static bool IsInsertDeadlock(DbUpdateException exception) => exception.InnerException switch
-    {
-        PostgresException { SqlState: PostgresErrorCodes.DeadlockDetected or PostgresErrorCodes.SerializationFailure } => true,
-        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error => error.Number == SqlServerDeadlockVictim),
-        _ => false,
-    };
-
-    // One retry of a deadlocked insert per enqueue: a second deadlock is not the race it is for, and is thrown.
+    // One retry of a lost deadlock per enqueue: a second is not the race it is for, and is thrown. Two enqueues of the
+    // same dedup keys can each lock one the other needs next, in the dedup index or, with LockOnInsert off, in the
+    // scheduler's trigger tables, whatever order the rows are sent in, since SQL Server's plan picks the order they
+    // reach an index. PostgreSQL reports the same race as a serialization failure at a stricter isolation.
     private sealed class DeadlockRetry
     {
         private bool _spent;
 
-        public bool TrySpend(DbUpdateException exception)
+        public bool TrySpend(Exception exception)
         {
-            if (_spent || !IsInsertDeadlock(exception))
+            if (_spent || !DatabaseFailures.IsLostRace(exception))
             {
                 return false;
             }
@@ -237,8 +229,10 @@ internal sealed partial class BackgroundJobQueue(
     internal static bool IsDedupKeyCollision(DbUpdateException exception) => exception.InnerException switch
     {
         PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: DedupKeyIndexName } => true,
-        SqlException { Number: SqlServerDuplicateKeyInIndex or SqlServerDuplicateKeyInConstraint } sqlServer =>
-            DedupKeyIndexNamed().IsMatch(sqlServer.Message),
+        // One exception carries every error the batch raised, and the collision need not be the first.
+        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error =>
+            error.Number is SqlServerDuplicateKeyInIndex or SqlServerDuplicateKeyInConstraint
+            && DedupKeyIndexNamed().IsMatch(error.Message)),
         _ => false,
     };
 

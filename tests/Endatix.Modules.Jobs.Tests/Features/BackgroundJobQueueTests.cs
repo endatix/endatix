@@ -361,6 +361,21 @@ public class BackgroundJobQueueTests : IDisposable
     }
 
     [Fact]
+    public void IsDedupKeyCollision_SqlServerCollisionAfterAnotherError_ReturnsTrue()
+    {
+        // Arrange — one exception carries every error the batch raised, and the collision need not be the first.
+        var exception = SaveFailure(SqlServerExceptions.WithErrors(
+            (3621, "The statement has been terminated."),
+            (2601, DuplicateInIndex("IX_BackgroundJobs_DedupKey"))));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeTrue();
+    }
+
+    [Fact]
     public void IsDedupKeyCollision_SqlServer2601OnIndexWhoseNameExtendsTheDedupIndex_ReturnsFalse()
     {
         // Arrange — the name is matched as a whole word, so a later index named after it is not mistaken for it.

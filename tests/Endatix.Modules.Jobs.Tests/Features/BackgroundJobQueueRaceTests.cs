@@ -6,6 +6,7 @@ using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
+using Quartz;
 
 namespace Endatix.Modules.Jobs.Tests.Features;
 
@@ -97,6 +98,45 @@ public sealed class BackgroundJobQueueRaceTests
         await _triggerScheduler.DidNotReceiveWithAnyArgs().ScheduleAndCommitAsync(default!, default!, default);
     }
 
+    [Theory]
+    [MemberData(nameof(Deadlocks))]
+    public async Task EnqueueAsync_DeadlockWhileStoringTriggers_RetriesTheWholeAttemptOnce(Exception deadlock)
+    {
+        // Arrange — Quartz wraps what the driver raised while it stored the triggers. The in-memory store keeps the
+        // first attempt's row, which a database rolls back, so the job carries no key: the retry inserts it afresh.
+        await using var context = new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
+        _triggerScheduler.ScheduleAndCommitAsync(default!, default!, default).ReturnsForAnyArgs(
+            Task.FromException(new JobPersistenceException("Couldn't store trigger.", deadlock)),
+            Task.CompletedTask);
+        var queue = QueueOver(context);
+
+        // Act
+        var jobId = await queue.EnqueueAsync(Unkeyed(), TestContext.Current.CancellationToken);
+
+        // Assert — the second attempt's job, scheduled by the second call.
+        await _triggerScheduler.ReceivedWithAnyArgs(2).ScheduleAndCommitAsync(default!, default!, default);
+        (await context.BackgroundJobs.OrderBy(job => job.Id).LastAsync(TestContext.Current.CancellationToken))
+            .Id.Should().Be(jobId);
+    }
+
+    [Theory]
+    [MemberData(nameof(Deadlocks))]
+    public async Task EnqueueAsync_DeadlockWhileStoringTriggersTwice_Throws(Exception deadlock)
+    {
+        // Arrange
+        await using var context = new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
+        _triggerScheduler.ScheduleAndCommitAsync(default!, default!, default).ReturnsForAnyArgs(
+            Task.FromException(new JobPersistenceException("Couldn't store trigger.", deadlock)));
+        var queue = QueueOver(context);
+
+        // Act
+        var enqueue = () => queue.EnqueueAsync(Unkeyed(), TestContext.Current.CancellationToken);
+
+        // Assert
+        await enqueue.Should().ThrowAsync<JobPersistenceException>();
+        await _triggerScheduler.ReceivedWithAnyArgs(2).ScheduleAndCommitAsync(default!, default!, default);
+    }
+
     public static TheoryData<Exception> Deadlocks() => new()
     {
         SqlServerExceptions.WithNumbers(1205),
@@ -104,12 +144,15 @@ public sealed class BackgroundJobQueueRaceTests
         new PostgresException("could not serialize access", "ERROR", "ERROR", PostgresErrorCodes.SerializationFailure),
     };
 
-    // A SQL Server context over a server that is not there, so any query would fail.
+    // A context like SQL Server's, over a server that is not there, so any query would fail.
     private static TestJobsDbContext SqlServerContext() => new(
         new DbContextOptionsBuilder<TestJobsDbContext>()
             .UseSqlServer("Server=127.0.0.1,1;Database=not_connected;User Id=x;Password=x;Connect Timeout=1")
             .Options,
-        new FixedTenantContext(0));
+        new FixedTenantContext(0))
+    {
+        IgnoresTrailingSpaces = true,
+    };
 
     private BackgroundJobQueue QueueOver(TestJobsDbContext context)
     {
@@ -117,6 +160,8 @@ public sealed class BackgroundJobQueueRaceTests
         clock.UtcNow.Returns(new DateTimeOffset(Now));
         return new BackgroundJobQueue(context, clock, _triggerScheduler);
     }
+
+    private static BackgroundJobRequest Unkeyed() => new("SubmissionExport", """{"formId":"1"}""", TenantId: 7);
 
     private static BackgroundJobRequest Keyed(string dedupKey) =>
         new("SubmissionExport", """{"formId":"1"}""", TenantId: 7, DedupKey: dedupKey);

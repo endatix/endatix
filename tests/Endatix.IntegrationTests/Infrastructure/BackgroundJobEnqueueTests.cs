@@ -103,6 +103,37 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     };
 
     [Fact]
+    public async Task EnqueueManyAsync_DeadlockWhileStoringTriggers_RetriesOnceAndStoresEachJobOnce()
+    {
+        // Arrange — the first trigger store loses a deadlock, after the rows are already written.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
+        var failures = TriggerStoreFailures.Deadlocked(stores: 1);
+        await using var node = JobsTestNode.Create(
+            database,
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" },
+            services => FailingTriggerStoreDelegate.Register(services, database.Provider, failures));
+        await node.StartAsync(cancellationToken);
+        var requests = Enumerable.Range(0, 3)
+            .Select(key => BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5, dedupKey: $"deadlock:{key}"))
+            .ToList();
+
+        // Act
+        var jobIds = await node.EnqueueManyAsync(requests, cancellationToken);
+
+        // Assert — the first attempt rolled back, rows and triggers alike, and the retry stored each job once.
+        failures.Remaining.Should().Be(0);
+        var rows = await database.QueryAsync(
+            """SELECT "Id" FROM jobs."BackgroundJobs" """, reader => reader.GetInt64(0), cancellationToken);
+        var triggerNames = await database.QueryAsync(
+            "SELECT TRIGGER_NAME FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'",
+            reader => reader.GetString(0),
+            cancellationToken);
+        rows.Should().BeEquivalentTo(jobIds);
+        triggerNames.Should().BeEquivalentTo(jobIds.Select(id => id.ToString()));
+    }
+
+    [Fact]
     public async Task Enqueue_stores_a_durable_job_again_when_it_was_deleted_after_an_earlier_enqueue()
     {
         // Arrange — the first enqueue stores the job type's durable job and the node remembers it; then it is deleted

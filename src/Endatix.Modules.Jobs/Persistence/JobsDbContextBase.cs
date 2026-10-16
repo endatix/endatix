@@ -66,6 +66,10 @@ public abstract class JobsDbContextBase : DbContext, IJobsDbContext
         modelBuilder.ApplyModuleTableNames();
     }
 
+    /// <inheritdoc />
+    /// <remarks>PostgreSQL compares keys as written; a provider that does not says so.</remarks>
+    public virtual bool IgnoresTrailingSpacesInKeys => false;
+
     /// <summary>
     /// Throws when the context is configured for a database provider its mappings do not target. Called first in
     /// <see cref="OnModelCreating"/>, before any shared mapping, so a wrong provider fails with a message that
