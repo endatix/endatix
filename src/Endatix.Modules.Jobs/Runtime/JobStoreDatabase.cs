@@ -65,8 +65,10 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
         : new SqlConnectionStringBuilder(ConnectionString).InitialCatalog;
 
     /// <summary>
-    /// Why a connection does not open when the database is away, or <see langword="null"/> when it opens. A failure
-    /// the database answered and refused with, such as a login it does not accept, is thrown: waiting never fixes it.
+    /// Why the scheduler cannot start on the database for now, or <see langword="null"/> when it can: the connection
+    /// does not open because the database is away, or, on PostgreSQL, it opens but every new transaction is read-only
+    /// (a 25006 <see cref="PostgresException"/>), as on a standby. A failure the database answered and refused with,
+    /// such as a login it does not accept, is thrown: waiting never fixes it.
     /// </summary>
     public async Task<Exception?> UnreachableBecauseAsync(CancellationToken cancellationToken)
     {
