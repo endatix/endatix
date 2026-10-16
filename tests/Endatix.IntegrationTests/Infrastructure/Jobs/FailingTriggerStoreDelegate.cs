@@ -102,6 +102,11 @@ internal sealed record PendingStore(
 internal static class FailingTriggerStoreDelegate
 {
     /// <summary>Puts this dialect in place of the one the Jobs module registered for its scheduler.</summary>
+    /// <remarks>
+    /// The dialect is replaced beside the scheduler's recipe rather than in it, and a scheduler rebuilt after a failed
+    /// build replays only the recipe, so it would store every trigger. Such a rebuild is refused instead: a test using
+    /// this keeps its database up while the scheduler is built, and one that does not fails saying why.
+    /// </remarks>
     public static void Register(IServiceCollection services, TestDatabaseProvider provider, TriggerStoreFailures failures)
     {
         var registered = services.Single(service =>
@@ -109,6 +114,42 @@ internal static class FailingTriggerStoreDelegate
             && Equals(service.ServiceKey, QuartzRegistration.SchedulerName));
         services.Remove(registered);
         services.AddKeyedSingleton<IDriverDelegate>(QuartzRegistration.SchedulerName, (_, _) => For(provider, failures));
+        RefuseRebuilds(services);
+    }
+
+    private static void RefuseRebuilds(IServiceCollection services)
+    {
+        var runtime = services.Single(service => service.ServiceType == typeof(ISchedulerRuntime) && !service.IsKeyedService);
+        services.Remove(runtime);
+        services.AddSingleton<ISchedulerRuntime>(provider => new RebuildRefusingRuntime(Resolve(runtime, provider)));
+    }
+
+    private static ISchedulerRuntime Resolve(ServiceDescriptor runtime, IServiceProvider provider) =>
+        (ISchedulerRuntime)(runtime.ImplementationInstance
+            ?? runtime.ImplementationFactory?.Invoke(provider)
+            ?? ActivatorUtilities.CreateInstance(provider, runtime.ImplementationType!));
+
+    private sealed class RebuildRefusingRuntime(ISchedulerRuntime shipped) : ISchedulerRuntime
+    {
+        public ValueTask<IScheduler> Add(
+            string schedulerName,
+            Action<IQuartzBuilder>? configure,
+            SchedulerAddOptions options,
+            CancellationToken cancellationToken = default) =>
+            shipped.Add(schedulerName, configure, options, cancellationToken);
+
+        public ValueTask<bool> Remove(string schedulerName, bool waitForJobsToComplete = true, CancellationToken cancellationToken = default) =>
+            shipped.Remove(schedulerName, waitForJobsToComplete, cancellationToken);
+
+        public ValueTask<IScheduler> Restart(
+            string schedulerName,
+            SchedulerRestartOptions options,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException(
+                "The scheduler is being rebuilt after a failed build, which would drop the failing dialect this test installed beside its recipe. Keep the test's database up while the scheduler is built.");
+
+        public ValueTask<List<SchedulerRegistration>> QuerySchedulers(CancellationToken cancellationToken = default) =>
+            shipped.QuerySchedulers(cancellationToken);
     }
 
     private static IDriverDelegate For(TestDatabaseProvider provider, TriggerStoreFailures failures) => provider switch
