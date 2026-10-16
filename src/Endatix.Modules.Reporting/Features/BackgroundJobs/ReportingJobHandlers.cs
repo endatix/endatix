@@ -39,12 +39,12 @@ internal sealed class RebuildSearchCopyJobHandler(
 {
     protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
     {
-        if (!TryParse(() => RebuildSearchCopyOutboxHandler.Parse(message), out var input))
+        if (!TryParse(() => RebuildSearchCopyOutboxHandler.Parse(message), out var input) || input is null)
         {
             return Failure(MessageUnreadable);
         }
 
-        if (input!.TenantId != job.TenantId)
+        if (input.TenantId != job.TenantId)
         {
             return Failure(OtherTenant);
         }

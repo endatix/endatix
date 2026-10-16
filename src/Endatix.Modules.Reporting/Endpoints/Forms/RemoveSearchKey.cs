@@ -41,7 +41,7 @@ public sealed class RemoveSearchKey(IMediator mediator, ITenantContext tenantCon
         RemoveSearchKeyRequest request,
         CancellationToken ct)
     {
-        RemoveSearchKeyCommand command = new(new SearchKeyTarget(tenantContext.TenantId, request.FormId, request.Key!));
+        RemoveSearchKeyCommand command = new(new SearchKeyTarget(tenantContext.TenantId, request.FormId, request.Key));
         var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
@@ -69,5 +69,5 @@ public sealed class RemoveSearchKeyRequest
 
     /// <summary>The column key, as the columns catalog lists it.</summary>
     [QueryParam]
-    public string? Key { get; init; }
+    public string Key { get; init; } = string.Empty;
 }
