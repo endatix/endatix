@@ -21,6 +21,7 @@ internal sealed class JobOutcomeRecorder(
     JobsShutdownSignal shutdownSignal,
     JobTypePolicies policies,
     JobLifecycleMetrics metrics,
+    ReadOnlyDatabaseWarning readOnlyWarning,
     ILogger<JobOutcomeRecorder> logger)
 {
     /// <summary>How long the recorder waits before each further try at an outcome write that failed.</summary>
@@ -214,6 +215,7 @@ internal sealed class JobOutcomeRecorder(
         var attempt = plan.Attempt.Ref;
         if (retry == WriteRetryDelays.Length || shutdownSignal.IsRaised)
         {
+            readOnlyWarning.WarnIfReadOnly(failure);
             logger.LogError(
                 failure, "Recording {Outcome} for background job {JobId} attempt {Attempt} failed", plan.Outcome, attempt.JobId, attempt.AttemptCount);
             return false;

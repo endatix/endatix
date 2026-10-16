@@ -132,6 +132,7 @@ internal static class QuartzRegistration
         services.TryAddSingleton(TriggerStoreBackoff.Default);
         services.AddScoped<JobLifecycleMetrics>();
         services.AddSingleton<JobsShutdownSignal>();
+        services.AddSingleton<ReadOnlyDatabaseWarning>();
         services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
         services.AddMetrics();
         services.TryAddSingleton<IJobMetrics, MeterJobMetrics>();

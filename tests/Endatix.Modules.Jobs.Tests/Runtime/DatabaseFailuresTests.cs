@@ -23,8 +23,9 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(2627)), false }, // unique key violation: the database answered
         { Wrapped(SqlServerExceptions.WithNumbers(1205)), true }, // deadlock victim
         { Wrapped(SqlServerExceptions.WithNumbers(-2)), true }, // client timeout
-        // Read-only, on purpose or as a secondary after a failover, which SQL Server reports alike: waiting may never fix it.
-        { Wrapped(ReadOnlyDatabase()), false },
+        // Read-only, as a secondary after a failover or on purpose, which SQL Server reports alike: dropping an outcome
+        // during a failover would run finished work again, so both are waited out.
+        { Wrapped(ReadOnlyDatabase()), true },
         { Wrapped(SqlServerExceptions.WithNumbers(42108)), true }, // serverless database paused
         { Wrapped(SqlServerExceptions.WithNumbers(3621, 1205)), true }, // the deadlock is not the batch's first error
         { Wrapped(new OtherDriverException(1205)), false }, // another driver's error code is not SQL Server's
@@ -151,7 +152,8 @@ public sealed class DatabaseFailuresTests
     {
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // being created or restored
         { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), true },
-        { Wrapped(ReadOnlyDatabase()), true }, // the start waits for a restore or a failover to finish
+        { Wrapped(ReadOnlyDatabase()), true }, // the start waits for a failover to finish
+        { Wrapped(PostgresFailure(PostgresErrorCodes.ReadOnlySqlTransaction)), true },
         { Wrapped(new ConnectFailureException(new SocketException((int)SocketError.ConnectionRefused))), true },
         { Wrapped(SqlServerExceptions.WithNumbers(18456)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
@@ -166,6 +168,27 @@ public sealed class DatabaseFailuresTests
 
         // Assert
         away.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> ReadOnlyFailures() => new()
+    {
+        { Wrapped(ReadOnlyDatabase()), true },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.ReadOnlySqlTransaction)), true },
+        { new DatabaseReadOnlyException("jobs"), true }, // what the startup probe returns for PostgreSQL
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.AdminShutdown)), false },
+        { Wrapped(new OtherDriverException(3906)), false }, // another driver's error code is not SQL Server's
+    };
+
+    [Theory]
+    [MemberData(nameof(ReadOnlyFailures))]
+    public void IsReadOnly_DriverFailure_NamesAWriteToAReadOnlyDatabase(Exception failure, bool expected)
+    {
+        // Act
+        var readOnly = DatabaseFailures.IsReadOnly(failure);
+
+        // Assert
+        readOnly.Should().Be(expected);
     }
 
     public static TheoryData<Exception, bool> SocketFailures() => new()
