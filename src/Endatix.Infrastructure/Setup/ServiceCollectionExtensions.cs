@@ -8,6 +8,7 @@ using Endatix.Core.Configuration;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Infrastructure.Email;
+using Endatix.Infrastructure.Integrations.Slack;
 using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
@@ -41,6 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddHybridCache();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddHttpContextAccessor();
+        AddSlackHttpClient(services);
 
         services.AddOptions<HubSettings>()
                  .BindConfiguration(HubSettings.SectionName)
@@ -48,6 +50,14 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    // Slack's own client, so a post does not change or share the default client.
+    // The 10 second limit lives here. There is no retry: a message Slack already accepted must not be sent again.
+    private static void AddSlackHttpClient(IServiceCollection services) =>
+        services.AddHttpClient(SlackNotificationHandler.HttpClientName, client =>
+        {
+            client.Timeout = SlackNotificationHandler.ApiTimeout;
+        });
 
     /// <summary>
     /// Add specific Email sender implementation, which will also register configuration for the AppSettings and configure the DI container
