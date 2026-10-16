@@ -79,6 +79,7 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(1222)), false }, // a lock wait timed out: contention, not an outage
         { Wrapped(PostgresFailure(PostgresErrorCodes.DeadlockDetected)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.LockNotAvailable)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // the database is missing: waited out
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
         { Wrapped(new TimeoutException("The pool is exhausted.")), true },
@@ -118,6 +119,47 @@ public sealed class DatabaseFailuresTests
 
         // Assert
         contention.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> UnavailableDatabases() => new()
+    {
+        { Wrapped(SqlServerExceptions.WithNumbers(4060)), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), true }, // missing, offline or restoring alike
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // missing, being created or restored
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // a login it does not accept
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(UnavailableDatabases))]
+    public void IsDatabaseUnavailable_ConnectFailure_TellsADatabaseThatCannotBeOpenedOnEitherProvider(
+        Exception failure, bool expected)
+    {
+        // Act
+        var unavailable = DatabaseFailures.IsDatabaseUnavailable(failure);
+
+        // Assert
+        unavailable.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> Timeouts() => new()
+    {
+        { Wrapped(new TimeoutException("The lock was not granted in time.")), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(-2)), true }, // the command timeout
+        { Wrapped(PostgresFailure(PostgresErrorCodes.QueryCanceled)), true }, // a statement_timeout
+        { Wrapped(SqlServerExceptions.WithNumbers(1205)), false },
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(Timeouts))]
+    public void IsTimeout_DriverFailure_TellsAWaitThatRanOut(Exception failure, bool expected)
+    {
+        // Act
+        var timeout = DatabaseFailures.IsTimeout(failure);
+
+        // Assert
+        timeout.Should().Be(expected);
     }
 
     [Theory]

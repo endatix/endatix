@@ -181,15 +181,17 @@ internal sealed class JobsSchedulerHostedService(
         }
     }
 
-    // Why a failed start is worth trying again, or null when the database refused and waiting would not help.
+    // Why a failed start is worth trying again, or null when the database refused and waiting would not help. Only
+    // what failed after the probe connected arrives here, so a wait that ran out is a lock wait, contention, not an
+    // outage.
     private StartResult? RetryAfter(Exception exception)
     {
-        if (DatabaseFailures.IsUnreachable(exception))
+        if (DatabaseFailures.IsContention(exception) || DatabaseFailures.IsTimeout(exception))
         {
-            return Unreachable(exception);
+            return Contended(exception);
         }
 
-        return DatabaseFailures.IsContention(exception) ? Contended(exception) : null;
+        return DatabaseFailures.IsUnreachable(exception) ? Unreachable(exception) : null;
     }
 
     private StartResult Contended(Exception lostRace)
@@ -198,7 +200,7 @@ internal sealed class JobsSchedulerHostedService(
         {
             logger.LogWarning(
                 lostRace,
-                "The background jobs scheduler lost a race with another transaction while starting, a deadlock or a lock timeout, and will try again ({Tries} tries so far).",
+                "The background jobs scheduler lost a race with another transaction while starting, a deadlock or a wait on a lock that timed out, and will try again ({Tries} tries so far).",
                 _contendedTries);
         }
 

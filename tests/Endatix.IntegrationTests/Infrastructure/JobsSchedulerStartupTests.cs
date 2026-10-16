@@ -63,20 +63,15 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    [Trait("DbSpecific", "SqlServer")]
     public async Task Scheduler_whose_database_cannot_be_opened_defers_start_and_names_the_database()
     {
-        // Arrange — SQL Server-only: it answers a missing database with 4060 and 18456, as it answers one being
-        // restored, so the node waits and says which database it cannot open.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, "Asserts SQL Server's 4060 and 18456.");
+        // Arrange — a database that does not exist yet, as while a pipeline still creates or restores it. SQL Server
+        // answers 4060 with 18456 and PostgreSQL 3D000; both are waited out, naming the database.
         var ct = TestContext.Current.CancellationToken;
-        var missing = new SqlConnectionStringBuilder(fixture.ConnectionString)
-        {
-            InitialCatalog = $"t9_missing_{Guid.NewGuid():N}"[..24],
-        };
+        var missingName = $"t9_missing_{Guid.NewGuid():N}"[..24];
         var logs = new CapturingLoggerProvider();
         await using var node = JobsTestNode.Create(
-            new JobsTestNodeDatabase(TestDatabaseProvider.SqlServer, missing.ConnectionString),
+            MissingDatabase(fixture.Provider, fixture.ConnectionString, missingName),
             configureServices: services => services.AddSingleton<ILoggerProvider>(logs),
             migrate: false);
 
@@ -87,7 +82,7 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
         logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
         logs.Entries.Should().Contain((
             LogLevel.Error,
-            $"The background jobs scheduler cannot open database '{missing.InitialCatalog}': it is missing, offline or being restored. Retrying."));
+            $"The background jobs scheduler cannot open database '{missingName}': it is missing, offline or being restored. Retrying."));
         logs.Entries.Should().NotContain(entry => entry.Message.Contains("Password", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -122,6 +117,34 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task Scheduler_whose_statement_times_out_after_connecting_retries_as_contention()
+    {
+        // Arrange — the database answered the probe, then building the scheduler waited too long once, as on a lock
+        // another node holds: a wait that ran out, not an outage.
+        var ct = TestContext.Current.CancellationToken;
+        var scheduler = Substitute.For<IScheduler>();
+        var schedulers = Substitute.For<ISchedulerFactory>();
+        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
+            _ => throw new SchedulerException("The store failed.", new TimeoutException("The lock was not granted in time.")),
+            _ => ValueTask.FromResult(scheduler));
+        var logs = new CapturingLoggerProvider();
+        using var service = HostedServiceOver(fixture, schedulers, logs);
+
+        // Act
+        await service.StartAsync(ct);
+        var started = await JobsTestWait.UntilAsync(
+            () => Task.FromResult(scheduler.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IScheduler.Start))),
+            TimeSpan.FromSeconds(20),
+            ct);
+        await service.StopAsync(ct);
+
+        // Assert
+        started.Should().BeTrue();
+        logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("lost a race"));
+        logs.Entries.Should().NotContain((LogLevel.Error, DeferredStartError));
+    }
+
+    [Fact]
     public async Task Scheduler_whose_database_goes_away_after_the_probe_waits_and_starts()
     {
         // Arrange — the database answers the probe, then the scheduler cannot be built once, as in a failover.
@@ -129,7 +152,9 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
         var scheduler = Substitute.For<IScheduler>();
         var schedulers = Substitute.For<ISchedulerFactory>();
         schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
-            _ => throw new SchedulerException("The store failed.", new TimeoutException("The database did not answer.")),
+            _ => throw new SchedulerException(
+                "The store failed.",
+                new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown)),
             _ => ValueTask.FromResult(scheduler));
         var logs = new CapturingLoggerProvider();
         using var service = HostedServiceOver(fixture, schedulers, logs);
@@ -168,6 +193,16 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
             new JobsShutdownSignal(),
             new LoggerFactory([logs]).CreateLogger<JobsSchedulerHostedService>());
     }
+
+    private static JobsTestNodeDatabase MissingDatabase(TestDatabaseProvider provider, string connectionString, string name) =>
+        provider switch
+        {
+            TestDatabaseProvider.PostgreSql => new(
+                provider, new NpgsqlConnectionStringBuilder(connectionString) { Database = name }.ConnectionString),
+            TestDatabaseProvider.SqlServer => new(
+                provider, new SqlConnectionStringBuilder(connectionString) { InitialCatalog = name }.ConnectionString),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
+        };
 
     private static JobsTestNodeDatabase WrongPassword(TestDatabaseProvider provider, string connectionString) =>
         provider switch
