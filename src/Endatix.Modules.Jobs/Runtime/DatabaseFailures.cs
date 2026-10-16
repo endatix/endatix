@@ -49,7 +49,11 @@ internal static class DatabaseFailures
     // "Connection Timeout Expired.", over a Win32Exception 258, and a command that timed out on a live connection as
     // -2, "Execution Timeout Expired.", over the same Win32Exception: again the message is the only difference. A host
     // that never answers at all is 258 ("The connection attempt timed out"), also over a Win32Exception, not a socket
-    // failure. Measured against SQL Server 2025.
+    // failure. Measured against SQL Server 2025. The prefix is SqlClient's English text: SqlClient localises it from
+    // satellite resources (its de-DE, ja-JP and fr-FR texts differ), so on a client running another culture a pre-login
+    // timeout is not matched and is retried as a lost race instead, with the lost race's warning and pace; only the log
+    // line is wrong, and the start still waits. The resources are not pinned to English for that. The 258 match does not
+    // depend on the culture.
     private const string SqlServerConnectTimeoutPrefix = "Connection Timeout Expired.";
     private const int SqlServerConnectAttemptTimedOut = 258;
 
@@ -162,6 +166,10 @@ internal static class DatabaseFailures
     /// top: a socket failure under it (<see cref="HasSocketFailure"/>), or a connect timeout, which neither driver
     /// reports with one: Npgsql's failure to connect, SqlClient's pre-login timeout, or a host that never answered.
     /// </summary>
+    /// <remarks>
+    /// SqlClient's pre-login timeout is told from its command timeout only by its English message, so on a client running
+    /// another culture it is taken for a lock wait; see <c>SqlServerConnectTimeoutPrefix</c>.
+    /// </remarks>
     public static bool FailedToConnect(Exception failure) => HasSocketFailure(failure) || failure.HasCause(cause => cause switch
     {
         PostgresException => false,
