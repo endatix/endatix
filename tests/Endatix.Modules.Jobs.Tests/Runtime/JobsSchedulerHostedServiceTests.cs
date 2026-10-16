@@ -1,4 +1,6 @@
 using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -52,12 +54,11 @@ public sealed class JobsSchedulerHostedServiceTests
         var database = new JobStoreDatabase("Host=localhost", isPostgreSql: true, locksOnInsert: false);
         var options = Options.Create(new BackgroundJobsOptions());
         return new(
-            Substitute.For<IServiceProvider>(),
+            new ServiceCollection().AddSingleton(Substitute.For<IHostApplicationLifetime>()).BuildServiceProvider(),
             database,
             JobHandlerRegistry.Build([]),
             options,
             new JobsShutdownSignal(),
-            Substitute.For<Microsoft.Extensions.Hosting.IHostApplicationLifetime>(),
             NullLogger<JobsSchedulerHostedService>.Instance);
     }
 }

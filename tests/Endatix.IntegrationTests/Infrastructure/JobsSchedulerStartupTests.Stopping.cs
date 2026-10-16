@@ -64,7 +64,8 @@ public sealed partial class JobsSchedulerStartupTests
                 new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown)),
             _ => nextTry(stopping));
         var logs = new CapturingLoggerProvider();
-        using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs, lifetime);
+        using var service = HostedServiceOver(
+            new HostedServiceParts(new(fixture.Provider, fixture.ConnectionString), schedulers, logs) { Lifetime = lifetime });
 
         await service.StartAsync(ct);
         if (stopBetweenTries)

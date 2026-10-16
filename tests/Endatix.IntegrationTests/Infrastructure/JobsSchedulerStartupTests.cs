@@ -220,11 +220,15 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     private static JobsSchedulerHostedService HostedServiceOver(
         JobsTestNodeDatabase target,
         ISchedulerFactory schedulers,
-        CapturingLoggerProvider logs,
-        IHostApplicationLifetime? lifetime = null)
+        CapturingLoggerProvider logs) =>
+        HostedServiceOver(new HostedServiceParts(target, schedulers, logs));
+
+    private static JobsSchedulerHostedService HostedServiceOver(HostedServiceParts parts)
     {
+        var (target, schedulers, logs) = parts;
         var services = new ServiceCollection()
             .AddKeyedSingleton(QuartzRegistration.SchedulerName, schedulers)
+            .AddSingleton(parts.Lifetime ?? Substitute.For<IHostApplicationLifetime>())
             .BuildServiceProvider();
         var isPostgreSql = target.Provider == TestDatabaseProvider.PostgreSql;
         var database = new JobStoreDatabase(target.ConnectionString, isPostgreSql, locksOnInsert: !isPostgreSql);
@@ -235,8 +239,16 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
             JobHandlerRegistry.Build([]),
             options,
             new JobsShutdownSignal(),
-            lifetime ?? Substitute.For<IHostApplicationLifetime>(),
             new LoggerFactory([logs]).CreateLogger<JobsSchedulerHostedService>());
+    }
+
+    /// <param name="Target">The database the service probes.</param>
+    /// <param name="Schedulers">The scheduler factory the test controls.</param>
+    /// <param name="Logs">Where the service's log goes.</param>
+    private sealed record HostedServiceParts(JobsTestNodeDatabase Target, ISchedulerFactory Schedulers, CapturingLoggerProvider Logs)
+    {
+        /// <summary>The host's lifetime, whose stopping signal a test raises; one that never stops when not set.</summary>
+        public IHostApplicationLifetime? Lifetime { get; init; }
     }
 
     private static JobsTestNodeDatabase MissingDatabase(TestDatabaseProvider provider, string connectionString, string name) =>

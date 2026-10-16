@@ -159,7 +159,7 @@ internal static class QuartzRegistration
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
-        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, database, sizing));
+        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, new SchedulerRecipe(options, database, sizing)));
         ReadCommittedSnapshotGatedSchedulerFactory.Register(services);
 
         return services;
@@ -181,12 +181,12 @@ internal static class QuartzRegistration
             .Configure<IServiceProvider>((scheduler, services) => scheduler.MaxBatchSize = sizing.ThreadCount(services));
     }
 
-    private static void ConfigureQuartz(
-        IQuartzBuilder quartz,
-        BackgroundJobsOptions options,
-        JobStoreDatabase database,
-        JobsSchedulerSizing sizing)
+    // What the scheduler's recipe is built from; the recipe is replayed whenever the scheduler is rebuilt.
+    private sealed record SchedulerRecipe(BackgroundJobsOptions Options, JobStoreDatabase Database, JobsSchedulerSizing Sizing);
+
+    private static void ConfigureQuartz(IQuartzBuilder quartz, SchedulerRecipe recipe)
     {
+        var (options, database, sizing) = recipe;
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
         SizeToRegisteredJobTypes(quartz, sizing);
         AddRetentionJob(quartz, options.Retention);
