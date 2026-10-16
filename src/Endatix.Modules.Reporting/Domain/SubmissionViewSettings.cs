@@ -60,7 +60,7 @@ public static class SubmissionViewSettings
 
         try
         {
-            using var document = JsonDocument.Parse(settingsJson!, _documentOptions);
+            using var document = JsonDocument.Parse(settingsJson, _documentOptions);
             return RootError(document.RootElement);
         }
         catch (JsonException)

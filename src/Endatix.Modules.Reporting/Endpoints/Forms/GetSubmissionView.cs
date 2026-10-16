@@ -47,11 +47,11 @@ public sealed class GetSubmissionView(
     /// <inheritdoc />
     public override async Task<Results<Ok<SubmissionViewResponse>, ProblemHttpResult>> ExecuteAsync(
         GetSubmissionViewRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var result = await mediator.Send(
             new GetSubmissionViewQuery(tenantContext.TenantId, request.FormId),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionViewResponse.FromDto)

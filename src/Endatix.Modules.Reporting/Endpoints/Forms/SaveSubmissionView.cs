@@ -59,7 +59,7 @@ public sealed class SaveSubmissionView(
     /// <inheritdoc />
     public override async Task<Results<Ok<SubmissionViewResponse>, ProblemHttpResult>> ExecuteAsync(
         SaveSubmissionViewRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         SubmissionViewSave save = new(
             tenantContext.TenantId,
@@ -68,7 +68,7 @@ public sealed class SaveSubmissionView(
             request.Settings.GetRawText(),
             long.TryParse(userContext.GetCurrentUserId(), CultureInfo.InvariantCulture, out var userId) ? userId : null);
 
-        var result = await mediator.Send(new SaveSubmissionViewCommand(save), cancellationToken);
+        var result = await mediator.Send(new SaveSubmissionViewCommand(save), ct);
 
         return TypedResultsBuilder
             .MapResult(result, SubmissionViewResponse.FromDto)
