@@ -40,8 +40,7 @@ internal sealed class ListPropertiesHandler(
         List<Property> properties = await db.Properties
             .AsNoTracking()
             .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
-            .OrderBy(property => property.SortOrder)
-            .ThenBy(property => property.Id)
+            .InTabOrder()
             .ToListAsync(cancellationToken);
         return properties.Select(PropertyDto.From).ToList();
     }
