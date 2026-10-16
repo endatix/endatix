@@ -46,4 +46,7 @@ internal static class SearchCopyForms
 
     public static IRelationalJsonObjectKeyFilter KeyFilter(TestDatabaseProvider provider) =>
         provider == TestDatabaseProvider.SqlServer ? new SqlServerJsonObjectKeyFilter() : new NpgsqlJsonObjectKeyFilter();
+
+    public static IRelationalSubmitterProfileFilter ProfileFilter(TestDatabaseProvider provider) =>
+        provider == TestDatabaseProvider.SqlServer ? new SqlServerSubmitterProfileFilter() : new NpgsqlSubmitterProfileFilter();
 }

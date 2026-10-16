@@ -1,24 +1,15 @@
-using System.Linq.Expressions;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications;
-using Endatix.Core.Specifications.Parameters;
-using Endatix.Persistence.SqlServer.Querying;
-using Microsoft.EntityFrameworkCore;
+using Endatix.Infrastructure.Data.Querying;
 
 namespace Endatix.Persistence.SqlServer;
 
 /// <summary>
-/// Applies <c>submitterProfile.{field}</c> list filters with <c>JSON_VALUE</c> on the profile snapshot.
+/// Applies <c>submitterProfile.{field}</c> list filters through <see cref="IRelationalSubmitterProfileFilter"/>.
 /// </summary>
-/// <remarks>
-/// Values compare under a binary collation, so a match is exact, as with PostgreSQL's <c>@&gt;</c>. A database
-/// collation that ignores case would otherwise widen the filter on SQL Server only.
-/// </remarks>
-internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
+internal sealed class SubmitterProfileFilterEvaluator(IRelationalSubmitterProfileFilter profileFilter) : IEvaluator
 {
-    private const string ExactCollation = "Latin1_General_100_BIN2";
-
     public bool IsCriteriaEvaluator => true;
 
     public IQueryable<T> GetQuery<T>(IQueryable<T> query, ISpecification<T> specification) where T : class
@@ -33,40 +24,9 @@ internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
         var submissionQuery = (IQueryable<Submission>)query;
         foreach (var filter in profileFilterSpecification.SubmitterProfileFilters)
         {
-            submissionQuery = Apply(submissionQuery, filter);
+            submissionQuery = profileFilter.Where(submissionQuery, s => s.SubmitterProfileSnapshot, filter);
         }
 
         return (IQueryable<T>)submissionQuery;
     }
-
-    private static IQueryable<Submission> Apply(IQueryable<Submission> query, FilterCriterion filter)
-    {
-        var path = JsonPathOf(SubmissionFilterFields.GetSubmitterProfileFieldName(filter));
-        var values = filter.Values.ToList();
-
-        return filter.Operator switch
-        {
-            ExpressionType.Equal => query.Where(HasAnyOf(path, values)),
-            ExpressionType.NotEqual => query.Where(HasNoneOf(path, values)),
-            _ => throw new NotSupportedException($"Operator {filter.Operator} is not supported for submitter profile filters.")
-        };
-    }
-
-    private static Expression<Func<Submission, bool>> HasAnyOf(string path, List<string> values) =>
-        s => s.SubmitterProfileSnapshot != null &&
-             values.Contains(EF.Functions.Collate(
-                 SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path),
-                 ExactCollation));
-
-    // A missing profile or a missing field matches "not equal", as on PostgreSQL.
-    private static Expression<Func<Submission, bool>> HasNoneOf(string path, List<string> values) =>
-        s => s.SubmitterProfileSnapshot == null ||
-             SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path) == null ||
-             !values.Contains(EF.Functions.Collate(
-                 SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path),
-                 ExactCollation));
-
-    // Quoted, so a field name with a dot or a space is one key, not a nested path.
-    private static string JsonPathOf(string field) =>
-        $"$.\"{field.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
 }

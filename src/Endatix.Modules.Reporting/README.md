@@ -100,12 +100,34 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
   `JSON_VALUE(… RETURNING nvarchar(max))`, because lax `JSON_VALUE` returns NULL above 4,000 characters, and compares
   lowercased values, so a case-sensitive database collation still matches without case.
 
+### Answer filters on the submissions grid
+
+`GET forms/{formId}/reporting/submissions` takes repeated `answer={operator}:{key}:{value}` parameters, AND-combined
+with each other and with the list's metadata filters (`SubmissionGridAnswerSearch`).
+
+- **Operators.** `contains` on `text` search keys (case-insensitive, 1–200 characters); `from` and `to` on `date` and
+  `datetime` keys, each a calendar day `yyyy-MM-dd`, both inclusive. The key is percent-encoded (`encodeURIComponent`),
+  because a column key can contain `:`. At most 10 filters.
+- **Errors.** A malformed filter is 400 on `answer`. A key that is not one of the form's search keys
+  (`answer_key_not_filterable`), or an operator its filter type lacks (`answer_operator_not_supported`), is 400 with
+  `fields.answer`. A form with no compiled schema is 409 `reporting_not_prepared`; without answer filters the same
+  form lists normally.
+- **Which rows are checked.** Only rows processed from the submission's current version (`SourceModifiedAt` equals the
+  submission's `ModifiedAt ?? CreatedAt`) with a search copy. Every other submission inside the metadata filters is
+  left out of the page and counted in `answerFilterCoverage` (`uncheckedCompleted`, `uncheckedInProgress`), so the
+  grid can offer to prepare them. The field is absent without answer filters.
+- **One query.** The Reporting context maps the core `Submissions` table read-only (`CoreSubmissionRow`, excluded
+  from migrations, at the name the core context resolves). The list's metadata filters run on it with the core rules
+  (`SubmissionGridMetadataSpec`; submitter profile filters through `IRelationalSubmitterProfileFilter`, the same
+  provider SQL as the core list), joined to the matching prepared rows. The ordered ids of every match are read once;
+  the count and the page come from that list, then the page's rows load by id. Coverage is one more statement.
+
 **Upgrading:** existing forms get their keys on their next compile (`POST …/reporting/compile-schema`), which then
 rebuilds their rows' copies. Until then their copies are empty.
 
 **Performance.** `tests/Endatix.IntegrationTests/Performance` measures the filters at scale (opt-in, see
 `tests/README.md`). p95 of the whole request (ids and sort key of every match, count, page of 50), 50,000 rows, flattened
-rows only (the join with core submissions is not in it yet):
+rows only for the first tables; the grid answer search rows below add the core join and the coverage count:
 
 | Shape (2026-10-16, Testcontainers, 8 vCPU) | No answer filter | 1–3 filters, 1 caller | 1–3 filters, 4 callers | Rebuild of 50k copies |
 | --- | --- | --- | --- | --- |

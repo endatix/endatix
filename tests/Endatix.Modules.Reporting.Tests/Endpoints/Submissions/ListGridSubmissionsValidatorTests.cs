@@ -65,4 +65,44 @@ public sealed class ListGridSubmissionsValidatorTests
         // Assert
         result.Errors.Should().Contain(error => error.PropertyName == nameof(ListGridSubmissionsRequest.FormId));
     }
+
+    [Fact]
+    public void Validate_WellFormedAnswerFilters_IsValid()
+    {
+        // Arrange
+        ListGridSubmissionsRequest request = new() { FormId = 1, Answer = ["contains:city:col", "from:visit:2026-01-01"] };
+
+        // Act
+        var result = _validator.Validate(request);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Validate_MalformedAnswerFilter_IsInvalid()
+    {
+        // Arrange
+        ListGridSubmissionsRequest request = new() { FormId = 1, Answer = ["from:visit:yesterday"] };
+
+        // Act
+        var result = _validator.Validate(request);
+
+        // Assert
+        result.Errors.Should().ContainSingle(error => error.PropertyName == nameof(ListGridSubmissionsRequest.Answer));
+    }
+
+    [Fact]
+    public void Validate_TooManyAnswerFilters_IsInvalid()
+    {
+        // Arrange
+        var answers = Enumerable.Range(0, AnswerFilterExpressions.MaxFilters + 1).Select(i => $"contains:q{i}:x").ToList();
+        ListGridSubmissionsRequest request = new() { FormId = 1, Answer = answers };
+
+        // Act
+        var result = _validator.Validate(request);
+
+        // Assert
+        result.Errors.Should().ContainSingle(error => error.PropertyName == nameof(ListGridSubmissionsRequest.Answer));
+    }
 }

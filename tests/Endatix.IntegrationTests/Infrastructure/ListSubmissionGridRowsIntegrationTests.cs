@@ -88,7 +88,7 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         var cancellationToken = TestContext.Current.CancellationToken;
         var seed = await SeedAsync(cancellationToken);
         await using var reportingDb = CreateReportingDbContext(TenantId);
-        ListSubmissionGridRows sut = new(new FixedPageMediator(seed.Page), reportingDb);
+        ListSubmissionGridRows sut = Create(new FixedPageMediator(seed.Page), reportingDb);
 
         // Act
         var result = await sut.ExecuteAsync(Query(0, seed, ["city"]), cancellationToken);
@@ -103,7 +103,7 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         CancellationToken cancellationToken)
     {
         await using var reportingDb = CreateReportingDbContext(query.TenantId);
-        ListSubmissionGridRows sut = new(new FixedPageMediator(page), reportingDb);
+        ListSubmissionGridRows sut = Create(new FixedPageMediator(page), reportingDb);
 
         var result = await sut.ExecuteAsync(query, cancellationToken);
 
@@ -111,6 +111,12 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         result.Value.TotalRecords.Should().Be(page.TotalRecords);
         return result.Value.Items;
     }
+
+    private ListSubmissionGridRows Create(IMediator mediator, ReportingDbContextBase reportingDb) =>
+        new(mediator, reportingDb, new SubmissionGridAnswerSearch(
+            reportingDb,
+            SearchCopyForms.KeyFilter(fixture.Provider),
+            SearchCopyForms.ProfileFilter(fixture.Provider)));
 
     private static SubmissionGridRowsQuery Query(long tenantId, SeededForm seed, IReadOnlyList<string> columns) =>
         new(tenantId, new ListByFormIdQuery(seed.FormId, 1, 10), columns);
