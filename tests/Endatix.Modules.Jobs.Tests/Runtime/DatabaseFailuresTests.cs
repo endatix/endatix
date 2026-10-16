@@ -23,7 +23,8 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(2627)), false }, // unique key violation: the database answered
         { Wrapped(SqlServerExceptions.WithNumbers(1205)), true }, // deadlock victim
         { Wrapped(SqlServerExceptions.WithNumbers(-2)), true }, // client timeout
-        { Wrapped(SqlServerExceptions.WithNumbers(3906)), true }, // read-only after a failover
+        // Read-only, on purpose or as a secondary after a failover, which SQL Server reports alike: waiting may never fix it.
+        { Wrapped(ReadOnlyDatabase()), false },
         { Wrapped(SqlServerExceptions.WithNumbers(42108)), true }, // serverless database paused
         { Wrapped(SqlServerExceptions.WithNumbers(3621, 1205)), true }, // the deadlock is not the batch's first error
         { Wrapped(new OtherDriverException(1205)), false }, // another driver's error code is not SQL Server's
@@ -150,6 +151,7 @@ public sealed class DatabaseFailuresTests
     {
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // being created or restored
         { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), true },
+        { Wrapped(ReadOnlyDatabase()), true }, // the start waits for a restore or a failover to finish
         { Wrapped(new ConnectFailureException(new SocketException((int)SocketError.ConnectionRefused))), true },
         { Wrapped(SqlServerExceptions.WithNumbers(18456)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
@@ -255,6 +257,10 @@ public sealed class DatabaseFailuresTests
 
     // EF Core and the scheduler wrap the driver's exception in their own.
     private static InvalidOperationException Wrapped(Exception cause) => new("The write failed.", cause);
+
+    // What SQL Server 2025 answers a write to a database set READ_ONLY, measured with SqlClient 7.0.2.
+    private static SqlException ReadOnlyDatabase() =>
+        SqlServerExceptions.WithMessage("Failed to update database \"jobs\" because the database is read-only.", 3906);
 
     // What SqlClient 7.0.2 reports, as read from real connections against SQL Server 2025: a host that never
     // answers, a listener that never answers the pre-login handshake, a refused port, and a command that ran past its
