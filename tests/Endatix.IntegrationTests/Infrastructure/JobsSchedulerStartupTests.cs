@@ -140,23 +140,12 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     {
         // Arrange — the scheduler cannot be built once because another node's transaction won a deadlock.
         var ct = TestContext.Current.CancellationToken;
-        var scheduler = Substitute.For<IScheduler>();
-        var schedulers = Substitute.For<ISchedulerFactory>();
-        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
-            _ => throw new SchedulerException(
-                "The store failed.",
-                new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected)),
-            _ => ValueTask.FromResult(scheduler));
-        var logs = new CapturingLoggerProvider();
-        using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
+        var deadlock = new SchedulerException(
+            "The store failed.",
+            new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected));
 
         // Act
-        await service.StartAsync(ct);
-        var started = await JobsTestWait.UntilAsync(
-            () => Task.FromResult(scheduler.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IScheduler.Start))),
-            TimeSpan.FromSeconds(20),
-            ct);
-        await service.StopAsync(ct);
+        var (started, logs) = await StartAfterAFailedBuildAsync(deadlock, ct);
 
         // Assert
         started.Should().BeTrue();
@@ -171,21 +160,10 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
         // Arrange — the database answered the probe, then building the scheduler waited too long once, as on a lock
         // another node holds: a wait that ran out, not an outage.
         var ct = TestContext.Current.CancellationToken;
-        var scheduler = Substitute.For<IScheduler>();
-        var schedulers = Substitute.For<ISchedulerFactory>();
-        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
-            _ => throw new SchedulerException("The store failed.", new TimeoutException("The lock was not granted in time.")),
-            _ => ValueTask.FromResult(scheduler));
-        var logs = new CapturingLoggerProvider();
-        using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
+        var lockWait = new SchedulerException("The store failed.", new TimeoutException("The lock was not granted in time."));
 
         // Act
-        await service.StartAsync(ct);
-        var started = await JobsTestWait.UntilAsync(
-            () => Task.FromResult(scheduler.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IScheduler.Start))),
-            TimeSpan.FromSeconds(20),
-            ct);
-        await service.StopAsync(ct);
+        var (started, logs) = await StartAfterAFailedBuildAsync(lockWait, ct);
 
         // Assert
         started.Should().BeTrue();
@@ -198,28 +176,40 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     {
         // Arrange — the database answers the probe, then the scheduler cannot be built once, as in a failover.
         var ct = TestContext.Current.CancellationToken;
+        var failover = new SchedulerException(
+            "The store failed.",
+            new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown));
+
+        // Act
+        var (started, logs) = await StartAfterAFailedBuildAsync(failover, ct);
+
+        // Assert
+        started.Should().BeTrue("the start waits out an outage at any step, not only at the probe");
+        LoggedError(logs, DeferredStartError).Should().BeTrue();
+        logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    // Starts the hosted service over a factory whose first build fails with the failure given, waits for the scheduler
+    // the next build hands back to be started, and stops.
+    private async Task<(bool Started, CapturingLoggerProvider Logs)> StartAfterAFailedBuildAsync(
+        Exception failure,
+        CancellationToken ct)
+    {
         var scheduler = Substitute.For<IScheduler>();
         var schedulers = Substitute.For<ISchedulerFactory>();
         schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
-            _ => throw new SchedulerException(
-                "The store failed.",
-                new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown)),
+            _ => throw failure,
             _ => ValueTask.FromResult(scheduler));
         var logs = new CapturingLoggerProvider();
         using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
-        // Act
         await service.StartAsync(ct);
         var started = await JobsTestWait.UntilAsync(
             () => Task.FromResult(scheduler.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IScheduler.Start))),
             TimeSpan.FromSeconds(20),
             ct);
         await service.StopAsync(ct);
-
-        // Assert
-        started.Should().BeTrue("the start waits out an outage at any step, not only at the probe");
-        LoggedError(logs, DeferredStartError).Should().BeTrue();
-        logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+        return (started, logs);
     }
 
     private static bool LoggedError(CapturingLoggerProvider logs, string start) =>
