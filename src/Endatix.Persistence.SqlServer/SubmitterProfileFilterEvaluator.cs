@@ -46,20 +46,25 @@ internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
 
         return filter.Operator switch
         {
-            ExpressionType.Equal => query.Where(s =>
-                s.SubmitterProfileSnapshot != null &&
-                values.Contains(EF.Functions.Collate(
-                    SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path)!,
-                    ExactCollation))),
-            ExpressionType.NotEqual => query.Where(s =>
-                s.SubmitterProfileSnapshot == null ||
-                SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path) == null ||
-                !values.Contains(EF.Functions.Collate(
-                    SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path)!,
-                    ExactCollation))),
+            ExpressionType.Equal => query.Where(HasAnyOf(path, values)),
+            ExpressionType.NotEqual => query.Where(HasNoneOf(path, values)),
             _ => throw new NotSupportedException($"Operator {filter.Operator} is not supported for submitter profile filters.")
         };
     }
+
+    private static Expression<Func<Submission, bool>> HasAnyOf(string path, List<string> values) =>
+        s => s.SubmitterProfileSnapshot != null &&
+             values.Contains(EF.Functions.Collate(
+                 SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path)!,
+                 ExactCollation));
+
+    // A missing profile or a missing field matches "not equal", as on PostgreSQL.
+    private static Expression<Func<Submission, bool>> HasNoneOf(string path, List<string> values) =>
+        s => s.SubmitterProfileSnapshot == null ||
+             SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path) == null ||
+             !values.Contains(EF.Functions.Collate(
+                 SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path)!,
+                 ExactCollation));
 
     // Quoted, so a field name with a dot or a space is one key, not a nested path.
     private static string JsonPathOf(string field) =>
