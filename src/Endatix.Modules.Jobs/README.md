@@ -337,7 +337,9 @@ one class per step:
    a server shutting down, or an Azure SQL database that is busy or paused (`DatabaseFailures` lists
    the PostgreSQL SQLSTATEs and SQL Server error numbers), the driver marked the failure transient,
    this host is stopping, or the job's row cannot be read either. A write the database refuses while
-   up, because of a constraint or a trigger, say, does not clear by trying again: such refusals are
+   up, because of a constraint or a trigger, say, or because a SQL Server database is read-only
+   (3906, which SQL Server reports alike for one set read-only on purpose and for a failover's
+   secondary), does not clear by trying again: such refusals are
    counted on the outcome, and after 3 the outcome is dropped, with an error logged, and the row is
    re-claimed. A node without the job type's handler declines such a re-fire, and the outcome stays
    on its trigger; a firing that writes it because the scheduler keeps refusing its trigger counts
