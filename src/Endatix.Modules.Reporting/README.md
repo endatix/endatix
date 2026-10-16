@@ -136,8 +136,16 @@ rows only for the first tables; the grid answer search rows below add the core j
 | SQL Server realistic | 200 ms | 220–423 ms | 584–790 ms | 53 s |
 | SQL Server worst | 295 ms | 163–269 ms | 609–754 ms | 69 s |
 
+Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, coverage count), same data:
+
+| Shape (2026-10-16, Testcontainers, 8 vCPU) | 1–3 filters, 1 caller | 1–3 filters, 4 callers | No match, 1 caller |
+| --- | --- | --- | --- |
+| PostgreSQL realistic | 64–106 ms | 101–127 ms | 81 ms |
+| SQL Server realistic | 307–400 ms | 786–805 ms (at the edge) | 188 ms |
+
 64 search keys (50 automatic, 14 people's keys with the deep filtered questions). SQL Server with 4 concurrent callers
-is the edge (790 ms against an 800 ms target): measure again before raising the cap or adding the core join.
+is the edge: 805 ms for 3 deep contains filters against an 800 ms target (567 ms once the copies were rebuilt). Measure
+again before raising the key cap or adding work to the grid query.
 
 ## Registration
 
