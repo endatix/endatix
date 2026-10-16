@@ -18,7 +18,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
+public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
 {
     private const string DeferredStartError =
         "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs.";
@@ -41,6 +41,32 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
         // Assert
         logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    [Fact]
+    public async Task Scheduler_warns_when_LockOnInsert_set_in_code_differs_from_the_one_in_effect()
+    {
+        // Arrange — configuration leaves the provider's default; the host sets the opposite in code, which the store
+        // never sees.
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        var inEffect = fixture.Provider == TestDatabaseProvider.SqlServer;
+        var logs = new CapturingLoggerProvider();
+        await using var node = JobsTestNode.Create(
+            database,
+            configureServices: services =>
+            {
+                services.AddSingleton<ILoggerProvider>(logs);
+                services.PostConfigure<BackgroundJobsOptions>(options => options.LockOnInsert = !inEffect);
+            });
+
+        // Act
+        await node.StartAsync(ct);
+
+        // Assert
+        logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning
+            && entry.Message.Contains($"is {!inEffect} in the options but {inEffect} in the scheduler's store")
+            && entry.Message.Contains("Configuration wins"));
     }
 
     [Fact]
@@ -99,7 +125,7 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
                 new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected)),
             _ => ValueTask.FromResult(scheduler));
         var logs = new CapturingLoggerProvider();
-        using var service = HostedServiceOver(fixture, schedulers, logs);
+        using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
         // Act
         await service.StartAsync(ct);
@@ -128,7 +154,7 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
             _ => throw new SchedulerException("The store failed.", new TimeoutException("The lock was not granted in time.")),
             _ => ValueTask.FromResult(scheduler));
         var logs = new CapturingLoggerProvider();
-        using var service = HostedServiceOver(fixture, schedulers, logs);
+        using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
         // Act
         await service.StartAsync(ct);
@@ -157,7 +183,7 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
                 new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown)),
             _ => ValueTask.FromResult(scheduler));
         var logs = new CapturingLoggerProvider();
-        using var service = HostedServiceOver(fixture, schedulers, logs);
+        using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
         // Act
         await service.StartAsync(ct);
@@ -175,15 +201,15 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
 
     // The hosted service alone, over the fixture's database, with the scheduler factory a test controls.
     private static JobsSchedulerHostedService HostedServiceOver(
-        DbIntegrationFixture fixture,
+        JobsTestNodeDatabase target,
         ISchedulerFactory schedulers,
         CapturingLoggerProvider logs)
     {
         var services = new ServiceCollection()
             .AddKeyedSingleton(QuartzRegistration.SchedulerName, schedulers)
             .BuildServiceProvider();
-        var isPostgreSql = fixture.Provider == TestDatabaseProvider.PostgreSql;
-        var database = new JobStoreDatabase(fixture.ConnectionString, isPostgreSql, LocksOnInsert: !isPostgreSql);
+        var isPostgreSql = target.Provider == TestDatabaseProvider.PostgreSql;
+        var database = new JobStoreDatabase(target.ConnectionString, isPostgreSql, locksOnInsert: !isPostgreSql);
         var options = Options.Create(new BackgroundJobsOptions());
         return new JobsSchedulerHostedService(
             services,

@@ -62,6 +62,7 @@ internal sealed class JobsSchedulerHostedService(
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        WarnIfLockOnInsertIsIgnored();
         var result = await TryStartSchedulerAsync(cancellationToken);
         if (result == StartResult.Started)
         {
@@ -181,13 +182,28 @@ internal sealed class JobsSchedulerHostedService(
         }
     }
 
+    // Quartz's store and the snapshot check take LockOnInsert from configuration at registration; a host that sets it
+    // in code (Configure or PostConfigure) is told its value does not apply rather than left guessing. A warning, not
+    // a failed start: the store and the check agree on the value in effect, so the node is safe either way.
+    private void WarnIfLockOnInsertIsIgnored()
+    {
+        if (options.Value.LockOnInsert is { } inOptions && inOptions != database.LocksOnInsert)
+        {
+            logger.LogWarning(
+                "Endatix:BackgroundJobs:LockOnInsert is {InOptions} in the options but {InEffect} in the scheduler's store, which reads it from configuration at registration. Configuration wins: a value set in code is ignored.",
+                inOptions,
+                database.LocksOnInsert);
+        }
+    }
+
     private static bool IsWorthRetrying(Exception exception) =>
         DatabaseFailures.IsContention(exception) || DatabaseFailures.IsTimeout(exception)
-        || DatabaseFailures.IsUnreachable(exception);
+        || DatabaseFailures.IsAwayAtStartup(exception);
 
-    // Why a failed start is worth trying again. Only what failed after the probe connected arrives here, so a wait
-    // that ran out is a lock wait, contention, unless the database went away meanwhile: the probe is asked again to
-    // tell the two apart. A refusal the probe meets is thrown.
+    // Why a failed start is worth trying again. What arrives here failed after the probe connected, but Quartz opens
+    // connections of its own while it starts: a timeout over a broken socket is the network, and any other timeout
+    // is a lock wait, contention, unless the database went away meanwhile, which asking the probe again tells. A
+    // refusal the probe meets is thrown.
     private async Task<StartResult> RetryAfterAsync(Exception exception, CancellationToken cancellationToken)
     {
         if (DatabaseFailures.IsContention(exception))
@@ -195,7 +211,8 @@ internal sealed class JobsSchedulerHostedService(
             return Contended(exception);
         }
 
-        if (!DatabaseFailures.IsTimeout(exception))
+        // A timeout over a broken socket is the network, not a lock: a connection Quartz opened timed out in a blip.
+        if (!DatabaseFailures.IsTimeout(exception) || DatabaseFailures.HasSocketFailure(exception))
         {
             return Unreachable(exception);
         }

@@ -23,7 +23,6 @@ internal static class DatabaseFailures
     private const string PostgresConnectionClass = "08"; // connection_exception and every code in its class
     private static readonly FrozenSet<string> PostgresAwayStates =
     [
-        PostgresErrorCodes.InvalidCatalogName, // the database is missing: being created or restored, or misnamed
         PostgresErrorCodes.AdminShutdown,
         PostgresErrorCodes.CrashShutdown,
         PostgresErrorCodes.CannotConnectNow,
@@ -125,9 +124,14 @@ internal static class DatabaseFailures
     /// Only for database calls, and only under a driver's failure: elsewhere a broken socket is as likely an HTTP
     /// endpoint's as the database's.
     /// </remarks>
-    public static bool IsUnreachable(Exception failure) =>
-        failure.HasCause(IsAwayCause)
-        || (failure.HasCause(cause => cause is DbException) && failure.HasCause(cause => cause is SocketException));
+    public static bool IsUnreachable(Exception failure) => failure.HasCause(IsAwayCause) || HasSocketFailure(failure);
+
+    /// <summary>
+    /// Whether <paramref name="failure"/> is a driver's failure with a socket failure anywhere under it: the network
+    /// broke or never connected, whatever else, a timeout say, the driver reports on top.
+    /// </summary>
+    public static bool HasSocketFailure(Exception failure) =>
+        failure.HasCause(cause => cause is DbException) && failure.HasCause(cause => cause is SocketException);
 
     /// <summary>
     /// Whether <paramref name="failure"/> says the database the connection names could not be opened: on SQL Server
@@ -157,6 +161,17 @@ internal static class DatabaseFailures
         PostgresException postgres => postgres.SqlState == PostgresErrorCodes.QueryCanceled,
         _ => false,
     });
+
+    /// <summary>
+    /// Whether <paramref name="failure"/> keeps a node from starting its scheduler for now: the database is away, or
+    /// the one the connection names cannot be opened yet (<see cref="IsDatabaseUnavailable"/>).
+    /// </summary>
+    /// <remarks>
+    /// Only the start waits for a database that cannot be opened: a pipeline may still be creating or restoring it.
+    /// Once a node runs, PostgreSQL's missing database (3D000) is not an outage to a job's outcome, which fails loudly
+    /// as before; SQL Server's 4060 was an outage to it already.
+    /// </remarks>
+    public static bool IsAwayAtStartup(Exception failure) => IsUnreachable(failure) || IsDatabaseUnavailable(failure);
 
     /// <summary>
     /// Whether <paramref name="failure"/> came from the database at all: a timeout, or any failure the driver reported.

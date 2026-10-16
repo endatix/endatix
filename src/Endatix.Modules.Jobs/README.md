@@ -463,7 +463,7 @@ from; a value from code is named by the `JobTypes` key that replaces it.
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
 | `MisfireThresholdSeconds` | `60` | How long a due job may wait for a slot before the backlog warning |
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
-| `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits. Read from configuration once, at registration: a `Configure` or `PostConfigure` in code does not change it |
+| `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits. Read from configuration once, at registration: a `Configure` or `PostConfigure` in code does not change it, and a node whose options say otherwise logs a warning at startup |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); read when an attempt ends, so a change also applies to jobs already waiting |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |
