@@ -1,9 +1,10 @@
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Data;
+using Endatix.Core.Specifications;
+using Endatix.Core.Specifications.Parameters;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 
@@ -17,10 +18,14 @@ public sealed record SubmissionGridColumnsQuery(long TenantId, long FormId, stri
 /// </summary>
 public sealed class ListSubmissionGridColumns(
     IFormSchemaRepository formSchemaRepository,
-    IReportingDbContext reportingDbContext,
-    AppDbContext appDbContext)
+    IFlattenedSubmissionRepository flattenedSubmissionRepository,
+    IRepository<Form> formsRepository,
+    IRepository<Submission> submissionsRepository)
 {
     internal const string FormNotFoundMessage = "Form not found.";
+
+    private static readonly FilterParameters NoFilters = new();
+    private static readonly FilterParameters CompletedOnly = new(["isComplete:true"]);
 
     /// <summary>
     /// Returns the columns, or not found when the form does not exist in the tenant. A form without a compiled schema
@@ -35,7 +40,7 @@ public sealed class ListSubmissionGridColumns(
             return Result.Unauthorized();
         }
 
-        if (!await FormExistsAsync(query, cancellationToken))
+        if (!await IsTenantFormAsync(query, cancellationToken))
         {
             return Result.NotFound(FormNotFoundMessage);
         }
@@ -47,49 +52,30 @@ public sealed class ListSubmissionGridColumns(
         return Result.Success(new SubmissionGridColumns(query.FormId, schema is not null, readiness, columns));
     }
 
-    private Task<bool> FormExistsAsync(SubmissionGridColumnsQuery query, CancellationToken cancellationToken) =>
-        appDbContext.Forms
-            .AsNoTracking()
-            .AnyAsync(form => form.TenantId == query.TenantId && form.Id == query.FormId, cancellationToken);
+    private async Task<bool> IsTenantFormAsync(SubmissionGridColumnsQuery query, CancellationToken cancellationToken)
+    {
+        var form = await formsRepository.SingleOrDefaultAsync(new FormSpecifications.ByIdReadOnly(query.FormId), cancellationToken);
+        return form is not null && form.TenantId == query.TenantId;
+    }
 
     private async Task<SubmissionGridReadiness> ReadReadinessAsync(
         SubmissionGridColumnsQuery query,
         CancellationToken cancellationToken)
     {
-        var submissions = await CountSubmissionsAsync(query, cancellationToken);
-        var rowsByStatus = await CountPreparedRowsByStatusAsync(query, cancellationToken);
+        var submissions = await submissionsRepository.CountAsync(
+            new SubmissionsByFormIdCountSpec(query.FormId, NoFilters), cancellationToken);
+        var completed = await submissionsRepository.CountAsync(
+            new SubmissionsByFormIdCountSpec(query.FormId, CompletedOnly), cancellationToken);
+        var rowsByStatus = await flattenedSubmissionRepository.CountByStatusAsync(
+            query.TenantId, query.FormId, cancellationToken);
 
         return new SubmissionGridReadiness(
-            Submissions: submissions.Total,
-            CompletedSubmissions: submissions.Completed,
+            Submissions: submissions,
+            CompletedSubmissions: completed,
             Prepared: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Processed),
             Pending: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Pending) +
                      rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Processing),
             Failed: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Failed),
             SkippedInProgress: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Skipped));
     }
-
-    private async Task<SubmissionCounts> CountSubmissionsAsync(
-        SubmissionGridColumnsQuery query,
-        CancellationToken cancellationToken) =>
-        await appDbContext.Submissions
-            .AsNoTracking()
-            .Where(submission => submission.TenantId == query.TenantId &&
-                                 submission.FormId == query.FormId &&
-                                 !submission.IsDeleted)
-            .GroupBy(_ => 1)
-            .Select(group => new SubmissionCounts(group.Count(), group.Count(submission => submission.IsComplete)))
-            .FirstOrDefaultAsync(cancellationToken) ?? new SubmissionCounts(0, 0);
-
-    private Task<Dictionary<string, int>> CountPreparedRowsByStatusAsync(
-        SubmissionGridColumnsQuery query,
-        CancellationToken cancellationToken) =>
-        reportingDbContext.FlattenedSubmissions
-            .AsNoTracking()
-            .Where(row => row.TenantId == query.TenantId && row.FormId == query.FormId && !row.IsDeleted)
-            .GroupBy(row => row.Integration.Code)
-            .Select(group => new { Code = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(entry => entry.Code, entry => entry.Count, cancellationToken);
-
-    private sealed record SubmissionCounts(int Total, int Completed);
 }
