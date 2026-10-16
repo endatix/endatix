@@ -34,10 +34,6 @@ internal static class QuartzRegistration
     /// <summary>The scheduler job group of maintenance jobs such as retention, apart from job types.</summary>
     public const string MaintenanceJobGroup = "endatix-maintenance";
 
-    // One thread beyond the job types' caps, for retention, so it never waits behind them and never takes their
-    // slots.
-    private const int MaintenanceThreads = 1;
-
     // Triggers already due join a batch whatever the window; the window lets a trigger due a moment later, such as
     // one enqueued by a node whose clock runs slightly ahead, join it rather than wait for a lock round of its own.
     // A delayed trigger fires at most this early, which is nothing beside the seconds a retry backoff or a re-fire
@@ -154,42 +150,45 @@ internal static class QuartzRegistration
         var options = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
             ?? new BackgroundJobsOptions();
         var database = JobStoreDatabase.From(configuration, options);
+        var sizing = new JobsSchedulerSizing();
 
         services.AddSingleton(database);
+        services.AddSingleton(sizing);
         services.AddSingleton<ReadCommittedSnapshotRequirement>();
         services.AddJobExecution();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
-        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, database));
+        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, database, sizing));
         ReadCommittedSnapshotGatedSchedulerFactory.Register(services);
-        SizeToRegisteredJobTypes(services);
 
         return services;
     }
 
-    // Sized from the registry, which only exists once the container is built.
-    private static void SizeToRegisteredJobTypes(IServiceCollection services)
+    // Sized from the registry, which only exists once the application's container is built. Configured in the
+    // recipe rather than beside it, because a rebuilt scheduler replays only the recipe; the sizing keeps the count the
+    // application's container worked out, which the rebuilt one's container cannot.
+    private static void SizeToRegisteredJobTypes(IQuartzBuilder quartz, JobsSchedulerSizing sizing)
     {
-        services.AddOptions<ThreadPoolOptions>(SchedulerName)
-            .Configure<JobHandlerRegistry, JobTypePolicies>((threadPool, registry, policies) =>
-                threadPool.MaxConcurrency = ThreadCount(registry, policies));
+        quartz.Services.AddOptions<ThreadPoolOptions>(quartz.SchedulerName)
+            .Configure<IServiceProvider>((threadPool, services) => threadPool.MaxConcurrency = sizing.ThreadCount(services));
 
         // An acquisition takes up to one trigger per free thread and fires them together, taking the cluster-wide
         // trigger lock once to acquire and once to fire rather than once per trigger. Above a batch of one, Quartz
         // takes the lock for every acquisition, so an idle node takes it once per idle wait. Execution limits still
         // hold per job type: the driver delegate never returns more of a type's triggers than it has free slots.
-        services.AddOptions<QuartzSchedulerOptions>(SchedulerName)
-            .Configure<JobHandlerRegistry, JobTypePolicies>((scheduler, registry, policies) =>
-                scheduler.MaxBatchSize = ThreadCount(registry, policies));
+        quartz.Services.AddOptions<QuartzSchedulerOptions>(quartz.SchedulerName)
+            .Configure<IServiceProvider>((scheduler, services) => scheduler.MaxBatchSize = sizing.ThreadCount(services));
     }
 
-    private static int ThreadCount(JobHandlerRegistry registry, JobTypePolicies policies) =>
-        Build(registry.JobTypes, policies).PoolSize + MaintenanceThreads;
-
-    private static void ConfigureQuartz(IQuartzBuilder quartz, BackgroundJobsOptions options, JobStoreDatabase database)
+    private static void ConfigureQuartz(
+        IQuartzBuilder quartz,
+        BackgroundJobsOptions options,
+        JobStoreDatabase database,
+        JobsSchedulerSizing sizing)
     {
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
+        SizeToRegisteredJobTypes(quartz, sizing);
         AddRetentionJob(quartz, options.Retention);
         quartz.AddTriggerListener<JobTriggerListener>();
         quartz.AddTriggerListener<JobMisfireListener>();
@@ -249,7 +248,7 @@ internal static class QuartzRegistration
             limits.ForGroup(group, cap);
         }
 
-        limits.ForGroup(JobRetentionJob.Group, MaintenanceThreads);
+        limits.ForGroup(JobRetentionJob.Group, JobsSchedulerSizing.MaintenanceThreads);
         limits.ForOtherGroups(0);
     }
 
