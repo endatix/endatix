@@ -130,14 +130,19 @@ internal static class QuartzRegistration
         services.AddSingleton<StoredDurableJobs>();
         // Added only if absent, so a test can make a refused trigger's next try come sooner.
         services.TryAddSingleton(TriggerStoreBackoff.Default);
-        services.AddScoped<JobLifecycleMetrics>();
         services.AddSingleton<JobsShutdownSignal>();
         services.AddSingleton<ReadOnlyDatabaseWarning>();
         services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
-        services.AddMetrics();
-        services.TryAddSingleton<IJobMetrics, MeterJobMetrics>();
+        AddMetrics(services);
         AddJobTypePolicies(services);
         return services;
+    }
+
+    private static void AddMetrics(IServiceCollection services)
+    {
+        services.AddScoped<JobLifecycleMetrics>();
+        services.AddMetrics();
+        services.TryAddSingleton<IJobMetrics, MeterJobMetrics>();
     }
 
     private static void AddJobTypePolicies(IServiceCollection services)

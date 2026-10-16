@@ -227,12 +227,11 @@ internal static class DatabaseFailures
 
     /// <summary>
     /// Whether <paramref name="failure"/> is a write the database refused because it is read-only: SQL Server 3906 or
-    /// PostgreSQL 25006, or the startup probe finding PostgreSQL's transactions read-only. It is an outage, but one that
-    /// may never clear, so it is named wherever it is retried.
+    /// PostgreSQL 25006, which the startup probe also reports when it finds PostgreSQL's transactions read-only. It is
+    /// an outage, but one that may never clear, so it is named wherever it is retried.
     /// </summary>
     public static bool IsReadOnly(Exception failure) => failure.HasCause(cause => cause switch
     {
-        DatabaseReadOnlyException => true,
         PostgresException postgres => postgres.SqlState == PostgresErrorCodes.ReadOnlySqlTransaction,
         SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error => error.Number == ReadOnlyDatabase),
         _ => false,

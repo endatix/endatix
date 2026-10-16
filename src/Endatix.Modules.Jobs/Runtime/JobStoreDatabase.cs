@@ -75,7 +75,7 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
             await using var connection = Connect();
             await connection.OpenAsync(cancellationToken);
             return IsPostgreSql && await TransactionsAreReadOnlyAsync(connection, cancellationToken)
-                ? new DatabaseReadOnlyException(DatabaseName)
+                ? ReadOnlyTransactions()
                 : null;
         }
         catch (Exception exception) when (DatabaseFailures.IsAwayAtStartup(exception))
@@ -125,6 +125,13 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
         command.CommandText = "SHOW transaction_read_only";
         return await command.ExecuteScalarAsync(cancellationToken) is "on";
     }
+
+    // Said as PostgreSQL says a write it refused for the same reason, so the start treats both alike.
+    private PostgresException ReadOnlyTransactions() => new(
+        $"Every new transaction on database '{DatabaseName}' is read-only: it is a standby, or default_transaction_read_only is on.",
+        "ERROR",
+        "ERROR",
+        PostgresErrorCodes.ReadOnlySqlTransaction);
 
     private DbConnection Connect() =>
         IsPostgreSql ? new NpgsqlConnection(ConnectionString) : new SqlConnection(ConnectionString);
