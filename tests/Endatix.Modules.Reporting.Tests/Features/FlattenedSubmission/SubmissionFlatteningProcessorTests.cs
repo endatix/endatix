@@ -17,7 +17,7 @@ using NSubstitute;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;
 
-public class SubmissionFlatteningProcessorTests
+public partial class SubmissionFlatteningProcessorTests
 {
     private const long TenantId = 1;
     private const long FormId = 100;
@@ -142,28 +142,6 @@ public class SubmissionFlatteningProcessorTests
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
     }
 
-    [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task ProcessAsync_SubmissionOrItsFormDeletedAfterRead_RemovesTheRowItWrote(
-        bool submissionDeleted,
-        bool formDeleted)
-    {
-        // Arrange — deleted, and its cleanup run, while this flatten was running.
-        GivenSubmission(CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 2));
-        GivenSchema();
-        GivenRowAcceptsRevision(true);
-        GivenDeletionState(new SubmissionDeletionState(FormId, submissionDeleted, formDeleted));
-
-        // Act
-        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
-
-        // Assert — the row is removed as the deletion's own sync would have removed it.
-        await _rows.Received(1).TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
-    }
-
     [Fact]
     public async Task ProcessAsync_RowWrittenFromNewerRevision_WritesNothing()
     {
@@ -202,25 +180,6 @@ public class SubmissionFlatteningProcessorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_NewerRevisionWrittenMeanwhileThenFormDeleted_RemovesTheRow()
-    {
-        // Arrange — this flatten's processing write lands, a newer flatten's data replaces it, and the form is
-        // deleted, with its cleanup run, before this flatten finishes.
-        var submission = CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 2);
-        GivenSubmission(submission);
-        GivenSchema();
-        _rows.TryMarkProcessingAsync(WriteOf(submission), Arg.Any<CancellationToken>()).Returns(true);
-        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
-        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: true));
-
-        // Act
-        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
-
-        // Assert
-        await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public async Task ProcessAsync_IncompleteSubmission_MarksSkippedAtItsRevision()
     {
         // Arrange
@@ -235,28 +194,6 @@ public class SubmissionFlatteningProcessorTests
         // Assert
         await _rows.Received(1).TryMarkSkippedAsync(WriteOf(submission), Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
-    }
-
-    [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task ProcessAsync_IncompleteSubmissionOrItsFormDeletedAfterRead_RemovesTheSkippedRowItWrote(
-        bool submissionDeleted,
-        bool formDeleted)
-    {
-        // Arrange — deleted, and its cleanup run, while this flatten of a draft was running.
-        var draft = Submission.Create(new SubmissionCreateArgs(TenantId, FormId, FormDefinitionId, "{}", IsComplete: false));
-        draft.Id = SubmissionId;
-        GivenSubmission(draft);
-        GivenRowAcceptsRevision(true);
-        GivenDeletionState(new SubmissionDeletionState(FormId, submissionDeleted, formDeleted));
-
-        // Act
-        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
-
-        // Assert — the skipped row goes too, as the deletion's own sync would have removed it.
-        await _rows.Received(1).TryMarkSkippedAsync(WriteOf(draft), Arg.Any<CancellationToken>());
-        await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -300,23 +237,6 @@ public class SubmissionFlatteningProcessorTests
             .WithMessage($"*form {FormId}*definition {FormDefinitionId}*");
         await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
-    }
-
-    [Fact]
-    public async Task ProcessAsync_SchemaGoneWithFormDeletedAfterRead_RemovesTheRowItCreatedAndSucceeds()
-    {
-        // Arrange — the form is deleted, and its cleanup has run, between reading the submission and its schema.
-        GivenSubmission(CompletedSubmission("{}", revision: 1));
-        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: true));
-        GivenNoSchema();
-        GivenRowAcceptsRevision(true);
-
-        // Act
-        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
-
-        // Assert
-        await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
         await _submissions.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 
