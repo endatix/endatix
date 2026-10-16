@@ -89,13 +89,6 @@ internal static class PersonalizationColumns
             .Where(column => column.Kind is FormSchemaColumnKind.Personalization)
             .ToList();
 
-    /// <summary>The personalization columns as one block: the identifier, then variables by key.</summary>
-    public static IEnumerable<FormSchemaColumn> InBlockOrder(IEnumerable<FormSchemaColumn> columns) =>
-        columns
-            .Where(column => column.Kind is FormSchemaColumnKind.Personalization)
-            .OrderBy(column => column.Key == IdentifierKey ? 0 : 1)
-            .ThenBy(column => column.Key, StringComparer.Ordinal);
-
     private static Dictionary<string, PersonalizationValue> DescribedValues(PersonalizationRead read)
     {
         Dictionary<string, PersonalizationValue> described = new(StringComparer.Ordinal);

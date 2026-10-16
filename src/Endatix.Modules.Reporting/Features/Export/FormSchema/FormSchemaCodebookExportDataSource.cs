@@ -1,9 +1,10 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Data;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export.FormSchema;
 
@@ -11,7 +12,7 @@ namespace Endatix.Modules.Reporting.Features.Export.FormSchema;
 /// Streams the persisted multi-locale form-schema codebook JSON (no request locale filter).
 /// </summary>
 internal sealed class FormSchemaCodebookExportDataSource(
-    IFormSchemaRepository formSchemaRepository,
+    ExportSchemas exportSchemas,
     ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
     internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
@@ -38,7 +39,7 @@ internal sealed class FormSchemaCodebookExportDataSource(
         ExportDataSourceContext context,
         CancellationToken cancellationToken)
     {
-        var schema = await formSchemaRepository.GetByFormIdAsync(
+        var schema = await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
             cancellationToken);
@@ -53,8 +54,8 @@ internal sealed class FormSchemaCodebookExportDataSource(
             return ReportingExportSchemaHelper.InvalidSchemaArtifactsResult<ExportOptions>();
         }
 
-        context.Options.Metadata ??= new Dictionary<string, object>();
-        context.Options.Metadata[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
+        await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
+        (context.Options.Metadata ??= new Dictionary<string, object>())[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             ResolveSettings(context.Options);
 
         return Result.Success(context.Options);
@@ -64,16 +65,30 @@ internal sealed class FormSchemaCodebookExportDataSource(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = await formSchemaRepository.GetByFormIdAsync(
-            context.TenantId,
-            context.FormId,
-            cancellationToken);
+        var schema = await exportSchemas.GetAsync(context.TenantId, context.FormId, cancellationToken);
         if (schema is null)
         {
             yield break;
         }
 
-        yield return new DynamicExportRow { Data = schema.Codebook };
+        yield return new DynamicExportRow { Data = await ReadCodebookAsync(schema, context, cancellationToken) };
+    }
+
+    // A schema that passes HasValidSchemaArtifacts (non-blank only) but has an unsupported or unversioned map used to
+    // stream as-is. Fall back to the stored codebook rather than failing the export.
+    private async Task<string> ReadCodebookAsync(
+        FormSchemaEntity schema,
+        ExportDataSourceContext context,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken);
+        }
+        catch (JsonException)
+        {
+            return schema.Codebook;
+        }
     }
 
     private ExportFormatSettings ResolveSettings(ExportOptions options)

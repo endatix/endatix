@@ -56,7 +56,7 @@ internal static partial class ShojiCodebookGenerator
 
             var questions = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Questions);
             var codebookColumns = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Columns);
-            var flatteningMap = WithCodebookColumnKinds(FormSchemaFlatteningMap.FromJson(flatteningMapJson), codebookColumns);
+            var flatteningMap = ShojiFlatteningMap(flatteningMapJson, codebook, codebookColumns);
             var groupedColumnKeys = BuildGroupedColumnKeys(flatteningMap);
 
             System.Buffers.ArrayBufferWriter<byte> buffer = new();
