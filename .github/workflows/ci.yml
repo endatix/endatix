@@ -1,7 +1,8 @@
 name: Build, Test & Release
 
 # Thin consumer of endatix/release-workflows (see its README):
-#   • PR to main → tests (below) + build validation in the shared pipeline
+#   • any PR (stacked ones included) → tests (below) + SonarCloud + build
+#     validation in the shared pipeline
 #     (scripts/release-prepare.sh @ 0.0.0-ci — builds + packs, publishes nothing)
 #   • push main  → tests, then canary vX.Y.Z-canary.N: semantic-release builds
 #     once at the real version and publishes the NuGet packages to GitHub
@@ -69,20 +70,23 @@ jobs:
         with:
           name: coverage-unit
           path: .coverage/**/coverage.opencover.xml
-          retention-days: 1
-      - name: Install DotNet Coverage
-        run: dotnet tool update --global dotnet-coverage
-      - name: 📊 Merge Coverage Reports
-        run: dotnet-coverage merge .coverage/endatix-hub/cobertura-coverage.xml .coverage/**/coverage.cobertura.xml -f cobertura -o .coverage/merged.cobertura.xml
+          include-hidden-files: true # .coverage is a dot-directory
+          if-no-files-found: error
+          retention-days: 7 # long enough to re-run the sonar job
       - name: 📊 Install DotNet Report Generator
-        run: dotnet tool install --global dotnet-reportgenerator-globaltool
-      - name: 📊Add Summary Report
-        run: reportgenerator -reports:".coverage/merged.cobertura.xml" -targetdir:".coverage/report" -reporttypes:"MarkdownSummaryGithub"
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.5.11
+      # Coveralls tracks unit coverage only, so its report leaves out the assemblies
+      # that only integration tests reach. SonarCloud gets them (opencover above).
+      - name: 📊 Merge Coverage Reports
+        run: >-
+          reportgenerator -reports:".coverage/**/coverage.cobertura.xml" -targetdir:".coverage/report"
+          -reporttypes:"Cobertura;MarkdownSummaryGithub"
+          -assemblyfilters:"-Endatix.Hosting;-Endatix.WebHost;-Endatix.Api.Host;-Endatix.Persistence.SqlServer;-Endatix.Persistence.PostgreSql"
       - name: 📊 Upload to Coveralls
         uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         with:
           format: cobertura
-          file: .coverage/merged.cobertura.xml
+          file: .coverage/report/Cobertura.xml
       - name: 📝 Output Summary Report
         run: |
           echo ">[!NOTE] " >> $GITHUB_STEP_SUMMARY
@@ -104,6 +108,8 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+      # PRs skip P2 tests to save time, so SonarCloud can report code that only a P2
+      # test reaches as uncovered on a PR (covered again on main). Accepted trade-off.
       - name: Set integration test filter
         env:
           GITHUB_REF_SAFE: ${{ github.ref }}
@@ -123,13 +129,15 @@ jobs:
             --filter "$INTEGRATION_TEST_FILTER" \
             --collect:"XPlat Code Coverage;Format=opencover" \
             --results-directory:.coverage \
-            --settings coverlet.integration.runsettings
+            --settings coverlet.runsettings
       - name: 📊 Upload integration coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-integration
           path: .coverage/**/coverage.opencover.xml
-          retention-days: 1
+          include-hidden-files: true # .coverage is a dot-directory
+          if-no-files-found: error
+          retention-days: 7 # long enough to re-run the sonar job
 
   integration-tests-sqlserver:
     name: "Endatix API: SQL Server integration tests"
@@ -151,17 +159,29 @@ jobs:
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             -c Release --no-build --verbosity minimal \
-            --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
+            --filter "Category!=Keycloak&DbSpecific!=PostgreSql" \
+            --collect:"XPlat Code Coverage;Format=opencover" \
+            --results-directory:.coverage \
+            --settings coverlet.runsettings
+      - name: 📊 Upload SQL Server coverage for SonarCloud
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-integration-sqlserver
+          path: .coverage/**/coverage.opencover.xml
+          include-hidden-files: true # .coverage is a dot-directory
+          if-no-files-found: error
+          retention-days: 7 # long enough to re-run the sonar job
 
-  # CI-based SonarCloud analysis with unit + PostgreSQL integration coverage.
+  # CI-based SonarCloud analysis with unit + PostgreSQL + SQL Server coverage.
   # Automatic Analysis (the SonarCloud app's own scan) cannot import coverage,
   # so it must be OFF in SonarCloud → Administration → Analysis Method.
-  # The token comes from Infisical over OIDC, as in endatix-relay and the shared
-  # canary workflow (same identity, bound to the Production environment). Fork
-  # and Dependabot PRs get no OIDC secrets, so they skip the fetch and the scan.
+  # The token comes from Infisical over OIDC, as in endatix-relay: `prod` on main,
+  # `dev` everywhere else, so PR code never reaches release secrets. Production is
+  # the environment the shared Infisical identity is bound to.
+  # Fork and Dependabot PRs get no OIDC secrets: they skip the scan, with a notice.
   sonar:
     name: "Endatix API: SonarCloud"
-    needs: [unit-tests, integration-tests]
+    needs: [unit-tests, integration-tests, integration-tests-sqlserver]
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -175,16 +195,28 @@ jobs:
           fetch-depth: 0 # Sonar needs history for new-code and blame
           persist-credentials: false
       - name: 🔐 Fetch secrets (Infisical, OIDC)
+        id: infisical
         if: >-
           github.actor != 'dependabot[bot]' &&
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: Infisical/secrets-action@03d3fa38607956c493f53c6633f94006a13c47ae # v1.0.7
         with:
           method: "oidc"
-          env-slug: "dev"
+          env-slug: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
           project-slug: "github-actions-for-endatix"
           identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
-          recursive: true
+          # Root folder only (no recursive): keeps folders such as the GitHub App
+          # credentials out of a job that builds PR code.
+      - name: ℹ️ No SonarCloud analysis on fork and Dependabot PRs
+        if: steps.infisical.outcome == 'skipped'
+        run: echo "::notice::SonarCloud analysis skipped - fork and Dependabot PRs get no Infisical secrets."
+      - name: ❌ Require the SonarCloud token
+        if: steps.infisical.outcome == 'success' && env.ENDATIX_API_REPO_SONAR_TOKEN == ''
+        env:
+          ENV_SLUG: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+        run: |
+          echo "::error::ENDATIX_API_REPO_SONAR_TOKEN is missing from the Infisical '$ENV_SLUG' environment (root folder)."
+          exit 1
       - name: 📦 Setup .NET
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -198,11 +230,17 @@ jobs:
           path: .sonar-coverage
       - name: 🔧 Install SonarScanner
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
-        run: dotnet tool update --global dotnet-sonarscanner
+        run: dotnet tool install --global dotnet-sonarscanner --version 11.3.0
       - name: 🔎 Build & analyze
         # qualitygate.wait fails this job when the SonarCloud quality gate is red.
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
+          for a in unit integration integration-sqlserver; do
+            if ! find ".sonar-coverage/coverage-$a" -name coverage.opencover.xml 2>/dev/null | grep -q .; then
+              echo "::error::No coverage-$a report (artifacts expire after 7 days: re-run the whole workflow)."
+              exit 1
+            fi
+          done
           dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
