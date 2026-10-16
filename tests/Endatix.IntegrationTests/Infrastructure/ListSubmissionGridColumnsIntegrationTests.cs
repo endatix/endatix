@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
@@ -164,14 +165,16 @@ public sealed class ListSubmissionGridColumnsIntegrationTests(DbIntegrationFixtu
         return new SeededForm(form.Id);
     }
 
-    private static ListSubmissionGridColumns CreateSut(ReportingDbContextBase reportingDb, AppDbContext appDb) =>
-        new(
-            new FormSchemaRepository(
-                reportingDb,
-                new ReportingUnitOfWork(reportingDb),
-                ReportingTestSchema.TransactionLockFor(reportingDb)),
-            reportingDb,
-            appDb);
+    private static ListSubmissionGridColumns CreateSut(ReportingDbContextBase reportingDb, AppDbContext appDb)
+    {
+        ReportingUnitOfWork unitOfWork = new(reportingDb);
+        EndatixSpecificationEvaluator evaluator = new([]);
+        return new ListSubmissionGridColumns(
+            new FormSchemaRepository(reportingDb, unitOfWork, ReportingTestSchema.TransactionLockFor(reportingDb)),
+            new FlattenedSubmissionRepository(reportingDb, unitOfWork, new DateTimeProvider()),
+            new EfRepository<Form>(appDb, evaluator),
+            new EfRepository<Submission>(appDb, evaluator));
+    }
 
     private AppDbContext CreateAppDbContext(long tenantId)
     {
