@@ -19,6 +19,7 @@ using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.Outbox;
@@ -56,6 +57,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
         builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
         builder.Services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
+        builder.Services.AddScoped<ListSubmissionGridColumns>();
         builder.Services.AddScoped<IExportFormatRepository, ExportFormatRepository>();
         builder.Services.AddScoped<IExportMappingRepository, ExportMappingRepository>();
         builder.Services.AddScoped<IDefaultExportFormatsSeeder, DefaultExportFormatsSeeder>();
