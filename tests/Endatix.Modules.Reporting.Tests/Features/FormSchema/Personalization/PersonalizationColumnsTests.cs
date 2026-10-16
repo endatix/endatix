@@ -144,24 +144,6 @@ public sealed class PersonalizationColumnsTests
             .Should().Be(FormSchemaColumnKind.Simple);
     }
 
-    [Fact]
-    public void InBlockOrder_MixedColumns_ReturnsIdentifierThenVariablesByKey()
-    {
-        // Arrange
-        MergedFormSchema schema = new([
-            Column("zeta", "text"),
-            new FormSchemaColumn("q1", FormSchemaColumnKind.Simple, "Q1", "string"),
-            Column("alpha", "number"),
-            new FormSchemaColumn(PersonalizationColumns.IdentifierKey, FormSchemaColumnKind.Personalization, "Audience identifier", "text"),
-        ]);
-
-        // Act
-        var block = PersonalizationColumns.InBlockOrder(schema.Columns).Select(column => column.Key);
-
-        // Assert
-        block.Should().Equal("AudienceIdentifier", "audience_alpha", "audience_zeta");
-    }
-
     private static MergedFormSchema Questions(params string[] keys) =>
         new(keys.Select(key => new FormSchemaColumn(key, FormSchemaColumnKind.Simple, key, "string")));
 

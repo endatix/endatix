@@ -94,7 +94,8 @@ internal static class ExportColumnPlanBuilder
                     keySeparator),
             })
             .ToList();
-        AddNonQuestionBlocks(flatteningMap, aliasedColumns);
+        aliasedColumns.AddRange(PersonalizationBlock(schema, flatteningMap, aliasedColumns));
+        aliasedColumns.AddRange(SubmitterProfileBlock(flatteningMap, aliasedColumns));
 
         EnsureUniqueExportKeys(aliasedColumns);
 
@@ -107,32 +108,47 @@ internal static class ExportColumnPlanBuilder
             column.Kind is not (FormSchemaColumnKind.Personalization or FormSchemaColumnKind.SubmitterProfile) &&
             (scopedKeys is null || scopedKeys.Contains(column.Key)));
 
-    // Audience values, then submitter profile fields, close the row as one block each, and their keys are the headers
-    // as stored: no alias profile or key separator touches them, so a Crunch alias for one never changes between
-    // exports. They are not questions, so a question column scope does not drop them. A question whose export key
-    // matches one keeps it, as in the schema, instead of failing the export (#1230). Submitter fields come last so
-    // that listing one leaves every column an export had before where it was.
-    private static void AddNonQuestionBlocks(MergedFormSchema flatteningMap, List<ExportColumnDefinition> columns)
+    // Audience values close the row as one block, in the codebook's block order and under its titles, and their keys
+    // are the headers as stored: no alias profile or key separator touches them, so a Crunch alias for an audience
+    // variable never changes between exports. They are not questions, so a question column scope does not drop them.
+    // A question whose export key matches one keeps it, as in the schema, instead of failing the export (#1243).
+    private static List<ExportColumnDefinition> PersonalizationBlock(
+        FormSchemaEntity schema,
+        MergedFormSchema flatteningMap,
+        List<ExportColumnDefinition> questionColumns)
     {
-        columns.AddRange(NonQuestionBlock(PersonalizationColumns.InBlockOrder(flatteningMap.Columns), columns));
-        columns.AddRange(NonQuestionBlock(SubmitterProfileColumns.InBlockOrder(flatteningMap.Columns), columns));
+        HashSet<string> taken = new(questionColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(schema.Codebook))
+        {
+            return [];
+        }
+
+        using var codebook = JsonDocument.Parse(schema.Codebook);
+        return PersonalizationCodebook.InBlockOrder(flatteningMap, codebook.RootElement)
+            .Where(column => !taken.Contains(column.Key))
+            .Select(ToColumn)
+            .ToList();
     }
 
-    private static List<ExportColumnDefinition> NonQuestionBlock(
-        IEnumerable<FormSchemaColumn> block,
+    // Submitter profile fields follow as one more block, with the same key rules as audience values. They come last so
+    // that listing a field leaves every column an export had before where it was.
+    private static List<ExportColumnDefinition> SubmitterProfileBlock(
+        MergedFormSchema flatteningMap,
         List<ExportColumnDefinition> precedingColumns)
     {
         HashSet<string> taken = new(precedingColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
-        return block
+        return SubmitterProfileColumns.InBlockOrder(flatteningMap.Columns)
             .Where(column => !taken.Contains(column.Key))
-            .Select(column => new ExportColumnDefinition(
-                CanonicalKey: column.Key,
-                ExportKey: column.Key,
-                Source: ExportColumnSource.DataJson,
-                HeaderLabel: column.Label,
-                DataType: column.DataType))
+            .Select(ToColumn)
             .ToList();
     }
+
+    private static ExportColumnDefinition ToColumn(FormSchemaColumn column) => new(
+        CanonicalKey: column.Key,
+        ExportKey: column.Key,
+        Source: ExportColumnSource.DataJson,
+        HeaderLabel: column.Label,
+        DataType: column.DataType);
 
     private static bool ShouldProjectCrunchShapes(ColumnAliasProfile aliasProfile, string keySeparator) =>
         aliasProfile is ColumnAliasProfile.Crunch ||

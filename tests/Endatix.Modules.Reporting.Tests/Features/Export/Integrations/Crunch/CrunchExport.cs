@@ -30,7 +30,7 @@ internal static class CrunchExport
 
     public static async Task<string> ShojiCodebookAsync(FormSchemaEntity schema, CancellationToken cancellationToken)
     {
-        ShojiCodebookExportDataSource dataSource = new(Schemas(schema), Substitute.For<IFormsRepository>(), _settingsParser);
+        ShojiCodebookExportDataSource dataSource = new(TestExportSchemas.Of(Schemas(schema)), Substitute.For<IFormsRepository>(), _settingsParser);
         var context = Context("codebook-shoji", typeof(DynamicExportRow));
         (await dataSource.PrepareOptionsAsync(context, cancellationToken)).IsSuccess.Should().BeTrue();
 
@@ -48,7 +48,7 @@ internal static class CrunchExport
         IReadOnlyList<FlattenedExportRow> rows,
         CancellationToken cancellationToken)
     {
-        TabularExportDataSource dataSource = new(Schemas(schema), Rows(rows), _settingsParser, ColumnAliasTransformerRegistry.Default);
+        TabularExportDataSource dataSource = new(TestExportSchemas.Of(Schemas(schema)), Rows(rows), _settingsParser, ColumnAliasTransformerRegistry.Default);
         var context = Context("csv-shoji", typeof(SubmissionExportRow));
         var prepared = await dataSource.PrepareOptionsAsync(context, cancellationToken);
         prepared.IsSuccess.Should().BeTrue();
