@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Endatix.Modules.Audience.Contracts;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -79,6 +81,8 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         services.AddSingleton<IColumnAliasTransformerRegistry, ColumnAliasTransformerRegistry>();
         services.AddSingleton<ExportFormatSettingsParser>();
         services.AddSingleton<ExportFormatSettingsWriter>();
+        // Exports read audience names here; the Audience module replaces the default when it is on.
+        services.TryAddScoped<IAudiencePropertyCatalog, NoAudiencePropertyCatalog>();
         services.AddScoped<ExportSchemas>();
         services.AddScoped<IExportDataSource, TabularExportDataSource>();
         services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();

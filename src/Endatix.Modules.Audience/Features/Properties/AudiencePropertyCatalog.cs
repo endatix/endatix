@@ -1,4 +1,4 @@
-using Endatix.Core.Abstractions.Submissions;
+using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,15 +12,16 @@ namespace Endatix.Modules.Audience.Features.Properties;
 /// Live properties only, so the partial index serves the read. A deleted property's column keeps the name frozen in
 /// the schema and sorts after the live ones.
 /// </remarks>
-internal sealed class AudiencePersonalizationCatalog(IAudienceDbContext db) : IPersonalizationCatalog
+internal sealed class AudiencePropertyCatalog(IAudienceDbContext db) : IAudiencePropertyCatalog
 {
-    public async Task<IReadOnlyList<PersonalizationVariableInfo>> ListForFormAsync(
+    public async Task<IReadOnlyList<AudiencePropertyName>> ListForFormAsync(
         long tenantId,
         long formId,
         CancellationToken cancellationToken) =>
         await db.Properties
             .AsNoTracking()
             .Where(property => property.TenantId == tenantId && property.FormId == formId)
-            .Select(property => new PersonalizationVariableInfo(property.VariableName, property.Name, property.SortOrder))
+            .InTabOrder()
+            .Select(property => new AudiencePropertyName(property.VariableName, property.Name, property.SortOrder))
             .ToListAsync(cancellationToken);
 }

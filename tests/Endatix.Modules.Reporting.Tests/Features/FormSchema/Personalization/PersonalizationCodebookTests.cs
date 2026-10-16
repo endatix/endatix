@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using FluentAssertions;
@@ -29,7 +29,7 @@ public sealed class PersonalizationCodebookTests
     {
         // Arrange: city sorts before age; plan and zip have no live property (deleted, or never one).
         var compiled = Personalized("age", "city", "zip", "plan");
-        PersonalizationVariableInfo[] variables =
+        AudiencePropertyName[] variables =
         [
             new("age", "Age (years)", SortOrder: 2),
             new("city", "Town", SortOrder: 1),

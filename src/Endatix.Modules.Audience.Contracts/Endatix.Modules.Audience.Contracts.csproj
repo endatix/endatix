@@ -4,8 +4,8 @@
     <PackageId>Endatix.Modules.Audience.Contracts</PackageId>
     <Title>Endatix - Audience Module Contracts</Title>
     <Description>
-      Public contracts for the Endatix Audience module: audience property data types and
-      wire codes. Domain and persistence stay in Endatix.Modules.Audience.
+      Public contracts for the Endatix Audience module: audience property data types, wire codes and
+      the property catalog exports read. Domain and persistence stay in Endatix.Modules.Audience.
 
       $(EndatixPlatformDescription)
     </Description>

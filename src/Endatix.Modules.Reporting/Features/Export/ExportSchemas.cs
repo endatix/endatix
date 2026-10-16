@@ -1,5 +1,5 @@
 using Endatix.Core.Abstractions.Exporting;
-using Endatix.Core.Abstractions.Submissions;
+using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
@@ -11,7 +11,7 @@ namespace Endatix.Modules.Reporting.Features.Export;
 /// The form schema an export runs with: as stored, except that its codebook names and orders the audience block as
 /// the Audience tab is now. A rename or reorder never touches the stored schema.
 /// </summary>
-internal sealed class ExportSchemas(IFormSchemaRepository schemas, IPersonalizationCatalog catalog)
+internal sealed class ExportSchemas(IFormSchemaRepository schemas, IAudiencePropertyCatalog catalog)
 {
     private const string CodebookMetadataKey = "ReportingExportCodebook";
 

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -72,7 +73,19 @@ internal sealed class FormSchemaCodebookExportDataSource(
             yield break;
         }
 
-        yield return new DynamicExportRow { Data = await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken) };
+        // A schema that passes HasValidSchemaArtifacts (non-blank only) but has an unsupported or unversioned
+        // map used to stream as-is. Fall back to the stored codebook rather than failing the export.
+        string codebook;
+        try
+        {
+            codebook = await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken);
+        }
+        catch (JsonException)
+        {
+            codebook = schema.Codebook;
+        }
+
+        yield return new DynamicExportRow { Data = codebook };
     }
 
     private ExportFormatSettings ResolveSettings(ExportOptions options)

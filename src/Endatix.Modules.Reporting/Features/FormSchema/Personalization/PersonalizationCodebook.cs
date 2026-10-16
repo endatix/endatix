@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Endatix.Core.Abstractions.Submissions;
+using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
@@ -29,7 +29,7 @@ internal static class PersonalizationCodebook
     public static string Overlay(
         string codebookJson,
         MergedFormSchema flatteningMap,
-        IReadOnlyList<PersonalizationVariableInfo> variables)
+        IReadOnlyList<AudiencePropertyName> variables)
     {
         var block = variables.Count == 0 ? [] : InCatalogOrder(flatteningMap, variables);
         if (block.Count == 0)
@@ -71,7 +71,7 @@ internal static class PersonalizationCodebook
     // property), by key. A known property shows its current name; the rest keep the name frozen in the schema.
     private static List<FormSchemaColumn> InCatalogOrder(
         MergedFormSchema flatteningMap,
-        IReadOnlyList<PersonalizationVariableInfo> variables)
+        IReadOnlyList<AudiencePropertyName> variables)
     {
         // A catalog returns one entry per variable name; a duplicate keeps the first rather than failing the export.
         var byKey = variables
@@ -87,7 +87,7 @@ internal static class PersonalizationCodebook
             .ToList();
     }
 
-    private static int CatalogRank(FormSchemaColumn column, PersonalizationVariableInfo? variable)
+    private static int CatalogRank(FormSchemaColumn column, AudiencePropertyName? variable)
     {
         if (column.Key == PersonalizationColumns.IdentifierKey)
         {
@@ -101,9 +101,12 @@ internal static class PersonalizationCodebook
     {
         foreach (var column in block)
         {
-            if (columns?[column.Key] is JsonObject entry)
+            if (columns?.TryGetPropertyValue(column.Key, out var entry) == true &&
+                entry is JsonObject entryObj &&
+                entryObj.TryGetPropertyValue(FormSchemaCodebookPropertyNames.SurveyJsType, out var typeNode) &&
+                typeNode?.GetValue<string>() == FormSchemaCodebookPropertyNames.PersonalizationSurveyJsType)
             {
-                entry[SurveyJsPropertyNames.Title] = new JsonObject { [FormSchemaCodebookPropertyNames.Default] = column.Label };
+                entryObj[SurveyJsPropertyNames.Title] = new JsonObject { [FormSchemaCodebookPropertyNames.Default] = column.Label };
             }
         }
     }
@@ -131,36 +134,37 @@ internal static class PersonalizationCodebook
 
     private static IEnumerable<string> BlockKeys(JsonElement codebook)
     {
-        if (Child(codebook, BlockPropertyName, JsonValueKind.Object) is not { } block)
+        if (codebook.TryGetPropertyValue(BlockPropertyName) is { } blockElement &&
+            blockElement.ValueKind == JsonValueKind.Object)
         {
-            yield break;
-        }
+            if (blockElement.TryGetPropertyValue(IdentifierPropertyName) is { } identifierElement &&
+                identifierElement.ValueKind == JsonValueKind.String)
+            {
+                yield return identifierElement.GetString() ?? string.Empty;
+            }
 
-        if (Child(block, IdentifierPropertyName, JsonValueKind.String) is { } identifier)
-        {
-            yield return identifier.GetString() ?? string.Empty;
-        }
-
-        var variables = Child(block, VariablesPropertyName, JsonValueKind.Object)?.EnumerateObject() ?? default;
-        foreach (var variable in variables.Where(variable => variable.Value.ValueKind is JsonValueKind.String))
-        {
-            yield return variable.Value.GetString() ?? string.Empty;
+            if (blockElement.TryGetPropertyValue(VariablesPropertyName) is { } variablesElement &&
+                variablesElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var variable in variablesElement.EnumerateObject()
+                    .Where(variable => variable.Value.ValueKind == JsonValueKind.String))
+                {
+                    yield return variable.Value.GetString() ?? string.Empty;
+                }
+            }
         }
     }
 
     // Audience entries have a default-locale title only.
     private static string? TitleOf(JsonElement codebook, string key) =>
-        Child(codebook, FormSchemaCodebookPropertyNames.Columns, JsonValueKind.Object) is { } columns &&
-        Child(columns, key, JsonValueKind.Object) is { } entry &&
-        Child(entry, SurveyJsPropertyNames.Title, JsonValueKind.Object) is { } title &&
-        Child(title, FormSchemaCodebookPropertyNames.Default, JsonValueKind.String) is { } text
-            ? text.GetString()
-            : null;
-
-    private static JsonElement? Child(JsonElement element, string name, JsonValueKind kind) =>
-        element.ValueKind is JsonValueKind.Object &&
-        element.TryGetProperty(name, out var child) &&
-        child.ValueKind == kind
-            ? child
+        codebook.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Columns) is { } columnsElement &&
+        columnsElement.ValueKind == JsonValueKind.Object &&
+        columnsElement.TryGetPropertyValue(key) is { } entryElement &&
+        entryElement.ValueKind == JsonValueKind.Object &&
+        entryElement.TryGetPropertyValue(SurveyJsPropertyNames.Title) is { } titleElement &&
+        titleElement.ValueKind == JsonValueKind.Object &&
+        titleElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Default) is { } textElement &&
+        textElement.ValueKind == JsonValueKind.String
+            ? textElement.GetString()
             : null;
 }

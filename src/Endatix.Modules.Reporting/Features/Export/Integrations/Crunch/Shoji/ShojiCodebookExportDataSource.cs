@@ -17,6 +17,7 @@ internal sealed class ShojiCodebookExportDataSource(
     ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
     private const string DefaultDatasetName = "Form export";
+    private const string PreparedSchemaKey = "ReportingPreparedShojiSchema";
 
     internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
     [
@@ -68,6 +69,7 @@ internal sealed class ShojiCodebookExportDataSource(
         await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
         (context.Options.Metadata ??= new Dictionary<string, object>())[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             settings with { Locale = requestLocale };
+        context.Options.Metadata[PreparedSchemaKey] = schema.FlatteningMap;
 
         return Result.Success(context.Options);
     }
@@ -76,10 +78,14 @@ internal sealed class ShojiCodebookExportDataSource(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = (await exportSchemas.GetAsync(
+        var schema = await exportSchemas.GetAsync(
             context.TenantId,
             context.FormId,
-            cancellationToken))!;
+            cancellationToken);
+        if (schema is null)
+        {
+            yield break;
+        }
 
         var settings = ResolveSettings(context.Options);
         var requestLocale = ReportingExportSchemaHelper.ResolveLocaleOrDefault(settings.Locale);
@@ -87,8 +93,14 @@ internal sealed class ShojiCodebookExportDataSource(
             context.FormId,
             requestLocale,
             cancellationToken);
+
+        // Use the flattening map captured during PrepareOptionsAsync so the map and codebook come from one read.
+        var flatteningMap = context.Options.Metadata?.TryGetValue(PreparedSchemaKey, out var map) == true
+            ? map as string
+            : schema.FlatteningMap;
+
         var codebookJson = ShojiCodebookGenerator.Generate(
-            schema.FlatteningMap,
+            flatteningMap!,
             await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken),
             settings.KeySeparator,
             requestLocale,

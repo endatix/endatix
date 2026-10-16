@@ -116,6 +116,11 @@ internal static class ExportColumnPlanBuilder
         List<ExportColumnDefinition> questionColumns)
     {
         HashSet<string> taken = new(questionColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(schema.Codebook))
+        {
+            return [];
+        }
+
         using var codebook = JsonDocument.Parse(schema.Codebook);
         return PersonalizationCodebook.InBlockOrder(flatteningMap, codebook.RootElement)
             .Where(column => !taken.Contains(column.Key))

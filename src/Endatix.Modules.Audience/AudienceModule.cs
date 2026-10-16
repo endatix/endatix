@@ -5,6 +5,7 @@ using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Features.Forms;
 using Endatix.Modules.Audience.Features.Import;
 using Endatix.Modules.Audience.Features.Links;
@@ -38,7 +39,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, DeleteFormAudienceOutboxHandler>();
         builder.Services.AddScoped<ImportWriteSupport>();
         builder.Services.AddScoped<ISubmissionPersonalizer, OnBehalfPersonalizer>();
-        builder.Services.AddScoped<IPersonalizationCatalog, AudiencePersonalizationCatalog>();
+        builder.Services.AddScoped<IAudiencePropertyCatalog, AudiencePropertyCatalog>();
         builder.Services.AddScoped<LinkOpenLock>();
         builder.Services.AddScoped<LinkOpenGates>();
     }

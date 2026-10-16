@@ -2,9 +2,9 @@ using System.Text;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export;
@@ -33,14 +33,14 @@ public sealed class AudienceNamesAtExportTests
     private static readonly ExportFormatSettingsParser _settingsParser = new(NullLogger<ExportFormatSettingsParser>.Instance);
 
     // Frozen as "City" and "Age"; since then city was renamed "Town" and moved before age (key order is age, city).
-    private static readonly PersonalizationVariableInfo[] _current =
+    private static readonly AudiencePropertyName[] _current =
     [
         new("city", "Town", SortOrder: 1),
         new("age", "Age", SortOrder: 2),
     ];
 
     private readonly IFormSchemaRepository _schemas = Substitute.For<IFormSchemaRepository>();
-    private readonly IPersonalizationCatalog _catalog = TestExportSchemas.Catalog(_current);
+    private readonly IAudiencePropertyCatalog _catalog = TestExportSchemas.Catalog(_current);
 
     public AudienceNamesAtExportTests() =>
         _schemas.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>()).Returns(PersonalizedSchema());

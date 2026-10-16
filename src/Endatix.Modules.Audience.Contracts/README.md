@@ -1,6 +1,6 @@
 # Endatix.Modules.Audience.Contracts
 
-Wire codes for the Audience module: property data types and the tenant match key (`email`, `external_id`). No domain or persistence.
+Public surface of the Audience module: wire codes for property data types and the tenant match key (`email`, `external_id`), and `IAudiencePropertyCatalog`, which lists a form's properties in Audience-tab order for exports. No domain or persistence.
 
 The implementation is [Endatix.Modules.Audience](../Endatix.Modules.Audience/).
 
