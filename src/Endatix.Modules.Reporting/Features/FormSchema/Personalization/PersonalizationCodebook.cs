@@ -134,25 +134,35 @@ internal static class PersonalizationCodebook
 
     private static IEnumerable<string> BlockKeys(JsonElement codebook)
     {
-        if (codebook.TryGetPropertyValue(BlockPropertyName) is { } blockElement &&
-            blockElement.ValueKind == JsonValueKind.Object)
+        if (codebook.TryGetPropertyValue(BlockPropertyName) is not { } block ||
+            block.ValueKind != JsonValueKind.Object)
         {
-            if (blockElement.TryGetPropertyValue(IdentifierPropertyName) is { } identifierElement &&
-                identifierElement.ValueKind == JsonValueKind.String)
-            {
-                yield return identifierElement.GetString() ?? string.Empty;
-            }
-
-            if (blockElement.TryGetPropertyValue(VariablesPropertyName) is { } variablesElement &&
-                variablesElement.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var variable in variablesElement.EnumerateObject()
-                    .Where(variable => variable.Value.ValueKind == JsonValueKind.String))
-                {
-                    yield return variable.Value.GetString() ?? string.Empty;
-                }
-            }
+            yield break;
         }
+
+        foreach (var key in IdentifierKeys(block).Concat(VariableKeys(block)))
+        {
+            yield return key;
+        }
+    }
+
+    private static IEnumerable<string> IdentifierKeys(JsonElement block) =>
+        block.TryGetPropertyValue(IdentifierPropertyName) is { } identifier &&
+        identifier.ValueKind == JsonValueKind.String
+            ? [identifier.GetString() ?? string.Empty]
+            : [];
+
+    private static IEnumerable<string> VariableKeys(JsonElement block)
+    {
+        if (block.TryGetPropertyValue(VariablesPropertyName) is not { } variables ||
+            variables.ValueKind != JsonValueKind.Object)
+        {
+            return [];
+        }
+
+        return variables.EnumerateObject()
+            .Where(variable => variable.Value.ValueKind == JsonValueKind.String)
+            .Select(variable => variable.Value.GetString() ?? string.Empty);
     }
 
     // Audience entries have a default-locale title only.

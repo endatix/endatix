@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export.FormSchema;
 
@@ -64,28 +65,30 @@ internal sealed class FormSchemaCodebookExportDataSource(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = await exportSchemas.GetAsync(
-            context.TenantId,
-            context.FormId,
-            cancellationToken);
+        var schema = await exportSchemas.GetAsync(context.TenantId, context.FormId, cancellationToken);
         if (schema is null)
         {
             yield break;
         }
 
-        // A schema that passes HasValidSchemaArtifacts (non-blank only) but has an unsupported or unversioned
-        // map used to stream as-is. Fall back to the stored codebook rather than failing the export.
-        string codebook;
+        yield return new DynamicExportRow { Data = await ReadCodebookAsync(schema, context, cancellationToken) };
+    }
+
+    // A schema that passes HasValidSchemaArtifacts (non-blank only) but has an unsupported or unversioned map used to
+    // stream as-is. Fall back to the stored codebook rather than failing the export.
+    private async Task<string> ReadCodebookAsync(
+        FormSchemaEntity schema,
+        ExportDataSourceContext context,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            codebook = await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken);
+            return await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken);
         }
         catch (JsonException)
         {
-            codebook = schema.Codebook;
+            return schema.Codebook;
         }
-
-        yield return new DynamicExportRow { Data = codebook };
     }
 
     private ExportFormatSettings ResolveSettings(ExportOptions options)

@@ -124,14 +124,16 @@ internal static class ExportColumnPlanBuilder
         using var codebook = JsonDocument.Parse(schema.Codebook);
         return PersonalizationCodebook.InBlockOrder(flatteningMap, codebook.RootElement)
             .Where(column => !taken.Contains(column.Key))
-            .Select(column => new ExportColumnDefinition(
-                CanonicalKey: column.Key,
-                ExportKey: column.Key,
-                Source: ExportColumnSource.DataJson,
-                HeaderLabel: column.Label,
-                DataType: column.DataType))
+            .Select(ToColumn)
             .ToList();
     }
+
+    private static ExportColumnDefinition ToColumn(FormSchemaColumn column) => new(
+        CanonicalKey: column.Key,
+        ExportKey: column.Key,
+        Source: ExportColumnSource.DataJson,
+        HeaderLabel: column.Label,
+        DataType: column.DataType);
 
     private static bool ShouldProjectCrunchShapes(ColumnAliasProfile aliasProfile, string keySeparator) =>
         aliasProfile is ColumnAliasProfile.Crunch ||

@@ -5,6 +5,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 
@@ -90,24 +91,20 @@ internal sealed class ShojiCodebookExportDataSource(
         var settings = ResolveSettings(context.Options);
         var requestLocale = ReportingExportSchemaHelper.ResolveLocaleOrDefault(settings.Locale);
         var (datasetName, datasetDescription) = await ResolveDatasetMetadataAsync(
-            context.FormId,
-            requestLocale,
-            cancellationToken);
-
-        // Use the flattening map captured during PrepareOptionsAsync so the map and codebook come from one read.
-        var flatteningMap = context.Options.Metadata?.TryGetValue(PreparedSchemaKey, out var map) == true
-            ? map as string
-            : schema.FlatteningMap;
-
+            context.FormId, requestLocale, cancellationToken);
+        var flatteningMap = PreparedFlatteningMap(context, schema);
         var codebookJson = ShojiCodebookGenerator.Generate(
-            flatteningMap!,
+            flatteningMap,
             await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken),
-            settings.KeySeparator,
-            requestLocale,
-            datasetName,
-            datasetDescription);
+            settings.KeySeparator, requestLocale, datasetName, datasetDescription);
         yield return new DynamicExportRow { Data = codebookJson };
     }
+
+    // The flattening map captured during PrepareOptionsAsync, so the map and codebook come from one read.
+    private static string PreparedFlatteningMap(ExportDataSourceContext context, FormSchemaEntity schema) =>
+        context.Options.Metadata?.TryGetValue(PreparedSchemaKey, out var map) == true
+            ? map as string ?? schema.FlatteningMap
+            : schema.FlatteningMap;
 
     private async Task<(string? DatasetName, string DatasetDescription)> ResolveDatasetMetadataAsync(
         long formId,
