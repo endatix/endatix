@@ -108,10 +108,9 @@ compares; PostgreSQL compares keys as written and takes it. A blank key means no
 
 Use `EnqueueManyAsync` for fan-out — one job per webhook endpoint, say. The batch commits in
 a single transaction, so a partial fan-out cannot deliver to some destinations and silently
-drop the rest. A batch inserts and schedules its keyed jobs ordered by tenant, job type and key, not
-in request order, then its jobs without a key in request order: their ids, and the order jobs due at
-once start in, follow that order, while the ids `EnqueueManyAsync` returns still match the requests.
-On PostgreSQL the order makes two batches that share keys lock them in the same order, so one waits for
+drop the rest. A batch inserts and schedules its keyed jobs ordered by tenant, job type and key, so
+for keyed jobs request order is kept neither for their ids nor for the order jobs due at once start
+in; the ids `EnqueueManyAsync` returns still match the requests. On PostgreSQL the order makes two batches that share keys lock them in the same order, so one waits for
 the other instead of deadlocking. On SQL Server the query plan picks the order rows reach an index, so
 two such batches can still deadlock. An enqueue that loses a deadlock or a serialization failure
 anywhere in its attempt (inserting the rows, storing their triggers, committing) rolls back, reads the
@@ -183,12 +182,14 @@ the shared store. `Endatix:BackgroundJobs:RunInProcess` decides what it does wit
 That is what allows API and worker roles to be deployed separately from the same image.
 
 **Starting without a database.** A node whose database is away (unreachable, failing over, timing
-out) starts without its scheduler, logs that it could not reach its database, and starts the scheduler
-once it can; a database that refuses, such as a login it does not accept, fails the start. A
-misnamed SQL Server database is retried too, with an error naming it ("cannot open database …: it is
-missing, offline or being restored"), because SQL Server reports a missing database exactly as it
-reports one that is offline or being restored. Meanwhile the host's readiness probe reports the
-database as down.
+out while connecting) starts without its scheduler, logs that it could not reach its database, and
+starts the scheduler once it can; a database that refuses, such as a login it does not accept, fails
+the start. A database that cannot be opened (SQL Server 4060, PostgreSQL 3D000) is retried too, with an
+error naming it ("cannot open database …: it is missing, offline or being restored, or not created
+yet"): SQL Server reports a missing database exactly as it reports one that is offline or being
+restored, and PostgreSQL's may still be being created. A deadlock, or a statement that times out once
+the node has connected, is a lost race rather than an outage, and is retried as one, with its own
+warning. Meanwhile the host's readiness probe reports the database as down.
 
 **Each job type is its own Quartz execution group**, capped per node at
 `JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
@@ -462,7 +463,7 @@ from; a value from code is named by the `JobTypes` key that replaces it.
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
 | `MisfireThresholdSeconds` | `60` | How long a due job may wait for a slot before the backlog warning |
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
-| `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits |
+| `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits. Read from configuration once, at registration: a `Configure` or `PostConfigure` in code does not change it |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); read when an attempt ends, so a change also applies to jobs already waiting |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |

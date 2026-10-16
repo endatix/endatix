@@ -82,7 +82,7 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
         logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
         logs.Entries.Should().Contain((
             LogLevel.Error,
-            $"The background jobs scheduler cannot open database '{missingName}': it is missing, offline or being restored. Retrying."));
+            $"The background jobs scheduler cannot open database '{missingName}': it is missing, offline or being restored, or not created yet. Retrying."));
         logs.Entries.Should().NotContain(entry => entry.Message.Contains("Password", StringComparison.OrdinalIgnoreCase));
     }
 

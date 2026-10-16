@@ -175,23 +175,32 @@ internal sealed class JobsSchedulerHostedService(
             await StartSchedulerAsync(cancellationToken);
             return StartResult.Started;
         }
-        catch (Exception exception) when (!cancellationToken.IsCancellationRequested && RetryAfter(exception) is { } result)
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested && IsWorthRetrying(exception))
         {
-            return result;
+            return await RetryAfterAsync(exception, cancellationToken);
         }
     }
 
-    // Why a failed start is worth trying again, or null when the database refused and waiting would not help. Only
-    // what failed after the probe connected arrives here, so a wait that ran out is a lock wait, contention, not an
-    // outage.
-    private StartResult? RetryAfter(Exception exception)
+    private static bool IsWorthRetrying(Exception exception) =>
+        DatabaseFailures.IsContention(exception) || DatabaseFailures.IsTimeout(exception)
+        || DatabaseFailures.IsUnreachable(exception);
+
+    // Why a failed start is worth trying again. Only what failed after the probe connected arrives here, so a wait
+    // that ran out is a lock wait, contention, unless the database went away meanwhile: the probe is asked again to
+    // tell the two apart. A refusal the probe meets is thrown.
+    private async Task<StartResult> RetryAfterAsync(Exception exception, CancellationToken cancellationToken)
     {
-        if (DatabaseFailures.IsContention(exception) || DatabaseFailures.IsTimeout(exception))
+        if (DatabaseFailures.IsContention(exception))
         {
             return Contended(exception);
         }
 
-        return DatabaseFailures.IsUnreachable(exception) ? Unreachable(exception) : null;
+        if (!DatabaseFailures.IsTimeout(exception))
+        {
+            return Unreachable(exception);
+        }
+
+        return await database.UnreachableBecauseAsync(cancellationToken) is { } away ? Unreachable(away) : Contended(exception);
     }
 
     private StartResult Contended(Exception lostRace)
@@ -243,7 +252,7 @@ internal sealed class JobsSchedulerHostedService(
         if (DatabaseFailures.IsDatabaseUnavailable(away) && ++_unavailableTries % TriesPerRepeatedWarning == 1)
         {
             logger.LogError(
-                "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored. Retrying.",
+                "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. Retrying.",
                 database.DatabaseName);
         }
 
