@@ -4,8 +4,11 @@ using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Persistence.PostgreSql.Locking;
+using Endatix.Persistence.PostgreSql.Querying;
 using Endatix.Persistence.SqlServer.Locking;
+using Endatix.Persistence.SqlServer.Querying;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -102,6 +105,17 @@ internal static class ReportingTestSchema
     {
         DbContextOptionsBuilder<TContext> optionsBuilder = new();
         optionsBuilder.ConfigureModuleDbContext(configuration, ReportingPersistence.ConfigureDbContextOptions);
+
+        // What the persistence builder's IModuleDbContextProviderOptions applies in a host: the JSON database functions.
+        if (DatabaseProviderResolver.IsPostgreSql(configuration))
+        {
+            optionsBuilder.ReplaceService<IModelCustomizer, NpgsqlEndatixModelCustomizer>();
+        }
+        else
+        {
+            optionsBuilder.ReplaceService<IModelCustomizer, SqlServerEndatixModelCustomizer>();
+        }
+
         return optionsBuilder.Options;
     }
 
