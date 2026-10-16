@@ -8,6 +8,7 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
@@ -33,6 +34,7 @@ internal sealed class SubmissionFlatteningProcessor(
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
     IFormSchemaProvider schemaProvider,
     IFormSchemaPersonalization schemaPersonalization,
+    SubmitterProfileFields submitterProfileFields,
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
     private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
@@ -116,8 +118,9 @@ internal sealed class SubmissionFlatteningProcessor(
     {
         var personalization = PersonalizationReader.Read(submission.PersonalizationSnapshot);
         var mergedSchema = await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken);
+        ResponseSnapshots snapshots = new(personalization, submitterProfileFields.Read(submission.SubmitterProfileSnapshot));
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
-        var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, personalization);
+        var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, snapshots);
         return FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);
     }
 

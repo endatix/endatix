@@ -53,7 +53,9 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [InlineData("answers")]
     [InlineData("definition")]
     [InlineData("answers,metadata")]
-    public async Task HandleAsync_WithSubmissionUpdated_DataAffectingChangeKind_CallsProcessor(string changeKind)
+    [InlineData("submitter")]
+    [InlineData("metadata,submitter")]
+    public async Task HandleAsync_WithSubmissionUpdated_FlattenedDataChangeKind_CallsProcessor(string changeKind)
     {
         Submission submission = CreateSubmission();
         string payload = ReportingOutboxTestHelpers.SerializePayload(
@@ -75,9 +77,8 @@ public sealed class FlattenSubmissionOutboxHandlerTests
 
     [Theory]
     [InlineData("metadata")]
-    [InlineData("submitter")]
     [InlineData("")]
-    public async Task HandleAsync_WithSubmissionUpdated_NonDataChangeKind_DoesNotCallProcessor(string changeKind)
+    public async Task HandleAsync_WithSubmissionUpdated_NonFlattenedChangeKind_DoesNotCallProcessor(string changeKind)
     {
         Submission submission = CreateSubmission();
         SubmissionChangeKinds parsedChangeKind = string.IsNullOrEmpty(changeKind)

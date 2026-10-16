@@ -14,6 +14,15 @@ internal static partial class ShojiCodebookGenerator
         HashSet<string> UsedDisplayNames,
         List<string> OrderAliases);
 
+    /// <summary>The variables written for columns no question owns; an alias a question took is in none.</summary>
+    private sealed record NonQuestionAliases(
+        IReadOnlyList<string> Calculated,
+        IReadOnlyList<string> Personalization,
+        IReadOnlyList<string> SubmitterProfile)
+    {
+        public IEnumerable<string> InAppearanceOrder => Personalization.Concat(SubmitterProfile).Concat(Calculated);
+    }
+
     /// <summary>The Shoji type of an audience data type, and the resolution of a datetime.</summary>
     private sealed record PersonalizationShape(string Type, string? Resolution = null)
     {

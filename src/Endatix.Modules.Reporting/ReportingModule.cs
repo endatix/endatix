@@ -21,6 +21,7 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Infrastructure;
@@ -68,7 +69,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IExportDataSource, TabularExportDataSource>();
         builder.Services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();
         builder.Services.AddScoped<IExportDataSource, FormSchemaCodebookExportDataSource>();
-        builder.Services.AddSingleton<FormSchemaCompiler>();
+        AddFormSchemaCompiler(builder.Services);
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
         builder.Services.AddScoped<FormSchemaCoverage>();
         builder.Services.AddScoped<IFormSchemaProvider, FormSchemaProvider>();
@@ -77,6 +78,15 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
         builder.Services.AddReportingOutboxWork();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
+    }
+
+    // The compiler adds the configured submitter profile columns to every schema; the flatten fills only those fields.
+    private static void AddFormSchemaCompiler(IServiceCollection services)
+    {
+        services.AddSingleton(sp =>
+            SubmitterProfileFields.From(sp.GetRequiredService<IOptions<ReportingOptions>>().Value));
+        services.AddSingleton(sp =>
+            new FormSchemaCompiler(submitterProfileFields: sp.GetRequiredService<SubmitterProfileFields>()));
     }
 
     private static void AddPersistence(EndatixModuleBuilder builder)

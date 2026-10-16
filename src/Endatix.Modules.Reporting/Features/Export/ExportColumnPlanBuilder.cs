@@ -4,6 +4,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
@@ -93,29 +94,36 @@ internal static class ExportColumnPlanBuilder
                     keySeparator),
             })
             .ToList();
-        aliasedColumns.AddRange(PersonalizationBlock(flatteningMap, aliasedColumns));
+        AddNonQuestionBlocks(flatteningMap, aliasedColumns);
 
         EnsureUniqueExportKeys(aliasedColumns);
 
         return new ExportColumnPlan(aliasedColumns);
     }
 
-    // The columns that answers fill, within the requested scope. Audience columns join after aliasing.
+    // The columns that answers fill, within the requested scope. Audience and submitter columns join after aliasing.
     private static IEnumerable<FormSchemaColumn> QuestionColumns(MergedFormSchema flatteningMap, HashSet<string>? scopedKeys) =>
         flatteningMap.Columns.Where(column =>
-            column.Kind is not FormSchemaColumnKind.Personalization &&
+            column.Kind is not (FormSchemaColumnKind.Personalization or FormSchemaColumnKind.SubmitterProfile) &&
             (scopedKeys is null || scopedKeys.Contains(column.Key)));
 
-    // Audience values close the row as one block, and their keys are the headers as stored: no alias profile or key
-    // separator touches them, so a Crunch alias for an audience variable never changes between exports. They are not
-    // questions, so a question column scope does not drop them. A question whose export key matches one keeps it, as
-    // in the schema, instead of failing the export (#1230).
-    private static List<ExportColumnDefinition> PersonalizationBlock(
-        MergedFormSchema flatteningMap,
-        List<ExportColumnDefinition> questionColumns)
+    // Audience values, then submitter profile fields, close the row as one block each, and their keys are the headers
+    // as stored: no alias profile or key separator touches them, so a Crunch alias for one never changes between
+    // exports. They are not questions, so a question column scope does not drop them. A question whose export key
+    // matches one keeps it, as in the schema, instead of failing the export (#1230). Submitter fields come last so
+    // that listing one leaves every column an export had before where it was.
+    private static void AddNonQuestionBlocks(MergedFormSchema flatteningMap, List<ExportColumnDefinition> columns)
     {
-        HashSet<string> taken = new(questionColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
-        return PersonalizationColumns.InBlockOrder(flatteningMap.Columns)
+        columns.AddRange(NonQuestionBlock(PersonalizationColumns.InBlockOrder(flatteningMap.Columns), columns));
+        columns.AddRange(NonQuestionBlock(SubmitterProfileColumns.InBlockOrder(flatteningMap.Columns), columns));
+    }
+
+    private static List<ExportColumnDefinition> NonQuestionBlock(
+        IEnumerable<FormSchemaColumn> block,
+        List<ExportColumnDefinition> precedingColumns)
+    {
+        HashSet<string> taken = new(precedingColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
+        return block
             .Where(column => !taken.Contains(column.Key))
             .Select(column => new ExportColumnDefinition(
                 CanonicalKey: column.Key,

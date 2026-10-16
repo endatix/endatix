@@ -12,6 +12,7 @@ using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -406,6 +407,7 @@ public sealed class SubmissionBackfillScopeIntegrationTests
                 new ReportingUnitOfWork(reportingDb),
                 new FormSchemaCompiler(),
                 NullLogger<FormSchemaPersonalization>.Instance),
+            SubmitterProfileFields.None,
             NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     private static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase reportingDb) =>

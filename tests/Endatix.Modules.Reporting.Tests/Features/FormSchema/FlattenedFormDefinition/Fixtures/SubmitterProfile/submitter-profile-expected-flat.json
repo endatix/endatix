@@ -1,0 +1,29 @@
+{
+  "full-profile-with-audience": {
+    "department": "Field sales",
+    "submitter_region": "Northern Europe",
+    "recommend": true,
+    "submitter_email": "ana@example.com",
+    "submitter_department": "Sales",
+    "AudienceIdentifier": "CG-000001-01",
+    "audience_city": "03. MIDWEST - COLUMBUS"
+  },
+  "partial-profile": {
+    "department": "Support",
+    "submitter_region": null,
+    "recommend": false,
+    "submitter_email": "bo@example.com",
+    "submitter_department": null,
+    "AudienceIdentifier": null,
+    "audience_city": null
+  },
+  "no-profile": {
+    "department": "Finance",
+    "submitter_region": null,
+    "recommend": null,
+    "submitter_email": null,
+    "submitter_department": null,
+    "AudienceIdentifier": null,
+    "audience_city": null
+  }
+}

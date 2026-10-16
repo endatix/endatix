@@ -136,9 +136,9 @@ internal static partial class ShojiCodebookGenerator
         HashSet<string> seen = new(StringComparer.Ordinal);
 
         order.AddRange(_systemColumnOrder.Where(alias => written.Contains(alias) && seen.Add(alias)));
-        // Audience values, then calculated values, sit between the system block and the questions. The CSV keeps them
-        // last; Crunch matches CSV columns to variables by alias, so the two orders may differ.
-        order.AddRange(nonQuestionAliases.Personalization.Concat(nonQuestionAliases.Calculated).Where(seen.Add));
+        // Audience values, submitter profile fields, then calculated values, sit between the system block and the
+        // questions. The CSV keeps them last; Crunch matches CSV columns to variables by alias, so the orders may differ.
+        order.AddRange(nonQuestionAliases.InAppearanceOrder.Where(seen.Add));
 
         foreach (var column in args.FlatteningMap.Columns)
         {
@@ -250,10 +250,10 @@ internal static partial class ShojiCodebookGenerator
     }
 
     /// <summary>
-    /// Writes calculated values, then audience values, last, so questions keep their names and aliases. Crunch
-    /// orders variables by the order array, not by this metadata order.
+    /// Writes calculated values, audience values, then submitter profile fields, last, so questions keep their names
+    /// and aliases. Crunch orders variables by the order array, not by this metadata order.
     /// </summary>
-    /// <returns>The aliases of the calculated-value and audience variables written.</returns>
+    /// <returns>The aliases of the calculated-value, audience and submitter variables written.</returns>
     private static NonQuestionAliases WriteShojiVariables(Utf8JsonWriter writer, ShojiCodebookWriteArgs args, List<string> orderAliases)
     {
         HashSet<string> writtenVariables = new(StringComparer.Ordinal);
@@ -268,11 +268,9 @@ internal static partial class ShojiCodebookGenerator
         WriteCheckboxOtherTextVariables(writer, args.FlatteningMap, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteLoopExpandedVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         var calculatedAliases = WriteCalculatedValueVariables(writer, args, tracking);
-        return new NonQuestionAliases(calculatedAliases, WritePersonalizationVariables(writer, args, tracking));
+        var personalizationAliases = WritePersonalizationVariables(writer, args, tracking);
+        return new NonQuestionAliases(calculatedAliases, personalizationAliases, WriteSubmitterProfileVariables(writer, args, tracking));
     }
-
-    /// <summary>The variables written for columns no question owns; an alias a question took is in neither.</summary>
-    private sealed record NonQuestionAliases(IReadOnlyList<string> Calculated, IReadOnlyList<string> Personalization);
 
     private static List<string> WriteCalculatedValueVariables(
         Utf8JsonWriter writer,
