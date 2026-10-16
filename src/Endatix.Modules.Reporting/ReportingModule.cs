@@ -19,6 +19,7 @@ using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
@@ -71,6 +72,8 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();
         builder.Services.AddScoped<IExportDataSource, FormSchemaCodebookExportDataSource>();
         builder.Services.AddSingleton<FormSchemaCompiler>();
+        builder.Services.AddScoped<SearchCopyRebuilder>();
+        builder.Services.AddScoped<FormSearchCopy>();
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
         builder.Services.AddScoped<FormSchemaCoverage>();
         builder.Services.AddScoped<IFormSchemaProvider, FormSchemaProvider>();

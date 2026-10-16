@@ -4,6 +4,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -27,6 +28,10 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// <para>
 /// A form deleted while it is compiled loses the schema this compile wrote, as its deletion sync removes it.
 /// </para>
+/// <para>
+/// Each compile also refreshes the schema's search keys. When that adds a key for a column the flattened rows already
+/// hold, their search copies are rebuilt from the stored answers after the commit, outside the lock.
+/// </para>
 /// </remarks>
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
@@ -35,6 +40,7 @@ internal sealed class FormSchemaProcessor(
     IReportingUnitOfWork unitOfWork,
     AppDbContext appDbContext,
     FormSchemaCompiler compiler,
+    FormSearchCopy searchCopy,
     ILogger<FormSchemaProcessor> logger) : IFormSchemaProcessor
 {
     /// <inheritdoc />
@@ -68,10 +74,10 @@ internal sealed class FormSchemaProcessor(
             return;
         }
 
-        var savedMode = await unitOfWork.InTransactionAsync(
+        var saved = await unitOfWork.InTransactionAsync(
             () => RebuildLockedAsync(rebuild, cancellationToken),
             cancellationToken);
-        await FinishAsync(rebuild, savedMode, cancellationToken);
+        await FinishAsync(rebuild, saved, cancellationToken);
     }
 
     // What needs no lock is read before it: the definition and the columns it compiles to.
@@ -117,9 +123,9 @@ internal sealed class FormSchemaProcessor(
     }
 
     // Holds the form's lock. The schema it reads is what the rebuild before it saved, so a rebuild that waited decides
-    // on that, and finds there is nothing left to do when the one before it did the same work. Returns the mode the
-    // schema was saved in, or null when it was left as it was.
-    private async Task<FormSchemaCompileMode?> RebuildLockedAsync(SchemaRebuild rebuild, CancellationToken cancellationToken)
+    // on that, and finds there is nothing left to do when the one before it did the same work. Returns how the schema
+    // was saved, or null when it was left as it was.
+    private async Task<SavedSchema?> RebuildLockedAsync(SchemaRebuild rebuild, CancellationToken cancellationToken)
     {
         var target = rebuild.Target;
         var existing = await schemaRepository.LockAndGetByFormIdAsync(target.TenantId, target.FormId, cancellationToken);
@@ -130,13 +136,14 @@ internal sealed class FormSchemaProcessor(
             return null;
         }
 
-        await schemaRepository.SaveAsync(schema, cancellationToken);
-        if (mode == FormSchemaCompileMode.Replace && rebuild.ClearsFlattenedRows)
+        await schemaRepository.SaveAsync(schema.Schema, cancellationToken);
+        var clearsRows = mode == FormSchemaCompileMode.Replace && rebuild.ClearsFlattenedRows;
+        if (clearsRows)
         {
             await flattenedSubmissionRepository.DeleteByFormIdAsync(target.TenantId, target.FormId, cancellationToken);
         }
 
-        return mode;
+        return new SavedSchema(mode.Value, schema.RowsNeedSearchRebuild && !clearsRows);
     }
 
     // Whether the form has real submissions is read only when it decides the mode, and as late as it can be: under the
@@ -157,22 +164,24 @@ internal sealed class FormSchemaProcessor(
         };
 
     // Null when the compile changed nothing, so there is nothing to save and, for a replace, nothing to clear.
-    private FormSchemaEntity? CompileSchema(SchemaRebuild rebuild, FormSchemaEntity? existing, FormSchemaCompileMode mode)
+    private CompiledSchemaChange? CompileSchema(SchemaRebuild rebuild, FormSchemaEntity? existing, FormSchemaCompileMode mode)
     {
         var compiled = Compiling(rebuild.Target, () => Compile(rebuild, existing, mode));
+        var searchKeys = searchCopy.KeysAfter(existing, compiled);
         if (existing is null)
         {
-            return NewSchema(rebuild.Target, compiled);
+            return new CompiledSchemaChange(NewSchema(rebuild.Target, compiled, searchKeys.Keys), RowsNeedSearchRebuild: false);
         }
 
-        CompiledSchema next = new(CompiledSchema.NextRevision(existing, rebuild.Target.FormDefinitionId, mode), compiled);
+        var revision = CompiledSchema.NextRevision(existing, rebuild.Target.FormDefinitionId, mode);
+        CompiledSchema next = new(revision, compiled, searchKeys.Keys.ToJson());
         if (!rebuild.ForceReplace && next.Matches(existing))
         {
             return null;
         }
 
         next.ApplyTo(existing);
-        return existing;
+        return new CompiledSchemaChange(existing, searchKeys.RowsNeedRebuild);
     }
 
     // A replace that keeps the flattened rows keeps their audience columns too: the rows still hold those values, and
@@ -215,9 +224,13 @@ internal sealed class FormSchemaProcessor(
             ex.LimitKind,
             ex.Limit);
 
-    private static FormSchemaEntity NewSchema(CompileTarget target, FormSchemaCompileResult compiled) =>
-        new(target.TenantId, target.FormId, target.FormDefinitionId,
+    private static FormSchemaEntity NewSchema(CompileTarget target, FormSchemaCompileResult compiled, FormSearchKeys searchKeys)
+    {
+        FormSchemaEntity schema = new(target.TenantId, target.FormId, target.FormDefinitionId,
             compiled.FlatteningMapJson, compiled.CodebookJson, compiled.LocalesJson);
+        schema.UpdateSearchKeys(searchKeys.ToJson());
+        return schema;
+    }
 
     private static T Compiling<T>(CompileTarget target, Func<T> compile)
     {
@@ -231,19 +244,25 @@ internal sealed class FormSchemaProcessor(
         }
     }
 
-    private async Task FinishAsync(
-        SchemaRebuild rebuild,
-        FormSchemaCompileMode? savedMode,
-        CancellationToken cancellationToken)
+    private async Task FinishAsync(SchemaRebuild rebuild, SavedSchema? saved, CancellationToken cancellationToken)
     {
-        if (savedMode is null)
+        if (saved is null)
         {
             LogLeftAsItIs(rebuild);
         }
         else if (!await RemoveSchemaIfFormDeletedMeanwhileAsync(rebuild.Target, cancellationToken))
         {
-            LogCompiled(rebuild, savedMode.Value);
+            LogCompiled(rebuild, saved.Mode);
+            await RebuildSearchCopyIfNeededAsync(rebuild.Target, saved, cancellationToken);
             await RebuildAgainIfDefinitionEditedAsync(rebuild, cancellationToken);
+        }
+    }
+
+    private async Task RebuildSearchCopyIfNeededAsync(CompileTarget target, SavedSchema saved, CancellationToken cancellationToken)
+    {
+        if (saved.RowsNeedSearchRebuild)
+        {
+            await searchCopy.RebuildAsync(target.TenantId, target.FormId, cancellationToken);
         }
     }
 
@@ -304,6 +323,12 @@ internal sealed class FormSchemaProcessor(
                 cancellationToken);
 
     private sealed record CompileTarget(long TenantId, long FormId, long FormDefinitionId);
+
+    /// <summary>A schema the compile changed, and whether the form's rows need their search copy rebuilt for it.</summary>
+    private sealed record CompiledSchemaChange(FormSchemaEntity Schema, bool RowsNeedSearchRebuild);
+
+    /// <summary>How the schema was saved, and whether the rows it kept need their search copy rebuilt.</summary>
+    private sealed record SavedSchema(FormSchemaCompileMode Mode, bool RowsNeedSearchRebuild);
 
     private sealed record DefinitionSource(string Json, IReadOnlyList<FormSchemaColumn> Columns);
 

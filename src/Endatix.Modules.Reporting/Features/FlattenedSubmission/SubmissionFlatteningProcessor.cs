@@ -8,6 +8,7 @@ using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
@@ -96,9 +97,9 @@ internal sealed class SubmissionFlatteningProcessor(
             return false;
         }
 
-        var dataJson = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
+        var data = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
         return LogUnlessLanded(
-            await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, dataJson, cancellationToken),
+            await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, data, cancellationToken),
             run.Write);
     }
 
@@ -109,7 +110,7 @@ internal sealed class SubmissionFlatteningProcessor(
             run.Submission.FormDefinitionId,
             cancellationToken);
 
-    private async Task<string> FlattenedDataAsync(
+    private async Task<FlattenedRowData> FlattenedDataAsync(
         Submission submission,
         Domain.FormSchema schema,
         CancellationToken cancellationToken)
@@ -118,7 +119,9 @@ internal sealed class SubmissionFlatteningProcessor(
         var mergedSchema = await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken);
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
         var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, personalization);
-        return FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);
+        return new FlattenedRowData(
+            FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened),
+            SearchCopyDocument.Build(flattened, FormSearchKeys.FromJson(schema.SearchKeys)));
     }
 
     // A soft-delete of the submission or its form after the submission was queued or paged removes its row, as the

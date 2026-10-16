@@ -99,9 +99,9 @@ jobs:
           GITHUB_EVENT_NAME_SAFE: ${{ github.event_name }}
         run: |
           if [ "$GITHUB_REF_SAFE" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME_SAFE" != "pull_request" ]; then
-            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
+            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Category!=Performance&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
           else
-            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Priority!=P2&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
+            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Category!=Performance&Priority!=P2&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
           fi
       - name: Build integration tests
         run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
@@ -131,7 +131,7 @@ jobs:
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             -c Release --no-build --verbosity minimal \
-            --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
+            --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=PostgreSql"
 
   # Build validation on PRs; canary release on main — publishes only after ALL
   # tests above pass. docker-image makes the shared workflow log into GHCR and

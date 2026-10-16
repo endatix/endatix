@@ -1,9 +1,12 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.SearchCopy;
+using Endatix.Modules.Reporting.Persistence;
 using FluentAssertions;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -77,5 +80,11 @@ public class FormSchemaProcessorTests
             // Early-exit tests never query submissions.
             Substitute.For<AppDbContext>(),
             new FormSchemaCompiler(),
+            new FormSearchCopy(
+                new DateTimeProvider(),
+                new SearchCopyRebuilder(
+                    Substitute.For<IReportingDbContext>(),
+                    schemaRepository,
+                    NullLogger<SearchCopyRebuilder>.Instance)),
             NullLogger<FormSchemaProcessor>.Instance);
 }

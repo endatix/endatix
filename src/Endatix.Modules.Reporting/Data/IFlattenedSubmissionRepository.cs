@@ -62,15 +62,15 @@ public interface IFlattenedSubmissionRepository
     Task<bool> TryMarkProcessingAsync(FlattenedRevision write, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Stores the flattened data built from the write's revision, with the revision and the submission's stamp it
-    /// was built from.
+    /// Stores the flattened data and its search copy built from the write's revision, in one update, with the
+    /// revision and the submission's stamp it was built from.
     /// </summary>
     /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
-    Task<bool> TryMarkProcessedAsync(FlattenedRevision write, string dataJson, CancellationToken cancellationToken);
+    Task<bool> TryMarkProcessedAsync(FlattenedRevision write, FlattenedRowData data, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Marks the row skipped for a submission that was incomplete at the write's revision, and clears its data and
-    /// its submission stamp.
+    /// Marks the row skipped for a submission that was incomplete at the write's revision, and clears its data, its
+    /// search copy and its submission stamp.
     /// </summary>
     /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
     Task<bool> TryMarkSkippedAsync(FlattenedRevision write, CancellationToken cancellationToken);

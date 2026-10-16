@@ -58,7 +58,7 @@ public class SubmissionFlatteningProcessorTests
         await _rows.Received(1).TryMarkProcessingAsync(write, Arg.Any<CancellationToken>());
         await _rows.Received(1).TryMarkProcessedAsync(
             write,
-            Arg.Is<string>(json => json.Contains("firstName")),
+            Arg.Is<FlattenedRowData>(data => data.DataJson.Contains("firstName")),
             Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
     }
@@ -87,10 +87,10 @@ public class SubmissionFlatteningProcessorTests
             Arg.Any<CancellationToken>());
         await _rows.Received(1).TryMarkProcessedAsync(
             Arg.Any<FlattenedRevision>(),
-            Arg.Is<string>(json =>
-                json.Contains("firstName") &&
-                json.Contains("\"AudienceIdentifier\":\"CG-1\"") &&
-                json.Contains("\"audience_city\":\"Columbus\"")),
+            Arg.Is<FlattenedRowData>(data =>
+                data.DataJson.Contains("firstName") &&
+                data.DataJson.Contains("\"AudienceIdentifier\":\"CG-1\"") &&
+                data.DataJson.Contains("\"audience_city\":\"Columbus\"")),
             Arg.Any<CancellationToken>());
     }
 
@@ -159,7 +159,7 @@ public class SubmissionFlatteningProcessorTests
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         // Assert — the row is removed as the deletion's own sync would have removed it.
-        await _rows.Received(1).TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _rows.Received(1).TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<FlattenedRowData>(), Arg.Any<CancellationToken>());
         await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
     }
@@ -188,7 +188,7 @@ public class SubmissionFlatteningProcessorTests
         GivenSubmission(submission);
         GivenSchema();
         _rows.TryMarkProcessingAsync(WriteOf(submission), Arg.Any<CancellationToken>()).Returns(true);
-        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<FlattenedRowData>(), Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var act = () => Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
@@ -235,7 +235,7 @@ public class SubmissionFlatteningProcessorTests
         // Assert
         await _rows.Received(1).TryMarkProcessedAsync(
             WriteOf(draft),
-            Arg.Is<string>(json => json.Contains("firstName")),
+            Arg.Is<FlattenedRowData>(data => data.DataJson.Contains("firstName")),
             Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().TryMarkSkippedAsync(default, default);
     }
