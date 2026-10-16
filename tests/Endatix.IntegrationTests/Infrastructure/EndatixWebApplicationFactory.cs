@@ -104,5 +104,6 @@ internal static class EndatixWebApplicationFactoryConfiguration
         string postgreSqlOnly = (provider == TestDatabaseProvider.PostgreSql).ToString();
         builder.UseSetting("Endatix:FeatureFlags:JobsModule", postgreSqlOnly);
         builder.UseSetting("Endatix:FeatureFlags:PersonalizationModule", "true");
+        builder.UseSetting("Endatix:FeatureFlags:ReportingModule", "true");
     }
 }

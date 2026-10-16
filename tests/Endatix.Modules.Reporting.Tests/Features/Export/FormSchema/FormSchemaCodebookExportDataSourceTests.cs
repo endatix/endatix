@@ -24,7 +24,7 @@ public sealed class FormSchemaCodebookExportDataSourceTests
 
     private static FormSchemaCodebookExportDataSource CreateDataSource(
         IFormSchemaRepository formSchemaRepository) =>
-        new(formSchemaRepository, ExportFormatSettingsParser);
+        new(TestExportSchemas.Of(formSchemaRepository), ExportFormatSettingsParser);
 
     [Fact]
     public async Task StreamAsync_WithValidSchema_ReturnsPersistedCodebookJson()

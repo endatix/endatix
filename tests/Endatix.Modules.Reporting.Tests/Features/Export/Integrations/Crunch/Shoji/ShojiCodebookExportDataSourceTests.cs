@@ -27,7 +27,7 @@ public sealed class ShojiCodebookExportDataSourceTests
         IFormSchemaRepository formSchemaRepository,
         IFormsRepository? formsRepository = null) =>
         new(
-            formSchemaRepository,
+            TestExportSchemas.Of(formSchemaRepository),
             formsRepository ?? Substitute.For<IFormsRepository>(),
             ExportFormatSettingsParser);
 

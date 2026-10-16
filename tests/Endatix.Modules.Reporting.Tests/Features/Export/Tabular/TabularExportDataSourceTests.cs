@@ -428,7 +428,7 @@ public sealed class TabularExportDataSourceTests
     private static TabularExportDataSource CreateDataSource(
         IFormSchemaRepository formSchemaRepository,
         IReportingExportRepository reportingExportRepository) =>
-        new(formSchemaRepository, reportingExportRepository, ExportFormatSettingsParser, ColumnAliasTransformerRegistry.Default);
+        new(TestExportSchemas.Of(formSchemaRepository), reportingExportRepository, ExportFormatSettingsParser, ColumnAliasTransformerRegistry.Default);
 
     private static ExportDataSourceContext CreateContext(
         string format = "csv",
