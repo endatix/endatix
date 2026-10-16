@@ -162,6 +162,7 @@ internal static class QuartzRegistration
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
         services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, database));
+        ReadCommittedSnapshotGatedSchedulerFactory.Register(services);
         SizeToRegisteredJobTypes(services);
 
         return services;

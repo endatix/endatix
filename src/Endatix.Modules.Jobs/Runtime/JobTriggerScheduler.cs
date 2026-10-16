@@ -30,16 +30,13 @@ internal interface IJobTriggerScheduler
 /// <inheritdoc cref="IJobTriggerScheduler" />
 internal sealed class QuartzJobTriggerScheduler(
     [FromKeyedServices(QuartzRegistration.SchedulerName)] ISchedulerFactory schedulerFactory,
-    StoredDurableJobs durableJobs,
-    ReadCommittedSnapshotRequirement readCommittedSnapshot) : IJobTriggerScheduler
+    StoredDurableJobs durableJobs) : IJobTriggerScheduler
 {
-    // A node refused at its start, or whose start is still deferred, stores no trigger lock-free either. The
-    // scheduler is built here too, outside any enlistment: it refuses to be started for the first time inside one.
-    public async Task PrepareAsync(CancellationToken cancellationToken)
-    {
-        await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
+    // The factory refuses a node that may not store triggers lock-free (ReadCommittedSnapshotGatedSchedulerFactory),
+    // whether its start was refused or is still deferred. The scheduler is built here, outside any enlistment: it
+    // refuses to be started for the first time inside one.
+    public async Task PrepareAsync(CancellationToken cancellationToken) =>
         await schedulerFactory.GetScheduler(cancellationToken);
-    }
 
     public async Task ScheduleAndCommitAsync(
         IDbContextTransaction transaction,

@@ -1,6 +1,9 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Quartz;
+using Microsoft.Extensions.DependencyInjection;
+using Endatix.Modules.Jobs.Runtime;
 
 namespace Endatix.IntegrationTests;
 
@@ -65,6 +68,35 @@ public sealed class JobsReadCommittedSnapshotTests(DbIntegrationFixture fixture)
         (await database.CountAsync("""SELECT count(*) FROM jobs."BackgroundJobs" """, ct)).Should().Be(0);
         (await database.CountAsync(
             "SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'", ct)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Refused_node_hands_no_scheduler_to_the_dashboard_or_any_other_caller()
+    {
+        // Arrange — the dashboard and its HTTP API write through the scheduler the module's factory builds.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await using var node = JobsTestNode.Create(database, LockFree);
+        var start = () => node.StartAsync(ct);
+        await start.Should().ThrowAsync<InvalidOperationException>();
+        var schedulers = node.Services.GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName);
+
+        // Act — a write as "Trigger now" makes one: get the scheduler, store a trigger for the probe's job.
+        var write = async () =>
+        {
+            var scheduler = await schedulers.GetScheduler(ct);
+            await scheduler.ScheduleJob(
+                TriggerBuilder.Create().ForJob(QuartzRegistration.JobKeyFor(ProbePayload.JobType)).StartNow().Build(),
+                cancellationToken: ct);
+        };
+
+        // Assert
+        (await write.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("READ_COMMITTED_SNAPSHOT");
+        var lookup = () => schedulers.LookupScheduler(QuartzRegistration.SchedulerName, ct).AsTask();
+        await lookup.Should().ThrowAsync<InvalidOperationException>("looking a scheduler up by name builds it");
+        (await database.CountAsync("SELECT count(*) FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'", ct))
+            .Should().Be(0);
     }
 
     [Fact]

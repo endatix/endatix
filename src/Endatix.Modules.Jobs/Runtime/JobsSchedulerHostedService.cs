@@ -24,14 +24,13 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </para>
 /// <para>
 /// A SQL Server node set to enqueue without the trigger lock is refused before its scheduler is built unless the
-/// database reads committed snapshots (<see cref="ReadCommittedSnapshotRequirement"/>): at boot the host fails to
+/// database reads committed snapshots (<see cref="ReadCommittedSnapshotGatedSchedulerFactory"/>): at boot the host fails to
 /// start, and after a deferred start the refusal is logged as Critical and every enqueue on the node fails.
 /// </para>
 /// </remarks>
 internal sealed class JobsSchedulerHostedService(
     IServiceProvider services,
     JobStoreDatabase database,
-    ReadCommittedSnapshotRequirement readCommittedSnapshot,
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
     JobsShutdownSignal shutdownSignal,
@@ -39,20 +38,35 @@ internal sealed class JobsSchedulerHostedService(
 {
     private static readonly TimeSpan UnreachableRetryDelay = TimeSpan.FromSeconds(5);
 
+    // A lost race clears as soon as the other transaction ends, so it is tried again sooner than an outage.
+    private static readonly TimeSpan ContendedRetryDelay = TimeSpan.FromSeconds(1);
+
     private readonly CancellationTokenSource _stopping = new();
     private IScheduler? _scheduler;
     private Task? _deferredStart;
 
+    private enum StartResult
+    {
+        Started,
+        Unreachable,
+        Contended,
+    }
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (await TryStartSchedulerAsync(cancellationToken))
+        var result = await TryStartSchedulerAsync(cancellationToken);
+        if (result == StartResult.Started)
         {
             return;
         }
 
-        logger.LogError(
-            "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs.");
-        _deferredStart = StartWhenReachableAsync(_stopping.Token);
+        if (result == StartResult.Unreachable)
+        {
+            logger.LogError(
+                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs.");
+        }
+
+        _deferredStart = StartWhenReadyAsync(result, _stopping.Token);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -106,9 +120,8 @@ internal sealed class JobsSchedulerHostedService(
 
     private async Task StartSchedulerAsync(CancellationToken cancellationToken)
     {
-        // Checked before the scheduler exists, so a node refused here never acquires a trigger.
-        await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
-
+        // The factory checks the snapshot requirement before it builds the scheduler, so a node refused here never
+        // acquires a trigger.
         var scheduler = await services
             .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
             .GetScheduler(cancellationToken);
@@ -138,35 +151,52 @@ internal sealed class JobsSchedulerHostedService(
     }
 
     /// <summary>
-    /// Starts the scheduler, or returns <see langword="false"/> when the database is away, whether before the start or
-    /// during it. A failure the database answered with is thrown.
+    /// Starts the scheduler, or says why not when it is worth trying again: the database is away, before the start
+    /// or during it, or it lost a race with another node's transaction, such as two nodes storing their durable jobs
+    /// at once. A failure the database refused with is thrown.
     /// </summary>
-    private async Task<bool> TryStartSchedulerAsync(CancellationToken cancellationToken)
+    private async Task<StartResult> TryStartSchedulerAsync(CancellationToken cancellationToken)
     {
         try
         {
             if (!await database.IsReachableAsync(cancellationToken))
             {
-                return false;
+                return StartResult.Unreachable;
             }
 
             await StartSchedulerAsync(cancellationToken);
-            return true;
+            return StartResult.Started;
         }
-        catch (Exception exception) when (!cancellationToken.IsCancellationRequested && DatabaseFailures.IsUnreachable(exception))
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested && RetryAfter(exception) is { } result)
         {
-            return false;
+            return result;
         }
     }
 
-    private async Task StartWhenReachableAsync(CancellationToken stoppingToken)
+    // Why a failed start is worth trying again, or null when the database refused and waiting would not help.
+    private StartResult? RetryAfter(Exception exception)
+    {
+        if (DatabaseFailures.IsUnreachable(exception))
+        {
+            return StartResult.Unreachable;
+        }
+
+        if (!DatabaseFailures.IsContention(exception))
+        {
+            return null;
+        }
+
+        logger.LogWarning(
+            exception,
+            "The background jobs scheduler lost a race with another transaction while starting, a deadlock or a lock timeout, and will try again.");
+        return StartResult.Contended;
+    }
+
+    private async Task StartWhenReadyAsync(StartResult result, CancellationToken stoppingToken)
     {
         try
         {
-            while (!await TryStartSchedulerAsync(stoppingToken))
-            {
-                await Task.Delay(UnreachableRetryDelay, stoppingToken);
-            }
+            await RetryUntilStartedAsync(result, stoppingToken);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
@@ -177,5 +207,16 @@ internal sealed class JobsSchedulerHostedService(
             // Startup has already finished, so there is no one left to fail; say it as loudly as possible.
             logger.LogCritical(exception, "The background jobs scheduler could not start; this host runs no jobs.");
         }
+    }
+
+    // Waits after each failed try for as long as its kind of failure takes to clear, then tries again.
+    private async Task RetryUntilStartedAsync(StartResult result, CancellationToken stoppingToken)
+    {
+        do
+        {
+            await Task.Delay(result == StartResult.Contended ? ContendedRetryDelay : UnreachableRetryDelay, stoppingToken);
+            result = await TryStartSchedulerAsync(stoppingToken);
+        }
+        while (result != StartResult.Started);
     }
 }

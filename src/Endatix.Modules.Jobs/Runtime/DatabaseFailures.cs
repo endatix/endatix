@@ -7,8 +7,9 @@ using Npgsql;
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
-/// Tells a database that is away — unreachable, failing over, stopping, out of connections, timing out, or picking a
-/// deadlock victim — from one that answered and refused, by what the driver reports.
+/// Tells a database that is away — unreachable, failing over, stopping, out of connections, timing out — or busy with
+/// contention — a deadlock victim, a lock wait that timed out — from one that answered and refused, by what the
+/// driver reports.
 /// </summary>
 /// <remarks>
 /// The driver's own <see cref="DbException.IsTransient"/> is not enough on its own: Microsoft.Data.SqlClient never
@@ -20,10 +21,8 @@ internal static class DatabaseFailures
 {
     // PostgreSQL SQLSTATEs (Appendix A of its manual) that a database which is away, or will be back, reports.
     private const string PostgresConnectionClass = "08"; // connection_exception and every code in its class
-    private static readonly FrozenSet<string> PostgresOutageStates =
+    private static readonly FrozenSet<string> PostgresAwayStates =
     [
-        PostgresErrorCodes.SerializationFailure,
-        PostgresErrorCodes.DeadlockDetected,
         PostgresErrorCodes.AdminShutdown,
         PostgresErrorCodes.CrashShutdown,
         PostgresErrorCodes.CannotConnectNow,
@@ -32,8 +31,28 @@ internal static class DatabaseFailures
         PostgresErrorCodes.TooManyConnections,
     ];
 
+    // PostgreSQL SQLSTATEs of a database that answered but lost a race with another transaction.
+    private static readonly FrozenSet<string> PostgresContentionStates =
+    [
+        PostgresErrorCodes.SerializationFailure,
+        PostgresErrorCodes.DeadlockDetected,
+        PostgresErrorCodes.LockNotAvailable, // which a lock_timeout raises
+    ];
+
+    // SQL Server error numbers of a database that answered but lost a race with another transaction.
+    private static readonly FrozenSet<int> SqlServerContentionNumbers =
+    [
+        1205, // chosen as a deadlock victim
+        1222, // lock request timed out
+    ];
+
+    // 4060 alone is a database being restored or failing over; with 18456 it is a database the login names that
+    // does not exist, which waiting never fixes.
+    private const int CannotOpenDatabase = 4060;
+    private const int LoginFailed = 18456;
+
     // SQL Server error numbers that a database which is away, or will be back, reports.
-    private static readonly FrozenSet<int> SqlServerOutageNumbers =
+    private static readonly FrozenSet<int> SqlServerAwayNumbers =
     [
         -2, // the client's command timeout
         2, // Windows native SNI: the server was not found
@@ -44,8 +63,6 @@ internal static class DatabaseFailures
         121, // the semaphore timeout expired: the connection broke
         233, // no process on the other end of the pipe
         258, // the connection attempt timed out: a host that drops packets, or a failover address not yet moved
-        1205, // chosen as a deadlock victim
-        1222, // lock request timed out
         3906, // the database is read-only: the primary failed over and is now a secondary
         4060, // cannot open the database the login asked for
         4221, // an availability group secondary, recycled, is not yet ready for logins
@@ -69,23 +86,31 @@ internal static class DatabaseFailures
     ];
 
     /// <summary>
-    /// Whether <paramref name="failure"/>, or any exception it wraps, says the database is away rather than that it
-    /// refused: a timeout, a failure the driver marks transient, or one whose code is an outage's.
+    /// Whether <paramref name="failure"/>, or any exception it wraps, says the database is away or busy with
+    /// contention rather than that it refused: a timeout, a failure the driver marks transient, or one whose code is an
+    /// outage's or contention's. Either is waited out.
     /// </summary>
-    public static bool IsOutage(Exception failure) => failure.HasCause(IsOutageCause);
+    public static bool IsOutage(Exception failure) => failure.HasCause(cause => IsAwayCause(cause) || IsContentionCause(cause));
+
+    /// <summary>
+    /// Whether <paramref name="failure"/>, or any exception it wraps, says the database answered but lost a race with
+    /// another transaction: a deadlock victim, a lock wait that timed out, a serialization failure.
+    /// </summary>
+    public static bool IsContention(Exception failure) => failure.HasCause(IsContentionCause);
 
     /// <summary>
     /// Whether <paramref name="failure"/>, raised while connecting to the database or talking to it, says the database
-    /// is away: an outage, or a driver failure with a socket failure anywhere under it, which SqlClient reports
-    /// without an error number and sometimes wrapped again, in an <see cref="IOException"/> for a connection reset
-    /// during the handshake. A refusal, such as a failed login, is not.
+    /// is away: an outage that is not contention, or a driver failure with a socket failure anywhere under it, which
+    /// SqlClient reports without an error number and sometimes wrapped again, in an <see cref="IOException"/> for a
+    /// connection reset during the handshake. A refusal, such as a failed login or a database that does not exist, is
+    /// not.
     /// </summary>
     /// <remarks>
     /// Only for database calls, and only under a driver's failure: elsewhere a broken socket is as likely an HTTP
     /// endpoint's as the database's.
     /// </remarks>
     public static bool IsUnreachable(Exception failure) =>
-        IsOutage(failure)
+        failure.HasCause(IsAwayCause)
         || (failure.HasCause(cause => cause is DbException) && failure.HasCause(cause => cause is SocketException));
 
     /// <summary>
@@ -93,19 +118,34 @@ internal static class DatabaseFailures
     /// </summary>
     public static bool IsFromDatabase(Exception failure) => failure.HasCause(cause => cause is DbException or TimeoutException);
 
-    private static bool IsOutageCause(Exception cause) => cause switch
+    private static bool IsAwayCause(Exception cause) => cause switch
     {
         TimeoutException => true,
-        DbException { IsTransient: true } => true,
-        PostgresException postgres => IsPostgresOutage(postgres.SqlState),
-        SqlException sqlServer => HasSqlServerOutage(sqlServer.Errors),
+        DbException { IsTransient: true } when !IsContentionCause(cause) => true,
+        PostgresException postgres => IsPostgresAway(postgres.SqlState),
+        SqlException sqlServer => HasSqlServerAway(sqlServer.Errors),
         _ => false,
     };
 
-    private static bool IsPostgresOutage(string sqlState) =>
-        sqlState.StartsWith(PostgresConnectionClass, StringComparison.Ordinal) || PostgresOutageStates.Contains(sqlState);
+    private static bool IsContentionCause(Exception cause) => cause switch
+    {
+        PostgresException postgres => PostgresContentionStates.Contains(postgres.SqlState),
+        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error => SqlServerContentionNumbers.Contains(error.Number)),
+        _ => false,
+    };
+
+    private static bool IsPostgresAway(string sqlState) =>
+        sqlState.StartsWith(PostgresConnectionClass, StringComparison.Ordinal) || PostgresAwayStates.Contains(sqlState);
 
     // One exception carries every error the batch raised, and the one that tells need not be the first.
-    private static bool HasSqlServerOutage(SqlErrorCollection errors) =>
-        errors.Cast<SqlError>().Any(error => SqlServerOutageNumbers.Contains(error.Number));
+    private static bool HasSqlServerAway(SqlErrorCollection errors)
+    {
+        var numbers = errors.Cast<SqlError>().Select(error => error.Number).ToHashSet();
+        if (numbers.Contains(LoginFailed))
+        {
+            numbers.Remove(CannotOpenDatabase);
+        }
+
+        return numbers.Overlaps(SqlServerAwayNumbers);
+    }
 }

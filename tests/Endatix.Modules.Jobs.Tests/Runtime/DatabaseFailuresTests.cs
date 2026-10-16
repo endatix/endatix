@@ -72,6 +72,12 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(40)), true }, // Windows native SNI: could not open a connection
         { Wrapped(SqlServerExceptions.WithNumbers(2)), true }, // Windows native SNI: server not found
         { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // login failed: the database answered
+        { Wrapped(SqlServerExceptions.WithNumbers(4060)), true }, // the database is being restored or failing over
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), false }, // the login names a database that does not exist
+        { Wrapped(SqlServerExceptions.WithNumbers(1205)), false }, // a deadlock victim: contention, not an outage
+        { Wrapped(SqlServerExceptions.WithNumbers(1222)), false }, // a lock wait timed out: contention, not an outage
+        { Wrapped(PostgresFailure(PostgresErrorCodes.DeadlockDetected)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.LockNotAvailable)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
         { Wrapped(new TimeoutException("The pool is exhausted.")), true },
@@ -88,6 +94,44 @@ public sealed class DatabaseFailuresTests
 
         // Assert
         unreachable.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> Contention() => new()
+    {
+        { Wrapped(SqlServerExceptions.WithNumbers(1205)), true }, // deadlock victim
+        { Wrapped(SqlServerExceptions.WithNumbers(1222)), true }, // lock request timed out
+        { Wrapped(PostgresFailure(PostgresErrorCodes.DeadlockDetected)), true },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.LockNotAvailable)), true }, // a lock_timeout
+        { Wrapped(PostgresFailure(PostgresErrorCodes.SerializationFailure)), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(4060)), false }, // away, not contention
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // refused
+        { Wrapped(new TimeoutException("The pool is exhausted.")), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(Contention))]
+    public void IsContention_DriverFailure_TellsALostRaceFromAnOutageOrARefusal(Exception failure, bool expected)
+    {
+        // Act
+        var contention = DatabaseFailures.IsContention(failure);
+
+        // Assert
+        contention.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(1205)]
+    [InlineData(1222)]
+    public void IsOutage_SqlServerContention_IsWaitedOut(int number)
+    {
+        // Arrange — a job whose write lost a race runs again, as it does after an outage.
+        var failure = Wrapped(SqlServerExceptions.WithNumbers(number));
+
+        // Act
+        var outage = DatabaseFailures.IsOutage(failure);
+
+        // Assert
+        outage.Should().BeTrue();
     }
 
     // EF Core and the scheduler wrap the driver's exception in their own.

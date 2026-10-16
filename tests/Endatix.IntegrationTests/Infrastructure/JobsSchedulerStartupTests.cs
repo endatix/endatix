@@ -63,6 +63,57 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    [Trait("DbSpecific", "SqlServer")]
+    public async Task Scheduler_whose_database_does_not_exist_fails_startup()
+    {
+        // Arrange — SQL Server-only: it reports a missing database as 4060 together with a failed login, 18456.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, "Asserts SQL Server's 4060 and 18456.");
+        var ct = TestContext.Current.CancellationToken;
+        var missing = new SqlConnectionStringBuilder(fixture.ConnectionString)
+        {
+            InitialCatalog = $"t9_missing_{Guid.NewGuid():N}"[..24],
+        };
+        await using var node = JobsTestNode.Create(
+            new JobsTestNodeDatabase(TestDatabaseProvider.SqlServer, missing.ConnectionString), migrate: false);
+
+        // Act
+        var start = () => node.StartAsync(ct);
+
+        // Assert
+        (await start.Should().ThrowAsync<SqlException>()).Which.Number.Should().BeOneOf(4060, 18456);
+    }
+
+    [Fact]
+    public async Task Scheduler_that_loses_a_race_while_starting_tries_again_without_reporting_an_outage()
+    {
+        // Arrange — the scheduler cannot be built once because another node's transaction won a deadlock.
+        var ct = TestContext.Current.CancellationToken;
+        var scheduler = Substitute.For<IScheduler>();
+        var schedulers = Substitute.For<ISchedulerFactory>();
+        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
+            _ => throw new SchedulerException(
+                "The store failed.",
+                new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected)),
+            _ => ValueTask.FromResult(scheduler));
+        var logs = new CapturingLoggerProvider();
+        using var service = HostedServiceOver(fixture, schedulers, logs);
+
+        // Act
+        await service.StartAsync(ct);
+        var started = await JobsTestWait.UntilAsync(
+            () => Task.FromResult(scheduler.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IScheduler.Start))),
+            TimeSpan.FromSeconds(20),
+            ct);
+        await service.StopAsync(ct);
+
+        // Assert
+        started.Should().BeTrue();
+        logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("lost a race"));
+        logs.Entries.Should().NotContain((LogLevel.Error, DeferredStartError));
+        logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    [Fact]
     public async Task Scheduler_whose_database_goes_away_after_the_probe_waits_and_starts()
     {
         // Arrange — the database answers the probe, then the scheduler cannot be built once, as in a failover.
@@ -103,7 +154,6 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
         return new JobsSchedulerHostedService(
             services,
             database,
-            new ReadCommittedSnapshotRequirement(database, options),
             JobHandlerRegistry.Build([]),
             options,
             new JobsShutdownSignal(),

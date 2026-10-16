@@ -54,7 +54,6 @@ public sealed class JobsSchedulerHostedServiceTests
         return new(
             Substitute.For<IServiceProvider>(),
             database,
-            new ReadCommittedSnapshotRequirement(database, options),
             JobHandlerRegistry.Build([]),
             options,
             new JobsShutdownSignal(),
