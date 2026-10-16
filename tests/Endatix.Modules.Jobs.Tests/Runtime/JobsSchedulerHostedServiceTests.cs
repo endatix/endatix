@@ -49,7 +49,7 @@ public sealed class JobsSchedulerHostedServiceTests
 
     private static JobsSchedulerHostedService CreateService()
     {
-        var database = new JobStoreDatabase("Host=localhost", IsPostgreSql: true);
+        var database = new JobStoreDatabase("Host=localhost", IsPostgreSql: true, LocksOnInsert: false);
         var options = Options.Create(new BackgroundJobsOptions());
         return new(
             Substitute.For<IServiceProvider>(),

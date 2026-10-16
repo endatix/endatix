@@ -153,7 +153,7 @@ internal static class QuartzRegistration
     {
         var options = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
             ?? new BackgroundJobsOptions();
-        var database = JobStoreDatabase.From(configuration);
+        var database = JobStoreDatabase.From(configuration, options);
 
         services.AddSingleton(database);
         services.AddSingleton<ReadCommittedSnapshotRequirement>();
@@ -307,8 +307,9 @@ internal static class QuartzRegistration
         ado.SchemaProvisioning = SchemaProvisioning.Validate;
         ado.AcceptEnlistedTransactions = true;
 
-        // Off on PostgreSQL and on on SQL Server unless configured; JobStoreDatabase.LocksOnInsert says why they differ.
-        ado.LockOnInsert = database.LocksOnInsert(options);
+        // Off on PostgreSQL and on on SQL Server unless configured; JobStoreDatabase.From says why they differ, and the
+        // snapshot check reads the same value.
+        ado.LockOnInsert = database.LocksOnInsert;
         ado.MisfireThreshold = TimeSpan.FromSeconds(options.MisfireThresholdSeconds);
 
         // A job that waited past the threshold for a slot is put back in line by the misfire pass, so a pass as rare

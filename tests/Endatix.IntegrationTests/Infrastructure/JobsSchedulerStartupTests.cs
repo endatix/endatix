@@ -157,7 +157,8 @@ public sealed class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
         var services = new ServiceCollection()
             .AddKeyedSingleton(QuartzRegistration.SchedulerName, schedulers)
             .BuildServiceProvider();
-        var database = new JobStoreDatabase(fixture.ConnectionString, fixture.Provider == TestDatabaseProvider.PostgreSql);
+        var isPostgreSql = fixture.Provider == TestDatabaseProvider.PostgreSql;
+        var database = new JobStoreDatabase(fixture.ConnectionString, isPostgreSql, LocksOnInsert: !isPostgreSql);
         var options = Options.Create(new BackgroundJobsOptions());
         return new JobsSchedulerHostedService(
             services,

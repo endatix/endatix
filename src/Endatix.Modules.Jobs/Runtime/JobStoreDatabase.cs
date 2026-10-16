@@ -12,15 +12,19 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </summary>
 /// <param name="ConnectionString">The host's default connection string.</param>
 /// <param name="IsPostgreSql">Whether that database is PostgreSQL; otherwise it is SQL Server.</param>
-internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreSql)
+/// <param name="LocksOnInsert">
+/// Whether enqueueing holds the cluster-wide trigger lock until it commits, as Quartz's store was configured with it.
+/// </param>
+/// <remarks>
+/// <paramref name="LocksOnInsert"/> is decided once, from configuration at registration, because that is when Quartz's
+/// store takes it and Quartz cannot change it afterwards: an options callback a host adds in code later reaches
+/// neither the store nor the snapshot check, so the two can never disagree.
+/// </remarks>
+internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreSql, bool LocksOnInsert)
 {
     private const string LockOnInsertKey = $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.LockOnInsert)}";
 
-    public static JobStoreDatabase From(IConfiguration configuration) => new(
-        ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration),
-        DatabaseProviderResolver.IsPostgreSql(configuration));
-
-    /// <summary>Whether enqueueing holds the cluster-wide trigger lock until it commits.</summary>
+    /// <summary>The store the host's configuration describes.</summary>
     /// <remarks>
     /// On PostgreSQL an uncommitted trigger is invisible to every node's acquisition, so enqueue need not hold the
     /// lock until it commits. On SQL Server, unless the database reads committed snapshots, an acquisition reading the
@@ -28,7 +32,14 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
     /// holding it makes enqueues and acquisitions take turns. A host whose database reads committed snapshots may turn
     /// it off, and a host may set it on either database.
     /// </remarks>
-    public bool LocksOnInsert(BackgroundJobsOptions options) => options.LockOnInsert ?? !IsPostgreSql;
+    public static JobStoreDatabase From(IConfiguration configuration, BackgroundJobsOptions options)
+    {
+        var isPostgreSql = DatabaseProviderResolver.IsPostgreSql(configuration);
+        return new JobStoreDatabase(
+            ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration),
+            isPostgreSql,
+            options.LockOnInsert ?? !isPostgreSql);
+    }
 
     /// <summary>The database the connection string names, for messages; never the credentials.</summary>
     public string DatabaseName => IsPostgreSql
@@ -62,11 +73,9 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
     /// lock to take turns by, so a long enqueue transaction stalls every node's acquisition. The refusal is returned,
     /// not thrown, so a caller can tell it from a failure to ask the database.
     /// </remarks>
-    public async Task<string?> ReadCommittedSnapshotRefusalAsync(
-        BackgroundJobsOptions options,
-        CancellationToken cancellationToken)
+    public async Task<string?> ReadCommittedSnapshotRefusalAsync(CancellationToken cancellationToken)
     {
-        if (IsPostgreSql || LocksOnInsert(options) || await ReadsCommittedSnapshotsAsync(cancellationToken))
+        if (IsPostgreSql || LocksOnInsert || await ReadsCommittedSnapshotsAsync(cancellationToken))
         {
             return null;
         }

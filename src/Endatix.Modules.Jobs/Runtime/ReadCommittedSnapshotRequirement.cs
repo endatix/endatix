@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Options;
-
 namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
@@ -13,7 +11,7 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// the database again, and turning snapshots on, or off, takes effect when the nodes restart. A check the database
 /// could not answer is not kept, and runs again.
 /// </remarks>
-internal sealed class ReadCommittedSnapshotRequirement(JobStoreDatabase database, IOptions<BackgroundJobsOptions> options)
+internal sealed class ReadCommittedSnapshotRequirement(JobStoreDatabase database)
 {
     private volatile bool _met;
     private volatile string? _refusal;
@@ -29,7 +27,7 @@ internal sealed class ReadCommittedSnapshotRequirement(JobStoreDatabase database
     // A refusal is kept; a check the database could not answer throws, and is not.
     private async Task CheckAsync(CancellationToken cancellationToken)
     {
-        if (await database.ReadCommittedSnapshotRefusalAsync(options.Value, cancellationToken) is { } refusal)
+        if (await database.ReadCommittedSnapshotRefusalAsync(cancellationToken) is { } refusal)
         {
             _refusal = refusal;
             throw new InvalidOperationException(refusal);
