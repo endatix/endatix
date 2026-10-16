@@ -1,4 +1,3 @@
-using System.Net.Sockets;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -12,16 +11,14 @@ public sealed partial class JobsSchedulerStartupTests
     private const string LostRaceWarning = "lost a race";
 
     [Fact]
-    public async Task Scheduler_whose_build_times_out_on_a_broken_socket_waits_as_an_outage()
+    public async Task Scheduler_whose_build_times_out_while_connecting_waits_as_an_outage()
     {
-        // Arrange — the probe connected, then a connection Quartz opened timed out in a network blip: the driver's
-        // failure carries the broken socket under its timeout, and the network is back by the time anyone asks again.
+        // Arrange — the probe connected, then a connection Quartz opened timed out in a network blip, which the network
+        // is back from by the time anyone asks again. The failure is the driver's own, from a real connection to an
+        // address that never answers: Npgsql reports its connect timeout with no socket failure under it.
         var ct = TestContext.Current.CancellationToken;
-        var schedulers = new SchedulerFactoryFailingOnce(() => Task.FromResult<Exception>(new SchedulerException(
-            "The store failed.",
-            new NpgsqlException(
-                "Exception while connecting",
-                new TimeoutException("The operation has timed out.", new SocketException((int)SocketError.TimedOut))))));
+        var schedulers = new SchedulerFactoryFailingOnce(async () =>
+            new SchedulerException("The store failed.", await NpgsqlConnectFailureAsync()));
         var logs = new CapturingLoggerProvider();
         using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
@@ -58,6 +55,22 @@ public sealed partial class JobsSchedulerStartupTests
         logs.Entries.Should().Contain((LogLevel.Error, DeferredStartError));
         logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Error && entry.Message.Contains("cannot open database"));
         logs.Entries.Should().NotContain(entry => entry.Message.Contains(LostRaceWarning));
+    }
+
+    // 10.255.255.1 is not routed, so the connect timeout runs out; a network that rejects it at once fails the connect too.
+    private static async Task<Exception> NpgsqlConnectFailureAsync()
+    {
+        await using var connection = new NpgsqlConnection("Host=10.255.255.1;Port=5432;Username=endatix;Password=endatix;Timeout=1");
+        try
+        {
+            await connection.OpenAsync();
+        }
+        catch (NpgsqlException failure)
+        {
+            return failure;
+        }
+
+        throw new InvalidOperationException("A connection to an unrouted address opened.");
     }
 
     // Fails the first build with what the test supplies, then builds a scheduler that does nothing.

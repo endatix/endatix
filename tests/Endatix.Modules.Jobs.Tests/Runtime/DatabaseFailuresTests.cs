@@ -167,13 +167,7 @@ public sealed class DatabaseFailuresTests
 
     public static TheoryData<Exception, bool> SocketFailures() => new()
     {
-        // Npgsql's connect timeout: its failure, over a timeout, over the socket that timed out.
-        {
-            Wrapped(new NpgsqlException(
-                "Exception while connecting",
-                new TimeoutException("The operation has timed out.", new SocketException((int)SocketError.TimedOut)))),
-            true
-        },
+        { Wrapped(NpgsqlConnectTimeout()), false }, // Npgsql reports its connect timeout with no socket failure
         { Wrapped(SqlServerExceptions.WithInner(-2, new SocketException((int)SocketError.TimedOut))), true },
         { Wrapped(SqlServerExceptions.WithNumbers(-2)), false }, // a command timeout on a live connection
         { Wrapped(new HttpRequestException("The endpoint is down.", new SocketException((int)SocketError.ConnectionRefused))), false },
@@ -188,6 +182,34 @@ public sealed class DatabaseFailuresTests
 
         // Assert
         socket.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> FailuresToConnect() => new()
+    {
+        { Wrapped(NpgsqlConnectTimeout()), true },
+        {
+            Wrapped(new NpgsqlException("Failed to connect to 127.0.0.1:1", new SocketException((int)SocketError.ConnectionRefused))),
+            true
+        },
+        { Wrapped(SqlServerExceptions.WithInner(-2, new SocketException((int)SocketError.TimedOut))), true },
+        // Npgsql's command timeout has the connect timeout's shape, but the connection was open: a lock wait.
+        {
+            Wrapped(new NpgsqlException("Exception while reading from stream", new TimeoutException("Timeout during reading attempt"))),
+            false
+        },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.QueryCanceled)), false },
+        { Wrapped(SqlServerExceptions.WithNumbers(-2)), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(FailuresToConnect))]
+    public void FailedToConnect_DriverTimeout_TellsAConnectionThatNeverOpenedFromALockWait(Exception failure, bool expected)
+    {
+        // Act
+        var failedToConnect = DatabaseFailures.FailedToConnect(failure);
+
+        // Assert
+        failedToConnect.Should().Be(expected);
     }
 
     public static TheoryData<Exception, bool> Timeouts() => new()
@@ -227,6 +249,11 @@ public sealed class DatabaseFailuresTests
 
     // EF Core and the scheduler wrap the driver's exception in their own.
     private static InvalidOperationException Wrapped(Exception cause) => new("The write failed.", cause);
+
+    // What Npgsql 10 reports when its connect timeout runs out, as read from a real connection to an address that
+    // never answers.
+    private static NpgsqlException NpgsqlConnectTimeout() =>
+        new("Failed to connect to 10.255.255.1:5432", new TimeoutException("Timeout during connection attempt"));
 
     private static PostgresException PostgresFailure(string sqlState) =>
         new("The server refused the command.", "ERROR", "ERROR", sqlState);

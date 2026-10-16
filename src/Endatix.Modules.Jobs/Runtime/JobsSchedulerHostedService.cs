@@ -201,9 +201,9 @@ internal sealed class JobsSchedulerHostedService(
         || DatabaseFailures.IsAwayAtStartup(exception);
 
     // Why a failed start is worth trying again. What arrives here failed after the probe connected, but Quartz opens
-    // connections of its own while it starts: a timeout over a broken socket is the network, and any other timeout
-    // is a lock wait, contention, unless the database went away meanwhile, which asking the probe again tells. A
-    // refusal the probe meets is thrown.
+    // connections of its own while it starts: a timeout while connecting is the network, and any other timeout is a
+    // lock wait, contention, unless the database went away meanwhile, which asking the probe again tells. A refusal
+    // the probe meets is thrown.
     private async Task<StartResult> RetryAfterAsync(Exception exception, CancellationToken cancellationToken)
     {
         if (DatabaseFailures.IsContention(exception))
@@ -211,8 +211,8 @@ internal sealed class JobsSchedulerHostedService(
             return Contended(exception);
         }
 
-        // A timeout over a broken socket is the network, not a lock: a connection Quartz opened timed out in a blip.
-        if (!DatabaseFailures.IsTimeout(exception) || DatabaseFailures.HasSocketFailure(exception))
+        // A timeout while connecting is the network, not a lock: a connection Quartz opened timed out in a blip.
+        if (!DatabaseFailures.IsTimeout(exception) || DatabaseFailures.FailedToConnect(exception))
         {
             return Unreachable(exception);
         }

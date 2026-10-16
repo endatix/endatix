@@ -39,6 +39,12 @@ internal static class DatabaseFailures
         PostgresErrorCodes.LockNotAvailable, // which a lock_timeout raises
     ];
 
+    // How Npgsql begins the failure it reports when it could not connect, whatever stopped it: a refused port, a name
+    // that does not resolve, or its connect timeout, which it reports over a bare TimeoutException with no socket
+    // failure under it, the same shape as a read that timed out on a live connection ("Exception while reading from
+    // stream"). The message is the only difference between the two.
+    private const string NpgsqlConnectFailurePrefix = "Failed to connect to ";
+
     // SQL Server error numbers of a database that answered but lost a race with another transaction.
     private const int SqlServerDeadlockVictim = 1205;
     private const int SqlServerCommandTimeout = -2;
@@ -132,6 +138,15 @@ internal static class DatabaseFailures
     /// </summary>
     public static bool HasSocketFailure(Exception failure) =>
         failure.HasCause(cause => cause is DbException) && failure.HasCause(cause => cause is SocketException);
+
+    /// <summary>
+    /// Whether <paramref name="failure"/> is a driver's failure to reach the server at all, whatever it reports on
+    /// top: a socket failure under it (<see cref="HasSocketFailure"/>), or Npgsql's failure to connect, which carries
+    /// none when its connect timeout ran out.
+    /// </summary>
+    public static bool FailedToConnect(Exception failure) =>
+        HasSocketFailure(failure) || failure.HasCause(cause => cause is NpgsqlException and not PostgresException
+            && cause.Message.StartsWith(NpgsqlConnectFailurePrefix, StringComparison.Ordinal));
 
     /// <summary>
     /// Whether <paramref name="failure"/> says the database the connection names could not be opened: on SQL Server
