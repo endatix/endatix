@@ -133,17 +133,17 @@ internal static class FailingTriggerStoreDelegate
     {
         public ValueTask<IScheduler> Add(
             string schedulerName,
-            Action<IQuartzBuilder>? configure,
-            SchedulerAddOptions options,
+            Action<IQuartzBuilder>? configure = null,
+            SchedulerAddOptions options = default,
             CancellationToken cancellationToken = default) =>
             shipped.Add(schedulerName, configure, options, cancellationToken);
 
-        public ValueTask<bool> Remove(string schedulerName, bool waitForJobsToComplete = true, CancellationToken cancellationToken = default) =>
+        public ValueTask<bool> Remove(string schedulerName, bool waitForJobsToComplete = false, CancellationToken cancellationToken = default) =>
             shipped.Remove(schedulerName, waitForJobsToComplete, cancellationToken);
 
         public ValueTask<IScheduler> Restart(
             string schedulerName,
-            SchedulerRestartOptions options,
+            SchedulerRestartOptions options = default,
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException(
                 "The scheduler is being rebuilt after a failed build, which would drop the failing dialect this test installed beside its recipe. Keep the test's database up while the scheduler is built.");
