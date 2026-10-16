@@ -23,6 +23,8 @@ public interface IReportingDbContext : ITenantDbContext
 
     DbSet<SurveyTypeExportMapping> SurveyTypeExportMappings { get; }
 
+    DbSet<SubmissionView> SubmissionViews { get; }
+
     /// <summary>
     /// The context's database, which schema rebuilds lock through inside their transaction.
     /// </summary>
