@@ -23,12 +23,11 @@ internal static class DatabaseFailures
     private const string PostgresConnectionClass = "08"; // connection_exception and every code in its class
     private static readonly FrozenSet<string> PostgresAwayStates =
     [
-        PostgresErrorCodes.InvalidCatalogName, // the database is missing: being created or restored, or misnamed
         PostgresErrorCodes.AdminShutdown,
         PostgresErrorCodes.CrashShutdown,
         PostgresErrorCodes.CannotConnectNow,
         PostgresErrorCodes.QueryCanceled, // which a statement_timeout raises
-        PostgresErrorCodes.ReadOnlySqlTransaction, // the primary failed over and is now a standby
+        PostgresErrorCodes.ReadOnlySqlTransaction, // read-only: a standby after a failover, or on purpose; see IsReadOnly
         PostgresErrorCodes.TooManyConnections,
     ];
 
@@ -39,6 +38,24 @@ internal static class DatabaseFailures
         PostgresErrorCodes.DeadlockDetected,
         PostgresErrorCodes.LockNotAvailable, // which a lock_timeout raises
     ];
+
+    // How Npgsql begins the failure it reports when it could not connect, whatever stopped it: a refused port, a name
+    // that does not resolve, or its connect timeout, which it reports over a bare TimeoutException with no socket
+    // failure under it, the same shape as a read that timed out on a live connection ("Exception while reading from
+    // stream"). The message is the only difference between the two.
+    private const string NpgsqlConnectFailurePrefix = "Failed to connect to ";
+
+    // SqlClient 7.0.2 reports a server that accepts the connection but never answers the pre-login handshake as -2,
+    // "Connection Timeout Expired.", over a Win32Exception 258, and a command that timed out on a live connection as
+    // -2, "Execution Timeout Expired.", over the same Win32Exception: again the message is the only difference. A host
+    // that never answers at all is 258 ("The connection attempt timed out"), also over a Win32Exception, not a socket
+    // failure. Measured against SQL Server 2025. The prefix is SqlClient's English text: SqlClient localises it from
+    // satellite resources (its de-DE, ja-JP and fr-FR texts differ), so on a client running another culture a pre-login
+    // timeout is not matched and is retried as a lost race instead, with the lost race's warning and pace; only the log
+    // line is wrong, and the start still waits. The resources are not pinned to English for that. The 258 match does not
+    // depend on the culture.
+    private const string SqlServerConnectTimeoutPrefix = "Connection Timeout Expired.";
+    private const int SqlServerConnectAttemptTimedOut = 258;
 
     // SQL Server error numbers of a database that answered but lost a race with another transaction.
     private const int SqlServerDeadlockVictim = 1205;
@@ -55,6 +72,16 @@ internal static class DatabaseFailures
     // waited out as an outage, and the scheduler names the database while it waits.
     private const int CannotOpenDatabase = 4060;
 
+    // SQL Server answers 3906 (class 16, state 1, "Failed to update database … because the database is read-only.") to
+    // every write on a database set READ_ONLY on purpose — an INSERT, an UPDATE, an EF ExecuteUpdate and a Quartz trigger
+    // insert alike, measured against SQL Server 2025 with SqlClient 7.0.2 — and documents the same error for a write
+    // that reaches an availability group's secondary; PostgreSQL's 25006 is the same for a standby and for
+    // default_transaction_read_only. The error cannot tell a database read-only on purpose, which waiting never fixes,
+    // from a failover, which it does. Both are outages, at the start and while a node runs: dropping an outcome during a
+    // failover would run finished work again, while a database read-only on purpose only keeps the node retrying, and
+    // the node says so in its log (IsReadOnly).
+    private const int ReadOnlyDatabase = 3906;
+
     // SQL Server error numbers that a database which is away, or will be back, reports.
     private static readonly FrozenSet<int> SqlServerAwayNumbers =
     [
@@ -66,8 +93,8 @@ internal static class DatabaseFailures
         64, // the network name is no longer available: the connection broke during login
         121, // the semaphore timeout expired: the connection broke
         233, // no process on the other end of the pipe
-        258, // the connection attempt timed out: a host that drops packets, or a failover address not yet moved
-        3906, // the database is read-only: the primary failed over and is now a secondary
+        SqlServerConnectAttemptTimedOut, // a host that drops packets, or a failover address not yet moved
+        ReadOnlyDatabase, // a write to a read-only database: a failover's secondary, or read-only on purpose
         4060, // cannot open the database the login asked for
         4221, // an availability group secondary, recycled, is not yet ready for logins
         18401, // logins refused while the server runs its upgrade scripts after an update restart
@@ -125,9 +152,33 @@ internal static class DatabaseFailures
     /// Only for database calls, and only under a driver's failure: elsewhere a broken socket is as likely an HTTP
     /// endpoint's as the database's.
     /// </remarks>
-    public static bool IsUnreachable(Exception failure) =>
-        failure.HasCause(IsAwayCause)
-        || (failure.HasCause(cause => cause is DbException) && failure.HasCause(cause => cause is SocketException));
+    public static bool IsUnreachable(Exception failure) => failure.HasCause(IsAwayCause) || HasSocketFailure(failure);
+
+    /// <summary>
+    /// Whether <paramref name="failure"/> is a driver's failure with a socket failure anywhere under it: the network
+    /// broke or never connected, whatever else, a timeout say, the driver reports on top.
+    /// </summary>
+    public static bool HasSocketFailure(Exception failure) =>
+        failure.HasCause(cause => cause is DbException) && failure.HasCause(cause => cause is SocketException);
+
+    /// <summary>
+    /// Whether <paramref name="failure"/> is a driver's failure to reach the server at all, whatever it reports on
+    /// top: a socket failure under it (<see cref="HasSocketFailure"/>), or a connect timeout, which neither driver
+    /// reports with one: Npgsql's failure to connect, SqlClient's pre-login timeout, or a host that never answered.
+    /// </summary>
+    /// <remarks>
+    /// SqlClient's pre-login timeout is told from its command timeout only by its English message, so on a client running
+    /// another culture it is taken for a lock wait; see <c>SqlServerConnectTimeoutPrefix</c>.
+    /// </remarks>
+    public static bool FailedToConnect(Exception failure) => HasSocketFailure(failure) || failure.HasCause(cause => cause switch
+    {
+        PostgresException => false,
+        NpgsqlException npgsql => npgsql.Message.StartsWith(NpgsqlConnectFailurePrefix, StringComparison.Ordinal),
+        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error =>
+            error.Number == SqlServerConnectAttemptTimedOut
+            || error.Message.StartsWith(SqlServerConnectTimeoutPrefix, StringComparison.Ordinal)),
+        _ => false,
+    });
 
     /// <summary>
     /// Whether <paramref name="failure"/> says the database the connection names could not be opened: on SQL Server
@@ -159,9 +210,32 @@ internal static class DatabaseFailures
     });
 
     /// <summary>
+    /// Whether <paramref name="failure"/> keeps a node from starting its scheduler for now: the database is away, or
+    /// the one the connection names cannot be opened yet (<see cref="IsDatabaseUnavailable"/>).
+    /// </summary>
+    /// <remarks>
+    /// Only the start waits for a database that cannot be opened: a pipeline may still be creating or restoring it.
+    /// Once a node runs, PostgreSQL's missing database (3D000) is not an outage to a job's outcome, which fails loudly
+    /// as before; SQL Server's 4060 was an outage to it already.
+    /// </remarks>
+    public static bool IsAwayAtStartup(Exception failure) => IsUnreachable(failure) || IsDatabaseUnavailable(failure);
+
+    /// <summary>
     /// Whether <paramref name="failure"/> came from the database at all: a timeout, or any failure the driver reported.
     /// </summary>
     public static bool IsFromDatabase(Exception failure) => failure.HasCause(cause => cause is DbException or TimeoutException);
+
+    /// <summary>
+    /// Whether <paramref name="failure"/> is a write the database refused because it is read-only: SQL Server 3906 or
+    /// PostgreSQL 25006, which the startup probe also reports when it finds PostgreSQL's transactions read-only. It is
+    /// an outage, but one that may never clear, so it is named wherever it is retried.
+    /// </summary>
+    public static bool IsReadOnly(Exception failure) => failure.HasCause(cause => cause switch
+    {
+        PostgresException postgres => postgres.SqlState == PostgresErrorCodes.ReadOnlySqlTransaction,
+        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error => error.Number == ReadOnlyDatabase),
+        _ => false,
+    });
 
     private static bool IsAwayCause(Exception cause) => cause switch
     {

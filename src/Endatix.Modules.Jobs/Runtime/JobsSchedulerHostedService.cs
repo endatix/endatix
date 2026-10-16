@@ -43,15 +43,19 @@ internal sealed class JobsSchedulerHostedService(
     private static readonly TimeSpan ContendedRetryDelay = TimeSpan.FromSeconds(1);
     private const int QuickContendedTries = 3;
 
-    // A lost race, or a database SQL Server cannot open, is logged the first time and then one in this many tries,
-    // so one that keeps recurring is seen without flooding the log.
+    // A lost race, or an outage, is logged the first time and then one in this many tries, so one that keeps recurring
+    // is seen without flooding the log.
     private const int TriesPerRepeatedWarning = 12;
 
-    private readonly CancellationTokenSource _stopping = new();
+    // A start still waiting for the database stops waiting as soon as the host starts stopping, before this service is
+    // stopped: from then on Quartz refuses to rebuild a scheduler, and a try made then would only fail.
+    private readonly CancellationTokenSource _stopping =
+        CancellationTokenSource.CreateLinkedTokenSource(
+            services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
     private IScheduler? _scheduler;
     private Task? _deferredStart;
     private int _contendedTries;
-    private int _unavailableTries;
+    private int _unreachableTries;
 
     private enum StartResult
     {
@@ -62,16 +66,11 @@ internal sealed class JobsSchedulerHostedService(
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        WarnIfLockOnInsertIsIgnored();
         var result = await TryStartSchedulerAsync(cancellationToken);
         if (result == StartResult.Started)
         {
             return;
-        }
-
-        if (result == StartResult.Unreachable)
-        {
-            logger.LogError(
-                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs.");
         }
 
         _deferredStart = StartWhenReadyAsync(result, _stopping.Token);
@@ -181,13 +180,28 @@ internal sealed class JobsSchedulerHostedService(
         }
     }
 
+    // Quartz's store and the snapshot check take LockOnInsert from configuration at registration; a host that sets it
+    // in code (Configure or PostConfigure) is told its value does not apply rather than left guessing. A warning, not
+    // a failed start: the store and the check agree on the value in effect, so the node is safe either way.
+    private void WarnIfLockOnInsertIsIgnored()
+    {
+        if (options.Value.LockOnInsert is { } inOptions && inOptions != database.LocksOnInsert)
+        {
+            logger.LogWarning(
+                "Endatix:BackgroundJobs:LockOnInsert is {InOptions} in the options but {InEffect} in the scheduler's store, which reads it from configuration at registration. Configuration wins: a value set in code is ignored.",
+                inOptions,
+                database.LocksOnInsert);
+        }
+    }
+
     private static bool IsWorthRetrying(Exception exception) =>
         DatabaseFailures.IsContention(exception) || DatabaseFailures.IsTimeout(exception)
-        || DatabaseFailures.IsUnreachable(exception);
+        || DatabaseFailures.IsAwayAtStartup(exception);
 
-    // Why a failed start is worth trying again. Only what failed after the probe connected arrives here, so a wait
-    // that ran out is a lock wait, contention, unless the database went away meanwhile: the probe is asked again to
-    // tell the two apart. A refusal the probe meets is thrown.
+    // Why a failed start is worth trying again. What arrives here failed after the probe connected, but Quartz opens
+    // connections of its own while it starts: a timeout while connecting is the network, and any other timeout is a
+    // lock wait, contention, unless the database went away meanwhile, which asking the probe again tells. A refusal
+    // the probe meets is thrown.
     private async Task<StartResult> RetryAfterAsync(Exception exception, CancellationToken cancellationToken)
     {
         if (DatabaseFailures.IsContention(exception))
@@ -195,7 +209,8 @@ internal sealed class JobsSchedulerHostedService(
             return Contended(exception);
         }
 
-        if (!DatabaseFailures.IsTimeout(exception))
+        // A timeout while connecting is the network, not a lock: a connection Quartz opened timed out in a blip.
+        if (!DatabaseFailures.IsTimeout(exception) || DatabaseFailures.FailedToConnect(exception))
         {
             return Unreachable(exception);
         }
@@ -222,9 +237,10 @@ internal sealed class JobsSchedulerHostedService(
         {
             await RetryUntilStartedAsync(result, stoppingToken);
         }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        catch (Exception) when (stoppingToken.IsCancellationRequested)
         {
-            // The host stopped before the database came back.
+            // The host stopped before the database came back; a try that failed because it is stopping, as Quartz
+            // refusing to rebuild the scheduler does, is part of the stop.
         }
         catch (Exception exception)
         {
@@ -244,20 +260,54 @@ internal sealed class JobsSchedulerHostedService(
         while (result != StartResult.Started);
     }
 
-    // A database SQL Server cannot open is named, since a misnamed one is reported as a restoring one is, and only
-    // the operator can tell them apart; logged on the first try and then one in as many as a lost race is.
+    // Logged with the driver's failure, on the first try and then one in as many as a lost race is: only the operator
+    // can tell an outage from a mistake, such as a mistyped host. A database that cannot be opened is named too, since
+    // SQL Server reports a misnamed one as it reports a restoring one. Drivers leave the password out of what they
+    // report, so the failure is safe to log.
     private StartResult Unreachable(Exception away)
     {
         _contendedTries = 0;
-        if (DatabaseFailures.IsDatabaseUnavailable(away) && ++_unavailableTries % TriesPerRepeatedWarning == 1)
+        if (++_unreachableTries % TriesPerRepeatedWarning == 1)
         {
-            logger.LogError(
-                "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. Retrying.",
-                database.DatabaseName);
+            LogUnreachable(away);
         }
 
         return StartResult.Unreachable;
     }
+
+    private void LogUnreachable(Exception away)
+    {
+        if (DatabaseFailures.IsDatabaseUnavailable(away))
+        {
+            LogCannotOpen(away);
+        }
+        else if (DatabaseFailures.IsReadOnly(away))
+        {
+            LogReadOnly(away);
+        }
+        else
+        {
+            logger.LogError(
+                away,
+                "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs ({Tries} tries so far).",
+                _unreachableTries);
+        }
+    }
+
+    private void LogCannotOpen(Exception away) =>
+        logger.LogError(
+            away,
+            "The background jobs scheduler cannot open database '{Database}': it is missing, offline or being restored, or not created yet. It will start once it can; until then this host runs no jobs ({Tries} tries so far).",
+            database.DatabaseName,
+            _unreachableTries);
+
+    // Read-only on purpose never clears by waiting, so the log says it may be either.
+    private void LogReadOnly(Exception away) =>
+        logger.LogError(
+            away,
+            "The background jobs scheduler cannot write to database '{Database}': it is read-only, as during a failover, or set read-only on purpose. It will start once it can write; until then this host runs no jobs ({Tries} tries so far).",
+            database.DatabaseName,
+            _unreachableTries);
 
     private TimeSpan DelayAfter(StartResult result) =>
         result == StartResult.Contended && _contendedTries <= QuickContendedTries ? ContendedRetryDelay : UnreachableRetryDelay;

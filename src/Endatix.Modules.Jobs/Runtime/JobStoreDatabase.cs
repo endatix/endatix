@@ -10,18 +10,31 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// The database the scheduler's tables live in, beside the job rows, and what the scheduler checks of it before it
 /// starts.
 /// </summary>
-/// <param name="ConnectionString">The host's default connection string.</param>
-/// <param name="IsPostgreSql">Whether that database is PostgreSQL; otherwise it is SQL Server.</param>
-/// <param name="LocksOnInsert">
+/// <param name="connectionString">The host's default connection string.</param>
+/// <param name="isPostgreSql">Whether that database is PostgreSQL; otherwise it is SQL Server.</param>
+/// <param name="locksOnInsert">
 /// Whether enqueueing holds the cluster-wide trigger lock until it commits, as Quartz's store was configured with it.
 /// </param>
 /// <remarks>
-/// <paramref name="LocksOnInsert"/> is decided once, from configuration at registration, because that is when Quartz's
+/// <para>
+/// <see cref="LocksOnInsert"/> is decided once, from configuration at registration, because that is when Quartz's
 /// store takes it and Quartz cannot change it afterwards: an options callback a host adds in code later reaches
 /// neither the store nor the snapshot check, so the two can never disagree.
+/// </para>
+/// <para>
+/// A class, not a record: a record's generated <c>ToString</c> would print the connection string, password included,
+/// into any log, debugger view or assertion message that shows this singleton.
+/// </para>
 /// </remarks>
-internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreSql, bool LocksOnInsert)
+internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSql, bool locksOnInsert)
 {
+    /// <summary>The connection string; never printed (see <see cref="ToString"/>).</summary>
+    public string ConnectionString { get; } = connectionString;
+
+    public bool IsPostgreSql { get; } = isPostgreSql;
+
+    public bool LocksOnInsert { get; } = locksOnInsert;
+
     private const string LockOnInsertKey = $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.LockOnInsert)}";
 
     /// <summary>The store the host's configuration describes.</summary>
@@ -41,6 +54,11 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
             options.LockOnInsert ?? !isPostgreSql);
     }
 
+    /// <summary>Names the provider and the database, never the connection string or its credentials.</summary>
+    public override string ToString() =>
+        $"{nameof(JobStoreDatabase)} {{ {(IsPostgreSql ? "PostgreSQL" : "SQL Server")} database '{DatabaseName}', " +
+        $"{nameof(LocksOnInsert)} = {LocksOnInsert} }}";
+
     /// <summary>The database the connection string names, for messages; never the credentials.</summary>
     public string DatabaseName => IsPostgreSql
         ? new NpgsqlConnectionStringBuilder(ConnectionString).Database ?? ""
@@ -56,9 +74,11 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
         {
             await using var connection = Connect();
             await connection.OpenAsync(cancellationToken);
-            return null;
+            return IsPostgreSql && await TransactionsAreReadOnlyAsync(connection, cancellationToken)
+                ? ReadOnlyTransactions()
+                : null;
         }
-        catch (Exception exception) when (DatabaseFailures.IsUnreachable(exception))
+        catch (Exception exception) when (DatabaseFailures.IsAwayAtStartup(exception))
         {
             return exception;
         }
@@ -94,6 +114,24 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
         command.CommandText = "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()";
         return await command.ExecuteScalarAsync(cancellationToken) is true;
     }
+
+    // A read-only PostgreSQL database, a standby or one with default_transaction_read_only on, refuses the scheduler's
+    // first write with 25006 inside the lock Quartz takes, and Quartz then reports only the 25P02 ("current transaction
+    // is aborted") of its next statement, which says nothing of why. So the probe asks; SQL Server's 3906 reaches the
+    // start as it is.
+    private static async Task<bool> TransactionsAreReadOnlyAsync(DbConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SHOW transaction_read_only";
+        return await command.ExecuteScalarAsync(cancellationToken) is "on";
+    }
+
+    // Said as PostgreSQL says a write it refused for the same reason, so the start treats both alike.
+    private PostgresException ReadOnlyTransactions() => new(
+        $"Every new transaction on database '{DatabaseName}' is read-only: it is a standby, or default_transaction_read_only is on.",
+        "ERROR",
+        "ERROR",
+        PostgresErrorCodes.ReadOnlySqlTransaction);
 
     private DbConnection Connect() =>
         IsPostgreSql ? new NpgsqlConnection(ConnectionString) : new SqlConnection(ConnectionString);

@@ -33,12 +33,15 @@ internal static class SqlServerExceptions
         return (SqlException)create.Invoke(null, [collection, "16.00.1000"])!;
     }
 
-    /// <summary>A failure with <paramref name="number"/> that wraps <paramref name="inner"/>, as a failed connect does.</summary>
-    public static SqlException WithInner(int number, Exception inner)
+    /// <summary>
+    /// A failure with <paramref name="number"/> and <paramref name="message"/> that wraps <paramref name="inner"/>, as a
+    /// failed connect does.
+    /// </summary>
+    public static SqlException WithInner(int number, Exception inner, string message = DefaultMessage)
     {
         var errors = (SqlErrorCollection)Activator.CreateInstance(typeof(SqlErrorCollection), nonPublic: true)!;
         typeof(SqlErrorCollection).GetMethod("Add", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .Invoke(errors, [Error(number, DefaultMessage)]);
+            .Invoke(errors, [Error(number, message)]);
         var create = typeof(SqlException).GetMethod(
             "CreateException",
             BindingFlags.NonPublic | BindingFlags.Static,
