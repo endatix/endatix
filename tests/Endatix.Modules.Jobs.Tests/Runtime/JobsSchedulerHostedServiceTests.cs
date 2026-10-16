@@ -57,6 +57,7 @@ public sealed class JobsSchedulerHostedServiceTests
             JobHandlerRegistry.Build([]),
             options,
             new JobsShutdownSignal(),
+            Substitute.For<Microsoft.Extensions.Hosting.IHostApplicationLifetime>(),
             NullLogger<JobsSchedulerHostedService>.Instance);
     }
 }

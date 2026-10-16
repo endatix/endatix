@@ -5,6 +5,7 @@ using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -219,7 +220,8 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     private static JobsSchedulerHostedService HostedServiceOver(
         JobsTestNodeDatabase target,
         ISchedulerFactory schedulers,
-        CapturingLoggerProvider logs)
+        CapturingLoggerProvider logs,
+        IHostApplicationLifetime? lifetime = null)
     {
         var services = new ServiceCollection()
             .AddKeyedSingleton(QuartzRegistration.SchedulerName, schedulers)
@@ -233,6 +235,7 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
             JobHandlerRegistry.Build([]),
             options,
             new JobsShutdownSignal(),
+            lifetime ?? Substitute.For<IHostApplicationLifetime>(),
             new LoggerFactory([logs]).CreateLogger<JobsSchedulerHostedService>());
     }
 
