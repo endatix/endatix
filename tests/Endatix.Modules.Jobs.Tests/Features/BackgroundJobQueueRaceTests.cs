@@ -144,15 +144,12 @@ public sealed class BackgroundJobQueueRaceTests
         new PostgresException("could not serialize access", "ERROR", "ERROR", PostgresErrorCodes.SerializationFailure),
     };
 
-    // A context like SQL Server's, over a server that is not there, so any query would fail.
+    // A SQL Server context over a server that is not there, so any query would fail.
     private static TestJobsDbContext SqlServerContext() => new(
         new DbContextOptionsBuilder<TestJobsDbContext>()
             .UseSqlServer("Server=127.0.0.1,1;Database=not_connected;User Id=x;Password=x;Connect Timeout=1")
             .Options,
-        new FixedTenantContext(0))
-    {
-        IgnoresTrailingSpaces = true,
-    };
+        new FixedTenantContext(0));
 
     private BackgroundJobQueue QueueOver(TestJobsDbContext context)
     {

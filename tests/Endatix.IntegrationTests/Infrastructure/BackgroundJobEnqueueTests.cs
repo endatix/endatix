@@ -105,10 +105,11 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     [Fact]
     public async Task EnqueueManyAsync_DeadlockWhileStoringTriggers_RetriesOnceAndStoresEachJobOnce()
     {
-        // Arrange — the first trigger store loses a deadlock, after the rows are already written.
+        // Arrange — the third trigger store loses a deadlock, after the rows and two triggers are written in the same
+        // transaction, so the rollback has both to take back.
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
-        var failures = TriggerStoreFailures.Deadlocked(stores: 1);
+        var failures = TriggerStoreFailures.Deadlocked(stores: 1, after: 2);
         await using var node = JobsTestNode.Create(
             database,
             new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" },

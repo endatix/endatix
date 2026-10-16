@@ -85,7 +85,7 @@ internal sealed partial class BackgroundJobQueue(
     // returning the job. A database that compares keys as written (PostgreSQL) takes them, as it always has.
     private void RefuseKeysTheDatabaseCannotTellApart(IReadOnlyList<BackgroundJobRequest> requests)
     {
-        if (!dbContext.IgnoresTrailingSpacesInKeys
+        if (!JobsPersistence.IgnoresTrailingSpacesInKeys(dbContext.Database)
             || !requests.Any(request => EndsWithSpace(request.DedupKey)))
         {
             return;

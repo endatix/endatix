@@ -18,11 +18,6 @@ internal sealed class TestJobsDbContext(
 {
     public int SaveChangesCallCount { get; private set; }
 
-    /// <summary>Stands in for a database that ignores trailing spaces when it compares, as SQL Server does.</summary>
-    public bool IgnoresTrailingSpaces { get; init; }
-
-    public override bool IgnoresTrailingSpacesInKeys => IgnoresTrailingSpaces;
-
     /// <summary>
     /// In-memory options that accept the transaction enqueueing opens. The provider cannot roll back, which the
     /// unit tests never rely on; the integration tests prove the rollback against PostgreSQL.

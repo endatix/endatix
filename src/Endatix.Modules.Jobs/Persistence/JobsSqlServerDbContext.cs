@@ -14,10 +14,6 @@ public sealed class JobsSqlServerDbContext(
     : JobsDbContextBase(options, tenantContext)
 {
     /// <inheritdoc />
-    /// <remarks>SQL Server pads the shorter value with spaces when it compares, so "k1 " equals "k1".</remarks>
-    public override bool IgnoresTrailingSpacesInKeys => true;
-
-    /// <inheritdoc />
     protected override void EnsureSupportedProvider() =>
         Database.EnsureSqlServer(typeof(JobsSqlServerDbContext));
 

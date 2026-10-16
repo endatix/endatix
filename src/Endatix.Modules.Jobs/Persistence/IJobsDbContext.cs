@@ -27,11 +27,5 @@ public interface IJobsDbContext : ITenantDbContext
     /// <summary>Lets enqueueing drop rows a failed insert left tracked before it tries again.</summary>
     ChangeTracker ChangeTracker { get; }
 
-    /// <summary>
-    /// Whether the database ignores trailing spaces when it compares dedup keys, so that a key ending in a space
-    /// matches the key without it in the unique index while the queue's own lookup tells them apart.
-    /// </summary>
-    bool IgnoresTrailingSpacesInKeys { get; }
-
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
