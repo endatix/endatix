@@ -23,6 +23,7 @@ public sealed class ReportingSubscriptionsTests
             (SeedDefaultExportFormatsOutboxHandler.HandledEventTypes, ReportingSeedDefaultExportFormatsPayload.JobType),
             (SyncFormDeletionOutboxHandler.HandledEventTypes, ReportingSyncFormDeletionPayload.JobType),
             (SyncSubmissionDeletionOutboxHandler.HandledEventTypes, ReportingSyncSubmissionDeletionPayload.JobType),
+            (RebuildSearchCopyOutboxHandler.HandledEventTypes, ReportingRebuildSearchCopyPayload.JobType),
         };
 
         // Act
@@ -68,7 +69,8 @@ public sealed class ReportingSubscriptionsTests
             ReportingFlattenSubmissionPayload.JobType,
             ReportingSeedDefaultExportFormatsPayload.JobType,
             ReportingSyncFormDeletionPayload.JobType,
-            ReportingSyncSubmissionDeletionPayload.JobType);
+            ReportingSyncSubmissionDeletionPayload.JobType,
+            ReportingRebuildSearchCopyPayload.JobType);
         declared.Should().AllSatisfy(defaults =>
             defaults.Should().BeEquivalentTo(tuned, options => options.Excluding(value => value.JobType)));
     }

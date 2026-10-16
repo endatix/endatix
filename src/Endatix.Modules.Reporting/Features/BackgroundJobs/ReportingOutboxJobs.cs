@@ -43,6 +43,7 @@ internal static class ReportingOutboxJobs
         AddInline<SyncSubmissionDeletionOutboxHandler>(services);
         AddInline<SyncFormDeletionOutboxHandler>(services);
         AddInline<SeedDefaultExportFormatsOutboxHandler>(services);
+        AddInline<RebuildSearchCopyOutboxHandler>(services);
     }
 
     private static void AddJobHandlers(IServiceCollection services)
@@ -52,6 +53,7 @@ internal static class ReportingOutboxJobs
         services.AddBackgroundJobHandler<SeedDefaultExportFormatsJobHandler, ReportingSeedDefaultExportFormatsPayload>(JobDefaults);
         services.AddBackgroundJobHandler<SyncFormDeletionJobHandler, ReportingSyncFormDeletionPayload>(JobDefaults);
         services.AddBackgroundJobHandler<SyncSubmissionDeletionJobHandler, ReportingSyncSubmissionDeletionPayload>(JobDefaults);
+        services.AddBackgroundJobHandler<RebuildSearchCopyJobHandler, ReportingRebuildSearchCopyPayload>(JobDefaults);
     }
 
     private static void AddSubscriptions(IServiceCollection services)
@@ -64,6 +66,8 @@ internal static class ReportingOutboxJobs
             message => new ReportingSyncFormDeletionPayload(message.Id));
         Subscribe(services, SyncSubmissionDeletionOutboxHandler.HandledEventTypes,
             message => new ReportingSyncSubmissionDeletionPayload(message.Id));
+        Subscribe(services, RebuildSearchCopyOutboxHandler.HandledEventTypes,
+            message => new ReportingRebuildSearchCopyPayload(message.Id));
 
         // A new tenant's event is app-level; the seeding belongs to the tenant being created.
         foreach (var eventType in SeedDefaultExportFormatsOutboxHandler.HandledEventTypes)

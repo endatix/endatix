@@ -66,6 +66,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         AddExports(builder.Services);
         builder.Services.AddSingleton<FormSchemaCompiler>();
         builder.Services.AddScoped<SearchCopyRebuilder>();
+        builder.Services.AddScoped<SearchCopyRebuildRequests>();
         builder.Services.AddScoped<FormSearchCopy>();
         builder.Services.AddScoped<UserSearchKeys>();
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();

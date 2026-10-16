@@ -44,17 +44,33 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    public async Task After_a_key_is_added_and_the_rows_rebuilt_its_filter_matches()
+    public async Task Adding_a_key_answers_before_the_rebuild_with_the_key_pending()
     {
         // Arrange — the question is read-only, so no compile makes it searchable.
-        var form = await _world.SeedFlattenedFormAsync(Mixed,
-            new { reference = "REF-Alpha" }, new { reference = "ref-beta" }, new { company = "Acme" });
+        var form = await _world.SeedFlattenedFormAsync(Mixed, new { reference = "REF-Alpha" }, new { reference = "ref-beta" });
 
         // Act
         var added = await AddAsync(form, "reference");
 
         // Assert
-        added.Value.Keys.Should().ContainSingle(key => key.Key == "reference").Which.Pending.Should().BeFalse();
+        added.Value.Keys.Should().ContainSingle(key => key.Key == "reference").Which.Pending.Should().BeTrue();
+        (await CountCheckedAsync(form, "reference")).Should().Be(0);
+        (await PendingRebuildRequestsAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task After_a_key_is_added_and_the_rows_rebuilt_its_filter_matches()
+    {
+        // Arrange
+        var form = await _world.SeedFlattenedFormAsync(Mixed,
+            new { reference = "REF-Alpha" }, new { reference = "ref-beta" }, new { company = "Acme" });
+        await AddAsync(form, "reference");
+
+        // Act
+        await RunRebuildsAsync();
+
+        // Assert
+        (await ColumnsAsync(form)).Columns.Single(column => column.Key == "reference").SearchPending.Should().BeFalse();
         (await CountCheckedMatchesAsync(form, "reference", "ALPHA")).Should().Be(1);
     }
 
@@ -82,10 +98,11 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
         await SaveUserKeyWithoutRebuildAsync(form, "reference");
 
         // Act
-        var added = await AddAsync(form, "reference");
+        await AddAsync(form, "reference");
+        await RunRebuildsAsync();
 
         // Assert
-        added.Value.Keys.Single(key => key.Key == "reference").Pending.Should().BeFalse();
+        (await ColumnsAsync(form)).Columns.Single(column => column.Key == "reference").SearchPending.Should().BeFalse();
         (await CountCheckedAsync(form, "reference")).Should().Be(2);
     }
 
@@ -95,6 +112,7 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
         // Arrange
         var form = await _world.SeedFlattenedFormAsync(Mixed, new { company = "Acme" });
         await AddAsync(form, "reference");
+        await RunRebuildsAsync();
         var submissionId = await _world.AddRealSubmissionAsync(form.FormId, form.DefinitionIds[0], Answers(new { reference = "REF-Gamma" }));
 
         // Act
@@ -133,6 +151,7 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
         var form = await _world.SeedFlattenedFormAsync(Mixed, new { reference = "REF-Alpha" });
         await AddAsync(form, "reference");
         var before = await _world.ReadSchemaAsync(form.FormId);
+        var requestsBefore = await PendingRebuildRequestsAsync();
 
         // Act
         Result<SubmissionGridSearchKeys> added;
@@ -147,6 +166,7 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
         (added.Status, removed.Status).Should().Be((ResultStatus.NotFound, ResultStatus.NotFound));
         var after = await _world.ReadSchemaAsync(form.FormId);
         (after.SearchKeysRevision, SearchKeyNames(after)).Should().BeEquivalentTo((before.SearchKeysRevision, SearchKeyNames(before)));
+        (await PendingRebuildRequestsAsync()).Should().Be(requestsBefore);
     }
 
     private static SearchKeyTarget Target(RebuildForm form, string key, long tenantId = FormSchemaRebuildWorld.TenantId) =>
@@ -156,6 +176,18 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
     {
         await using var scope = _world.OpenScope();
         return await scope.AddSearchKey().Handle(new AddSearchKeyCommand(Target(form, key)), Cancellation);
+    }
+
+    private async Task RunRebuildsAsync()
+    {
+        await using var scope = _world.OpenScope();
+        await scope.RunSearchCopyRebuildsAsync();
+    }
+
+    private async Task<int> PendingRebuildRequestsAsync()
+    {
+        await using var scope = _world.OpenScope();
+        return await scope.CountSearchCopyRebuildRequestsAsync();
     }
 
     private async Task SaveUserKeyWithoutRebuildAsync(RebuildForm form, string key)

@@ -31,6 +31,29 @@ internal sealed class CompileFormSchemaJobHandler(
     }
 }
 
+/// <summary>Rebuilds a form's search copies after a person added a search key.</summary>
+internal sealed class RebuildSearchCopyJobHandler(
+    IRepository<OutboxMessage> outboxMessages,
+    RebuildSearchCopyOutboxHandler work,
+    ILogger<RebuildSearchCopyJobHandler> logger) : ReportingOutboxJobHandler<ReportingRebuildSearchCopyPayload>(outboxMessages, logger)
+{
+    protected override async Task<Result> RunAsync(BackgroundJobContext job, IOutboxMessage message, CancellationToken cancellationToken)
+    {
+        if (!TryParse(() => RebuildSearchCopyOutboxHandler.Parse(message), out var input))
+        {
+            return Failure(MessageUnreadable);
+        }
+
+        if (input!.TenantId != job.TenantId)
+        {
+            return Failure(OtherTenant);
+        }
+
+        await work.ProcessAsync(input, cancellationToken);
+        return Result.Success();
+    }
+}
+
 /// <summary>Flattens a completed or updated submission into the Reporting read model.</summary>
 internal sealed class FlattenSubmissionJobHandler(
     IRepository<OutboxMessage> outboxMessages,

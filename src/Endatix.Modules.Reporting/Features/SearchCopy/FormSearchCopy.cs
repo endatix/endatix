@@ -9,7 +9,10 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// A form's search copy: the keys a compile keeps or a person adds, and the rebuild of the rows when those keys change
 /// what the rows should hold.
 /// </summary>
-internal sealed class FormSearchCopy(IDateTimeProvider dateTimeProvider, SearchCopyRebuilder rebuilder)
+internal sealed class FormSearchCopy(
+    IDateTimeProvider dateTimeProvider,
+    SearchCopyRebuilder rebuilder,
+    SearchCopyRebuildRequests rebuildRequests)
 {
     internal const string NotFilterableMessage =
         "This column cannot be made filterable: the form's reporting schema has no such column, or no answer filter supports it.";
@@ -34,6 +37,10 @@ internal sealed class FormSearchCopy(IDateTimeProvider dateTimeProvider, SearchC
         SearchableColumns.ChosenColumn(schema, key) is { } column
             ? FormSearchKeys.Of(schema).AddUser(column, dateTimeProvider.UtcNow.UtcDateTime)
             : Result<FormSearchKeys>.Invalid(new ValidationError("key", NotFilterableMessage, "NotFilterable", ValidationSeverity.Error));
+
+    /// <inheritdoc cref="SearchCopyRebuildRequests.RequestAsync"/>
+    public Task RequestRebuildAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+        rebuildRequests.RequestAsync(tenantId, formId, cancellationToken);
 
     /// <inheritdoc cref="SearchCopyRebuilder.RebuildFormAsync"/>
     public Task<int> RebuildAsync(long tenantId, long formId, CancellationToken cancellationToken) =>

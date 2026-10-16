@@ -328,7 +328,23 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
     public UserSearchKeys UserSearchKeys() => new(FormsRepository(), Schemas(), new ReportingUnitOfWork(reportingDb));
 
     public AddSearchKeyHandler AddSearchKey() =>
-        new(UserSearchKeys(), ReportingTestSchema.SearchCopyFor(reportingDb), FlattenedRows());
+        new(UserSearchKeys(), ReportingTestSchema.SearchCopyFor(reportingDb, OutboxMessages()), FlattenedRows());
+
+    public Task<int> CountSearchCopyRebuildRequestsAsync() =>
+        SearchCopyRebuildRequests().CountAsync(TestContext.Current.CancellationToken);
+
+    /// <summary>Runs the search copy rebuild requests, as the outbox relay runs them.</summary>
+    public async Task<int> RunSearchCopyRebuildsAsync()
+    {
+        var requests = await SearchCopyRebuildRequests().ToListAsync(TestContext.Current.CancellationToken);
+        RebuildSearchCopyOutboxHandler handler = new(ReportingTestSchema.SearchCopyRebuilderFor(reportingDb));
+        foreach (var request in requests)
+        {
+            await handler.HandleAsync(new OutboxMessageView(request), TestContext.Current.CancellationToken);
+        }
+
+        return requests.Count;
+    }
 
     public RemoveSearchKeyHandler RemoveSearchKey() => new(UserSearchKeys(), FlattenedRows());
 
@@ -359,6 +375,12 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
             ReportingTestSchema.SearchCopyFor(reportingDb),
             NullLogger<FormSchemaProcessor>.Instance);
     }
+
+    private IQueryable<OutboxMessage> SearchCopyRebuildRequests() =>
+        appDb.OutboxMessages.AsNoTracking()
+            .Where(message => message.EventType == Endatix.Modules.Reporting.Features.SearchCopy.SearchCopyRebuildRequests.EventTypeName);
+
+    private EfRepository<OutboxMessage> OutboxMessages() => new(appDb, new EndatixSpecificationEvaluator([]));
 
     private FlattenedSubmissionRepository FlattenedRows() =>
         new(reportingDb, new ReportingUnitOfWork(reportingDb), new DateTimeProvider());

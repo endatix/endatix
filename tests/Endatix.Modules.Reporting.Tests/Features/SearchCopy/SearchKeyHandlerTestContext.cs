@@ -21,6 +21,8 @@ internal sealed class SearchKeyHandlerTestContext
 
     public IReportingUnitOfWork UnitOfWork { get; } = Substitute.For<IReportingUnitOfWork>();
 
+    public IRepository<OutboxMessage> OutboxMessages { get; } = Substitute.For<IRepository<OutboxMessage>>();
+
     public UserSearchKeys UserSearchKeys => new(Forms, Schemas, UnitOfWork);
 
     public static SearchKeyTarget Target(string key, long tenantId = SampleData.TENANT_ID) => new(tenantId, FormId, key);

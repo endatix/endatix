@@ -95,7 +95,7 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
 - **Rebuilt in SQL.** `SearchCopyRebuilder` rewrites a form's copies from `DataJson` in batches of 1,000 rows by
   submission id, one statement per batch, without flattening again. A compile runs it after its commit when it added a
   key for a column the rows already hold (the first compile after this migration, for instance), or changed a key's
-  filter type; adding a person's key runs it too. The SQL normalises as the flatten does;
+  filter type; adding a person's key asks for it in the background (below). The SQL normalises as the flatten does;
   `SearchCopyRebuildIntegrationTests` checks both write the same.
 - **Search keys revision: rows that have not caught up count as not checked.** `FormSchemas.SearchKeysRevision` moves
   forward whenever existing rows need a value they were not written with (a key added for a column they hold, a
@@ -168,9 +168,17 @@ Both answer `200` with `{ formId, keys: [{ key, source, filterType, pending }], 
 - **Add.** Any column of the compiled schema with a submissions-grid filter type, read-only questions included (people
   may want what the form fills in; the compile leaves them out only because respondents do not). A column with no
   filter, or not in the schema, is 400. Over 14 people's keys, or 64 in all, is 400 and names both caps. A key the form
-  already has changes nothing. After the commit the request rebuilds the form's copies (`AddSearchKeyHandler`, as a
-  compile does), so it answers once the rows are rebuilt; on a large form that is tens of seconds ("Rebuild of 50k
-  copies" above). A request cut off part way leaves the rest of the rows pending: adding the key again finishes them.
+  already has changes nothing to the keys.
+- **Rebuild in the background.** After the keys commit, the request writes an outbox message
+  (`reporting.search_copy.rebuild_requested`, `SearchCopyRebuildRequests`) and answers at once, with the key
+  `pending` while the form has prepared rows. The relay runs `RebuildSearchCopyOutboxHandler` inline, or as the
+  `ReportingRebuildSearchCopy` job when `Endatix:Outbox:DeliverToJobQueue` is on; a failure retries as any outbox
+  message does. The outbox, not the job queue directly, because the Jobs module is off by default and PostgreSQL
+  only, while the outbox runs on both databases. The message is written in the App database after the Reporting
+  commit, so the two are not atomic: a message lost in between leaves the rows pending, never wrong. Every add,
+  including a repeat of a key the form has, writes a message, so adding the key again finishes a rebuild that was cut
+  off or lost; the rebuild skips rows already stamped. Inline in the relay, a rebuild of a large form (tens of seconds,
+  "Rebuild of 50k copies" above) holds up the messages behind it, as a compile's rebuild does.
 - **Remove.** Only a key with `source: "user"` (an automatic key is 400; a column that is not a key is 404). Filters
   stop reading it at once.
 - **Concurrency.** Both hold the form's schema lock (`IFormSchemaRepository.LockAndGetByFormIdAsync`), the one a

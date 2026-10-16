@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Reporting.Features.SearchCopy;
@@ -25,7 +26,11 @@ public sealed class AddSearchKeyHandlerTests
             NullLogger<SearchCopyRebuilder>.Instance);
         var dateTimeProvider = Substitute.For<IDateTimeProvider>();
         dateTimeProvider.UtcNow.Returns(new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero));
-        _sut = new AddSearchKeyHandler(_context.UserSearchKeys, new FormSearchCopy(dateTimeProvider, rebuilder), _context.Rows);
+        SearchCopyRebuildRequests rebuildRequests = new(_context.OutboxMessages, dateTimeProvider);
+        _sut = new AddSearchKeyHandler(
+            _context.UserSearchKeys,
+            new FormSearchCopy(dateTimeProvider, rebuilder, rebuildRequests),
+            _context.Rows);
     }
 
     [Fact]
@@ -96,6 +101,28 @@ public sealed class AddSearchKeyHandlerTests
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().ContainSingle().Which.ErrorMessage.Should().Be(FormSearchKeys.CapMessage);
         await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Handle_FreeSlot_SavesTheKeyRequestsARebuildAndReturnsTheKeyPending()
+    {
+        // Arrange
+        _context.GivenForm(SampleData.TENANT_ID);
+        var schema = _context.GivenSchema(SearchKeyHandlerTestContext.TextQuestions(51));
+        _context.Rows.OldestSearchKeysRevisionAsync(SampleData.TENANT_ID, SearchKeyHandlerTestContext.FormId, Arg.Any<CancellationToken>())
+            .Returns(schema.SearchKeysRevision);
+
+        // Act
+        var result = await _sut.Handle(Command("q051"), CancellationToken.None);
+
+        // Assert
+        result.Value.Keys.Should().ContainSingle(key => key.Key == "q051").Which.Pending.Should().BeTrue();
+        await _context.Schemas.Received(1).SaveAsync(schema, Arg.Any<CancellationToken>());
+        await _context.OutboxMessages.Received(1).AddAsync(
+            Arg.Is<OutboxMessage>(message => message.EventType == SearchCopyRebuildRequests.EventTypeName &&
+                                             message.TenantId == SampleData.TENANT_ID &&
+                                             message.Payload.Contains($"\"formId\":\"{SearchKeyHandlerTestContext.FormId}\"")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

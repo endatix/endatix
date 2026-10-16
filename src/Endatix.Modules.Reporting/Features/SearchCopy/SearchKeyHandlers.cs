@@ -6,13 +6,14 @@ using Endatix.Modules.Reporting.Features.SubmissionGrid;
 namespace Endatix.Modules.Reporting.Features.SearchCopy;
 
 /// <summary>
-/// Adds a person's search key, then rebuilds the form's search copies from the stored answers before it answers.
+/// Adds a person's search key and asks for the form's search copies to be rebuilt in the background; answers at once,
+/// with the key pending while the form has prepared rows.
 /// </summary>
 /// <remarks>
-/// The rebuild runs in the request after the keys are committed, as a compile runs it. Rows it has not reached are
-/// stamped with an older revision, so filters on the new key count them as not checked rather than as not matching,
-/// and the columns catalog reports the key as pending. Adding the same key again finishes a rebuild that was cut off:
-/// the rebuild skips rows already stamped with the current revision.
+/// Rows the rebuild has not reached are stamped with an older revision, so filters on the new key count them as not
+/// checked rather than as not matching, and the columns catalog reports the key as pending. Adding the same key again
+/// asks again, which finishes a rebuild that was cut off or a request that was lost: the rebuild skips rows already
+/// stamped with the current revision.
 /// </remarks>
 internal sealed class AddSearchKeyHandler(
     UserSearchKeys userSearchKeys,
@@ -29,7 +30,7 @@ internal sealed class AddSearchKeyHandler(
             return added.ToErrorResult<SubmissionGridSearchKeys>();
         }
 
-        await searchCopy.RebuildAsync(target.TenantId, target.FormId, cancellationToken);
+        await searchCopy.RequestRebuildAsync(target.TenantId, target.FormId, cancellationToken);
         return await FormSearchKeyStatus.ReadGridSearchKeysAsync(added.Value, flattenedSubmissionRepository, cancellationToken);
     }
 }
