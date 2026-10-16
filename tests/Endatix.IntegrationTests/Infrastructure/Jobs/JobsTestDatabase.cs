@@ -230,5 +230,9 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
 
         public static ArgumentOutOfRangeException Unsupported(TestDatabaseProvider provider) =>
             new(nameof(provider), provider, "Unsupported test database provider.");
+
+        // A record prints every member, the connection string and its password with it, wherever it is shown: in an
+        // assertion's message, a debugger, a log.
+        public override string ToString() => $"{Provider} connection";
     }
 }
