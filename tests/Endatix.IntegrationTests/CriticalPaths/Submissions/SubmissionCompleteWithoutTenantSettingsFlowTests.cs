@@ -36,6 +36,7 @@ public sealed class SubmissionCompleteWithoutTenantSettingsFlowTests(
 
         // Assert — the write stays successful even though Slack cannot notify
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        await AssertCompletedAsync(world, formId, cancellationToken);
 
         // and no TenantSettings row was created as a side effect
         await using var scope = world.Services.CreateAsyncScope();
@@ -71,8 +72,22 @@ public sealed class SubmissionCompleteWithoutTenantSettingsFlowTests(
             new { isComplete = true, jsonData = """{"q":"done"}""" },
             cancellationToken);
 
-        // Assert
+        // Assert — 200 is not enough: the saved row has to be complete
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await AssertCompletedAsync(world, formId, cancellationToken);
+    }
+
+    private static async Task AssertCompletedAsync(
+        IntegrationTestWorld world,
+        string formId,
+        CancellationToken cancellationToken)
+    {
+        await using var scope = world.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var submission = await db.Submissions.SingleAsync(
+            row => row.FormId == long.Parse(formId), cancellationToken);
+        Assert.True(submission.IsComplete);
+        Assert.NotNull(submission.CompletedAt);
     }
 
     private static async Task<string> CreateEnabledFormAsync(
