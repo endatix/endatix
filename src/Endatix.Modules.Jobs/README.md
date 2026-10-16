@@ -191,8 +191,11 @@ yet"): SQL Server reports a missing database exactly as it reports one that is o
 restored, and PostgreSQL's may still be being created. A deadlock, or a statement that times out once
 the node has connected, is a lost race rather than an outage, and is retried as one, with its own
 warning. An outage that fails building the scheduler, whether the start, an enqueue or the dashboard
-asked for it, is waited out the same way: the next try builds another scheduler, since Quartz never
-hands out one it has shut down. Meanwhile the host's readiness probe reports the database as down.
+asked for it, is waited out the same way. Quartz never hands out a scheduler whose build failed, so
+the next try rebuilds it from the module's Quartz registration, with the same thread pool, batch
+size, store and listeners as a first build; it is started by the waiting start, as a first build is,
+and only on a node that runs jobs. A node stopping while it waits stops waiting at once. Meanwhile
+the host's readiness probe reports the database as down.
 
 **Each job type is its own Quartz execution group**, capped per node at
 `JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
