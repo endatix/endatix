@@ -16,6 +16,7 @@ namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator) : ICommandHandler<PartialUpdateSubmissionCommand, Result<Submission>>
 {
     private const int DEFAULT_CURRENT_PAGE = 0;
+    private const string SUBMISSION_NOT_FOUND_MESSAGE = "Form submission not found.";
 
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -24,7 +25,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
         if (submission == null)
         {
-            return Result.NotFound("Form submission not found.");
+            return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
         var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
@@ -67,19 +68,11 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             return Result.Invalid(new ValidationError(RejectionMessage(wasScreenedOut, screenOut)));
         }
 
-        if (!string.Equals(originalJson, submission.JsonData, StringComparison.Ordinal))
+        var saver = new SubmissionChangeSaver(repository, versions);
+        if (!await saver.TrySaveAsync(submission, originalJson, cancellationToken))
         {
-            var effectiveTimestamp = submission.ModifiedAt ?? submission.CreatedAt;
-            var version = new SubmissionVersion(
-                submission.Id,
-                originalJson,
-                effectiveTimestamp
-            );
-
-            await versions.AddAsync(version, cancellationToken);
+            return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
-
-        await repository.SaveChangesAsync(cancellationToken);
 
         if (mustPublishEvent)
         {

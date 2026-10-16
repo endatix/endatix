@@ -57,9 +57,7 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
         var rows = await DeletionStampsAsync(world.Services, formId);
         Assert.Equal(submissionIds.Order(), rows.Select(row => row.Id).Order());
         Assert.All(rows, row => Assert.True(row.IsDeleted && row.DeletedAt >= before && row.ModifiedAt == row.DeletedAt));
-        Assert.Equal(
-            [FormDeletedEvent.EventTypeName],
-            await DeletionEventTypesAsync(world.Services, formId, before));
+        Assert.Equal([FormDeletedEvent.EventTypeName], await EventTypesNamingAsync(world.Services, formId, before));
     }
 
     /// <summary>
@@ -80,12 +78,29 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
         using var deleted = await admin.DeleteAsync($"/api/forms/{formId}", Ct);
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
         await LeaveLiveAsync(world.Services, submissionId);
-        using var request = new HttpRequestMessage(
-            new HttpMethod(method),
-            $"/api/forms/{formId}/submissions/{submissionId}{pathSuffix}")
-        {
-            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
-        };
+        using var request = WriteRequest(new SubmissionWrite(formId, submissionId, method, pathSuffix, body));
+
+        // Act
+        using var response = await admin.SendAsync(request, Ct);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        await AssertUnchangedAsync(world.Services, submissionId);
+    }
+
+    /// <summary>
+    /// A form row soft-deleted with its definition and submission left live, as only the form's own filter can tell:
+    /// the definition join that hides the usual leftovers does not hide this one.
+    /// </summary>
+    [Fact]
+    public async Task Updating_a_submission_whose_form_alone_is_deleted_is_not_found()
+    {
+        // Arrange
+        var (world, admin) = await AdminAsync();
+        var formId = await CreateFormAsync(admin);
+        var submissionId = await CreateSubmissionAsync(admin, formId);
+        await DeleteOnlyTheFormRowAsync(world.Services, formId);
+        using var request = WriteRequest(new SubmissionWrite(formId, submissionId, "PATCH", "", """{"jsonData":"{\"q\":\"changed\"}"}"""));
 
         // Act
         using var response = await admin.SendAsync(request, Ct);
@@ -96,6 +111,14 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private sealed record SubmissionWrite(long FormId, long SubmissionId, string Method, string PathSuffix, string Body);
+
+    private static HttpRequestMessage WriteRequest(SubmissionWrite write) =>
+        new(new HttpMethod(write.Method), $"/api/forms/{write.FormId}/submissions/{write.SubmissionId}{write.PathSuffix}")
+        {
+            Content = new StringContent(write.Body, System.Text.Encoding.UTF8, "application/json"),
+        };
 
     private async Task<(IntegrationTestWorld World, HttpClient Admin)> AdminAsync()
     {
@@ -143,6 +166,17 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
         Assert.Equal(1, updated);
     }
 
+    private static async Task DeleteOnlyTheFormRowAsync(IServiceProvider services, long formId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var updated = await app.Forms
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(form => form.Id == formId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(form => form.IsDeleted, true), Ct);
+        Assert.Equal(1, updated);
+    }
+
     private static async Task AssertUnchangedAsync(IServiceProvider services, long submissionId)
     {
         await using var scope = services.CreateAsyncScope();
@@ -177,23 +211,21 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
             .ToListAsync(Ct);
     }
 
-    /// <summary>The deletion events captured since <paramref name="since"/> whose payload names the form.</summary>
-    private static async Task<List<string>> DeletionEventTypesAsync(IServiceProvider services, long formId, DateTime since)
+    /// <summary>The types of the outbox events captured since <paramref name="since"/> whose payload names the id.</summary>
+    private static async Task<List<string>> EventTypesNamingAsync(IServiceProvider services, long id, DateTime since)
     {
         await using var scope = services.CreateAsyncScope();
         var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var formIdText = formId.ToString(CultureInfo.InvariantCulture);
+        var idText = id.ToString(CultureInfo.InvariantCulture);
         var messages = await app.OutboxMessages
             .AsNoTracking()
-            .Where(message => message.OccurredAt >= since
-                && (message.EventType == FormDeletedEvent.EventTypeName
-                    || message.EventType == SubmissionDeletedEvent.EventTypeName))
+            .Where(message => message.OccurredAt >= since)
             .Select(message => new { message.EventType, message.Payload })
             .ToListAsync(Ct);
 
         // The payload is jsonb on PostgreSQL, so it is matched here rather than in the query.
         return messages
-            .Where(message => message.Payload.Contains(formIdText, StringComparison.Ordinal))
+            .Where(message => message.Payload.Contains(idText, StringComparison.Ordinal))
             .Select(message => message.EventType)
             .ToList();
     }

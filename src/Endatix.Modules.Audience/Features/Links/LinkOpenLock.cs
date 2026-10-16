@@ -24,11 +24,12 @@ internal sealed class LinkOpenLock(IAudienceDbContext db, AppDbContext app, ITra
 
     /// <summary>
     /// The link's lock, then its form's shared <see cref="FormSubmissionsLock"/>, for a first open, which may add a
-    /// submission: the form's deletion then waits for it, or it waits for the deletion and finds the form gone when
-    /// it reads it for the token. The two are always taken in this order, before anything is read or written, and
-    /// no section takes a form's lock before another one, so the opens and the deletion never wait in a cycle.
+    /// submission: the form's deletion then waits for it, and an open during the deletion is refused at once. An open
+    /// that takes the form's lock after a deletion finds the form gone when it reads it for the token. The two are
+    /// always taken in this order, before anything is read or written, and no section takes a form's lock before
+    /// another one, so the opens and the deletion never wait in a cycle.
     /// </summary>
-    /// <exception cref="TransactionLockTimeoutException">Another open held the link, or the form's deletion held the form, for longer than its wait.</exception>
+    /// <exception cref="TransactionLockTimeoutException">Another open held the link for longer than <see cref="Wait"/>, or the form's deletion held the form.</exception>
     public async Task<LockedLink> BeginOpenAsync(AudienceLink link, CancellationToken cancellationToken)
     {
         var locked = await BeginAsync(link.Id, cancellationToken);

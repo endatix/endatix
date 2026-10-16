@@ -17,10 +17,17 @@ namespace Endatix.Infrastructure.Data.Locking;
 public sealed class FormSubmissionsLock(AppDbContext db, ITransactionLock transactionLock) : IFormSubmissionsLock
 {
     /// <summary>
-    /// Far longer than an add or a deletion holds the lock; a waiter past it gets a retryable 503, not a connection
-    /// held for the whole command timeout.
+    /// How long a deletion waits for the adds under way. Far longer than an add holds the lock; past it the deletion
+    /// gets a retryable 503, not a connection held for the whole command timeout.
     /// </summary>
-    internal static readonly TimeSpan Wait = TimeSpan.FromSeconds(5);
+    internal static readonly TimeSpan DeletionWait = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// How long an add waits for a deletion: as short as both providers allow (a whole millisecond), so it answers
+    /// 503 at once instead of queueing behind a deletion of many submissions with a pooled connection held. The add
+    /// would find the form gone anyway.
+    /// </summary>
+    internal static readonly TimeSpan AddWait = TimeSpan.FromMilliseconds(1);
 
     private const string Busy = "This form is busy. Try again in a moment.";
 
@@ -37,13 +44,13 @@ public sealed class FormSubmissionsLock(AppDbContext db, ITransactionLock transa
     /// personalised link). Such a section takes this one second, before it reads or writes anything.
     /// </summary>
     public static TransactionLockRequest Adding(long formId) =>
-        Deleting(formId) with { Mode = TransactionLockMode.Shared };
+        Request(formId) with { Mode = TransactionLockMode.Shared, Timeout = AddWait };
 
     private static TransactionLockRequest Deleting(long formId) =>
-        new(TransactionLockScopes.FormSubmissions, formId.ToString(CultureInfo.InvariantCulture))
-        {
-            Timeout = Wait,
-        };
+        Request(formId) with { Timeout = DeletionWait };
+
+    private static TransactionLockRequest Request(long formId) =>
+        new(TransactionLockScopes.FormSubmissions, formId.ToString(CultureInfo.InvariantCulture));
 
     private async Task<Result<IFormSubmissionsSection>> BeginAsync(
         TransactionLockRequest request,

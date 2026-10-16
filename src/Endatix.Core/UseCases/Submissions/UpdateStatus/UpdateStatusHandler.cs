@@ -15,6 +15,8 @@ public class UpdateStatusHandler(
     ILogger<UpdateStatusHandler> logger
 ) : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
 {
+    private const string SUBMISSION_NOT_FOUND_MESSAGE = "Submission not found";
+
     /// <summary>
     /// Updates the status of a submission.
     /// </summary>
@@ -35,7 +37,7 @@ public class UpdateStatusHandler(
             cancellationToken);
         if (submission == null)
         {
-            return Result<SubmissionDto>.NotFound("Submission not found");
+            return Result<SubmissionDto>.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
         var rejected = ChangeStatus(submission, command);
@@ -44,12 +46,19 @@ public class UpdateStatusHandler(
             return rejected;
         }
 
-        // After ChangeStatus and its catches: a persistence failure is not a rejected transition, and mapping
-        // one to a 400 would report an EF Core tracking conflict as caller error. Let it reach
-        // EndatixExceptionHandler as an opaque, logged 500.
-        await submissionRepository.UpdateAsync(submission, cancellationToken);
+        return await SaveAsync(submission, cancellationToken);
+    }
 
-        return Result<SubmissionDto>.Success(SubmissionDto.FromSubmission(submission));
+    /// <summary>
+    /// Outside <see cref="ChangeStatus"/> and its catches: a persistence failure is not a rejected transition, and
+    /// mapping one to a 400 would report an EF Core tracking conflict as caller error, so it reaches
+    /// EndatixExceptionHandler as an opaque, logged 500. A submission deleted meanwhile is not found.
+    /// </summary>
+    private async Task<Result<SubmissionDto>> SaveAsync(Submission submission, CancellationToken cancellationToken)
+    {
+        return await submissionRepository.TryUpdateAsync(submission, cancellationToken)
+            ? Result<SubmissionDto>.Success(SubmissionDto.FromSubmission(submission))
+            : Result<SubmissionDto>.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
     }
 
     /// <summary><see langword="null"/> when the status changed, else why it was rejected.</summary>

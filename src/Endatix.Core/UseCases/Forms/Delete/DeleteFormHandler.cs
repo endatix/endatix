@@ -11,16 +11,25 @@ namespace Endatix.Core.UseCases.Forms.Delete;
 
 /// <summary>
 /// Deletes a form with its definitions and every submission it has, in one transaction that holds the form's
-/// <see cref="IFormSubmissionsLock"/>. Creates under way finish first, and creates that start meanwhile wait and
-/// then find the form gone, so once the deletion commits none of the form's submissions is live.
+/// <see cref="IFormSubmissionsLock"/>. Creates under way finish first and are deleted with the form; creates that
+/// start meanwhile are refused, so once the deletion commits none of the form's submissions is live.
 /// </summary>
 public class DeleteFormHandler(
     IFormsRepository forms,
     IFormSubmissionsLock formSubmissionsLock,
     IMediator mediator) : ICommandHandler<DeleteFormCommand, Result<Form>>
 {
+    private const string FORM_NOT_FOUND_MESSAGE = "Form not found.";
+
     public async Task<Result<Form>> Handle(DeleteFormCommand request, CancellationToken cancellationToken)
     {
+        // Unlocked first: the delete of a missing form, or of another tenant's (form ids are public), must not hold up
+        // that form's creates.
+        if (!await forms.AnyAsync(new FormSpecifications.ByIdReadOnly(request.FormId), cancellationToken))
+        {
+            return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
+        }
+
         var deleted = await DeleteUnderLockAsync(request.FormId, cancellationToken);
         if (deleted.IsSuccess)
         {
@@ -44,7 +53,8 @@ public class DeleteFormHandler(
     }
 
     /// <summary>
-    /// Reads the form under the lock, so the read sees every create that committed before it. The submissions are
+    /// Reads the form again under the lock, so the read sees every create that committed before it, and a deletion
+    /// that committed while this one waited. The submissions are
     /// deleted by form rather than loaded, which keeps the section short for the creates waiting on it.
     /// </summary>
     private async Task<Result<Form>> DeleteLockedAsync(
@@ -55,7 +65,7 @@ public class DeleteFormHandler(
         var form = await forms.SingleOrDefaultAsync(new FormWithDefinitionsSpec(formId), cancellationToken);
         if (form is null)
         {
-            return Result.NotFound("Form not found.");
+            return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
 
         form.Delete();

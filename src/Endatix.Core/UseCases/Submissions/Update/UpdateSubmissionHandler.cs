@@ -16,6 +16,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
     private const bool DEFAULT_IS_COMPLETE = false;
     private const int DEFAULT_CURRENT_PAGE = 1;
     private const string DEFAULT_METADATA = null;
+    private const string SUBMISSION_NOT_FOUND_MESSAGE = "Form submission not found.";
 
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -25,7 +26,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
 
         if (submission == null)
         {
-            return Result.NotFound("Form submission not found.");
+            return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
         if(!submission.IsComplete && (request.IsComplete ?? false)) {
@@ -54,19 +55,11 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
             return Result.Invalid(new ValidationError(message));
         }
 
-        if (!string.Equals(originalJson, request.JsonData, StringComparison.Ordinal))
+        var saver = new SubmissionChangeSaver(repository, versions);
+        if (!await saver.TrySaveAsync(submission, originalJson, cancellationToken))
         {
-            var effectiveTimestamp = submission.ModifiedAt ?? submission.CreatedAt;
-            var version = new SubmissionVersion(
-                submission.Id,
-                originalJson,
-                effectiveTimestamp
-            );
-
-            await versions.AddAsync(version, cancellationToken);
+            return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
-
-        await repository.SaveChangesAsync(cancellationToken);
 
         if(mustPublishEvent) {
             await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);

@@ -16,8 +16,9 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
+    /// <summary>The open does not queue behind the delete with a connection held: it is refused at once.</summary>
     [Fact]
-    public async Task Opening_a_link_while_its_form_is_being_deleted_is_not_found()
+    public async Task Opening_a_link_while_its_form_is_being_deleted_is_unavailable_at_once()
     {
         // Arrange
         var world = await WorldAsync();
@@ -39,9 +40,9 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Empty(await SubmissionsOfAsync(world.Services, formId));
-        Assert.Equal(HttpStatusCode.NotFound, opened.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, opened.StatusCode);
+        Assert.False(openWaited, "The open waited for the form's delete.");
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
-        Assert.True(openWaited, "The open did not wait for the form's delete.");
     }
 
     [Fact]

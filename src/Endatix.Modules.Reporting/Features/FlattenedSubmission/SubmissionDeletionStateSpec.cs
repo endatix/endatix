@@ -12,8 +12,8 @@ internal sealed record SubmissionDeletionState(long FormId, bool IsDeleted, bool
 {
     /// <summary>
     /// Whether the submission is in <paramref name="formId"/> and it or its form was soft-deleted. Deleting a form
-    /// deletes the submissions it loads, so one created while the form was being deleted is left live in a deleted
-    /// form.
+    /// deletes all its submissions in the same transaction, but earlier versions could leave one created during the
+    /// deletion live in a deleted form, so the form is checked too.
     /// </summary>
     public bool IsDeletedIn(long formId) => FormId == formId && (IsDeleted || FormIsDeleted);
 }

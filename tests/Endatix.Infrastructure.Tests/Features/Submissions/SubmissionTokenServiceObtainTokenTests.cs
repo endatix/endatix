@@ -1,5 +1,7 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Tests;
 using Endatix.Infrastructure.Features.Submissions;
@@ -73,6 +75,22 @@ public class SubmissionTokenServiceObtainTokenTests
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().Contain("Submission not found");
+    }
+
+    [Fact]
+    public async Task ObtainToken_SubmissionDeletedBeforeTheSave_ReturnsNotFound()
+    {
+        // Arrange
+        var submission = IncompleteSubmission(1);
+        _submissionRepository.GetByIdAsync(submission.Id, Arg.Any<CancellationToken>()).Returns(submission);
+        _submissionRepository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new SubmissionDeletedException("deleted"));
+
+        // Act
+        var result = await _sut.ObtainTokenAsync(submission.Id, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
     }
 
     [Fact]

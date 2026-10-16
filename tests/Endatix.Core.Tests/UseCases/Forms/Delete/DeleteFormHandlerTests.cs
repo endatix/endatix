@@ -24,12 +24,49 @@ public class DeleteFormHandlerTests
         var formSubmissionsLock = new FormSubmissionsLockStub();
         _formSubmissionsLock = formSubmissionsLock.Lock;
         _section = formSubmissionsLock.Section;
+        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdReadOnly>(), Arg.Any<CancellationToken>()).Returns(true);
         _mediator = Substitute.For<IMediator>();
         _handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator);
     }
 
     [Fact]
-    public async Task Handle_FormNotFound_ReturnsNotFoundResult()
+    public async Task Handle_FormNotFound_ReturnsNotFoundWithoutTakingTheLock()
+    {
+        // Arrange
+        var request = new DeleteFormCommand(1);
+        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdReadOnly>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        await _formSubmissionsLock.DidNotReceive().BeginDeletingAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_DeletingSubmissionsFails_NeitherCommitsNorPublishes()
+    {
+        // Arrange
+        var form = CreateForm();
+        var request = new DeleteFormCommand(form.Id);
+        _repository.SingleOrDefaultAsync(Arg.Any<FormWithDefinitionsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(form);
+        _repository.DeleteSubmissionsAsync(form, Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new InvalidOperationException("database unavailable"));
+
+        // Act
+        var act = () => _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        await _section.DidNotReceive().CommitAsync(Arg.Any<CancellationToken>());
+        await _section.Received(1).DisposeAsync();
+        await _mediator.DidNotReceive().Publish(Arg.Any<FormDeletedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_FormDeletedWhileWaitingForTheLock_ReturnsNotFoundWithoutCommitting()
     {
         // Arrange
         var request = new DeleteFormCommand(1);

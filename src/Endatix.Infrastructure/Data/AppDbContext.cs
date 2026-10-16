@@ -122,6 +122,10 @@ public class AppDbContext : DbContext, ITenantDbContext
             ProcessEntities();
             return base.SaveChanges();
         }
+        catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
+        {
+            throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
+        }
         catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
             throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
@@ -136,11 +140,22 @@ public class AppDbContext : DbContext, ITenantDbContext
             ProcessEntities();
             return await base.SaveChangesAsync(true, cancellationToken);
         }
+        catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
+        {
+            throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
+        }
         catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
             throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
         }
     }
+
+    /// <summary>
+    /// <see cref="Submission.IsDeleted"/> is a concurrency token, so a tracked save of a submission deleted since it
+    /// was read, on its own or with its form, matches no row.
+    /// </summary>
+    private static bool IsSubmissionDeletedMeanwhile(DbUpdateConcurrencyException concurrencyException) =>
+        concurrencyException.Entries.Any(entry => entry.Entity is Submission);
 
     private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
     {

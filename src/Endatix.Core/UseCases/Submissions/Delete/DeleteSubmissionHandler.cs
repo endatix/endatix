@@ -10,20 +10,16 @@ public class DeleteSubmissionHandler(IRepository<Submission> repository) : IComm
     public async Task<Result<Submission>> Handle(DeleteSubmissionCommand request, CancellationToken cancellationToken)
     {
         var submission = await repository.GetByIdAsync(request.SubmissionId, cancellationToken);
-        if (submission == null)
-        {
-            return Result.NotFound("Submission not found");
-        }
-
-        // Validate that the submission belongs to the specified form
-        if (submission.FormId != request.FormId)
+        if (submission is null || submission.FormId != request.FormId)
         {
             return Result.NotFound("Submission not found");
         }
 
         submission.Delete();
-        await repository.UpdateAsync(submission, cancellationToken);
 
-        return Result.Success(submission);
+        // Deleted meanwhile, on its own or with its form: the outcome the caller asked for, but not this delete's.
+        return await repository.TryUpdateAsync(submission, cancellationToken)
+            ? Result.Success(submission)
+            : Result.NotFound("Submission not found");
     }
 }

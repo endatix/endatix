@@ -190,7 +190,7 @@ public class CreateSubmissionHandler(
 
     /// <summary>
     /// Inserts under the form's lock, after reading the form again: the check in <see cref="Handle"/> ran before
-    /// the lock, and a create that waited for the form's deletion finds the form gone here.
+    /// the lock, and the form's deletion may have committed in between.
     /// </summary>
     private async Task<Result<Submission>?> InsertLockedAsync(PersistArgs args, CancellationToken cancellationToken)
     {

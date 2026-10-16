@@ -17,8 +17,12 @@ public sealed partial class FormDeletionFlowTests
 
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// The create does not queue behind the delete with a connection held: it is refused at once, and nothing is
+    /// left once the delete commits.
+    /// </summary>
     [Fact]
-    public async Task Creating_a_submission_while_its_form_is_being_deleted_is_not_found()
+    public async Task Creating_a_submission_while_its_form_is_being_deleted_is_unavailable_at_once()
     {
         // Arrange
         var (world, admin) = await AdminAsync();
@@ -37,9 +41,35 @@ public sealed partial class FormDeletionFlowTests
 
         // Assert
         Assert.Empty(await DeletedByIdAsync(world.Services, formId));
-        Assert.Equal(HttpStatusCode.NotFound, created.StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, created.StatusCode);
+        Assert.False(createWaited, "The create waited for the form's delete.");
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
-        Assert.True(createWaited, "The create did not wait for the form's delete.");
+    }
+
+    /// <summary>
+    /// The delete commits after the create first read the form and before it took the form's lock; the create reads
+    /// the form again under the lock and is refused.
+    /// </summary>
+    [Fact]
+    public async Task Creating_a_submission_whose_form_was_deleted_after_its_first_check_is_not_found()
+    {
+        // Arrange
+        var (world, admin) = await AdminAsync();
+        var formId = await CreateFormAsync(admin);
+        await using var requests = new StartedRequests();
+        using var pause = world.Services.GetRequiredService<AppCommandGate>().PauseAt(LockStatement());
+        var creating = requests.Add(admin.PostAsJsonAsync($"/api/forms/{formId}/submissions", DraftSubmission, Ct));
+        await ReachedAsync(pause, creating);
+        using var deleted = await admin.DeleteAsync($"/api/forms/{formId}", Ct).WaitAsync(RequestTimeout, Ct);
+
+        // Act
+        pause.Release();
+        using var created = await creating.WaitAsync(RequestTimeout, Ct);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, created.StatusCode);
+        Assert.Empty(await DeletedByIdAsync(world.Services, formId));
     }
 
     [Fact]
@@ -83,4 +113,11 @@ public sealed partial class FormDeletionFlowTests
 
     [GeneratedRegex("""INSERT INTO ["\[]Submissions["\]]""")]
     private static partial Regex SubmissionInsert();
+
+    [GeneratedRegex("""UPDATE ["\[]Submissions["\]]""")]
+    private static partial Regex SubmissionUpdate();
+
+    /// <summary>The first transaction lock the host's context asks for: PostgreSQL's shared advisory lock, or SQL Server's applock.</summary>
+    [GeneratedRegex("pg_advisory_xact_lock_shared|sp_getapplock")]
+    private static partial Regex LockStatement();
 }

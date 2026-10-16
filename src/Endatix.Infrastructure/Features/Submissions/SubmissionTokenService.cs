@@ -1,6 +1,7 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -46,9 +47,14 @@ public class SubmissionTokenService : ISubmissionTokenService
         }
 
         IssueOrExtend(submission, await GetTokenExpiryHoursAsync(formExpiry, submission.TenantId, cancellationToken));
-        await _submissionRepository.SaveChangesAsync(cancellationToken);
-        return Result<string>.Success(submission!.Token!.Value);
+        return await SaveTokenAsync(submission, cancellationToken);
     }
+
+    /// <summary>A submission deleted since it was read, on its own or with its form, is not found.</summary>
+    private async Task<Result<string>> SaveTokenAsync(Submission submission, CancellationToken cancellationToken) =>
+        await _submissionRepository.TrySaveChangesAsync(cancellationToken)
+            ? Result<string>.Success(submission.Token!.Value)
+            : Result<string>.NotFound("Submission not found");
 
     public async Task<Token> NewTokenAsync(Form form, CancellationToken cancellationToken)
     {

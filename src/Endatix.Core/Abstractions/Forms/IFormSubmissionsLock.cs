@@ -5,7 +5,7 @@ namespace Endatix.Core.Abstractions.Forms;
 /// <summary>
 /// Keeps the writes that add a submission to a form apart from the form's deletion, across requests and processes.
 /// Adds to one form run together. A deletion waits for the adds under way, and an add that starts during a deletion
-/// waits for it to end.
+/// is refused at once.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,7 +14,7 @@ namespace Endatix.Core.Abstractions.Forms;
 /// live while its deletion has not committed, and insert a submission the deletion never sees.
 /// </para>
 /// <para>
-/// An add re-reads the form once it holds the lock: one that waited for a deletion finds the form gone.
+/// An add re-reads the form once it holds the lock: a deletion may have committed after the add first read it.
 /// </para>
 /// </remarks>
 public interface IFormSubmissionsLock

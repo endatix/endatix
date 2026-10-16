@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Audience.Domain;
@@ -34,6 +35,11 @@ internal sealed class RedeemLinkHandler(
     /// <summary>Every refusal reads the same, so an anonymous caller learns nothing about the form or the person.</summary>
     private const string LinkNotFound = "Link not found.";
 
+    /// <summary>
+    /// Another open held the link, or the form's deletion held the form; the caller is not told which.
+    /// </summary>
+    private const string LinkBusy = "This link can't be opened right now. Try again in a moment.";
+
     public async Task<Result<RedeemedLinkDto>> Handle(
         RedeemLinkCommand request,
         CancellationToken cancellationToken)
@@ -50,7 +56,7 @@ internal sealed class RedeemLinkHandler(
         }
         catch (TransactionLockTimeoutException)
         {
-            return Result.Unavailable("This link is being opened. Try again in a moment.");
+            return Result.Unavailable(LinkBusy);
         }
     }
 
@@ -177,7 +183,7 @@ internal sealed class RedeemLinkHandler(
     /// A response this open did not create becomes the link's: it is marked started, and it gets the live audience
     /// values when it has none (an on-behalf create before the person was in the audience). Values it has stay.
     /// The snapshot is read either way: it is the check under the lock that the person is still there.
-    /// <see langword="null"/> when the person was removed meanwhile.
+    /// <see langword="null"/> when the person was removed, or the response deleted, meanwhile.
     /// </summary>
     private async Task<Submission?> TakeOverAsync(
         AudienceLink link,
@@ -196,8 +202,7 @@ internal sealed class RedeemLinkHandler(
         }
 
         submission.EnsureStarted();
-        await submissions.SaveChangesAsync(cancellationToken);
-        return submission;
+        return await submissions.TrySaveChangesAsync(cancellationToken) ? submission : null;
     }
 
     /// <summary>
