@@ -7,7 +7,11 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 /// <summary>
 /// A submission's prepared row, as far as the grid needs it.
 /// </summary>
+/// <param name="SubmissionId">The submission the row belongs to.</param>
+/// <param name="StatusCode">The row's preparation status code.</param>
 /// <param name="HasData">Whether the row holds prepared answers, read even when <paramref name="DataJson"/> is not.</param>
+/// <param name="DataJson">The prepared answers as JSON, when they were read.</param>
+/// <param name="SourceModifiedAt">The submission's <c>ModifiedAt ?? CreatedAt</c> the row was prepared from.</param>
 internal sealed record PreparedRow(
     long SubmissionId,
     string StatusCode,

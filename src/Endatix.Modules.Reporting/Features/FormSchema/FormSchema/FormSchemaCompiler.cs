@@ -107,6 +107,11 @@ internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
 /// <summary>A schema's stored flattening map and codebook, as JSON.</summary>
 internal sealed record PersistedSchemaJson(string FlatteningMap, string Codebook);
 
+/// <summary>A compiled schema: what is stored, and what the compile derived from it.</summary>
+/// <param name="FlatteningMapJson">The flattening map, as JSON.</param>
+/// <param name="CodebookJson">The codebook, as JSON.</param>
+/// <param name="LocalesJson">The schema's locales, as JSON.</param>
+/// <param name="FlatteningMap">The flattening map.</param>
 /// <param name="SearchableColumns">The columns the search copy may hold, in schema order.</param>
 internal sealed record FormSchemaCompileResult(
     string FlatteningMapJson,
