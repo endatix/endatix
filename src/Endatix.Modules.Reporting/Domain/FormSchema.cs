@@ -14,6 +14,7 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
     public const string EmptyFlatteningMapJson = """{"version":1,"columns":[]}""";
     public const string EmptyCodebookJson = """{"version":1,"locales":["default"],"questions":{},"columns":{},"choiceCatalogs":{}}""";
     public const string EmptyLocalesJson = """["default"]""";
+    /// <summary>The search keys of a form that has none: an empty JSON array.</summary>
     public const string EmptySearchKeysJson = "[]";
 
     private FormSchema() { }

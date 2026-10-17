@@ -98,8 +98,15 @@ public sealed class ListGridSubmissionsRequest : ListByFormIdRequest
     public IEnumerable<string>? Answer { get; init; }
 }
 
+/// <summary>
+/// Validates the request for the list grid submissions endpoint.
+/// </summary>
 public sealed class ListGridSubmissionsValidator : Validator<ListGridSubmissionsRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ListGridSubmissionsValidator"/> class.
+    /// </summary>
+    /// <param name="submitterOptions">The submitter options the submissions list validates its filters with.</param>
     public ListGridSubmissionsValidator(IOptions<SubmitterOptions> submitterOptions)
     {
         Include(new ListByFormIdValidator(submitterOptions));
