@@ -52,19 +52,25 @@ internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
         };
     }
 
-    private static Expression<Func<Submission, bool>> HasAnyOf(string path, List<string> values) =>
-        s => s.SubmitterProfileSnapshot != null &&
-             values.Contains(EF.Functions.Collate(
-                 SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path),
-                 ExactCollation));
+    private static Expression<Func<Submission, bool>> HasAnyOf(string path, List<string> values)
+    {
+        IEnumerable<string?> candidates = values;
+        return s => s.SubmitterProfileSnapshot != null &&
+                    candidates.Contains(EF.Functions.Collate(
+                        SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path),
+                        ExactCollation));
+    }
 
     // A missing profile or a missing field matches "not equal", as on PostgreSQL.
-    private static Expression<Func<Submission, bool>> HasNoneOf(string path, List<string> values) =>
-        s => s.SubmitterProfileSnapshot == null ||
-             SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path) == null ||
-             !values.Contains(EF.Functions.Collate(
-                 SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path),
-                 ExactCollation));
+    private static Expression<Func<Submission, bool>> HasNoneOf(string path, List<string> values)
+    {
+        IEnumerable<string?> candidates = values;
+        return s => s.SubmitterProfileSnapshot == null ||
+                    SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path) == null ||
+                    !candidates.Contains(EF.Functions.Collate(
+                        SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path),
+                        ExactCollation));
+    }
 
     // Quoted, so a field name with a dot or a space is one key, not a nested path.
     private static string JsonPathOf(string field) =>
