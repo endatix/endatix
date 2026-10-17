@@ -62,14 +62,18 @@ internal sealed class SubmitterProfileFields
         }
 
         Dictionary<string, string> values = new(StringComparer.Ordinal);
-        foreach (var field in profile.EnumerateObject().Where(IsListedText))
+        foreach (var field in profile.EnumerateObject())
         {
-            values[field.Name] = field.Value.GetString();
+            if (ListedText(field) is { } value)
+            {
+                values[field.Name] = value;
+            }
         }
 
         return values.Count == 0 ? null : values;
     }
 
-    private bool IsListedText(JsonProperty field) =>
-        field.Value.ValueKind == JsonValueKind.String && _fields.Contains(field.Name);
+    // The field's text when it is listed and holds a string; null otherwise.
+    private string? ListedText(JsonProperty field) =>
+        field.Value.ValueKind == JsonValueKind.String && _fields.Contains(field.Name) ? field.Value.GetString() : null;
 }
