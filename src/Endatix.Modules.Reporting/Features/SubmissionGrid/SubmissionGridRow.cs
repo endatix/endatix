@@ -5,6 +5,20 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 /// <summary>
 /// One submission on a submissions-grid page: its list fields, and its answers for the requested columns.
 /// </summary>
+/// <param name="Id">The submission id.</param>
+/// <param name="FormId">The submission's form.</param>
+/// <param name="FormDefinitionId">The form definition the submission was made with.</param>
+/// <param name="IsComplete">Whether the submission is complete.</param>
+/// <param name="CollectionStatus">The collection status code.</param>
+/// <param name="Status">The submission status code.</param>
+/// <param name="IsTestSubmission">Whether the submission is a test submission.</param>
+/// <param name="CreatedAt">When the submission was created.</param>
+/// <param name="ModifiedAt">When the submission was last changed.</param>
+/// <param name="StartedAt">When the respondent started.</param>
+/// <param name="CompletedAt">When the submission was completed.</param>
+/// <param name="SubmitterId">The submitter's id, when known.</param>
+/// <param name="SubmitterDisplayId">The submitter's display id, when known.</param>
+/// <param name="SubmitterProfile">The submitter's profile fields, as they were when they submitted.</param>
 /// <param name="RowState">One of <see cref="SubmissionGridRowStates"/>: how far the submission is prepared.</param>
 /// <param name="Answers">The requested columns that have a value, keyed by column key.</param>
 /// <param name="AnswersSource">
