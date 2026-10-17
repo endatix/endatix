@@ -76,8 +76,10 @@ public sealed class SaveSubmissionView(
     }
 }
 
+/// <summary>Validates the request for the save submission view endpoint.</summary>
 public sealed class SaveSubmissionViewValidator : Validator<SaveSubmissionViewRequest>
 {
+    /// <summary>Requires a form id and a revision, and checks the settings' shape and size.</summary>
     public SaveSubmissionViewValidator()
     {
         RuleFor(request => request.FormId)
@@ -97,8 +99,10 @@ public sealed class SaveSubmissionViewValidator : Validator<SaveSubmissionViewRe
             : SubmissionViewSettings.Error(settings.GetRawText());
 }
 
+/// <summary>The request for the save submission view endpoint.</summary>
 public sealed class SaveSubmissionViewRequest
 {
+    /// <summary>The form whose view to save, from the route.</summary>
     public long FormId { get; init; }
 
     /// <summary>The revision the view was read at; <c>0</c> when nobody had saved one.</summary>

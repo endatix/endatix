@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Paging;
@@ -15,31 +16,43 @@ namespace Endatix.Modules.Reporting.Domain;
 /// </remarks>
 public static class SubmissionViewSettings
 {
+    /// <summary>The settings version this build reads and writes, stored as <c>"v"</c>.</summary>
     public const int CurrentVersion = 1;
 
     /// <summary>Caps the stored text. A full reorder of a 4,000-column form fits.</summary>
     public const int MaxJsonLength = 256 * 1024;
 
+    /// <summary>The widest a saved column may be, in pixels.</summary>
     public const int MaxColumnWidth = 4_000;
 
+    /// <summary>The <c>sort.direction</c> of an ascending sort.</summary>
     public const string AscendingDirection = "asc";
 
+    /// <summary>The <c>sort.direction</c> of a descending sort.</summary>
     public const string DescendingDirection = "desc";
 
+    /// <summary>The property holding the settings version.</summary>
     public const string VersionProperty = "v";
 
+    /// <summary>The property holding the changed columns, in grid order.</summary>
     public const string ColumnsProperty = "columns";
 
+    /// <summary>The property naming a column, in a column and in <c>sort</c>.</summary>
     public const string KeyProperty = "key";
 
+    /// <summary>The property telling whether a column shows.</summary>
     public const string VisibleProperty = "visible";
 
+    /// <summary>The property holding a column's width in pixels.</summary>
     public const string WidthProperty = "width";
 
+    /// <summary>The property holding the grid's page size.</summary>
     public const string PageSizeProperty = "pageSize";
 
+    /// <summary>The property holding the grid's sort.</summary>
     public const string SortProperty = "sort";
 
+    /// <summary>The property holding the sort direction.</summary>
     public const string DirectionProperty = "direction";
 
     /// <summary>The settings of a form nobody saved a view for: the grid's own defaults apply.</summary>
@@ -52,8 +65,7 @@ public static class SubmissionViewSettings
     /// <summary>Returns why <paramref name="settingsJson"/> cannot be saved, or <see langword="null"/> when it can.</summary>
     public static string? Error(string? settingsJson)
     {
-        var textError = TextError(settingsJson);
-        if (textError is not null)
+        if (TryGetTextError(settingsJson, out var textError))
         {
             return textError;
         }
@@ -69,16 +81,16 @@ public static class SubmissionViewSettings
         }
     }
 
-    private static string? TextError(string? settingsJson)
+    private static bool TryGetTextError(
+        [NotNullWhen(false)] string? settingsJson,
+        [NotNullWhen(true)] out string? error)
     {
-        if (string.IsNullOrWhiteSpace(settingsJson))
-        {
-            return "Settings are required.";
-        }
-
-        return settingsJson.Length > MaxJsonLength
-            ? string.Create(CultureInfo.InvariantCulture, $"Settings cannot be longer than {MaxJsonLength} characters.")
-            : null;
+        error = string.IsNullOrWhiteSpace(settingsJson)
+            ? "Settings are required."
+            : settingsJson.Length > MaxJsonLength
+                ? string.Create(CultureInfo.InvariantCulture, $"Settings cannot be longer than {MaxJsonLength} characters.")
+                : null;
+        return error is not null;
     }
 
     private static string? RootError(JsonElement root)

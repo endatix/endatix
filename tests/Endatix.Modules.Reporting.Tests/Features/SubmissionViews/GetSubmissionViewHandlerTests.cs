@@ -38,7 +38,7 @@ public sealed class GetSubmissionViewHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Unauthorized);
-        await _viewRepository.DidNotReceiveWithAnyArgs().FindSharedAsync(default, default, default);
+        await _viewRepository.DidNotReceiveWithAnyArgs().FindSharedAsync(default, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class GetSubmissionViewHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
-        await _viewRepository.DidNotReceiveWithAnyArgs().FindSharedAsync(default, default, default);
+        await _viewRepository.DidNotReceiveWithAnyArgs().FindSharedAsync(default, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]

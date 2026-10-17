@@ -38,8 +38,10 @@ public sealed class SubmissionView : BaseEntity, ITenantOwned, IAggregateRoot
         ModifiedBy = args.ModifiedBy;
     }
 
+    /// <summary>The tenant that owns the form.</summary>
     public long TenantId { get; private set; }
 
+    /// <summary>The form whose submissions grid this view arranges.</summary>
     public long FormId { get; private set; }
 
     /// <summary><see cref="SharedOwnerUserId"/> for the form's shared view; a user id for a personal one (later).</summary>
@@ -71,5 +73,8 @@ public sealed class SubmissionView : BaseEntity, ITenantOwned, IAggregateRoot
 }
 
 /// <summary>What a new shared view of a form is made from.</summary>
+/// <param name="TenantId">The tenant that owns the form.</param>
+/// <param name="FormId">The form whose submissions grid the view arranges.</param>
+/// <param name="SettingsJson">The settings, in the shape <see cref="SubmissionViewSettings"/> describes.</param>
 /// <param name="ModifiedBy">The user saving it, when known.</param>
 public sealed record SubmissionViewCreateArgs(long TenantId, long FormId, string SettingsJson, long? ModifiedBy);

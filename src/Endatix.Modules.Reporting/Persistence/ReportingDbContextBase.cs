@@ -34,6 +34,7 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
 
     public DbSet<SurveyTypeExportMapping> SurveyTypeExportMappings => Set<SurveyTypeExportMapping>();
 
+    /// <inheritdoc />
     public DbSet<SubmissionView> SubmissionViews => Set<SubmissionView>();
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;

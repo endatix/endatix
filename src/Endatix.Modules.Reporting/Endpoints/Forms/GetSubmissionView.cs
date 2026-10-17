@@ -59,8 +59,10 @@ public sealed class GetSubmissionView(
     }
 }
 
+/// <summary>Validates the request for the get submission view endpoint.</summary>
 public sealed class GetSubmissionViewValidator : Validator<GetSubmissionViewRequest>
 {
+    /// <summary>Requires a form id.</summary>
     public GetSubmissionViewValidator()
     {
         RuleFor(request => request.FormId)
@@ -68,8 +70,10 @@ public sealed class GetSubmissionViewValidator : Validator<GetSubmissionViewRequ
     }
 }
 
+/// <summary>The request for the get submission view endpoint.</summary>
 public sealed class GetSubmissionViewRequest
 {
+    /// <summary>The form whose view to read, from the route.</summary>
     public long FormId { get; init; }
 }
 

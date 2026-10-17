@@ -23,6 +23,7 @@ public interface IReportingDbContext : ITenantDbContext
 
     DbSet<SurveyTypeExportMapping> SurveyTypeExportMappings { get; }
 
+    /// <summary>Saved submissions grid views, one per tenant, form and owner.</summary>
     DbSet<SubmissionView> SubmissionViews { get; }
 
     /// <summary>
