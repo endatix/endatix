@@ -50,6 +50,27 @@ public sealed class DatabaseCheckpointTests(DbIntegrationFixture fixture)
         (await RowsPerKeptTableAsync(store.Database, ct)).Should().Equal(keptBefore);
     }
 
+    [Fact]
+    public async Task ResetAsync_TableCreatedAfterAnEarlierReset_ClearsItsRows()
+    {
+        // Arrange: the first reset sees only one table, as one that runs before a migration would.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        var checkpoint = new DatabaseCheckpoint();
+        await database.ExecuteAsync("CREATE SCHEMA reporting", ct);
+        await database.ExecuteAsync("CREATE TABLE reporting.EarlierRows (Id int NOT NULL)", ct);
+        await checkpoint.ResetAsync(database.ConnectionString, TestDatabaseProvider.SqlServer, ct);
+        await database.ExecuteAsync("CREATE TABLE reporting.LaterRows (Id int NOT NULL)", ct);
+        await database.ExecuteAsync("INSERT INTO reporting.LaterRows (Id) VALUES (1)", ct);
+
+        // Act
+        await checkpoint.ResetAsync(database.ConnectionString, TestDatabaseProvider.SqlServer, ct);
+
+        // Assert
+        (await database.CountAsync("SELECT count(*) FROM reporting.LaterRows", ct)).Should().Be(0);
+    }
+
     // Every table of the jobs schema except the job rows themselves: the scheduler's and the migrations history.
     private static async Task<Dictionary<string, long>> RowsPerKeptTableAsync(JobsTestDatabase database, CancellationToken ct)
     {
