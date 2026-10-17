@@ -223,8 +223,31 @@ public sealed class QuartzRegistrationTests
         lockOnInsert.Should().Be(expected);
     }
 
+    [Fact]
+    public void AddJobsScheduler_LockOnInsertChangedInCodeAfterRegistration_StoreAndSnapshotCheckAgree()
+    {
+        // Arrange — configuration says lock-free; a host flips it in code, after Quartz's store already took its value.
+        var services = new ServiceCollection();
+        services.PostConfigure<BackgroundJobsOptions>(options => options.LockOnInsert = true);
+        using var provider = StoreServices(
+            "sqlserver",
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:LockOnInsert"] = "false" },
+            services);
+
+        // Act
+        var store = SchedulerOptions<AdoJobStoreOptions>(provider).LockOnInsert;
+        var checkedBySnapshotGate = provider.GetRequiredService<JobStoreDatabase>().LocksOnInsert;
+
+        // Assert — registration-time configuration wins for both, so the snapshot check guards the store it describes.
+        store.Should().BeFalse();
+        checkedBySnapshotGate.Should().Be(store);
+    }
+
     // The scheduler's own registration alone, because the module itself still refuses SQL Server.
-    private static ServiceProvider StoreServices(string databaseProvider, Dictionary<string, string?> settings)
+    private static ServiceProvider StoreServices(
+        string databaseProvider,
+        Dictionary<string, string?> settings,
+        ServiceCollection? services = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -234,7 +257,7 @@ public sealed class QuartzRegistrationTests
             })
             .AddInMemoryCollection(settings)
             .Build();
-        var services = new ServiceCollection();
+        services ??= [];
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton(JobHandlerRegistry.Build([Handler("A")]));
         services.AddJobsScheduler(configuration);

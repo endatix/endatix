@@ -1,7 +1,8 @@
+using System.ComponentModel;
 using System.Data.Common;
-using System.Reflection;
+using System.Net.Sockets;
 using Endatix.Modules.Jobs.Runtime;
-using Microsoft.Data.SqlClient;
+using Endatix.Modules.Jobs.Tests.Shared;
 using Npgsql;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
@@ -18,12 +19,12 @@ public sealed class DatabaseFailuresTests
         { Wrapped(PostgresFailure(PostgresErrorCodes.QueryCanceled)), true }, // a statement_timeout
         { Wrapped(PostgresFailure(PostgresErrorCodes.ReadOnlySqlTransaction)), true }, // read-only after a failover
         { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
-        { Wrapped(SqlServerFailure(2627)), false }, // unique key violation: the database answered
-        { Wrapped(SqlServerFailure(1205)), true }, // deadlock victim
-        { Wrapped(SqlServerFailure(-2)), true }, // client timeout
-        { Wrapped(SqlServerFailure(3906)), true }, // read-only after a failover
-        { Wrapped(SqlServerFailure(42108)), true }, // serverless database paused
-        { Wrapped(SqlServerFailure(3621, 1205)), true }, // the deadlock is not the batch's first error
+        { Wrapped(SqlServerExceptions.WithNumbers(2627)), false }, // unique key violation: the database answered
+        { Wrapped(SqlServerExceptions.WithNumbers(1205)), true }, // deadlock victim
+        { Wrapped(SqlServerExceptions.WithNumbers(-2)), true }, // client timeout
+        { Wrapped(SqlServerExceptions.WithNumbers(3906)), true }, // read-only after a failover
+        { Wrapped(SqlServerExceptions.WithNumbers(42108)), true }, // serverless database paused
+        { Wrapped(SqlServerExceptions.WithNumbers(3621, 1205)), true }, // the deadlock is not the batch's first error
         { Wrapped(new OtherDriverException(1205)), false }, // another driver's error code is not SQL Server's
         { Wrapped(new TimeoutException("The pool is exhausted.")), true },
         { new InvalidOperationException("Unexpected."), false },
@@ -44,7 +45,7 @@ public sealed class DatabaseFailuresTests
     public void IsFromDatabase_RefusalTheDatabaseMade_ReturnsTrue()
     {
         // Arrange
-        var refusal = Wrapped(SqlServerFailure(2627));
+        var refusal = Wrapped(SqlServerExceptions.WithNumbers(2627));
 
         // Act
         var fromDatabase = DatabaseFailures.IsFromDatabase(refusal);
@@ -53,36 +54,138 @@ public sealed class DatabaseFailuresTests
         fromDatabase.Should().BeTrue();
     }
 
+    public static TheoryData<Exception, bool> ConnectFailures() => new()
+    {
+        // SqlClient reports a refused or broken connection with error number 0 and the socket's failure inside.
+        { Wrapped(new ConnectFailureException(new SocketException((int)SocketError.ConnectionRefused))), true },
+        // A host that drops packets: the connect times out, with the system's own error inside.
+        { Wrapped(SqlServerExceptions.WithInner(258, new Win32Exception(110, "Connection timed out"))), true },
+        // A reset during the pre-login handshake: number 0, the socket's failure under an IOException.
+        {
+            Wrapped(SqlServerExceptions.WithInner(
+                0, new IOException("Broken pipe", new SocketException((int)SocketError.ConnectionReset)))),
+            true
+        },
+        { Wrapped(SqlServerExceptions.WithNumbers(18401)), true }, // logins refused while upgrade scripts run
+        { Wrapped(SqlServerExceptions.WithNumbers(10061)), true }, // Windows native SNI: connection refused
+        { Wrapped(SqlServerExceptions.WithNumbers(53)), true }, // Windows native SNI: network path not found
+        { Wrapped(SqlServerExceptions.WithNumbers(40)), true }, // Windows native SNI: could not open a connection
+        { Wrapped(SqlServerExceptions.WithNumbers(2)), true }, // Windows native SNI: server not found
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // login failed: the database answered
+        { Wrapped(SqlServerExceptions.WithNumbers(4060)), true }, // the database cannot be opened
+        // How SQL Server answers for a missing, offline, restoring or single-user database alike: waited out.
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(1205)), false }, // a deadlock victim: contention, not an outage
+        { Wrapped(SqlServerExceptions.WithNumbers(1222)), false }, // a lock wait timed out: contention, not an outage
+        { Wrapped(PostgresFailure(PostgresErrorCodes.DeadlockDetected)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.LockNotAvailable)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // the database is missing: waited out
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
+        { Wrapped(new TimeoutException("The pool is exhausted.")), true },
+        // A broken socket under anything but a database driver is not the database's.
+        { Wrapped(new HttpRequestException("The endpoint is down.", new SocketException((int)SocketError.ConnectionRefused))), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(ConnectFailures))]
+    public void IsUnreachable_ConnectFailure_TellsADatabaseThatIsAwayFromOneThatRefuses(Exception failure, bool expected)
+    {
+        // Act
+        var unreachable = DatabaseFailures.IsUnreachable(failure);
+
+        // Assert
+        unreachable.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> Contention() => new()
+    {
+        { Wrapped(SqlServerExceptions.WithNumbers(1205)), true }, // deadlock victim
+        { Wrapped(SqlServerExceptions.WithNumbers(1222)), true }, // lock request timed out
+        { Wrapped(PostgresFailure(PostgresErrorCodes.DeadlockDetected)), true },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.LockNotAvailable)), true }, // a lock_timeout
+        { Wrapped(PostgresFailure(PostgresErrorCodes.SerializationFailure)), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(4060)), false }, // away, not contention
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // refused
+        { Wrapped(new TimeoutException("The pool is exhausted.")), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(Contention))]
+    public void IsContention_DriverFailure_TellsALostRaceFromAnOutageOrARefusal(Exception failure, bool expected)
+    {
+        // Act
+        var contention = DatabaseFailures.IsContention(failure);
+
+        // Assert
+        contention.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> UnavailableDatabases() => new()
+    {
+        { Wrapped(SqlServerExceptions.WithNumbers(4060)), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), true }, // missing, offline or restoring alike
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // missing, being created or restored
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false }, // a login it does not accept
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(UnavailableDatabases))]
+    public void IsDatabaseUnavailable_ConnectFailure_TellsADatabaseThatCannotBeOpenedOnEitherProvider(
+        Exception failure, bool expected)
+    {
+        // Act
+        var unavailable = DatabaseFailures.IsDatabaseUnavailable(failure);
+
+        // Assert
+        unavailable.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> Timeouts() => new()
+    {
+        { Wrapped(new TimeoutException("The lock was not granted in time.")), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(-2)), true }, // the command timeout
+        { Wrapped(PostgresFailure(PostgresErrorCodes.QueryCanceled)), true }, // a statement_timeout
+        { Wrapped(SqlServerExceptions.WithNumbers(1205)), false },
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(Timeouts))]
+    public void IsTimeout_DriverFailure_TellsAWaitThatRanOut(Exception failure, bool expected)
+    {
+        // Act
+        var timeout = DatabaseFailures.IsTimeout(failure);
+
+        // Assert
+        timeout.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(1205)]
+    [InlineData(1222)]
+    public void IsOutage_SqlServerContention_IsWaitedOut(int number)
+    {
+        // Arrange — a job whose write lost a race runs again, as it does after an outage.
+        var failure = Wrapped(SqlServerExceptions.WithNumbers(number));
+
+        // Act
+        var outage = DatabaseFailures.IsOutage(failure);
+
+        // Assert
+        outage.Should().BeTrue();
+    }
+
     // EF Core and the scheduler wrap the driver's exception in their own.
     private static InvalidOperationException Wrapped(Exception cause) => new("The write failed.", cause);
 
     private static PostgresException PostgresFailure(string sqlState) =>
         new("The server refused the command.", "ERROR", "ERROR", sqlState);
 
-    // SqlClient makes its exceptions only internally, from the errors a batch raised, so this calls what it calls.
-    private static SqlException SqlServerFailure(params int[] numbers)
-    {
-        const BindingFlags Internal = BindingFlags.NonPublic | BindingFlags.Instance;
-        var errors = (SqlErrorCollection)Activator.CreateInstance(typeof(SqlErrorCollection), nonPublic: true)!;
-        var add = typeof(SqlErrorCollection).GetMethod("Add", Internal)!;
-        foreach (var number in numbers)
-        {
-            add.Invoke(errors, [SqlServerError(number)]);
-        }
-
-        var create = typeof(SqlException).GetMethod(
-            "CreateException", BindingFlags.NonPublic | BindingFlags.Static, [typeof(SqlErrorCollection), typeof(string)])!;
-        return (SqlException)create.Invoke(null, [errors, "16.00.1000"])!;
-    }
-
-    private static SqlError SqlServerError(int number)
-    {
-        var constructor = typeof(SqlError).GetConstructor(
-            BindingFlags.NonPublic | BindingFlags.Instance,
-            [typeof(int), typeof(byte), typeof(byte), typeof(string), typeof(string), typeof(string), typeof(int), typeof(Exception)])!;
-        return (SqlError)constructor.Invoke([number, (byte)1, (byte)16, "server", "The server refused the command.", "", 1, null]);
-    }
-
     // Another driver's failure, which carries an error code as SqlClient's carries a number.
     private sealed class OtherDriverException(int errorCode) : DbException("The server refused the command.", errorCode);
+
+    // A driver's failure to connect, carrying the socket's failure as SqlClient's does.
+    private sealed class ConnectFailureException(SocketException socket) : DbException("The server was not found.", socket);
 }

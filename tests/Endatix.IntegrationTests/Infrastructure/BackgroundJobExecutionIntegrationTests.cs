@@ -13,7 +13,6 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture fixture)
 {
     private const long TenantId = 5;
@@ -24,7 +23,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task ExecuteAsync_HandlerSucceeds_CompletesRow()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(new(database, new ProbeInvocations()), ct);
@@ -44,7 +42,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task ExecuteAsync_HandlerReturnsFailure_FailsWithoutRetry()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(new(database, new ProbeInvocations()), ct);
@@ -64,7 +61,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task ExecuteAsync_HandlerAlwaysThrows_DeadLettersAtMaxAttemptsWithSafeMessage()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(
@@ -94,7 +90,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task ExecuteAsync_ThrowsThenSucceeds_RetriesThenCompletes()
     {
         // Arrange — a backoff long enough to observe the row while it waits.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(
@@ -119,8 +114,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     [Fact]
     public async Task ExecuteAsync_UnreadablePayload_FailsOnce()
     {
-        // Arrange — the column is jsonb, so unreadable input is well-formed JSON of the wrong shape.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
+        // Arrange — the column holds JSON, so unreadable input is well-formed JSON of the wrong shape.
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -142,7 +136,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task ExecuteAsync_TerminalRow_SkipsHandler()
     {
         // Arrange — the row is finished before its trigger ever fires.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -170,7 +163,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task Crashed_node_job_recovers_on_survivor_with_one_outcome()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var onA = new ProbeInvocations();
@@ -195,7 +187,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task Recovered_job_that_fails_with_attempts_left_is_scheduled_to_retry()
     {
         // Arrange — the survivor's backoff is long, so the retry is still waiting when the test looks.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var onA = new ProbeInvocations();
@@ -223,7 +214,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     {
         // Arrange — the survivor runs the recovered attempt until its own scheduler starts shutting down, which
         // refuses the trigger the next attempt needs.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -253,7 +243,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task Job_whose_completion_cannot_be_written_for_a_while_completes_without_running_again()
     {
         // Arrange — every try at recording the first attempt's completion fails, as while the database is away.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -281,7 +270,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task Canceled_row_cancels_running_handler_on_another_node()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -312,7 +300,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task Wedged_handler_is_stopped_by_max_runtime()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartNodeAsync(
@@ -335,7 +322,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task Execution_activity_parents_onto_enqueue_trace()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         using var testSource = new ActivitySource("Endatix.IntegrationTests.Jobs");
         using var listener = new ActivityListener
@@ -369,7 +355,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task Graceful_shutdown_records_nothing_and_job_reruns()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -401,7 +386,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     public async Task Lifecycle_metrics_are_recorded_per_outcome()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         using var lifecycle = JobLifecycleEventListener.Start();
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);

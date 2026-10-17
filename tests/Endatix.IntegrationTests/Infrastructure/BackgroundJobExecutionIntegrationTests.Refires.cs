@@ -16,7 +16,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     {
         // Arrange — node A's handler finishes only once A has stopped waiting for it, and the outcome write fails, so
         // the firing gives up on re-firing the job after A's scheduler has let go of it.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var onA = new ProbeInvocations();
@@ -46,7 +45,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     {
         // Arrange — the first attempt throws, and its retry's trigger and every re-fire after it are rejected; the
         // worker runs one job of the type at a time.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();

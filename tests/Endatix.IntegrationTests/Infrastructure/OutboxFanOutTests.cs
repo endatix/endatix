@@ -16,7 +16,6 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
 {
     private const int Pending = 0;
@@ -26,7 +25,6 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     public async Task Fan_out_enqueues_one_job_per_subscriber_and_marks_sent()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(fixture, JobQueueWith(SubscribeS1AndS2), ct);
 
@@ -47,7 +45,6 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     public async Task Redelivered_message_enqueues_no_duplicate_jobs()
     {
         // Arrange — a message whose jobs were enqueued but which was never marked sent is delivered again.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(fixture, JobQueueWith(SubscribeS1AndS2), ct);
         var message = new DeliveredMessage(88, "x.happened", "{}", 5);
@@ -64,7 +61,6 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     public async Task Message_without_subscribers_is_marked_sent()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(fixture, JobQueueWith(SubscribeS1AndS2), ct);
 
@@ -81,7 +77,6 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     public async Task Tenantless_message_without_resolver_is_retried_not_enqueued()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(fixture, JobQueueWith(SubscribeS1AndS2), ct);
 
@@ -102,7 +97,6 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     public async Task Relay_does_not_claim_when_fan_out_cannot_enqueue()
     {
         // Arrange — delivery to the job queue is on, but the Jobs module is off.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(
             fixture, JobQueueWith(SubscribeS1AndS2) with { JobsModule = false }, ct);
@@ -129,7 +123,6 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     public async Task Switch_off_keeps_inline_delivery()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         var inline = new RecordingInlineHandler("submission.completed");
         await using var host = await FanOutHost.StartAsync(
@@ -158,7 +151,6 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     public async Task Relay_latency_does_not_depend_on_subscriber_duration()
     {
         // Arrange — the subscriber's job holds its slot for a minute.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(
             fixture,

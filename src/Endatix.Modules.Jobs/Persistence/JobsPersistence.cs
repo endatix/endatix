@@ -1,4 +1,6 @@
 using Endatix.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Endatix.Modules.Jobs.Persistence;
 
@@ -32,4 +34,14 @@ public static class JobsPersistence
         options.PostgreSqlMigrationsNamespace = MigrationsRootNamespace;
         options.SqlServerMigrationsNamespace = MigrationsRootNamespace;
     }
+
+    /// <summary>
+    /// Whether <paramref name="database"/> ignores trailing spaces when it compares dedup keys, so that a key ending
+    /// in a space matches the key without it in the unique index while the queue's own lookup tells them apart.
+    /// </summary>
+    /// <remarks>
+    /// SQL Server pads the shorter value with spaces when it compares (U+0020 only); PostgreSQL compares keys as
+    /// written. Kept here so the queue asks without knowing which provider it runs on.
+    /// </remarks>
+    internal static bool IgnoresTrailingSpacesInKeys(DatabaseFacade database) => database.IsSqlServer();
 }
