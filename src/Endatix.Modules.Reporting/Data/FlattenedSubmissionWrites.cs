@@ -15,13 +15,20 @@ public readonly record struct FlattenedRevision(long TenantId, long SubmissionId
 /// </summary>
 public sealed record FlattenedRowData
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FlattenedRowData"/> class.
+    /// </summary>
+    /// <param name="dataJson">The flattened answers as JSON.</param>
+    /// <param name="searchJson">The search copy as JSON.</param>
     public FlattenedRowData(string dataJson, string searchJson)
     {
         DataJson = Guard.Against.NullOrEmpty(dataJson);
         SearchJson = Guard.Against.NullOrEmpty(searchJson);
     }
 
+    /// <summary>The flattened answers as JSON.</summary>
     public string DataJson { get; }
 
+    /// <summary>The search copy as JSON: the scalar answers to the schema's search keys, as normalised text.</summary>
     public string SearchJson { get; }
 }
