@@ -23,6 +23,7 @@ namespace Endatix.IntegrationTests;
 internal sealed class ReportingWebHost : IIntegrationTestHostFixture, IAsyncDisposable
 {
     private readonly WebApplicationFactory<EndatixWebHost::Program> _factory;
+    private readonly ClosedOutboxRelayGate _relayGate = new();
 
     public ReportingWebHost(EndatixIntegrationWebHostFixture fixture)
     {
@@ -32,9 +33,20 @@ internal sealed class ReportingWebHost : IIntegrationTestHostFixture, IAsyncDisp
             {
                 builder.UseSetting("Endatix:FeatureFlags:ReportingModule", "true");
                 builder.ConfigureTestServices(services =>
-                    services.Replace(ServiceDescriptor.Singleton<IOutboxRelayGate, ClosedOutboxRelayGate>()));
+                    services.Replace(ServiceDescriptor.Singleton<IOutboxRelayGate>(_relayGate)));
             });
-        Seed = new IntegrationSeedBuilder(_factory.Services);
+
+        // Reading Services starts the host; a failed start would otherwise leave it running, since the caller never
+        // gets an instance to dispose.
+        try
+        {
+            Seed = new IntegrationSeedBuilder(_factory.Services);
+        }
+        catch
+        {
+            _factory.Dispose();
+            throw;
+        }
     }
 
     public DatabaseInfrastructureFixture Database { get; }
@@ -45,12 +57,23 @@ internal sealed class ReportingWebHost : IIntegrationTestHostFixture, IAsyncDisp
 
     public IntegrationSeedBuilder Seed { get; }
 
+    /// <summary>How many times this host's outbox relay has asked its gate whether to run.</summary>
+    public int RelayGateChecks => _relayGate.Checks;
+
     public HttpClient CreateClient() => _factory.CreateClient();
 
     public ValueTask DisposeAsync() => _factory.DisposeAsync();
 
     private sealed class ClosedOutboxRelayGate : IOutboxRelayGate
     {
-        public Task<bool> IsRelayEnabledAsync(CancellationToken cancellationToken) => Task.FromResult(false);
+        private int _checks;
+
+        public int Checks => Volatile.Read(ref _checks);
+
+        public Task<bool> IsRelayEnabledAsync(CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _checks);
+            return Task.FromResult(false);
+        }
     }
 }
