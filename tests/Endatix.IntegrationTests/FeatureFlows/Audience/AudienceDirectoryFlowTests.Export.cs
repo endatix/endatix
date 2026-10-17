@@ -8,7 +8,8 @@ namespace Endatix.IntegrationTests;
 /// <summary>
 /// The export flow end to end over HTTP: the all-questions-personalized form, its audience imported from CSV, two
 /// responses created on behalf of panel members, a backfill, then the CSV and codebook exports before and after an
-/// operator renames and reorders a property.
+/// operator renames and reorders a property. Runs on <see cref="ReportingWebHost"/>, which flattens through the backfill
+/// alone.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
@@ -30,7 +31,8 @@ public sealed partial class AudienceDirectoryFlowTests
     public async Task Exports_carry_imported_audience_values_and_follow_property_renames_and_order()
     {
         // Arrange
-        var world = await WorldAsync();
+        await using ReportingWebHost host = new(fixture);
+        var world = await WorldAsync(host);
         var api = await AsAsync(world, TestPersona.TenantAdmin);
         using var key = await api.PutKeyAsync("external_id");
         var formId = await api.CreateFormAsync(definition: PersonalizedDefinition());

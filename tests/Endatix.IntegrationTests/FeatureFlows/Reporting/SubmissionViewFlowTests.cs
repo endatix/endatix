@@ -142,9 +142,8 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
     }
 
     [Fact]
-    // The view's removal itself is the form.deleted sync's job (SyncFormDeletionOutboxHandlerIntegrationTests). This
-    // host cannot wait for it: the collection's shared host polls the same outbox with Reporting off, and a relay with
-    // no handler for an event marks it delivered, so either host may claim the message.
+    // The view's removal itself is the form.deleted sync's job (SyncFormDeletionOutboxHandlerIntegrationTests).
+    // ReportingWebHost keeps its outbox relay closed, so nothing here runs that sync.
     public async Task Deleting_the_form_hides_its_view()
     {
         // Arrange
