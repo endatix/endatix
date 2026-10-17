@@ -85,11 +85,14 @@ public static class SubmissionViewSettings
         [NotNullWhen(false)] string? settingsJson,
         [NotNullWhen(true)] out string? error)
     {
-        error = string.IsNullOrWhiteSpace(settingsJson)
-            ? "Settings are required."
-            : settingsJson.Length > MaxJsonLength
-                ? string.Create(CultureInfo.InvariantCulture, $"Settings cannot be longer than {MaxJsonLength} characters.")
-                : null;
+        error = settingsJson switch
+        {
+            _ when string.IsNullOrWhiteSpace(settingsJson) => "Settings are required.",
+            { Length: > MaxJsonLength } => string.Create(
+                CultureInfo.InvariantCulture,
+                $"Settings cannot be longer than {MaxJsonLength} characters."),
+            _ => null,
+        };
         return error is not null;
     }
 
