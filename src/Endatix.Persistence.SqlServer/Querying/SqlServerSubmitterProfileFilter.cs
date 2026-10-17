@@ -19,8 +19,9 @@ public sealed class SqlServerSubmitterProfileFilter : RelationalSubmitterProfile
     protected override Expression<Func<string?, bool>> HasAnyOf(string field, List<string> values)
     {
         var path = JsonPathOf(field);
+        IEnumerable<string?> candidates = values;
         return snapshot => snapshot != null &&
-                           values.Contains(EF.Functions.Collate(
+                           candidates.Contains(EF.Functions.Collate(
                                SqlServerJsonDbFunctions.JsonValue(snapshot, path),
                                ExactCollation));
     }
@@ -29,9 +30,10 @@ public sealed class SqlServerSubmitterProfileFilter : RelationalSubmitterProfile
     protected override Expression<Func<string?, bool>> HasNoneOf(string field, List<string> values)
     {
         var path = JsonPathOf(field);
+        IEnumerable<string?> candidates = values;
         return snapshot => snapshot == null ||
                            SqlServerJsonDbFunctions.JsonValue(snapshot, path) == null ||
-                           !values.Contains(EF.Functions.Collate(
+                           !candidates.Contains(EF.Functions.Collate(
                                SqlServerJsonDbFunctions.JsonValue(snapshot, path),
                                ExactCollation));
     }
