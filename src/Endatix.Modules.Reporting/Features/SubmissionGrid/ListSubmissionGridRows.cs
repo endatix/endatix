@@ -40,6 +40,10 @@ public sealed class ListSubmissionGridRows(
     IReportingDbContext reportingDbContext,
     SubmissionGridAnswerSearch answerSearch)
 {
+    /// <summary>Reads the page and the answers of its rows.</summary>
+    /// <param name="query">The tenant, the list query, the answer columns and the answer filters.</param>
+    /// <param name="cancellationToken">Cancels the reads.</param>
+    /// <returns>The page of rows, or why it could not be read; unauthorized without a tenant.</returns>
     public async Task<Result<SubmissionGridPage>> ExecuteAsync(
         SubmissionGridRowsQuery query,
         CancellationToken cancellationToken)
