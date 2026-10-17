@@ -196,6 +196,23 @@ public class BackgroundJobQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task EnqueueAsync_NodeMayNotStoreTriggers_ThrowsBeforeWritingRows()
+    {
+        // Arrange — refused before the transaction opens, so it never holds a second connection while one is open.
+        _triggerScheduler
+            .PrepareAsync(default)
+            .ReturnsForAnyArgs(Task.FromException(new InvalidOperationException("Refused.")));
+
+        // Act
+        var act = () => _queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        await _triggerScheduler.DidNotReceiveWithAnyArgs().ScheduleAndCommitAsync(default!, default!, default);
+        (await _dbContext.BackgroundJobs.CountAsync(TestContext.Current.CancellationToken)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task EnqueueAsync_SchedulingFails_Throws()
     {
         // Arrange
@@ -294,6 +311,115 @@ public class BackgroundJobQueueTests : IDisposable
         await act.Should().ThrowAsync<DbUpdateException>();
         metrics.ReceivedCalls().Should().BeEmpty();
     }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServer2601OnDedupIndex_ReturnsTrue()
+    {
+        // Arrange — SQL Server reports a duplicate in a unique index as 2601, naming the index only in the message.
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(DuplicateInIndex("IX_BackgroundJobs_DedupKey"), 2601));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServer2627OnDedupIndex_ReturnsTrue()
+    {
+        // Arrange
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(
+            "Violation of UNIQUE KEY constraint 'IX_BackgroundJobs_DedupKey'. Cannot insert duplicate key in object " +
+            "'jobs.BackgroundJobs'. The duplicate key value is (5, Probe, k1).",
+            2627));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(
+        "Eine Zeile mit doppeltem Schlüssel kann in das jobs.BackgroundJobs-Objekt mit dem eindeutigen " +
+        "IX_BackgroundJobs_DedupKey-Index nicht eingefügt werden. Der doppelte Schlüsselwert ist (5, Probe, k1).")]
+    [InlineData(
+        "Impossible d'insérer une ligne de clé en double dans l'objet « jobs.BackgroundJobs » avec un index unique " +
+        "« IX_BackgroundJobs_DedupKey ». La valeur de clé dupliquée est (5, Probe, k1).")]
+    public void IsDedupKeyCollision_SqlServer2601OnDedupIndexInAnotherLanguage_ReturnsTrue(string message)
+    {
+        // Arrange — a server in another language quotes the index name differently, or not at all.
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(message, 2601));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServerCollisionAfterAnotherError_ReturnsTrue()
+    {
+        // Arrange — one exception carries every error the batch raised, and the collision need not be the first.
+        var exception = SaveFailure(SqlServerExceptions.WithErrors(
+            (3621, "The statement has been terminated."),
+            (2601, DuplicateInIndex("IX_BackgroundJobs_DedupKey"))));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServer2601OnIndexWhoseNameExtendsTheDedupIndex_ReturnsFalse()
+    {
+        // Arrange — the name is matched as a whole word, so a later index named after it is not mistaken for it.
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(DuplicateInIndex("IX_BackgroundJobs_DedupKeyV2"), 2601));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServer2601OnOtherIndex_ReturnsFalse()
+    {
+        // Arrange
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(DuplicateInIndex("IX_Other"), 2601));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsDedupKeyCollision_SqlServerOtherError_ReturnsFalse()
+    {
+        // Arrange — a foreign key or check failure that happens to mention the index is still not a duplicate.
+        var exception = SaveFailure(SqlServerExceptions.WithMessage(
+            "The INSERT statement conflicted with the CHECK constraint near 'IX_BackgroundJobs_DedupKey'.", 547));
+
+        // Act
+        var collision = BackgroundJobQueue.IsDedupKeyCollision(exception);
+
+        // Assert
+        collision.Should().BeFalse();
+    }
+
+    private static DbUpdateException SaveFailure(Exception cause) => new("The save failed.", cause);
+
+    private static string DuplicateInIndex(string indexName) =>
+        $"Cannot insert duplicate key row in object 'jobs.BackgroundJobs' with unique index '{indexName}'. " +
+        "The duplicate key value is (5, Probe, k1).";
 
     private sealed class FailingSaveInterceptor : SaveChangesInterceptor
     {

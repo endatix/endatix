@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.IntegrationTests.Shared;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
 using Endatix.Core.Infrastructure;
@@ -24,12 +25,10 @@ internal sealed class JobsTestNode : IAsyncDisposable
     public IServiceProvider Services => _host.Services;
 
     /// <summary>
-    /// Builds a node on <paramref name="database"/>, with that database's provider. It applies the jobs migrations
-    /// before its scheduler starts, as a host with automatic migrations on does, unless <paramref name="migrate"/>
-    /// is off.
+    /// Builds a node on whatever <paramref name="database"/> points at, including a server that is not there.
     /// </summary>
     public static JobsTestNode Create(
-        JobsTestDatabase database,
+        JobsTestNodeDatabase database,
         IDictionary<string, string?>? settings = null,
         Action<IServiceCollection>? configureServices = null,
         bool migrate = true)
@@ -71,6 +70,18 @@ internal sealed class JobsTestNode : IAsyncDisposable
 
         return new JobsTestNode(builder.Build());
     }
+
+    /// <summary>
+    /// Builds a node on <paramref name="database"/>, with that database's provider. It applies the jobs migrations
+    /// before its scheduler starts, as a host with automatic migrations on does, unless <paramref name="migrate"/>
+    /// is off.
+    /// </summary>
+    public static JobsTestNode Create(
+        JobsTestDatabase database,
+        IDictionary<string, string?>? settings = null,
+        Action<IServiceCollection>? configureServices = null,
+        bool migrate = true) =>
+        Create(new JobsTestNodeDatabase(database.Provider, database.ConnectionString), settings, configureServices, migrate);
 
     public Task StartAsync(CancellationToken cancellationToken) => _host.StartAsync(cancellationToken);
 
@@ -126,3 +137,6 @@ internal sealed class JobsTestNode : IAsyncDisposable
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
+
+/// <summary>The provider and connection string a <see cref="JobsTestNode"/> runs against.</summary>
+internal sealed record JobsTestNodeDatabase(TestDatabaseProvider Provider, string ConnectionString);

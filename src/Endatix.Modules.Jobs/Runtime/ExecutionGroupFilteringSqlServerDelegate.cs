@@ -30,17 +30,27 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// of every waiting trigger.
 /// </para>
 /// <para>
-/// Group matching follows the database collation, which ignores case by default, so the scheduler refuses job types
-/// that differ only in case (<see cref="JobHandlerRegistry"/>).
+/// The column and the group names read from JSON share one collation, named on both sides, so the comparison is made
+/// in the collation the index is sorted in, and each group's read stays a seek, whatever collation the database had
+/// when the tables were created or has since. The collation is binary, so groups match ordinally, as on PostgreSQL.
+/// </para>
+/// <para>
+/// Not sealed so that failure-injection tests can extend its trigger storage (<c>InsertTrigger</c>); acquisition stays
+/// sealed, since its overrides share state that only works together.
 /// </para>
 /// </remarks>
 internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
 {
+    /// <summary>
+    /// The collation <c>ENDATIX_ACQUIRE_GROUP</c> is computed in, which the free groups are read in to match it.
+    /// </summary>
+    internal const string AcquireGroupCollation = "Latin1_General_100_BIN2";
+
     private const string DriverDelegate = "SQL Server";
     private const string FreeSlotsParameter = ExecutionGroupAcquisition.FreeSlotsParameter;
 
     /// <inheritdoc />
-    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape) =>
+    protected sealed override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape) =>
         LimitEachGroupToItsFreeSlots(base.GetSelectNextTriggerToAcquireSql(shape), shape.MaxCount);
 
     /// <summary>
@@ -64,7 +74,7 @@ internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
         return string.Create(CultureInfo.InvariantCulture, $"""
             SELECT TOP ({batchSize}) acquirable.*
             FROM OPENJSON(@{FreeSlotsParameter})
-                WITH (endatix_group nvarchar(200) '$.g', endatix_free_slots int '$.s') AS free
+                WITH (endatix_group nvarchar(200) COLLATE {AcquireGroupCollation} '$.g', endatix_free_slots int '$.s') AS free
             CROSS APPLY (
                 SELECT TOP (free.endatix_free_slots) t.NEXT_FIRE_TIME, t.PRIORITY,{shipped.ProjectionAndConditions}
                 AND t.ENDATIX_ACQUIRE_GROUP = free.endatix_group
@@ -75,7 +85,7 @@ internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
     }
 
     /// <inheritdoc />
-    public override DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
+    public sealed override DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
     {
         var freeSlots = ExecutionGroupAcquisition.FreeSlotsFor(commandText, DriverDelegate);
         var command = base.PrepareCommand(cth, commandText);
@@ -120,7 +130,7 @@ internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
     }
 
     /// <inheritdoc />
-    public override ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(
+    public sealed override ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionCriteria criteria,
         CancellationToken cancellationToken = default) =>
@@ -131,7 +141,7 @@ internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
     /// Reads the triggers <paramref name="triggerKeys"/> name, giving each trigger of an Endatix job that names no
     /// execution group its job type's group (<see cref="ExecutionGroupAcquisition.WithJobTypeGroups"/>).
     /// </summary>
-    public override async ValueTask<List<IOperableTrigger>> SelectTriggers(
+    public sealed override async ValueTask<List<IOperableTrigger>> SelectTriggers(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default) =>
