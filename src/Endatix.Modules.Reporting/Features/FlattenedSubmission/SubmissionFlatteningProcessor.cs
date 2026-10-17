@@ -26,7 +26,10 @@ namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 /// A submission that cannot be read never gets a row. When it or its form was soft-deleted in the requested tenant and
 /// form, an existing row is removed and the flatten succeeds; any other miss throws, so it is retried and then
 /// reported as failed. A submission or form deleted after the submission was read loses the row this flatten wrote,
-/// as its deletion sync would have removed it; so does one whose schema the form's deletion already removed.
+/// as its deletion sync would have removed it: whether the row ended processed or skipped, lost to a newer flatten's
+/// write, or the flatten failed or was cancelled after marking it processing, its schema gone with the form included.
+/// Such a failure then ends the flatten as a success, since there is nothing left to retry; a cancellation still
+/// surfaces as one.
 /// </para>
 /// </remarks>
 internal sealed class SubmissionFlatteningProcessor(
@@ -37,6 +40,11 @@ internal sealed class SubmissionFlatteningProcessor(
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
     private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
+
+    // A cancelled flatten still owes its row the deletion check: an operator's cancel is final, and a run stopped at
+    // its maximum run time may be its last attempt, so no later run would check. The check gets this long on a token
+    // of its own, short enough not to hold up a host that is stopping.
+    private static readonly TimeSpan CancelledCheckTimeout = TimeSpan.FromSeconds(5);
 
     public async Task ProcessAsync(
         long tenantId,
@@ -54,10 +62,7 @@ internal sealed class SubmissionFlatteningProcessor(
         }
 
         await flattenedSubmissionRepository.EnsureExistsAsync(key, cancellationToken);
-        if (await FlattenAsync(new FlattenRun(key, submission, includeIncomplete), cancellationToken))
-        {
-            await RemoveRowIfDeletedMeanwhileAsync(key, cancellationToken);
-        }
+        await FlattenAsync(new FlattenRun(key, submission, includeIncomplete), cancellationToken);
     }
 
     // Read before any write, so a submission that cannot be read never gets a row, and a row never stays in
@@ -67,48 +72,73 @@ internal sealed class SubmissionFlatteningProcessor(
             new SubmissionWithDefinitionAndFormSpec(key.FormId, key.SubmissionId),
             cancellationToken);
 
-    /// <summary>Returns whether the flattened data landed on the row.</summary>
-    private async Task<bool> FlattenAsync(FlattenRun run, CancellationToken cancellationToken)
+    private async Task FlattenAsync(FlattenRun run, CancellationToken cancellationToken)
     {
         if (run.Mismatched)
         {
             LogUnlessLanded(
                 await flattenedSubmissionRepository.TryMarkFailedAsync(run.Write, SubmissionMismatchMessage, cancellationToken),
                 run.Write);
-            return false;
+            return;
         }
 
-        return LogUnlessLanded(await flattenedSubmissionRepository.TryMarkProcessingAsync(run.Write, cancellationToken), run.Write)
-            && await StoreFlattenedDataAsync(run, cancellationToken);
+        var processing = await flattenedSubmissionRepository.TryMarkProcessingAsync(run.Write, cancellationToken);
+        if (LogUnlessLanded(processing, run.Write))
+        {
+            await FinishProcessingAsync(run, cancellationToken);
+        }
     }
 
-    private async Task<bool> StoreFlattenedDataAsync(FlattenRun run, CancellationToken cancellationToken)
+    // Once the processing write landed, the row's cleanup is this flatten's: a deletion whose sync already ran does
+    // not come back for it, whether storing the data succeeds, fails, or is cancelled. A cancelled flatten still
+    // surfaces as cancelled after its check, so a job's cancel or shutdown, and a backfill's stop, end as they would.
+    private async Task FinishProcessingAsync(FlattenRun run, CancellationToken cancellationToken)
     {
-        if (!run.Submission.IsComplete && !run.IncludeIncomplete)
+        try
+        {
+            await StoreFlattenedDataAsync(run, cancellationToken);
+        }
+        catch (Exception failure)
+        {
+            var removedAsDeleted = await RemoveRowIfDeletedAfterFailureAsync(run.Key, cancellationToken);
+            if (!removedAsDeleted || cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+
+            logger.LogDebug(failure, "Flattening submission {SubmissionId} failed after it was deleted", run.Key.SubmissionId);
+            return;
+        }
+
+        await RemoveRowIfDeletedMeanwhileAsync(run.Key, cancellationToken);
+    }
+
+    private async Task StoreFlattenedDataAsync(FlattenRun run, CancellationToken cancellationToken)
+    {
+        if (run.IsSkipped)
         {
             LogUnlessLanded(await flattenedSubmissionRepository.TryMarkSkippedAsync(run.Write, cancellationToken), run.Write);
-            return false;
+            return;
         }
 
         var schema = await SchemaOfAsync(run, cancellationToken);
-        if (schema is null)
-        {
-            await HandleMissingSchemaAsync(run, cancellationToken);
-            return false;
-        }
-
         var data = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
-        return LogUnlessLanded(
+        LogUnlessLanded(
             await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, data, cancellationToken),
             run.Write);
     }
 
-    private Task<Domain.FormSchema?> SchemaOfAsync(FlattenRun run, CancellationToken cancellationToken) =>
-        schemaProvider.GetOrCompileAsync(
+    // A form deleted after its submission was read, with its cleanup already run, leaves no schema to flatten with;
+    // the failure's deletion check then removes the row this flatten created, as that cleanup removed the others.
+    // Any other missing schema fails the flatten.
+    private async Task<Domain.FormSchema> SchemaOfAsync(FlattenRun run, CancellationToken cancellationToken) =>
+        await schemaProvider.GetOrCompileAsync(
             run.Key.TenantId,
             run.Key.FormId,
             run.Submission.FormDefinitionId,
-            cancellationToken);
+            cancellationToken)
+        ?? throw new InvalidOperationException(
+            $"Form export schema is not available for form {run.Key.FormId}, definition {run.Submission.FormDefinitionId}.");
 
     private async Task<FlattenedRowData> FlattenedDataAsync(
         Submission submission,
@@ -138,17 +168,6 @@ internal sealed class SubmissionFlatteningProcessor(
         }
     }
 
-    // A form deleted after its submission was read, with its cleanup already run, leaves no schema to flatten with.
-    // The row this flatten created is removed as that cleanup removed the others. Any other missing schema throws.
-    private async Task HandleMissingSchemaAsync(FlattenRun run, CancellationToken cancellationToken)
-    {
-        if (!await RemoveRowIfDeletedHereAsync(run.Key, cancellationToken))
-        {
-            throw new InvalidOperationException(
-                $"Form export schema is not available for form {run.Key.FormId}, definition {run.Submission.FormDefinitionId}.");
-        }
-    }
-
     /// <summary>
     /// Removes the row when the submission or its form was soft-deleted in the key's tenant and form; returns whether
     /// it was.
@@ -168,15 +187,59 @@ internal sealed class SubmissionFlatteningProcessor(
     }
 
     // A deletion of the submission or its form whose sync ran between this flatten's read and its write would
-    // otherwise leave the row behind. The deletion is committed before its sync runs, so reading again after the
-    // write sees it, and the row is removed as the sync would have removed it. The same lookup as for a missing
-    // submission, because a criteria-only re-read of the submission would not see the form's own deletion.
+    // otherwise leave the row behind, whether the flatten marked it processed or skipped or lost it to a newer
+    // revision's write. The deletion is committed before its sync runs, so reading again after the write sees it,
+    // and the row is removed as the sync would have removed it. The same lookup as for a missing submission, because
+    // a criteria-only re-read of the submission would not see the form's own deletion.
     private async Task RemoveRowIfDeletedMeanwhileAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
     {
-        if (!await RemoveRowIfDeletedHereAsync(key, cancellationToken))
+        if (!await RemoveRowIfDeletedAfterWriteAsync(key, cancellationToken))
         {
-            logger.LogInformation("Flattened submission {SubmissionId} for form {FormId}", key.SubmissionId, key.FormId);
+            logger.LogInformation(
+                "Finished flattening submission {SubmissionId} for form {FormId}",
+                key.SubmissionId,
+                key.FormId);
         }
+    }
+
+    // A failure after the processing write would otherwise leave the row in Processing under a deleted submission or
+    // form, and nothing removes it once the retries run out; when the row goes, the flatten has nothing left to retry.
+    // A failure of the check itself is only logged, so the flatten's own failure is the one that is reported.
+    private async Task<bool> RemoveRowIfDeletedAfterFailureAsync(
+        FlattenedSubmissionKey key,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await RemoveRowIfDeletedAfterWriteAsync(key, cancellationToken);
+        }
+        catch (Exception checkFailure)
+        {
+            logger.Log(
+                LevelOfCheckFailure(checkFailure),
+                checkFailure,
+                "Could not check whether submission {SubmissionId} of form {FormId} was deleted after its flatten failed",
+                key.SubmissionId,
+                key.FormId);
+            return false;
+        }
+    }
+
+    // A check cut off by the cancellation of its own token is expected while a host stops; anything else is not.
+    private static LogLevel LevelOfCheckFailure(Exception checkFailure) =>
+        checkFailure is OperationCanceledException { CancellationToken.IsCancellationRequested: true }
+            ? LogLevel.Debug
+            : LogLevel.Warning;
+
+    private async Task<bool> RemoveRowIfDeletedAfterWriteAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
+    {
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            return await RemoveRowIfDeletedHereAsync(key, cancellationToken);
+        }
+
+        using var cancelledCheck = new CancellationTokenSource(CancelledCheckTimeout);
+        return await RemoveRowIfDeletedHereAsync(key, cancelledCheck.Token);
     }
 
     private async Task RemoveRowOfDeletedSubmissionAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
@@ -210,5 +273,7 @@ internal sealed class SubmissionFlatteningProcessor(
             new(Key.TenantId, Key.SubmissionId, Submission.Revision, Submission.ModifiedAt ?? Submission.CreatedAt);
 
         public bool Mismatched => Submission.TenantId != Key.TenantId || Submission.FormId != Key.FormId;
+
+        public bool IsSkipped => !Submission.IsComplete && !IncludeIncomplete;
     }
 }

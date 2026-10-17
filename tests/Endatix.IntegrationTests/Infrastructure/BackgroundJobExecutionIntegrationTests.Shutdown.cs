@@ -17,7 +17,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     {
         // Arrange — pins the scheduler's own behaviour, which the signal relies on: a wait that runs out does not
         // throw. The handler waits on its token, which only the shutdown signal cancels, so the wait runs out.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
@@ -39,7 +38,6 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     {
         // Arrange — the scheduler's teardown can fail after it has let go of the running jobs, as a job store
         // that cannot close does.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = JobsTestNode.Create(database, configureServices: UseSchedulerThatFailsToShutDown);

@@ -1,11 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Endatix.Core.Entities;
-using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests.FeatureFlows.Api;
 
@@ -68,7 +64,6 @@ public sealed class PagedListWindowFlowTests
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await PrepareWorldAsync(cancellationToken);
-        await EnsureTenantSettingsAsync(world, cancellationToken);
         using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
         var formId = await CreateFormWithSubmissionsAsync(client, submissions: 3, cancellationToken);
 
@@ -124,19 +119,6 @@ public sealed class PagedListWindowFlowTests
         _fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" },
             cancellationToken);
-
-    /// <summary>Creating a submission reads tenant settings, which the standard seed does not add.</summary>
-    private static async Task EnsureTenantSettingsAsync(IntegrationTestWorld world, CancellationToken cancellationToken)
-    {
-        var tenantId = world.Tenants[0].Id;
-        await using var scope = world.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        if (!await db.TenantSettings.AnyAsync(row => row.TenantId == tenantId, cancellationToken))
-        {
-            db.TenantSettings.Add(new TenantSettings(tenantId));
-            await db.SaveChangesAsync(cancellationToken);
-        }
-    }
 
     private static async Task<ListPage> GetPageAsync(HttpClient client, string url, CancellationToken cancellationToken)
     {

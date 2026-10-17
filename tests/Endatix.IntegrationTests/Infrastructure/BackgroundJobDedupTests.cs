@@ -6,13 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Idempotent enqueue against PostgreSQL, where the unique index that guarantees it is enforced. Every node here
+/// Idempotent enqueue against a real database, where the unique index that guarantees it is enforced. Every node here
 /// only schedules, so the rows and triggers counted are exactly what enqueueing wrote.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
 {
     private const string JobType = "T";
@@ -21,7 +20,6 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueAsync_SameDedupKey_ReturnsExistingJob()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -40,7 +38,6 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueAsync_NoDedupKey_CreatesIndependentJobs()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -58,7 +55,6 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueManyAsync_PartialCollision_ReturnsExistingAndNewIdsInOrder()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -81,7 +77,6 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueAsync_SameKeyOtherTenant_CreatesSecondJob()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -99,7 +94,6 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     public async Task EnqueueAsync_ConcurrentSameKey_CreatesOneJob()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await using var node = await StartScheduleOnlyNodeAsync(database, ct);
@@ -116,6 +110,73 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
         (await CountRowsAsync(database, ct)).Should().Be(1);
         ids.Distinct().Should().ContainSingle();
         (await CountTriggersAsync(database, ct)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EnqueueManyAsync_OverlappingBatchesInOppositeOrder_CreateEachJobOnce()
+    {
+        // Arrange — two fan-outs sharing keys, the second listing them backwards, run at once a few times over: in
+        // the order given, each would lock a key the other needs next. Batches this large deadlock on both providers
+        // when inserted in request order.
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await using var node = await StartScheduleOnlyNodeAsync(database, ct);
+        const int Rounds = 5;
+        const int KeysPerBatch = 300;
+
+        // Act
+        List<IReadOnlyList<long>[]> rounds = [];
+        for (var round = 0; round < Rounds; round++)
+        {
+            var forward = Enumerable.Range(0, KeysPerBatch).Select(key => Request(tenantId: 5, $"{round}:{key}")).ToList();
+            rounds.Add(await Task.WhenAll(
+                node.EnqueueManyAsync(forward, ct),
+                node.EnqueueManyAsync([.. Enumerable.Reverse(forward)], ct)));
+        }
+
+        // Assert — in every round each batch got the same job for each key, whichever of them inserted it.
+        rounds.Should().AllSatisfy(batches => batches[0].Should().Equal(batches[1].Reverse()));
+        (await CountRowsAsync(database, ct)).Should().Be(Rounds * KeysPerBatch);
+        (await CountTriggersAsync(database, ct)).Should().Be(Rounds * KeysPerBatch);
+    }
+
+    [Fact]
+    [Trait("DbSpecific", "SqlServer")]
+    public async Task EnqueueAsync_SqlServerDedupKeyWithTrailingSpace_IsRefusedAndLeavesTheExistingJob()
+    {
+        // Arrange — SQL Server-only: its unique index holds "k1 " equal to "k1", which the queue's own lookup does not.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, "Asserts SQL Server's trailing-space comparison.");
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await using var node = await StartScheduleOnlyNodeAsync(database, ct);
+        await node.EnqueueAsync(Request(tenantId: 5, "k1"), ct);
+
+        // Act
+        var enqueue = () => node.EnqueueAsync(Request(tenantId: 5, "k1 "), ct);
+
+        // Assert
+        await enqueue.Should().ThrowAsync<ArgumentException>().WithMessage("A dedup key ends with a space*");
+        (await CountRowsAsync(database, ct)).Should().Be(1);
+        (await CountTriggersAsync(database, ct)).Should().Be(1);
+    }
+
+    [PostgreSqlSpecificFact]
+    public async Task EnqueueAsync_PostgreSqlDedupKeyWithTrailingSpace_IsADistinctKey()
+    {
+        // Arrange — PostgreSQL-only: it compares "k1 " and "k1" as written, as it did before SQL Server was supported.
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        await using var node = await StartScheduleOnlyNodeAsync(database, ct);
+        var withoutSpace = await node.EnqueueAsync(Request(tenantId: 5, "k1"), ct);
+
+        // Act
+        var withSpace = await node.EnqueueAsync(Request(tenantId: 5, "k1 "), ct);
+        var again = await node.EnqueueAsync(Request(tenantId: 5, "k1 "), ct);
+
+        // Assert
+        withSpace.Should().NotBe(withoutSpace);
+        again.Should().Be(withSpace);
+        (await CountRowsAsync(database, ct)).Should().Be(2);
     }
 
     private static BackgroundJobRequest Request(long tenantId, string? dedupKey) =>

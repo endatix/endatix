@@ -78,6 +78,88 @@ public class BackgroundJobTests
     }
 
     [Fact]
+    public void FromRequest_BlankDedupKeyLongerThanColumn_HasNoDedupKey()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest(
+            "SubmissionExport", "{}", TenantId: 5, DedupKey: new string(' ', BackgroundJob.DedupKeyMaxLength + 1));
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.DedupKey.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("k1 ")]
+    [InlineData(" k1")]
+    [InlineData("k1\t")]
+    public void FromRequest_DedupKeyWithOtherEdgeWhitespace_KeepsTheKey(string dedupKey)
+    {
+        // Arrange — the entity keeps a key as written; whether the database can tell it apart is the queue's to say.
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: dedupKey);
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.DedupKey.Should().Be(dedupKey);
+    }
+
+    [Fact]
+    public void Constructor_JobTypeEndingInASpace_Throws()
+    {
+        // Arrange
+        // Act
+        var act = () => new BackgroundJob("SubmissionExport ", "{}", tenantId: 5, nextAttemptAt: Now);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("jobType")
+            .WithMessage("A job type cannot end with a space.*");
+    }
+
+    [Theory]
+    [InlineData(" SubmissionExport")]
+    [InlineData("SubmissionExport\t")]
+    public void Constructor_JobTypeWithOtherEdgeWhitespace_KeepsTheType(string jobType)
+    {
+        // Arrange
+        // Act
+        var job = new BackgroundJob(jobType, "{}", tenantId: 5, nextAttemptAt: Now);
+
+        // Assert
+        job.JobType.Should().Be(jobType);
+    }
+
+    [Fact]
+    public void FromRequest_JobTypeEndingInASpace_Throws()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SubmissionExport ", "{}", TenantId: 5);
+
+        // Act
+        var act = () => BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        act.Should().Throw<ArgumentException>().WithMessage("A job type cannot end with a space.*");
+    }
+
+    [Fact]
+    public void FromRequest_DedupKeyWithInnerWhitespace_KeepsTheKey()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", TenantId: 5, DedupKey: "form 7:export");
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.DedupKey.Should().Be("form 7:export");
+    }
+
+    [Fact]
     public void FromRequest_BlankDedupKey_StoresNoKey()
     {
         // Arrange

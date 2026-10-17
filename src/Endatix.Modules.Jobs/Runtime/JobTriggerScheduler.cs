@@ -11,6 +11,13 @@ namespace Endatix.Modules.Jobs.Runtime;
 internal interface IJobTriggerScheduler
 {
     /// <summary>
+    /// Makes sure this node may store triggers and that its scheduler is built, before the caller opens the
+    /// transaction the triggers join, so neither holds a second connection while that transaction is open.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">This node may not store triggers.</exception>
+    Task PrepareAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Schedules one trigger per job in <paramref name="transaction"/>, then commits it, so the rows and their
     /// triggers become visible together or not at all.
     /// </summary>
@@ -25,12 +32,18 @@ internal sealed class QuartzJobTriggerScheduler(
     [FromKeyedServices(QuartzRegistration.SchedulerName)] ISchedulerFactory schedulerFactory,
     StoredDurableJobs durableJobs) : IJobTriggerScheduler
 {
+    // The factory refuses a node that may not store triggers lock-free (ReadCommittedSnapshotGatedSchedulerFactory),
+    // whether its start was refused or is still deferred. The scheduler is built here, outside any enlistment: it
+    // refuses to be started for the first time inside one.
+    public async Task PrepareAsync(CancellationToken cancellationToken) =>
+        await schedulerFactory.GetScheduler(cancellationToken);
+
     public async Task ScheduleAndCommitAsync(
         IDbContextTransaction transaction,
         IReadOnlyList<BackgroundJob> jobs,
         CancellationToken cancellationToken)
     {
-        // Built before enlisting: the scheduler refuses to be started for the first time inside an enlistment.
+        // Already built by PrepareAsync, so this returns the factory's cached scheduler.
         var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
         var jobTypes = jobs.Select(job => job.JobType).Distinct(StringComparer.Ordinal).ToList();
 
