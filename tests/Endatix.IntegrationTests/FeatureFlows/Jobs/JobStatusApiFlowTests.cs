@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 
 /// <summary>
-/// The job status read over HTTP, against the real tenant middleware and a real PostgreSQL query
+/// The job status read over HTTP, against the real tenant middleware and a real database query
 /// filter. Unit tests cover the handler's own guard; they cannot cover this, because an in-memory
 /// context is neither <c>TenantMiddleware</c> nor the database that enforces the filter.
 /// </summary>
@@ -23,9 +23,7 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     [Fact]
     public async Task Tenant_admin_reads_a_job_in_their_own_tenant_and_not_one_in_another()
     {
-        // Arrange — the module is PostgreSQL-only, so the flag is off on a SQL Server run.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
-
+        // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
             IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword },
@@ -57,7 +55,6 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     public async Task Anonymous_callers_are_refused()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
 
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
@@ -78,7 +75,6 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     public async Task Job_status_response_carries_only_state_fields()
     {
         // Arrange
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.ModuleNotOnThisProvider);
 
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(

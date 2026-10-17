@@ -43,6 +43,10 @@ public interface IBackgroundJobQueue
     /// <remarks>
     /// This exists for fan-out: the outbox relay turns one event into one job per subscriber
     /// inside its tick and must complete in milliseconds, which N separate transactions would not.
+    /// <para>
+    /// For jobs that carry a dedup key, request order is kept neither for their ids nor for the order in which
+    /// jobs due at once start; the returned ids still map to the requests.
+    /// </para>
     /// </remarks>
     /// <returns>
     /// The job ids, in the order the requests were supplied. They are not necessarily new or distinct: a request

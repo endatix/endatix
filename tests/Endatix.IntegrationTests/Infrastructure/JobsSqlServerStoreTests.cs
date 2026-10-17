@@ -105,7 +105,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
             ("IX_BackgroundJobs_DedupKey", true, "([DedupKey] IS NOT NULL)"),
             ("IX_BackgroundJobs_Expiry", false, null),
             ("IX_BackgroundJobs_Tenant", false, null));
-        appliedMigrations.Should().Be(1);
+        appliedMigrations.Should().Be(2);
         await ShouldHaveTheAcquisitionColumnAndIndexAsync(database, ct);
     }
 
@@ -297,20 +297,37 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         await store.ScheduleAsync(behind, ct);
 
         // Act
-        await GrowBacklogAsync(store.Database, 5_000, ct);
-        var atFiveThousand = await AcquireWithReadsAsync(store.Database, ct);
-        await GrowBacklogAsync(store.Database, 50_000, ct);
-        var atFiftyThousand = await AcquireWithReadsAsync(store.Database, ct);
+        var acquisitions = await AcquireAsBacklogGrowsAsync(store.Database, ct);
 
         // Assert
-        atFiveThousand.Acquired.Should().Equal(behind.Key);
-        atFiftyThousand.Acquired.Should().Equal(behind.Key);
+        ShouldReturnOnlyAndReadFlat(acquisitions, behind.Key);
+    }
+
+    // The acquisition, and its reads, with 5,000 and then 50,000 triggers waiting in the full group.
+    private static async Task<BacklogAcquisitions> AcquireAsBacklogGrowsAsync(JobsTestDatabase database, CancellationToken ct)
+    {
+        await GrowBacklogAsync(database, 5_000, ct);
+        var atFiveThousand = await AcquireWithReadsAsync(database, ct);
+        await GrowBacklogAsync(database, 50_000, ct);
+        var atFiftyThousand = await AcquireWithReadsAsync(database, ct);
+        return new BacklogAcquisitions(atFiveThousand, atFiftyThousand);
+    }
+
+    private static void ShouldReturnOnlyAndReadFlat(BacklogAcquisitions acquisitions, TriggerKey expected)
+    {
+        var (atFiveThousand, atFiftyThousand) = acquisitions;
+        atFiveThousand.Acquired.Should().Equal(expected);
+        atFiftyThousand.Acquired.Should().Equal(expected);
         TestContext.Current.TestOutputHelper?.WriteLine(
             $"Logical reads on qrtz_TRIGGERS per acquisition: {atFiveThousand.Reads} at 5,000 waiting triggers in the " +
             $"full group, {atFiftyThousand.Reads} at 50,000.");
         atFiveThousand.Reads.Should().BePositive();
         atFiftyThousand.Reads.Should().BeLessThanOrEqualTo(2 * atFiveThousand.Reads).And.BeLessThanOrEqualTo(1_000);
     }
+
+    private sealed record BacklogAcquisitions(
+        (List<TriggerKey> Acquired, long Reads) AtFiveThousand,
+        (List<TriggerKey> Acquired, long Reads) AtFiftyThousand);
 
     // Grows group A's backlog in one statement run on the server, rather than a round trip per trigger.
     private static async Task GrowBacklogAsync(JobsTestDatabase database, int triggers, CancellationToken ct)
@@ -424,10 +441,10 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
     {
         var columns = await database.QueryAsync(
             """
-            SELECT is_persisted, definition FROM sys.computed_columns
+            SELECT is_persisted, definition, collation_name FROM sys.computed_columns
             WHERE object_id = OBJECT_ID('jobs.qrtz_TRIGGERS') AND name = 'ENDATIX_ACQUIRE_GROUP'
             """,
-            reader => (IsPersisted: reader.GetBoolean(0), Definition: reader.GetString(1)),
+            reader => (IsPersisted: reader.GetBoolean(0), Definition: reader.GetString(1), Collation: reader.GetString(2)),
             ct);
         var indexColumns = await database.QueryAsync(
             """
@@ -443,6 +460,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
 
         columns.Should().ContainSingle().Which.IsPersisted.Should().BeTrue();
         columns[0].Definition.Should().ContainEquivalentOf("coalesce([EXECUTION_GROUP],[JOB_NAME])");
+        columns[0].Collation.Should().Be(ExecutionGroupFilteringSqlServerDelegate.AcquireGroupCollation);
         indexColumns.Where(column => !column.Included).Should().Equal(
             ("SCHED_NAME", false, false),
             ("TRIGGER_STATE", false, false),

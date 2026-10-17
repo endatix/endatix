@@ -60,7 +60,7 @@ internal sealed class StoredDurableJobs
         }
         // A failure the database reported is not a missing job, and its transaction may no longer take statements.
         catch (JobPersistenceException exception)
-            when (exception.InnerException is not DbException && _jobTypes.ContainsKey(trigger.JobKey.Name))
+            when (!exception.HasCause(cause => cause is DbException) && _jobTypes.ContainsKey(trigger.JobKey.Name))
         {
             if (!await StoreAgainIfMissingAsync(scheduler, trigger.JobKey, cancellationToken))
             {

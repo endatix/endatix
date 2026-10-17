@@ -26,6 +26,10 @@
       <Link>Fixtures\AllQuestions\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\Endatix.Modules.Reporting.Tests\Features\FormSchema\FlattenedFormDefinition\Fixtures\AllQuestionsPersonalized\**\*">
+      <Link>Fixtures\AllQuestionsPersonalized\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

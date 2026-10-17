@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Reflection;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders;
@@ -11,14 +12,16 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.Hosting.Tests.Builders;
 
 /// <summary>
-/// The Jobs module owns a schema and migrations but currently supports one provider and has no
-/// consumer, so what a host does with it is decided entirely by the feature flag and the configured
-/// provider. These are the combinations a host can actually be in.
+/// The Jobs module owns a schema and migrations, so what a host does with it is decided entirely by the feature
+/// flag and the configured provider. These are the combinations a host can actually be in.
 /// </summary>
 public class JobsModuleRegistrationTests
 {
     private const string PostgreSqlConnectionString =
         "Host=localhost;Database=endatix;Username=endatix;Password=endatix";
+
+    private const string SqlServerConnectionString =
+        "Server=localhost;Database=endatix;User ID=endatix;Password=endatix;TrustServerCertificate=True";
 
     [Fact]
     public void UseModule_FlagAbsent_DoesNotRegisterTheModule()
@@ -90,28 +93,31 @@ public class JobsModuleRegistrationTests
     }
 
     [Fact]
-    public void ConfigureServices_ProviderIsNotPostgreSql_FailsNamingPostgreSql()
+    public void ConfigureServices_SqlServer_RegistersTheQueueOverASqlServerJobsContext()
     {
         // Arrange — reaching ConfigureServices means the flag is on, so the host asked for jobs.
         var services = new ServiceCollection();
+        services.AddScoped<ITenantContext>(_ => Substitute.For<ITenantContext>());
         var moduleBuilder = CreateModuleBuilder(services, isPostgreSql: false);
 
         // Act
-        var act = () => JobsModule.Instance.ConfigureServices(moduleBuilder);
+        JobsModule.Instance.ConfigureServices(moduleBuilder);
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var jobsContext = scope.ServiceProvider.GetRequiredService<IJobsDbContext>();
 
-        // Assert — failing here beats registering something that throws at the first enqueue,
-        // which on the webhook path would be an outbox tick rather than a startup log.
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*PostgreSQL*");
-        services.Should().NotContain(descriptor => descriptor.ServiceType == typeof(IBackgroundJobQueue));
+        // Assert — only the active provider's context exists, so nothing can migrate the other provider's chain.
+        jobsContext.Should().BeOfType<JobsSqlServerDbContext>();
+        services.Should().Contain(descriptor => descriptor.ServiceType == typeof(IBackgroundJobQueue));
         services.Should().NotContain(descriptor => descriptor.ServiceType == typeof(JobsPostgreSqlDbContext));
+        moduleBuilder.MigrationContributorRegistered.Should().BeTrue();
     }
 
     private static IConfiguration CreateConfiguration(bool? flagEnabled, bool isPostgreSql)
     {
         var settings = new Dictionary<string, string?>
         {
-            ["ConnectionStrings:DefaultConnection"] = PostgreSqlConnectionString,
+            ["ConnectionStrings:DefaultConnection"] = isPostgreSql ? PostgreSqlConnectionString : SqlServerConnectionString,
             ["ConnectionStrings:DefaultConnection_DbProvider"] = isPostgreSql ? "postgresql" : "sqlserver",
         };
 

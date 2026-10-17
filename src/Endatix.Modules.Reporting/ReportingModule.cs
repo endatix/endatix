@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Endatix.Modules.Audience.Contracts;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -56,18 +58,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
         builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
         builder.Services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
-        builder.Services.AddScoped<IExportFormatRepository, ExportFormatRepository>();
-        builder.Services.AddScoped<IExportMappingRepository, ExportMappingRepository>();
-        builder.Services.AddScoped<IDefaultExportFormatsSeeder, DefaultExportFormatsSeeder>();
-        builder.Services.AddSingleton<IExportCapabilityRegistry, ExportCapabilityRegistry>();
-        builder.Services.AddSingleton<IColumnAliasTransformer>(_ => NativeColumnAliasTransformer._instance);
-        builder.Services.AddSingleton<IColumnAliasTransformer>(_ => QuestionIndexAliasTransformer._instance);
-        builder.Services.AddSingleton<IColumnAliasTransformerRegistry, ColumnAliasTransformerRegistry>();
-        builder.Services.AddSingleton<ExportFormatSettingsParser>();
-        builder.Services.AddSingleton<ExportFormatSettingsWriter>();
-        builder.Services.AddScoped<IExportDataSource, TabularExportDataSource>();
-        builder.Services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();
-        builder.Services.AddScoped<IExportDataSource, FormSchemaCodebookExportDataSource>();
+        AddExports(builder.Services);
         builder.Services.AddSingleton<FormSchemaCompiler>();
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
         builder.Services.AddScoped<FormSchemaCoverage>();
@@ -77,6 +68,25 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
         builder.Services.AddReportingOutboxWork();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
+    }
+
+    private static void AddExports(IServiceCollection services)
+    {
+        services.AddScoped<IExportFormatRepository, ExportFormatRepository>();
+        services.AddScoped<IExportMappingRepository, ExportMappingRepository>();
+        services.AddScoped<IDefaultExportFormatsSeeder, DefaultExportFormatsSeeder>();
+        services.AddSingleton<IExportCapabilityRegistry, ExportCapabilityRegistry>();
+        services.AddSingleton<IColumnAliasTransformer>(_ => NativeColumnAliasTransformer._instance);
+        services.AddSingleton<IColumnAliasTransformer>(_ => QuestionIndexAliasTransformer._instance);
+        services.AddSingleton<IColumnAliasTransformerRegistry, ColumnAliasTransformerRegistry>();
+        services.AddSingleton<ExportFormatSettingsParser>();
+        services.AddSingleton<ExportFormatSettingsWriter>();
+        // Exports read audience names here; the Audience module replaces the default when it is on.
+        services.TryAddScoped<IAudiencePropertyCatalog, NoAudiencePropertyCatalog>();
+        services.AddScoped<ExportSchemas>();
+        services.AddScoped<IExportDataSource, TabularExportDataSource>();
+        services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();
+        services.AddScoped<IExportDataSource, FormSchemaCodebookExportDataSource>();
     }
 
     private static void AddPersistence(EndatixModuleBuilder builder)
