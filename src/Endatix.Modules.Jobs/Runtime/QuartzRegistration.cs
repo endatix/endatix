@@ -1,4 +1,3 @@
-using Endatix.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -154,15 +153,16 @@ internal static class QuartzRegistration
     {
         var options = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
             ?? new BackgroundJobsOptions();
-        var database = new JobStoreDatabase(
-            ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration),
-            DatabaseProviderResolver.IsPostgreSql(configuration));
+        var database = JobStoreDatabase.From(configuration, options);
 
+        services.AddSingleton(database);
+        services.AddSingleton<ReadCommittedSnapshotRequirement>();
         services.AddJobExecution();
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
         services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, options, database));
+        ReadCommittedSnapshotGatedSchedulerFactory.Register(services);
         SizeToRegisteredJobTypes(services);
 
         return services;
@@ -307,12 +307,9 @@ internal static class QuartzRegistration
         ado.SchemaProvisioning = SchemaProvisioning.Validate;
         ado.AcceptEnlistedTransactions = true;
 
-        // On PostgreSQL an uncommitted trigger is invisible to every node's acquisition, so enqueue need not hold the
-        // cluster-wide trigger lock until it commits. On SQL Server, unless the database reads committed snapshots,
-        // an acquisition reading the triggers waits on every open enqueue's uncommitted rows, which is what Quartz
-        // takes the lock on insert for: holding it makes enqueues and acquisitions take turns. A host whose database
-        // reads committed snapshots may turn it off, and a host may set it on either database.
-        ado.LockOnInsert = options.LockOnInsert ?? !database.IsPostgreSql;
+        // Off on PostgreSQL and on on SQL Server unless configured; JobStoreDatabase.From says why they differ, and the
+        // snapshot check reads the same value.
+        ado.LockOnInsert = database.LocksOnInsert;
         ado.MisfireThreshold = TimeSpan.FromSeconds(options.MisfireThresholdSeconds);
 
         // A job that waited past the threshold for a slot is put back in line by the misfire pass, so a pass as rare
@@ -320,10 +317,6 @@ internal static class QuartzRegistration
         ado.MisfireHandlerFrequency = TimeSpan.FromSeconds(Math.Min(10, options.MisfireThresholdSeconds));
     }
 }
-
-/// <param name="ConnectionString">The database the scheduler's tables live in, beside the job rows.</param>
-/// <param name="IsPostgreSql">Whether that database is PostgreSQL; otherwise it is SQL Server.</param>
-internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreSql);
 
 /// <param name="JobId">The job row the trigger fires.</param>
 /// <param name="JobType">The job type whose durable scheduler job the trigger points at.</param>

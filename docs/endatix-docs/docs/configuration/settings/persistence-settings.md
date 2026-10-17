@@ -25,6 +25,8 @@ SQL Server must be **SQL Server 2025 or later, or Azure SQL Database**: the sche
 
 The Reporting module (`Endatix:FeatureFlags:ReportingModule`) runs on both providers and migrates its `reporting` schema at startup on either.
 
+The Background Jobs module (`Endatix:FeatureFlags:JobsModule`) runs on both providers too, and migrates its `jobs` schema, including the job scheduler's tables, at startup on either. On SQL Server, enqueueing a job holds the scheduler's cluster-wide trigger lock until its transaction commits (`Endatix:BackgroundJobs:LockOnInsert`, `true` by default on SQL Server). Setting it to `false` requires `READ_COMMITTED_SNAPSHOT` on for the database; a node configured that way refuses to start without it. The [Jobs module README](https://github.com/endatix/endatix/blob/main/src/Endatix.Modules.Jobs/README.md#trigger-lock-on-sql-server) explains when that trade is worth making and gives the measurements behind it.
+
 ### Audience on SQL Server
 
 The Audience module (`Endatix:FeatureFlags:PersonalizationModule`) runs on both providers.
