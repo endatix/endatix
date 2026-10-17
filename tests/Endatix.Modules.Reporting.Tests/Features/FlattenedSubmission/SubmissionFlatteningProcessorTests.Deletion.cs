@@ -37,7 +37,7 @@ public partial class SubmissionFlatteningProcessorTests
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         // Assert — the row is removed as the deletion's own sync would have removed it.
-        await _rows.Received(1).TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _rows.Received(1).TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<FlattenedRowData>(), Arg.Any<CancellationToken>());
         await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
     }
@@ -51,7 +51,7 @@ public partial class SubmissionFlatteningProcessorTests
         GivenSubmission(submission);
         GivenSchema();
         _rows.TryMarkProcessingAsync(WriteOf(submission), Arg.Any<CancellationToken>()).Returns(true);
-        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<FlattenedRowData>(), Arg.Any<CancellationToken>()).Returns(false);
         GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: true));
 
         // Act
@@ -140,7 +140,7 @@ public partial class SubmissionFlatteningProcessorTests
         // Assert — nothing is left to retry once the row is gone.
         await act.Should().NotThrowAsync();
         await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
-        await _rows.DidNotReceive().TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _rows.DidNotReceive().TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<FlattenedRowData>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

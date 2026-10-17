@@ -21,6 +21,8 @@ public sealed class FlattenedSubmissionRepositoryTests
     private const long FormId = 100;
     private const long SubmissionId = 500;
     private const string ProcessedDataJson = """{"firstName": "Ada"}""";
+    private const string ProcessedSearchJson = """{"firstName": "ada"}""";
+    private static readonly FlattenedRowData ProcessedData = new(ProcessedDataJson, ProcessedSearchJson);
     private static readonly DateTimeOffset CreatedAt = new(2026, 9, 2, 8, 0, 0, TimeSpan.Zero);
 
     private static readonly Dictionary<string, Func<FlattenedSubmissionRepository, CancellationToken, Task<bool>>> AttemptWrites = new()
@@ -121,7 +123,7 @@ public sealed class FlattenedSubmissionRepositoryTests
         // Act
         var landed = await repository.TryMarkProcessedAsync(
             new FlattenedRevision(TenantId, SubmissionId, Revision: 3, sourceModifiedAt),
-            ProcessedDataJson,
+            ProcessedData,
             cancellationToken);
 
         // Assert
@@ -172,7 +174,7 @@ public sealed class FlattenedSubmissionRepositoryTests
         _clock.UtcNow.Returns(processedAt);
 
         // Act
-        await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedDataJson, cancellationToken);
+        await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedData, cancellationToken);
 
         // Assert
         var persisted = await ReadRowAsync(repository, cancellationToken);
@@ -243,7 +245,7 @@ public sealed class FlattenedSubmissionRepositoryTests
         await repository.TryMarkFailedAsync(WriteOf(revision: 1), "flatten failed", cancellationToken);
 
         // Act
-        var landed = await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedDataJson, cancellationToken);
+        var landed = await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedData, cancellationToken);
 
         // Assert
         landed.Should().BeTrue();
@@ -262,7 +264,7 @@ public sealed class FlattenedSubmissionRepositoryTests
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
         await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
-        await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedDataJson, cancellationToken);
+        await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedData, cancellationToken);
 
         // Act
         var landed = await repository.TryMarkSkippedAsync(WriteOf(revision: 2), cancellationToken);

@@ -12,5 +12,7 @@ internal sealed class FlattenedSubmissionConfigurationPostgreSql : IEntityTypeCo
     {
         builder.Property(x => x.DataJson)
             .HasColumnType("jsonb");
+        builder.Property(x => x.SearchJson)
+            .HasColumnType("jsonb");
     }
 }

@@ -103,6 +103,15 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
         return new RebuildForm(form.Id, await AddDefinitionsAsync(appDb, form, definitionsOldestFirst), SubmissionId: 0);
     }
 
+    /// <summary>A completed real submission, so every compile of its form merges.</summary>
+    public Task<long> AddRealSubmissionAsync(long formId, long formDefinitionId, string jsonData) =>
+        AddSubmissionAsync(Submission.Create(new SubmissionCreateArgs(
+            TenantId: TenantId,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData,
+            IsComplete: true)));
+
     public Task<long> AddTestSubmissionAsync(long formId, long formDefinitionId, string jsonData) =>
         AddSubmissionAsync(Submission.Create(new SubmissionCreateArgs(
             TenantId: TenantId,
@@ -321,6 +330,7 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
             unitOfWork,
             appDb,
             compiler,
+            ReportingTestSchema.SearchCopyFor(reportingDb),
             NullLogger<FormSchemaProcessor>.Instance);
     }
 

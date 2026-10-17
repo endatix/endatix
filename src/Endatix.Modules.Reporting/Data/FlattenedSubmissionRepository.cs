@@ -95,15 +95,14 @@ internal sealed class FlattenedSubmissionRepository(
     }
 
     /// <inheritdoc />
-    public Task<bool> TryMarkProcessedAsync(FlattenedRevision write, string dataJson, CancellationToken cancellationToken)
+    public Task<bool> TryMarkProcessedAsync(FlattenedRevision write, FlattenedRowData data, CancellationToken cancellationToken)
     {
-        Guard.Against.NullOrEmpty(dataJson);
-
         var now = UtcNow;
         return TryWriteAsync(
             write,
             setters => setters
-                .SetProperty(row => row.DataJson, dataJson)
+                .SetProperty(row => row.DataJson, data.DataJson)
+                .SetProperty(row => row.SearchJson, data.SearchJson)
                 .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Processed)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.ProcessedAt, now)
@@ -123,6 +122,7 @@ internal sealed class FlattenedSubmissionRepository(
             write,
             setters => setters
                 .SetProperty(row => row.DataJson, (string?)null)
+                .SetProperty(row => row.SearchJson, (string?)null)
                 .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Skipped)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.ProcessedAt, (DateTime?)null)

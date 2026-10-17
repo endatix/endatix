@@ -1,17 +1,39 @@
 using System.Linq.Expressions;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Data.Querying;
 
 /// <summary>
 /// Shared expression plumbing for provider JSON object-key filters.
-/// Providers only supply how a key is extracted and how text is LIKE-matched.
+/// Providers only supply how a key is extracted, how text is LIKE-matched, and which collation orders text by code
+/// point.
 /// </summary>
+/// <remarks>
+/// Patterns and bounds are passed as query parameters, so each search reuses one plan instead of compiling a new one
+/// per value. Patterns are lowercased: a provider that cannot match without case (SQL Server under a case-sensitive
+/// collation) lowercases the value too.
+/// </remarks>
 public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectKeyFilter
 {
+    private static readonly MethodInfo StringCompareMethod =
+        typeof(string).GetMethod(nameof(string.Compare), [typeof(string), typeof(string)])!;
+
+    private static readonly MethodInfo CollateMethod =
+        typeof(RelationalDbFunctionsExtensions)
+            .GetMethod(nameof(RelationalDbFunctionsExtensions.Collate))!
+            .MakeGenericMethod(typeof(string));
+
     /// <summary>
     /// Whether LIKE patterns must escape SQL Server character-class brackets.
     /// </summary>
     protected abstract bool UsesSqlServerLikeSyntax { get; }
+
+    /// <summary>
+    /// A collation that compares text by code point, so range bounds on ISO dates do not depend on the database's
+    /// collation (which may ignore the hyphens).
+    /// </summary>
+    protected abstract string OrdinalCollation { get; }
 
     /// <summary>
     /// Builds the provider call extracting <paramref name="jsonObjectKey"/> as text.
@@ -19,9 +41,9 @@ public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectK
     protected abstract Expression ExtractKeyText(Expression jsonProperty, string jsonObjectKey);
 
     /// <summary>
-    /// Builds the provider LIKE / ILIKE call for the given text expression.
+    /// Builds the provider case-insensitive LIKE call for the given text expression and lowercased pattern.
     /// </summary>
-    protected abstract Expression MatchesPattern(Expression text, string pattern);
+    protected abstract Expression MatchesPattern(Expression text, Expression lowercasedPattern);
 
     /// <inheritdoc />
     public IQueryable<TEntity> WhereKeyMatches<TEntity>(
@@ -64,6 +86,22 @@ public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectK
     }
 
     /// <inheritdoc />
+    public IQueryable<TEntity> WhereKeyAtLeast<TEntity>(
+        IQueryable<TEntity> source,
+        JsonObjectKeyPath key,
+        string inclusiveLowerBound)
+        where TEntity : class =>
+        WhereKeyCompares(source, key, new KeyBound(inclusiveLowerBound, Expression.GreaterThanOrEqual));
+
+    /// <inheritdoc />
+    public IQueryable<TEntity> WhereKeyBefore<TEntity>(
+        IQueryable<TEntity> source,
+        JsonObjectKeyPath key,
+        string exclusiveUpperBound)
+        where TEntity : class =>
+        WhereKeyCompares(source, key, new KeyBound(exclusiveUpperBound, Expression.LessThan));
+
+    /// <inheritdoc />
     public IOrderedQueryable<TEntity> OrderByKey<TEntity>(
         IQueryable<TEntity> source,
         string jsonPropertyName,
@@ -104,9 +142,37 @@ public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectK
         return source.OrderBy(primarySelector).ThenBy(thenSelector);
     }
 
-    private string BuildPattern(string trimmedSearchText, RelationalTextMatchMode matchMode) =>
-        RelationalLikePattern.BuildPattern(trimmedSearchText, matchMode, UsesSqlServerLikeSyntax);
+    // string.Compare(a, b) against 0 is the form EF translates to a SQL comparison of a and b.
+    private IQueryable<TEntity> WhereKeyCompares<TEntity>(IQueryable<TEntity> source, JsonObjectKeyPath key, KeyBound bound)
+        where TEntity : class
+    {
+        var parameter = Expression.Parameter(typeof(TEntity), "e");
+        var ordinalText = Expression.Call(
+            CollateMethod,
+            Expression.Constant(EF.Functions),
+            ExtractKey(parameter, key.JsonPropertyName, key.JsonObjectKey),
+            Expression.Constant(OrdinalCollation));
+        var compared = Expression.Call(StringCompareMethod, ordinalText, AsParameter(bound.Value));
+        var body = bound.Comparison(compared, Expression.Constant(0));
+
+        return source.Where(Expression.Lambda<Func<TEntity, bool>>(body, parameter));
+    }
+
+    private Expression BuildPattern(string trimmedSearchText, RelationalTextMatchMode matchMode) =>
+        AsParameter(RelationalLikePattern.BuildPattern(
+            trimmedSearchText.ToLowerInvariant(),
+            matchMode,
+            UsesSqlServerLikeSyntax));
+
+    // EF turns a read of a captured value into a query parameter; a constant would be inlined into the SQL.
+    private static Expression AsParameter(string value)
+    {
+        Expression<Func<string>> captured = () => value;
+        return captured.Body;
+    }
 
     private Expression ExtractKey(ParameterExpression parameter, string jsonPropertyName, string jsonObjectKey) =>
         ExtractKeyText(Expression.Property(parameter, jsonPropertyName), jsonObjectKey);
+
+    private sealed record KeyBound(string Value, Func<Expression, Expression, BinaryExpression> Comparison);
 }

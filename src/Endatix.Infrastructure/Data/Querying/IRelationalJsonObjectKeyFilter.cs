@@ -1,7 +1,8 @@
 namespace Endatix.Infrastructure.Data.Querying;
 
 /// <summary>
-/// Filters and orders by a JSON object string key (e.g. Labels->>'default') with provider LIKE semantics.
+/// Filters and orders by a JSON object string key (e.g. Labels->>'default'). Text matches ignore case on every
+/// provider, whatever the database collation.
 /// </summary>
 public interface IRelationalJsonObjectKeyFilter
 {
@@ -42,6 +43,43 @@ public interface IRelationalJsonObjectKeyFilter
         IReadOnlyCollection<string> jsonObjectKeys,
         string trimmedSearchText,
         RelationalTextMatchMode matchMode = RelationalTextMatchMode.Contains)
+        where TEntity : class;
+
+    /// <summary>
+    /// Filters the query to keep rows where the JSON object key text is at or after
+    /// <paramref name="inclusiveLowerBound"/>, compared by code point. Rows without the key are dropped.
+    /// </summary>
+    /// <remarks>
+    /// Meant for ISO dates (<c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH:mm:ss</c>), which sort as text in calendar order.
+    /// </remarks>
+    /// <param name="source">The query to filter.</param>
+    /// <param name="key">The JSON property and the key in it.</param>
+    /// <param name="inclusiveLowerBound">The lowest text kept.</param>
+    /// <returns>The filtered query.</returns>
+    /// <typeparam name="TEntity">The type of the entity to filter.</typeparam>
+    IQueryable<TEntity> WhereKeyAtLeast<TEntity>(
+        IQueryable<TEntity> source,
+        JsonObjectKeyPath key,
+        string inclusiveLowerBound)
+        where TEntity : class;
+
+    /// <summary>
+    /// Filters the query to keep rows where the JSON object key text is before
+    /// <paramref name="exclusiveUpperBound"/>, compared by code point. Rows without the key are dropped.
+    /// </summary>
+    /// <remarks>
+    /// Pass the day after the last one to keep: <c>2026-03-01</c> keeps every value of 28 February, with or without a
+    /// time.
+    /// </remarks>
+    /// <param name="source">The query to filter.</param>
+    /// <param name="key">The JSON property and the key in it.</param>
+    /// <param name="exclusiveUpperBound">The first text no longer kept.</param>
+    /// <returns>The filtered query.</returns>
+    /// <typeparam name="TEntity">The type of the entity to filter.</typeparam>
+    IQueryable<TEntity> WhereKeyBefore<TEntity>(
+        IQueryable<TEntity> source,
+        JsonObjectKeyPath key,
+        string exclusiveUpperBound)
         where TEntity : class;
 
     /// <summary>

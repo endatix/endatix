@@ -2,6 +2,7 @@ using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -58,7 +59,8 @@ internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition.RootElement);
         var localesJson = JsonSerializer.Serialize(locales);
 
-        return new FormSchemaCompileResult(flatteningMapJson, codebookJson, localesJson, merged);
+        return new FormSchemaCompileResult(
+            flatteningMapJson, codebookJson, localesJson, merged, SearchableColumns.In(definition.RootElement, merged, codebookJson));
     }
 
     /// <summary>
@@ -105,8 +107,15 @@ internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
 /// <summary>A schema's stored flattening map and codebook, as JSON.</summary>
 internal sealed record PersistedSchemaJson(string FlatteningMap, string Codebook);
 
+/// <summary>A compiled schema: what is stored, and what the compile derived from it.</summary>
+/// <param name="FlatteningMapJson">The flattening map, as JSON.</param>
+/// <param name="CodebookJson">The codebook, as JSON.</param>
+/// <param name="LocalesJson">The schema's locales, as JSON.</param>
+/// <param name="FlatteningMap">The flattening map.</param>
+/// <param name="SearchableColumns">The columns the search copy may hold, in schema order.</param>
 internal sealed record FormSchemaCompileResult(
     string FlatteningMapJson,
     string CodebookJson,
     string LocalesJson,
-    MergedFormSchema FlatteningMap);
+    MergedFormSchema FlatteningMap,
+    IReadOnlyList<SearchableColumn> SearchableColumns);

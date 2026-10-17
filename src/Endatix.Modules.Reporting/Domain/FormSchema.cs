@@ -14,6 +14,8 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
     public const string EmptyFlatteningMapJson = """{"version":1,"columns":[]}""";
     public const string EmptyCodebookJson = """{"version":1,"locales":["default"],"questions":{},"columns":{},"choiceCatalogs":{}}""";
     public const string EmptyLocalesJson = """["default"]""";
+    /// <summary>The search keys of a form that has none: an empty JSON array.</summary>
+    public const string EmptySearchKeysJson = "[]";
 
     private FormSchema() { }
 
@@ -63,6 +65,19 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
     /// Discovered SurveyJS locales for this form (JSON string array). Replaced on each compile.
     /// </summary>
     public string Locales { get; private set; } = EmptyLocalesJson;
+
+    /// <summary>
+    /// Append-only list of the keys copied into each flattened row's search copy, the only keys answer filters read
+    /// (JSON array of <c>{ key, source, filterType, addedAt }</c>).
+    /// </summary>
+    public string SearchKeys { get; private set; } = EmptySearchKeysJson;
+
+    /// <summary>Replaces the search keys; the caller has applied the append-only and cap rules.</summary>
+    public void UpdateSearchKeys(string searchKeys)
+    {
+        Guard.Against.NullOrWhiteSpace(searchKeys);
+        SearchKeys = searchKeys;
+    }
 
     public void UpdateSchema(
         long formDefinitionRevision,

@@ -43,6 +43,13 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// </summary>
     public string? DataJson { get; private set; }
 
+    /// <summary>
+    /// The search copy of <see cref="DataJson"/>: only the schema's search keys that were answered, text lowercased
+    /// and dates normalised, so answer filters read a small document instead of every answer. Written with
+    /// <see cref="DataJson"/>, and null whenever it is.
+    /// </summary>
+    public string? SearchJson { get; private set; }
+
     /// <summary>Reporting pipeline sync state (source of truth for integration/export readiness).</summary>
     public SubmissionIntegrationState Integration { get; private set; } = null!;
 

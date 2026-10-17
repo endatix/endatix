@@ -102,6 +102,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("SearchJson")
+                        .HasColumnType("json");
+
                     b.Property<DateTime?>("SourceModifiedAt")
                         .HasColumnType("datetime2");
 
@@ -175,6 +178,12 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("SearchKeys")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("json")
+                        .HasDefaultValue("[]");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
