@@ -1,0 +1,35 @@
+[
+  {
+    "id": "full-profile-with-audience",
+    "answers": { "department": "Field sales", "submitter_region": "Northern Europe", "recommend": true },
+    "snapshot": {
+      "schemaVersion": 1,
+      "source": "link",
+      "capturedAt": "2026-10-08T08:00:00Z",
+      "identifier": "CG-000001-01",
+      "variables": { "city": "03. MIDWEST - COLUMBUS" },
+      "values": [
+        { "propertyId": 1, "variableName": "city", "name": "City", "dataType": "text", "value": "03. MIDWEST - COLUMBUS" }
+      ]
+    },
+    "submitterProfile": {
+      "email": "ana@example.com",
+      "department": "Sales",
+      "region": "EMEA",
+      "phone": "+1 555 0100"
+    },
+    "system": { "submitterId": 1001, "submitterDisplayId": "ana" }
+  },
+  {
+    "id": "partial-profile",
+    "answers": { "department": "Support", "recommend": false },
+    "snapshot": null,
+    "submitterProfile": { "email": "bo@example.com" },
+    "system": { "submitterId": 1002, "submitterDisplayId": "bo" }
+  },
+  {
+    "id": "no-profile",
+    "answers": { "department": "Finance" },
+    "snapshot": null
+  }
+]
