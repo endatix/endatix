@@ -101,6 +101,6 @@ internal static class EndatixWebApplicationFactoryConfiguration
 
         builder.UseSetting("Endatix:FeatureFlags:JobsModule", "true");
         builder.UseSetting("Endatix:FeatureFlags:PersonalizationModule", "true");
-        builder.UseSetting("Endatix:FeatureFlags:ReportingModule", "true");
+        // ReportingModule stays off: a test that calls Reporting endpoints opts in with ReportingWebHost.
     }
 }
