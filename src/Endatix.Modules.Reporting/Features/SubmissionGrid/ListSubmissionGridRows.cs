@@ -25,6 +25,10 @@ public sealed record SubmissionGridRowsQuery(long TenantId, ListByFormIdQuery Li
 /// </remarks>
 public sealed class ListSubmissionGridRows(IMediator mediator, IReportingDbContext reportingDbContext)
 {
+    /// <summary>Reads the page and the answers of its rows.</summary>
+    /// <param name="query">The tenant, the list query and the answer columns.</param>
+    /// <param name="cancellationToken">Cancels the reads.</param>
+    /// <returns>The page of rows, or the list's own failure; unauthorized without a tenant.</returns>
     public async Task<Result<Paged<SubmissionGridRow>>> ExecuteAsync(
         SubmissionGridRowsQuery query,
         CancellationToken cancellationToken)

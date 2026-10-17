@@ -59,7 +59,9 @@ public static class SubmissionGridRowStates
 /// </summary>
 public static class SubmissionGridAnswerSources
 {
+    /// <summary>From the submission's prepared row.</summary>
     public const string Prepared = "prepared";
 
+    /// <summary>From the submission's own answers, because its prepared row is not up to date.</summary>
     public const string Raw = "raw";
 }
