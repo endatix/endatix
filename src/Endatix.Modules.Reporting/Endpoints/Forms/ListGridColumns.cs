@@ -59,10 +59,17 @@ public sealed class ListGridColumns(
     }
 }
 
+/// <summary>
+/// Validates the request for the list grid columns endpoint.
+/// </summary>
 public sealed class ListGridColumnsValidator : Validator<ListGridColumnsRequest>
 {
+    /// <summary>The longest locale code the endpoint accepts.</summary>
     public const int LocaleMaxLength = 32;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ListGridColumnsValidator"/> class.
+    /// </summary>
     public ListGridColumnsValidator()
     {
         RuleFor(request => request.FormId)
@@ -73,8 +80,12 @@ public sealed class ListGridColumnsValidator : Validator<ListGridColumnsRequest>
     }
 }
 
+/// <summary>
+/// The request for the list grid columns endpoint.
+/// </summary>
 public sealed class ListGridColumnsRequest
 {
+    /// <summary>The form whose columns to list.</summary>
     public long FormId { get; init; }
 
     /// <summary>The locale of the titles; the default locale when omitted or unknown.</summary>
