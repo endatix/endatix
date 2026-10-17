@@ -54,7 +54,7 @@ public sealed class AddSearchKeyHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
-        await _context.Schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
+        await _context.Schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class AddSearchKeyHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().ContainSingle().Which.ErrorMessage.Should().Be(FormSearchCopy.NotFilterableMessage);
-        await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class AddSearchKeyHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().ContainSingle().Which.ErrorMessage.Should().Be(FormSearchKeys.CapMessage);
-        await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

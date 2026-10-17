@@ -45,7 +45,7 @@ public sealed class RemoveSearchKeyHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
-        await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class RemoveSearchKeyHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
-        await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _context.Schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, TestContext.Current.CancellationToken);
     }
 
     private static RemoveSearchKeyCommand Command(string key) => new(SearchKeyHandlerTestContext.Target(key));

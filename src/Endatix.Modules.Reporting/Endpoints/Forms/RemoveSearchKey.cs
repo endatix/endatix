@@ -50,8 +50,14 @@ public sealed class RemoveSearchKey(IMediator mediator, ITenantContext tenantCon
     }
 }
 
+/// <summary>
+/// Validates the request for the remove search key endpoint.
+/// </summary>
 public sealed class RemoveSearchKeyValidator : Validator<RemoveSearchKeyRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RemoveSearchKeyValidator"/> class.
+    /// </summary>
     public RemoveSearchKeyValidator()
     {
         RuleFor(request => request.FormId)
@@ -63,8 +69,12 @@ public sealed class RemoveSearchKeyValidator : Validator<RemoveSearchKeyRequest>
     }
 }
 
+/// <summary>
+/// The request for the remove search key endpoint.
+/// </summary>
 public sealed class RemoveSearchKeyRequest
 {
+    /// <summary>The form whose search keys to change.</summary>
     public long FormId { get; init; }
 
     /// <summary>The column key, as the columns catalog lists it.</summary>

@@ -53,8 +53,14 @@ public sealed class AddSearchKey(IMediator mediator, ITenantContext tenantContex
     }
 }
 
+/// <summary>
+/// Validates the request for the add search key endpoint.
+/// </summary>
 public sealed class AddSearchKeyValidator : Validator<AddSearchKeyRequest>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AddSearchKeyValidator"/> class.
+    /// </summary>
     public AddSearchKeyValidator()
     {
         RuleFor(request => request.FormId)
@@ -66,8 +72,12 @@ public sealed class AddSearchKeyValidator : Validator<AddSearchKeyRequest>
     }
 }
 
+/// <summary>
+/// The request for the add search key endpoint.
+/// </summary>
 public sealed class AddSearchKeyRequest
 {
+    /// <summary>The form whose search keys to change.</summary>
     public long FormId { get; init; }
 
     /// <summary>The column key, as the columns catalog lists it.</summary>
