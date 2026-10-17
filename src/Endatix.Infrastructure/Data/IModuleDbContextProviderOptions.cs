@@ -12,5 +12,7 @@ namespace Endatix.Infrastructure.Data;
 /// </remarks>
 public interface IModuleDbContextProviderOptions
 {
+    /// <summary>Adds the provider's options to a module context being configured.</summary>
+    /// <param name="optionsBuilder">The module context's options builder.</param>
     void Apply(DbContextOptionsBuilder optionsBuilder);
 }
