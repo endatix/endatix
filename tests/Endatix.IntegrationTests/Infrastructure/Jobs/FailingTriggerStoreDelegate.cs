@@ -1,6 +1,7 @@
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Quartz;
 using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
@@ -12,11 +13,13 @@ internal sealed class TriggerStoreFailures
 {
     private readonly Func<Exception> _failure;
     private int _stores;
+    private int _storesFirst;
 
-    private TriggerStoreFailures(int stores, Func<Exception> failure)
+    private TriggerStoreFailures(int stores, Func<Exception> failure, int storesFirst = 0)
     {
         _stores = stores;
         _failure = failure;
+        _storesFirst = storesFirst;
     }
 
     /// <summary>The failures not yet spent.</summary>
@@ -25,6 +28,17 @@ internal sealed class TriggerStoreFailures
     /// <summary>Stores that fail as they do while the database is unreachable, which the scheduler wraps.</summary>
     public static TriggerStoreFailures DatabaseDown(int stores) =>
         new(stores, () => new TimeoutException("The database did not answer."));
+
+    /// <summary>
+    /// Stores that lose a deadlock to another transaction, as the driver reports it; a PostgreSQL deadlock, which is
+    /// classified by its type, so it stands in on either provider.
+    /// </summary>
+    /// <remarks>
+    /// The first <paramref name="after"/> probe triggers are stored before the first failure, so the attempt that
+    /// fails has already written triggers its rollback must take back.
+    /// </remarks>
+    public static TriggerStoreFailures Deadlocked(int stores, int after = 0) =>
+        new(stores, () => new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected), after);
 
     /// <summary>Stores the scheduler refuses for a reason of its own, which trying again does not change.</summary>
     public static TriggerStoreFailures Rejected(int stores) =>
@@ -37,7 +51,8 @@ internal sealed class TriggerStoreFailures
     public ValueTask<int> FailOrStore(IOperableTrigger trigger, Func<ValueTask<int>> store) =>
         trigger.Key.Group == ProbePayload.JobType && TryConsume() is { } failure ? throw failure : store();
 
-    private Exception? TryConsume() => Interlocked.Decrement(ref _stores) >= 0 ? _failure() : null;
+    private Exception? TryConsume() =>
+        Interlocked.Decrement(ref _storesFirst) < 0 && Interlocked.Decrement(ref _stores) >= 0 ? _failure() : null;
 }
 
 /// <summary>

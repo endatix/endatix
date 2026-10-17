@@ -44,7 +44,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         DateTime? expiresAt = null,
         string? traceId = null)
     {
-        Guard.Against.NullOrWhiteSpace(jobType);
+        GuardJobType(jobType);
         Guard.Against.NullOrWhiteSpace(payloadJson);
         // Every job belongs to a tenant. Zero is the value the tenant context reports when there is
         // no ambient tenant at all, so a row carrying it belongs to nobody rather than to everybody
@@ -89,11 +89,29 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     }
 
     // Refused here, naming the limit, rather than by the database as a truncation error that fails every other job
-    // in the same batch without saying which key was too long.
-    private static string? DedupKeyError(string? dedupKey) =>
-        dedupKey is { Length: > DedupKeyMaxLength }
-            ? $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}."
-            : null;
+    // in the same batch without saying which key was too long. Whether a key may end with a space depends on the
+    // database, so the queue decides that.
+    // A blank key means no key, whatever its length, so it is let through before the length check.
+    private static string? DedupKeyError(string? dedupKey) => dedupKey switch
+    {
+        _ when string.IsNullOrWhiteSpace(dedupKey) => null,
+        { Length: > DedupKeyMaxLength } =>
+            $"A dedup key is at most {DedupKeyMaxLength} characters; this one has {dedupKey.Length}.",
+        _ => null,
+    };
+
+    // SQL Server ignores trailing spaces (U+0020 only) when it compares, so "Export " would be a second name for
+    // "Export".
+    private static void GuardJobType(string jobType)
+    {
+        Guard.Against.NullOrWhiteSpace(jobType);
+        if (EndsWithSpace(jobType))
+        {
+            throw new ArgumentException("A job type cannot end with a space.", nameof(jobType));
+        }
+    }
+
+    private static bool EndsWithSpace(string value) => value[^1] == ' ';
 
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>
     public string JobType { get; private set; } = null!;

@@ -1,5 +1,4 @@
 using Endatix.Modules.Jobs.Runtime;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -48,12 +47,16 @@ public sealed class JobsSchedulerHostedServiceTests
         disposeAgain.Should().NotThrow();
     }
 
-    private static JobsSchedulerHostedService CreateService() =>
-        new(
+    private static JobsSchedulerHostedService CreateService()
+    {
+        var database = new JobStoreDatabase("Host=localhost", IsPostgreSql: true, LocksOnInsert: false);
+        var options = Options.Create(new BackgroundJobsOptions());
+        return new(
             Substitute.For<IServiceProvider>(),
-            new ConfigurationBuilder().Build(),
+            database,
             JobHandlerRegistry.Build([]),
-            Options.Create(new BackgroundJobsOptions()),
+            options,
             new JobsShutdownSignal(),
             NullLogger<JobsSchedulerHostedService>.Instance);
+    }
 }

@@ -71,6 +71,10 @@ public sealed class BackgroundJobsOptions
     /// Whether enqueueing takes the scheduler's cluster-wide trigger lock until its transaction commits. Unset, it is
     /// <c>false</c> on PostgreSQL and <c>true</c> on SQL Server.
     /// </summary>
+    /// <remarks>
+    /// Read from configuration once, when the module registers, because Quartz's store takes it then and cannot change
+    /// it afterwards; a <c>Configure</c> or <c>PostConfigure</c> of these options in code does not change it.
+    /// </remarks>
     public bool? LockOnInsert { get; set; }
 
     // The five global values a job type can also set are null until the host sets them, because one the host sets
