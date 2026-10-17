@@ -11,8 +11,7 @@ public sealed class AddSearchKeyValidatorTests
     [InlineData(1, "q1", true)]
     [InlineData(0, "q1", false)]
     [InlineData(1, "", false)]
-    [InlineData(1, null, false)]
-    public void Validate_FormIdAndKey_IsValidOnlyWithBoth(long formId, string? key, bool expected)
+    public void Validate_FormIdAndKey_IsValidOnlyWithBoth(long formId, string key, bool expected)
     {
         // Arrange
         AddSearchKeyRequest request = new() { FormId = formId, Key = key };
@@ -22,6 +21,19 @@ public sealed class AddSearchKeyValidatorTests
 
         // Assert
         result.IsValid.Should().Be(expected);
+    }
+
+    [Fact]
+    public void Validate_KeyNotSet_IsInvalid()
+    {
+        // Arrange
+        AddSearchKeyRequest request = new() { FormId = 1 };
+
+        // Act
+        var result = _validator.Validate(request);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
     }
 
     [Fact]
@@ -46,7 +58,7 @@ public sealed class RemoveSearchKeyValidatorTests
     [InlineData(1, "q1", true)]
     [InlineData(0, "q1", false)]
     [InlineData(1, "", false)]
-    public void Validate_FormIdAndKey_IsValidOnlyWithBoth(long formId, string? key, bool expected)
+    public void Validate_FormIdAndKey_IsValidOnlyWithBoth(long formId, string key, bool expected)
     {
         // Arrange
         RemoveSearchKeyRequest request = new() { FormId = formId, Key = key };

@@ -49,7 +49,7 @@ internal static class SearchableColumns
         return filterType is null ? null : new SearchableColumn(key, filterType);
     }
 
-    private static string? FilterTypeOf(FormSchemaColumn column, IReadOnlyDictionary<string, JsonElement> questions)
+    private static string? FilterTypeOf(FormSchemaColumn column, Dictionary<string, JsonElement> questions)
     {
         JsonElement? question = questions.TryGetValue(QuestionName(column), out var found) ? found : null;
         return SubmissionGridFilterTypes.Resolve(column, question);
