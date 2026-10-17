@@ -37,12 +37,23 @@ Database schema: `reporting`
 | `FlattenedSubmissions` | Flat submission answers aligned to form schema |
 | `ExportFormats` | Tenant export rows (CSV, JSON, Excel/XLSX, codebook) |
 | `SurveyTypeExportMappings` | Allowed export formats per survey type (with optional default and tenant fallback) |
+| `SubmissionViews` | Saved submissions grid view per tenant + form + owner (`OwnerUserId` `0` = shared form view) |
 
 `FlattenedSubmissions.SubmissionId` is the row key. Backfill and the completion outbox both update that row; they do not insert a second one.
 
 `POST …/reporting/submissions/backfill` pages one scope per call. Omitted `completionScope` is `completed`. `incomplete` flattens drafts. The outbox still skips drafts. A processed row is skipped when the submission's `ModifiedAt ?? CreatedAt` is not newer than the row's `SourceModifiedAt` (the stamp of the version that was flattened), unless `force` is true. The row's own `ModifiedAt` is not used: the worker sets it after reading the submission, so a save during flattening would look older and never be refreshed. Rows without `SourceModifiedAt` (processed before it existed) are reprocessed once. A flatten whose submission is gone removes an existing row only when the submission was soft-deleted in the same tenant and form; otherwise it throws, so the outbox retries and backfill reports it as failed. With background jobs on (`Endatix:Outbox:DeliverToJobQueue`), the flatten job retries instead and then dead-letters. A submission or its form deleted after the flatten read the submission loses the row the flatten wrote, hard-deleted as its deletion sync removes it: whether the row ended processed or skipped, lost to a newer flatten's write, or the flatten failed or was cancelled after marking it processing (its schema gone with the form included). Such a failure then ends the flatten as a success, since there is nothing left to retry; a cancelled flatten still ends cancelled. Export drops soft-deleted submissions.
 
 Flattens of one submission can run out of order, as retries or as jobs, so each write is guarded by `SourceRevision`: the submission's `Revision` the row was written from. A write lands only when the row has no `SourceRevision` or one not newer than the write's, so an older flatten finishing last changes nothing, and a forced rebuild at the same revision still lands. `SourceRevision` orders writes; `SourceModifiedAt` only tells backfill whether a row is stale. A draft's saves raise no events and so share one revision: among them, the last flatten to write wins.
+
+### Saved submissions grid view
+
+`GET forms/{formId}/reporting/submission-view` (`submissions.view`) returns the form's shared view and its `revision`, or `revision` `0` and `{"v":1,"columns":[]}` when nobody saved one. `PUT` (`forms.edit`) takes `{ revision, settings }`: revision `0` creates the view, the current revision replaces it, and any other revision is 409. Both are 404 for a form that is not in the caller's tenant.
+
+- **Settings v1:** `{"v":1,"columns":[{"key","visible","width"}],"pageSize","sort":{"key","direction"}}`. `columns` lists only the columns someone changed, in grid order. Unknown properties are stored as written. Malformed settings, or more than `SubmissionViewSettings.MaxJsonLength` characters, are 400.
+- **Reads drop stale columns.** A column whose key is neither in the form's compiled `FlatteningMap` nor one of the grid's own columns (`SubmissionViewColumns.MetadataKeys`) is left out of the response. The stored row keeps it.
+- **Concurrency.** `Revision` is an EF concurrency token (not `xmin`), and `(TenantId, FormId, OwnerUserId)` is unique. Two saves from the same revision cannot both win: the losing update changes no row and the losing create hits the index; both are 409.
+- **Owner `0`, not `NULL`:** SQL Server allows one `NULL` in a unique index, PostgreSQL many. Personal views will use the user id in the same table.
+- `form.deleted` removes the form's views together with its schema and flattened rows.
 
 ### FormSchema compile modes
 
@@ -97,13 +108,13 @@ Run the commands from the `oss` folder.
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`)
+- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`, `AddSubmissionViews`)
 
   Tenant export formats are rows, not code. Runtime catalog: `DefaultExportFormats.All`
   (`SeedDefaultsAsync` / `tenant.created`). **Existing tenants:** frozen SQL in
   `SeedDefaultExportFormats` — do not generate that migration from the catalog; a new default
   needs a new data migration. **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder`.
-- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`)
+- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`, `AddSubmissionViews`)
 
   One migration creates the schema and, at the end of its `Up()`, seeds the same default formats and CSV default
   mapping for every existing tenant as the PostgreSQL `SeedDefaultExportFormats` migration: frozen T-SQL in `SeedDefaultExportFormatsSqlServerSql`,

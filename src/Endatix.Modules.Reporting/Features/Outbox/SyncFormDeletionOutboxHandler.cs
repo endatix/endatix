@@ -8,11 +8,12 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Modules.Reporting.Features.Outbox;
 
 /// <summary>
-/// Hard-deletes form-scoped Reporting rows when a form is deleted.
+/// Hard-deletes form-scoped Reporting rows when a form is deleted: its schema, flattened submissions and saved grid views.
 /// </summary>
 internal sealed class SyncFormDeletionOutboxHandler(
     IFormSchemaRepository formSchemaRepository,
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
+    ISubmissionViewRepository submissionViewRepository,
     IReportingUnitOfWork unitOfWork,
     ILogger<SyncFormDeletionOutboxHandler> logger) : IOutboxIntegrationEventHandler
 {
@@ -37,19 +38,23 @@ internal sealed class SyncFormDeletionOutboxHandler(
     public async Task ProcessAsync(Input input, long outboxMessageId, CancellationToken cancellationToken)
     {
         var (tenantId, formId) = input;
-        var (schemasDeleted, flattenedDeleted) = await unitOfWork.InTransactionAsync(
-            async () => (
+        var deleted = await unitOfWork.InTransactionAsync(
+            async () => new DeletedRows(
                 await formSchemaRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken),
-                await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken)),
+                await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken),
+                await submissionViewRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken)),
             cancellationToken);
 
         logger.LogInformation(
-            "Cleaned reporting rows for form {FormId} (schemasDeleted={SchemasDeleted}, flattenedDeleted={FlattenedDeleted}, outboxMessageId={OutboxMessageId})",
+            "Cleaned reporting rows for form {FormId} (schemasDeleted={SchemasDeleted}, flattenedDeleted={FlattenedDeleted}, viewsDeleted={ViewsDeleted}, outboxMessageId={OutboxMessageId})",
             formId,
-            schemasDeleted,
-            flattenedDeleted,
+            deleted.Schemas,
+            deleted.Flattened,
+            deleted.Views,
             outboxMessageId);
     }
 
     public sealed record Input(long TenantId, long FormId);
+
+    private sealed record DeletedRows(int Schemas, int Flattened, int Views);
 }
