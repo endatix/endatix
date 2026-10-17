@@ -49,7 +49,7 @@ public sealed class ListSubmissionGridColumnsTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Unauthorized);
-        await _formsRepository.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(default(ISingleResultSpecification<Form>)!, default);
+        await _formsRepository.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(default(ISingleResultSpecification<Form>)!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
