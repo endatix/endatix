@@ -16,6 +16,8 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.SubmitterProfile;
 [Trait("Priority", "P0")]
 public sealed class SubmitterProfileGoldenTests
 {
+    private const string RegenerateGoldensVariable = "ENDATIX_REGENERATE_GOLDENS";
+
     private static readonly JsonSerializerOptions _indented = new() { WriteIndented = true };
 
     internal static readonly SubmitterProfileFields Fields = new(["email", "department", "region"]);
@@ -98,12 +100,15 @@ public sealed class SubmitterProfileGoldenTests
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
     }
 
-    // Manual only: remove Skip, run `dotnet test --filter SubmitterProfileGoldenFixtures_Regenerate`, review the diff of
-    // every file under Fixtures/SubmitterProfile/ by hand, then put Skip back. A golden the pipeline wrote is only as
-    // right as the review it got.
-    [Fact(Skip = "Manual fixture regeneration only")]
+    // Manual only: run `ENDATIX_REGENERATE_GOLDENS=1 dotnet test --filter SubmitterProfileGoldenFixtures_Regenerate`,
+    // then review the diff of every file under Fixtures/SubmitterProfile/ by hand. A golden the pipeline wrote is only
+    // as right as the review it got.
+    [Fact]
     public async Task SubmitterProfileGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles()
     {
+        Assert.SkipUnless(
+            Environment.GetEnvironmentVariable(RegenerateGoldensVariable) == "1",
+            $"Rewrites the committed goldens; set {RegenerateGoldensVariable}=1 to run it.");
         var root = FormSchemaFixtureLoader.SourceSubmitterProfileFixturesRoot;
         var (pipeline, responses) = Flattened();
         var schema = pipeline.Entity();
