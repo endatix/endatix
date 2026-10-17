@@ -31,6 +31,10 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// scan. The group expression here and that index change together: a change to one without the other turns each
 /// group's read into a scan of every waiting trigger.
 /// </para>
+/// <para>
+/// Not sealed so that failure-injection tests can extend its trigger storage (<c>InsertTrigger</c>); acquisition stays
+/// sealed, since its overrides share state that only works together.
+/// </para>
 /// </remarks>
 internal class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
 {
@@ -39,7 +43,7 @@ internal class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
     private const string FreeSlotsParameter = ExecutionGroupAcquisition.FreeSlotsParameter;
 
     /// <inheritdoc />
-    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape) =>
+    protected sealed override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape) =>
         LimitEachGroupToItsFreeSlots(base.GetSelectNextTriggerToAcquireSql(shape), shape.MaxCount);
 
     /// <summary>
@@ -80,14 +84,14 @@ internal class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
     /// Reads the triggers <paramref name="triggerKeys"/> name, giving each trigger of an Endatix job that names no
     /// execution group its job type's group (<see cref="ExecutionGroupAcquisition.WithJobTypeGroups"/>).
     /// </summary>
-    public override async ValueTask<List<IOperableTrigger>> SelectTriggers(
+    public sealed override async ValueTask<List<IOperableTrigger>> SelectTriggers(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default) =>
         ExecutionGroupAcquisition.WithJobTypeGroups(await base.SelectTriggers(conn, triggerKeys, cancellationToken));
 
     /// <inheritdoc />
-    public override ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(
+    public sealed override ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionCriteria criteria,
         CancellationToken cancellationToken = default) =>
@@ -95,7 +99,7 @@ internal class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
             criteria, () => base.SelectTriggersToAcquire(conn, criteria, cancellationToken));
 
     /// <inheritdoc />
-    public override DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
+    public sealed override DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
     {
         var freeSlots = ExecutionGroupAcquisition.FreeSlotsFor(commandText, DriverDelegate);
         var command = base.PrepareCommand(cth, commandText);

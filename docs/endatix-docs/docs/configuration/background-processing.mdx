@@ -155,6 +155,8 @@ These integration events flow through the outbox. The `EventType` column is what
 
 Webhook-mapped events use the same webhook configuration described in the [Webhooks guide](/docs/guides/webhooks): tenant- or form-level endpoints and API key auth. `DeliverToJobQueue` defaults to `false`. Turn it on to deliver each endpoint as its own background job (`Endatix:BackgroundJobs:JobTypes:WebHookDelivery`). Duplicate URLs in one event collapse to one job. A URL that changes after the job is queued ends that job without a call.
 
+Job delivery needs the Background Jobs module (`Endatix:FeatureFlags:JobsModule`), which runs on PostgreSQL and on SQL Server 2025 or later (or Azure SQL Database), in the same database as your data. With the module off, the relay pauses rather than lose messages. On SQL Server, read [Persistence settings](/docs/configuration/settings/persistence-settings) for how enqueueing locks the job scheduler.
+
 The outbox row `Id` is reused as the webhook `X-Endatix-Hook-Id` header so retries and duplicate deliveries are safe for idempotent receivers.
 
 ## Configuration Reference

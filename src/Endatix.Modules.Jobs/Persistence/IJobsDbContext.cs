@@ -11,8 +11,9 @@ namespace Endatix.Modules.Jobs.Persistence;
 /// </summary>
 /// <remarks>
 /// Runtime code depends on this rather than on a concrete context, so nothing outside
-/// <see cref="JobsPersistence"/> branches on the active database provider. Exactly one implementation
-/// — <see cref="JobsPostgreSqlDbContext"/> — is registered at startup.
+/// <see cref="JobsPersistence"/> branches on the active database provider. Exactly one implementation is
+/// registered at startup: <see cref="JobsPostgreSqlDbContext"/> on PostgreSQL, <see cref="JobsSqlServerDbContext"/>
+/// on SQL Server.
 /// </remarks>
 public interface IJobsDbContext : ITenantDbContext
 {

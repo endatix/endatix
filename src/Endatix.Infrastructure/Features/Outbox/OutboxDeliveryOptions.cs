@@ -9,7 +9,7 @@ public sealed class OutboxDeliveryOptions
 
     /// <summary>
     /// Delivers each message by enqueuing one background job per subscriber, instead of running every subscriber
-    /// inside the relay. Needs the Jobs module (PostgreSQL only); with the module off the relay pauses rather than
+    /// inside the relay. Needs the Jobs module; with the module off the relay pauses rather than
     /// lose messages. Every inline outbox handler must have a matching job subscription, or startup fails. Off by
     /// default.
     /// </summary>

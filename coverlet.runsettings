@@ -5,8 +5,10 @@
       <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <!-- Assembly filters: test projects, EF migrations, integration hosts, provider adapters (integration-tested) -->
-          <Exclude>[*.Tests]*,[*]*.Migrations.*,[Endatix.IntegrationTests]*,[Endatix.IntegrationTests.Shared]*,[Endatix.WebHost.IntegrationHost]*,[Endatix.Persistence.SqlServer]*,[Endatix.Persistence.PostgreSql]*,[Endatix.Hosting]*,[Endatix.WebHost]*,[Endatix.Api.Host]*</Exclude>
+          <!-- Assembly filters: test projects and EF migrations. Unit and integration runs share
+               this file. The Coveralls report drops the integration-tested provider adapters
+               and hosts afterwards (reportgenerator -assemblyfilters in ci.yml); SonarCloud keeps them. -->
+          <Exclude>[*.Tests]*,[*]*.Migrations.*,[Endatix.IntegrationTests]*,[Endatix.IntegrationTests.Shared]*</Exclude>
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
           <!-- File filters: tests, build output (source generators), EF migrations, embedded SQL script helpers -->
           <ExcludeByFile>**/tests/**/*.cs,**/obj/**/*.cs,**/Migrations/**/*.cs,**/Scripts/**/*.cs</ExcludeByFile>
