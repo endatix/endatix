@@ -23,6 +23,7 @@ public sealed class MyFlowTests(EndatixIntegrationWebHostFixture fixture)
 }
 ```
 
+- **Reporting endpoints:** the shared host runs with `ReportingModule` off. Open `await using ReportingWebHost host = new(fixture)` in the test and prepare the world on it. Its outbox relay is closed, so trigger Reporting work over HTTP (compile, backfill) rather than wait for outbox handlers.
 - **DB-only** (no host): `DbIntegrationTestCollection` + `DbIntegrationFixture` — see `ReportingQueryFilterTests`.
 - **Provider-specific only when required:** `[Trait("DbSpecific", "PostgreSql")]` or `SqlServer` — e.g. `OutboxCaptureTests`, `SqlServerMigrationArtifactTests`.
 - **Keycloak:** `IClassFixture<KeycloakTestContainerFixture>`, `Category=Keycloak`, `Priority=P2`.
