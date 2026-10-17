@@ -119,7 +119,10 @@ internal static class ReportingTestSchema
         return optionsBuilder.Options;
     }
 
-    private static async Task EnsureCoreMigratedAsync(
+    /// <summary>
+    /// Applies the core migrations, so a test can seed core rows (tenants) before it runs the Reporting migrations.
+    /// </summary>
+    internal static async Task EnsureCoreMigratedAsync(
         string connectionString,
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)

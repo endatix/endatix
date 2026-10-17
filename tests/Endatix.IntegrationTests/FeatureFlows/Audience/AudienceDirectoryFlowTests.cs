@@ -295,8 +295,10 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
         Assert.Empty(person.GetProperty("values").EnumerateObject());
     }
 
-    private Task<IntegrationTestWorld> WorldAsync() =>
-        fixture.PrepareWorldAsync(
+    private Task<IntegrationTestWorld> WorldAsync() => WorldAsync(fixture);
+
+    private static Task<IntegrationTestWorld> WorldAsync(IIntegrationTestHostFixture host) =>
+        host.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword },
             TestContext.Current.CancellationToken);
 
