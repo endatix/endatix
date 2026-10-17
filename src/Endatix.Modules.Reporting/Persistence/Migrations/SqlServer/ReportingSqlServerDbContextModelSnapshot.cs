@@ -105,6 +105,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                     b.Property<string>("SearchJson")
                         .HasColumnType("json");
 
+                    b.Property<int>("SearchKeysRevision")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("SourceModifiedAt")
                         .HasColumnType("datetime2");
 
@@ -184,6 +187,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("json")
                         .HasDefaultValue("[]");
+
+                    b.Property<int>("SearchKeysRevision")
+                        .HasColumnType("int");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");

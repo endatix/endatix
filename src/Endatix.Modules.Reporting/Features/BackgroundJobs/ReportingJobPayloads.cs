@@ -13,6 +13,11 @@ internal sealed record ReportingCompileFormSchemaPayload(long OutboxMessageId) :
     public static string JobType => "ReportingCompileFormSchema";
 }
 
+internal sealed record ReportingRebuildSearchCopyPayload(long OutboxMessageId) : IReportingOutboxJobPayload
+{
+    public static string JobType => "ReportingRebuildSearchCopy";
+}
+
 internal sealed record ReportingFlattenSubmissionPayload(long OutboxMessageId) : IReportingOutboxJobPayload
 {
     public static string JobType => "ReportingFlattenSubmission";

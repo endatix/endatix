@@ -85,6 +85,9 @@ public class FormSchemaProcessorTests
                 new SearchCopyRebuilder(
                     Substitute.For<IReportingDbContext>(),
                     schemaRepository,
-                    NullLogger<SearchCopyRebuilder>.Instance)),
+                    NullLogger<SearchCopyRebuilder>.Instance),
+                new SearchCopyRebuildRequests(
+                    Substitute.For<Endatix.Core.Infrastructure.Domain.IRepository<Endatix.Core.Entities.OutboxMessage>>(),
+                    new DateTimeProvider())),
             NullLogger<FormSchemaProcessor>.Instance);
 }

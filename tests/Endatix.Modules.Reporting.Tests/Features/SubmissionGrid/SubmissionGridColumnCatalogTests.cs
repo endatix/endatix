@@ -1,4 +1,5 @@
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -10,6 +11,9 @@ namespace Endatix.Modules.Reporting.Tests.Features.SubmissionGrid;
 /// </summary>
 public sealed class SubmissionGridColumnCatalogTests
 {
+    private static readonly FormSearchKeyStatus NoSearchKeys = new(FormSearchKeys.Empty, OldestRowRevision: null);
+    private static readonly DateTime AddedAt = new(2026, 10, 16, 0, 0, 0, DateTimeKind.Utc);
+
     [Theory]
     [InlineData("qText", SubmissionGridFilterTypes.Text)]
     [InlineData("qComment", SubmissionGridFilterTypes.Text)]
@@ -26,7 +30,7 @@ public sealed class SubmissionGridColumnCatalogTests
         var schema = CompileAllQuestions();
 
         // Act
-        var columns = SubmissionGridColumnCatalog.Build(schema, "default");
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", NoSearchKeys);
 
         // Assert
         columns.Single(column => column.Key == key).FilterType.Should().Be(expected);
@@ -40,7 +44,7 @@ public sealed class SubmissionGridColumnCatalogTests
         var expectedKeys = FormSchemaFixtureLoader.LoadAllQuestionsExpectedKeys();
 
         // Act
-        var columns = SubmissionGridColumnCatalog.Build(schema, "default");
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", NoSearchKeys);
 
         // Assert
         columns.Select(column => column.Key).Should().Equal(expectedKeys);
@@ -53,7 +57,7 @@ public sealed class SubmissionGridColumnCatalogTests
         var schema = CompileAllQuestions();
 
         // Act
-        var columns = SubmissionGridColumnCatalog.Build(schema, "default");
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", NoSearchKeys);
 
         // Assert
         var indicators = columns.Where(column => column.Kind == nameof(FormSchemaColumnKind.ChoiceIndicator)).ToList();
@@ -71,7 +75,7 @@ public sealed class SubmissionGridColumnCatalogTests
         var schema = CompileAllQuestions();
 
         // Act
-        var columns = SubmissionGridColumnCatalog.Build(schema, locale);
+        var columns = SubmissionGridColumnCatalog.Build(schema, locale, NoSearchKeys);
 
         // Assert
         columns.Single(column => column.Key == "qBoolean").Title.Should().Be(expectedTitle);
@@ -84,7 +88,7 @@ public sealed class SubmissionGridColumnCatalogTests
         var schema = CompileAllQuestions();
 
         // Act
-        var columns = SubmissionGridColumnCatalog.Build(schema, "default");
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", NoSearchKeys);
 
         // Assert
         var panelText = columns.Single(column => column.Key == "qPanelText");
@@ -92,6 +96,53 @@ public sealed class SubmissionGridColumnCatalogTests
         panelText.PageName.Should().Be("page1");
         panelText.PanelTitle.Should().Be("Internal Panel Group");
     }
+
+    [Fact]
+    public void Build_UserKeyNewerThanOldestRow_ReportsSearchablePendingByUser()
+    {
+        // Arrange
+        var schema = CompileAllQuestions();
+        var search = SearchWith(schema, new SearchableColumn("qComment", SubmissionGridFilterTypes.Text), oldestRowRevision: 0);
+
+        // Act
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", search);
+
+        // Assert
+        var comment = columns.Single(column => column.Key == "qComment");
+        (comment.Searchable, comment.SearchPending, comment.SearchSource).Should().Be((true, true, SearchKeySources.User));
+    }
+
+    [Fact]
+    public void Build_RowsRebuiltWithUserKey_ReportsSearchableNotPending()
+    {
+        // Arrange
+        var schema = CompileAllQuestions();
+        var search = SearchWith(schema, new SearchableColumn("qComment", SubmissionGridFilterTypes.Text), oldestRowRevision: 1);
+
+        // Act
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", search);
+
+        // Assert
+        columns.Single(column => column.Key == "qComment").SearchPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Build_ColumnWithoutSearchKey_ReportsNotSearchable()
+    {
+        // Arrange
+        var schema = CompileAllQuestions();
+        var search = SearchWith(schema, new SearchableColumn("qComment", SubmissionGridFilterTypes.Text), oldestRowRevision: 0);
+
+        // Act
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", search);
+
+        // Assert
+        var text = columns.Single(column => column.Key == "qText");
+        (text.Searchable, text.SearchPending, text.SearchSource).Should().Be((false, false, (string?)null));
+    }
+
+    private static FormSearchKeyStatus SearchWith(FormSchemaEntity schema, SearchableColumn userColumn, int oldestRowRevision) =>
+        new(FormSearchKeys.Of(schema).AddUser(userColumn, AddedAt).Value, oldestRowRevision);
 
     private static FormSchemaEntity CompileAllQuestions()
     {

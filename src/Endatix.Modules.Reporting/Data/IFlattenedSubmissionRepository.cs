@@ -44,6 +44,13 @@ public interface IFlattenedSubmissionRepository
     Task<IReadOnlyDictionary<string, int>> CountByStatusAsync(long tenantId, long formId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The oldest <see cref="FlattenedSubmission.SearchKeysRevision"/> among a form's live processed rows with a
+    /// search copy: a search key added after it is still missing from some rows.
+    /// </summary>
+    /// <returns>The revision, or <c>null</c> when the form has no such row.</returns>
+    Task<int?> OldestSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Hard-deletes the flattened submission row for a submission (including soft-deleted rows).
     /// Used when a submission is deleted so the reporting read model does not keep orphans.
     /// </summary>

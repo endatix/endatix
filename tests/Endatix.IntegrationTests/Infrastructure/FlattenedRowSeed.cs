@@ -36,7 +36,7 @@ internal sealed class FlattenedRowSeed(ReportingDbContextBase dbContext)
 
     /// <summary>Creates a row processed with <paramref name="dataJson"/> and an empty search copy.</summary>
     public Task ProcessedAsync(FlattenedSubmissionKey key, string dataJson, CancellationToken cancellationToken) =>
-        ProcessedAsync(key, new FlattenedRowData(dataJson, "{}"), cancellationToken);
+        ProcessedAsync(key, new FlattenedRowData(dataJson, "{}", searchKeysRevision: 0), cancellationToken);
 
     /// <summary>Creates a row processed with <paramref name="data"/>.</summary>
     public async Task ProcessedAsync(FlattenedSubmissionKey key, FlattenedRowData data, CancellationToken cancellationToken)
