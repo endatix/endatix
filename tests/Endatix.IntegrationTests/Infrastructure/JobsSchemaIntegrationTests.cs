@@ -1,5 +1,8 @@
-using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Persistence;
+using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Quartz;
 
 namespace Endatix.IntegrationTests;
 
@@ -10,49 +13,69 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("DbSpecific", "PostgreSql")]
 public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture fixture)
 {
     [Fact]
     public async Task BackgroundJobsTable_AfterMigrations_HasNoResultJsonColumn()
     {
-        // Arrange — a jsonb column and a SELECT of a boolean expression are PostgreSQL's.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, JobsSkipReason.PostgreSqlSpecificSql);
-
-        // The collection fixture starts the host, and with it the migrations, before any test in it
+        // Arrange — the collection fixture starts the host, and with it the migrations, before any test in it
         // runs, so the schema is already in place here.
         var cancellationToken = TestContext.Current.CancellationToken;
+        var jsonType = fixture.Provider == TestDatabaseProvider.PostgreSql ? "jsonb" : "json";
 
         // Act
         var resultColumnExists = await IntegrationDbAssert.SqlRowExistsAsync(
             fixture.Database.ConnectionString,
             fixture.Database.Provider,
-            """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.columns
-                WHERE table_schema = 'jobs'
-                  AND table_name = 'BackgroundJobs'
-                  AND column_name = 'ResultJson')
-            """,
+            BackgroundJobsColumnCount("COLUMN_NAME = 'ResultJson'"),
             cancellationToken);
-
-        var payloadColumnIsJsonb = await IntegrationDbAssert.SqlRowExistsAsync(
+        var payloadColumnIsJson = await IntegrationDbAssert.SqlRowExistsAsync(
             fixture.Database.ConnectionString,
             fixture.Database.Provider,
-            """
-            SELECT (
-                SELECT count(*)
-                FROM information_schema.columns
-                WHERE table_schema = 'jobs'
-                  AND table_name = 'BackgroundJobs'
-                  AND column_name = 'PayloadJson'
-                  AND data_type = 'jsonb') = 1
-            """,
+            BackgroundJobsColumnCount($"COLUMN_NAME = 'PayloadJson' AND DATA_TYPE = '{jsonType}'"),
             cancellationToken);
 
         // Assert — the row carries state only. Handler input stays, because the handler is given it.
         resultColumnExists.Should().BeFalse();
-        payloadColumnIsJsonb.Should().BeTrue();
+        payloadColumnIsJson.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Host_with_jobs_on_creates_the_scheduler_tables_and_starts_the_scheduler()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var schedulerTables = fixture.Provider == TestDatabaseProvider.PostgreSql
+            ? QuartzSchemaScripts.PostgreSqlTableNames()
+            : QuartzSchemaScripts.SqlServerTableNames();
+
+        // Act
+        var scheduler = await fixture.Factory.Services
+            .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
+            .GetScheduler(cancellationToken);
+        List<string> missingTables = [];
+        foreach (var table in schedulerTables)
+        {
+            if (!await IntegrationDbAssert.TableExistsAsync(
+                    fixture.Database.ConnectionString, fixture.Database.Provider, JobsPersistence.Schema, table, cancellationToken))
+            {
+                missingTables.Add(table);
+            }
+        }
+
+        // Assert
+        schedulerTables.Should().NotBeEmpty();
+        missingTables.Should().BeEmpty();
+        scheduler.Status.Should().Be(SchedulerStatus.Running);
+    }
+
+    // Upper-case catalog names, which PostgreSQL folds to its own and SQL Server reads under any collation.
+    private static string BackgroundJobsColumnCount(string condition) =>
+        $"""
+        SELECT count(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = 'jobs'
+          AND TABLE_NAME = 'BackgroundJobs'
+          AND {condition}
+        """;
 }

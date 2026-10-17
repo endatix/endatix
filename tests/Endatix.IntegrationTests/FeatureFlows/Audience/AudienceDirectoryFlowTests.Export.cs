@@ -1,11 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Endatix.Core.Entities;
-using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
@@ -36,7 +32,6 @@ public sealed partial class AudienceDirectoryFlowTests
         // Arrange
         var world = await WorldAsync();
         var api = await AsAsync(world, TestPersona.TenantAdmin);
-        await EnsureTenantSettingsAsync(world);
         using var key = await api.PutKeyAsync("external_id");
         var formId = await api.CreateFormAsync(definition: PersonalizedDefinition());
         var properties = await CreateAudiencePropertiesAsync(api, formId);
@@ -68,19 +63,6 @@ public sealed partial class AudienceDirectoryFlowTests
             "Home city",
             root.GetProperty("columns").GetProperty("audience_city").GetProperty("title").GetProperty("default").GetString());
         Assert.Equal("city", root.GetProperty("personalization").GetProperty("variables").EnumerateObject().First().Name);
-    }
-
-    // Completing a submission raises the Slack handler, which needs the tenant's settings row (#1250).
-    private static async Task EnsureTenantSettingsAsync(IntegrationTestWorld world)
-    {
-        await using var scope = world.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var tenantId = world.Tenants[0].Id;
-        if (!await db.TenantSettings.AnyAsync(row => row.TenantId == tenantId, TestContext.Current.CancellationToken))
-        {
-            db.TenantSettings.Add(new TenantSettings(tenantId));
-            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        }
     }
 
     private static string PersonalizedDefinition() =>

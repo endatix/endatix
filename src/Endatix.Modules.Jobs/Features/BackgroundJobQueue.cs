@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
@@ -7,10 +8,11 @@ using Endatix.Modules.Jobs.Domain;
 using Endatix.Modules.Jobs.Persistence;
 using Endatix.Modules.Jobs.Persistence.Config;
 using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Npgsql;
 using Microsoft.Extensions.Logging.Abstractions;
+using Npgsql;
 
 namespace Endatix.Modules.Jobs.Features;
 
@@ -34,7 +36,7 @@ namespace Endatix.Modules.Jobs.Features;
 /// them, so a failing metrics sink can neither fail the enqueue nor change the ids the caller gets.
 /// </para>
 /// </remarks>
-internal sealed class BackgroundJobQueue(
+internal sealed partial class BackgroundJobQueue(
     IJobsDbContext dbContext,
     IDateTimeProvider dateTimeProvider,
     IJobTriggerScheduler triggerScheduler,
@@ -42,6 +44,8 @@ internal sealed class BackgroundJobQueue(
     ILogger<BackgroundJobQueue>? logger = null) : IBackgroundJobQueue
 {
     private const string DedupKeyIndexName = BackgroundJobProviderConfiguration.DedupKeyIndexName;
+    private const int SqlServerDuplicateKeyInIndex = 2601;
+    private const int SqlServerDuplicateKeyInConstraint = 2627;
 
     // A collision means another enqueue of the same key committed between this one's read and its insert; the
     // next read sees it. More than a few in a row would mean something other than that race.
@@ -66,9 +70,34 @@ internal sealed class BackgroundJobQueue(
         CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(requests);
+        if (requests.Any(request => request is null))
+        {
+            throw new ArgumentNullException(nameof(requests), "A request in the batch is null.");
+        }
+
+        RefuseKeysTheDatabaseCannotTellApart(requests);
 
         return requests.Count == 0 ? [] : await EnqueueWithCollisionRetriesAsync(requests, cancellationToken);
     }
+
+    // A database that ignores trailing spaces when it compares (SQL Server; U+0020 only) holds "k1 " to be "k1" in
+    // its unique index while the lookup here tells them apart, so the enqueue would fail on every retry instead of
+    // returning the job. A database that compares keys as written (PostgreSQL) takes them, as it always has.
+    private void RefuseKeysTheDatabaseCannotTellApart(IReadOnlyList<BackgroundJobRequest> requests)
+    {
+        if (!JobsPersistence.IgnoresTrailingSpacesInKeys(dbContext.Database)
+            || !requests.Any(request => EndsWithSpace(request.DedupKey)))
+        {
+            return;
+        }
+
+        // The key is left out of the message: keys can carry user data.
+        throw new ArgumentException(
+            "A dedup key ends with a space, which SQL Server ignores when it compares keys.", nameof(requests));
+    }
+
+    // A blank key means no key, so it has nothing to compare.
+    private static bool EndsWithSpace(string? dedupKey) => !string.IsNullOrWhiteSpace(dedupKey) && dedupKey[^1] == ' ';
 
     private async Task<IReadOnlyList<long>> EnqueueWithCollisionRetriesAsync(
         IReadOnlyList<BackgroundJobRequest> requests,
@@ -76,9 +105,10 @@ internal sealed class BackgroundJobQueue(
     {
         // A redelivered fan-out races the first delivery's enqueue only in the window between two commits, so a
         // collision the database reports is resolved by reading what won and trying once more.
+        var deadlockRetry = new DeadlockRetry();
         for (var attempt = 1; attempt < MaxCollisionAttempts; attempt++)
         {
-            if (await EnqueueUnlessCollidingAsync(requests, cancellationToken) is { } ids)
+            if (await EnqueueUnlessRacingAsync(requests, deadlockRetry, cancellationToken) is { } ids)
             {
                 return ids;
             }
@@ -88,19 +118,46 @@ internal sealed class BackgroundJobQueue(
         return await EnqueueOnceAsync(requests, cancellationToken);
     }
 
-    /// <summary>The ids, or <see langword="null"/> when another enqueue of a dedup key committed first.</summary>
-    private async Task<IReadOnlyList<long>?> EnqueueUnlessCollidingAsync(
+    /// <summary>
+    /// The ids, or <see langword="null"/> when another enqueue of a dedup key committed first, or lost a deadlock or a
+    /// serialization failure to another transaction for the first time, anywhere in the attempt: inserting the rows,
+    /// storing their triggers and durable jobs, or committing. Either way the transaction rolled back, rows and
+    /// triggers alike, and the next try opens a new one and reads what the other enqueue left.
+    /// </summary>
+    private async Task<IReadOnlyList<long>?> EnqueueUnlessRacingAsync(
         IReadOnlyList<BackgroundJobRequest> requests,
+        DeadlockRetry deadlockRetry,
         CancellationToken cancellationToken)
     {
         try
         {
             return await EnqueueOnceAsync(requests, cancellationToken);
         }
-        catch (DbUpdateException exception) when (IsDedupKeyCollision(exception))
+        catch (Exception exception) when (
+            (exception is DbUpdateException update && IsDedupKeyCollision(update)) || deadlockRetry.TrySpend(exception))
         {
             dbContext.ChangeTracker.Clear();
             return null;
+        }
+    }
+
+    // One retry of a lost deadlock per enqueue: a second is not the race it is for, and is thrown. Two enqueues of the
+    // same dedup keys can each lock one the other needs next, in the dedup index or, with LockOnInsert off, in the
+    // scheduler's trigger tables, whatever order the rows are sent in, since SQL Server's plan picks the order they
+    // reach an index. PostgreSQL reports the same race as a serialization failure at a stricter isolation.
+    private sealed class DeadlockRetry
+    {
+        private bool _spent;
+
+        public bool TrySpend(Exception exception)
+        {
+            if (_spent || !DatabaseFailures.IsLostRace(exception))
+            {
+                return false;
+            }
+
+            _spent = true;
+            return true;
         }
     }
 
@@ -163,15 +220,28 @@ internal sealed class BackgroundJobQueue(
 
     private sealed record DedupRow(long Id, long TenantId, string JobType, string DedupKey);
 
-    private static bool IsDedupKeyCollision(DbUpdateException exception) =>
-        exception.InnerException is PostgresException
-        {
-            SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: DedupKeyIndexName,
-        };
+    /// <summary>Whether the insert failed because another enqueue committed the same dedup key first.</summary>
+    /// <remarks>
+    /// PostgreSQL names the violated index in a field of its own; SQL Server names it only in the message, for a
+    /// duplicate in a unique index (2601) or a unique constraint (2627) alike. The message is in the server's
+    /// language, which quotes the name differently or not at all, so the name is looked for as a whole word.
+    /// </remarks>
+    internal static bool IsDedupKeyCollision(DbUpdateException exception) => exception.InnerException switch
+    {
+        PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: DedupKeyIndexName } => true,
+        // One exception carries every error the batch raised, and the collision need not be the first.
+        SqlException sqlServer => sqlServer.Errors.Cast<SqlError>().Any(error =>
+            error.Number is SqlServerDuplicateKeyInIndex or SqlServerDuplicateKeyInConstraint
+            && DedupKeyIndexNamed().IsMatch(error.Message)),
+        _ => false,
+    };
+
+    [GeneratedRegex($@"\b{DedupKeyIndexName}\b", RegexOptions.CultureInvariant)]
+    private static partial Regex DedupKeyIndexNamed();
 
     private async Task InsertAndScheduleAsync(IReadOnlyList<BackgroundJob> jobs, CancellationToken cancellationToken)
     {
+        await triggerScheduler.PrepareAsync(cancellationToken);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         dbContext.BackgroundJobs.AddRange(jobs);
 
