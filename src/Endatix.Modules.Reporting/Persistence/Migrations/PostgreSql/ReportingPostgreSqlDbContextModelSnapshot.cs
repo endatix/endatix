@@ -250,6 +250,79 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.ToTable("SurveyTypeExportMappings", "reporting");
                 });
 
+            modelBuilder.Entity("Endatix.Modules.Reporting.Persistence.CoreSubmissionRow", b =>
+                {
+                    b.Property<string>("CollectionStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CurrentPage")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("FormDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+                    b.Property<bool>("IsComplete")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsTestSubmission")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("JsonData")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SubmittedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SubmitterDisplayId")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("SubmitterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SubmitterProfileSnapshot")
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.ToTable("Submissions", "public", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Endatix.Modules.Reporting.Domain.SurveyTypeExportMapping", b =>
                 {
                     b.HasOne("Endatix.Modules.Reporting.Domain.ExportFormat", "ExportFormat")
