@@ -8,7 +8,7 @@ namespace Endatix.IntegrationTests.Shared;
 
 /// <summary>
 /// Resets data to a clean baseline using Respawn for PostgreSQL and SQL Server.
-/// Respawner graphs are built once per <see cref="TestDatabaseProvider"/> and reused for each reset.
+/// Respawner graphs are built per <see cref="TestDatabaseProvider"/> and reused until the set of tables changes.
 /// </summary>
 public sealed class DatabaseCheckpoint
 {
@@ -17,11 +17,12 @@ public sealed class DatabaseCheckpoint
     private static readonly string[] _sqlServerSchemas = ["dbo", "identity", "agents", "reporting", "jobs", "audience"];
 
     private readonly SemaphoreSlim _init = new(1, 1);
-    private readonly Dictionary<TestDatabaseProvider, Respawner> _respawners = [];
+    private readonly Dictionary<TestDatabaseProvider, (Respawner Respawner, int TableCount)> _respawners = [];
 
     /// <summary>
     /// Resets all tracked tables to an empty state using Respawn.
-    /// On first call per provider it lazily initialises the <see cref="Respawner"/>.
+    /// The <see cref="Respawner"/> is built lazily and rebuilt whenever the number of tracked tables changes,
+    /// so a reset that ran before a migration does not freeze a graph without the migrated tables.
     /// </summary>
     public async Task ResetAsync(
         string connectionString,
@@ -45,30 +46,26 @@ public sealed class DatabaseCheckpoint
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)
     {
-        if (_respawners.TryGetValue(provider, out var existing))
-        {
-            return existing;
-        }
-
         await _init.WaitAsync(cancellationToken);
         try
         {
-            if (_respawners.TryGetValue(provider, out existing))
-            {
-                return existing;
-            }
-
-            if (!await HasResettableTablesAsync(connection, provider, cancellationToken))
+            var tableCount = await CountResettableTablesAsync(connection, provider, cancellationToken);
+            if (tableCount == 0)
             {
                 return null;
+            }
+
+            if (_respawners.TryGetValue(provider, out var existing) && existing.TableCount == tableCount)
+            {
+                return existing.Respawner;
             }
 
             try
             {
                 var respawner = await Respawner.CreateAsync(
                     connection,
-                    BuildOptions(provider, await JobSchedulerTablesAsync(connection, provider, cancellationToken)));
-                _respawners[provider] = respawner;
+                    BuildOptions(provider, await KeptTablesAsync(connection, provider, cancellationToken)));
+                _respawners[provider] = (respawner, tableCount);
                 return respawner;
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("No tables found", StringComparison.Ordinal))
@@ -82,42 +79,38 @@ public sealed class DatabaseCheckpoint
         }
     }
 
-    private static async Task<bool> HasResettableTablesAsync(
+    // SQL Server's own tables are left out: the Testcontainers connection string points at master, whose dbo
+    // schema ships with tables such as spt_monitor before any migration has run.
+    private static async Task<int> CountResettableTablesAsync(
         DbConnection connection,
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)
     {
-        var schemas = provider switch
+        var sql = provider switch
         {
-            TestDatabaseProvider.PostgreSql => _postgresSchemas,
-            TestDatabaseProvider.SqlServer => _sqlServerSchemas,
-            _ => throw new ArgumentOutOfRangeException(nameof(provider))
+            TestDatabaseProvider.PostgreSql => $"""
+                SELECT count(*)::int
+                FROM information_schema.tables
+                WHERE table_type = 'BASE TABLE'
+                  AND table_schema IN ({QuotedSchemas(_postgresSchemas)})
+                  AND table_name <> '__EFMigrationsHistory'
+                """,
+            TestDatabaseProvider.SqlServer => $"""
+                SELECT count(*)
+                FROM sys.tables
+                WHERE is_ms_shipped = 0
+                  AND SCHEMA_NAME(schema_id) IN ({QuotedSchemas(_sqlServerSchemas)})
+                  AND name <> '__EFMigrationsHistory'
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
-
-        var quotedSchemas = string.Join(", ", schemas.Select(s => $"'{s}'"));
-        var sql = provider == TestDatabaseProvider.PostgreSql
-            ? $"""
-               SELECT EXISTS (
-                 SELECT 1
-                 FROM information_schema.tables
-                 WHERE table_schema IN ({quotedSchemas})
-                   AND table_name <> '__EFMigrationsHistory'
-               )
-               """
-            : $"""
-               SELECT CASE WHEN EXISTS (
-                 SELECT 1
-                 FROM INFORMATION_SCHEMA.TABLES
-                 WHERE TABLE_SCHEMA IN ({quotedSchemas})
-                   AND TABLE_NAME <> '__EFMigrationsHistory'
-               ) THEN 1 ELSE 0 END
-               """;
 
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return result is bool b ? b : (int?)result == 1;
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
     }
+
+    private static string QuotedSchemas(string[] schemas) => string.Join(", ", schemas.Select(s => $"'{s}'"));
 
     private static DbConnection CreateConnection(string connectionString, TestDatabaseProvider provider) =>
         provider switch
@@ -127,11 +120,12 @@ public sealed class DatabaseCheckpoint
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
 
-    // The job scheduler's own tables. A running host's scheduler keeps its check-in, locks and durable jobs
-    // there, so wiping them under it would break the host rather than reset data; triggers left behind by an
-    // earlier test point at job rows that no longer exist and fire into nothing. They are read from the
-    // database, because the migration takes them from whichever Quartz version is referenced.
-    private static async Task<Table[]> JobSchedulerTablesAsync(
+    // Tables a reset leaves alone. The job scheduler's own tables: a running host's scheduler keeps its check-in,
+    // locks and durable jobs there, so wiping them under it would break the host rather than reset data; triggers
+    // left behind by an earlier test point at job rows that no longer exist and fire into nothing. They are read
+    // from the database, because the migration takes them from whichever Quartz version is referenced. On SQL
+    // Server also its own shipped tables (master's dbo.spt_*), which are not test data.
+    private static async Task<Table[]> KeptTablesAsync(
         DbConnection connection,
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)
@@ -140,14 +134,15 @@ public sealed class DatabaseCheckpoint
         command.CommandText = provider switch
         {
             TestDatabaseProvider.PostgreSql => """
-                SELECT table_name
+                SELECT table_schema, table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'jobs' AND table_name LIKE 'qrtz\_%'
                 """,
             TestDatabaseProvider.SqlServer => """
-                SELECT TABLE_NAME
-                FROM INFORMATION_SCHEMA.TABLES
-                WHERE TABLE_SCHEMA = 'jobs' AND TABLE_NAME LIKE 'qrtz[_]%'
+                SELECT SCHEMA_NAME(schema_id), name
+                FROM sys.tables
+                WHERE (SCHEMA_NAME(schema_id) = 'jobs' AND name LIKE 'qrtz[_]%')
+                   OR is_ms_shipped = 1
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
@@ -156,13 +151,13 @@ public sealed class DatabaseCheckpoint
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            tables.Add(new Table("jobs", reader.GetString(0)));
+            tables.Add(new Table(reader.GetString(0), reader.GetString(1)));
         }
 
         return [.. tables];
     }
 
-    private static RespawnerOptions BuildOptions(TestDatabaseProvider provider, Table[] jobSchedulerTables)
+    private static RespawnerOptions BuildOptions(TestDatabaseProvider provider, Table[] keptTables)
     {
         var schemas = provider switch
         {
@@ -179,7 +174,7 @@ public sealed class DatabaseCheckpoint
         return new RespawnerOptions
         {
             SchemasToInclude = schemas,
-            TablesToIgnore = [.. migrationsHistoryTables, .. jobSchedulerTables]
+            TablesToIgnore = [.. migrationsHistoryTables, .. keptTables]
         };
     }
 }

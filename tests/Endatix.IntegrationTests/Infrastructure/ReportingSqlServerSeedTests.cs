@@ -29,6 +29,9 @@ public sealed class ReportingSqlServerSeedTests(DbIntegrationFixture fixture)
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
+        // Core first, then the reset: the Reporting seed migration reads Tenants, nothing else migrates core when this
+        // runs alone, and the reset clears what the core migration seeds.
+        await ReportingTestSchema.EnsureCoreMigratedAsync(fixture.ConnectionString, fixture.Provider, cancellationToken);
         await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, cancellationToken);
         await IntegrationTenants.InsertAsync(fixture.Database, cancellationToken);
 
@@ -49,6 +52,9 @@ public sealed class ReportingSqlServerSeedTests(DbIntegrationFixture fixture)
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
+        // Core first, then the reset: the Reporting seed migration reads Tenants, nothing else migrates core when this
+        // runs alone, and the reset clears what the core migration seeds.
+        await ReportingTestSchema.EnsureCoreMigratedAsync(fixture.ConnectionString, fixture.Provider, cancellationToken);
         await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, cancellationToken);
         await IntegrationTenants.InsertAsync(fixture.Database, cancellationToken);
         await IntegrationTenants.InsertDeletedAsync(fixture.Database, cancellationToken);
