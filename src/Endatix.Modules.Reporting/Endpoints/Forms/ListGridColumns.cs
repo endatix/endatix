@@ -65,9 +65,6 @@ public sealed class ListGridColumns(
 /// </summary>
 public sealed class ListGridColumnsValidator : Validator<ListGridColumnsRequest>
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ListGridColumnsValidator"/> class.
-    /// </summary>
     public ListGridColumnsValidator()
     {
         RuleFor(request => request.FormId)
