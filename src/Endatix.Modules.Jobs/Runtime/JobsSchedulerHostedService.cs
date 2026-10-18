@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -247,7 +248,7 @@ internal sealed class JobsSchedulerHostedService(
         }
 
         ExceptionDispatchInfo.Throw(aborted);
-        return StartResult.Started; // Not reached: Throw does not return.
+        throw new UnreachableException();
     }
 
     private StartResult Contended(Exception lostRace)
