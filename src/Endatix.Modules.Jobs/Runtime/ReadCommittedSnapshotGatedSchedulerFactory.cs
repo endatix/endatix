@@ -21,7 +21,9 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// once it has ended starts a fresh one. A build runs for whoever asked first and for everyone who asked meanwhile, so
 /// no caller's cancellation cancels it; a caller that is cancelled only stops waiting for it. It runs on the factory's
 /// own token instead, cancelled when the host starts stopping or the factory is disposed, so it never outlives the
-/// host, and a failure nobody is left waiting for is logged at Debug rather than left unobserved. A build that fails, as one does while
+/// host; on a node whose scheduler was never built, every <see cref="GetScheduler"/> after that, and so every enqueue,
+/// fails at once with a cancellation. Every failed build is logged at Debug, so one nobody is left waiting for is
+/// still observed. A build that fails, as one does while
 /// the database is away, leaves Quartz holding a scheduler it has shut down, which it refuses to hand out or build
 /// again; until a build succeeds, the next one is therefore a <see cref="ISchedulerRuntime.Restart"/>, which builds
 /// another from the same registration. So no caller, the hosted service's start, an enqueue or the dashboard, can
@@ -36,8 +38,9 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
     ReadCommittedSnapshotRequirement readCommittedSnapshot) : ISchedulerFactory, IDisposable
 {
     private readonly Lock _gate = new();
-    private readonly CancellationTokenSource _disposed = new();
     private CancellationTokenSource? _building;
+    private ILogger? _logger;
+    private bool _disposed;
     private Task<IScheduler>? _build;
     private volatile bool _built;
     private bool _buildFailed;
@@ -80,23 +83,41 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
         return await shipped.LookupScheduler(schedulerName, cancellationToken);
     }
 
+    /// <summary>
+    /// Cancels a build under way and releases its token, and with it the registration on the host's stopping. Taken
+    /// under the same lock as a new build, so none can create a token after this has run; safe to call more than once.
+    /// </summary>
     public void Dispose()
     {
-        _disposed.Cancel();
-        _building?.Dispose();
-        _disposed.Dispose();
+        CancellationTokenSource? building;
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            building = _building;
+            _building = null;
+        }
+
+        building?.Cancel();
+        building?.Dispose();
     }
 
     // The build under way, or a new one when none is.
+    /// <exception cref="ObjectDisposedException">The factory has been disposed.</exception>
     private Task<IScheduler> SharedBuild()
     {
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_build is null)
             {
                 _build = BuildOnceAsync(Building());
                 _ = _build.ContinueWith(
-                    LogUnobservedFailure,
+                    LogFailure,
                     CancellationToken.None,
                     TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
                     TaskScheduler.Default);
@@ -107,19 +128,29 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
     }
 
     // The factory's own token: no caller's, since a build runs for every caller waiting on it, but the host's, so a
-    // build never outlives it. Linked once the container is built, which the host's lifetime needs.
+    // build never outlives it. Created under the lock, with the logger, once the container is built, which the host's
+    // lifetime needs; the logger is taken now, since the container may be gone by the time a build fails.
     private CancellationToken Building()
     {
+        _logger ??= services.GetService<ILogger<ReadCommittedSnapshotGatedSchedulerFactory>>();
         _building ??= CancellationTokenSource.CreateLinkedTokenSource(
-            _disposed.Token,
             services.GetService<IHostApplicationLifetime>()?.ApplicationStopping ?? CancellationToken.None);
         return _building.Token;
     }
 
-    // Every caller may have stopped waiting by the time a build fails; its failure is seen here all the same.
-    private void LogUnobservedFailure(Task<IScheduler> build) =>
-        services.GetService<ILogger<ReadCommittedSnapshotGatedSchedulerFactory>>()?.LogDebug(
-            build.Exception, "Building the background jobs scheduler failed");
+    // Every caller may have stopped waiting by the time a build fails; its failure is seen here all the same. A log that
+    // has been disposed with the host says nothing, rather than leave an exception nobody observes.
+    private void LogFailure(Task<IScheduler> build)
+    {
+        try
+        {
+            _logger?.LogDebug(build.Exception, "Building the background jobs scheduler failed");
+        }
+        catch (ObjectDisposedException)
+        {
+            // The host is gone, and its log with it.
+        }
+    }
 
     // Its first step yields, so it is published as the build under way before it can end and clear itself.
     private async Task<IScheduler> BuildOnceAsync(CancellationToken cancellationToken)

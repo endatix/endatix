@@ -171,6 +171,44 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     }
 
     [Fact]
+    public void Dispose_Twice_DoesNotThrow()
+    {
+        // Arrange — the container disposes the factory, and a test or host may dispose it again.
+        var factory = Factory();
+        factory.Dispose();
+
+        // Act
+        var disposeAgain = factory.Dispose;
+
+        // Assert
+        disposeAgain.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task Dispose_DuringASharedRebuild_CancelsItReleasesItsTokenAndRefusesNewBuilds()
+    {
+        // Arrange
+        var rebuilding = new TaskCompletionSource<IScheduler>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
+        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
+            .Returns(_ => new ValueTask<IScheduler>(rebuilding.Task));
+        var factory = Factory();
+        await FirstBuildFailsAsync(factory);
+        _ = SchedulerOfAsync(factory, Ct);
+        await RestartsAsync(1);
+
+        // Act
+        factory.Dispose();
+        var buildAfterwards = () => factory.GetScheduler(Ct).AsTask();
+
+        // Assert — the build was told to stop, no token source is left to leak, and none is made after.
+        RestartToken().IsCancellationRequested.Should().BeTrue();
+        BuildingTokenSource(factory).Should().BeNull();
+        await buildAfterwards.Should().ThrowAsync<ObjectDisposedException>();
+        BuildingTokenSource(factory).Should().BeNull();
+    }
+
+    [Fact]
     public async Task GetScheduler_AfterASuccessfulBuild_NeverRestarts()
     {
         // Arrange — built once, then shut down by the host stopping: Quartz's refusal stands.
@@ -226,6 +264,12 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         // Every caller has had its turn to start a build of its own, had it been allowed one.
         await Task.Delay(50, Ct);
     }
+
+    // The factory's own token source, read where it is kept: whether one is left over is not visible otherwise.
+    private static object? BuildingTokenSource(ReadCommittedSnapshotGatedSchedulerFactory factory) =>
+        typeof(ReadCommittedSnapshotGatedSchedulerFactory)
+            .GetField("_building", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(factory);
 
     private CancellationToken RestartToken() =>
         (CancellationToken)_runtime.ReceivedCalls()
