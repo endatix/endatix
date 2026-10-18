@@ -1,6 +1,7 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Common.Translations;
 using Endatix.Modules.Reporting.Domain.SurveyJs;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using FastEndpoints;
@@ -64,9 +65,6 @@ public sealed class ListGridColumns(
 /// </summary>
 public sealed class ListGridColumnsValidator : Validator<ListGridColumnsRequest>
 {
-    /// <summary>The longest locale code the endpoint accepts.</summary>
-    public const int LocaleMaxLength = 32;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="ListGridColumnsValidator"/> class.
     /// </summary>
@@ -76,7 +74,7 @@ public sealed class ListGridColumnsValidator : Validator<ListGridColumnsRequest>
             .GreaterThan(0);
 
         RuleFor(request => request.Locale)
-            .MaximumLength(LocaleMaxLength);
+            .MaximumLength(IHasTranslations.MAX_CULTURE_CODE_LENGTH);
     }
 }
 
