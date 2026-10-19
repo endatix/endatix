@@ -37,7 +37,7 @@ internal sealed class SearchKeyHandlerTestContext
         var compiled = new FormSchemaCompiler().CompilePersisted(definition);
         FormSchemaEntity schema = new(SampleData.TENANT_ID, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
         var keys = FormSearchKeys.Empty.Refresh(
-            new SearchKeysCompile(compiled.SearchableColumns, new HashSet<string>(), new HashSet<string>()),
+            new SearchKeysCompile(compiled.SearchableColumns, new HashSet<string>()),
             DateTime.UtcNow);
         schema.UpdateSearchKeys(keys.ToJson(), keys.Revision);
         Schemas.LockAndGetByFormIdAsync(SampleData.TENANT_ID, FormId, Arg.Any<CancellationToken>()).Returns(schema);

@@ -133,7 +133,7 @@ public sealed class FormSearchKeysTests
     {
         // Arrange
         var searchable = Searchable(2);
-        SearchKeysCompile compile = new(searchable, Keys(searchable), Keys(searchable));
+        SearchKeysCompile compile = new(searchable, Keys(searchable));
 
         // Act
         var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
@@ -149,7 +149,7 @@ public sealed class FormSearchKeysTests
         // Arrange
         var existing = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(2)), Earlier), "q002");
         var searchable = Searchable(3);
-        SearchKeysCompile compile = new(searchable, Keys(searchable), Keys(Searchable(2)));
+        SearchKeysCompile compile = new(searchable, Keys(Searchable(2)));
 
         // Act
         var refresh = existing.Refresh(compile, Now);
@@ -274,6 +274,47 @@ public sealed class FormSearchKeysTests
         needed.Should().Be(0);
     }
 
+    [Fact]
+    public void Refresh_UserKeyOnReadOnlyQuestionWhoseFilterChanged_TakesTheNewOneAtTheNextRevision()
+    {
+        // Arrange
+        var existing = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier), "r001");
+        List<SearchableColumn> searchable = [Column("q001"), new("r001", SubmissionGridFilterTypes.Date, Automatic: false)];
+
+        // Act
+        var refresh = existing.Refresh(Compile(searchable), Now);
+
+        // Assert
+        refresh.Find("r001").Should().Be(new SearchKey("r001", SearchKeySources.User, SubmissionGridFilterTypes.Date, Now, refresh.Revision));
+        refresh.Revision.Should().Be(existing.Revision + 1);
+    }
+
+    [Fact]
+    public void Refresh_KeyNoFilterSupportsAnyMore_IsDropped()
+    {
+        // Arrange
+        var existing = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier), "r001");
+
+        // Act
+        var refresh = existing.Refresh(Compile(Searchable(1)), Now);
+
+        // Assert
+        refresh.Keys.Select(key => key.Key).Should().Equal("q001");
+    }
+
+    [Fact]
+    public void Refresh_ReadOnlyColumn_IsNotChosenAutomatically()
+    {
+        // Arrange
+        List<SearchableColumn> searchable = [Column("q001"), new("r001", SubmissionGridFilterTypes.Text, Automatic: false)];
+
+        // Act
+        var refresh = FormSearchKeys.Empty.Refresh(Compile(searchable), Now);
+
+        // Assert
+        refresh.Keys.Select(key => key.Key).Should().Equal("q001");
+    }
+
     private static FormSearchKeys WithUserKeys(FormSearchKeys keys, params string[] names) =>
         names.Aggregate(keys, (current, name) => current.AddUser(Column(name), Now).Value);
 
@@ -287,7 +328,7 @@ public sealed class FormSearchKeysTests
         keys.Refresh(compile, at);
 
     private static SearchKeysCompile Compile(IReadOnlyList<SearchableColumn> searchable) =>
-        new(searchable, searchable.Select(column => column.Key).ToHashSet(), new HashSet<string>());
+        new(searchable, new HashSet<string>());
 
     private static List<SearchableColumn> Searchable(int count) => Names(count).Select(Column).ToList();
 

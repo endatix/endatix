@@ -72,13 +72,15 @@ internal sealed class FormSearchKeys
     }
 
     /// <summary>
-    /// The keys after a compile: those whose column is gone are dropped, a key whose filter changed takes the new one,
-    /// and searchable columns are appended while the automatic slots last. The revision moves forward when existing
+    /// The keys after a compile: those whose column is gone, or that no answer filter supports any more, are dropped; a
+    /// key whose filter changed takes the new one, whoever chose it; and columns the compile may choose are appended
+    /// while the automatic slots last. The revision moves forward when existing
     /// rows need a value they were not written with: a key added for a column they hold, or a changed filter.
     /// </summary>
     public FormSearchKeys Refresh(SearchKeysCompile compile, DateTime now)
     {
-        var kept = Keys.Where(key => compile.ColumnKeys.Contains(key.Key)).ToList();
+        var filterable = compile.Searchable.Select(column => column.Key).ToHashSet(StringComparer.Ordinal);
+        var kept = Keys.Where(key => filterable.Contains(key.Key)).ToList();
         var current = kept.Select(key => WithCurrentFilterType(key, compile)).ToList();
         var added = Appendable(current, compile, now);
         var rowsHoldStaleValues = !current.SequenceEqual(kept) ||
@@ -144,15 +146,12 @@ internal sealed class FormSearchKeys
         var held = kept.Select(key => key.Key).ToHashSet(StringComparer.Ordinal);
 
         return compile.Searchable
-            .Where(column => !held.Contains(column.Key))
+            .Where(column => column.Automatic && !held.Contains(column.Key))
             .Take(Math.Max(freeSlots, 0))
             .Select(column => new SearchKey(column.Key, SearchKeySources.Auto, column.FilterType, now))
             .ToList();
     }
 }
 
-/// <summary>What a compile tells the search keys: the columns it can search, and the schema's keys after and before it.</summary>
-internal sealed record SearchKeysCompile(
-    IReadOnlyList<SearchableColumn> Searchable,
-    IReadOnlySet<string> ColumnKeys,
-    IReadOnlySet<string> PreviousColumnKeys);
+/// <summary>What a compile tells the search keys: the columns an answer filter can read, and the schema's keys before it.</summary>
+internal sealed record SearchKeysCompile(IReadOnlyList<SearchableColumn> Searchable, IReadOnlySet<string> PreviousColumnKeys);

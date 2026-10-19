@@ -33,7 +33,7 @@ public sealed class SearchableColumnsTests
     }
 
     [Fact]
-    public void CompilePersisted_ReadOnlyQuestion_IsNotSearchable()
+    public void CompilePersisted_ReadOnlyQuestion_IsNotChosenAutomatically()
     {
         // Arrange
         const string definition = """
@@ -52,7 +52,7 @@ public sealed class SearchableColumnsTests
         var searchable = new FormSchemaCompiler().CompilePersisted(definition).SearchableColumns;
 
         // Assert
-        searchable.Select(column => column.Key).Should().Equal("company");
+        searchable.Where(column => column.Automatic).Select(column => column.Key).Should().Equal("company");
     }
 
     [Fact]

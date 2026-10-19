@@ -11,9 +11,10 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// The columns of a compiled schema that can go into its search copy, in schema order.
 /// </summary>
 /// <remarks>
-/// A column is searchable when the submissions grid has a filter for it and its question is not read-only in the
-/// definition: a read-only question is filled by the form, not by the respondent. A question inside a read-only page
-/// or panel is read-only too.
+/// A column can go into the search copy when the submissions grid has a filter for it. The compile chooses it on its
+/// own only when its question is not read-only in the definition (<see cref="SearchableColumn.Automatic"/>): a
+/// read-only question is filled by the form, not by the respondent, though a person may still choose it. A question
+/// inside a read-only page or panel is read-only too.
 /// </remarks>
 internal static class SearchableColumns
 {
@@ -27,9 +28,9 @@ internal static class SearchableColumns
         foreach (var column in schema.Columns)
         {
             var filterType = FilterTypeOf(column, questions);
-            if (filterType is not null && !readOnly.Contains(QuestionName(column)))
+            if (filterType is not null)
             {
-                searchable.Add(new SearchableColumn(column.Key, filterType));
+                searchable.Add(new SearchableColumn(column.Key, filterType, !readOnly.Contains(QuestionName(column))));
             }
         }
 

@@ -23,7 +23,7 @@ internal sealed class FormSearchCopy(
         IReadOnlySet<string> previousColumns = existing is null
             ? new HashSet<string>(StringComparer.Ordinal)
             : ColumnKeys(FormSchemaFlatteningMap.FromJson(existing.FlatteningMap));
-        SearchKeysCompile compile = new(compiled.SearchableColumns, ColumnKeys(compiled.FlatteningMap), previousColumns);
+        SearchKeysCompile compile = new(compiled.SearchableColumns, previousColumns);
 
         var searchKeys = existing is null ? FormSearchKeys.Empty : FormSearchKeys.Of(existing);
         return searchKeys.Refresh(compile, dateTimeProvider.UtcNow.UtcDateTime);
