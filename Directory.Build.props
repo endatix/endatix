@@ -58,6 +58,8 @@
         <LangVersion>14</LangVersion>
         <NeutralLanguage>en-US</NeutralLanguage>
         <Nullable>enable</Nullable>
+        <!-- SonarCloud imports nullable warnings from the build; a new one fails it instead. -->
+        <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>

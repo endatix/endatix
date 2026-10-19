@@ -245,7 +245,7 @@ public class ReplaceDataListItemsHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e => e.Identifier.StartsWith("EnsureLocales."));
+        result.ValidationErrors.Should().Contain(e => e.Identifier!.StartsWith("EnsureLocales."));
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<DataList>(), Arg.Any<CancellationToken>());
     }
 
