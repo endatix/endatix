@@ -48,7 +48,7 @@ public sealed class SubmitterResolverTests
         resolution.SubmitterId.Should().BeNull();
         resolution.DisplayId.Should().BeNull();
         resolution.ProfileSnapshot.Should().BeNull();
-        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -67,8 +67,8 @@ public sealed class SubmitterResolverTests
 
         // Assert
         resolution.SubmitterId.Should().BeNull();
-        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
-        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, Arg.Any<CancellationToken>());
+        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -109,8 +109,8 @@ public sealed class SubmitterResolverTests
         resolution.SubmitterId.Should().Be(existingSubmitterId);
         resolution.DisplayId.Should().Be("display-id");
         resolution.ProfileSnapshot.Should().Be("{\"email\":\"a@b.com\"}");
-        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
-        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+        await _repository.DidNotReceiveWithAnyArgs().AddAsync(default!, Arg.Any<CancellationToken>());
+        await _repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
