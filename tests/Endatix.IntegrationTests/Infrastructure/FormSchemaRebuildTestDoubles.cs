@@ -25,7 +25,6 @@ internal abstract class ForwardingSchemas(IFormSchemaRepository inner) : IFormSc
         inner.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
 }
 
-/// <summary>Reads the schema as it was at an earlier moment, as a flatten that read it before a change commits.</summary>
 internal sealed class SchemaAsRead(IFormSchemaRepository inner, FormSchema schemaAsRead) : ForwardingSchemas(inner)
 {
     public override Task<FormSchema?> GetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>

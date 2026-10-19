@@ -323,7 +323,6 @@ internal sealed class FormSchemaProcessor(
 
     private sealed record CompileTarget(long TenantId, long FormId, long FormDefinitionId);
 
-    /// <summary>How the schema was saved.</summary>
     private sealed record SavedSchema(FormSchemaCompileMode Mode);
 
     private sealed record DefinitionSource(string Json, IReadOnlyList<FormSchemaColumn> Columns);

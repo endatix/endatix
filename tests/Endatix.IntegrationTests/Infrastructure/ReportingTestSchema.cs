@@ -94,10 +94,6 @@ internal static class ReportingTestSchema
     internal static ITransactionLock TransactionLockFor(IReportingDbContext context) =>
         context.Database.IsSqlServer() ? new SqlServerTransactionLock() : new PostgreSqlTransactionLock();
 
-    /// <summary>
-    /// The search copy on the context, as the host registers it. Rebuild requests go to
-    /// <paramref name="outboxMessages"/>; a schema compile never makes one, so it may be left out.
-    /// </summary>
     internal static FormSearchCopy SearchCopyFor(
         ReportingDbContextBase context,
         IRepository<OutboxMessage>? outboxMessages = null) =>

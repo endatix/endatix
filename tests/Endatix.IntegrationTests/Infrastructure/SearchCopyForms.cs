@@ -24,10 +24,6 @@ internal static class SearchCopyForms
         ] } ] }
         """;
 
-    /// <summary>
-    /// <paramref name="count"/> text questions named <c>q001</c>, <c>q002</c>, … in that order, then
-    /// <paramref name="readOnly"/> read-only ones named <c>r001</c>, …, which only a person can make searchable.
-    /// </summary>
     public static string TextQuestions(int count, int readOnly = 0)
     {
         JsonArray elements = [];

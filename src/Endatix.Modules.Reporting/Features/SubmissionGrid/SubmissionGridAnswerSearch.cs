@@ -209,6 +209,5 @@ public sealed class SubmissionGridAnswerSearch(
             .ToDictionaryAsync(row => row.SubmissionId, cancellationToken);
     }
 
-    /// <summary>The form's submissions inside the metadata filters, and the prepared rows the answer filters can check.</summary>
     private sealed record SearchScope(IQueryable<CoreSubmissionRow> Listed, IQueryable<PreparedSubmission> Searchable);
 }

@@ -8,7 +8,6 @@ using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.SearchCopy;
 
-/// <summary>The substitutes behind <see cref="UserSearchKeys"/>, and a compiled form to change the keys of.</summary>
 internal sealed class SearchKeyHandlerTestContext
 {
     public const long FormId = 100;
@@ -31,7 +30,6 @@ internal sealed class SearchKeyHandlerTestContext
         Forms.SingleOrDefaultAsync(Arg.Any<ISingleResultSpecification<Form>>(), Arg.Any<CancellationToken>())
             .Returns(Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Large form")));
 
-    /// <summary>A compiled schema of <paramref name="definition"/> whose keys are what its compile chose.</summary>
     public FormSchemaEntity GivenSchema(string definition)
     {
         var compiled = new FormSchemaCompiler().CompilePersisted(definition);
@@ -44,7 +42,6 @@ internal sealed class SearchKeyHandlerTestContext
         return schema;
     }
 
-    /// <summary>Text questions <c>q001</c>, <c>q002</c>, … and a number question <c>age</c> no filter supports.</summary>
     public static string TextQuestions(int count)
     {
         var elements = Enumerable.Range(1, count).Select(index => $$"""{ "type": "text", "name": "q{{index:D3}}" }""")

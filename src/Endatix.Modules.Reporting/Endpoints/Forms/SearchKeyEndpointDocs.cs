@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Modules.Reporting.Endpoints.Forms;
 
-/// <summary>The OpenAPI responses <see cref="AddSearchKey"/> and <see cref="RemoveSearchKey"/> share.</summary>
 internal static class SearchKeyEndpointDocs
 {
     /// <summary>Describes 200, 401, 403 and 503; each endpoint describes its own 400 and 404.</summary>

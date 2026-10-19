@@ -46,12 +46,10 @@ internal sealed class FormSearchKeys
 
     public IReadOnlyList<SearchKey> Keys { get; }
 
-    /// <summary>The form's search keys revision (<see cref="FormSchemaEntity.SearchKeysRevision"/>).</summary>
     public int Revision { get; }
 
     public int UserKeyCount => Keys.Count(key => key.Source == SearchKeySources.User);
 
-    /// <summary>The schema's keys at its revision.</summary>
     public static FormSearchKeys Of(FormSchemaEntity schema) => Parse(schema.SearchKeys, schema.SearchKeysRevision);
 
     /// <summary>The keys alone, for a reader that needs no form revision; <see cref="Revision"/> is 0.</summary>

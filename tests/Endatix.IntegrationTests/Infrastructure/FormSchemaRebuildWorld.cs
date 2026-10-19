@@ -142,7 +142,6 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
         await scope.Processor(schemas).ProcessAsync(TenantId, formId, formDefinitionId, cancellationToken: Cancellation);
     }
 
-    /// <summary>A form of <paramref name="definition"/>, compiled, with one flattened submission per answer.</summary>
     public async Task<RebuildForm> SeedFlattenedFormAsync(string definition, params object[] answers)
     {
         var form = await SeedFormAsync([definition]);
@@ -172,7 +171,6 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
             .ProcessAsync(TenantId, formId, submissionId, Cancellation);
     }
 
-    /// <summary>Flattens a submission with the schema as read at an earlier moment, before a change committed.</summary>
     public async Task FlattenReadingAsync(long formId, long submissionId, FormSchema schemaAsRead)
     {
         await using var scope = OpenScope();
@@ -346,7 +344,6 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
     public Task<int> CountSearchCopyRebuildRequestsAsync() =>
         SearchCopyRebuildRequests().CountAsync(TestContext.Current.CancellationToken);
 
-    /// <summary>Runs the search copy rebuild requests, as the outbox relay runs them.</summary>
     public async Task<int> RunSearchCopyRebuildsAsync()
     {
         var requests = await SearchCopyRebuildRequests().ToListAsync(TestContext.Current.CancellationToken);
