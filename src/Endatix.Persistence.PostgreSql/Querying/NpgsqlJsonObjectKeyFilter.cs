@@ -13,6 +13,9 @@ public sealed class NpgsqlJsonObjectKeyFilter : RelationalJsonObjectKeyFilterBas
     protected override bool UsesSqlServerLikeSyntax => false;
 
     /// <inheritdoc />
+    protected override string OrdinalCollation => "C";
+
+    /// <inheritdoc />
     protected override Expression ExtractKeyText(Expression jsonProperty, string jsonObjectKey) =>
         Expression.Call(
             NpgsqlJsonDbFunctions.ExtractObjectKeyTextMethod,
@@ -20,13 +23,13 @@ public sealed class NpgsqlJsonObjectKeyFilter : RelationalJsonObjectKeyFilterBas
             Expression.Constant(jsonObjectKey));
 
     /// <inheritdoc />
-    protected override Expression MatchesPattern(Expression text, string pattern) =>
+    protected override Expression MatchesPattern(Expression text, Expression lowercasedPattern) =>
         Expression.Call(
             typeof(NpgsqlDbFunctionsExtensions),
             nameof(NpgsqlDbFunctionsExtensions.ILike),
             typeArguments: Type.EmptyTypes,
             Expression.Constant(EF.Functions),
             text,
-            Expression.Constant(pattern),
+            lowercasedPattern,
             Expression.Constant("\\"));
 }

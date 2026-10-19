@@ -2,6 +2,9 @@ using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Core.Infrastructure;
+using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Persistence.PostgreSql.Locking;
 using Endatix.Persistence.PostgreSql.Querying;
@@ -88,6 +91,17 @@ internal static class ReportingTestSchema
     /// </summary>
     internal static ITransactionLock TransactionLockFor(IReportingDbContext context) =>
         context.Database.IsSqlServer() ? new SqlServerTransactionLock() : new PostgreSqlTransactionLock();
+
+    /// <summary>The search copy a schema compile on the context uses, as the host registers it.</summary>
+    internal static FormSearchCopy SearchCopyFor(ReportingDbContextBase context) =>
+        new(new DateTimeProvider(), SearchCopyRebuilderFor(context));
+
+    /// <summary>The rebuild of search copies on the context, as the host registers it.</summary>
+    internal static SearchCopyRebuilder SearchCopyRebuilderFor(ReportingDbContextBase context) =>
+        new(
+            context,
+            new FormSchemaRepository(context, new ReportingUnitOfWork(context), TransactionLockFor(context)),
+            NullLogger<SearchCopyRebuilder>.Instance);
 
     /// <summary>
     /// Runs the frozen seed of the context's provider again, the SQL its first seeding migration ran.

@@ -33,8 +33,8 @@ Database schema: `reporting`
 
 | Table | Purpose |
 |-------|---------|
-| `FormSchemas` | Compiled form schema (`FlatteningMap` + `Codebook`) per tenant + form |
-| `FlattenedSubmissions` | Flat submission answers aligned to form schema |
+| `FormSchemas` | Compiled form schema (`FlatteningMap` + `Codebook` + `SearchKeys`) per tenant + form |
+| `FlattenedSubmissions` | Flat submission answers aligned to form schema (`DataJson`), and their search copy (`SearchJson`) |
 | `ExportFormats` | Tenant export rows (CSV, JSON, Excel/XLSX, codebook) |
 | `SurveyTypeExportMappings` | Allowed export formats per survey type (with optional default and tenant fallback) |
 
@@ -72,6 +72,54 @@ A flatten rebuilds the schema only for a submission on a definition newer than t
 
 A form deleted after a compile read it loses the schema that compile wrote, hard-deleted as its deletion sync removes it.
 
+### Search copy (`SearchJson`)
+
+Answer filters read a small copy of each processed row, not its whole `DataJson`: scanning `DataJson` on a 1,000-question
+form costs seconds at 50k rows (PostgreSQL detoasts every document; SQL Server's `JSON_VALUE` cost grows with the key's
+position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON array of
+`{ key, source: "auto" | "user", filterType, addedAt }`.
+
+- **At most 64 keys** (`FormSearchKeys.MaxKeys`). Above that the copy passes PostgreSQL's 2 KB TOAST threshold on fully
+  answered forms and costs about 3× more.
+- **Automatic keys, up to 50.** Each compile appends the schema's searchable columns, in schema order, while fewer than
+  50 keys are `auto`: a question's own value column with a submissions-grid filter type (`SubmissionGridFilterTypes`),
+  whose question is not `readOnly` in the definition (a read-only page or panel makes its questions read-only). The other
+  14 slots are for keys people add (`source: "user"`; the endpoint is not built yet).
+- **Append-only.** A key stays while its column is in the schema, so rows written from it stay valid; a replace compile
+  that drops a column drops its key. A key whose question changed filter type takes the new one.
+- **Written with the answers.** A flatten writes `SearchJson` in the same conditional update as `DataJson`: the search
+  keys answered with a scalar, each as text — lowercased for `text`, `yyyy-MM-dd` for `date`, `yyyy-MM-ddTHH:mm:ss` for
+  `datetime` (read by ISO shape; a time zone is ignored; another shape is kept as entered and never matches a range).
+  Numbers and booleans become their JSON text; arrays and objects are left out. A skipped row has no copy.
+- **Rebuilt in SQL.** `SearchCopyRebuilder` rewrites a form's copies from `DataJson` in batches of 1,000 rows by
+  submission id, one statement per batch, without flattening again. A compile runs it after its commit when it added a
+  key for a column the rows already hold (the first compile after this migration, for instance), or changed a key's
+  filter type. The SQL normalises dates as the flatten does, and `SearchCopyRebuildIntegrationTests` checks both write
+  the same copies. Lowercasing differs in one place: the flatten uses .NET's invariant rules, the SQL the database's
+  `lower()` / `LOWER`, which follow its collation. Under a `C` or POSIX PostgreSQL collation the SQL lowercases ASCII
+  only, so non-ASCII text a rebuild wrote can miss a contains filter until the row is flattened again.
+- **Filters.** `IRelationalJsonObjectKeyFilter.WhereKeyMatches` (contains, lowercased pattern as a parameter) and
+  `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point). SQL Server reads keys with
+  `JSON_VALUE(… RETURNING nvarchar(max))`, because lax `JSON_VALUE` returns NULL above 4,000 characters, and compares
+  lowercased values, so a case-sensitive database collation still matches without case.
+
+**Upgrading:** existing forms get their keys on their next compile (`POST …/reporting/compile-schema`), which then
+rebuilds their rows' copies. Until then their copies are empty.
+
+**Performance.** `tests/Endatix.IntegrationTests/Performance` measures the filters at scale (opt-in, see
+`tests/README.md`). p95 of the whole request (ids and sort key of every match, count, page of 50), 50,000 rows, flattened
+rows only (the join with core submissions is not in it yet):
+
+| Shape (2026-10-16, Testcontainers, 8 vCPU) | No answer filter | 1–3 filters, 1 caller | 1–3 filters, 4 callers | Rebuild of 50k copies |
+| --- | --- | --- | --- | --- |
+| PostgreSQL realistic (1,000 questions, 20% answered) | 36 ms | 62–154 ms | 93–118 ms | 43 s |
+| PostgreSQL worst (1,000 questions, all answered) | 49 ms | 56–124 ms | 90–140 ms | 135 s |
+| SQL Server realistic | 200 ms | 220–423 ms | 584–790 ms | 53 s |
+| SQL Server worst | 295 ms | 163–269 ms | 609–754 ms | 69 s |
+
+64 search keys (50 automatic, 14 people's keys with the deep filtered questions). SQL Server with 4 concurrent callers
+is the edge (790 ms against an 800 ms target): measure again before raising the cap or adding the core join.
+
 ## Registration
 
 Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. Capabilities: `IEndatixModule`, `IHasFeatureFlag`, `IHasDbMigrations`, `IHasFastEndpoints` (serializers/OpenAPI tags via `ConfigureFastEndpoints`). Do **not** also `Api.ScanAssemblies` this assembly. The module runs on **PostgreSQL** and on **SQL Server 2025 or later (or Azure SQL Database)**; it needs SQL Server's native `json` type. `ConfigureServices` registers `ReportingPostgreSqlDbContext` or `ReportingSqlServerDbContext` by `ConnectionStrings:DefaultConnection_DbProvider`, and consumers resolve it as `IReportingDbContext` or `ReportingDbContextBase`. Disabled by default until:
@@ -97,13 +145,13 @@ Run the commands from the `oss` folder.
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`)
+- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`, `AddSearchCopy`)
 
   Tenant export formats are rows, not code. Runtime catalog: `DefaultExportFormats.All`
   (`SeedDefaultsAsync` / `tenant.created`). **Existing tenants:** frozen SQL in
   `SeedDefaultExportFormats` — do not generate that migration from the catalog; a new default
   needs a new data migration. **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder`.
-- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`)
+- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`, `AddSearchCopy`)
 
   One migration creates the schema and, at the end of its `Up()`, seeds the same default formats and CSV default
   mapping for every existing tenant as the PostgreSQL `SeedDefaultExportFormats` migration: frozen T-SQL in `SeedDefaultExportFormatsSqlServerSql`,

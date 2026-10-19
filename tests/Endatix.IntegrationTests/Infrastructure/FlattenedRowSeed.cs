@@ -34,11 +34,14 @@ internal sealed class FlattenedRowSeed(ReportingDbContextBase dbContext)
         await _repository.SaveAsync(row, cancellationToken);
     }
 
-    /// <summary>Creates a row processed with <paramref name="dataJson"/>.</summary>
-    public async Task ProcessedAsync(FlattenedSubmissionKey key, string dataJson, CancellationToken cancellationToken)
+    /// <summary>Creates a row processed with <paramref name="dataJson"/> and an empty search copy.</summary>
+    public Task ProcessedAsync(FlattenedSubmissionKey key, string dataJson, CancellationToken cancellationToken) =>
+        ProcessedAsync(key, new FlattenedRowData(dataJson, "{}"), cancellationToken);
+
+    public async Task ProcessedAsync(FlattenedSubmissionKey key, FlattenedRowData data, CancellationToken cancellationToken)
     {
         await _repository.EnsureExistsAsync(key, cancellationToken);
-        var landed = await _repository.TryMarkProcessedAsync(RevisionOf(key), dataJson, cancellationToken);
+        var landed = await _repository.TryMarkProcessedAsync(RevisionOf(key), data, cancellationToken);
         landed.Should().BeTrue("the seeded row has no newer revision");
     }
 
