@@ -169,6 +169,41 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
         (await PendingRebuildRequestsAsync()).Should().Be(requestsBefore);
     }
 
+    [Fact]
+    public async Task A_compile_gives_a_user_key_on_a_read_only_question_its_new_filter()
+    {
+        // Arrange — the read-only text question becomes a read-only date question.
+        var form = await _world.SeedFlattenedFormAsync(Mixed, new { reference = "2026-03-01T10:30" });
+        await AddAsync(form, "reference");
+        var before = await _world.ReadSchemaAsync(form.FormId);
+        await _world.EditDefinitionAsync(form.DefinitionIds[0], Mixed.Replace(
+            "\"name\": \"reference\", \"readOnly\": true", "\"name\": \"reference\", \"inputType\": \"date\", \"readOnly\": true", StringComparison.Ordinal));
+
+        // Act
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+
+        // Assert
+        var keys = FormSearchKeys.Of(await _world.ReadSchemaAsync(form.FormId));
+        keys.Find("reference")!.FilterType.Should().Be(SubmissionGridFilterTypes.Date);
+        keys.Revision.Should().BeGreaterThan(before.SearchKeysRevision);
+    }
+
+    [Fact]
+    public async Task A_compile_drops_a_user_key_whose_question_no_filter_supports_any_more()
+    {
+        // Arrange — the read-only text question becomes a read-only number question.
+        var form = await _world.SeedFlattenedFormAsync(Mixed, new { reference = "REF-Alpha" });
+        await AddAsync(form, "reference");
+        await _world.EditDefinitionAsync(form.DefinitionIds[0], Mixed.Replace(
+            "\"name\": \"reference\", \"readOnly\": true", "\"name\": \"reference\", \"inputType\": \"number\", \"readOnly\": true", StringComparison.Ordinal));
+
+        // Act
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+
+        // Assert
+        SearchKeyNames(await _world.ReadSchemaAsync(form.FormId)).Should().NotContain("reference");
+    }
+
     private static SearchKeyTarget Target(RebuildForm form, string key, long tenantId = FormSchemaRebuildWorld.TenantId) =>
         new(tenantId, form.FormId, key);
 
