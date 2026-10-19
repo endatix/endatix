@@ -6,6 +6,7 @@ using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.Modules.Reporting.Contracts;
+using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -46,27 +47,37 @@ public sealed class SubmissionGridAnswerSearch(
         var searchKeys = await ReadSearchKeysAsync(query, cancellationToken);
         if (searchKeys is null)
         {
-            return await formsRepository.ExistsAsync(query.TenantId, query.List.FormId, cancellationToken)
+            return await formsRepository.IsTenantFormAsync(query.TenantId, query.List.FormId, cancellationToken)
                 ? Result.Conflict(NotPreparedMessage)
-                : Result.NotFound(TenantForms.FormNotFoundMessage);
+                : Result.NotFound(TenantFormExtensions.FormNotFoundMessage);
         }
 
         var invalid = AnswerFilterRules.Check(query.Answers, searchKeys);
         return invalid.Count > 0
             ? Result.Invalid(invalid)
-            : Result.Success(await SearchAsync(query, cancellationToken));
+            : Result.Success(await SearchAsync(query, ScopeOf(query, searchKeys), cancellationToken));
     }
 
-    private async Task<SubmissionGridPage> SearchAsync(SubmissionGridRowsQuery query, CancellationToken cancellationToken)
+    private async Task<SubmissionGridPage> SearchAsync(
+        SubmissionGridRowsQuery query,
+        SearchScope scope,
+        CancellationToken cancellationToken)
     {
-        var listed = Listed(query);
-        var ids = await MatchingIdsAsync(query, listed, cancellationToken);
+        var ids = await MatchingIdsAsync(query, scope, cancellationToken);
         var resolved = new PagingParameters(query.List.Page, query.List.PageSize).ForTotal(ids.Count);
         var pageIds = ids.Skip(resolved.Skip).Take(resolved.PageSize).ToList();
 
         var rows = await ReadPageAsync(query, pageIds, cancellationToken);
-        var coverage = await CountUncheckedAsync(query, listed, cancellationToken);
+        var coverage = await CountUncheckedAsync(scope, cancellationToken);
         return new SubmissionGridPage(resolved.ToPaged(rows), coverage);
+    }
+
+    // A row is checked only when its search copy holds every filtered key: a key added since the row was written
+    // waits for the rebuild, and until then the row counts as not checked.
+    private SearchScope ScopeOf(SubmissionGridRowsQuery query, FormSearchKeys searchKeys)
+    {
+        var revisionNeeded = searchKeys.RevisionNeededFor(query.Answers.Select(answer => answer.Key));
+        return new SearchScope(Listed(query), Searchable(query).HoldingSearchKeys(revisionNeeded));
     }
 
     private async Task<FormSearchKeys?> ReadSearchKeysAsync(SubmissionGridRowsQuery query, CancellationToken cancellationToken)
@@ -103,11 +114,11 @@ public sealed class SubmissionGridAnswerSearch(
 
     private async Task<List<long>> MatchingIdsAsync(
         SubmissionGridRowsQuery query,
-        IQueryable<CoreSubmissionRow> listed,
+        SearchScope scope,
         CancellationToken cancellationToken)
     {
-        var matched = query.Answers.Aggregate(Searchable(query), WhereAnswerMatches);
-        var matching = listed
+        var matched = query.Answers.Aggregate(scope.Searchable, WhereAnswerMatches);
+        var matching = scope.Listed
             .Join(matched, submission => submission.Id, row => row.SubmissionId, (submission, row) => new { submission, row.SourceModifiedAt })
             .Where(pair => pair.SourceModifiedAt == (pair.submission.ModifiedAt ?? pair.submission.CreatedAt))
             .Select(pair => pair.submission);
@@ -130,13 +141,12 @@ public sealed class SubmissionGridAnswerSearch(
         };
     }
 
-    private async Task<AnswerFilterCoverage> CountUncheckedAsync(
-        SubmissionGridRowsQuery query,
-        IQueryable<CoreSubmissionRow> listed,
+    private static async Task<AnswerFilterCoverage> CountUncheckedAsync(
+        SearchScope scope,
         CancellationToken cancellationToken)
     {
-        var searchable = Searchable(query);
-        var counts = await listed
+        var searchable = scope.Searchable;
+        var counts = await scope.Listed
             .Where(submission => !searchable.Any(row =>
                 row.SubmissionId == submission.Id &&
                 row.SourceModifiedAt == (submission.ModifiedAt ?? submission.CreatedAt)))
@@ -198,4 +208,6 @@ public sealed class SubmissionGridAnswerSearch(
                 row.SourceModifiedAt))
             .ToDictionaryAsync(row => row.SubmissionId, cancellationToken);
     }
+
+    private sealed record SearchScope(IQueryable<CoreSubmissionRow> Listed, IQueryable<PreparedSubmission> Searchable);
 }

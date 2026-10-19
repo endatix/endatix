@@ -53,6 +53,14 @@ internal sealed class FlattenedSubmissionRepository(
             .ToDictionaryAsync(entry => entry.Code, entry => entry.Count, cancellationToken);
 
     /// <inheritdoc />
+    public Task<int?> OldestSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+        dbContext.FlattenedSubmissions
+            .AsNoTracking()
+            .Where(row => row.TenantId == tenantId && row.FormId == formId && !row.IsDeleted &&
+                          row.Integration.Code == SubmissionIntegrationStatusCodes.Processed && row.DataJson != null)
+            .MinAsync(row => (int?)row.SearchKeysRevision, cancellationToken);
+
+    /// <inheritdoc />
     public Task<int> DeleteBySubmissionIdAsync(
         long tenantId,
         long submissionId,
@@ -103,6 +111,7 @@ internal sealed class FlattenedSubmissionRepository(
             setters => setters
                 .SetProperty(row => row.DataJson, data.DataJson)
                 .SetProperty(row => row.SearchJson, data.SearchJson)
+                .SetProperty(row => row.SearchKeysRevision, data.SearchKeysRevision)
                 .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Processed)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.ProcessedAt, now)

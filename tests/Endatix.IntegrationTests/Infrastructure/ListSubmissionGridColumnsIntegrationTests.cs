@@ -87,7 +87,10 @@ public sealed class ListSubmissionGridColumnsIntegrationTests(DbIntegrationFixtu
             FilterType: SubmissionGridFilterTypes.Text,
             PageName: "about",
             PageTitle: "About you",
-            PanelTitle: null));
+            PanelTitle: null,
+            Searchable: false,
+            SearchPending: false,
+            SearchSource: null));
     }
 
     [Fact]

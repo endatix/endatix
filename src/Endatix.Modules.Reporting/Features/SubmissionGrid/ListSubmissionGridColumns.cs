@@ -5,6 +5,7 @@ using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 
 namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 
@@ -22,8 +23,10 @@ public sealed class ListSubmissionGridColumns(
     IRepository<Form> formsRepository,
     IRepository<Submission> submissionsRepository)
 {
+
     private static readonly FilterParameters NoFilters = new();
     private static readonly FilterParameters CompletedOnly = new(["isComplete:true"]);
+    private static readonly FormSearchKeyStatus NoSearchKeys = new(FormSearchKeys.Empty, OldestRowRevision: null);
 
     /// <summary>
     /// Returns the columns, or not found when the form does not exist in the tenant. A form without a compiled schema
@@ -38,17 +41,25 @@ public sealed class ListSubmissionGridColumns(
             return Result.Unauthorized();
         }
 
-        if (!await formsRepository.ExistsAsync(query.TenantId, query.FormId, cancellationToken))
-        {
-            return Result.NotFound(TenantForms.FormNotFoundMessage);
-        }
+        return await IsTenantFormAsync(query, cancellationToken)
+            ? Result.Success(await ReadColumnsAsync(query, cancellationToken))
+            : Result.NotFound(TenantFormExtensions.FormNotFoundMessage);
+    }
 
+    private async Task<SubmissionGridColumns> ReadColumnsAsync(SubmissionGridColumnsQuery query, CancellationToken cancellationToken)
+    {
         var schema = await formSchemaRepository.GetByFormIdAsync(query.TenantId, query.FormId, cancellationToken);
         var readiness = await ReadReadinessAsync(query, cancellationToken);
-        var columns = schema is null ? [] : SubmissionGridColumnCatalog.Build(schema, query.Locale);
+        var search = schema is null
+            ? NoSearchKeys
+            : await FormSearchKeyStatus.ReadAsync(schema, flattenedSubmissionRepository, cancellationToken);
+        var columns = schema is null ? [] : SubmissionGridColumnCatalog.Build(schema, query.Locale, search);
 
-        return Result.Success(new SubmissionGridColumns(query.FormId, schema is not null, readiness, columns));
+        return new SubmissionGridColumns(query.FormId, schema is not null, readiness, columns, search.Slots);
     }
+
+    private Task<bool> IsTenantFormAsync(SubmissionGridColumnsQuery query, CancellationToken cancellationToken) =>
+        formsRepository.IsTenantFormAsync(query.TenantId, query.FormId, cancellationToken);
 
     private async Task<SubmissionGridReadiness> ReadReadinessAsync(
         SubmissionGridColumnsQuery query,

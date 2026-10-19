@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -14,9 +15,11 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// changed. Submissions are not flattened again, and the answers are not changed.
 /// </summary>
 /// <remarks>
-/// Rows go in batches by submission id, one statement per batch, so no statement holds many rows' locks for long. A
-/// flatten that read the schema's keys before they changed and writes after its row's batch leaves that row with the
-/// old keys until it is flattened again.
+/// Rows go in batches by submission id, one statement per batch, so no statement holds many rows' locks for long. Only
+/// rows stamped with an older search keys revision than the schema's are rewritten (<see cref="SearchCopyRebuildSql"/>),
+/// so running it again after an interrupted run finishes the rest. A flatten that read the schema's keys before they
+/// changed and writes after its row's batch stamps the row with the old revision: filters count it as not checked
+/// on the new keys until the next rebuild or flatten.
 /// </remarks>
 internal sealed partial class SearchCopyRebuilder(
     IReportingDbContext dbContext,
@@ -39,11 +42,25 @@ internal sealed partial class SearchCopyRebuilder(
             return 0;
         }
 
-        var searchKeys = FormSearchKeys.FromJson(schema.SearchKeys);
-        RebuildRun run = new(tenantId, formId, KeysParameter(searchKeys), Statement(searchKeys));
+        var searchKeys = FormSearchKeys.Of(schema);
+        RebuildRun run = new(tenantId, formId, searchKeys.Revision, KeysParameter(searchKeys), Statement(searchKeys));
         var rows = await RunBatchesAsync(run, cancellationToken);
         LogRebuilt(rows, formId);
         return rows;
+    }
+
+    /// <summary>
+    /// Rebuilds the form's search copies when a row was just written from keys older than the schema's: the flatten
+    /// read the keys, a change replaced them and its rebuild passed the row, then the flatten wrote. Only the schema's
+    /// revision is read to decide, so a flatten pays one small query when nothing changed.
+    /// </summary>
+    /// <returns>How many rows were rewritten; 0 when the row was written from the current keys.</returns>
+    public async Task<int> CatchUpAsync(FlattenedSubmissionKey written, int writtenRevision, CancellationToken cancellationToken)
+    {
+        var currentRevision = await schemaRepository.GetSearchKeysRevisionAsync(written.TenantId, written.FormId, cancellationToken);
+        return currentRevision > writtenRevision
+            ? await RebuildFormAsync(written.TenantId, written.FormId, cancellationToken)
+            : 0;
     }
 
     private async Task<int> RunBatchesAsync(RebuildRun run, CancellationToken cancellationToken)
@@ -87,6 +104,7 @@ internal sealed partial class SearchCopyRebuilder(
         command.CommandTimeout = dbContext.Database.GetCommandTimeout() ?? command.CommandTimeout;
         AddParameter(command, "tenantId", run.TenantId);
         AddParameter(command, "formId", run.FormId);
+        AddParameter(command, "revision", run.Revision);
         AddParameter(command, "afterId", afterId);
         AddParameter(command, "batchSize", BatchSize);
         AddParameter(command, "keys", run.KeysJson);
@@ -117,7 +135,7 @@ internal sealed partial class SearchCopyRebuilder(
     [LoggerMessage(Level = LogLevel.Information, Message = "Rebuilt the search copy of {Rows} flattened row(s) of form {FormId}")]
     private partial void LogRebuilt(int rows, long formId);
 
-    private sealed record RebuildRun(long TenantId, long FormId, string KeysJson, string Sql);
+    private sealed record RebuildRun(long TenantId, long FormId, int Revision, string KeysJson, string Sql);
 
     private sealed record BatchResult(long LastSubmissionId, int Rows);
 }

@@ -1,4 +1,6 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
@@ -92,9 +94,16 @@ internal static class ReportingTestSchema
     internal static ITransactionLock TransactionLockFor(IReportingDbContext context) =>
         context.Database.IsSqlServer() ? new SqlServerTransactionLock() : new PostgreSqlTransactionLock();
 
-    /// <summary>The search copy a schema compile on the context uses, as the host registers it.</summary>
-    internal static FormSearchCopy SearchCopyFor(ReportingDbContextBase context) =>
-        new(new DateTimeProvider(), SearchCopyRebuilderFor(context));
+    internal static FormSearchCopy SearchCopyFor(
+        ReportingDbContextBase context,
+        IRepository<OutboxMessage>? outboxMessages = null) =>
+        new(
+            new DateTimeProvider(),
+            SearchCopyRebuilderFor(context),
+            new SearchCopyRebuildRequests(
+                outboxMessages ?? Substitute.For<IRepository<OutboxMessage>>(),
+                new DateTimeProvider(),
+                NullLogger<SearchCopyRebuildRequests>.Instance));
 
     /// <summary>The rebuild of search copies on the context, as the host registers it.</summary>
     internal static SearchCopyRebuilder SearchCopyRebuilderFor(ReportingDbContextBase context) =>

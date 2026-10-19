@@ -1,3 +1,5 @@
+using Endatix.Modules.Reporting.Persistence;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -281,7 +283,16 @@ public partial class SubmissionFlatteningProcessorTests
     }
 
     private SubmissionFlatteningProcessor Processor() =>
-        new(_submissions, _rows, _schemas, _personalization, NullLogger<SubmissionFlatteningProcessor>.Instance);
+        new(
+            _submissions,
+            _rows,
+            _schemas,
+            _personalization,
+            new SearchCopyRebuilder(
+                Substitute.For<IReportingDbContext>(),
+                Substitute.For<IFormSchemaRepository>(),
+                NullLogger<SearchCopyRebuilder>.Instance),
+            NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     private static Submission CompletedSubmission(string json, long revision)
     {
@@ -326,7 +337,7 @@ public partial class SubmissionFlatteningProcessorTests
     {
         var compiled = new FormSchemaCompiler().CompilePersisted(FormSchemaFixtureLoader.LoadText("simple-definition.json"));
         FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
-        schema.UpdateSearchKeys(searchKeysJson);
+        schema.UpdateSearchKeys(searchKeysJson, revision: 0);
         _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>()).Returns(schema);
     }
 

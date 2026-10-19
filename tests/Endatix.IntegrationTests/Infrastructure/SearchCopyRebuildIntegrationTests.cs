@@ -72,18 +72,25 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
             .Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
     }
 
-    private async Task<RebuildForm> FlattenAllAsync()
+    [Fact]
+    public async Task A_compile_after_a_rebuild_that_did_not_finish_runs_it_again()
     {
-        var form = await _world.SeedFormAsync([Mixed]);
-        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
-        foreach (var answer in Answers)
-        {
-            var submissionId = await _world.AddRealSubmissionAsync(form.FormId, form.DefinitionIds[0], SearchCopyForms.Answers(answer));
-            await _world.FlattenAsync(form.FormId, submissionId);
-        }
+        // Arrange — the keys moved to a new revision, but the rebuild that should follow never ran.
+        var form = await FlattenAllAsync();
+        var flattened = await ReadRowsAsync(form.FormId);
+        await ClearSearchCopiesAsync(form.FormId);
 
-        return form;
+        // Act — the definition has not changed, so the compile leaves the schema as it is.
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+
+        // Assert
+        var revision = (await _world.ReadSchemaAsync(form.FormId)).SearchKeysRevision;
+        var rows = await ReadRowsAsync(form.FormId);
+        rows.Should().OnlyContain(row => row.SearchKeysRevision == revision);
+        rows.Select(row => Normalized(row.SearchJson)).Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
     }
+
+    private Task<RebuildForm> FlattenAllAsync() => _world.SeedFlattenedFormAsync(Mixed, Answers);
 
     private async Task<int> RebuildAsync(long formId)
     {
@@ -93,11 +100,14 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
         return await rebuilder.RebuildFormAsync(FormSchemaRebuildWorld.TenantId, formId, Cancellation);
     }
 
+    // As if the keys changed after the rows were written: the copies are empty and the schema's revision is newer.
     private async Task ClearSearchCopiesAsync(long formId)
     {
         await using var db = _world.CreateReportingDbContext();
         await db.FlattenedSubmissions.Where(row => row.FormId == formId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SearchJson, "{}"), Cancellation);
+        await db.FormSchemas.Where(schema => schema.FormId == formId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(schema => schema.SearchKeysRevision, schema => schema.SearchKeysRevision + 1), Cancellation);
     }
 
     private async Task<List<FlattenedSubmission>> ReadRowsAsync(long formId)

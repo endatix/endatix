@@ -37,6 +37,7 @@ internal sealed class SubmissionFlatteningProcessor(
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
     IFormSchemaProvider schemaProvider,
     IFormSchemaPersonalization schemaPersonalization,
+    SearchCopyRebuilder searchCopyRebuilder,
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
     private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
@@ -123,9 +124,10 @@ internal sealed class SubmissionFlatteningProcessor(
 
         var schema = await SchemaOfAsync(run, cancellationToken);
         var data = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
-        LogUnlessLanded(
-            await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, data, cancellationToken),
-            run.Write);
+        if (LogUnlessLanded(await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, data, cancellationToken), run.Write))
+        {
+            await searchCopyRebuilder.CatchUpAsync(run.Key, data.SearchKeysRevision, cancellationToken);
+        }
     }
 
     // A form deleted after its submission was read, with its cleanup already run, leaves no schema to flatten with;
@@ -149,9 +151,11 @@ internal sealed class SubmissionFlatteningProcessor(
         var mergedSchema = await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken);
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
         var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, personalization);
+        var searchKeys = FormSearchKeys.Of(schema);
         return new FlattenedRowData(
             FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened),
-            SearchCopyDocument.Build(flattened, FormSearchKeys.FromJson(schema.SearchKeys)));
+            SearchCopyDocument.Build(flattened, searchKeys),
+            searchKeys.Revision);
     }
 
     // A soft-delete of the submission or its form after the submission was queued or paged removes its row, as the
