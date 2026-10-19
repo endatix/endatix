@@ -36,7 +36,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
 
     private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string procedureName, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
-        var sql = "EXEC dbo." + procedureName + " @form_id";
+        var sql = ExecProcedure(procedureName, "@form_id");
         await foreach (var row in _dbContext.Set<T>()
             .FromSqlRaw(sql, new SqlParameter("@form_id", formId))
             .AsNoTracking()
@@ -50,7 +50,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
     private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string procedureName, int pageSize, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         long? afterId = null;
-        var sql = "EXEC dbo." + procedureName + " @form_id, @after_id, @page_size";
+        var sql = ExecProcedure(procedureName, "@form_id, @after_id, @page_size");
 
         while (true)
         {
@@ -80,4 +80,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
             afterId = last.Id;
         }
     }
+
+    private static string ExecProcedure(string procedureName, string parameters) =>
+        $"EXEC dbo.{SqlIdentifier.EnsureValid(procedureName)} {parameters}";
 }
