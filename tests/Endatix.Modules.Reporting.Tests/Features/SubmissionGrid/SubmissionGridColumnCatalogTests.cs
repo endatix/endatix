@@ -141,12 +141,50 @@ public sealed class SubmissionGridColumnCatalogTests
         (text.Searchable, text.SearchPending, text.SearchSource).Should().Be((false, false, (string?)null));
     }
 
+    [Fact]
+    public void Build_PageWithoutTitle_ReturnsPageNameAndNoPageTitle()
+    {
+        // Arrange
+        var schema = CompileAllQuestions();
+
+        // Act
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", NoSearchKeys);
+
+        // Assert
+        var text = columns.Single(column => column.Key == "qText");
+        text.PageName.Should().Be("page1");
+        text.PageTitle.Should().BeNull();
+    }
+
+    [Fact]
+    public void Build_PageWithTitle_ReturnsPageTitle()
+    {
+        // Arrange
+        var schema = Compile("""
+            {
+              "pages": [
+                { "name": "contact", "title": "Contact details", "elements": [ { "type": "text", "name": "email" } ] }
+              ]
+            }
+            """);
+
+        // Act
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default", NoSearchKeys);
+
+        // Assert
+        var email = columns.Single(column => column.Key == "email");
+        email.PageName.Should().Be("contact");
+        email.PageTitle.Should().Be("Contact details");
+    }
+
     private static FormSearchKeyStatus SearchWith(FormSchemaEntity schema, SearchableColumn userColumn, int oldestRowRevision) =>
         new(FormSearchKeys.Of(schema).AddUser(userColumn, AddedAt).Value, oldestRowRevision);
 
-    private static FormSchemaEntity CompileAllQuestions()
+    private static FormSchemaEntity CompileAllQuestions() =>
+        Compile(FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json"));
+
+    private static FormSchemaEntity Compile(string definitionJson)
     {
-        var definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
         var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
         return new FormSchemaEntity(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
     }

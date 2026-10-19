@@ -53,12 +53,12 @@ public sealed class ListSubmissionGridColumnsIntegrationTests(DbIntegrationFixtu
         result.Value.SchemaReady.Should().BeFalse();
         result.Value.Columns.Should().BeEmpty();
         result.Value.Readiness.Should().Be(new SubmissionGridReadiness(
-            Submissions: 4,
+            Submissions: 5,
             CompletedSubmissions: 3,
             Prepared: 1,
             Pending: 1,
             Failed: 1,
-            SkippedInProgress: 0));
+            SkippedInProgress: 1));
     }
 
     [Fact]
@@ -127,8 +127,8 @@ public sealed class ListSubmissionGridColumnsIntegrationTests(DbIntegrationFixtu
         result.Status.Should().Be(ResultStatus.Unauthorized);
     }
 
-    // Four submissions: completed and prepared, completed and pending, completed and failed, in progress and never
-    // queued. A deleted completed submission is not counted. The other tenant gets a tenant row only.
+    // Five submissions: completed and prepared, completed and pending, completed and failed, in progress and skipped,
+    // in progress and never queued. A deleted completed submission is not counted. The other tenant gets a tenant row only.
     private async Task<SeededForm> SeedAsync(CancellationToken cancellationToken)
     {
         await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, cancellationToken);
@@ -152,6 +152,7 @@ public sealed class ListSubmissionGridColumnsIntegrationTests(DbIntegrationFixtu
         var prepared = await submissions.AddAsync(isComplete: true, cancellationToken);
         var pending = await submissions.AddAsync(isComplete: true, cancellationToken);
         var failed = await submissions.AddAsync(isComplete: true, cancellationToken);
+        var skipped = await submissions.AddAsync(isComplete: false, cancellationToken);
         await submissions.AddAsync(isComplete: false, cancellationToken);
         var deleted = await submissions.AddAsync(isComplete: true, cancellationToken);
         await appDb.Submissions
@@ -164,6 +165,7 @@ public sealed class ListSubmissionGridColumnsIntegrationTests(DbIntegrationFixtu
         await rows.PendingAsync(new FlattenedSubmissionKey(TenantId, form.Id, pending), cancellationToken);
         await rows.PendingAsync(new FlattenedSubmissionKey(TenantId, form.Id, failed), cancellationToken);
         await rows.FailedAsync(new FlattenedSubmissionKey(TenantId, form.Id, failed), "seeded failure", cancellationToken);
+        await rows.SkippedAsync(new FlattenedSubmissionKey(TenantId, form.Id, skipped), cancellationToken);
 
         return new SeededForm(form.Id);
     }

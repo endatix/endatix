@@ -37,7 +37,6 @@ internal static class FormSchemaCodebookReader
                title;
     }
 
-    // The title with the part in it, the part alone when there is no title, or null when there is no part.
     private static string? WithPart(string? title, string? part, string format)
     {
         if (string.IsNullOrWhiteSpace(part))

@@ -53,6 +53,14 @@ internal sealed class FlattenedRowSeed(ReportingDbContextBase dbContext)
         landed.Should().BeTrue("the seeded row has no newer revision");
     }
 
+    /// <summary>Creates a row skipped as an in-progress submission, as a flatten does before it is complete.</summary>
+    public async Task SkippedAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
+    {
+        await _repository.EnsureExistsAsync(key, cancellationToken);
+        var landed = await _repository.TryMarkSkippedAsync(RevisionOf(key), cancellationToken);
+        landed.Should().BeTrue("the seeded row has no newer revision");
+    }
+
     private static FlattenedRevision RevisionOf(FlattenedSubmissionKey key) =>
         new(key.TenantId, key.SubmissionId, SeedRevision, DateTime.UtcNow);
 }
