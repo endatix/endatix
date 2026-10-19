@@ -91,6 +91,24 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
+    public async Task A_value_that_is_not_a_date_never_matches_a_range()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        var date = await world.PreparedAsync("""{"visit":"2026-03-01"}""");
+        await world.PreparedAsync("""{"visit":"n/a"}""");
+        await world.PreparedAsync("""{"visit":"2026/03/01"}""");
+
+        // Act
+        var from = await world.SearchAsync([Answer("from", "visit", "2026-01-01")]);
+        var to = await world.SearchAsync([Answer("to", "visit", "2026-12-31")]);
+
+        // Assert
+        from.Items.Select(row => row.Id).Should().Equal(date);
+        to.Items.Select(row => row.Id).Should().Equal(date);
+    }
+
+    [Fact]
     public async Task Filters_on_two_columns_combine_with_and()
     {
         // Arrange
