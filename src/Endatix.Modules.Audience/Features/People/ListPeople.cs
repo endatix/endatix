@@ -26,8 +26,13 @@ public sealed record ListPeopleQuery(
 /// </summary>
 public enum PeopleTestFilter
 {
+    /// <summary>Everyone on the form.</summary>
     All,
+
+    /// <summary>Only people who are not test persons.</summary>
     Real,
+
+    /// <summary>Only test persons.</summary>
     Test,
 }
 

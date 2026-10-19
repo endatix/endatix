@@ -21,6 +21,7 @@ public sealed class Membership : BaseEntity, IAggregateRoot, ITenantOwned
 
     private Membership() { }
 
+    /// <summary>Places a member on a form, as a test person when <see cref="MembershipCreateArgs.IsTest"/> is set.</summary>
     public Membership(MembershipCreateArgs args)
     {
         Guard.Against.Null(args);

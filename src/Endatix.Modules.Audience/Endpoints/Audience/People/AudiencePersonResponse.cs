@@ -16,6 +16,7 @@ public sealed class AudiencePersonResponse
     public IReadOnlyDictionary<long, string> Values { get; init; } =
         new Dictionary<long, string>();
 
+    /// <summary>A test person: never issued a personalised link. Set when added and never changed.</summary>
     public bool IsTest { get; init; }
 
     internal static AudiencePersonResponse FromDto(PersonDto dto) => new()
