@@ -13,6 +13,9 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 {
     public ImportTally Tally { get; } = new();
 
+    /// <summary>
+    /// A test import never writes to a person already on the form, so real people's data stays as it was.
+    /// </summary>
     public void Stage(ImportRow row)
     {
         Member member = existing.MembersByMatchKey.GetValueOrDefault(row.NormalizedIdentifier) ?? AddMember(row);
@@ -23,7 +26,7 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
             return;
         }
 
-        if (UpdateIfChanged(membership, row.Values))
+        if (!target.IsTest && UpdateIfChanged(membership, row.Values))
         {
             Tally.Updated++;
         }
@@ -65,16 +68,16 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 
     private void AddMembership(Member member, IReadOnlyDictionary<long, string> values)
     {
-        Membership membership = new(target.TenantId, target.FormId, member.Id);
+        Membership membership = new(new MembershipCreateArgs(target.TenantId, target.FormId, member.Id, target.IsTest));
         db.Memberships.Add(membership);
         PropertyValuesWriter.AddAll(new PropertyValueWrite(db, target.TenantId, membership.Id, values));
     }
 }
 
 /// <summary>
-/// The tenant, form and match key one import writes to.
+/// The tenant, form and match key one import writes to, and whether the memberships it adds are test persons.
 /// </summary>
-internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey);
+internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey, bool IsTest);
 
 /// <summary>
 /// Members, memberships and value cells that the import rows already match.
