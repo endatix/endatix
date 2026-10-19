@@ -144,7 +144,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
 
         if (!string.IsNullOrEmpty(_settings.Username))
         {
-            await smtpClient.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
+            await smtpClient.AuthenticateAsync(_settings.Username, _settings.Password ?? string.Empty, cancellationToken);
         }
         else if (Interlocked.Exchange(ref _blankUsernameWarningLogged, 1) == 0)
         {
@@ -197,7 +197,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         // exactly one mailbox and throws on a comma-separated list, which the old MailMessage.To.Add
         // string contract allowed.
         mimeMessage.To.AddRange(InternetAddressList.Parse(email.To));
-        mimeMessage.Subject = email.Subject;
+        mimeMessage.Subject = email.Subject ?? string.Empty;
 
         var bodyBuilder = new BodyBuilder
         {

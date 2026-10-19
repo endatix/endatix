@@ -15,7 +15,7 @@ public class RefreshTokenValidator : Validator<RefreshTokenRequest>
     {
         RuleFor(x => x.Authorization)
             .NotEmpty()
-            .Must(auth => auth.StartsWith("Bearer ")).WithMessage("Authorization header must start with 'Bearer '.");
+            .Must(auth => auth?.StartsWith("Bearer ") != false).WithMessage("Authorization header must start with 'Bearer '.");
 
         RuleFor(x => x.RefreshToken)
             .NotEmpty();

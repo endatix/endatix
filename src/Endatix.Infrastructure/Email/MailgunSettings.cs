@@ -11,19 +11,19 @@ public class MailgunSettings
     /// The ApiKey provided by Mailgun
     /// </summary>
     [Required]
-    public string ApiKey { get; set; }
+    public string ApiKey { get; set; } = string.Empty;
 
 
     /// <summary>
     /// The Base Url for the Mailgun, e.g. https://api.mailgun.net/v3/
     /// </summary>
     [Required]
-    public string BaseUrl { get; set; }
+    public string BaseUrl { get; set; } = string.Empty;
 
 
     /// <summary>
     /// The domain configured in your Mailgun
     /// </summary>
     [Required]
-    public string Domain { get; set; }
+    public string Domain { get; set; } = string.Empty;
 }

@@ -89,7 +89,7 @@ public class GetByTokenTests
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Id.Should().Be("1");
         okResult!.Value!.Token.Should().NotBeNull();
-        okResult!.Value!.Token!.Should().Be(submission.Token.Value);
+        okResult!.Value!.Token!.Should().Be(submission.Token!.Value);
     }
 
     [Fact]

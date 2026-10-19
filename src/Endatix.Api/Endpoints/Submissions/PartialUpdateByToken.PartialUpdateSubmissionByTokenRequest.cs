@@ -8,5 +8,5 @@ public class PartialUpdateSubmissionByTokenRequest : BasePublicSubmissionRequest
     /// <summary>
     /// The token of the submission that will be updated
     /// </summary>
-    public string SubmissionToken { get; set; }
+    public string SubmissionToken { get; set; } = string.Empty;
 }

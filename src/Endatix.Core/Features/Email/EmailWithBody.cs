@@ -10,10 +10,10 @@ public class EmailWithBody : BaseEmailModel
     /// <summary>
     /// Plain text version of the body
     /// </summary>
-    public string PlainTextBody { get; set; }
+    public string PlainTextBody { get; set; } = string.Empty;
 
     /// <summary>
     /// Html version of the body
     /// </summary>
-    public string HtmlBody { get; set; }
+    public string HtmlBody { get; set; } = string.Empty;
 }
