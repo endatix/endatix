@@ -11,6 +11,8 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Modules.Reporting.Tests.Endpoints.Submissions;
 
@@ -29,7 +31,8 @@ public sealed class ListGridSubmissionsTests
         SubmissionGridAnswerSearch answerSearch = new(
             reportingDbContext,
             Substitute.For<IRelationalJsonObjectKeyFilter>(),
-            Substitute.For<IRelationalSubmitterProfileFilter>());
+            Substitute.For<IRelationalSubmitterProfileFilter>(),
+            Substitute.For<IRepository<Form>>());
         ListSubmissionGridRows rows = new(_mediator, reportingDbContext, answerSearch);
         _endpoint = Factory.Create<ListGridSubmissions>(rows, _tenantContext);
     }

@@ -10,6 +10,8 @@ using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Infrastructure.Domain;
+using NSubstitute;
 
 namespace Endatix.IntegrationTests;
 
@@ -107,11 +109,13 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         return result.Value.Items;
     }
 
+    // The rows here never reach the answer search, so its form check gets a repository that reads nothing.
     private ListSubmissionGridRows Create(IMediator mediator, ReportingDbContextBase reportingDb) =>
         new(mediator, reportingDb, new SubmissionGridAnswerSearch(
             reportingDb,
             SearchCopyForms.KeyFilter(fixture.Provider),
-            SearchCopyForms.ProfileFilter(fixture.Provider)));
+            SearchCopyForms.ProfileFilter(fixture.Provider),
+            Substitute.For<IRepository<Form>>()));
 
     private static SubmissionGridRowsQuery Query(long tenantId, SeededForm seed, IReadOnlyList<string> columns) =>
         new(tenantId, new ListByFormIdQuery(seed.FormId, 1, 10), columns);

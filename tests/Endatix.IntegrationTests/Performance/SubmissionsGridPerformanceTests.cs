@@ -9,6 +9,9 @@ using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
+using NSubstitute;
 
 namespace Endatix.IntegrationTests;
 
@@ -131,7 +134,9 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
     private async Task<int> GridSearchAsync(long formId, IReadOnlyList<AnswerFilter> answers)
     {
         await using var db = _world.CreateReportingDbContext();
-        SubmissionGridAnswerSearch search = new(db, Filter, SearchCopyForms.ProfileFilter(fixture.Provider));
+        // The form has a schema, so the search never asks whether it exists.
+        SubmissionGridAnswerSearch search = new(
+            db, Filter, SearchCopyForms.ProfileFilter(fixture.Provider), Substitute.For<IRepository<Form>>());
         SubmissionGridRowsQuery query = new(
             FormSchemaRebuildWorld.TenantId,
             new ListByFormIdQuery(formId, 1, PageSize),

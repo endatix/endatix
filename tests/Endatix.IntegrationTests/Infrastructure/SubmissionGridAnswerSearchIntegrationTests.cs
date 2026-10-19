@@ -256,10 +256,12 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
             IReadOnlyList<string>? columns = null)
         {
             await using var reportingDb = tests.CreateReportingDbContext();
+            await using var appDb = tests.CreateAppDbContext();
             SubmissionGridAnswerSearch sut = new(
                 reportingDb,
                 SearchCopyForms.KeyFilter(tests.Provider),
-                SearchCopyForms.ProfileFilter(tests.Provider));
+                SearchCopyForms.ProfileFilter(tests.Provider),
+                new EfRepository<Form>(appDb, new EndatixSpecificationEvaluator([])));
             SubmissionGridRowsQuery query = new(TenantId, list ?? new ListByFormIdQuery(formId, 1, 10), columns ?? [], answers);
 
             return await sut.ExecuteAsync(query, Cancellation);

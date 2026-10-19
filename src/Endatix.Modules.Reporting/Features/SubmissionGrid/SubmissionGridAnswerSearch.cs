@@ -1,4 +1,6 @@
 using Ardalis.Specification.EntityFrameworkCore;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
@@ -29,7 +31,8 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 public sealed class SubmissionGridAnswerSearch(
     IReportingDbContext reportingDbContext,
     IRelationalJsonObjectKeyFilter keyFilter,
-    IRelationalSubmitterProfileFilter profileFilter)
+    IRelationalSubmitterProfileFilter profileFilter,
+    IRepository<Form> formsRepository)
 {
     internal const string NotPreparedErrorCode = "reporting_not_prepared";
     internal const string NotPreparedMessage = "The form has no prepared reporting schema, so its answers cannot be filtered.";
@@ -43,7 +46,9 @@ public sealed class SubmissionGridAnswerSearch(
         var searchKeys = await ReadSearchKeysAsync(query, cancellationToken);
         if (searchKeys is null)
         {
-            return Result.Conflict(NotPreparedMessage);
+            return await formsRepository.ExistsAsync(query.TenantId, query.List.FormId, cancellationToken)
+                ? Result.Conflict(NotPreparedMessage)
+                : Result.NotFound(TenantForms.FormNotFoundMessage);
         }
 
         var invalid = AnswerFilterRules.Check(query.Answers, searchKeys);
