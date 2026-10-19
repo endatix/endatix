@@ -12,6 +12,9 @@ internal abstract class ForwardingSchemas(IFormSchemaRepository inner) : IFormSc
     public virtual Task<FormSchema?> GetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
         inner.GetByFormIdAsync(tenantId, formId, cancellationToken);
 
+    public Task<int?> GetSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+        inner.GetSearchKeysRevisionAsync(tenantId, formId, cancellationToken);
+
     public virtual Task<FormSchema?> LockAndGetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
         inner.LockAndGetByFormIdAsync(tenantId, formId, cancellationToken);
 

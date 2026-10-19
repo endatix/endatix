@@ -37,6 +37,7 @@ internal sealed class SubmissionFlatteningProcessor(
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
     IFormSchemaProvider schemaProvider,
     IFormSchemaPersonalization schemaPersonalization,
+    SearchCopyRebuilder searchCopyRebuilder,
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
     private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
@@ -123,9 +124,10 @@ internal sealed class SubmissionFlatteningProcessor(
 
         var schema = await SchemaOfAsync(run, cancellationToken);
         var data = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
-        LogUnlessLanded(
-            await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, data, cancellationToken),
-            run.Write);
+        if (LogUnlessLanded(await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, data, cancellationToken), run.Write))
+        {
+            await searchCopyRebuilder.CatchUpAsync(run.Key, data.SearchKeysRevision, cancellationToken);
+        }
     }
 
     // A form deleted after its submission was read, with its cleanup already run, leaves no schema to flatten with;

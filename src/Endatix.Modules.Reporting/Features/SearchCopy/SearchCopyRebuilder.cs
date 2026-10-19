@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -46,6 +47,20 @@ internal sealed class SearchCopyRebuilder(
         var rows = await RunBatchesAsync(run, cancellationToken);
         logger.LogInformation("Rebuilt the search copy of {Rows} flattened row(s) of form {FormId}", rows, formId);
         return rows;
+    }
+
+    /// <summary>
+    /// Rebuilds the form's search copies when a row was just written from keys older than the schema's: the flatten
+    /// read the keys, a change replaced them and its rebuild passed the row, then the flatten wrote. Only the schema's
+    /// revision is read to decide, so a flatten pays one small query when nothing changed.
+    /// </summary>
+    /// <returns>How many rows were rewritten; 0 when the row was written from the current keys.</returns>
+    public async Task<int> CatchUpAsync(FlattenedSubmissionKey written, int writtenRevision, CancellationToken cancellationToken)
+    {
+        var currentRevision = await schemaRepository.GetSearchKeysRevisionAsync(written.TenantId, written.FormId, cancellationToken);
+        return currentRevision > writtenRevision
+            ? await RebuildFormAsync(written.TenantId, written.FormId, cancellationToken)
+            : 0;
     }
 
     private async Task<int> RunBatchesAsync(RebuildRun run, CancellationToken cancellationToken)

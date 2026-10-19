@@ -315,6 +315,7 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
             FlattenedRows(),
             Provider(schemas),
             Personalization(wrapPersonalizationSchemas is null ? schemas : wrapPersonalizationSchemas(schemas)),
+            ReportingTestSchema.SearchCopyRebuilderFor(reportingDb),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
     }
 
