@@ -73,6 +73,7 @@ public sealed class SetSubmissionTestRequest
 /// </summary>
 public sealed class SetSubmissionTestValidator : Validator<SetSubmissionTestRequest>
 {
+    /// <summary>Requires the form and submission ids and the flag.</summary>
     public SetSubmissionTestValidator()
     {
         RuleFor(x => x.FormId).GreaterThan(0);

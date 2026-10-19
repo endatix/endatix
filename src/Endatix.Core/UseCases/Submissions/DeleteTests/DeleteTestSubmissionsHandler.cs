@@ -24,6 +24,7 @@ public sealed class DeleteTestSubmissionsHandler(
     /// <summary>Submissions loaded and saved per round trip, which bounds each query and each save.</summary>
     internal const int PAGE_SIZE = 500;
 
+    /// <inheritdoc />
     public async Task<Result<DeletedTestSubmissions>> Handle(DeleteTestSubmissionsCommand request, CancellationToken cancellationToken)
     {
         var access = await authorization.ValidateAccessAsync(Actions.Submissions.Delete, cancellationToken);
