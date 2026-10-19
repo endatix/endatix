@@ -19,9 +19,9 @@ public sealed class FormSearchKeysTests
         var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
 
         // Assert
-        refresh.Keys.Keys.Select(key => key.Key).Should().Equal(Names(30));
-        refresh.Keys.Keys.Should().OnlyContain(key => key.Source == SearchKeySources.Auto && key.AddedAt == Now);
-        refresh.RowsNeedRebuild.Should().BeFalse("the rows hold none of these columns yet");
+        refresh.Keys.Select(key => key.Key).Should().Equal(Names(30));
+        refresh.Keys.Should().OnlyContain(key => key.Source == SearchKeySources.Auto && key.AddedAt == Now);
+        refresh.Revision.Should().Be(0, "the rows hold none of these columns yet");
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class FormSearchKeysTests
         var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
 
         // Assert
-        refresh.Keys.Keys.Select(key => key.Key).Should().Equal(Names(FormSearchKeys.MaxAutomatic));
+        refresh.Keys.Select(key => key.Key).Should().Equal(Names(FormSearchKeys.MaxAutomatic));
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(Compile(searchable), Now);
 
         // Assert
-        refresh.Keys.Keys.Select(key => (key.Key, key.AddedAt)).Should().Equal(
+        refresh.Keys.Select(key => (key.Key, key.AddedAt)).Should().Equal(
             ("q001", Earlier), ("q002", Earlier), ("q003", Now));
     }
 
@@ -63,8 +63,8 @@ public sealed class FormSearchKeysTests
         var refresh = full.Refresh(Compile(oneMore), Now);
 
         // Assert
-        refresh.Keys.Keys.Should().HaveCount(FormSearchKeys.MaxAutomatic);
-        refresh.Keys.Keys.Should().NotContain(key => key.Key == "q051");
+        refresh.Keys.Should().HaveCount(FormSearchKeys.MaxAutomatic);
+        refresh.Keys.Should().NotContain(key => key.Key == "q051");
     }
 
     [Fact]
@@ -80,8 +80,8 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(Compile(Searchable(100)), Now);
 
         // Assert
-        refresh.Keys.Keys.Should().HaveCount(FormSearchKeys.MaxKeys);
-        refresh.Keys.Keys.Count(key => key.Source == SearchKeySources.Auto).Should().Be(49);
+        refresh.Keys.Should().HaveCount(FormSearchKeys.MaxKeys);
+        refresh.Keys.Count(key => key.Source == SearchKeySources.Auto).Should().Be(49);
     }
 
     [Fact]
@@ -95,25 +95,11 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(Compile(remaining), Now);
 
         // Assert
-        refresh.Keys.Keys.Select(key => key.Key).Should().Equal("q001", "q003");
+        refresh.Keys.Select(key => key.Key).Should().Equal("q001", "q003");
     }
 
     [Fact]
-    public void Refresh_KeyAddedForAColumnTheRowsAlreadyHold_AsksForARebuild()
-    {
-        // Arrange
-        var searchable = Searchable(2);
-        var compile = Compile(searchable) with { PreviousColumnKeys = Names(2).ToHashSet() };
-
-        // Act
-        var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
-
-        // Assert
-        refresh.RowsNeedRebuild.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Refresh_FilterTypeChanged_TakesTheNewOneAndAsksForARebuild()
+    public void Refresh_FilterTypeChanged_TakesTheNewOneAtTheNextRevision()
     {
         // Arrange
         var existing = Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier);
@@ -123,8 +109,8 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(Compile(retyped), Now);
 
         // Assert
-        refresh.Keys.Keys.Should().ContainSingle().Which.FilterType.Should().Be(SubmissionGridFilterTypes.Date);
-        refresh.RowsNeedRebuild.Should().BeTrue();
+        refresh.Keys.Should().ContainSingle().Which.FilterType.Should().Be(SubmissionGridFilterTypes.Date);
+        refresh.Revision.Should().Be(1);
     }
 
     [Fact]
@@ -153,8 +139,8 @@ public sealed class FormSearchKeysTests
         var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
 
         // Assert
-        refresh.Keys.Revision.Should().Be(1);
-        refresh.Keys.Keys.Should().OnlyContain(key => key.Revision == 1);
+        refresh.Revision.Should().Be(1);
+        refresh.Keys.Should().OnlyContain(key => key.Revision == 1);
     }
 
     [Fact]
@@ -169,8 +155,8 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(compile, Now);
 
         // Assert
-        refresh.Keys.Revision.Should().Be(existing.Revision);
-        refresh.Keys.Find("q003")!.Revision.Should().Be(existing.Revision);
+        refresh.Revision.Should().Be(existing.Revision);
+        refresh.Find("q003")!.Revision.Should().Be(existing.Revision);
     }
 
     [Fact]
@@ -298,7 +284,7 @@ public sealed class FormSearchKeysTests
         columns.Select(column => column.Key).ToHashSet();
 
     private static FormSearchKeys Refreshed(FormSearchKeys keys, SearchKeysCompile compile, DateTime at) =>
-        keys.Refresh(compile, at).Keys;
+        keys.Refresh(compile, at);
 
     private static SearchKeysCompile Compile(IReadOnlyList<SearchableColumn> searchable) =>
         new(searchable, searchable.Select(column => column.Key).ToHashSet(), new HashSet<string>());

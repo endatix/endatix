@@ -73,9 +73,10 @@ internal sealed class FormSearchKeys
 
     /// <summary>
     /// The keys after a compile: those whose column is gone are dropped, a key whose filter changed takes the new one,
-    /// and searchable columns are appended while the automatic slots last.
+    /// and searchable columns are appended while the automatic slots last. The revision moves forward when existing
+    /// rows need a value they were not written with: a key added for a column they hold, or a changed filter.
     /// </summary>
-    public SearchKeysRefresh Refresh(SearchKeysCompile compile, DateTime now)
+    public FormSearchKeys Refresh(SearchKeysCompile compile, DateTime now)
     {
         var kept = Keys.Where(key => compile.ColumnKeys.Contains(key.Key)).ToList();
         var current = kept.Select(key => WithCurrentFilterType(key, compile)).ToList();
@@ -85,8 +86,7 @@ internal sealed class FormSearchKeys
 
         var revision = rowsHoldStaleValues ? Revision + 1 : Revision;
         var stamped = current.Select((key, index) => key == kept[index] ? key : key with { Revision = revision });
-        FormSearchKeys refreshed = new([.. stamped, .. added.Select(key => key with { Revision = revision })], revision);
-        return new SearchKeysRefresh(refreshed, rowsHoldStaleValues);
+        return new FormSearchKeys([.. stamped, .. added.Select(key => key with { Revision = revision })], revision);
     }
 
     /// <summary>
@@ -156,9 +156,3 @@ internal sealed record SearchKeysCompile(
     IReadOnlyList<SearchableColumn> Searchable,
     IReadOnlySet<string> ColumnKeys,
     IReadOnlySet<string> PreviousColumnKeys);
-
-/// <summary>
-/// The keys after a compile, and whether existing rows need their search copy rebuilt: a key was added for a column
-/// the rows already hold, or a key's filter changed how its value is normalised.
-/// </summary>
-internal sealed record SearchKeysRefresh(FormSearchKeys Keys, bool RowsNeedRebuild);

@@ -18,7 +18,7 @@ internal sealed class FormSearchCopy(
         "This column cannot be made filterable: the form's reporting schema has no such column, or no answer filter supports it.";
 
     /// <summary>The search keys of <paramref name="existing"/> after <paramref name="compiled"/> is saved over it.</summary>
-    public SearchKeysRefresh KeysAfter(FormSchemaEntity? existing, FormSchemaCompileResult compiled)
+    public FormSearchKeys KeysAfter(FormSchemaEntity? existing, FormSchemaCompileResult compiled)
     {
         IReadOnlySet<string> previousColumns = existing is null
             ? new HashSet<string>(StringComparer.Ordinal)
