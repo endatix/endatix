@@ -279,7 +279,7 @@ public class JwtTokenServiceTests
         var tokenService = new JwtTokenService(optionsWrapper, _configuration, _logger, _authSchemeSelector);
 
         // Act
-        var result = await tokenService.RevokeTokensAsync(null!);
+        var result = await tokenService.RevokeTokensAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeFalse();
@@ -296,7 +296,7 @@ public class JwtTokenServiceTests
         var user = new User(1, SampleData.TENANT_ID, "testuser", "test@example.com", false);
 
         // Act
-        var result = await tokenService.RevokeTokensAsync(user);
+        var result = await tokenService.RevokeTokensAsync(user, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();

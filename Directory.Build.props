@@ -93,6 +93,12 @@
         </None>
     </ItemGroup>
 
+    <!-- SonarCloud runs its S-rules on src only (tests/** is excluded), so only non-test projects get
+         them locally. They stay warnings. Item conditions see IsTestProject from tests/Directory.Build.props. -->
+    <ItemGroup Condition="'$(IsTestProject)' != 'true'">
+        <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    </ItemGroup>
+
     <PropertyGroup>
         <!-- https://devblogs.microsoft.com/visualstudio/vs-toolbox-accelerate-your-builds-of-sdk-style-net-projects/ -->
         <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
