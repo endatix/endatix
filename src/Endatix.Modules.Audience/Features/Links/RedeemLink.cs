@@ -257,6 +257,7 @@ internal sealed class RedeemLinkHandler(
             "{}",
             IsComplete: false,
             SubmitterId: opening.SubmitterId,
+            SubmitterDisplayId: opening.SubmitterLabel,
             EnforceSingleSubmissionGate: opening.SubmitterId is not null,
             StartSubmission: true));
 
