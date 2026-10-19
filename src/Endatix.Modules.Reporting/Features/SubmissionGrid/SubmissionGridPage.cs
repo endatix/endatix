@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
@@ -37,7 +38,8 @@ public sealed class SubmissionGridPage
     /// <summary>The rows on this page.</summary>
     public IReadOnlyList<SubmissionGridRow> Items { get; }
 
-    /// <summary>Set only when the request has answer filters.</summary>
+    /// <summary>Set only when the request has answer filters; left out of the JSON otherwise.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AnswerFilterCoverage? AnswerFilterCoverage { get; }
 }
 
