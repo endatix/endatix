@@ -9,7 +9,7 @@ namespace Endatix.IntegrationTests;
 /// <summary>Passes every call to the repository it wraps; a test double overrides the calls it watches.</summary>
 internal abstract class ForwardingSchemas(IFormSchemaRepository inner) : IFormSchemaRepository
 {
-    public Task<FormSchema?> GetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+    public virtual Task<FormSchema?> GetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
         inner.GetByFormIdAsync(tenantId, formId, cancellationToken);
 
     public virtual Task<FormSchema?> LockAndGetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
@@ -20,6 +20,13 @@ internal abstract class ForwardingSchemas(IFormSchemaRepository inner) : IFormSc
 
     public Task<int> DeleteByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
         inner.DeleteByFormIdAsync(tenantId, formId, cancellationToken);
+}
+
+/// <summary>Reads the schema as it was at an earlier moment, as a flatten that read it before a change commits.</summary>
+internal sealed class SchemaAsRead(IFormSchemaRepository inner, FormSchema schemaAsRead) : ForwardingSchemas(inner)
+{
+    public override Task<FormSchema?> GetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+        Task.FromResult<FormSchema?>(schemaAsRead);
 }
 
 /// <summary>Lets every party go on once all have arrived, or once the timeout passes.</summary>

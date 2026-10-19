@@ -125,6 +125,25 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task A_flatten_that_read_the_keys_before_one_was_added_catches_its_row_up()
+    {
+        // Arrange — the flatten reads the schema, a person adds a key and its rebuild runs, then the flatten writes.
+        var form = await _world.SeedFlattenedFormAsync(Mixed, new { company = "Acme" });
+        var schemaAsRead = await _world.ReadSchemaAsync(form.FormId);
+        await AddAsync(form, "reference");
+        await RunRebuildsAsync();
+        var submissionId = await _world.AddRealSubmissionAsync(form.FormId, form.DefinitionIds[0], Answers(new { reference = "REF-Gamma" }));
+
+        // Act
+        await _world.FlattenReadingAsync(form.FormId, submissionId, schemaAsRead);
+
+        // Assert
+        var row = await _world.ReadFlattenedAsync(submissionId);
+        row.SearchKeysRevision.Should().Be((await _world.ReadSchemaAsync(form.FormId)).SearchKeysRevision);
+        row.SearchJson.Should().Contain("ref-gamma");
+    }
+
+    [Fact]
     public async Task Removing_a_user_key_stops_filtering_on_it_at_once()
     {
         // Arrange

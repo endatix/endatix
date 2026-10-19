@@ -172,6 +172,14 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
             .ProcessAsync(TenantId, formId, submissionId, Cancellation);
     }
 
+    /// <summary>Flattens a submission with the schema as read at an earlier moment, before a change committed.</summary>
+    public async Task FlattenReadingAsync(long formId, long submissionId, FormSchema schemaAsRead)
+    {
+        await using var scope = OpenScope();
+        await scope.Flattening(new SchemaAsRead(scope.Schemas(), schemaAsRead))
+            .ProcessAsync(TenantId, formId, submissionId, Cancellation);
+    }
+
     /// <summary>A completed submission with audience values frozen on it, as an on-behalf create leaves it.</summary>
     public Task<long> AddPersonalizedSubmissionAsync(
         long formId,
@@ -295,9 +303,13 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
 
     public SubmissionFlatteningProcessor Flattening(
         ITransactionLock transactionLock,
+        Func<IFormSchemaRepository, IFormSchemaRepository>? wrapPersonalizationSchemas = null) =>
+        Flattening(Schemas(transactionLock), wrapPersonalizationSchemas);
+
+    public SubmissionFlatteningProcessor Flattening(
+        IFormSchemaRepository schemas,
         Func<IFormSchemaRepository, IFormSchemaRepository>? wrapPersonalizationSchemas = null)
     {
-        var schemas = Schemas(transactionLock);
         return new(
             Submissions(),
             FlattenedRows(),
