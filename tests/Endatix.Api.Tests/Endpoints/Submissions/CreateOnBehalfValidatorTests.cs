@@ -20,7 +20,8 @@ public sealed class CreateOnBehalfValidatorTests
             Submitter = new SubmitterInput("panel-42", displayId),
         };
 
-        var result = await _validator.TestValidateAsync(request);
+        var result = await _validator.TestValidateAsync(
+            request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -36,7 +37,8 @@ public sealed class CreateOnBehalfValidatorTests
             Submitter = new SubmitterInput(subject, "Jane D."),
         };
 
-        var result = await _validator.TestValidateAsync(request);
+        var result = await _validator.TestValidateAsync(
+            request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor(x => x.Submitter!.ExternalSubjectId);
     }
