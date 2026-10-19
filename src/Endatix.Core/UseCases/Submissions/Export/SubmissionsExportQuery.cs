@@ -12,5 +12,6 @@ public sealed record SubmissionsExportQuery(
     ExportOptions Options,
     PipeWriter OutputWriter,
     string? SqlFunctionName = null,
-    int? ExportPageSize = null
+    int? ExportPageSize = null,
+    bool IncludeTestSubmissions = false
 ) : IRequest<Result<FileExport>>; 

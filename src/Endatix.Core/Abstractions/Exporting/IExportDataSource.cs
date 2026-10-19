@@ -27,12 +27,17 @@ public sealed record ExportDataSourceRequest(
 /// <summary>
 /// Runtime context passed to an export data source.
 /// </summary>
+/// <param name="IncludeTestSubmissions">
+/// Keeps test submissions in a legacy SQL export. Reporting data sources read
+/// <see cref="SubmissionExportExecutionSettings.IncludeTestSubmissions"/> instead.
+/// </param>
 public sealed record ExportDataSourceContext(
     ExportDataSourceRequest Request,
     long TenantId,
     long FormId,
     ExportOptions Options,
-    int? ExportPageSize);
+    int? ExportPageSize,
+    bool IncludeTestSubmissions = false);
 
 /// <summary>
 /// Supplies export rows for a specific format/item-type combination.
