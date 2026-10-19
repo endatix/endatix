@@ -104,20 +104,28 @@ public sealed class AddSearchKeyHandlerTests
     }
 
     [Fact]
-    public async Task Handle_FreeSlot_SavesTheKeyRequestsARebuildAndReturnsTheKeyPending()
+    public async Task Handle_FreeSlot_SavesTheKeys()
     {
         // Arrange
-        _context.GivenForm(SampleData.TENANT_ID);
-        var schema = _context.GivenSchema(SearchKeyHandlerTestContext.TextQuestions(51));
-        _context.Rows.OldestSearchKeysRevisionAsync(SampleData.TENANT_ID, SearchKeyHandlerTestContext.FormId, Arg.Any<CancellationToken>())
-            .Returns(schema.SearchKeysRevision);
+        var schema = GivenFormWithFreeSlot();
 
         // Act
-        var result = await _sut.Handle(Command("q051"), CancellationToken.None);
+        await _sut.Handle(Command("q051"), CancellationToken.None);
 
         // Assert
-        result.Value.Keys.Should().ContainSingle(key => key.Key == "q051").Which.Pending.Should().BeTrue();
         await _context.Schemas.Received(1).SaveAsync(schema, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_FreeSlot_RequestsARebuildOfTheForm()
+    {
+        // Arrange
+        GivenFormWithFreeSlot();
+
+        // Act
+        await _sut.Handle(Command("q051"), CancellationToken.None);
+
+        // Assert
         await _context.OutboxMessages.Received(1).AddAsync(
             Arg.Is<OutboxMessage>(message => message.EventType == SearchCopyRebuildRequests.EventTypeName &&
                                              message.TenantId == SampleData.TENANT_ID &&
@@ -126,13 +134,23 @@ public sealed class AddSearchKeyHandlerTests
     }
 
     [Fact]
+    public async Task Handle_FreeSlot_ReturnsTheKeyPendingWhileRowsAreBehind()
+    {
+        // Arrange
+        GivenFormWithFreeSlot();
+
+        // Act
+        var result = await _sut.Handle(Command("q051"), CancellationToken.None);
+
+        // Assert
+        result.Value.Keys.Should().ContainSingle(key => key.Key == "q051").Which.Pending.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Handle_RebuildRequestFailsAfterTheKeySaved_ReturnsTheKeyPending()
     {
         // Arrange
-        _context.GivenForm(SampleData.TENANT_ID);
-        var schema = _context.GivenSchema(SearchKeyHandlerTestContext.TextQuestions(51));
-        _context.Rows.OldestSearchKeysRevisionAsync(SampleData.TENANT_ID, SearchKeyHandlerTestContext.FormId, Arg.Any<CancellationToken>())
-            .Returns(schema.SearchKeysRevision);
+        GivenFormWithFreeSlot();
         _context.OutboxMessages.AddAsync(Arg.Any<OutboxMessage>(), Arg.Any<CancellationToken>())
             .Returns<OutboxMessage>(_ => throw new InvalidOperationException("App database unavailable"));
 
@@ -174,6 +192,16 @@ public sealed class AddSearchKeyHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Unavailable);
+    }
+
+    // Fifty automatic keys and rows stamped at the schema's revision, so a key added now is ahead of every row.
+    private FormSchemaEntity GivenFormWithFreeSlot()
+    {
+        _context.GivenForm(SampleData.TENANT_ID);
+        var schema = _context.GivenSchema(SearchKeyHandlerTestContext.TextQuestions(51));
+        _context.Rows.OldestSearchKeysRevisionAsync(SampleData.TENANT_ID, SearchKeyHandlerTestContext.FormId, Arg.Any<CancellationToken>())
+            .Returns(schema.SearchKeysRevision);
+        return schema;
     }
 
     private static AddSearchKeyCommand Command(string key, long tenantId = SampleData.TENANT_ID) =>
