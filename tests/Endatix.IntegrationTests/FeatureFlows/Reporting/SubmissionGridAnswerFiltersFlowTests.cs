@@ -135,6 +135,65 @@ public sealed class SubmissionGridAnswerFiltersFlowTests(EndatixIntegrationWebHo
         unfiltered.RootElement.TryGetProperty("answerFilterCoverage", out _).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task With_an_answer_filter_every_row_matches_the_rows_follow_the_submissions_list()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using ReportingWebHost host = new(fixture);
+        using var client = await TenantAdminAsync(host, ct);
+        var formId = await CreateFormAsync(client, compile: true, ct);
+        var approved = await SubmitAsync(client, formId, AcmeAnswers, isComplete: true, ct);
+        await SetStatusAsync(client, formId, approved, "approved", ct);
+        var edited = await SubmitAsync(client, formId, AcmeAnswers, isComplete: true, ct, currentPage: 2);
+        await ChangeAnswersAsync(client, formId, edited, AcmeAnswers.Replace("Acme Corp", "Acme Ltd", StringComparison.Ordinal), ct);
+        await SubmitAsync(client, formId, AcmeAnswers, isComplete: false, ct, currentPage: 1);
+        await SubmitAsync(client, formId, AcmeAnswers, isComplete: true, ct);
+        await BackfillAsync(client, formId, ct);
+        await BackfillAsync(client, formId, ct, completionScope: "incomplete");
+        var today = DateTime.UtcNow.Date;
+        var yesterday = today.AddDays(-1).ToString("yyyy-MM-dd");
+        var tomorrow = today.AddDays(1).ToString("yyyy-MM-dd");
+        string[] queries =
+        [
+            "",
+            $"filter={Uri.EscapeDataString("status:approved")}",
+            $"filter={Uri.EscapeDataString("status!:approved")}",
+            $"filter={Uri.EscapeDataString("collectionStatus:complete")}",
+            $"filter={Uri.EscapeDataString("collectionStatus!:complete")}",
+            $"filter={Uri.EscapeDataString("isComplete:false")}",
+            $"filter={Uri.EscapeDataString("currentPage:2")}",
+            $"createdFrom={yesterday}&createdTo={tomorrow}",
+            $"createdTo={yesterday}",
+            $"modifiedFrom={yesterday}&modifiedTo={tomorrow}",
+            $"startedFrom={yesterday}",
+            $"completedFrom={yesterday}&completedTo={tomorrow}",
+            "sortBy=ModifiedAt&sortDir=Desc&pageSize=2",
+            "sortBy=StartedAt&sortDir=Asc&page=2&pageSize=2",
+            "sortBy=CompletedAt&sortDir=Desc&pageSize=3",
+            "sortBy=CreatedAt&sortDir=Asc&page=2&pageSize=3",
+            "sortBy=Id&sortDir=Desc&pageSize=2",
+        ];
+
+        // Act
+        Dictionary<string, string> list = [];
+        Dictionary<string, string> grid = [];
+        foreach (var query in queries)
+        {
+            using var listed = await GetOkAsync(client, $"/api/forms/{formId}/submissions?{query}", ct);
+            using var filtered = await GetOkAsync(client, $"{Rows(formId, "contains:company:acme")}&{query}", ct);
+            list[query] = Window(listed.RootElement);
+            grid[query] = Window(filtered.RootElement);
+        }
+
+        using var everyRow = await GetOkAsync(client, Rows(formId, "contains:company:acme"), ct);
+
+        // Assert
+        everyRow.RootElement.GetProperty("answerFilterCoverage").GetRawText().Replace(" ", "", StringComparison.Ordinal)
+            .Should().Be("""{"uncheckedCompleted":0,"uncheckedInProgress":0}""");
+        grid.Should().BeEquivalentTo(list);
+    }
+
     [Theory]
     [InlineData("contains:missing:x", "Column 'missing' cannot be filtered on this form.")]
     [InlineData("from:company:2026-01-01", "Column 'company' is a text column and does not support 'from'.")]
@@ -213,6 +272,10 @@ public sealed class SubmissionGridAnswerFiltersFlowTests(EndatixIntegrationWebHo
         $"/api/forms/{formId}/reporting/submissions" +
         (answers.Length == 0 ? "" : "?" + string.Join('&', answers.Select(answer => $"answer={Uri.EscapeDataString(answer)}")));
 
+    private static string Window(JsonElement page) =>
+        $"{page.GetProperty("page").GetInt32()}/{page.GetProperty("pageSize").GetInt32()}/" +
+        $"{page.GetProperty("totalRecords").GetInt32()}:{Ids(page)}";
+
     private static string Ids(JsonElement page) =>
         string.Join(',', page.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("id").GetString()));
 
@@ -246,19 +309,37 @@ public sealed class SubmissionGridAnswerFiltersFlowTests(EndatixIntegrationWebHo
         string formId,
         string jsonData,
         bool isComplete,
-        CancellationToken ct)
+        CancellationToken ct,
+        int? currentPage = null)
     {
         using var response = await client.PostAsJsonAsync(
-            $"/api/forms/{formId}/submissions", new { isComplete, jsonData }, ct);
+            $"/api/forms/{formId}/submissions", new { isComplete, jsonData, currentPage }, ct);
         response.EnsureSuccessStatusCode();
         using var submission = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
         return submission.RootElement.GetProperty("id").GetString()!;
     }
 
-    private static async Task BackfillAsync(HttpClient client, string formId, CancellationToken ct)
+    private static async Task BackfillAsync(
+        HttpClient client,
+        string formId,
+        CancellationToken ct,
+        string completionScope = "completed")
     {
-        using var response = await client.PostAsJsonAsync($"/api/forms/{formId}/submissions/backfill", new { }, ct);
+        using var response = await client.PostAsJsonAsync(
+            $"/api/forms/{formId}/submissions/backfill", new { completionScope }, ct);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    private static async Task SetStatusAsync(
+        HttpClient client,
+        string formId,
+        string submissionId,
+        string status,
+        CancellationToken ct)
+    {
+        using var response = await client.PostAsJsonAsync(
+            $"/api/forms/{formId}/submissions/{submissionId}/status", new { status }, ct);
+        response.EnsureSuccessStatusCode();
     }
 
     private static async Task ChangeAnswersAsync(
