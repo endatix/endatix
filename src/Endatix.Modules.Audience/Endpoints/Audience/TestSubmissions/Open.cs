@@ -16,6 +16,7 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.TestSubmissions;
 public sealed class Open(IMediator mediator, ITenantContext tenantContext)
     : Endpoint<OpenTestSubmissionRequest, Results<Created<TestSubmissionResponse>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Post("forms/{formId}/audience/test-submissions");
@@ -37,6 +38,7 @@ public sealed class Open(IMediator mediator, ITenantContext tenantContext)
             .ProducesProblem(404));
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Created<TestSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(
         OpenTestSubmissionRequest request,
         CancellationToken ct)
@@ -50,8 +52,10 @@ public sealed class Open(IMediator mediator, ITenantContext tenantContext)
     }
 }
 
+/// <summary>Validates <see cref="OpenTestSubmissionRequest"/>.</summary>
 public sealed class OpenTestSubmissionValidator : Validator<OpenTestSubmissionRequest>
 {
+    /// <summary>Requires a form and a membership id.</summary>
     public OpenTestSubmissionValidator()
     {
         RuleFor(request => request.FormId).GreaterThan(0);
@@ -59,20 +63,26 @@ public sealed class OpenTestSubmissionValidator : Validator<OpenTestSubmissionRe
     }
 }
 
+/// <summary>Request to open a test submission as a person.</summary>
 public sealed class OpenTestSubmissionRequest
 {
+    /// <summary>The form to test.</summary>
     public long FormId { get; init; }
 
+    /// <summary>The person on the form to test as.</summary>
     public long MembershipId { get; init; }
 }
 
 /// <summary>The new test submission and the token the respondent page opens it with.</summary>
 public sealed class TestSubmissionResponse
 {
+    /// <summary>The new test submission.</summary>
     public long SubmissionId { get; init; }
 
+    /// <summary>The token the respondent page opens the test submission with.</summary>
     public string Token { get; init; } = string.Empty;
 
+    /// <summary>Maps the opened test submission to the wire model.</summary>
     public static TestSubmissionResponse From(OpenedTestSubmissionDto dto) => new()
     {
         SubmissionId = dto.SubmissionId,

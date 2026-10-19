@@ -16,6 +16,7 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.TestSubmissions;
 public sealed class Restart(IMediator mediator, ITenantContext tenantContext)
     : Endpoint<RestartTestSubmissionRequest, Results<Created<TestSubmissionResponse>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Post("forms/{formId}/audience/test-submissions/{submissionId}/restart");
@@ -36,6 +37,7 @@ public sealed class Restart(IMediator mediator, ITenantContext tenantContext)
             .ProducesProblem(404));
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Created<TestSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(
         RestartTestSubmissionRequest request,
         CancellationToken ct)
@@ -49,8 +51,10 @@ public sealed class Restart(IMediator mediator, ITenantContext tenantContext)
     }
 }
 
+/// <summary>Validates <see cref="RestartTestSubmissionRequest"/>.</summary>
 public sealed class RestartTestSubmissionValidator : Validator<RestartTestSubmissionRequest>
 {
+    /// <summary>Requires a form and a submission id.</summary>
     public RestartTestSubmissionValidator()
     {
         RuleFor(request => request.FormId).GreaterThan(0);
@@ -58,9 +62,12 @@ public sealed class RestartTestSubmissionValidator : Validator<RestartTestSubmis
     }
 }
 
+/// <summary>Request to start over a test submission.</summary>
 public sealed class RestartTestSubmissionRequest
 {
+    /// <summary>The form the test submission belongs to.</summary>
     public long FormId { get; init; }
 
+    /// <summary>The test submission to discard.</summary>
     public long SubmissionId { get; init; }
 }
