@@ -326,7 +326,7 @@ public partial class SubmissionFlatteningProcessorTests
     {
         var compiled = new FormSchemaCompiler().CompilePersisted(FormSchemaFixtureLoader.LoadText("simple-definition.json"));
         FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
-        schema.UpdateSearchKeys(searchKeysJson);
+        schema.UpdateSearchKeys(searchKeysJson, revision: 0);
         _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>()).Returns(schema);
     }
 
