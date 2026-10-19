@@ -64,6 +64,25 @@ public partial class SubmissionFlatteningProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_SchemaWithSearchKeys_WritesTheSearchCopyOfThoseKeys()
+    {
+        // Arrange
+        GivenSubmission(CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 1));
+        GivenSchema("""[{"key":"firstName","source":"auto","filterType":"text","addedAt":"2026-10-19T00:00:00Z"}]""");
+        GivenRowAcceptsRevision(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
+
+        // Act
+        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _rows.Received(1).TryMarkProcessedAsync(
+            Arg.Any<FlattenedRevision>(),
+            Arg.Is<FlattenedRowData>(data => data.SearchJson == """{"firstName":"ada"}"""),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ProcessAsync_SubmissionWithSnapshot_WritesTheFrozenValuesBesideTheAnswers()
     {
         // Arrange
@@ -303,11 +322,12 @@ public partial class SubmissionFlatteningProcessorTests
         _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>())
             .Returns((FormSchemaEntity?)null);
 
-    private void GivenSchema()
+    private void GivenSchema(string searchKeysJson = FormSchemaEntity.EmptySearchKeysJson)
     {
         var compiled = new FormSchemaCompiler().CompilePersisted(FormSchemaFixtureLoader.LoadText("simple-definition.json"));
-        _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>())
-            .Returns(new FormSchemaEntity(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson));
+        FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
+        schema.UpdateSearchKeys(searchKeysJson);
+        _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>()).Returns(schema);
     }
 
     private void GivenRowAcceptsRevision(bool accepts)
