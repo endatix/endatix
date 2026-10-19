@@ -25,7 +25,8 @@ public sealed class ListGridSubmissions(
         "Takes the same filters, sort and paging as the form's submissions list, plus columns: a comma-separated " +
         "list of answer columns from the form's reporting schema. Each row carries its preparation state and its " +
         "answers for those columns, from prepared data when it is current and from the submission's own answers " +
-        "otherwise. Repeated answer={operator}:{key}:{value} parameters filter by prepared answers, AND-combined: " +
+        "otherwise. The submission's own answers have simple question columns only. Repeated " +
+        "answer={operator}:{key}:{value} parameters filter by prepared answers, AND-combined: " +
         "contains on text columns, from and to (yyyy-MM-dd) on date columns. The key is percent-encoded. Only rows " +
         "prepared from the submission's current version are checked; answerFilterCoverage counts the others.";
 

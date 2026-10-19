@@ -65,6 +65,7 @@ public sealed class ListGridColumns(
 /// </summary>
 public sealed class ListGridColumnsValidator : Validator<ListGridColumnsRequest>
 {
+    /// <summary>Requires a form and caps the locale at a culture code's length.</summary>
     public ListGridColumnsValidator()
     {
         RuleFor(request => request.FormId)

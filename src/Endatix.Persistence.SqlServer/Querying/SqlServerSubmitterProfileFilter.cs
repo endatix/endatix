@@ -8,8 +8,8 @@ namespace Endatix.Persistence.SqlServer.Querying;
 /// SQL Server submitter profile filter: <c>JSON_VALUE</c> on the snapshot, compared under a binary collation.
 /// </summary>
 /// <remarks>
-/// The binary collation makes a match exact, as with PostgreSQL's <c>@&gt;</c>. A database collation that ignores
-/// case would otherwise widen the filter on SQL Server only.
+/// The binary collation keeps matching case-sensitive, as PostgreSQL's <c>@&gt;</c> is, whatever the database
+/// collation. SQL Server still ignores trailing spaces when it compares strings.
 /// </remarks>
 public sealed class SqlServerSubmitterProfileFilter : RelationalSubmitterProfileFilterBase
 {
