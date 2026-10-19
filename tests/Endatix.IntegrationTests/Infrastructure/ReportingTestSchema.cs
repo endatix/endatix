@@ -120,7 +120,6 @@ internal static class ReportingTestSchema
         DbContextOptionsBuilder<TContext> optionsBuilder = new();
         optionsBuilder.ConfigureModuleDbContext(configuration, ReportingPersistence.ConfigureDbContextOptions);
 
-        // What the persistence builder's IModuleDbContextProviderOptions applies in a host: the JSON database functions.
         if (DatabaseProviderResolver.IsPostgreSql(configuration))
         {
             optionsBuilder.ReplaceService<IModelCustomizer, NpgsqlEndatixModelCustomizer>();

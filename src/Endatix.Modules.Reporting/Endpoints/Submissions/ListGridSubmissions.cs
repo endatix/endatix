@@ -33,7 +33,8 @@ public sealed class ListGridSubmissions(
                 "Takes the same filters, sort and paging as the form's submissions list, plus columns: a " +
                 "comma-separated list of answer columns from the form's reporting schema. Each row carries its " +
                 "preparation state and its answers for those columns, from prepared data when it is current and " +
-                "from the submission's own answers otherwise.";
+                "from the submission's own answers otherwise. The submission's own answers have simple question " +
+                "columns only.";
             summary.Responses[200] = "Submissions returned.";
             summary.Responses[400] = "Invalid input data.";
             summary.Responses[401] = "No tenant in the request.";

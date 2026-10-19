@@ -4,14 +4,6 @@ using Endatix.Modules.Reporting.Contracts;
 
 namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 
-/// <summary>
-/// A submission's prepared row, as far as the grid needs it.
-/// </summary>
-/// <param name="SubmissionId">The submission the row belongs to.</param>
-/// <param name="StatusCode">The row's preparation status code.</param>
-/// <param name="HasData">Whether the row holds prepared answers, read even when <paramref name="DataJson"/> is not.</param>
-/// <param name="DataJson">The prepared answers as JSON, when they were read.</param>
-/// <param name="SourceModifiedAt">The submission's <c>ModifiedAt ?? CreatedAt</c> the row was prepared from.</param>
 internal sealed record PreparedRow(
     long SubmissionId,
     string StatusCode,
@@ -19,9 +11,6 @@ internal sealed record PreparedRow(
     string? DataJson,
     DateTime? SourceModifiedAt);
 
-/// <summary>
-/// Builds grid rows from a page of submissions and their prepared rows.
-/// </summary>
 internal static class SubmissionGridRows
 {
     internal static SubmissionGridRow Compose(
@@ -53,10 +42,6 @@ internal static class SubmissionGridRows
             usePrepared ? SubmissionGridAnswerSources.Prepared : SubmissionGridAnswerSources.Raw);
     }
 
-    /// <summary>
-    /// The row's preparation state. A prepared row is current only when it was written from the submission's
-    /// current version: both stamps come from the submission (see <c>FlattenedSubmission.SourceModifiedAt</c>).
-    /// </summary>
     internal static string RowStateOf(SubmissionDto submission, PreparedRow? prepared)
     {
         if (prepared is null)
@@ -66,7 +51,8 @@ internal static class SubmissionGridRows
 
         return prepared.StatusCode switch
         {
-            SubmissionIntegrationStatusCodes.Processed when IsCurrent(submission, prepared) => SubmissionGridRowStates.Prepared,
+            SubmissionIntegrationStatusCodes.Processed when IsPreparedFromCurrentVersion(submission, prepared) =>
+                SubmissionGridRowStates.Prepared,
             SubmissionIntegrationStatusCodes.Processed => SubmissionGridRowStates.Stale,
             SubmissionIntegrationStatusCodes.Failed => SubmissionGridRowStates.Failed,
             SubmissionIntegrationStatusCodes.Skipped => SubmissionGridRowStates.Skipped,
@@ -74,10 +60,6 @@ internal static class SubmissionGridRows
         };
     }
 
-    /// <summary>
-    /// The values of <paramref name="columns"/> in a flat answer object. Keys that are missing or null are left
-    /// out; answers that are not a JSON object give none.
-    /// </summary>
     internal static IReadOnlyDictionary<string, JsonElement> PickAnswers(string? answersJson, IReadOnlyList<string> columns)
     {
         Dictionary<string, JsonElement> answers = new(StringComparer.Ordinal);
@@ -97,7 +79,7 @@ internal static class SubmissionGridRows
         return answers;
     }
 
-    private static bool IsCurrent(SubmissionDto submission, PreparedRow prepared) =>
+    private static bool IsPreparedFromCurrentVersion(SubmissionDto submission, PreparedRow prepared) =>
         prepared.HasData &&
         prepared.SourceModifiedAt == (submission.ModifiedAt ?? submission.CreatedAt);
 

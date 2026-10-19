@@ -20,7 +20,10 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 /// <param name="SubmitterDisplayId">The submitter's display id, when known.</param>
 /// <param name="SubmitterProfile">The submitter's profile fields, as they were when they submitted.</param>
 /// <param name="RowState">One of <see cref="SubmissionGridRowStates"/>: how far the submission is prepared.</param>
-/// <param name="Answers">The requested columns that have a value, keyed by column key.</param>
+/// <param name="Answers">
+/// The requested columns that have a value, keyed by column key. Raw answers are keyed by question name, so only
+/// simple question columns can be found there.
+/// </param>
 /// <param name="AnswersSource">
 /// <see cref="SubmissionGridAnswerSources.Prepared"/> when <paramref name="Answers"/> comes from prepared data,
 /// <see cref="SubmissionGridAnswerSources.Raw"/> when it comes from the submission's own answers.
