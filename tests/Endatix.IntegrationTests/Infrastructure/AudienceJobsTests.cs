@@ -82,7 +82,7 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         await db.SaveChangesAsync(ct);
         form.SetActiveFormDefinition(definition);
         await db.SaveChangesAsync(ct);
-        var submission = new Submission(tenant.Id, """{"q1":"hello"}""", form.Id, definition.Id, isComplete: true);
+        var submission = Submission.Create(new SubmissionCreateArgs(tenant.Id, form.Id, definition.Id, """{"q1":"hello"}"""));
         db.Submissions.Add(submission);
         await db.SaveChangesAsync(ct);
         return new SeededSubmission(tenant.Id, form.Id, submission.Id);
