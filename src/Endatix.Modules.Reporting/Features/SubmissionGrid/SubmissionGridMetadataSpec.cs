@@ -14,8 +14,9 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 /// the field filters and the date ranges, with the same rules as the core <c>SubmissionsByFormIdSpec</c>.
 /// </summary>
 /// <remarks>
-/// Submitter profile filters are provider SQL and are applied by <see cref="SubmissionGridAnswerSearch"/>. The
-/// integration tests compare this with the core list for each filter.
+/// Submitter profile filters are provider SQL and are applied by <see cref="SubmissionGridAnswerSearch"/>. Core also
+/// requires the submission's form definition to be live (<c>s.FormDefinition.FormId</c>); this spec reads only
+/// <see cref="CoreSubmissionRow.FormId"/>.
 /// </remarks>
 internal sealed class SubmissionGridMetadataSpec : Specification<CoreSubmissionRow>
 {

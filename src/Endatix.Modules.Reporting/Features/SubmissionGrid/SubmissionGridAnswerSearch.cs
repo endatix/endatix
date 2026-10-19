@@ -1,9 +1,12 @@
 using Ardalis.Specification.EntityFrameworkCore;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.Modules.Reporting.Contracts;
+using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +32,8 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 public sealed class SubmissionGridAnswerSearch(
     IReportingDbContext reportingDbContext,
     IRelationalJsonObjectKeyFilter keyFilter,
-    IRelationalSubmitterProfileFilter profileFilter)
+    IRelationalSubmitterProfileFilter profileFilter,
+    IRepository<Form> formsRepository)
 {
     internal const string NotPreparedErrorCode = "reporting_not_prepared";
     internal const string NotPreparedMessage = "The form has no prepared reporting schema, so its answers cannot be filtered.";
@@ -43,7 +47,9 @@ public sealed class SubmissionGridAnswerSearch(
         var searchKeys = await ReadSearchKeysAsync(query, cancellationToken);
         if (searchKeys is null)
         {
-            return Result.Conflict(NotPreparedMessage);
+            return await formsRepository.IsTenantFormAsync(query.TenantId, query.List.FormId, cancellationToken)
+                ? Result.Conflict(NotPreparedMessage)
+                : Result.NotFound(ListSubmissionGridColumns.FormNotFoundMessage);
         }
 
         var invalid = AnswerFilterRules.Check(query.Answers, searchKeys);
@@ -84,7 +90,6 @@ public sealed class SubmissionGridAnswerSearch(
         return schema is null ? null : FormSearchKeys.FromJson(schema.SearchKeys);
     }
 
-    // The form's submissions inside the list's metadata filters.
     private IQueryable<CoreSubmissionRow> Listed(SubmissionGridRowsQuery query)
     {
         FilterParameters filters = new(query.List.FilterExpressions ?? []);
@@ -99,8 +104,8 @@ public sealed class SubmissionGridAnswerSearch(
         return rows;
     }
 
-    // Prepared rows with a search copy. A row is checked only when it was also prepared from the submission's
-    // current version, which the join to the submission decides.
+    // A row is checked only when it was prepared from the submission's current version;
+    // the join to the submission decides that.
     private IQueryable<PreparedSubmission> Searchable(SubmissionGridRowsQuery query) =>
         reportingDbContext.FlattenedSubmissions
             .Where(row => row.TenantId == query.TenantId && row.FormId == query.List.FormId && !row.IsDeleted &&

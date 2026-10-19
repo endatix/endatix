@@ -99,7 +99,7 @@ public sealed class ListSubmissionGridRows(
         return await PreparedRowsOf(query, ids).ToDictionaryAsync(row => row.SubmissionId, cancellationToken);
     }
 
-    // The page's prepared rows. Answers are read only when columns were asked for; the state never needs them.
+    // Answers are read only when columns were asked for; the state never needs them.
     private IQueryable<PreparedRow> PreparedRowsOf(SubmissionGridRowsQuery query, List<long> ids)
     {
         var readAnswers = query.Columns.Count > 0;

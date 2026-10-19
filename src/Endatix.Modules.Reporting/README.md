@@ -110,7 +110,8 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
   (`SearchCopyRows.HoldingSearchKeys`); any other row counts as not checked, not as not matching. Removing a key needs
   no new revision: filters stop reading it at once, and its stale values are never read.
 - **Filters.** `IRelationalJsonObjectKeyFilter.WhereKeyMatches` (contains, lowercased pattern as a parameter) and
-  `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point). SQL Server reads keys with
+  `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point, on values that start with `yyyy-MM-dd`, so a
+  value kept as entered never falls in a range). SQL Server reads keys with
   `JSON_VALUE(… RETURNING nvarchar(max))`, because lax `JSON_VALUE` returns NULL above 4,000 characters, and compares
   lowercased values, so a case-sensitive database collation still matches without case.
 
@@ -152,14 +153,18 @@ rows only for the first tables; the grid answer search rows below add the core j
 
 Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, coverage count), same data:
 
-| Shape (2026-10-16, Testcontainers, 8 vCPU) | 1–3 filters, 1 caller | 1–3 filters, 4 callers | No match, 1 caller |
+| Shape (Testcontainers, 8 vCPU) | 1–3 filters, 1 caller | 1–3 filters, 4 callers | No match, 1 caller |
 | --- | --- | --- | --- |
-| PostgreSQL realistic | 64–106 ms | 101–127 ms | 81 ms |
-| SQL Server realistic | 307–400 ms | 786–805 ms (at the edge) | 188 ms |
+| PostgreSQL realistic, 2026-10-16 | 64–106 ms | 101–127 ms | 81 ms |
+| PostgreSQL realistic, 2026-10-19 (ranges check the date shape) | 106–188 ms | 125–222 ms | 94 ms |
+| SQL Server realistic, 2026-10-16 | 307–400 ms | 786–805 ms | 188 ms |
+| SQL Server realistic, 2026-10-19 (ranges check the date shape) | 325–413 ms | 777–861 ms | 209 ms |
 
 64 search keys (50 automatic, 14 people's keys with the deep filtered questions). SQL Server with 4 concurrent callers
-is the edge: 805 ms for 3 deep contains filters against an 800 ms target (567 ms once the copies were rebuilt). Measure
-again before raising the key cap or adding work to the grid query.
+is the edge: 805–861 ms for 3 deep contains filters against an 800 ms target (305–567 ms once the copies were
+rebuilt). The 2026-10-19 run was slower in every scenario, the ones without a date range included (3 deep contains:
+805 → 861 ms), so the date shape check is within run-to-run noise. Measure again before raising the key cap or adding
+work to the grid query.
 
 #### Keys people choose
 

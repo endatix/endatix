@@ -45,6 +45,12 @@ public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectK
     /// </summary>
     protected abstract Expression MatchesPattern(Expression text, Expression lowercasedPattern);
 
+    /// <summary>
+    /// Whether <paramref name="ordinalText"/> starts with an ISO date, <c>yyyy-MM-dd</c> in ASCII digits. The range
+    /// filters require it, so a value of another shape never falls between two dates by code point.
+    /// </summary>
+    protected abstract Expression StartsWithIsoDate(Expression ordinalText);
+
     /// <inheritdoc />
     public IQueryable<TEntity> WhereKeyMatches<TEntity>(
         IQueryable<TEntity> source,
@@ -153,7 +159,7 @@ public abstract class RelationalJsonObjectKeyFilterBase : IRelationalJsonObjectK
             ExtractKey(parameter, key.JsonPropertyName, key.JsonObjectKey),
             Expression.Constant(OrdinalCollation));
         var compared = Expression.Call(StringCompareMethod, ordinalText, AsParameter(bound.Value));
-        var body = bound.Comparison(compared, Expression.Constant(0));
+        var body = Expression.AndAlso(StartsWithIsoDate(ordinalText), bound.Comparison(compared, Expression.Constant(0)));
 
         return source.Where(Expression.Lambda<Func<TEntity, bool>>(body, parameter));
     }

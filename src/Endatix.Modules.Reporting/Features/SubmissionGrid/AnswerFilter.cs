@@ -49,6 +49,7 @@ public static class AnswerFilterExpressions
     public const int MaxTextLength = 200;
 
     private const string DayFormat = "yyyy-MM-dd";
+    private const string AfterLastDay = "9999-12-32";
 
     /// <summary>
     /// The filters in <paramref name="expressions"/>, or <see langword="null"/> when one is malformed. Blank
@@ -80,10 +81,17 @@ public static class AnswerFilterExpressions
         DateOnly.TryParseExact(day, DayFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 
     /// <summary>The day after <paramref name="day"/>, as <c>yyyy-MM-dd</c>.</summary>
-    internal static string NextDay(string day) =>
-        DateOnly.ParseExact(day, DayFormat, CultureInfo.InvariantCulture)
-            .AddDays(1)
-            .ToString(DayFormat, CultureInfo.InvariantCulture);
+    /// <remarks>
+    /// No day follows 9999-12-31, so its bound is <c>9999-12-32</c>: compared by code point, as the key filters do, it
+    /// still sorts after every value on that day, times included.
+    /// </remarks>
+    internal static string NextDay(string day)
+    {
+        var date = DateOnly.ParseExact(day, DayFormat, CultureInfo.InvariantCulture);
+        return date == DateOnly.MaxValue
+            ? AfterLastDay
+            : date.AddDays(1).ToString(DayFormat, CultureInfo.InvariantCulture);
+    }
 
     private static AnswerFilter? TryParseOne(string expression)
     {

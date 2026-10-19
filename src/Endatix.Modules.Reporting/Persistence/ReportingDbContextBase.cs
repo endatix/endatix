@@ -58,7 +58,6 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
         modelBuilder.ApplySnowflakeIdValueGenerators(Database);
         modelBuilder.ApplyModuleTableNames();
 
-        // After ApplyModuleTableNames, which would move the table into the reporting schema.
         MapCoreSubmissions(modelBuilder);
     }
 

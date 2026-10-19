@@ -110,6 +110,39 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
+    public async Task To_on_the_last_calendar_day_keeps_every_dated_answer()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        var lastDay = await world.PreparedAsync("""{"visit":"9999-12-31"}""");
+        var earlier = await world.PreparedAsync("""{"visit":"2026-02-28"}""");
+
+        // Act
+        var page = await world.SearchAsync([Answer("to", "visit", "9999-12-31")]);
+
+        // Assert
+        page.Items.Select(row => row.Id).Should().BeEquivalentTo([lastDay, earlier]);
+    }
+
+    [Fact]
+    public async Task A_value_that_is_not_a_date_never_matches_a_range()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        var date = await world.PreparedAsync("""{"visit":"2026-03-01"}""");
+        await world.PreparedAsync("""{"visit":"n/a"}""");
+        await world.PreparedAsync("""{"visit":"2026/03/01"}""");
+
+        // Act
+        var from = await world.SearchAsync([Answer("from", "visit", "2026-01-01")]);
+        var to = await world.SearchAsync([Answer("to", "visit", "2026-12-31")]);
+
+        // Assert
+        from.Items.Select(row => row.Id).Should().Equal(date);
+        to.Items.Select(row => row.Id).Should().Equal(date);
+    }
+
+    [Fact]
     public async Task Filters_on_two_columns_combine_with_and()
     {
         // Arrange
@@ -198,6 +231,20 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
         result.Status.Should().Be(ResultStatus.Conflict);
     }
 
+    [Fact]
+    public async Task A_form_that_does_not_exist_is_not_found()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        ListByFormIdQuery unknownForm = new(world.FormId + 1, 1, 10);
+
+        // Act
+        var result = await world.ExecuteAsync([Answer("contains", "city", "x")], unknownForm);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
     private static AnswerFilter Answer(string @operator, string key, string value) => new(key, @operator, value);
 
     private async Task<GridWorld> SeedAsync(bool withSchema)
@@ -261,10 +308,12 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
             IReadOnlyList<string>? columns = null)
         {
             await using var reportingDb = tests.CreateReportingDbContext();
+            await using var appDb = tests.CreateAppDbContext();
             SubmissionGridAnswerSearch sut = new(
                 reportingDb,
                 SearchCopyForms.KeyFilter(tests.Provider),
-                SearchCopyForms.ProfileFilter(tests.Provider));
+                SearchCopyForms.ProfileFilter(tests.Provider),
+                new EfRepository<Form>(appDb, new EndatixSpecificationEvaluator([])));
             SubmissionGridRowsQuery query = new(TenantId, list ?? new ListByFormIdQuery(formId, 1, 10), columns ?? [], answers);
 
             return await sut.ExecuteAsync(query, Cancellation);
@@ -277,7 +326,6 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
             return id;
         }
 
-        // Prepared, then changed: the row no longer matches the submission's version.
         public async Task<long> StaleAsync(string searchJson)
         {
             var id = await PreparedAsync(searchJson);

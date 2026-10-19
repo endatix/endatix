@@ -18,7 +18,7 @@ public sealed class SqlServerSubmitterProfileFilter : RelationalSubmitterProfile
     /// <inheritdoc />
     protected override Expression<Func<string?, bool>> HasAnyOf(string field, List<string> values)
     {
-        var path = JsonPathOf(field);
+        var path = SqlServerJsonObjectKeyFilter.BuildJsonValuePath(field);
         IEnumerable<string?> candidates = values;
         return snapshot => snapshot != null &&
                            candidates.Contains(EF.Functions.Collate(
@@ -29,7 +29,7 @@ public sealed class SqlServerSubmitterProfileFilter : RelationalSubmitterProfile
     /// <inheritdoc />
     protected override Expression<Func<string?, bool>> HasNoneOf(string field, List<string> values)
     {
-        var path = JsonPathOf(field);
+        var path = SqlServerJsonObjectKeyFilter.BuildJsonValuePath(field);
         IEnumerable<string?> candidates = values;
         return snapshot => snapshot == null ||
                            SqlServerJsonDbFunctions.JsonValue(snapshot, path) == null ||
@@ -37,8 +37,4 @@ public sealed class SqlServerSubmitterProfileFilter : RelationalSubmitterProfile
                                SqlServerJsonDbFunctions.JsonValue(snapshot, path),
                                ExactCollation));
     }
-
-    // Quoted, so a field name with a dot or a space is one key, not a nested path.
-    private static string JsonPathOf(string field) =>
-        $"$.\"{field.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
 }
