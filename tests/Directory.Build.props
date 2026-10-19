@@ -7,6 +7,9 @@
         <IsTestProject>true</IsTestProject>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <!-- Test methods carry no XML docs. Without a doc file the compiler skips CS1591, which
+             .editorconfig only lowers to a suggestion: SonarCloud still imports it from the SARIF log. -->
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
         <!-- Do not inherit oss RuntimeFrameworkVersion (10.0.6); use the SDK default so tests run on locally installed 10.0.x. -->
         <RuntimeFrameworkVersion />
         <RollForward>LatestMinor</RollForward>
