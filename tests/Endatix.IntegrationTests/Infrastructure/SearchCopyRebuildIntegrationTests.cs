@@ -72,6 +72,24 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
             .Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
     }
 
+    [Fact]
+    public async Task A_compile_after_a_rebuild_that_did_not_finish_runs_it_again()
+    {
+        // Arrange — the keys moved to a new revision, but the rebuild that should follow never ran.
+        var form = await FlattenAllAsync();
+        var flattened = await ReadRowsAsync(form.FormId);
+        await ClearSearchCopiesAsync(form.FormId);
+
+        // Act — the definition has not changed, so the compile leaves the schema as it is.
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+
+        // Assert
+        var revision = (await _world.ReadSchemaAsync(form.FormId)).SearchKeysRevision;
+        var rows = await ReadRowsAsync(form.FormId);
+        rows.Should().OnlyContain(row => row.SearchKeysRevision == revision);
+        rows.Select(row => Normalized(row.SearchJson)).Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
+    }
+
     private Task<RebuildForm> FlattenAllAsync() => _world.SeedFlattenedFormAsync(Mixed, Answers);
 
     private async Task<int> RebuildAsync(long formId)
