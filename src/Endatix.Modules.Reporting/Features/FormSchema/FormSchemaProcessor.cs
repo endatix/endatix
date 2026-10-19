@@ -130,9 +130,8 @@ internal sealed class FormSchemaProcessor(
     {
         var target = rebuild.Target;
         var existing = await schemaRepository.LockAndGetByFormIdAsync(target.TenantId, target.FormId, cancellationToken);
-        var mode = await ChooseModeAsync(rebuild, existing, cancellationToken);
-        var schema = mode is null ? null : CompileSchema(rebuild, existing, mode.Value);
-        if (schema is null)
+        if (await ChooseModeAsync(rebuild, existing, cancellationToken) is not { } mode ||
+            CompileSchema(rebuild, existing, mode) is not { } schema)
         {
             return null;
         }
@@ -143,7 +142,7 @@ internal sealed class FormSchemaProcessor(
             await flattenedSubmissionRepository.DeleteByFormIdAsync(target.TenantId, target.FormId, cancellationToken);
         }
 
-        return new SavedSchema(mode.Value);
+        return new SavedSchema(mode);
     }
 
     // Whether the form has real submissions is read only when it decides the mode, and as late as it can be: under the
@@ -262,7 +261,7 @@ internal sealed class FormSchemaProcessor(
     // Runs after every compile, whether it saved the schema or left it as it was. The rebuild rewrites only rows stamped
     // with an older search keys revision than the schema's, so it catches up rows this compile's keys left behind, and
     // rows a rebuild before it did not finish; with none behind it costs one empty batch.
-    private Task CatchUpSearchCopyAsync(CompileTarget target, CancellationToken cancellationToken) =>
+    private Task<int> CatchUpSearchCopyAsync(CompileTarget target, CancellationToken cancellationToken) =>
         searchCopy.RebuildAsync(target.TenantId, target.FormId, cancellationToken);
 
     // A form deleted after this compile read it would keep the schema the compile wrote, when its deletion sync ran

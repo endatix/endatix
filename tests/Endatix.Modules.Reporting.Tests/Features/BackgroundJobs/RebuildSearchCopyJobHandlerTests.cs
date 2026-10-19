@@ -40,7 +40,7 @@ public sealed class RebuildSearchCopyJobHandlerTests
         Seed($$"""{"tenantId":"{{TenantA}}","formId":"{{FormId}}"}""", TenantA);
 
         // Act
-        var result = await CreateHandler().ExecuteAsync(Job(TenantA), CancellationToken.None);
+        var result = await CreateHandler().ExecuteAsync(Job(TenantA), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -54,11 +54,11 @@ public sealed class RebuildSearchCopyJobHandlerTests
         Seed($$"""{"tenantId":"{{TenantA}}"}""", TenantA);
 
         // Act
-        var result = await CreateHandler().ExecuteAsync(Job(TenantA), CancellationToken.None);
+        var result = await CreateHandler().ExecuteAsync(Job(TenantA), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        await _schemas.DidNotReceiveWithAnyArgs().GetByFormIdAsync(default, default, default);
+        await _schemas.DidNotReceiveWithAnyArgs().GetByFormIdAsync(default, default, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -68,11 +68,11 @@ public sealed class RebuildSearchCopyJobHandlerTests
         Seed($$"""{"tenantId":"{{TenantA}}","formId":"{{FormId}}"}""", TenantA);
 
         // Act
-        var result = await CreateHandler().ExecuteAsync(Job(TenantB), CancellationToken.None);
+        var result = await CreateHandler().ExecuteAsync(Job(TenantB), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        await _schemas.DidNotReceiveWithAnyArgs().GetByFormIdAsync(default, default, default);
+        await _schemas.DidNotReceiveWithAnyArgs().GetByFormIdAsync(default, default, TestContext.Current.CancellationToken);
     }
 
     private RebuildSearchCopyJobHandler CreateHandler() =>
