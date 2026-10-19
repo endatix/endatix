@@ -126,6 +126,41 @@ public sealed class AddSearchKeyHandlerTests
     }
 
     [Fact]
+    public async Task Handle_RebuildRequestFailsAfterTheKeySaved_ReturnsTheKeyPending()
+    {
+        // Arrange
+        _context.GivenForm(SampleData.TENANT_ID);
+        var schema = _context.GivenSchema(SearchKeyHandlerTestContext.TextQuestions(51));
+        _context.Rows.OldestSearchKeysRevisionAsync(SampleData.TENANT_ID, SearchKeyHandlerTestContext.FormId, Arg.Any<CancellationToken>())
+            .Returns(schema.SearchKeysRevision);
+        _context.OutboxMessages.AddAsync(Arg.Any<OutboxMessage>(), Arg.Any<CancellationToken>())
+            .Returns<OutboxMessage>(_ => throw new InvalidOperationException("App database unavailable"));
+
+        // Act
+        var result = await _sut.Handle(Command("q051"), CancellationToken.None);
+
+        // Assert
+        result.Value.Keys.Should().ContainSingle(key => key.Key == "q051").Which.Pending.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_CallerGoneAfterTheKeySaved_StillRequestsTheRebuild()
+    {
+        // Arrange
+        _context.GivenForm(SampleData.TENANT_ID);
+        _context.GivenSchema(SearchKeyHandlerTestContext.TextQuestions(51));
+        using CancellationTokenSource caller = new();
+        _context.Schemas.When(schemas => schemas.SaveAsync(Arg.Any<FormSchemaEntity>(), Arg.Any<CancellationToken>()))
+            .Do(_ => caller.Cancel());
+
+        // Act
+        await _sut.Handle(Command("q051"), caller.Token);
+
+        // Assert
+        await _context.OutboxMessages.Received(1).AddAsync(Arg.Any<OutboxMessage>(), CancellationToken.None);
+    }
+
+    [Fact]
     public async Task Handle_SchemaLockedTooLong_ReturnsUnavailable()
     {
         // Arrange
