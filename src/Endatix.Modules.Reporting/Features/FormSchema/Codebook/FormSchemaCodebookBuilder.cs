@@ -57,11 +57,10 @@ internal static partial class FormSchemaCodebookBuilder
         return elements;
     }
 
-    private static QuestionPlacement PlacementOnPage(JsonElement page)
-    {
-        var pageName = page.GetSurveyJsName();
-        return new QuestionPlacement(pageName, ResolvePanelTitle(page, pageName), ParentPanelTitle: null);
-    }
+    // No name fallback for the page title: the grid falls back to pageName itself, and a copied name would look
+    // like a real title.
+    private static QuestionPlacement PlacementOnPage(JsonElement page) =>
+        new(page.GetSurveyJsName(), ResolvePanelTitle(page, fallbackName: null), ParentPanelTitle: null);
 
     private static void CollectElements(
         JsonElement elementList,
