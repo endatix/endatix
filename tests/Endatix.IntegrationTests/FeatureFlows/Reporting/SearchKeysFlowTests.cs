@@ -41,7 +41,7 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         var formId = await CreatePreparedFormAsync(client, """{"r001":"ALPHA-1"}""", ct);
 
         // Act
-        using var added = await AddAsync(client, formId, "r001", ct);
+        using var added = await new FormKeys(client, formId, ct).AddAsync("r001");
 
         // Assert
         added.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -64,7 +64,7 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         await using ReportingWebHost host = new(fixture);
         using var client = await TenantAdminAsync(host, IntegrationWorldOptions.SingleTenant, ct);
         var formId = await CreatePreparedFormAsync(client, """{"r001":"ALPHA-1"}""", ct);
-        (await AddAsync(client, formId, "r001", ct)).Dispose();
+        (await new FormKeys(client, formId, ct).AddAsync("r001")).Dispose();
 
         // Act
         await RunRebuildRequestsAsync(host, ct);
@@ -87,11 +87,11 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         var formId = await CreateCompiledFormAsync(client, ct);
         foreach (var name in SearchCopyForms.ReadOnlyNames(FormSearchKeys.MaxUserKeys))
         {
-            (await AddAsync(client, formId, name, ct)).EnsureSuccessStatusCode();
+            (await new FormKeys(client, formId, ct).AddAsync(name)).EnsureSuccessStatusCode();
         }
 
         // Act
-        using var fifteenth = await AddAsync(client, formId, KeyWithSlash, ct);
+        using var fifteenth = await new FormKeys(client, formId, ct).AddAsync(KeyWithSlash);
 
         // Assert
         fifteenth.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -108,10 +108,10 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         await using ReportingWebHost host = new(fixture);
         using var client = await TenantAdminAsync(host, IntegrationWorldOptions.SingleTenant, ct);
         var formId = await CreateCompiledFormAsync(client, ct);
-        (await AddAsync(client, formId, KeyWithSlash, ct)).EnsureSuccessStatusCode();
+        (await new FormKeys(client, formId, ct).AddAsync(KeyWithSlash)).EnsureSuccessStatusCode();
 
         // Act
-        using var removed = await RemoveAsync(client, formId, KeyWithSlash, ct);
+        using var removed = await new FormKeys(client, formId, ct).RemoveAsync(KeyWithSlash);
 
         // Assert
         removed.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -130,7 +130,7 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         var formId = await CreateCompiledFormAsync(client, ct);
 
         // Act
-        using var removed = await RemoveAsync(client, formId, "q001", ct);
+        using var removed = await new FormKeys(client, formId, ct).RemoveAsync("q001");
 
         // Assert
         removed.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -148,8 +148,8 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         using var reader = await ReaderAsync(host, world, ct);
 
         // Act
-        using var added = await AddAsync(reader, formId, "r001", ct);
-        using var removed = await RemoveAsync(reader, formId, "q001", ct);
+        using var added = await new FormKeys(reader, formId, ct).AddAsync("r001");
+        using var removed = await new FormKeys(reader, formId, ct).RemoveAsync("q001");
 
         // Assert
         (added.StatusCode, removed.StatusCode).Should().Be((HttpStatusCode.Forbidden, HttpStatusCode.Forbidden));
@@ -165,11 +165,11 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         using var owner = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 0, cancellationToken: ct);
         using var stranger = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: ct);
         var formId = await CreateCompiledFormAsync(owner, ct);
-        (await AddAsync(owner, formId, "r001", ct)).EnsureSuccessStatusCode();
+        (await new FormKeys(owner, formId, ct).AddAsync("r001")).EnsureSuccessStatusCode();
 
         // Act
-        using var added = await AddAsync(stranger, formId, "r002", ct);
-        using var removed = await RemoveAsync(stranger, formId, "r001", ct);
+        using var added = await new FormKeys(stranger, formId, ct).AddAsync("r002");
+        using var removed = await new FormKeys(stranger, formId, ct).RemoveAsync("r001");
 
         // Assert
         (added.StatusCode, removed.StatusCode).Should().Be((HttpStatusCode.NotFound, HttpStatusCode.NotFound));
@@ -183,11 +183,6 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         return definition.ToJsonString();
     }
 
-    private static Task<HttpResponseMessage> AddAsync(HttpClient client, string formId, string key, CancellationToken ct) =>
-        client.PostAsJsonAsync($"/api/forms/{formId}/reporting/search-keys", new { key }, ct);
-
-    private static Task<HttpResponseMessage> RemoveAsync(HttpClient client, string formId, string key, CancellationToken ct) =>
-        client.DeleteAsync($"/api/forms/{formId}/reporting/search-keys?key={Uri.EscapeDataString(key)}", ct);
 
     // The host's outbox relay is closed (see ReportingWebHost), so the requests run here as the relay would run them.
     private static async Task RunRebuildRequestsAsync(ReportingWebHost host, CancellationToken ct)
@@ -261,4 +256,14 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
 
     private static JsonElement Column(JsonElement root, string key) =>
         root.GetProperty("columns").EnumerateArray().Single(column => column.GetProperty("key").GetString() == key);
+
+    /// <summary>The search key endpoints of one form, as one caller.</summary>
+    private sealed record FormKeys(HttpClient Client, string FormId, CancellationToken Ct)
+    {
+        public Task<HttpResponseMessage> AddAsync(string key) =>
+            Client.PostAsJsonAsync($"/api/forms/{FormId}/reporting/search-keys", new { key }, Ct);
+
+        public Task<HttpResponseMessage> RemoveAsync(string key) =>
+            Client.DeleteAsync($"/api/forms/{FormId}/reporting/search-keys?key={Uri.EscapeDataString(key)}", Ct);
+    }
 }
