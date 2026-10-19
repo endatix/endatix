@@ -104,7 +104,10 @@ internal static class ReportingTestSchema
         new(
             new DateTimeProvider(),
             SearchCopyRebuilderFor(context),
-            new SearchCopyRebuildRequests(outboxMessages ?? Substitute.For<IRepository<OutboxMessage>>(), new DateTimeProvider()));
+            new SearchCopyRebuildRequests(
+                outboxMessages ?? Substitute.For<IRepository<OutboxMessage>>(),
+                new DateTimeProvider(),
+                NullLogger<SearchCopyRebuildRequests>.Instance));
 
     /// <summary>The rebuild of search copies on the context, as the host registers it.</summary>
     internal static SearchCopyRebuilder SearchCopyRebuilderFor(ReportingDbContextBase context) =>

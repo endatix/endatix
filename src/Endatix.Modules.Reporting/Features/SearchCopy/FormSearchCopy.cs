@@ -39,8 +39,7 @@ internal sealed class FormSearchCopy(
             : Result<FormSearchKeys>.Invalid(new ValidationError("key", NotFilterableMessage, "NotFilterable", ValidationSeverity.Error));
 
     /// <inheritdoc cref="SearchCopyRebuildRequests.RequestAsync"/>
-    public Task RequestRebuildAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
-        rebuildRequests.RequestAsync(tenantId, formId, cancellationToken);
+    public Task RequestRebuildAsync(long tenantId, long formId) => rebuildRequests.RequestAsync(tenantId, formId);
 
     /// <inheritdoc cref="SearchCopyRebuilder.RebuildFormAsync"/>
     public Task<int> RebuildAsync(long tenantId, long formId, CancellationToken cancellationToken) =>

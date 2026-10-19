@@ -26,7 +26,7 @@ public sealed class AddSearchKeyHandlerTests
             NullLogger<SearchCopyRebuilder>.Instance);
         var dateTimeProvider = Substitute.For<IDateTimeProvider>();
         dateTimeProvider.UtcNow.Returns(new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero));
-        SearchCopyRebuildRequests rebuildRequests = new(_context.OutboxMessages, dateTimeProvider);
+        SearchCopyRebuildRequests rebuildRequests = new(_context.OutboxMessages, dateTimeProvider, NullLogger<SearchCopyRebuildRequests>.Instance);
         _sut = new AddSearchKeyHandler(
             _context.UserSearchKeys,
             new FormSearchCopy(dateTimeProvider, rebuilder, rebuildRequests),

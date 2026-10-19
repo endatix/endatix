@@ -30,7 +30,7 @@ internal sealed class AddSearchKeyHandler(
             return added.ToErrorResult<SubmissionGridSearchKeys>();
         }
 
-        await searchCopy.RequestRebuildAsync(target.TenantId, target.FormId, cancellationToken);
+        await searchCopy.RequestRebuildAsync(target.TenantId, target.FormId);
         return await FormSearchKeyStatus.ReadGridSearchKeysAsync(added.Value, flattenedSubmissionRepository, cancellationToken);
     }
 }
