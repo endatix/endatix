@@ -16,6 +16,12 @@ handlers see it only as `IAudienceDbContext`. On SQL Server, keep `READ_COMMITTE
 database Endatix creates and in Azure SQL Database; a database created beforehand may have it off): without it, other
 tenants' audience reads wait for a running CSV import to commit.
 
+Two outbox handlers do the module's work on other modules' events: `form.deleted` drops the form's audience, and a
+`submission.updated` that marked the submission as test frees its personalised link. With
+`Endatix:Outbox:DeliverToJobQueue` on, each runs as its own background job instead (`AudienceDeleteFormAudience`,
+`AudienceReleaseLinkOnTestMark`), with its own retries; `Features/BackgroundJobs/AudienceOutboxJobs.cs` registers
+both shapes, as Reporting does.
+
 ## Migrations
 
 Each provider has its own chain in this assembly: `Persistence/Migrations/PostgreSql/` and

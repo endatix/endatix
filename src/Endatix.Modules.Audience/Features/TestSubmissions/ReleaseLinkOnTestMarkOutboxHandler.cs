@@ -24,20 +24,26 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, IRepository<Submission> submissions)
     : IOutboxIntegrationEventHandler
 {
+    /// <summary>The event types this work runs on, inline or as a job.</summary>
+    public static readonly IReadOnlyCollection<string> HandledEventTypes = [SubmissionUpdatedEvent.EventTypeName];
+
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes { get; } = [SubmissionUpdatedEvent.EventTypeName];
+    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
 
     /// <inheritdoc />
     public async Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
-        if (Parse(message) is { } marked && await IsTestAsync(marked, cancellationToken))
+        if (Parse(message) is { } marked)
         {
-            await ReleaseLinkAsync(marked, cancellationToken);
+            await ProcessAsync(marked, cancellationToken);
         }
     }
 
-    /// <summary>The submission the message is about, or <see langword="null"/> when its test flag did not change.</summary>
-    private static MarkedSubmission? Parse(IOutboxMessage message)
+    /// <summary>
+    /// The submission the message is about, or <see langword="null"/> when its test flag did not change. Throws when
+    /// the message cannot be read.
+    /// </summary>
+    internal static MarkedSubmission? Parse(IOutboxMessage message)
     {
         using var document = JsonDocument.Parse(message.Payload);
         var payload = document.RootElement;
@@ -45,6 +51,15 @@ internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, 
         return changeKind.HasFlag(SubmissionChangeKinds.Test)
             ? new MarkedSubmission(message.GetRequiredTenantId(payload), message.GetRequiredIdProp(payload, "submissionId"))
             : null;
+    }
+
+    /// <summary>Frees the submission's link when the submission is still marked as test.</summary>
+    internal async Task ProcessAsync(MarkedSubmission marked, CancellationToken cancellationToken)
+    {
+        if (await IsTestAsync(marked, cancellationToken))
+        {
+            await ReleaseLinkAsync(marked, cancellationToken);
+        }
     }
 
     private Task ReleaseLinkAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
@@ -59,7 +74,7 @@ internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, 
     private Task<bool> IsTestAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
         submissions.AnyAsync(new TestSubmissionByIdSpec(marked.TenantId, marked.SubmissionId), cancellationToken);
 
-    private sealed record MarkedSubmission(long TenantId, long SubmissionId);
+    internal sealed record MarkedSubmission(long TenantId, long SubmissionId);
 }
 
 /// <summary>

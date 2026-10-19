@@ -15,19 +15,31 @@ namespace Endatix.Modules.Audience.Features.Forms;
 /// </summary>
 internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : IOutboxIntegrationEventHandler
 {
-    /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes { get; } = [FormDeletedEvent.EventTypeName];
+    /// <summary>The event types this work runs on, inline or as a job.</summary>
+    public static readonly IReadOnlyCollection<string> HandledEventTypes = [FormDeletedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public async Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
+    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
+
+    /// <inheritdoc />
+    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
+        ProcessAsync(Parse(message), cancellationToken);
+
+    /// <summary>The form the message deleted. Throws when the message cannot be read.</summary>
+    internal static Input Parse(IOutboxMessage message)
     {
         using JsonDocument document = JsonDocument.Parse(message.Payload);
-        long tenantId = message.GetRequiredTenantId(document.RootElement);
-        long formId = message.GetRequiredIdProp(document.RootElement, "formId");
+        return new Input(
+            message.GetRequiredTenantId(document.RootElement),
+            message.GetRequiredIdProp(document.RootElement, "formId"));
+    }
 
+    /// <summary>Soft-deletes the form's audience, in one transaction. A repeat matches nothing.</summary>
+    internal async Task ProcessAsync(Input input, CancellationToken cancellationToken)
+    {
         await using IDbContextTransaction transaction =
             await ((DbContext)db).Database.BeginTransactionAsync(cancellationToken);
-        await SoftDeleteFormAudienceAsync(tenantId, formId, cancellationToken);
+        await SoftDeleteFormAudienceAsync(input.TenantId, input.FormId, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -47,4 +59,6 @@ internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : I
             .Where(property => property.TenantId == tenantId && property.FormId == formId)
             .SoftDeleteAllAsync(cancellationToken);
     }
+
+    internal sealed record Input(long TenantId, long FormId);
 }
