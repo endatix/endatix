@@ -85,17 +85,19 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
   50 keys are `auto`: a question's own value column with a submissions-grid filter type (`SubmissionGridFilterTypes`),
   whose question is not `readOnly` in the definition (a read-only page or panel makes its questions read-only). The other
   14 slots (`FormSearchKeys.MaxUserKeys`) are for keys people add (`source: "user"`, see below).
-- **Append-only for the compile.** A key stays while its column is in the schema, so rows written from it stay valid; a
-  replace compile that drops a column drops its key. A key whose question changed filter type takes the new one. Only
-  a person removes a key otherwise, and only one they added.
+- **Append-only for the compile.** A key stays while an answer filter can read its column, so rows written from it stay
+  valid; a replace compile that drops the column, or a question no filter supports any more, drops the key. A key whose
+  question changed filter type takes the new one, whoever added it (a person's key on a read-only question too). Only a
+  person removes a key otherwise, and only one they added.
 - **Written with the answers.** A flatten writes `SearchJson` in the same conditional update as `DataJson`: the search
   keys answered with a scalar, each as text — lowercased for `text`, `yyyy-MM-dd` for `date`, `yyyy-MM-ddTHH:mm:ss` for
   `datetime` (read by ISO shape; a time zone is ignored; another shape is kept as entered and never matches a range).
   Numbers and booleans become their JSON text; arrays and objects are left out. A skipped row has no copy.
 - **Rebuilt in SQL.** `SearchCopyRebuilder` rewrites a form's copies from `DataJson` in batches of 1,000 rows by
-  submission id, one statement per batch, without flattening again. A compile runs it after its commit when it added a
-  key for a column the rows already hold (the first compile after this migration, for instance), or changed a key's
-  filter type; adding a person's key asks for it in the background (below). The SQL normalises dates as the flatten
+  submission id, one statement per batch, without flattening again. Every compile runs it after its commit, whether it
+  saved the schema or left it as it was: it rewrites only rows behind the schema's revision (below), so it catches up
+  rows the compile's new keys left behind, and rows a rebuild before it did not finish, and costs one empty batch when
+  none are. Adding a person's key asks for it in the background (below). The SQL normalises dates as the flatten
   does, and `SearchCopyRebuildIntegrationTests` checks both write the same copies. Lowercasing differs in one place:
   the flatten uses .NET's invariant rules, the SQL the database's `lower()` / `LOWER`, which follow its collation.
   Under a `C` or POSIX PostgreSQL collation the SQL lowercases ASCII only, so non-ASCII text a rebuild wrote can miss
@@ -105,7 +107,10 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
   person's key, a changed filter type), and that key's `revision` takes the new value. A flatten stamps its row with the
   revision of the keys it read, and the rebuild stamps each row it rewrites
   (`FlattenedSubmissions.SearchKeysRevision`). The rebuild rewrites only rows stamped older than the schema, so running
-  it again finishes a run that was cut off, and a rebuild that read older keys never overwrites a newer row. A filter
+  it again finishes a run that was cut off, and a rebuild that read older keys never overwrites a newer row. A flatten
+  that read the keys before a change and writes after that change's rebuild passed its row reads the schema's revision
+  after its write, and runs the rebuild when it wrote an older one. A key is pending while some live processed row is
+  stamped below its revision, a row without a copy yet included. A filter
   on keys `K` checks a row only when its stamp is at least `FormSearchKeys.RevisionNeededFor(K)`
   (`SearchCopyRows.HoldingSearchKeys`); any other row counts as not checked, not as not matching. Removing a key needs
   no new revision: filters stop reading it at once, and its stale values are never read.
@@ -180,12 +185,13 @@ Both answer `200` with `{ formId, keys: [{ key, source, filterType, pending }], 
 - **Rebuild in the background.** After the keys commit, the request writes an outbox message
   (`reporting.search_copy.rebuild_requested`, `SearchCopyRebuildRequests`) and answers at once, with the key
   `pending` while the form has prepared rows. The relay runs `RebuildSearchCopyOutboxHandler` inline, or as the
-  `ReportingRebuildSearchCopy` job when `Endatix:Outbox:DeliverToJobQueue` is on; a failure retries as any outbox
-  message does. The outbox, not the job queue directly, because the Jobs module is off by default and PostgreSQL
-  only, while the outbox runs on both databases. The message is written in the App database after the Reporting
-  commit, so the two are not atomic: a message lost in between leaves the rows pending, never wrong. Every add,
-  including a repeat of a key the form has, writes a message, so adding the key again finishes a rebuild that was cut
-  off or lost; the rebuild skips rows already stamped. Inline in the relay, a rebuild of a large form (tens of seconds,
+  `ReportingRebuildSearchCopy` job when `Endatix:Outbox:DeliverToJobQueue` is on; a rebuild that throws retries as any
+  outbox message does. The outbox, not the job queue directly, because the Jobs module is off by default and
+  PostgreSQL only, while the outbox runs on both databases. The message is written in the App database after the
+  Reporting commit, so the two are not atomic, and the write is best-effort: it ignores the caller going away, and a
+  failed write is logged, not returned as a 5xx. A message lost that way leaves the rows pending, never wrong. Every
+  add, including a repeat of a key the form has, writes a message, and every compile runs the rebuild, so either
+  finishes a rebuild that was cut off or lost; the rebuild skips rows already stamped. Inline in the relay, a rebuild of a large form (tens of seconds,
   "Rebuild of 50k copies" above) holds up the messages behind it, as a compile's rebuild does.
 - **Remove.** Only a key with `source: "user"` (an automatic key is 400; a column that is not a key is 404). Filters
   stop reading it at once.
