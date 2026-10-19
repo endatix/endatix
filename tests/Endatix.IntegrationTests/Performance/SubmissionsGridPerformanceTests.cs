@@ -33,6 +33,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
     private const int PageSize = 50;
     private const int ConcurrentCallers = 4;
     private const string AllThreeName = "3 contains (deep)";
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
 
     private readonly FormSchemaRebuildWorld _world = new(fixture);
     private readonly GridPerformanceShape _shape = GridPerformanceShape.FromName(PerformanceRun.ShapeName);
@@ -89,7 +90,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
         var automatic = FormSearchKeys.FromJson(schema.SearchKeys).Keys;
         var users = _shape.UserKeys(automatic.Select(key => key.Key).ToList())
             .Select(key => new SearchKey(key, SearchKeySources.User, SubmissionGridFilterTypes.Text, DateTime.UtcNow));
-        var json = JsonSerializer.Serialize(automatic.Concat(users), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var json = JsonSerializer.Serialize(automatic.Concat(users), WebJson);
 
         await using var db = _world.CreateReportingDbContext();
         await db.FormSchemas.Where(row => row.FormId == formId)
@@ -140,7 +141,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
         SubmissionGridRowsQuery query = new(
             FormSchemaRebuildWorld.TenantId,
             new ListByFormIdQuery(formId, 1, PageSize),
-            [_shape.Key(_shape.EarlyZebra)],
+            [_shape.Key(GridPerformanceShape.EarlyZebra)],
             answers);
 
         var result = await search.ExecuteAsync(query, Cancellation);
@@ -177,8 +178,8 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
 
     private IEnumerable<GridScenario> Scenarios(GridPerformanceCounts counts)
     {
-        yield return new("1 contains, 1% (early key)", counts.Zebra, query => Contains(query, _shape.EarlyZebra, "zebra"),
-            Answers: [ContainsAnswer(_shape.EarlyZebra, "zebra")]);
+        yield return new("1 contains, 1% (early key)", counts.Zebra, query => Contains(query, GridPerformanceShape.EarlyZebra, "zebra"),
+            Answers: [ContainsAnswer(GridPerformanceShape.EarlyZebra, "zebra")]);
         yield return new("1 contains, 1% (deep)", counts.Zebra, query => Contains(query, _shape.DeepZebra, "ZEBRA"), Concurrent: true,
             Answers: [ContainsAnswer(_shape.DeepZebra, "ZEBRA")]);
         yield return new("1 contains, 25% (deep)", counts.Mango, query => Contains(query, _shape.DeepMango, "mango"),
@@ -187,7 +188,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
         yield return new(AllThreeName, counts.AllThree, AllThree, Concurrent: true, Answers: AllThreeAnswers());
         yield return new("3 contains + date range", counts.AllThreeIn2025, query => In2025(AllThree(query)), Concurrent: true,
             Answers: [.. AllThreeAnswers(), DateAnswer(AnswerFilterOperators.From, "2025-01-01"), DateAnswer(AnswerFilterOperators.To, "2025-12-31")]);
-        yield return new("long comment (2%)", counts.LongComments, query => Contains(query, _shape.LongComment, "longneedle"));
+        yield return new("long comment (2%)", counts.LongComments, query => Contains(query, GridPerformanceShape.LongComment, "longneedle"));
         yield return new("no match (full scan)", 0, query => Contains(query, _shape.DeepKiwi, "qqqqqq"),
             Answers: [ContainsAnswer(_shape.DeepKiwi, "qqqqqq")]);
     }
@@ -195,7 +196,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
     private AnswerFilter ContainsAnswer(int question, string text) =>
         new(_shape.Key(question), AnswerFilterOperators.Contains, text);
 
-    private AnswerFilter DateAnswer(string @operator, string day) => new(_shape.Key(_shape.Date), @operator, day);
+    private AnswerFilter DateAnswer(string @operator, string day) => new(_shape.Key(GridPerformanceShape.Date), @operator, day);
 
     private AnswerFilter[] AllThreeAnswers() =>
         [ContainsAnswer(_shape.DeepMango, "mango"), ContainsAnswer(_shape.DeepKiwi, "kiwi"), ContainsAnswer(_shape.DeepZebra, "zebra")];
@@ -208,7 +209,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
 
     private IQueryable<FlattenedSubmission> In2025(IQueryable<FlattenedSubmission> query)
     {
-        JsonObjectKeyPath date = new(nameof(FlattenedSubmission.SearchJson), _shape.Key(_shape.Date));
+        JsonObjectKeyPath date = new(nameof(FlattenedSubmission.SearchJson), _shape.Key(GridPerformanceShape.Date));
         return Filter.WhereKeyBefore(Filter.WhereKeyAtLeast(query, date, "2025-01-01"), date, "2026-01-01");
     }
 
