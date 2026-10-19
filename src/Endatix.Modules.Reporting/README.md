@@ -99,7 +99,8 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
   `lower()` / `LOWER`, which follow its collation. Under a `C` or POSIX PostgreSQL collation the SQL lowercases ASCII
   only, so non-ASCII text a rebuild wrote can miss a contains filter until the row is flattened again.
 - **Filters.** `IRelationalJsonObjectKeyFilter.WhereKeyMatches` (contains, lowercased pattern as a parameter) and
-  `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point). SQL Server reads keys with
+  `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point, on values that start with `yyyy-MM-dd`, so a
+  value kept as entered never falls in a range). SQL Server reads keys with
   `JSON_VALUE(… RETURNING nvarchar(max))`, because lax `JSON_VALUE` returns NULL above 4,000 characters, and compares
   lowercased values, so a case-sensitive database collation still matches without case.
 
