@@ -23,7 +23,9 @@ public class AppDbContext : DbContext, ITenantDbContext
     private readonly ITenantContext _tenantContext;
     private readonly OutboxIntegrationEventDispatcher _outboxDispatcher;
 
-    // For proxies and design-time tooling only: neither field is read without a tenant context.
+    /// <summary>
+    /// For proxies and design-time tooling only: neither field is read without a tenant context.
+    /// </summary>
     protected AppDbContext()
     {
         _tenantContext = null!;
