@@ -4,8 +4,9 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 
 /// <summary>
 /// The statement that rebuilds one batch of a form's search copies from their stored answers, per provider. It writes
-/// what <see cref="SearchCopyDocument"/> writes at flatten time, with the same normalisation as
-/// <see cref="SearchValues"/>.
+/// what <see cref="SearchCopyDocument"/> writes at flatten time, with the date rules of <see cref="SearchValues"/>.
+/// Text is lowercased by the database (<c>lower()</c> / <c>LOWER</c>), which follows its collation, where the flatten
+/// lowercases with .NET's invariant rules.
 /// </summary>
 /// <remarks>
 /// <para>

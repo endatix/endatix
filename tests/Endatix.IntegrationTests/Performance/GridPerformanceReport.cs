@@ -4,7 +4,6 @@ using Endatix.Modules.Reporting.Features.SearchCopy;
 
 namespace Endatix.IntegrationTests;
 
-/// <summary>One measured scenario: what it should match, what it matched, and how long each run took.</summary>
 internal sealed record GridMeasurement(string Name, int Expected, int Total, IReadOnlyList<double> Milliseconds)
 {
     public bool IsWrong => Total != Expected;

@@ -59,6 +59,42 @@ public sealed class SearchCopyIntegrationTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task A_compile_that_changes_nothing_leaves_the_search_copies_alone()
+    {
+        // Arrange
+        var form = await FlattenedFormAsync(new { company = "Acme Corp" });
+        await using (var db = _world.CreateReportingDbContext())
+        {
+            await db.FlattenedSubmissions.Where(row => row.FormId == form.FormId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SearchJson, "{}"), Cancellation);
+        }
+
+        // Act
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+
+        // Assert
+        await using var check = _world.CreateReportingDbContext();
+        var copies = await check.FlattenedSubmissions.AsNoTracking().Where(row => row.FormId == form.FormId)
+            .Select(row => row.SearchJson).ToListAsync(Cancellation);
+        copies.Should().Equal("{}");
+    }
+
+    [Fact]
+    public async Task A_replace_that_drops_a_question_drops_its_search_key()
+    {
+        // Arrange
+        var withoutNotes = Mixed.Replace("""{ "type": "comment", "name": "notes" },""", string.Empty, StringComparison.Ordinal);
+        var form = await _world.SeedFormAsync([Mixed, withoutNotes]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+
+        // Act
+        await _world.ReplaceAsync(form.FormId, form.DefinitionIds[1]);
+
+        // Assert
+        SearchKeyNames(await _world.ReadSchemaAsync(form.FormId)).Should().Equal("company", "size", "visit", "arrival");
+    }
+
+    [Fact]
     public async Task A_flatten_writes_the_answered_search_keys_normalised_beside_the_answers()
     {
         // Arrange

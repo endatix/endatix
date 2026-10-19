@@ -94,7 +94,10 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
 - **Rebuilt in SQL.** `SearchCopyRebuilder` rewrites a form's copies from `DataJson` in batches of 1,000 rows by
   submission id, one statement per batch, without flattening again. A compile runs it after its commit when it added a
   key for a column the rows already hold (the first compile after this migration, for instance), or changed a key's
-  filter type. The SQL normalises as the flatten does; `SearchCopyRebuildIntegrationTests` checks both write the same.
+  filter type. The SQL normalises dates as the flatten does, and `SearchCopyRebuildIntegrationTests` checks both write
+  the same copies. Lowercasing differs in one place: the flatten uses .NET's invariant rules, the SQL the database's
+  `lower()` / `LOWER`, which follow its collation. Under a `C` or POSIX PostgreSQL collation the SQL lowercases ASCII
+  only, so non-ASCII text a rebuild wrote can miss a contains filter until the row is flattened again.
 - **Filters.** `IRelationalJsonObjectKeyFilter.WhereKeyMatches` (contains, lowercased pattern as a parameter) and
   `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point). SQL Server reads keys with
   `JSON_VALUE(… RETURNING nvarchar(max))`, because lax `JSON_VALUE` returns NULL above 4,000 characters, and compares
