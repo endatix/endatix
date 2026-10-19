@@ -49,7 +49,7 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// whenever it is. It holds the keys the schema had when the row was last written; a key dropped since stays
     /// until the row is flattened or rebuilt again, and filters read only the schema's current keys.
     /// </summary>
-    public string? SearchJson { get; private set; }
+    public string? SearchJson { get; }
 
     /// <summary>Reporting pipeline sync state (source of truth for integration/export readiness).</summary>
     public SubmissionIntegrationState Integration { get; private set; } = null!;

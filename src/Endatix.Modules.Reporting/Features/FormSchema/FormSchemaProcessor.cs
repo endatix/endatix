@@ -129,9 +129,8 @@ internal sealed class FormSchemaProcessor(
     {
         var target = rebuild.Target;
         var existing = await schemaRepository.LockAndGetByFormIdAsync(target.TenantId, target.FormId, cancellationToken);
-        var mode = await ChooseModeAsync(rebuild, existing, cancellationToken);
-        var schema = mode is null ? null : CompileSchema(rebuild, existing, mode.Value);
-        if (schema is null)
+        if (await ChooseModeAsync(rebuild, existing, cancellationToken) is not { } mode ||
+            CompileSchema(rebuild, existing, mode) is not { } schema)
         {
             return null;
         }
@@ -143,7 +142,7 @@ internal sealed class FormSchemaProcessor(
             await flattenedSubmissionRepository.DeleteByFormIdAsync(target.TenantId, target.FormId, cancellationToken);
         }
 
-        return new SavedSchema(mode.Value, schema.RowsNeedSearchRebuild && !clearsRows);
+        return new SavedSchema(mode, schema.RowsNeedSearchRebuild && !clearsRows);
     }
 
     // Whether the form has real submissions is read only when it decides the mode, and as late as it can be: under the

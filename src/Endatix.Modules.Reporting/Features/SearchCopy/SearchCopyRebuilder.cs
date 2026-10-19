@@ -18,7 +18,7 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// flatten that read the schema's keys before they changed and writes after its row's batch leaves that row with the
 /// old keys until it is flattened again.
 /// </remarks>
-internal sealed class SearchCopyRebuilder(
+internal sealed partial class SearchCopyRebuilder(
     IReportingDbContext dbContext,
     IFormSchemaRepository schemaRepository,
     ILogger<SearchCopyRebuilder> logger)
@@ -42,7 +42,7 @@ internal sealed class SearchCopyRebuilder(
         var searchKeys = FormSearchKeys.FromJson(schema.SearchKeys);
         RebuildRun run = new(tenantId, formId, KeysParameter(searchKeys), Statement(searchKeys));
         var rows = await RunBatchesAsync(run, cancellationToken);
-        logger.LogInformation("Rebuilt the search copy of {Rows} flattened row(s) of form {FormId}", rows, formId);
+        LogRebuilt(rows, formId);
         return rows;
     }
 
@@ -113,6 +113,9 @@ internal sealed class SearchCopyRebuilder(
 
     private static string KeysParameter(FormSearchKeys searchKeys) =>
         JsonSerializer.Serialize(searchKeys.Keys.ToDictionary(key => key.Key, key => key.FilterType, StringComparer.Ordinal));
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Rebuilt the search copy of {Rows} flattened row(s) of form {FormId}")]
+    private partial void LogRebuilt(int rows, long formId);
 
     private sealed record RebuildRun(long TenantId, long FormId, string KeysJson, string Sql);
 
