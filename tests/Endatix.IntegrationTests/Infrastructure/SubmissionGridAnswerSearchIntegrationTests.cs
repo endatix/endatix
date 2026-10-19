@@ -179,6 +179,20 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
         result.Status.Should().Be(ResultStatus.Conflict);
     }
 
+    [Fact]
+    public async Task A_form_that_does_not_exist_is_not_found()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        ListByFormIdQuery unknownForm = new(world.FormId + 1, 1, 10);
+
+        // Act
+        var result = await world.ExecuteAsync([Answer("contains", "city", "x")], unknownForm);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
     private static AnswerFilter Answer(string @operator, string key, string value) => new(key, @operator, value);
 
     private async Task<GridWorld> SeedAsync(bool withSchema)
