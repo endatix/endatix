@@ -13,11 +13,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.IntegrationTests;
 
-/// <summary>
-/// <see cref="ListSubmissionGridRows"/> against a real reporting schema: row states, where answers come from, and
-/// tenant isolation of the prepared rows. The page itself comes from the core list query, which the service sends
-/// through MediatR; a fixed page stands in for it here.
-/// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
@@ -121,8 +116,6 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
     private static SubmissionGridRowsQuery Query(long tenantId, SeededForm seed, IReadOnlyList<string> columns) =>
         new(tenantId, new ListByFormIdQuery(seed.FormId, 1, 10), columns);
 
-    // Three submissions: one prepared from its current version, one prepared and then changed, and one in progress
-    // that was never prepared.
     private async Task<SeededForm> SeedAsync(CancellationToken cancellationToken)
     {
         await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, cancellationToken);
@@ -193,7 +186,6 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         }
     }
 
-    // Writes processed rows stamped with the submission's own version, as a flatten does.
     private sealed class PreparedRowSeed(ReportingDbContextBase reportingDb, AppDbContext appDb, long formId)
     {
         public async Task PrepareAsync(long submissionId, string dataJson, CancellationToken cancellationToken)
@@ -212,7 +204,6 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         }
     }
 
-    // Answers the list query with a fixed page; the service sends nothing else.
     private sealed class FixedPageMediator(Paged<SubmissionDto> page) : IMediator
     {
         public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default) =>
