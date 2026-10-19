@@ -47,7 +47,8 @@ public interface IRelationalJsonObjectKeyFilter
 
     /// <summary>
     /// Filters the query to keep rows where the JSON object key text is at or after
-    /// <paramref name="inclusiveLowerBound"/>, compared by code point. Rows without the key are dropped.
+    /// <paramref name="inclusiveLowerBound"/>, compared by code point. Rows without the key, or whose
+    /// text does not start with an ISO date (<c>yyyy-MM-dd</c>), are dropped.
     /// </summary>
     /// <remarks>
     /// Meant for ISO dates (<c>yyyy-MM-dd</c>, <c>yyyy-MM-ddTHH:mm:ss</c>), which sort as text in calendar order.
@@ -65,7 +66,8 @@ public interface IRelationalJsonObjectKeyFilter
 
     /// <summary>
     /// Filters the query to keep rows where the JSON object key text is before
-    /// <paramref name="exclusiveUpperBound"/>, compared by code point. Rows without the key are dropped.
+    /// <paramref name="exclusiveUpperBound"/>, compared by code point. Rows without the key, or whose
+    /// text does not start with an ISO date (<c>yyyy-MM-dd</c>), are dropped.
     /// </summary>
     /// <remarks>
     /// Pass the day after the last one to keep: <c>2026-03-01</c> keeps every value of 28 February, with or without a

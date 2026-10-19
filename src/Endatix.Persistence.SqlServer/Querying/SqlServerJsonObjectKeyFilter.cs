@@ -14,6 +14,9 @@ namespace Endatix.Persistence.SqlServer.Querying;
 /// </remarks>
 public sealed class SqlServerJsonObjectKeyFilter : RelationalJsonObjectKeyFilterBase
 {
+    // [0-9] means ASCII digits only under the binary collation the range filters already compare with.
+    private const string IsoDatePrefix = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]%";
+
     private static readonly MethodInfo ToLowerMethod = typeof(string).GetMethod(nameof(string.ToLower), Type.EmptyTypes)!;
 
     /// <inheritdoc />
@@ -50,4 +53,14 @@ public sealed class SqlServerJsonObjectKeyFilter : RelationalJsonObjectKeyFilter
             Expression.Call(text, ToLowerMethod),
             lowercasedPattern,
             Expression.Constant("\\"));
+
+    /// <inheritdoc />
+    protected override Expression StartsWithIsoDate(Expression ordinalText) =>
+        Expression.Call(
+            typeof(DbFunctionsExtensions),
+            nameof(DbFunctionsExtensions.Like),
+            typeArguments: Type.EmptyTypes,
+            Expression.Constant(EF.Functions),
+            ordinalText,
+            Expression.Constant(IsoDatePrefix));
 }

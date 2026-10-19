@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
+using Endatix.Infrastructure.Data.Querying;
 using Endatix.Modules.Reporting.Endpoints.Submissions;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Persistence;
@@ -10,6 +11,8 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Modules.Reporting.Tests.Endpoints.Submissions;
 
@@ -24,7 +27,13 @@ public sealed class ListGridSubmissionsTests
     public ListGridSubmissionsTests()
     {
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
-        ListSubmissionGridRows rows = new(_mediator, Substitute.For<IReportingDbContext>());
+        var reportingDbContext = Substitute.For<IReportingDbContext>();
+        SubmissionGridAnswerSearch answerSearch = new(
+            reportingDbContext,
+            Substitute.For<IRelationalJsonObjectKeyFilter>(),
+            Substitute.For<IRelationalSubmitterProfileFilter>(),
+            Substitute.For<IRepository<Form>>());
+        ListSubmissionGridRows rows = new(_mediator, reportingDbContext, answerSearch);
         _endpoint = Factory.Create<ListGridSubmissions>(rows, _tenantContext);
     }
 
@@ -73,7 +82,7 @@ public sealed class ListGridSubmissionsTests
             CancellationToken.None);
 
         // Assert
-        var ok = response.Result as Ok<Paged<SubmissionGridRow>>;
+        var ok = response.Result as Ok<SubmissionGridPage>;
         ok.Should().NotBeNull();
         ok!.Value!.Items.Should().BeEmpty();
         ok.Value.Page.Should().Be(3);

@@ -22,8 +22,6 @@ public sealed class ListSubmissionGridColumns(
     IRepository<Form> formsRepository,
     IRepository<Submission> submissionsRepository)
 {
-    internal const string FormNotFoundMessage = "Form not found.";
-
     private static readonly FilterParameters NoFilters = new();
     private static readonly FilterParameters CompletedOnly = new(["isComplete:true"]);
 
@@ -40,9 +38,9 @@ public sealed class ListSubmissionGridColumns(
             return Result.Unauthorized();
         }
 
-        if (!await IsTenantFormAsync(query, cancellationToken))
+        if (!await formsRepository.ExistsAsync(query.TenantId, query.FormId, cancellationToken))
         {
-            return Result.NotFound(FormNotFoundMessage);
+            return Result.NotFound(TenantForms.FormNotFoundMessage);
         }
 
         var schema = await formSchemaRepository.GetByFormIdAsync(query.TenantId, query.FormId, cancellationToken);
@@ -50,12 +48,6 @@ public sealed class ListSubmissionGridColumns(
         var columns = schema is null ? [] : SubmissionGridColumnCatalog.Build(schema, query.Locale);
 
         return Result.Success(new SubmissionGridColumns(query.FormId, schema is not null, readiness, columns));
-    }
-
-    private async Task<bool> IsTenantFormAsync(SubmissionGridColumnsQuery query, CancellationToken cancellationToken)
-    {
-        var form = await formsRepository.SingleOrDefaultAsync(new FormSpecifications.ByIdReadOnly(query.FormId), cancellationToken);
-        return form is not null && form.TenantId == query.TenantId;
     }
 
     private async Task<SubmissionGridReadiness> ReadReadinessAsync(
