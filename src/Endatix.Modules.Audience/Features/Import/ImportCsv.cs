@@ -14,7 +14,8 @@ namespace Endatix.Modules.Audience.Features.Import;
 
 /// <summary>
 /// Sync-imports audience people from CSV (max 5,000 rows). Partial success is allowed. <see cref="IsTest"/> makes
-/// the people this import adds to the form test persons; people already on the form keep what they are.
+/// the people this import adds to the form test persons; people already on the form get no writes and count as
+/// skipped.
 /// </summary>
 public sealed record ImportCsvCommand(
     long TenantId,

@@ -13,6 +13,9 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 {
     public ImportTally Tally { get; } = new();
 
+    /// <summary>
+    /// A test import never writes to a person already on the form, so real people's data stays as it was.
+    /// </summary>
     public void Stage(ImportRow row)
     {
         Member member = existing.MembersByMatchKey.GetValueOrDefault(row.NormalizedIdentifier) ?? AddMember(row);
@@ -23,7 +26,7 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
             return;
         }
 
-        if (UpdateIfChanged(membership, row.Values))
+        if (!target.IsTest && UpdateIfChanged(membership, row.Values))
         {
             Tally.Updated++;
         }

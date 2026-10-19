@@ -64,8 +64,8 @@ Database schema: `audience`
 | PATCH/DELETE | `forms/{formId}/audience/properties/{propertyId}` | Rename/reorder / delete |
 | GET/POST | `forms/{formId}/audience/people` | List (page ≤ 5,000) / add. The list takes `test=all\|real\|test` (default `all`, anything else is a 400); its total counts only the people kept, and each item has `isTest`. Add takes `isTest` (default `false`) |
 | PUT/DELETE | `forms/{formId}/audience/people/{membershipId}` | Edit values / remove from this form only |
-| POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400. With `isTest`, people new to this form are added as test persons; people already on it keep what they are and are counted as updated or skipped as usual |
-| POST | `forms/{formId}/audience/links` | Issue one link per real person who does not have one, up to 5,000; test persons get none. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
+| POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400. With `isTest`, people new to this form are added as test persons; people already on it get no writes (flag and values) and are counted as skipped |
+| POST | `forms/{formId}/audience/links` | Issue one link per real person who does not have one, up to 5,000 real people; test persons get none. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
 | POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open pins the active form definition and the live audience cells on one in-progress submission. A later publish, a new property, or an edited cell does not change that response. A parallel first open keeps one submission. A later open returns it. Unknown token, a deleted submission, a disabled form, or a person removed before the first open is 404 and does not mark the link opened. A person removed after open still resumes while the form is enabled. On a one-response form, a person who already has a submission (from on-behalf, or an earlier link) opens that one; it is marked started and gets the live cells if it has none. Another open of the same link holding it past 5 s is 503. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
 
 Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`, and redeem, which is anonymous.
@@ -90,7 +90,8 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
   `isTest` so the list can filter them. The flag belongs to the membership, so the same member can be a test person on
   one form and a real person on another. It is set at add (`isTest` on add or import) and cannot change: to turn a test
   person into a real one, remove them and add them again. An import marked as test never touches a person already on
-  the form, so real people's data stays as it was. Removing a test person removes only that membership.
+  the form (neither its flag nor its values), so real people's data stays as it was. A test person locks the match key
+  like any other person. Removing a test person removes only that membership.
 - **Deletes.** Removing a person deletes the membership and its cells; the member stays. Deleting a
   property soft-deletes its cells in one statement. Reads skip cells of deleted properties.
 - **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships

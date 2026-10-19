@@ -5,10 +5,10 @@ namespace Endatix.Modules.Audience.Tests.Domain;
 public class MembershipTests
 {
     [Fact]
-    public void Constructor_WithoutIsTest_IsARealPerson()
+    public void Constructor_NotTest_IsARealPerson()
     {
         // Act
-        Membership membership = new(new MembershipCreateArgs(1, 2, 3));
+        Membership membership = new(new MembershipCreateArgs(1, 2, 3, IsTest: false));
 
         // Assert
         membership.IsTest.Should().BeFalse();

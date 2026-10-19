@@ -59,8 +59,10 @@ public sealed partial class AudienceDirectoryFlowTests
             TestFlags(page));
     }
 
-    [Fact]
-    public async Task Listing_people_with_an_unknown_test_filter_is_rejected()
+    [Theory]
+    [InlineData("maybe")]
+    [InlineData("TEST")]
+    public async Task Listing_people_with_an_unknown_test_filter_is_rejected(string filter)
     {
         // Arrange
         AudienceApi api = await AdminAsync();
@@ -68,7 +70,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using HttpResponseMessage response = await api.Client.GetAsync(
-            $"/api/forms/{formId}/audience/people?test=maybe", api.CancellationToken);
+            $"/api/forms/{formId}/audience/people?test={filter}", api.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -102,6 +104,79 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(
             new Dictionary<string, bool> { ["new@example.com"] = true, ["real@example.com"] = false },
             TestFlags(await ListPeopleAsync(api, formId, string.Empty)));
+    }
+
+    [Fact]
+    public async Task Importing_as_test_writes_no_values_for_people_already_on_the_form()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        (string personUrl, long propertyId) = await api.PersonWithPropertyAsync(
+            new { name = "City", dataType = "text" }, identifier: "real@example.com");
+        using HttpResponseMessage saved = await api.PutValueAsync(personUrl, propertyId, "Sofia");
+        long formId = long.Parse(personUrl.Split('/')[3]);
+
+        // Act
+        using HttpResponseMessage imported = await api.PostAsync(
+            $"/api/forms/{formId}/audience/import",
+            new
+            {
+                csvText = "email,City\nreal@example.com,Plovdiv\n",
+                identifierColumn = "email",
+                fileName = "testers.csv",
+                propertyColumns = new Dictionary<string, string> { ["city"] = "City" },
+                isTest = true,
+            });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, imported.StatusCode);
+        JsonElement summary = await api.ReadAsync(imported);
+        Assert.Equal(0, summary.GetProperty("updatedCount").GetInt32());
+        Assert.Equal(1, summary.GetProperty("skippedCount").GetInt32());
+        JsonElement page = await ListPeopleAsync(api, formId, string.Empty);
+        JsonElement person = Assert.Single(page.GetProperty("items").EnumerateArray());
+        Assert.Equal("Sofia", person.GetProperty("values").GetProperty($"{propertyId}").GetString());
+        Assert.False(person.GetProperty("isTest").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Importing_a_test_person_again_as_real_keeps_them_test()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        using HttpResponseMessage tester = await AddTestPersonAsync(api, formId, "tester@example.com");
+
+        // Act
+        using HttpResponseMessage imported = await api.ImportAsync(formId, "email\ntester@example.com\n");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, imported.StatusCode);
+        Assert.Equal(
+            new Dictionary<string, bool> { ["tester@example.com"] = true },
+            TestFlags(await ListPeopleAsync(api, formId, string.Empty)));
+    }
+
+    [Fact]
+    public async Task One_person_can_be_a_test_person_on_one_form_and_real_on_another()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long realFormId = await api.CreateFormAsync();
+        long testFormId = await api.CreateFormAsync();
+        using HttpResponseMessage real = await api.AddPersonAsync(realFormId, "both@example.com");
+        using HttpResponseMessage tester = await AddTestPersonAsync(api, testFormId, "both@example.com");
+
+        // Act
+        using HttpResponseMessage realLinks = await api.PostAsync($"/api/forms/{realFormId}/audience/links", new { });
+        using HttpResponseMessage testLinks = await api.PostAsync($"/api/forms/{testFormId}/audience/links", new { });
+
+        // Assert
+        Assert.Equal(
+            IdOf(await api.ReadAsync(real), "audienceMemberId"),
+            IdOf(await api.ReadAsync(tester), "audienceMemberId"));
+        Assert.Single((await api.ReadAsync(realLinks)).EnumerateArray());
+        Assert.Empty((await api.ReadAsync(testLinks)).EnumerateArray());
     }
 
     [Fact]

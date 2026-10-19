@@ -61,7 +61,7 @@ internal sealed class GenerateLinksHandler(
         var membershipIds = await MembershipIdsAsync(request, cancellationToken);
         if (membershipIds.Count > MaxLinks)
         {
-            return Result.Invalid(new ValidationError("This form has more than 5,000 people."));
+            return Result.Invalid(new ValidationError("This form has more than 5,000 people to send links to."));
         }
 
         var existing = await ExistingAsync(request, cancellationToken);

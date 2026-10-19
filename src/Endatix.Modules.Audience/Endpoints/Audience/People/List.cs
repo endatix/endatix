@@ -51,7 +51,7 @@ public sealed class List(
                 request.FormId,
                 request.Page,
                 request.PageSize,
-                ListAudiencePeopleRequest.ParseTest(request.Test) ?? PeopleTestFilter.All),
+                request.Filter),
             ct);
 
         return TypedResultsBuilder
@@ -83,9 +83,7 @@ public sealed class ListAudiencePeopleValidator : Validator<ListAudiencePeopleRe
             .GreaterThan(0)
             .LessThanOrEqualTo(AudiencePaging.MaxPageSize)
             .When(request => request.PageSize.HasValue);
-        RuleFor(request => request.Test)
-            .Must(test => ListAudiencePeopleRequest.ParseTest(test) is not null)
-            .WithMessage("Test must be all, real or test.");
+        RuleFor(request => request.Test).ValidPeopleTestFilter();
     }
 }
 
@@ -103,13 +101,6 @@ public sealed class ListAudiencePeopleRequest
     /// <summary><c>all</c> (default), <c>real</c> or <c>test</c>.</summary>
     public string? Test { get; init; }
 
-    /// <summary>The filter <see cref="Test"/> names, or <see langword="null"/> when it names none.</summary>
-    internal static PeopleTestFilter? ParseTest(string? value) =>
-        value?.ToLowerInvariant() switch
-        {
-            null or "" or "all" => PeopleTestFilter.All,
-            "real" => PeopleTestFilter.Real,
-            "test" => PeopleTestFilter.Test,
-            _ => null,
-        };
+    /// <summary>The filter <see cref="Test"/> names; the validator has refused any other value.</summary>
+    internal PeopleTestFilter Filter => PeopleTestFilterQuery.Parse(Test)!.Value;
 }

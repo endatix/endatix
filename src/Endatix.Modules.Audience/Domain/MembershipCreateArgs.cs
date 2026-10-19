@@ -7,4 +7,4 @@ public sealed record MembershipCreateArgs(
     long TenantId,
     long FormId,
     long MemberId,
-    bool IsTest = false);
+    bool IsTest);
