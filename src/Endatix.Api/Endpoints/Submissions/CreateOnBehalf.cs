@@ -31,7 +31,7 @@ public sealed class CreateOnBehalf(
         Summary(s =>
         {
             s.Summary = "Create a new submission on behalf of another user";
-            s.Description = "Creates a new form submission with an optional trusted submitter profile.";
+            s.Description = "Creates a new form submission with an optional trusted submitter. Only submitter.externalSubjectId is required: displayId defaults to the subject and authProvider to Integration.";
             s.Responses[201] = "The submission was successfully created.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found. Cannot create a submission.";
@@ -108,7 +108,8 @@ public sealed class CreateOnBehalf(
 public sealed class CreateSubmissionOnBehalfRequest : BaseSubmissionRequest
 {
     /// <summary>
-    /// Optional trusted submitter profile for API-created submissions.
+    /// Optional trusted submitter for API-created submissions. Only <c>externalSubjectId</c> is required;
+    /// <c>displayId</c> defaults to the subject and <c>authProvider</c> to <c>Integration</c>.
     /// </summary>
     public SubmitterInput? Submitter { get; set; }
 }
@@ -126,10 +127,6 @@ public sealed class CreateSubmissionOnBehalfValidator : Validator<CreateSubmissi
         this.ApplyBaseSubmissionRules();
 
         RuleFor(x => x.Submitter!.ExternalSubjectId)
-            .NotEmpty()
-            .When(x => x.Submitter is not null);
-
-        RuleFor(x => x.Submitter!.DisplayId)
             .NotEmpty()
             .When(x => x.Submitter is not null);
     }

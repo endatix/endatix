@@ -145,13 +145,17 @@ internal sealed class SubmitterResolver(
         return extractor?.Extract(context.Principal);
     }
 
-    private static SubmitterExtractionInput CreateInputFromTrustedPayload(SubmitterInput input) =>
-        new(
+    /// <summary>A trusted payload without a label is labelled with its subject.</summary>
+    private static SubmitterExtractionInput CreateInputFromTrustedPayload(SubmitterInput input)
+    {
+        var subject = Normalize(input.ExternalSubjectId);
+        return new(
             Normalize(input.AuthProvider) ?? SubmitterAuthProviders.Integration,
-            Normalize(input.ExternalSubjectId),
-            Normalize(input.DisplayId),
+            subject,
+            Normalize(input.DisplayId) ?? subject,
             input.AppUserId,
             input.Profile);
+    }
 
     private async Task<Submitter?> FindExistingSubmitterAsync(
         long tenantId,
