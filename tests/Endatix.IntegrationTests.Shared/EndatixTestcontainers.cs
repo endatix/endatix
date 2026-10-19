@@ -161,7 +161,7 @@ internal static class EndatixTestcontainers
                     .WithNetworkAliases("postgres")
                     .WithName(ContainerName(containerSettings, "postgres"))
                     // Docker's default 64 MB /dev/shm fails parallel queries on large tables (53100).
-                    .WithCreateParameterModifier(parameters => parameters.HostConfig.ShmSize = 1L << 30);
+                    .WithCreateParameterModifier(parameters => (parameters.HostConfig ??= new()).ShmSize = 1L << 30);
 
                 if (!string.IsNullOrWhiteSpace(settings.PostgreSqlImage))
                 {
