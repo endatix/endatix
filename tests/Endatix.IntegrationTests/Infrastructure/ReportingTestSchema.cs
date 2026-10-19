@@ -129,7 +129,6 @@ internal static class ReportingTestSchema
         optionsBuilder.ConfigureModuleDbContext(configuration, ReportingPersistence.ConfigureDbContextOptions);
         optionsBuilder.AddInterceptors(interceptors);
 
-        // What the persistence builder's IModuleDbContextProviderOptions applies in a host: the JSON database functions.
         if (DatabaseProviderResolver.IsPostgreSql(configuration))
         {
             optionsBuilder.ReplaceService<IModelCustomizer, NpgsqlEndatixModelCustomizer>();
