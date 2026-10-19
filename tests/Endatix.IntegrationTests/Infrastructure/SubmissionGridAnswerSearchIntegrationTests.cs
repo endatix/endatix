@@ -76,6 +76,21 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
+    public async Task To_on_the_last_calendar_day_keeps_every_dated_answer()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        var lastDay = await world.PreparedAsync("""{"visit":"9999-12-31"}""");
+        var earlier = await world.PreparedAsync("""{"visit":"2026-02-28"}""");
+
+        // Act
+        var page = await world.SearchAsync([Answer("to", "visit", "9999-12-31")]);
+
+        // Assert
+        page.Items.Select(row => row.Id).Should().BeEquivalentTo([lastDay, earlier]);
+    }
+
+    [Fact]
     public async Task Filters_on_two_columns_combine_with_and()
     {
         // Arrange
