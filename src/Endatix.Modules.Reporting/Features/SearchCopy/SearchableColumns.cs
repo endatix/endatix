@@ -94,12 +94,7 @@ internal static class SearchableColumns
 
     private static void AddNames(JsonElement element, HashSet<string> names)
     {
-        foreach (var name in new[] { element.GetSurveyJsName(), element.GetSurveyJsValueName() })
-        {
-            if (!string.IsNullOrEmpty(name))
-            {
-                names.Add(name);
-            }
-        }
+        var given = new[] { element.GetSurveyJsName(), element.GetSurveyJsValueName() }.OfType<string>();
+        names.UnionWith(given.Where(name => name.Length > 0));
     }
 }

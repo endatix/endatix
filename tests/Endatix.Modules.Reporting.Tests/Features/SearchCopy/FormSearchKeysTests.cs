@@ -7,6 +7,7 @@ namespace Endatix.Modules.Reporting.Tests.Features.SearchCopy;
 public sealed class FormSearchKeysTests
 {
     private static readonly DateTime Earlier = new(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly System.Text.Json.JsonSerializerOptions WebJson = new(System.Text.Json.JsonSerializerDefaults.Web);
     private static readonly DateTime Now = new(2026, 10, 16, 0, 0, 0, DateTimeKind.Utc);
 
     [Fact]
@@ -74,7 +75,7 @@ public sealed class FormSearchKeysTests
         var keys = Names(60).Select((name, index) =>
             new SearchKey(name, index < 45 ? SearchKeySources.Auto : SearchKeySources.User, SubmissionGridFilterTypes.Text, Earlier));
         var existing = FormSearchKeys.FromJson(System.Text.Json.JsonSerializer.Serialize(
-            keys, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+            keys, WebJson));
 
         // Act
         var refresh = existing.Refresh(Compile(Searchable(100)), Now);

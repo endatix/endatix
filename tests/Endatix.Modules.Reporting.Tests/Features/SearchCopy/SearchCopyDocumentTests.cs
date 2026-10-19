@@ -6,6 +6,7 @@ namespace Endatix.Modules.Reporting.Tests.Features.SearchCopy;
 
 public sealed class SearchCopyDocumentTests
 {
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
     private static readonly DateTime AddedAt = new(2026, 10, 16, 0, 0, 0, DateTimeKind.Utc);
 
     [Fact]
@@ -91,5 +92,5 @@ public sealed class SearchCopyDocumentTests
     private static FormSearchKeys Keys(params (string Key, string FilterType)[] keys) =>
         FormSearchKeys.FromJson(JsonSerializer.Serialize(
             keys.Select(key => new SearchKey(key.Key, SearchKeySources.Auto, key.FilterType, AddedAt)),
-            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            WebJson));
 }

@@ -24,11 +24,11 @@ internal sealed record GridPerformanceShape(string Name, string Description, int
         _ => new("realistic", "1,000 questions, 20% answered, 2% long comments", 1000, 0.2, ShortKeys: false),
     };
 
-    public int EarlyZebra => 3;
-    public int EarlyKiwi => 4;
-    public int EarlyMango => 5;
-    public int Date => 7;
-    public int LongComment => 20;
+    public const int EarlyZebra = 3;
+    public const int EarlyKiwi = 4;
+    public const int EarlyMango = 5;
+    public const int Date = 7;
+    public const int LongComment = 20;
     public int DeepZebra => Questions - 5;
     public int DeepKiwi => Questions / 2;
     public int DeepMango => Questions - 10;
@@ -112,11 +112,11 @@ internal sealed class GridPerformanceRowValues(int index, GridPerformanceShape s
 
     public string? Of(int question) => question switch
     {
-        _ when question == shape.Date => Date,
-        _ when question == shape.EarlyZebra || question == shape.DeepZebra => Zebra ? "A Zebra crossing " + Word(question) : Words(question),
-        _ when question == shape.EarlyKiwi || question == shape.DeepKiwi => Kiwi ? "Kiwi " + Word(question) : Words(question),
-        _ when question == shape.EarlyMango || question == shape.DeepMango => Mango ? "mango " + Word(question) : Words(question),
-        _ when question == shape.LongComment && HasLongComment => LongComment(question),
+        _ when question == GridPerformanceShape.Date => Date,
+        _ when question == GridPerformanceShape.EarlyZebra || question == shape.DeepZebra => Zebra ? "A Zebra crossing " + Word(question) : Words(question),
+        _ when question == GridPerformanceShape.EarlyKiwi || question == shape.DeepKiwi => Kiwi ? "Kiwi " + Word(question) : Words(question),
+        _ when question == GridPerformanceShape.EarlyMango || question == shape.DeepMango => Mango ? "mango " + Word(question) : Words(question),
+        _ when question == GridPerformanceShape.LongComment && HasLongComment => LongComment(question),
         _ => IsAnswered(question) ? Word(question) + " " + Word(question + 3) : null,
     };
 

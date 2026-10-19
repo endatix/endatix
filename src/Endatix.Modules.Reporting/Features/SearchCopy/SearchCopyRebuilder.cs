@@ -21,7 +21,7 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// changed and writes after its row's batch stamps the row with the old revision: filters count it as not checked
 /// on the new keys until the next rebuild or flatten.
 /// </remarks>
-internal sealed class SearchCopyRebuilder(
+internal sealed partial class SearchCopyRebuilder(
     IReportingDbContext dbContext,
     IFormSchemaRepository schemaRepository,
     ILogger<SearchCopyRebuilder> logger)
@@ -45,7 +45,7 @@ internal sealed class SearchCopyRebuilder(
         var searchKeys = FormSearchKeys.Of(schema);
         RebuildRun run = new(tenantId, formId, searchKeys.Revision, KeysParameter(searchKeys), Statement(searchKeys));
         var rows = await RunBatchesAsync(run, cancellationToken);
-        logger.LogInformation("Rebuilt the search copy of {Rows} flattened row(s) of form {FormId}", rows, formId);
+        LogRebuilt(rows, formId);
         return rows;
     }
 
@@ -131,6 +131,9 @@ internal sealed class SearchCopyRebuilder(
 
     private static string KeysParameter(FormSearchKeys searchKeys) =>
         JsonSerializer.Serialize(searchKeys.Keys.ToDictionary(key => key.Key, key => key.FilterType, StringComparer.Ordinal));
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Rebuilt the search copy of {Rows} flattened row(s) of form {FormId}")]
+    private partial void LogRebuilt(int rows, long formId);
 
     private sealed record RebuildRun(long TenantId, long FormId, int Revision, string KeysJson, string Sql);
 
