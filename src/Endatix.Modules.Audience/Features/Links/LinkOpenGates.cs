@@ -62,7 +62,7 @@ internal sealed class LinkOpenGates(IAudienceDbContext db, IRepository<Form> for
             return bound;
         }
 
-        var input = new SubmitterInput(person.Identifier, person.Identifier);
+        var input = new SubmitterInput(person.Identifier);
         if (await ResolveAsync(new SubmitterResolveContext(tenantId, Submitter: input), cancellationToken)
             is not long submitterId)
         {
