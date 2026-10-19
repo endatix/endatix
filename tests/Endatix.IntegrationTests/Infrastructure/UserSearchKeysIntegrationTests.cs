@@ -91,6 +91,26 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task A_prepared_row_without_a_search_copy_keeps_an_added_key_pending()
+    {
+        // Arrange — a row prepared before the form had a search copy, and a key the rebuild has not reached yet.
+        var form = await _world.SeedFlattenedFormAsync(Mixed, new { reference = "REF-Alpha" });
+        await using (var db = _world.CreateReportingDbContext())
+        {
+            await db.FlattenedSubmissions.Where(row => row.FormId == form.FormId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SearchJson, (string?)null), Cancellation);
+        }
+
+        await SaveUserKeyWithoutRebuildAsync(form, "reference");
+
+        // Act
+        var column = (await ColumnsAsync(form)).Columns.Single(column => column.Key == "reference");
+
+        // Assert
+        column.SearchPending.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Adding_the_key_again_finishes_a_rebuild_that_was_cut_off()
     {
         // Arrange
