@@ -255,6 +255,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("bit");
+
                     b.Property<long>("MemberId")
                         .HasColumnType("bigint");
 

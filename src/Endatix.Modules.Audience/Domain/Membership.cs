@@ -7,7 +7,7 @@ namespace Endatix.Modules.Audience.Domain;
 
 /// <summary>
 /// Places an <see cref="Member"/> on one form. Deleting this row removes the person from
-/// that form only.
+/// that form only. A test person (<see cref="IsTest"/>) is never issued a personalised link.
 /// </summary>
 public sealed class Membership : BaseEntity, IAggregateRoot, ITenantOwned
 {
@@ -21,15 +21,18 @@ public sealed class Membership : BaseEntity, IAggregateRoot, ITenantOwned
 
     private Membership() { }
 
-    public Membership(long tenantId, long formId, long memberId)
+    /// <summary>Places a member on a form, as a test person when <see cref="MembershipCreateArgs.IsTest"/> is set.</summary>
+    public Membership(MembershipCreateArgs args)
     {
-        Guard.Against.NegativeOrZero(tenantId);
-        Guard.Against.NegativeOrZero(formId);
-        Guard.Against.NegativeOrZero(memberId);
+        Guard.Against.Null(args);
+        Guard.Against.NegativeOrZero(args.TenantId);
+        Guard.Against.NegativeOrZero(args.FormId);
+        Guard.Against.NegativeOrZero(args.MemberId);
 
-        TenantId = tenantId;
-        FormId = formId;
-        MemberId = memberId;
+        TenantId = args.TenantId;
+        FormId = args.FormId;
+        MemberId = args.MemberId;
+        IsTest = args.IsTest;
     }
 
     public long TenantId { get; private set; }
@@ -37,4 +40,9 @@ public sealed class Membership : BaseEntity, IAggregateRoot, ITenantOwned
     public long FormId { get; private set; }
 
     public long MemberId { get; private set; }
+
+    /// <summary>
+    /// Set when the person is added and never changed: a person exists on this form only for testing.
+    /// </summary>
+    public bool IsTest { get; private set; }
 }

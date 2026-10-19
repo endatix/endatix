@@ -31,11 +31,12 @@ public sealed class AudienceMigrationsAvailabilityTests
         migrationIds.Should().Equal(
             "20260930105720_InitialPersonalization",
             "20260930112557_AddAudienceImports",
-            "20261008074014_AddAudienceLinks");
+            "20261008074014_AddAudienceLinks",
+            "20261019002103_AddMembershipIsTest");
     }
 
     [Fact]
-    public void GetMigrations_SqlServerContext_ReturnsOnlyItsInitialMigration()
+    public void GetMigrations_SqlServerContext_ReturnsItsOwnShippedIds()
     {
         // Arrange
         using var context = CreateSqlServerContext();
@@ -45,7 +46,9 @@ public sealed class AudienceMigrationsAvailabilityTests
         var migrationIds = context.Database.GetMigrations().ToList();
 
         // Assert
-        migrationIds.Should().ContainSingle().Which.Should().EndWith("_InitialPersonalization");
+        migrationIds.Should().Equal(
+            "20261012154511_InitialPersonalization",
+            "20261019002106_AddMembershipIsTest");
         migrationIds.Should().NotIntersectWith(postgreSqlContext.Database.GetMigrations());
     }
 
