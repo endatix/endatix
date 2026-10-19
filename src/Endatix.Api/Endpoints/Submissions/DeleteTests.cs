@@ -74,6 +74,7 @@ public sealed record DeleteTestSubmissionsResponse(int DeletedCount);
 /// </summary>
 public sealed class DeleteTestSubmissionsValidator : Validator<DeleteTestSubmissionsRequest>
 {
+    /// <summary>Requires a form id.</summary>
     public DeleteTestSubmissionsValidator()
     {
         RuleFor(x => x.FormId).GreaterThan(0);

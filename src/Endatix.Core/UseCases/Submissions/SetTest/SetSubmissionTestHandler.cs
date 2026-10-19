@@ -19,6 +19,7 @@ public sealed class SetSubmissionTestHandler(
     IRepository<Submission> submissions,
     IRepository<Form> forms) : ICommandHandler<SetSubmissionTestCommand, Result<SubmissionDto>>
 {
+    /// <inheritdoc />
     public async Task<Result<SubmissionDto>> Handle(SetSubmissionTestCommand request, CancellationToken cancellationToken)
     {
         var form = await forms.GetByIdAsync(request.FormId, cancellationToken);

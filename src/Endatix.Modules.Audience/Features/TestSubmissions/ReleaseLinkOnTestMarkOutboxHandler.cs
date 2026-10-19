@@ -47,7 +47,7 @@ internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, 
             : null;
     }
 
-    private Task ReleaseLinkAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
+    private Task<int> ReleaseLinkAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
         db.Links
             .Where(link => link.TenantId == marked.TenantId && link.SubmissionId == marked.SubmissionId)
             .ExecuteUpdateAsync(
