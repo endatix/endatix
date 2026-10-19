@@ -20,7 +20,9 @@ Two outbox handlers do the module's work on other modules' events: `form.deleted
 `submission.updated` that marked the submission as test frees its personalised link. With
 `Endatix:Outbox:DeliverToJobQueue` on, each runs as its own background job instead (`AudienceDeleteFormAudience`,
 `AudienceReleaseLinkOnTestMark`), with its own retries; `Features/BackgroundJobs/AudienceOutboxJobs.cs` registers
-both shapes, as Reporting does.
+both shapes, as Reporting does. Only a `submission.updated` whose change kind includes `test` enqueues the release
+job. The release locks the submission's row while it clears the link, so a mark as real cannot commit between the
+check and the clear.
 
 ## Migrations
 

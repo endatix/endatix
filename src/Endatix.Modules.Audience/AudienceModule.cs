@@ -10,6 +10,7 @@ using Endatix.Modules.Audience.Features.Import;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Features.OnBehalf;
 using Endatix.Modules.Audience.Features.Properties;
+using Endatix.Modules.Audience.Features.TestSubmissions;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 

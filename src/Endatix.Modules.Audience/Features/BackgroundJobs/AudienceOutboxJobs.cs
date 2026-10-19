@@ -14,6 +14,18 @@ namespace Endatix.Modules.Audience.Features.BackgroundJobs;
 /// </summary>
 internal static class AudienceOutboxJobs
 {
+    // Each Audience job is one short write, so ten minutes is ample for an attempt, and five attempts doubling from
+    // 10 seconds retry for about two and a half minutes.
+    internal static readonly BackgroundJobTypeDefaults JobDefaults = new()
+    {
+        MaxAttempts = 5,
+        MaxRuntimeMinutes = 10,
+        BackoffBaseSeconds = 10,
+        BackoffCapSeconds = 600,
+        RetentionDays = 3,
+        MaxConcurrency = 2,
+    };
+
     public static IServiceCollection AddAudienceOutboxWork(this IServiceCollection services)
     {
         AddInlineHandlers(services);
@@ -31,16 +43,20 @@ internal static class AudienceOutboxJobs
 
     private static void AddJobHandlers(IServiceCollection services)
     {
-        services.AddBackgroundJobHandler<DeleteFormAudienceJobHandler, AudienceDeleteFormAudiencePayload>();
-        services.AddBackgroundJobHandler<ReleaseLinkOnTestMarkJobHandler, AudienceReleaseLinkOnTestMarkPayload>();
+        services.AddBackgroundJobHandler<DeleteFormAudienceJobHandler, AudienceDeleteFormAudiencePayload>(JobDefaults);
+        services.AddBackgroundJobHandler<ReleaseLinkOnTestMarkJobHandler, AudienceReleaseLinkOnTestMarkPayload>(JobDefaults);
     }
 
     private static void AddSubscriptions(IServiceCollection services)
     {
         Subscribe(services, DeleteFormAudienceOutboxHandler.HandledEventTypes,
             message => new AudienceDeleteFormAudiencePayload(message.Id));
-        Subscribe(services, ReleaseLinkOnTestMarkOutboxHandler.HandledEventTypes,
-            message => new AudienceReleaseLinkOnTestMarkPayload(message.Id));
+
+        // Most submission updates leave the test flag alone; the expander enqueues a job only for one that changes it.
+        foreach (var eventType in ReleaseLinkOnTestMarkOutboxHandler.HandledEventTypes)
+        {
+            services.AddOutboxJobSubscription<AudienceReleaseLinkOnTestMarkPayload, ReleaseLinkOnTestMarkExpander>(eventType);
+        }
     }
 
     private static void AddInline<THandler>(IServiceCollection services)

@@ -36,10 +36,10 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
 
         // Act
         await DeleteFormAsync(host, seeded.FormId, ct);
-        var completed = await WaitForJobAsync(host, new ExpectedJob("AudienceDeleteFormAudience", seeded.TenantId), ct);
+        var job = await WaitForFinishedJobAsync(host, new ExpectedJob("AudienceDeleteFormAudience", seeded.TenantId), ct);
 
-        // Assert
-        completed.Should().BeTrue();
+        // Assert — it succeeded on its first attempt.
+        job.Should().Be((3, 1));
         (await IsMembershipDeletedAsync(host, membershipId, ct)).Should().BeTrue();
     }
 
@@ -55,10 +55,10 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
 
         // Act
         await MarkAsTestAsync(host, seeded.SubmissionId, ct);
-        var completed = await WaitForJobAsync(host, new ExpectedJob("AudienceReleaseLinkOnTestMark", seeded.TenantId), ct);
+        var job = await WaitForFinishedJobAsync(host, new ExpectedJob("AudienceReleaseLinkOnTestMark", seeded.TenantId), ct);
 
-        // Assert
-        completed.Should().BeTrue();
+        // Assert — it succeeded on its first attempt.
+        job.Should().Be((3, 1));
         (await LinkSubmissionIdAsync(host, linkId, ct)).Should().BeNull();
     }
 
@@ -169,18 +169,33 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
             .SingleAsync(ct);
     }
 
-    private static Task<bool> WaitForJobAsync(FanOutHost host, ExpectedJob expected, CancellationToken ct) =>
-        JobsTestWait.UntilAsync(
-            async () => await host.Database.CountAsync(
-                $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "JobType" = '{expected.JobType}' AND "TenantId" = {expected.TenantId} AND "Status" = 3""",
-                ct) == 1,
+    // Waits until the job has finished, whichever way, so a failed job fails the test at once with its status.
+    private static async Task<(int Status, int AttemptCount)?> WaitForFinishedJobAsync(
+        FanOutHost host,
+        ExpectedJob expected,
+        CancellationToken ct)
+    {
+        (int Status, int AttemptCount)? job = null;
+        await JobsTestWait.UntilAsync(
+            async () => (job = await JobAsync(host, expected, ct)) is { Status: 3 or 4 or 5 },
             Patience,
             ct);
+        return job;
+    }
+
+    private static async Task<(int Status, int AttemptCount)?> JobAsync(FanOutHost host, ExpectedJob expected, CancellationToken ct)
+    {
+        var rows = await host.Database.QueryAsync(
+            $"""SELECT "Status", "AttemptCount" FROM jobs."BackgroundJobs" WHERE "JobType" = '{expected.JobType}' AND "TenantId" = {expected.TenantId}""",
+            reader => (reader.GetInt32(0), reader.GetInt32(1)),
+            ct);
+        return rows.Count == 0 ? null : rows[0];
+    }
 
     private sealed record SeededSubmission(long TenantId, long FormId, long SubmissionId);
 
     private sealed record OpenedLink(SeededSubmission Submission, long MembershipId);
 
-    /// <summary>The job, by its type and tenant, waited for until it completes.</summary>
+    /// <summary>The job, by its type and tenant, waited for until it finishes.</summary>
     private sealed record ExpectedJob(string JobType, long TenantId);
 }

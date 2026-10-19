@@ -21,6 +21,7 @@ namespace Endatix.Modules.Audience.Features.BackgroundJobs;
 internal abstract class AudienceOutboxJobHandler<TPayload, TInput>(IRepository<OutboxMessage> outboxMessages, ILogger logger)
     : BackgroundJobHandler<TPayload>(logger)
     where TPayload : IAudienceOutboxJobPayload
+    where TInput : class
 {
     // Each attempt re-reads the outbox row, so outbox retention must allow for it: see background-processing.mdx.
     public const string MessageGone = "The outbox message no longer exists.";

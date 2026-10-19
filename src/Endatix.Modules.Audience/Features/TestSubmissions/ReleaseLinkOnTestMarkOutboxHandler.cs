@@ -1,13 +1,12 @@
 using System.Text.Json;
-using Ardalis.Specification;
-using Endatix.Core.Entities;
 using Endatix.Core.Events;
-using Endatix.Core.Infrastructure.Domain;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Utils;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.TestSubmissions;
 
@@ -17,11 +16,12 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 /// redeem skips test submissions when it looks for the link's earlier submission.
 /// </summary>
 /// <remarks>
-/// The submission is re-read rather than trusting the payload: a later mark as real wins over a late message. A test
+/// The submission is re-read rather than trusting the payload: a later mark as real wins over a late message. The
+/// re-read locks the submission's row until the link is cleared, so a mark as real cannot commit in between. A test
 /// submission deleted before the message is handled (a go-live clean-up) still frees the link. The update matches
 /// nothing on a repeat, so a retry is harmless.
 /// </remarks>
-internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, IRepository<Submission> submissions)
+internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, AppDbContext app)
     : IOutboxIntegrationEventHandler
 {
     /// <summary>The event types this work runs on, inline or as a job.</summary>
@@ -54,13 +54,42 @@ internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, 
     }
 
     /// <summary>Frees the submission's link when the submission is still marked as test.</summary>
+    /// <remarks>
+    /// <see cref="AppDbContext"/> joins the audience connection and transaction, as in a link open, so the
+    /// submission's row lock and the link update commit together.
+    /// </remarks>
     internal async Task ProcessAsync(MarkedSubmission marked, CancellationToken cancellationToken)
     {
-        if (await IsTestAsync(marked, cancellationToken))
+        var audience = ((DbContext)db).Database;
+        await using var transaction = await audience.BeginTransactionAsync(cancellationToken);
+        app.Database.SetDbConnection(audience.GetDbConnection());
+        await app.Database.UseTransactionAsync(transaction.GetDbTransaction(), cancellationToken);
+        try
         {
-            await ReleaseLinkAsync(marked, cancellationToken);
+            if (await LockIfStillTestAsync(marked, cancellationToken))
+            {
+                await ReleaseLinkAsync(marked, cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        finally
+        {
+            await app.Database.UseTransactionAsync(null, CancellationToken.None);
         }
     }
+
+    // Rewrites the flag with the value it has, which takes the row's write lock: a mark as real waits for this
+    // transaction, and one that committed first leaves no row to match. Query filters are off so a deleted test
+    // submission still matches; the tenant predicate stands in for the tenant filter.
+    private async Task<bool> LockIfStillTestAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
+        await app.Submissions
+            .IgnoreQueryFilters()
+            .Where(submission => submission.Id == marked.SubmissionId
+                && submission.TenantId == marked.TenantId
+                && submission.IsTestSubmission)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(submission => submission.IsTestSubmission, true),
+                cancellationToken) > 0;
 
     private Task ReleaseLinkAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
         db.Links
@@ -71,21 +100,5 @@ internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, 
                     .SetProperty(link => link.OpenedAt, (DateTime?)null),
                 cancellationToken);
 
-    private Task<bool> IsTestAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
-        submissions.AnyAsync(new TestSubmissionByIdSpec(marked.TenantId, marked.SubmissionId), cancellationToken);
-
     internal sealed record MarkedSubmission(long TenantId, long SubmissionId);
-}
-
-/// <summary>
-/// The submission, deleted or not, when it is still marked as test. The query filters are off so a deleted one is
-/// seen; the tenant predicate stands in for the tenant filter.
-/// </summary>
-internal sealed class TestSubmissionByIdSpec : Specification<Submission>
-{
-    public TestSubmissionByIdSpec(long tenantId, long submissionId) =>
-        Query.Where(submission => submission.Id == submissionId
-                && submission.TenantId == tenantId
-                && submission.IsTestSubmission)
-            .IgnoreQueryFilters();
 }
