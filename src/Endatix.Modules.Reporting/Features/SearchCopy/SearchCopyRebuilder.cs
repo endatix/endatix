@@ -25,7 +25,6 @@ internal sealed class SearchCopyRebuilder(
 {
     internal const int DefaultBatchSize = 1000;
 
-    /// <summary>How many rows one statement rewrites.</summary>
     internal int BatchSize { get; init; } = DefaultBatchSize;
 
     /// <summary>Rebuilds the form's search copies; returns how many rows were rewritten.</summary>

@@ -10,7 +10,6 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// <param name="AddedAt">When the key was added, in UTC.</param>
 internal sealed record SearchKey(string Key, string Source, string FilterType, DateTime AddedAt);
 
-/// <summary>Who added a search key.</summary>
 internal static class SearchKeySources
 {
     /// <summary>Chosen by the schema compile: an eligible question, in schema order.</summary>

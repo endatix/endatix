@@ -38,7 +38,6 @@ internal sealed class FlattenedRowSeed(ReportingDbContextBase dbContext)
     public Task ProcessedAsync(FlattenedSubmissionKey key, string dataJson, CancellationToken cancellationToken) =>
         ProcessedAsync(key, new FlattenedRowData(dataJson, "{}"), cancellationToken);
 
-    /// <summary>Creates a row processed with <paramref name="data"/>.</summary>
     public async Task ProcessedAsync(FlattenedSubmissionKey key, FlattenedRowData data, CancellationToken cancellationToken)
     {
         await _repository.EnsureExistsAsync(key, cancellationToken);
