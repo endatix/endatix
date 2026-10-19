@@ -79,7 +79,6 @@ public sealed class SubmissionGridAnswerSearch(
         return schema is null ? null : FormSearchKeys.FromJson(schema.SearchKeys);
     }
 
-    // The form's submissions inside the list's metadata filters.
     private IQueryable<CoreSubmissionRow> Listed(SubmissionGridRowsQuery query)
     {
         FilterParameters filters = new(query.List.FilterExpressions ?? []);
@@ -94,8 +93,8 @@ public sealed class SubmissionGridAnswerSearch(
         return rows;
     }
 
-    // Prepared rows with a search copy. A row is checked only when it was also prepared from the submission's
-    // current version, which the join to the submission decides.
+    // A row is checked only when it was prepared from the submission's current version;
+    // the join to the submission decides that.
     private IQueryable<PreparedSubmission> Searchable(SubmissionGridRowsQuery query) =>
         reportingDbContext.FlattenedSubmissions
             .Where(row => row.TenantId == query.TenantId && row.FormId == query.List.FormId && !row.IsDeleted &&

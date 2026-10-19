@@ -274,7 +274,6 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
             return id;
         }
 
-        // Prepared, then changed: the row no longer matches the submission's version.
         public async Task<long> StaleAsync(string searchJson)
         {
             var id = await PreparedAsync(searchJson);
