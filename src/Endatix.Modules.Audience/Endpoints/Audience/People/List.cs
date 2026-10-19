@@ -28,12 +28,16 @@ public sealed class List(
         {
             summary.Summary = "List audience people";
             summary.Description =
-                "Lists people on this form's audience. Page size is capped at 5,000.";
+                "Lists people on this form's audience. Page size is capped at 5,000. " +
+                "test=all|real|test (default all) keeps everyone, only real people, or only test persons; " +
+                "the total counts the people kept.";
             summary.Responses[200] = "People retrieved.";
+            summary.Responses[400] = "Invalid paging or test filter.";
             summary.Responses[404] = "Form not found.";
         });
         Description(builder => builder
             .Produces<Paged<AudiencePersonResponse>>(200, "application/json")
+            .ProducesProblem(400)
             .ProducesProblem(404));
     }
 
@@ -46,7 +50,8 @@ public sealed class List(
                 tenantContext.TenantId,
                 request.FormId,
                 request.Page,
-                request.PageSize),
+                request.PageSize,
+                ListAudiencePeopleRequest.ParseTest(request.Test) ?? PeopleTestFilter.All),
             ct);
 
         return TypedResultsBuilder
@@ -78,6 +83,9 @@ public sealed class ListAudiencePeopleValidator : Validator<ListAudiencePeopleRe
             .GreaterThan(0)
             .LessThanOrEqualTo(AudiencePaging.MaxPageSize)
             .When(request => request.PageSize.HasValue);
+        RuleFor(request => request.Test)
+            .Must(test => ListAudiencePeopleRequest.ParseTest(test) is not null)
+            .WithMessage("Test must be all, real or test.");
     }
 }
 
@@ -91,4 +99,17 @@ public sealed class ListAudiencePeopleRequest
     public int? Page { get; init; }
 
     public int? PageSize { get; init; }
+
+    /// <summary><c>all</c> (default), <c>real</c> or <c>test</c>.</summary>
+    public string? Test { get; init; }
+
+    /// <summary>The filter <see cref="Test"/> names, or <see langword="null"/> when it names none.</summary>
+    internal static PeopleTestFilter? ParseTest(string? value) =>
+        value?.ToLowerInvariant() switch
+        {
+            null or "" or "all" => PeopleTestFilter.All,
+            "real" => PeopleTestFilter.Real,
+            "test" => PeopleTestFilter.Test,
+            _ => null,
+        };
 }

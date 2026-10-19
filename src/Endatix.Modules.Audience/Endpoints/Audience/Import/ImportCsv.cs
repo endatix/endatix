@@ -31,7 +31,8 @@ public sealed class ImportCsv(
             summary.Summary = "Import audience CSV";
             summary.Description =
                 "Imports up to 5,000 people synchronously. Supports column mapping and " +
-                "variable__choice multi-choice columns. Partial success is returned with counts.";
+                "variable__choice multi-choice columns. Partial success is returned with counts. " +
+                "With isTest, people new to this form are added as test persons; people already on it are unchanged.";
             summary.Responses[200] = "Import finished (may include rejections).";
             summary.Responses[400] = "Invalid CSV or mapping.";
             summary.Responses[404] = "Form not found.";
@@ -54,7 +55,8 @@ public sealed class ImportCsv(
                 request.IdentifierColumn ?? string.Empty,
                 string.IsNullOrWhiteSpace(request.FileName) ? DefaultFileName : request.FileName,
                 request.PropertyColumns,
-                long.TryParse(userContext.GetCurrentUserId(), out long userId) ? userId : null),
+                long.TryParse(userContext.GetCurrentUserId(), out long userId) ? userId : null,
+                request.IsTest),
             ct);
 
         return TypedResultsBuilder
@@ -92,6 +94,9 @@ public sealed class ImportAudienceCsvRequest
 
     /// <summary>Maps property <c>variableName</c> → CSV header for simple columns.</summary>
     public Dictionary<string, string>? PropertyColumns { get; init; }
+
+    /// <summary>Adds the people new to this form as test persons. People already on it are unchanged.</summary>
+    public bool IsTest { get; init; }
 }
 
 /// <summary>

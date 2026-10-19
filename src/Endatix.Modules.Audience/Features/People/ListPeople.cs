@@ -11,13 +11,25 @@ using Microsoft.EntityFrameworkCore;
 namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
-/// Lists people on a form with paging up to <see cref="AudiencePaging.MaxPageSize"/>.
+/// Lists people on a form with paging up to <see cref="AudiencePaging.MaxPageSize"/>. The total counts only the
+/// people <see cref="Test"/> keeps.
 /// </summary>
 public sealed record ListPeopleQuery(
     long TenantId,
     long FormId,
     int? Page,
-    int? PageSize) : IQuery<Result<Paged<PersonDto>>>;
+    int? PageSize,
+    PeopleTestFilter Test = PeopleTestFilter.All) : IQuery<Result<Paged<PersonDto>>>;
+
+/// <summary>
+/// Which people the list keeps: everyone, only real people, or only test persons.
+/// </summary>
+public enum PeopleTestFilter
+{
+    All,
+    Real,
+    Test,
+}
 
 /// <summary>
 /// One person on a form's audience, with property values keyed by property id.
@@ -26,7 +38,8 @@ public sealed record PersonDto(
     long MembershipId,
     long MemberId,
     string Identifier,
-    IReadOnlyDictionary<long, string> Values);
+    IReadOnlyDictionary<long, string> Values,
+    bool IsTest);
 
 internal sealed class ListPeopleHandler(
     IAudienceDbContext db,
@@ -56,7 +69,9 @@ internal sealed class ListPeopleHandler(
         ListPeopleQuery request,
         CancellationToken cancellationToken)
     {
-        IQueryable<Membership> query = MembershipsOnForm(request.TenantId, request.FormId);
+        IQueryable<Membership> query = WithTestFilter(
+            MembershipsOnForm(request.TenantId, request.FormId),
+            request.Test);
         ResolvedPage resolved = ResolvedPage.For(
             request.Page ?? 1,
             PageSize(request),
@@ -77,6 +92,14 @@ internal sealed class ListPeopleHandler(
             membership.TenantId == tenantId
             && membership.FormId == formId
             && db.Members.Any(member => member.Id == membership.MemberId));
+
+    private static IQueryable<Membership> WithTestFilter(IQueryable<Membership> query, PeopleTestFilter filter) =>
+        filter switch
+        {
+            PeopleTestFilter.Real => query.Where(membership => !membership.IsTest),
+            PeopleTestFilter.Test => query.Where(membership => membership.IsTest),
+            _ => query,
+        };
 
     /// <summary>
     /// The audience's own limits rather than <see cref="PageRequest"/>'s, which caps a page at 100 people.
@@ -141,6 +164,7 @@ internal sealed class ListPeopleHandler(
                 membership.MemberId,
                 identifiers[membership.MemberId],
                 valuesByMembership.GetValueOrDefault(membership.Id)
-                    ?? (IReadOnlyDictionary<long, string>)new Dictionary<long, string>()))
+                    ?? (IReadOnlyDictionary<long, string>)new Dictionary<long, string>(),
+                membership.IsTest))
             .ToList();
 }

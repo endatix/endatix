@@ -13,7 +13,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace Endatix.Modules.Audience.Features.Import;
 
 /// <summary>
-/// Sync-imports audience people from CSV (max 5,000 rows). Partial success is allowed.
+/// Sync-imports audience people from CSV (max 5,000 rows). Partial success is allowed. <see cref="IsTest"/> makes
+/// the people this import adds to the form test persons; people already on the form keep what they are.
 /// </summary>
 public sealed record ImportCsvCommand(
     long TenantId,
@@ -22,7 +23,8 @@ public sealed record ImportCsvCommand(
     string IdentifierColumn,
     string FileName,
     IReadOnlyDictionary<string, string>? PropertyColumns = null,
-    long? PerformedById = null) : ICommand<Result<ImportResultDto>>;
+    long? PerformedById = null,
+    bool IsTest = false) : ICommand<Result<ImportResultDto>>;
 
 /// <summary>
 /// Import outcome counts plus the first rejected rows with their reasons.
@@ -184,7 +186,8 @@ internal sealed class ImportCsvHandler(
         await using IDbContextTransaction transaction =
             await matchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        ImportTarget target = new(request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer));
+        ImportTarget target = new(
+            request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer), request.IsTest);
         ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.MatchKey);
         ImportTally tally = await StageAsync(new AudienceQuery(db, target, cancellationToken), rows.Accepted);
 

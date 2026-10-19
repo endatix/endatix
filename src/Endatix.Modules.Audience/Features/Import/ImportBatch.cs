@@ -65,16 +65,16 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 
     private void AddMembership(Member member, IReadOnlyDictionary<long, string> values)
     {
-        Membership membership = new(target.TenantId, target.FormId, member.Id);
+        Membership membership = new(new MembershipCreateArgs(target.TenantId, target.FormId, member.Id, target.IsTest));
         db.Memberships.Add(membership);
         PropertyValuesWriter.AddAll(new PropertyValueWrite(db, target.TenantId, membership.Id, values));
     }
 }
 
 /// <summary>
-/// The tenant, form and match key one import writes to.
+/// The tenant, form and match key one import writes to, and whether the memberships it adds are test persons.
 /// </summary>
-internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey);
+internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey, bool IsTest);
 
 /// <summary>
 /// Members, memberships and value cells that the import rows already match.
