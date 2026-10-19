@@ -5,12 +5,15 @@ namespace Endatix.Modules.Audience.Features.Links;
 
 /// <summary>
 /// The submission already written for this link, including one whose claim never committed. The form narrows
-/// it to <c>IX_Submissions_FormId</c>: <c>AudienceLinkId</c> has no index.
+/// it to <c>IX_Submissions_FormId</c>: <c>AudienceLinkId</c> has no index. A submission marked as test is not the
+/// link's any more: marking it freed the link, which then opens a fresh one.
 /// </summary>
 internal sealed class SubmissionForLinkSpec : Specification<Submission>
 {
     public SubmissionForLinkSpec(long formId, long audienceLinkId) =>
-        Query.Where(submission => submission.FormId == formId && submission.AudienceLinkId == audienceLinkId)
+        Query.Where(submission => submission.FormId == formId
+                && submission.AudienceLinkId == audienceLinkId
+                && !submission.IsTestSubmission)
             .OrderBy(submission => submission.Id);
 }
 

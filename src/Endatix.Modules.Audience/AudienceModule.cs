@@ -11,6 +11,7 @@ using Endatix.Modules.Audience.Features.Import;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Features.OnBehalf;
 using Endatix.Modules.Audience.Features.Properties;
+using Endatix.Modules.Audience.Features.TestSubmissions;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -37,6 +38,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
     {
         AddPersistence(builder);
         builder.Services.AddScoped<IOutboxIntegrationEventHandler, DeleteFormAudienceOutboxHandler>();
+        builder.Services.AddScoped<IOutboxIntegrationEventHandler, ReleaseLinkOnTestMarkOutboxHandler>();
         builder.Services.AddScoped<ImportWriteSupport>();
         builder.Services.AddScoped<ISubmissionPersonalizer, OnBehalfPersonalizer>();
         builder.Services.AddScoped<IAudiencePropertyCatalog, AudiencePropertyCatalog>();

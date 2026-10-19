@@ -327,6 +327,39 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         }
     }
 
+    /// <summary>
+    /// Flags the submission as test and clears its one-per-person key, so the person may answer for real.
+    /// Idempotent.
+    /// </summary>
+    public void MarkAsTest()
+    {
+        if (IsTestSubmission)
+        {
+            return;
+        }
+
+        IsTestSubmission = true;
+        ApplySingleSubmissionRestriction(FormId, shouldEnforce: false);
+        RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
+    }
+
+    /// <summary>
+    /// Flags the submission as real. When the form allows one response per person, the key is re-applied and
+    /// the unique index refuses the save if the person already has a real one (<c>DuplicateSubmissionException</c>).
+    /// Idempotent.
+    /// </summary>
+    public void MarkAsReal(bool enforceSingleSubmissionGate)
+    {
+        if (!IsTestSubmission)
+        {
+            return;
+        }
+
+        IsTestSubmission = false;
+        ApplySingleSubmissionRestriction(FormId, enforceSingleSubmissionGate);
+        RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
+    }
+
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
     public void IncrementRevision() => Revision++;
 
