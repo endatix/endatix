@@ -7,13 +7,19 @@ namespace Endatix.Core.Features.Email;
 /// </summary>
 public class EmailWithBody : BaseEmailModel
 {
+    public EmailWithBody()
+    {
+        PlainTextBody = string.Empty;
+        HtmlBody = string.Empty;
+    }
+
     /// <summary>
     /// Plain text version of the body
     /// </summary>
-    public string PlainTextBody { get; set; } = string.Empty;
+    public string PlainTextBody { get; set; }
 
     /// <summary>
     /// Html version of the body
     /// </summary>
-    public string HtmlBody { get; set; } = string.Empty;
+    public string HtmlBody { get; set; }
 }

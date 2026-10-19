@@ -5,8 +5,13 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// </summary>
 public class PartialUpdateSubmissionByTokenRequest : BasePublicSubmissionRequest
 {
+    public PartialUpdateSubmissionByTokenRequest()
+    {
+        SubmissionToken = string.Empty;
+    }
+
     /// <summary>
     /// The token of the submission that will be updated
     /// </summary>
-    public string SubmissionToken { get; set; } = string.Empty;
+    public string SubmissionToken { get; set; }
 }

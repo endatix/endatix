@@ -152,6 +152,42 @@ public class SmtpEmailSenderTests
     }
 
     [Fact]
+    public async Task SendEmailWithBody_NullPassword_AuthenticatesWithEmptyPassword()
+    {
+        // Arrange
+        var transport = Substitute.For<IMailTransport>();
+        var sut = new TestableSmtpEmailSender(
+            Substitute.For<ILogger<SmtpEmailSender>>(),
+            Options.Create(new SmtpSettings
+            {
+                Host = "smtp.example.com",
+                Port = 587,
+                Username = "user",
+                Password = null,
+                DefaultFromAddress = "noreply@example.com",
+                DefaultFromName = "Endatix"
+            }),
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
+            transport);
+
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        await transport.Received(1).AuthenticateAsync("user", string.Empty, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task SendEmailWithBody_BlankUsername_SkipsAuthentication()
     {
         // Arrange

@@ -7,23 +7,30 @@ namespace Endatix.Infrastructure.Email;
 /// </summary>
 public class MailgunSettings
 {
+    public MailgunSettings()
+    {
+        ApiKey = string.Empty;
+        BaseUrl = string.Empty;
+        Domain = string.Empty;
+    }
+
     /// <summary>
     /// The ApiKey provided by Mailgun
     /// </summary>
     [Required]
-    public string ApiKey { get; set; } = string.Empty;
+    public string ApiKey { get; set; }
 
 
     /// <summary>
     /// The Base Url for the Mailgun, e.g. https://api.mailgun.net/v3/
     /// </summary>
     [Required]
-    public string BaseUrl { get; set; } = string.Empty;
+    public string BaseUrl { get; set; }
 
 
     /// <summary>
     /// The domain configured in your Mailgun
     /// </summary>
     [Required]
-    public string Domain { get; set; } = string.Empty;
+    public string Domain { get; set; }
 }

@@ -5,6 +5,19 @@ namespace Endatix.Core.Tests.Features.Email;
 public class EmailHelperTests
 {
     [Fact]
+    public void ParseJsonToDictionary_StringValue_KeepsTheText()
+    {
+        // Arrange
+        const string json = """{"name": "Ada"}""";
+
+        // Act
+        var result = EmailHelper.ParseJsonToDictionary(json);
+
+        // Assert
+        result["name"].Should().Be("Ada");
+    }
+
+    [Fact]
     public void ParseJsonToDictionary_NullValue_MapsToEmptyString()
     {
         // Arrange

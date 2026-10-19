@@ -7,11 +7,19 @@ namespace Endatix.Api.Endpoints.Submissions;
 
 public class SubmissionModel
 {
-    public string Id { get; set; } = string.Empty;
+    public SubmissionModel()
+    {
+        Id = string.Empty;
+        JsonData = string.Empty;
+        FormId = string.Empty;
+        FormDefinitionId = string.Empty;
+    }
+
+    public string Id { get; set; }
     public bool IsComplete { get; set; }
-    public string JsonData { get; set; } = string.Empty;
-    public string FormId { get; set; } = string.Empty;
-    public string FormDefinitionId { get; set; } = string.Empty;
+    public string JsonData { get; set; }
+    public string FormId { get; set; }
+    public string FormDefinitionId { get; set; }
     public int? CurrentPage { get; set; }
     public string? Metadata { get; set; }
     public string? Token { get; set; }

@@ -197,7 +197,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         // exactly one mailbox and throws on a comma-separated list, which the old MailMessage.To.Add
         // string contract allowed.
         mimeMessage.To.AddRange(InternetAddressList.Parse(email.To));
-        mimeMessage.Subject = email.Subject ?? string.Empty;
+        mimeMessage.Subject = email.Subject!;
 
         var bodyBuilder = new BodyBuilder
         {
