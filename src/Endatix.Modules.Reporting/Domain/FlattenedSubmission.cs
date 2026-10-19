@@ -44,9 +44,10 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     public string? DataJson { get; private set; }
 
     /// <summary>
-    /// The search copy of <see cref="DataJson"/>: only the schema's search keys that were answered, text lowercased
-    /// and dates normalised, so answer filters read a small document instead of every answer. Written with
-    /// <see cref="DataJson"/>, and null whenever it is.
+    /// The search copy of <see cref="DataJson"/>: the answered search keys, text lowercased and dates normalised, so
+    /// answer filters read a small document instead of every answer. Written with <see cref="DataJson"/>, and null
+    /// whenever it is. It holds the keys the schema had when the row was last written; a key dropped since stays
+    /// until the row is flattened or rebuilt again, and filters read only the schema's current keys.
     /// </summary>
     public string? SearchJson { get; private set; }
 

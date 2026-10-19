@@ -14,7 +14,6 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// </param>
 internal sealed record SearchKey(string Key, string Source, string FilterType, DateTime AddedAt, int Revision = 0);
 
-/// <summary>Who added a search key.</summary>
 internal static class SearchKeySources
 {
     /// <summary>Chosen by the schema compile: an eligible question, in schema order.</summary>

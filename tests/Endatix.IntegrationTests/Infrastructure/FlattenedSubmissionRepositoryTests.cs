@@ -142,6 +142,25 @@ public sealed class FlattenedSubmissionRepositoryTests
     }
 
     [Fact]
+    public async Task TryMarkProcessedAsync_OnExistingRow_StoresTheSearchCopyBesideTheAnswers()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+
+        // Act
+        await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedData, cancellationToken);
+
+        // Assert
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        JsonNode.DeepEquals(JsonNode.Parse(persisted.SearchJson!), JsonNode.Parse(ProcessedSearchJson)).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task EnsureExistsAsync_OnNewRow_StampsCreationAndFirstAttemptFromTheClock()
     {
         // Arrange
@@ -276,6 +295,26 @@ public sealed class FlattenedSubmissionRepositoryTests
         persisted.Integration.ProcessedAt.Should().BeNull();
         persisted.Integration.LastError.Should().BeNull();
         persisted.DataJson.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TryMarkSkippedAsync_AfterProcessedWrite_ClearsTheSearchCopy()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        await using var dbContext = CreateContext(TenantId);
+        var repository = CreateRepository(dbContext);
+        await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        await repository.TryMarkProcessedAsync(WriteOf(revision: 1), ProcessedData, cancellationToken);
+
+        // Act
+        await repository.TryMarkSkippedAsync(WriteOf(revision: 2), cancellationToken);
+
+        // Assert
+        var persisted = await ReadRowAsync(repository, cancellationToken);
+        persisted.SearchJson.Should().BeNull();
     }
 
     [Fact]

@@ -98,10 +98,8 @@ internal sealed record GridPerformanceShape(string Name, string Description, int
     }
 }
 
-/// <summary>One generated row: its answers and its search copy.</summary>
 internal sealed record GridPerformanceRow(string DataJson, string SearchJson);
 
-/// <summary>The answers of one generated row.</summary>
 internal sealed class GridPerformanceRowValues(int index, GridPerformanceShape shape)
 {
     private static readonly string[] Vocabulary = BuildVocabulary();
@@ -161,7 +159,6 @@ internal sealed class GridPerformanceRowValues(int index, GridPerformanceShape s
     }
 }
 
-/// <summary>How many generated rows each filter should match.</summary>
 internal sealed class GridPerformanceCounts
 {
     public int Rows { get; private set; }

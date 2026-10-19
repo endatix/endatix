@@ -6,7 +6,6 @@ using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
-using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmission;
 
 namespace Endatix.Modules.Reporting.Features.SearchCopy;
 
@@ -28,7 +27,6 @@ internal sealed class SearchCopyRebuilder(
 {
     internal const int DefaultBatchSize = 1000;
 
-    /// <summary>How many rows one statement rewrites.</summary>
     internal int BatchSize { get; init; } = DefaultBatchSize;
 
     /// <summary>Rebuilds the form's search copies; returns how many rows were rewritten.</summary>
@@ -110,7 +108,7 @@ internal sealed class SearchCopyRebuilder(
     {
         var entityType = dbContext.FlattenedSubmissions.EntityType;
         var schema = entityType.GetSchema();
-        var table = entityType.GetTableName() ?? nameof(FlattenedSubmissionRow);
+        var table = entityType.GetTableName();
         return dbContext.Database.IsNpgsql()
             ? SearchCopyRebuildSql.PostgreSql($"\"{schema}\".\"{table}\"")
             : SearchCopyRebuildSql.SqlServer($"[{schema}].[{table}]", searchKeys);
