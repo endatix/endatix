@@ -57,7 +57,7 @@ internal sealed class FlattenedSubmissionRepository(
         dbContext.FlattenedSubmissions
             .AsNoTracking()
             .Where(row => row.TenantId == tenantId && row.FormId == formId && !row.IsDeleted &&
-                          row.Integration.Code == SubmissionIntegrationStatusCodes.Processed && row.SearchJson != null)
+                          row.Integration.Code == SubmissionIntegrationStatusCodes.Processed && row.DataJson != null)
             .MinAsync(row => (int?)row.SearchKeysRevision, cancellationToken);
 
     /// <inheritdoc />

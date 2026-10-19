@@ -44,8 +44,9 @@ public interface IFlattenedSubmissionRepository
     Task<IReadOnlyDictionary<string, int>> CountByStatusAsync(long tenantId, long formId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The oldest <see cref="FlattenedSubmission.SearchKeysRevision"/> among a form's live processed rows with a
-    /// search copy: a search key added after it is still missing from some rows.
+    /// The oldest <see cref="FlattenedSubmission.SearchKeysRevision"/> among a form's live processed rows: a search key
+    /// added after it is still missing from some rows. A processed row without a search copy counts, as the rebuild
+    /// rewrites it and the answer filters cannot check it until then.
     /// </summary>
     /// <returns>The revision, or <c>null</c> when the form has no such row.</returns>
     Task<int?> OldestSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken);
