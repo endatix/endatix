@@ -5,7 +5,7 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 /// </summary>
 public static class SubmissionGridColumnKeys
 {
-    /// <summary>The most columns one request can ask for; the grid asks for its visible columns only.</summary>
+    /// <summary>The most columns one request can ask for.</summary>
     public const int MaxColumns = 500;
 
     /// <summary>The longest column key accepted.</summary>
@@ -15,8 +15,7 @@ public static class SubmissionGridColumnKeys
     /// The distinct, trimmed keys in request order; empty when <paramref name="columns"/> is empty.
     /// </summary>
     /// <remarks>
-    /// A key that contains a comma cannot be requested. Such keys are rare in SurveyJS names, and the grid
-    /// shows them only after hub#1023 settles how column keys are encoded.
+    /// A key that contains a comma cannot be requested; see hub#1023.
     /// </remarks>
     public static IReadOnlyList<string> Parse(string? columns) =>
         string.IsNullOrWhiteSpace(columns)

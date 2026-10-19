@@ -9,10 +9,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
-/// <summary>
-/// <c>submitterProfile.{field}</c> list filters through each provider's own evaluator, as the submissions list runs
-/// them. SQL Server answered these with <see cref="NotSupportedException"/> before #1255.
-/// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]

@@ -19,9 +19,8 @@ public sealed record SubmissionGridRowsQuery(long TenantId, ListByFormIdQuery Li
 /// Reads one page of a form's submissions with their answers for the requested columns.
 /// </summary>
 /// <remarks>
-/// The page comes from the core submissions list, so filters, sort and paging are the list's own. Prepared rows
-/// are then read for that page only, by id. A query that filters on answers needs both in one statement; that is
-/// endatix#1091.
+/// The page comes from the core list, then its prepared rows are read by id. Filtering on answers needs both in
+/// one statement; see endatix#1091.
 /// </remarks>
 public sealed class ListSubmissionGridRows(IMediator mediator, IReportingDbContext reportingDbContext)
 {
@@ -77,7 +76,6 @@ public sealed class ListSubmissionGridRows(IMediator mediator, IReportingDbConte
         return await PreparedRowsOf(query, ids).ToDictionaryAsync(row => row.SubmissionId, cancellationToken);
     }
 
-    // The page's prepared rows. Answers are read only when columns were asked for; the state never needs them.
     private IQueryable<PreparedRow> PreparedRowsOf(SubmissionGridRowsQuery query, List<long> ids)
     {
         var readAnswers = query.Columns.Count > 0;
