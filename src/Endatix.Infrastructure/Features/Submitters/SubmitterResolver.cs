@@ -49,8 +49,7 @@ internal sealed class SubmitterResolver(
             return _empty;
         }
 
-        var draft = new SubmitterDraft(
-            context.TenantId, input, profileSnapshotBuilder.Build(input.Profile), dateTimeProvider.UtcNow);
+        var draft = CreateDraft(context, input);
         var submitter = await FindExistingSubmitterAsync(context.TenantId, input, cancellationToken);
         if (submitter is null)
         {
@@ -64,6 +63,14 @@ internal sealed class SubmitterResolver(
         return new SubmitterResolution(submitter.Id, submitter.DisplayId, draft.ProfileSnapshot);
     }
 
+    private SubmitterDraft CreateDraft(SubmitterResolveContext context, SubmitterExtractionInput input) =>
+        new(
+            context.TenantId,
+            input,
+            FromTrustedPayload: context.Submitter is not null,
+            profileSnapshotBuilder.Build(input.Profile),
+            dateTimeProvider.UtcNow);
+
     /// <summary>
     /// Creates the Submitter. When a parallel request created it first, the unique index refuses this
     /// insert and the winner's row is refreshed and returned instead.
@@ -72,7 +79,7 @@ internal sealed class SubmitterResolver(
     {
         var input = draft.Input;
         var submitter = Submitter.Create(
-            draft.TenantId, input.AuthProvider, input.ExternalSubjectId, input.DisplayId, input.AppUserId, draft.ProfileSnapshot, draft.Now);
+            draft.TenantId, input.AuthProvider, input.ExternalSubjectId, draft.LabelFor(null), input.AppUserId, draft.ProfileSnapshot, draft.Now);
         try
         {
             await submitterRepository.AddAsync(submitter, cancellationToken);
@@ -90,7 +97,7 @@ internal sealed class SubmitterResolver(
 
     private Task RefreshAsync(Submitter submitter, SubmitterDraft draft, CancellationToken cancellationToken)
     {
-        submitter.Refresh(draft.Input.DisplayId, draft.ProfileSnapshot, draft.Now);
+        submitter.Refresh(draft.LabelFor(submitter), draft.ProfileSnapshot, draft.Now);
         return submitterRepository.UpdateAsync(submitter, cancellationToken);
     }
 
@@ -145,17 +152,13 @@ internal sealed class SubmitterResolver(
         return extractor?.Extract(context.Principal);
     }
 
-    /// <summary>A trusted payload without a label is labelled with its subject.</summary>
-    private static SubmitterExtractionInput CreateInputFromTrustedPayload(SubmitterInput input)
-    {
-        var subject = Normalize(input.ExternalSubjectId);
-        return new(
+    private static SubmitterExtractionInput CreateInputFromTrustedPayload(SubmitterInput input) =>
+        new(
             Normalize(input.AuthProvider) ?? SubmitterAuthProviders.Integration,
-            subject,
-            Normalize(input.DisplayId) ?? subject,
+            Normalize(input.ExternalSubjectId),
+            Normalize(input.DisplayId),
             input.AppUserId,
             input.Profile);
-    }
 
     private async Task<Submitter?> FindExistingSubmitterAsync(
         long tenantId,
@@ -186,6 +189,15 @@ internal sealed class SubmitterResolver(
     private sealed record SubmitterDraft(
         long TenantId,
         SubmitterExtractionInput Input,
+        bool FromTrustedPayload,
         string? ProfileSnapshot,
-        DateTimeOffset Now);
+        DateTimeOffset Now)
+    {
+        /// <summary>
+        /// The Label to store. A trusted payload without one keeps the stored Label, else takes the subject;
+        /// a principal's Label is always what its claims give.
+        /// </summary>
+        public string? LabelFor(Submitter? existing) =>
+            Input.DisplayId ?? (FromTrustedPayload ? existing?.DisplayId ?? Input.ExternalSubjectId : null);
+    }
 }

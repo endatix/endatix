@@ -8,13 +8,16 @@ public sealed class CreateOnBehalfValidatorTests
 {
     private readonly CreateSubmissionOnBehalfValidator _validator = new();
 
-    [Fact]
-    public async Task Validate_SubmitterWithOnlyASubject_Passes()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Validate_SubmitterWithOnlyASubject_Passes(string? displayId)
     {
         CreateSubmissionOnBehalfRequest request = new()
         {
             FormId = 1,
-            Submitter = new SubmitterInput("panel-42"),
+            Submitter = new SubmitterInput("panel-42", displayId),
         };
 
         var result = await _validator.TestValidateAsync(request);

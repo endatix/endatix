@@ -31,7 +31,7 @@ public sealed class CreateOnBehalf(
         Summary(s =>
         {
             s.Summary = "Create a new submission on behalf of another user";
-            s.Description = "Creates a new form submission with an optional trusted submitter. Only submitter.externalSubjectId is required: displayId defaults to the subject and authProvider to Integration.";
+            s.Description = "Creates a new form submission with an optional trusted submitter. Only submitter.externalSubjectId is required: displayId labels a new submitter with the subject when omitted, and authProvider defaults to Integration.";
             s.Responses[201] = "The submission was successfully created.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found. Cannot create a submission.";
@@ -109,7 +109,7 @@ public sealed class CreateSubmissionOnBehalfRequest : BaseSubmissionRequest
 {
     /// <summary>
     /// Optional trusted submitter for API-created submissions. Only <c>externalSubjectId</c> is required;
-    /// <c>displayId</c> defaults to the subject and <c>authProvider</c> to <c>Integration</c>.
+    /// without <c>displayId</c> a new submitter is labelled with the subject, and <c>authProvider</c> defaults to <c>Integration</c>.
     /// </summary>
     public SubmitterInput? Submitter { get; set; }
 }

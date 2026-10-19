@@ -174,13 +174,14 @@ Add a label, a provider, and profile fields when you have them:
 }
 ```
 
-When `submitter` is present, only `externalSubjectId` is required. `displayId` is the label shown in grids and exports; if omitted, it defaults to `externalSubjectId`. `authProvider` is optional; if omitted, Endatix treats the payload as an `Integration` submitter. `appUserId` is also available for Endatix-owned users, but most external integrations should use `externalSubjectId`.
+When `submitter` is present, only `externalSubjectId` is required. `displayId` is the label shown in grids and exports. If omitted, a new submitter is labeled with `externalSubjectId` and an existing one keeps its label. `authProvider` is optional; if omitted, Endatix treats the payload as an `Integration` submitter. `appUserId` is also available for Endatix-owned users, but most external integrations should use `externalSubjectId`.
 
 Resolution behavior:
 
 * Endatix normalizes the trusted payload, then upserts a tenant-scoped `Submitter` by `AuthProvider` + `ExternalSubjectId`.
-* `displayId`, or the subject when `displayId` is omitted, becomes the submission's `SubmitterDisplayId`.
-* On a form with an audience, an `Integration` subject that equals a person's identifier picks up that person's values on the new submission, and the person's personalised link resolves to the same `Submitter`. On a form limited to one submission per user, the link opens the submission an on-behalf create made, and an on-behalf create after the link opened returns `409` with `errorCode: "submission_exists"` and the existing `submissionId`.
+* The submitter's label becomes the submission's `SubmitterDisplayId`.
+* On a form with an audience, an `Integration` subject that equals a person's identifier picks up that person's values on the new submission, and the person's personalized link resolves to the same `Submitter`.
+* On a form limited to one submission per user, the link opens the submission an on-behalf create made, and an on-behalf create after the link opened returns `409` with `errorCode: "submission_exists"` and the existing `submissionId`.
 * `profile` is filtered through `ProfileSnapshotFields` before it becomes `SubmitterProfileSnapshot`. The profile dictionary keys must match the configured field names exactly.
 * The resulting submission response includes the same submitter fields used by Hub details, grids, filters, and exports.
 
