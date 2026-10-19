@@ -7,6 +7,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 - Primary constructors for DI. `sealed` by default; `internal` unless the type is public API or framework-discovered (endpoints, requests, validators).
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
 - Comment a decision, constraint or non-obvious invariant, not what the name already says.
+- Before committing C#, `dotnet build Endatix.slnx` must add no new warnings in the files you changed (these are the warnings SonarCloud reports). Format only the changed files with `dotnet format whitespace|style --include <files>`, never the whole solution.
 
 ## Endpoints (FastEndpoints)
 

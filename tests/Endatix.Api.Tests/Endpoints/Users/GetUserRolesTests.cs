@@ -27,11 +27,11 @@ public class GetUserRolesTests
         var roles = new List<string> { "Admin", "Panelist" } as IList<string>;
         var successResult = Result.Success(roles);
 
-        _mediator.Send(Arg.Is<GetUserRolesQuery>(q => q.UserId == request.UserId))
+        _mediator.Send(Arg.Is<GetUserRolesQuery>(q => q.UserId == request.UserId), Arg.Any<CancellationToken>())
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response!.Result.As<Ok<IList<string>>>();
@@ -53,11 +53,11 @@ public class GetUserRolesTests
         var roles = new List<string>() as IList<string>;
         var successResult = Result.Success(roles);
 
-        _mediator.Send(Arg.Is<GetUserRolesQuery>(q => q.UserId == request.UserId))
+        _mediator.Send(Arg.Is<GetUserRolesQuery>(q => q.UserId == request.UserId), Arg.Any<CancellationToken>())
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response!.Result.As<Ok<IList<string>>>();
@@ -73,11 +73,11 @@ public class GetUserRolesTests
         var request = new GetUserRolesRequest { UserId = 999 };
         var notFoundResult = Result<IList<string>>.NotFound("User with ID 999 not found.");
 
-        _mediator.Send(Arg.Is<GetUserRolesQuery>(q => q.UserId == request.UserId))
+        _mediator.Send(Arg.Is<GetUserRolesQuery>(q => q.UserId == request.UserId), Arg.Any<CancellationToken>())
             .Returns(notFoundResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
