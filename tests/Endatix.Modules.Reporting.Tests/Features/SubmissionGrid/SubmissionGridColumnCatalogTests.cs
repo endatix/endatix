@@ -93,9 +93,47 @@ public sealed class SubmissionGridColumnCatalogTests
         panelText.PanelTitle.Should().Be("Internal Panel Group");
     }
 
-    private static FormSchemaEntity CompileAllQuestions()
+    [Fact]
+    public void Build_PageWithoutTitle_ReturnsPageNameAndNoPageTitle()
     {
-        var definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        // Arrange
+        var schema = CompileAllQuestions();
+
+        // Act
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default");
+
+        // Assert
+        var text = columns.Single(column => column.Key == "qText");
+        text.PageName.Should().Be("page1");
+        text.PageTitle.Should().BeNull();
+    }
+
+    [Fact]
+    public void Build_PageWithTitle_ReturnsPageTitle()
+    {
+        // Arrange
+        var schema = Compile("""
+            {
+              "pages": [
+                { "name": "contact", "title": "Contact details", "elements": [ { "type": "text", "name": "email" } ] }
+              ]
+            }
+            """);
+
+        // Act
+        var columns = SubmissionGridColumnCatalog.Build(schema, "default");
+
+        // Assert
+        var email = columns.Single(column => column.Key == "email");
+        email.PageName.Should().Be("contact");
+        email.PageTitle.Should().Be("Contact details");
+    }
+
+    private static FormSchemaEntity CompileAllQuestions() =>
+        Compile(FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json"));
+
+    private static FormSchemaEntity Compile(string definitionJson)
+    {
         var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
         return new FormSchemaEntity(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
     }

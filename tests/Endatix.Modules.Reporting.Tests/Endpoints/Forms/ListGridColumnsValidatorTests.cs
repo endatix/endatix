@@ -1,3 +1,4 @@
+using Endatix.Core.Common.Translations;
 using Endatix.Modules.Reporting.Endpoints.Forms;
 
 namespace Endatix.Modules.Reporting.Tests.Endpoints.Forms;
@@ -39,7 +40,7 @@ public sealed class ListGridColumnsValidatorTests
         ListGridColumnsRequest request = new()
         {
             FormId = 1,
-            Locale = new string('a', ListGridColumnsValidator.LocaleMaxLength + 1),
+            Locale = new string('a', IHasTranslations.MAX_CULTURE_CODE_LENGTH + 1),
         };
 
         // Act

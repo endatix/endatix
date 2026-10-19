@@ -11,7 +11,6 @@
         "default": "Confirm the city you live in"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "lastVisit": {
@@ -20,7 +19,6 @@
         "default": "When did you last visit us?"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar",
       "inputType": "datetime-local"
     },
@@ -31,7 +29,6 @@
         "es": "¿Acepta los términos?"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qComment": {
@@ -41,7 +38,6 @@
         "es": "¿Algo más sobre la vida en {city}?"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qDropdown": {
@@ -55,7 +51,6 @@
         "es": "Esta es una pregunta estándar desplegable"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "categorical",
       "choices": [
         {
@@ -91,7 +86,6 @@
         "es": "Edad total calculada (Desde Q11)"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qFile": {
@@ -101,7 +95,6 @@
         "es": "Sube tu avatar"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "file"
     },
     "qImagePicker": {
@@ -111,7 +104,6 @@
         "es": "Elige una mascota"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "categorical",
       "choices": [
         {
@@ -141,7 +133,6 @@
         "es": "Este panel se repite sobre sus selecciones de qTagBox"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "loopSource": [
         "qTagBox",
         "qDropdown",
@@ -157,7 +148,6 @@
       },
       "parentPanelTitle": "Loop Question (Based on Brands)",
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qLoopColor": {
@@ -172,7 +162,6 @@
       },
       "parentPanelTitle": "Loop Question (Based on Brands)",
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "categorical",
       "choices": [
         {
@@ -241,7 +230,6 @@
       },
       "parentPanelTitle": "Loop Question (Based on Brands)",
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qMatrix": {
@@ -251,7 +239,6 @@
         "es": "Califique los siguientes aspectos de nuestro servicio"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "categorical_array",
       "columns": [
         {
@@ -303,7 +290,6 @@
         "es": "Evalúe a su equipo"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "matrix_cell",
       "columns": [
         {
@@ -417,7 +403,6 @@
         "es": "Enumere sus empleadores anteriores"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "matrix_cell",
       "columns": [
         {
@@ -447,7 +432,6 @@
         "es": "Información de contacto"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "multiple_text",
       "items": [
         {
@@ -473,7 +457,6 @@
         "es": "Grupo de panel interno"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qPanelText": {
@@ -484,7 +467,6 @@
       },
       "parentPanelTitle": "Internal Panel Group",
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qRadioGroup": {
@@ -494,7 +476,6 @@
         "es": "Seleccione su método de contacto preferido"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "categorical",
       "choices": [
         {
@@ -534,7 +515,6 @@
         "es": "Proporcione los datos en gramos (mín./máx.)"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar",
       "sliderType": "range"
     },
@@ -545,7 +525,6 @@
         "es": "Clasifica estas frutas de mejor a peor"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "ranking",
       "choices": [
         {
@@ -585,7 +564,6 @@
         "es": "Escala del 1 al 5"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qSignaturePad": {
@@ -595,7 +573,6 @@
         "es": "Por favor firme aquí"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qSlider": {
@@ -605,7 +582,6 @@
         "es": "¿Qué tan probable es que nos recomiende?"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qTagBox": {
@@ -619,7 +595,6 @@
         "es": "Puede seleccionar múltiples opciones"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "multiple_response",
       "choices": [
         {
@@ -663,7 +638,6 @@
         "es": "Nombre completo"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "qTextDate": {
@@ -673,7 +647,6 @@
         "es": "Fecha de nacimiento"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar",
       "inputType": "date"
     },
@@ -684,7 +657,6 @@
         "es": "Su edad"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar",
       "inputType": "number"
     },
@@ -699,7 +671,6 @@
         "es": "Esta es una pregunta para elegir una canción."
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "multiple_response",
       "choices": [
         {
