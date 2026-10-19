@@ -218,6 +218,59 @@ public sealed class SubmitterResolverTests
         await _repository.Received(1).UpdateAsync(existingSubmitter, Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public async Task EnsureSubmitterAsync_TrustedPayloadWithoutDisplayId_LabelsTheSubmitterWithTheSubject(
+        string? displayId)
+    {
+        var resolver = CreateResolver();
+
+        var resolution = await resolver.EnsureSubmitterAsync(
+            new SubmitterResolveContext(1, null, new SubmitterInput(" panel-42 ", displayId)),
+            TestContext.Current.CancellationToken);
+
+        resolution.DisplayId.Should().Be("panel-42");
+        await _repository.Received(1).AddAsync(
+            Arg.Is<Submitter>(submitter =>
+                submitter.ExternalSubjectId == "panel-42" &&
+                submitter.DisplayId == "panel-42" &&
+                submitter.AuthProvider == SubmitterAuthProviders.Integration),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task EnsureSubmitterAsync_TrustedPayloadWithDisplayId_KeepsTheGivenLabel()
+    {
+        var resolver = CreateResolver();
+
+        var resolution = await resolver.EnsureSubmitterAsync(
+            new SubmitterResolveContext(1, null, new SubmitterInput("panel-42", "Jane D.")),
+            TestContext.Current.CancellationToken);
+
+        resolution.DisplayId.Should().Be("Jane D.");
+    }
+
+    [Fact]
+    public async Task EnsureSubmitterAsync_TrustedPayloadWithoutDisplayId_KeepsTheStoredLabel()
+    {
+        var existing = Submitter.Create(
+            1, SubmitterAuthProviders.Integration, "panel-42", "Jane D.", null, null, DateTimeOffset.UnixEpoch);
+        _repository
+            .SingleOrDefaultAsync(
+                Arg.Any<SubmitterSpecifications.ByExternalSubjectSpec>(),
+                Arg.Any<CancellationToken>())
+            .Returns(existing);
+        var resolver = CreateResolver();
+
+        var resolution = await resolver.EnsureSubmitterAsync(
+            new SubmitterResolveContext(1, null, new SubmitterInput("panel-42")),
+            TestContext.Current.CancellationToken);
+
+        resolution.DisplayId.Should().Be("Jane D.");
+        existing.DisplayId.Should().Be("Jane D.");
+    }
+
     private SubmitterResolver CreateResolver(params ISubmitterClaimExtractor[] extractors) =>
         new(
             _repository,
