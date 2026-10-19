@@ -6,6 +6,8 @@ namespace Endatix.Modules.Reporting.Data;
 
 internal static class TenantFormExtensions
 {
+    internal const string FormNotFoundMessage = "Form not found.";
+
     /// <summary>
     /// Whether the form exists in the tenant. Read with the tenant compared explicitly, so another tenant's form reads
     /// as missing whatever the ambient tenant is.

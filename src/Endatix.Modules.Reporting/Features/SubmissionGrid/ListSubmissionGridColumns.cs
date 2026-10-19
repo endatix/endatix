@@ -23,7 +23,6 @@ public sealed class ListSubmissionGridColumns(
     IRepository<Form> formsRepository,
     IRepository<Submission> submissionsRepository)
 {
-    internal const string FormNotFoundMessage = "Form not found.";
 
     private static readonly FilterParameters NoFilters = new();
     private static readonly FilterParameters CompletedOnly = new(["isComplete:true"]);
@@ -44,7 +43,7 @@ public sealed class ListSubmissionGridColumns(
 
         return await IsTenantFormAsync(query, cancellationToken)
             ? Result.Success(await ReadColumnsAsync(query, cancellationToken))
-            : Result.NotFound(FormNotFoundMessage);
+            : Result.NotFound(TenantFormExtensions.FormNotFoundMessage);
     }
 
     private async Task<SubmissionGridColumns> ReadColumnsAsync(SubmissionGridColumnsQuery query, CancellationToken cancellationToken)

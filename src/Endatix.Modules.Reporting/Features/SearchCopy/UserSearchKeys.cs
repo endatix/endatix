@@ -19,7 +19,6 @@ internal sealed class UserSearchKeys(
     IFormSchemaRepository schemaRepository,
     IReportingUnitOfWork unitOfWork)
 {
-    internal const string FormNotFoundMessage = "Form not found.";
     internal const string SchemaNotFoundMessage = "The form has no reporting schema yet.";
     internal const string SchemaBusyMessage = "The form's reporting schema is being changed. Try again in a moment.";
 
@@ -39,7 +38,7 @@ internal sealed class UserSearchKeys(
 
         if (!await formsRepository.IsTenantFormAsync(target.TenantId, target.FormId, cancellationToken))
         {
-            return Result<FormSchemaEntity>.NotFound(FormNotFoundMessage);
+            return Result<FormSchemaEntity>.NotFound(TenantFormExtensions.FormNotFoundMessage);
         }
 
         return await ChangeInTransactionAsync(target, change, cancellationToken);

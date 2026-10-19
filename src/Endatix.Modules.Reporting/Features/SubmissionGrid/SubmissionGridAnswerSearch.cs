@@ -49,7 +49,7 @@ public sealed class SubmissionGridAnswerSearch(
         {
             return await formsRepository.IsTenantFormAsync(query.TenantId, query.List.FormId, cancellationToken)
                 ? Result.Conflict(NotPreparedMessage)
-                : Result.NotFound(ListSubmissionGridColumns.FormNotFoundMessage);
+                : Result.NotFound(TenantFormExtensions.FormNotFoundMessage);
         }
 
         var invalid = AnswerFilterRules.Check(query.Answers, searchKeys);
