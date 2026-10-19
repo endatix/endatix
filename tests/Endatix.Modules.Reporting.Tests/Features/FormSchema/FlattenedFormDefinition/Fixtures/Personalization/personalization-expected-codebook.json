@@ -10,7 +10,6 @@
         "default": "Which city do you live in?"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     },
     "consent": {
@@ -19,7 +18,6 @@
         "default": "Do you agree to the terms?"
       },
       "pageName": "page1",
-      "pageTitle": "page1",
       "exportShape": "scalar"
     }
   },
