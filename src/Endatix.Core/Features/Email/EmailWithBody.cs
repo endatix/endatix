@@ -7,6 +7,9 @@ namespace Endatix.Core.Features.Email;
 /// </summary>
 public class EmailWithBody : BaseEmailModel
 {
+    /// <summary>
+    /// Creates an email whose plain-text and HTML bodies start empty.
+    /// </summary>
     public EmailWithBody()
     {
         PlainTextBody = string.Empty;

@@ -152,39 +152,30 @@ public class SmtpEmailSenderTests
     }
 
     [Fact]
-    public async Task SendEmailWithBody_NullPassword_AuthenticatesWithEmptyPassword()
+    public void Constructor_UsernameWithoutPassword_ThrowsArgumentException()
     {
         // Arrange
-        var transport = Substitute.For<IMailTransport>();
-        var sut = new TestableSmtpEmailSender(
+        var settings = Options.Create(new SmtpSettings
+        {
+            Host = "smtp.example.com",
+            Port = 587,
+            Username = "user",
+            Password = null,
+            DefaultFromAddress = "noreply@example.com",
+            DefaultFromName = "Endatix"
+        });
+
+        // Act
+        var action = () => new TestableSmtpEmailSender(
             Substitute.For<ILogger<SmtpEmailSender>>(),
-            Options.Create(new SmtpSettings
-            {
-                Host = "smtp.example.com",
-                Port = 587,
-                Username = "user",
-                Password = null,
-                DefaultFromAddress = "noreply@example.com",
-                DefaultFromName = "Endatix"
-            }),
+            settings,
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
                 Options.Create(new EmailTemplateSettings())),
-            transport);
-
-        var email = new EmailWithBody
-        {
-            To = "recipient@example.com",
-            Subject = "Test Subject",
-            PlainTextBody = "Hello World",
-            HtmlBody = "<html>Hello World</html>"
-        };
-
-        // Act
-        await sut.SendEmailAsync(email, CancellationToken.None);
+            Substitute.For<IMailTransport>());
 
         // Assert
-        await transport.Received(1).AuthenticateAsync("user", string.Empty, Arg.Any<CancellationToken>());
+        action.Should().Throw<ArgumentException>();
     }
 
     [Fact]

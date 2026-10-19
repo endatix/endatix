@@ -5,6 +5,9 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// </summary>
 public class PartialUpdateSubmissionByTokenRequest : BasePublicSubmissionRequest
 {
+    /// <summary>
+    /// Creates a request with an empty token; route binding fills it in.
+    /// </summary>
     public PartialUpdateSubmissionByTokenRequest()
     {
         SubmissionToken = string.Empty;

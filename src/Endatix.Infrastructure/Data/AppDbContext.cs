@@ -20,17 +20,15 @@ public class AppDbContext : DbContext, ITenantDbContext
 {
     private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
 
-    private readonly ITenantContext _tenantContext;
-    private readonly OutboxIntegrationEventDispatcher _outboxDispatcher;
+    // Null only through the protected constructor: GetTenantId falls back to 0 and no outbox
+    // messages are captured.
+    private readonly ITenantContext? _tenantContext;
+    private readonly OutboxIntegrationEventDispatcher? _outboxDispatcher;
 
     /// <summary>
-    /// For proxies and design-time tooling only: neither field is read without a tenant context.
+    /// For proxies and design-time tooling only. The context has no tenant and captures no outbox messages.
     /// </summary>
-    protected AppDbContext()
-    {
-        _tenantContext = null!;
-        _outboxDispatcher = null!;
-    }
+    protected AppDbContext() { }
 
     public AppDbContext(
         DbContextOptions<AppDbContext> options,

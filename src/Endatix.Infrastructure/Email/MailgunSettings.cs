@@ -7,6 +7,9 @@ namespace Endatix.Infrastructure.Email;
 /// </summary>
 public class MailgunSettings
 {
+    /// <summary>
+    /// Creates settings with empty values; configuration binding fills them in.
+    /// </summary>
     public MailgunSettings()
     {
         ApiKey = string.Empty;
