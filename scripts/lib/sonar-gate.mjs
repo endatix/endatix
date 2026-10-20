@@ -29,3 +29,16 @@ export function parseReportTask(text) {
 export function describeCondition(condition) {
   return `${condition.metricKey} is ${condition.actualValue} (limit ${condition.comparator} ${condition.errorThreshold})`;
 }
+
+/**
+ * A SonarCloud Web API URL on a fixed host, e.g. sonarApiUrl(host, '/api/ce/task', { id }).
+ * A task id or analysis id from report-task.txt only ever lands in the query string.
+ */
+export function sonarApiUrl(host, path, params) {
+  const url = new URL(path, host);
+  for (const [key, value] of Object.entries(params)) {
+    if (!value) throw new Error(`report-task.txt gave no ${key} for ${path}`);
+    url.searchParams.set(key, value);
+  }
+  return url.toString();
+}

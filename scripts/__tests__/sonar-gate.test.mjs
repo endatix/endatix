@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateGate, parseReportTask } from '../lib/sonar-gate.mjs';
+import { evaluateGate, parseReportTask, sonarApiUrl } from '../lib/sonar-gate.mjs';
 
 const ADVISORY = ['new_duplicated_lines_density'];
 
@@ -59,4 +59,12 @@ test('parseReportTask reads the key=value lines the scanner writes', () => {
   assert.equal(task.ceTaskUrl, 'https://sonarcloud.io/api/ce/task?id=AZ1');
   assert.equal(task.dashboardUrl, 'https://sonarcloud.io/dashboard?id=endatix_endatix&pullRequest=1296');
   assert.equal(task.serverUrl, 'https://sonarcloud.io');
+});
+
+test('API URLs keep the fixed host and put report values in the query only', () => {
+  assert.equal(
+    sonarApiUrl('https://sonarcloud.io', '/api/ce/task', { id: 'AZ1@evil.example/x?y' }),
+    'https://sonarcloud.io/api/ce/task?id=AZ1%40evil.example%2Fx%3Fy',
+  );
+  assert.throws(() => sonarApiUrl('https://sonarcloud.io', '/api/ce/task', { id: undefined }), /no id/);
 });
