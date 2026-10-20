@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
@@ -27,6 +28,17 @@ public static class SubmissionRepositoryExtensions
         this IRepository<Submission> submissions,
         CancellationToken cancellationToken) =>
         SaveAsync(() => submissions.SaveChangesAsync(cancellationToken));
+
+    /// <summary>
+    /// Adds <paramref name="submission"/> and saves it with the context's other tracked changes. The insert sets the
+    /// form and definition keys, so it belongs under the form's <see cref="IFormSubmissionsLock"/>.
+    /// </summary>
+    /// <returns>As <see cref="TrySaveChangesAsync"/>: a submission tracked with it may have been deleted meanwhile.</returns>
+    public static Task<Result> TryAddAsync(
+        this IRepository<Submission> submissions,
+        Submission submission,
+        CancellationToken cancellationToken) =>
+        SaveAsync(() => submissions.AddAsync(submission, cancellationToken));
 
     /// <summary>Runs <paramref name="save"/>, a save of tracked submissions, and reports as <see cref="TrySaveChangesAsync"/> does.</summary>
     internal static async Task<Result> SaveAsync(Func<Task> save)

@@ -7,8 +7,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions;
-using Endatix.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Features.TestSubmissions;
 
@@ -21,7 +19,6 @@ public sealed record RestartTestSubmissionCommand(long TenantId, long FormId, lo
 
 internal sealed class RestartTestSubmissionHandler(
     IRepository<Submission> submissions,
-    AppDbContext app,
     TestSubjects subjects,
     TestSubmissionOpener opener)
     : ICommandHandler<RestartTestSubmissionCommand, Result<OpenedTestSubmissionDto>>
@@ -48,9 +45,8 @@ internal sealed class RestartTestSubmissionHandler(
     }
 
     /// <summary>
-    /// The person is checked and the new submission prepared before anything is deleted. The delete is claimed with
-    /// a conditional update and saves with the new submission in one transaction, so of two Start overs of the same
-    /// submission only one deletes it and opens a replacement; the other finds it gone.
+    /// The person is checked before anything is deleted; a person removed from the form keeps the old submission.
+    /// The opener deletes it and inserts the new one in one save, under the form's lock.
     /// </summary>
     private async Task<Result<OpenedTestSubmissionDto>> StartOverAsync(
         Submission current,
@@ -61,38 +57,10 @@ internal sealed class RestartTestSubmissionHandler(
             new TestSubjectKey(current.TenantId, current.FormId),
             memberId,
             cancellationToken);
-        if (!opening.IsSuccess)
-        {
-            return opening.ToErrorResult<OpenedTestSubmissionDto>();
-        }
-
-        var prepared = await opener.PrepareAsync(opening.Value, cancellationToken);
-        await using var transaction = await app.Database.BeginTransactionAsync(cancellationToken);
-        if (!await ClaimDeleteAsync(current, cancellationToken))
-        {
-            return Result.NotFound("Submission not found.");
-        }
-
-        current.Delete();
-        var opened = await opener.AddAsync(prepared, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return opened;
+        return opening.IsSuccess
+            ? await opener.ReplaceAsync(opening.Value, current, cancellationToken)
+            : opening.ToErrorResult<OpenedTestSubmissionDto>();
     }
-
-    /// <summary>
-    /// Deletes the row only while it is live. A parallel Start over waits on the row and then updates nothing. The
-    /// tracked <see cref="Submission.Delete"/> that follows raises the deleted event and writes the same state.
-    /// </summary>
-    private async Task<bool> ClaimDeleteAsync(Submission current, CancellationToken cancellationToken) =>
-        await app.Submissions
-            .Where(submission => submission.TenantId == current.TenantId
-                && submission.Id == current.Id
-                && !submission.IsDeleted)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(submission => submission.IsDeleted, true)
-                    .SetProperty(submission => submission.DeletedAt, DateTime.UtcNow),
-                cancellationToken) == 1;
 
     private static bool HoldsToken(Submission submission, string token) =>
         submission.Token?.Value is string value

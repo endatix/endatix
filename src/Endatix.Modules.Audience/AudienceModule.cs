@@ -46,6 +46,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         builder.Services.AddScoped<LinkOpenGates>();
         builder.Services.AddScoped<TestSubjects>();
         builder.Services.AddScoped<TestSubmissionOpener>();
+        builder.Services.AddScoped<TestSubmissionWriter>();
     }
 
     private static void AddPersistence(EndatixModuleBuilder builder)

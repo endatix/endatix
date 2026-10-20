@@ -5,6 +5,7 @@ using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
@@ -207,9 +208,9 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     /// <summary>
-    /// Two Start overs of one test submission, forced to overlap: the first has claimed the delete and is paused at
-    /// its insert when the second arrives. The second waits on the row, then finds it deleted, so the person is left
-    /// with one new test submission, not two.
+    /// Two Start overs of one test submission, forced to overlap: the first has read the submission and is paused
+    /// before it takes the form's lock when the second replaces it. The first's delete then matches no live row, so
+    /// it saves nothing and the person is left with one new test submission, not two.
     /// </summary>
     [Fact]
     public async Task Starting_over_twice_at_once_opens_one_replacement()
@@ -219,28 +220,24 @@ public sealed partial class AudienceDirectoryFlowTests
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var person = await LinkForPersonWithCityAsync(admin, "Columbus");
         var opened = await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person));
-        var openedId = IdOf(opened, "submissionId");
-        var command = new RestartTestSubmissionCommand(
-            await TenantIdOfAsync(world.Services, person.FormId), person.FormId, openedId, TokenOf(opened));
-        var gate = SubmissionCommandGate.AtInsert();
-        await using var scope = world.Services.CreateAsyncScope();
-        await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
-        var first = RestartHandlerWith(scope.ServiceProvider, gatedApp).Handle(command, admin.CancellationToken);
-        await Task.WhenAny(gate.Reached, first).WaitAsync(_gateTimeout, admin.CancellationToken);
-        Assert.True(gate.Reached.IsCompleted, "The first Start over never reached its insert.");
+        var restartUrl = RestartUrl(person.FormId, IdOf(opened, "submissionId"));
+        await using var requests = new StartedRequests();
+        using var pause = world.Services.GetRequiredService<AppCommandGate>().PauseAt(FormLockStatement());
+        var first = requests.Add(admin.PostAsync(restartUrl, new { token = TokenOf(opened) }));
+        await PausedAsync(pause, first);
 
         // Act
-        var second = admin.PostAsync(RestartUrl(person.FormId, openedId), new { token = TokenOf(opened) });
-        var secondWaited = await Task.WhenAny(second, Task.Delay(SecondOpenProbe, admin.CancellationToken)) != second;
-        gate.Release();
-        var firstResult = await first.WaitAsync(_gateTimeout, admin.CancellationToken);
-        using var secondResponse = await second.WaitAsync(_gateTimeout, admin.CancellationToken);
+        using var second = await admin.PostAsync(restartUrl, new { token = TokenOf(opened) })
+            .WaitAsync(_gateTimeout, admin.CancellationToken);
+        pause.Release();
+        using var firstResponse = await first.WaitAsync(_gateTimeout, admin.CancellationToken);
 
         // Assert
-        Assert.True(secondWaited, "The second Start over did not wait for the first one's delete.");
-        Assert.Equal(ResultStatus.Created, firstResult.Status);
-        Assert.Equal(HttpStatusCode.NotFound, secondResponse.StatusCode);
-        Assert.Equal([firstResult.Value.SubmissionId], await LiveSubmissionIdsAsync(world.Services, person.FormId));
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, firstResponse.StatusCode);
+        Assert.Equal(
+            [IdOf(await admin.ReadAsync(second), "submissionId")],
+            await LiveSubmissionIdsAsync(world.Services, person.FormId));
     }
 
     [Fact]
@@ -286,11 +283,11 @@ public sealed partial class AudienceDirectoryFlowTests
             forms,
             new EfRepository<Submitter>(app, evaluator),
             services.GetRequiredService<ISubmitterResolver>());
+        var formLock = new FormSubmissionsLock(app, services.GetRequiredService<ITransactionLock>());
         return new RestartTestSubmissionHandler(
             submissions,
-            app,
             new TestSubjects(audience, forms, gates),
-            new TestSubmissionOpener(audience, submissions, tokens));
+            new TestSubmissionOpener(audience, tokens, new TestSubmissionWriter(submissions, forms, formLock)));
     }
 
     private static async Task<long> TenantIdOfAsync(IServiceProvider services, long formId)
