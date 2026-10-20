@@ -21,7 +21,7 @@ const POLL_MS = 5_000;
 const TIMEOUT_MS = 300_000;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Workflow commands end at a newline, so an error body must be escaped to stay one annotation.
+// Workflow commands end at a newline: escape anything from the report or the API so it stays one annotation.
 const escapeCommand = (text) => text.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
 
 async function getJson(url, deadline = Date.now() + TIMEOUT_MS) {
@@ -54,10 +54,10 @@ async function waitForAnalysis(ceTaskId) {
 
 function report(verdict, dashboardUrl) {
   for (const c of verdict.advisory) {
-    console.log(`::warning title=SonarCloud (advisory)::${describeCondition(c)}. Fix it later; it does not fail the build. ${dashboardUrl}`);
+    console.log(`::warning title=SonarCloud (advisory)::${escapeCommand(`${describeCondition(c)}. Fix it later; it does not fail the build. ${dashboardUrl}`)}`);
   }
   for (const c of verdict.blocking) {
-    console.log(`::error title=SonarCloud quality gate::${describeCondition(c)}. ${dashboardUrl}`);
+    console.log(`::error title=SonarCloud quality gate::${escapeCommand(`${describeCondition(c)}. ${dashboardUrl}`)}`);
   }
   if (!process.env.GITHUB_STEP_SUMMARY) return;
   const rows = [...verdict.blocking.map((c) => ['❌ blocking', c]), ...verdict.advisory.map((c) => ['⚠️ advisory', c])]
