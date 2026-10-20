@@ -7,7 +7,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 - Primary constructors for DI. `sealed` by default; `internal` unless the type is public API or framework-discovered (endpoints, requests, validators).
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
 - Comment a decision, constraint or non-obvious invariant, not what the name already says.
-- Before committing C#, `dotnet build Endatix.slnx` must add no new warnings in the files you changed (these are the warnings SonarCloud reports). Format only the changed files with `dotnet format whitespace|style --include <files>`, never the whole solution.
+- Before committing C#, the build must add no new diagnostics of any severity on the lines you changed. SonarCloud imports every result in the build's SARIF log, and that includes the info and suggestion ones (CA2012, CA1859, xUnit1045) that `dotnet build` never prints. Check with the clean-code skill (endatix-saas `.agents/skills/clean-code/scripts/diagnostics.py Endatix.slnx --base origin/main`, Python 3.11+) or read the SARIF from `dotnet build --no-incremental -p:ErrorLog=diagnostics.sarif%2Cversion=2.1` per project. A rule that is noise in tests gets `severity = none` in `.editorconfig`; `suggestion` still reaches Sonar. Format only the changed files with `dotnet format whitespace|style --include <files>`, never the whole solution.
 
 ## Endpoints (FastEndpoints)
 
