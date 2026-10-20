@@ -19,16 +19,7 @@ public sealed partial class JobsSchedulerStartupTests
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await MigrateAsync(database, ct);
-        var name = new NpgsqlConnectionStringBuilder(database.ConnectionString).Database;
-        await database.ExecuteAsync($"ALTER DATABASE {name} SET lock_timeout = '1s'", ct);
-        await using var holder = new NpgsqlConnection(database.ConnectionString);
-        await holder.OpenAsync(ct);
-        await using var holding = await holder.BeginTransactionAsync(ct);
-        await using (var hold = new NpgsqlCommand("SELECT * FROM jobs.qrtz_LOCKS WHERE LOCK_NAME = 'TRIGGER_ACCESS' FOR UPDATE", holder, holding))
-        {
-            await hold.ExecuteNonQueryAsync(ct);
-        }
-
+        await using var held = await HeldTriggerLock.TakeAsync(database, ct);
         var invocations = new ProbeInvocations();
         var logs = new CapturingLoggerProvider();
         await using var node = JobsTestNode.Create(
@@ -46,7 +37,7 @@ public sealed partial class JobsSchedulerStartupTests
             () => Task.FromResult(logs.Entries.Any(entry => entry.Level == LogLevel.Warning && entry.Message.Contains(LostRaceWarning))),
             TimeSpan.FromSeconds(30),
             ct);
-        await holding.CommitAsync(ct);
+        await held.ReleaseAsync(ct);
         var jobId = await node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), ct);
         var ran = await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), Recovery, ct);
 
@@ -54,5 +45,39 @@ public sealed partial class JobsSchedulerStartupTests
         retried.Should().BeTrue();
         ran.Should().BeTrue();
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    // Quartz's trigger lock row, held by a session of its own, on a database whose other sessions wait at most a second.
+    private sealed class HeldTriggerLock : IAsyncDisposable
+    {
+        private readonly NpgsqlConnection _connection;
+        private readonly NpgsqlTransaction _transaction;
+
+        private HeldTriggerLock(NpgsqlConnection connection, NpgsqlTransaction transaction)
+        {
+            _connection = connection;
+            _transaction = transaction;
+        }
+
+        public static async Task<HeldTriggerLock> TakeAsync(JobsTestDatabase database, CancellationToken ct)
+        {
+            var name = new NpgsqlConnectionStringBuilder(database.ConnectionString).Database;
+            await database.ExecuteAsync($"ALTER DATABASE {name} SET lock_timeout = '1s'", ct);
+            var connection = new NpgsqlConnection(database.ConnectionString);
+            await connection.OpenAsync(ct);
+            var transaction = await connection.BeginTransactionAsync(ct);
+            await using var hold = new NpgsqlCommand(
+                "SELECT * FROM jobs.qrtz_LOCKS WHERE LOCK_NAME = 'TRIGGER_ACCESS' FOR UPDATE", connection, transaction);
+            await hold.ExecuteNonQueryAsync(ct);
+            return new HeldTriggerLock(connection, transaction);
+        }
+
+        public Task ReleaseAsync(CancellationToken ct) => _transaction.CommitAsync(ct);
+
+        public async ValueTask DisposeAsync()
+        {
+            await _transaction.DisposeAsync();
+            await _connection.DisposeAsync();
+        }
     }
 }

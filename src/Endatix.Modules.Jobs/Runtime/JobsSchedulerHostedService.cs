@@ -265,19 +265,24 @@ internal sealed class JobsSchedulerHostedService(
         {
             await RetryUntilStartedAsync(result, stoppingToken);
         }
-        catch (Exception exception) when (stoppingToken.IsCancellationRequested && IsPartOfTheStop(exception))
-        {
-            // The host stopped before the database came back.
-        }
         catch (Exception exception) when (stoppingToken.IsCancellationRequested)
         {
-            // A refusal that arrived as the host began to stop still says why this host ran no jobs.
-            logger.LogWarning(exception, "The background jobs scheduler could not start before the host stopped; this host ran no jobs.");
+            WarnUnlessPartOfTheStop(exception);
         }
         catch (Exception exception)
         {
             // Startup has already finished, so there is no one left to fail; say it as loudly as possible.
             logger.LogCritical(exception, "The background jobs scheduler could not start; this host runs no jobs.");
+        }
+    }
+
+    // The host stopped before the database came back. A failure the stop itself causes says nothing; a refusal that
+    // arrived as the host began to stop still says why this host ran no jobs.
+    private void WarnUnlessPartOfTheStop(Exception exception)
+    {
+        if (!IsPartOfTheStop(exception))
+        {
+            logger.LogWarning(exception, "The background jobs scheduler could not start before the host stopped; this host ran no jobs.");
         }
     }
 
