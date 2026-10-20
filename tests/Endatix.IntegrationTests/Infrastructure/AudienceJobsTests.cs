@@ -5,6 +5,7 @@ using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.TestSubmissions;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,6 +61,39 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         // Assert — it succeeded on its first attempt.
         job.Should().Be((3, 1));
         (await LinkSubmissionIdAsync(host, linkId, ct)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Releasing_a_link_waits_for_an_uncommitted_mark_as_real_and_then_keeps_the_claim()
+    {
+        // Arrange — a test submission whose claim is written after its own release job has run, and a mark as real
+        // that has updated the submission's row but not committed.
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartHostAsync(ct);
+        var seeded = await SeedSubmissionAsync(host, "audience-release-race", ct);
+        var membershipId = await SeedPersonAsync(host, seeded, ct);
+        await MarkAsTestAsync(host, seeded.SubmissionId, ct);
+        (await WaitForFinishedJobAsync(host, new ExpectedJob("AudienceReleaseLinkOnTestMark", seeded.TenantId), ct))
+            .Should().Be((3, 1));
+        var linkId = await SeedOpenedLinkAsync(host, new OpenedLink(seeded, membershipId), ct);
+        using var markScope = host.Services.CreateScope();
+        var markDb = markScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await using var markAsReal = await markDb.Database.BeginTransactionAsync(ct);
+        var submission = await markDb.Submissions.SingleAsync(item => item.Id == seeded.SubmissionId, ct);
+        submission.MarkAsReal(enforceSingleSubmissionGate: false);
+        await markDb.SaveChangesAsync(ct);
+
+        // Act — the release starts while the mark holds the row; then the mark commits.
+        using var releaseScope = host.Services.CreateScope();
+        var release = releaseScope.ServiceProvider.GetRequiredService<ReleaseLinkOnTestMarkOutboxHandler>().ProcessAsync(
+            new ReleaseLinkOnTestMarkOutboxHandler.MarkedSubmission(seeded.TenantId, seeded.SubmissionId), ct);
+        var releasedBeforeTheMark = await Task.WhenAny(release, Task.Delay(TimeSpan.FromSeconds(2), ct)) == release;
+        await markAsReal.CommitAsync(ct);
+        await release;
+
+        // Assert — the release waited for the mark, then found a real submission and left its claim alone.
+        releasedBeforeTheMark.Should().BeFalse();
+        (await LinkSubmissionIdAsync(host, linkId, ct)).Should().Be(seeded.SubmissionId);
     }
 
     // The modules' inline handlers stay registered, so the host only starts when each has its job subscription.
