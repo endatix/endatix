@@ -116,7 +116,8 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
     // would fail on the change rather than on what it checks.
     private async Task UntilItAcceptsConnectionsAsync(CancellationToken cancellationToken)
     {
-        for (var tries = 1; ; tries++)
+        var tries = 0;
+        while (true)
         {
             try
             {
@@ -124,7 +125,7 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
                 await _database.ExecuteAsync("SELECT 1", NoParameters, cancellationToken);
                 return;
             }
-            catch (DbException) when (tries < 50)
+            catch (DbException) when (++tries < 50)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
             }
