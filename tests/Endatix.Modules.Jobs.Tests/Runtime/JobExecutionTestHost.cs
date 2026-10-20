@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Infrastructure.Result;
@@ -107,6 +108,17 @@ internal static class JobExecutionTestHost
 
     public static int ScheduleJobCalls(IScheduler scheduler) =>
         scheduler.ReceivedCalls().Count(call => call.GetMethodInfo().Name == nameof(IScheduler.ScheduleJob));
+
+    // Waits for what a firing that keeps trying has done, not for a fixed time, so a slow runner only waits longer.
+    // Gives up quietly after the patience, so the test's own assertions report what was not reached.
+    public static async Task UntilAsync(Func<bool> reached, TimeSpan patience)
+    {
+        var deadline = Stopwatch.GetTimestamp() + (long)(patience.TotalSeconds * Stopwatch.Frequency);
+        while (!reached() && Stopwatch.GetTimestamp() < deadline)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(5), TestContext.Current.CancellationToken);
+        }
+    }
 
     public static IJobExecutionContext RecoveryOf(long jobId)
     {
