@@ -159,7 +159,8 @@ public sealed partial class SoftDeleteInBatchesTests(EndatixIntegrationWebHostFi
         [GeneratedRegex("""FROM ["\[]Submissions["\]]""")]
         private static partial Regex SubmissionRead();
 
-        [GeneratedRegex("""UPDATE ["\[]Submissions["\]]""")]
+        // PostgreSQL writes UPDATE "Submissions" AS s; SQL Server writes UPDATE [s] ... FROM [Submissions] AS [s].
+        [GeneratedRegex("""\AUPDATE\b.*?["\[]Submissions["\]]""", RegexOptions.Singleline)]
         private static partial Regex SubmissionUpdate();
     }
 }
