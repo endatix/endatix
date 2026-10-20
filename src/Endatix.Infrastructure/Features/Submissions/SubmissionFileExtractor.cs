@@ -33,8 +33,21 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
     {
         var files = new List<ISubmissionFileExtractor.ExtractedFile>();
         var context = new ExtractionContext(prefix, formId, submissionId, cancellationToken, files);
-        await FindFilesRecursiveAsync(root, string.Empty, context);
+        await FindFilesOrDisposeAsync(root, context);
         return files;
+    }
+
+    private async Task FindFilesOrDisposeAsync(JsonElement root, ExtractionContext context)
+    {
+        try
+        {
+            await FindFilesRecursiveAsync(root, string.Empty, context);
+        }
+        catch (OperationCanceledException)
+        {
+            context.Files.ForEach(file => file.Content.Dispose());
+            throw;
+        }
     }
 
     private sealed class ExtractionContext
@@ -158,33 +171,15 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
 
         try
         {
-            var httpClient = _httpClientFactory.CreateClient(SubmissionFileFetchHttpClient.Name);
-            var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, context.CancellationToken);
-            if (!response.IsSuccessStatusCode)
+            var stream = await FetchBoundedStreamAsync(url, context);
+            if (stream is not null)
             {
-                _logger.LogWarning(
-                    "Failed to fetch file from URL: {Url} (Status: {StatusCode}, SubmissionId: {SubmissionId})",
-                    url,
-                    response.StatusCode,
-                    context.SubmissionId);
-                response.Dispose();
-                return;
+                context.Files.Add(new ISubmissionFileExtractor.ExtractedFile(fileName, mimeType, stream));
             }
-
-            if (response.Content.Headers.ContentLength is long contentLength && contentLength > MaxFetchedFileBytes)
-            {
-                _logger.LogWarning(
-                    "Rejected oversized submission file fetch (Url: {Url}, ContentLength: {ContentLength}, MaxBytes: {MaxBytes}, SubmissionId: {SubmissionId})",
-                    url,
-                    contentLength,
-                    MaxFetchedFileBytes,
-                    context.SubmissionId);
-                response.Dispose();
-                return;
-            }
-
-            var stream = new BoundedHttpResponseStream(response, MaxFetchedFileBytes);
-            context.Files.Add(new ISubmissionFileExtractor.ExtractedFile(fileName, mimeType, stream));
+        }
+        catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -196,6 +191,40 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
                 mimeType,
                 context.SubmissionId);
         }
+    }
+
+    private async Task<Stream?> FetchBoundedStreamAsync(string url, ExtractionContext context)
+    {
+        var httpClient = _httpClientFactory.CreateClient(SubmissionFileFetchHttpClient.Name);
+        var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, context.CancellationToken);
+        if (IsRejected(response, url, context.SubmissionId))
+        {
+            response.Dispose();
+            return null;
+        }
+
+        return new BoundedHttpResponseStream(response, MaxFetchedFileBytes);
+    }
+
+    private bool IsRejected(HttpResponseMessage response, string url, long submissionId)
+    {
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning(
+                "Failed to fetch file from URL: {Url} (Status: {StatusCode}, SubmissionId: {SubmissionId})",
+                url, response.StatusCode, submissionId);
+            return true;
+        }
+
+        if (response.Content.Headers.ContentLength is long contentLength && contentLength > MaxFetchedFileBytes)
+        {
+            _logger.LogWarning(
+                "Rejected oversized submission file fetch (Url: {Url}, ContentLength: {ContentLength}, MaxBytes: {MaxBytes}, SubmissionId: {SubmissionId})",
+                url, contentLength, MaxFetchedFileBytes, submissionId);
+            return true;
+        }
+
+        return false;
     }
 
     private void ExtractFromDataUri(string dataUri, string fileName, string mimeType, ExtractionContext context)
