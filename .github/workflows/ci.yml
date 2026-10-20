@@ -248,6 +248,8 @@ jobs:
         # These exclusions replace the ones set in the SonarCloud project; the cpd list
         # is the UI's plus Endpoints, which repeat FastEndpoints Configure() boilerplate
         # by the one-file-per-operation rule.
+        # plsql:S1192 (repeated literals) is off for Scripts: each versioned SQL script is a
+        # frozen copy of the last one, and its repeats are SurveyJS JSON keys, not magic values.
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
           for a in unit integration integration-sqlserver; do
@@ -262,7 +264,10 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="tests/**,**/Migrations/**" \
             /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,scripts/**,docs/**,samples/**" \
-            /d:sonar.cpd.exclusions="tests/**,**/*Tests.cs,**/*Test.cs,**/Endatix.Persistence.*/**,**/Migrations/**,**/Endpoints/**"
+            /d:sonar.cpd.exclusions="tests/**,**/*Tests.cs,**/*Test.cs,**/Endatix.Persistence.*/**,**/Migrations/**,**/Endpoints/**" \
+            /d:sonar.issue.ignore.multicriteria="sqlliterals" \
+            /d:sonar.issue.ignore.multicriteria.sqlliterals.ruleKey="plsql:S1192" \
+            /d:sonar.issue.ignore.multicriteria.sqlliterals.resourceKey="**/Scripts/**/*.sql"
           dotnet build
           dotnet-sonarscanner end /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN"
       - name: 🚦 Quality gate
