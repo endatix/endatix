@@ -102,8 +102,9 @@ and redeem, which is anonymous.
   and properties; tenant members stay. Until it runs, the form's people still count toward the
   match-key lock.
 - **Marked as test.** The `submission.updated` outbox handler (`changeKind` `test`) frees the link of a submission
-  still marked as test, deleted or not, keeping the token. Redeem frees such a link itself too, so the handler only
-  tidies the link early. Marking a submission real is a 409 naming the other one when its link has since opened a
+  still marked as test, deleted or not, keeping the token. It locks the submission's row while it clears the link,
+  so a mark as real cannot commit between the check and the clear. Redeem frees such a link itself too, so the
+  handler only tidies the link early. Marking a submission real is a 409 naming the other one when its link has since opened a
   real submission, and a 400 for a test opened as a person (Test as this person): its answers are a builder's, and
   as a real response it would pass every one-per-person check.
 - **Outbox delivery.** Both outbox handlers also run as background jobs (`AudienceDeleteFormAudience`,
