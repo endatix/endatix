@@ -109,6 +109,26 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         _server.ClearPools();
         await _server.ExecuteAsync(ReadOnlySql(_server.Provider, _name, readOnly), NoParameters, cancellationToken);
         _readOnly = readOnly;
+        await UntilItAcceptsConnectionsAsync(cancellationToken);
+    }
+
+    // SQL Server refuses logins for a moment while it changes a database's state, so a test that reads right after
+    // would fail on the change rather than on what it checks.
+    private async Task UntilItAcceptsConnectionsAsync(CancellationToken cancellationToken)
+    {
+        for (var tries = 1; ; tries++)
+        {
+            try
+            {
+                _database.ClearPools();
+                await _database.ExecuteAsync("SELECT 1", NoParameters, cancellationToken);
+                return;
+            }
+            catch (DbException) when (tries < 50)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+            }
+        }
     }
 
     private static string ReadOnlySql(TestDatabaseProvider provider, string name, bool readOnly) => provider switch
