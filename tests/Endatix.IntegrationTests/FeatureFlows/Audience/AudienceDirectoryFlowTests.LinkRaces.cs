@@ -267,8 +267,8 @@ public sealed partial class AudienceDirectoryFlowTests
     /// <summary>Long enough for an open that does not wait to finish; the real one waits until released.</summary>
     private static readonly TimeSpan SecondOpenProbe = TimeSpan.FromSeconds(2);
 
-    /// <summary>The host's <see cref="AppDbContext"/> options plus the gate, so only this open pauses.</summary>
-    private static AppDbContext GatedAppDbContext(IServiceProvider services, SubmissionCommandGate gate)
+    /// <summary>The host's <see cref="AppDbContext"/> options plus the gate, so only this request pauses.</summary>
+    private static AppDbContext GatedAppDbContext(IServiceProvider services, IInterceptor gate)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>(
                 services.GetRequiredService<DbContextOptions<AppDbContext>>())

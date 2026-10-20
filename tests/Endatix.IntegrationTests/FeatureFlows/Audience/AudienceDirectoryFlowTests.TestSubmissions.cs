@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -13,6 +14,7 @@ using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Features.TestSubmissions;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -208,12 +210,48 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     /// <summary>
-    /// Two Start overs of one test submission, forced to overlap: the first has read the submission and is paused
-    /// before it takes the form's lock when the second replaces it. The first's delete then matches no live row, so
-    /// it saves nothing and the person is left with one new test submission, not two.
+    /// Two Start overs of one test submission, forced to overlap: the first has deleted the old submission and
+    /// inserted its replacement, and is paused before it commits, when the second arrives. The second waits on the
+    /// old submission's row, then finds it deleted, so the person is left with one new test submission, not two.
     /// </summary>
     [Fact]
     public async Task Starting_over_twice_at_once_opens_one_replacement()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var person = await LinkForPersonWithCityAsync(admin, "Columbus");
+        var opened = await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person));
+        var openedId = IdOf(opened, "submissionId");
+        var command = new RestartTestSubmissionCommand(
+            await TenantIdOfAsync(world.Services, person.FormId), person.FormId, openedId, TokenOf(opened));
+        var gate = new CommitGate();
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
+        var first = RestartHandlerWith(scope.ServiceProvider, gatedApp).Handle(command, admin.CancellationToken);
+        await Task.WhenAny(gate.Reached, first).WaitAsync(_gateTimeout, admin.CancellationToken);
+        Assert.True(gate.Reached.IsCompleted, "The first Start over never reached its commit.");
+
+        // Act
+        var second = admin.PostAsync(RestartUrl(person.FormId, openedId), new { token = TokenOf(opened) });
+        var secondWaited = await Task.WhenAny(second, Task.Delay(SecondOpenProbe, admin.CancellationToken)) != second;
+        gate.Release();
+        var firstResult = await first.WaitAsync(_gateTimeout, admin.CancellationToken);
+        using var secondResponse = await second.WaitAsync(_gateTimeout, admin.CancellationToken);
+
+        // Assert
+        Assert.True(secondWaited, "The second Start over did not wait for the first one's delete.");
+        Assert.Equal(ResultStatus.Created, firstResult.Status);
+        Assert.Equal(HttpStatusCode.NotFound, secondResponse.StatusCode);
+        Assert.Equal([firstResult.Value.SubmissionId], await LiveSubmissionIdsAsync(world.Services, person.FormId));
+    }
+
+    /// <summary>
+    /// The first Start over has read the submission and is paused before it takes the form's lock when a second one
+    /// replaces it. The first's delete then matches no live row, so it saves nothing and is not found.
+    /// </summary>
+    [Fact]
+    public async Task Starting_over_a_test_submission_another_start_over_replaced_meanwhile_is_not_found()
     {
         // Arrange
         var world = await WorldAsync();
@@ -372,5 +410,33 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.NotEmpty(links);
         Assert.NotEmpty(submitters);
         return JsonSerializer.Serialize(new { links, submitters, bound });
+    }
+
+    /// <summary>
+    /// Pauses the first commit of the context it is added to, until released: the transaction's statements have run
+    /// and it still holds their locks.
+    /// </summary>
+    private sealed class CommitGate : DbTransactionInterceptor
+    {
+        private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Reached => _reached.Task;
+
+        public void Release() => _released.TrySetResult();
+
+        public override async ValueTask<InterceptionResult> TransactionCommittingAsync(
+            DbTransaction transaction,
+            TransactionEventData eventData,
+            InterceptionResult result,
+            CancellationToken cancellationToken = default)
+        {
+            if (_reached.TrySetResult())
+            {
+                await _released.Task.WaitAsync(cancellationToken);
+            }
+
+            return result;
+        }
     }
 }
