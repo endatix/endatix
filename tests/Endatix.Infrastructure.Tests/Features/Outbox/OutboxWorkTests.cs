@@ -214,6 +214,22 @@ public sealed class OutboxWorkTests
     }
 
     [Fact]
+    public void Validate_PlainHandlerBesideAWorkOnItsEvent_ThrowsThoughTheWorksJobSubscribesIt()
+    {
+        // Arrange — a plain inline handler of this assembly on the work's event; only the work has a job.
+        var services = new ServiceCollection();
+        services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
+        var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
+        var plain = new InlineHandlerStub(["x.happened"]);
+
+        // Act
+        var validate = () => subscriptions.Validate([new WorkStub(), plain]);
+
+        // Assert
+        validate.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain(typeof(InlineHandlerStub).FullName!);
+    }
+
+    [Fact]
     public void Validate_WorkRegisteredInlineOnly_ThrowsThoughItsAssemblySubscribesTheEvent()
     {
         // Arrange — another job of this assembly subscribes x.happened, but none is this work's.
@@ -277,9 +293,11 @@ public sealed class OutboxWorkTests
     [InlineData("""{"tenantId":"11","work":"run"}""", 1)]
     [InlineData("""{"tenantId":"11","work":"none"}""", 0)]
     [InlineData("not json", 1)]
+    [InlineData("""{"tenantId":"11"}""", 1)]
     public async Task PublishAsync_OnlyWhenThereIsWork_EnqueuesUnlessTheMessageNeedsNothing(string payload, int expectedJobs)
     {
-        // Arrange — an unreadable message is still enqueued, so its job fails visibly.
+        // Arrange — a message the work cannot read, or whose read throws anything else, is still enqueued, so its
+        // job fails visibly and the message's other subscribers are unaffected.
         using var provider = Build(options => options.OnlyWhenThereIsWork());
 
         // Act

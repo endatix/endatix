@@ -120,7 +120,8 @@ public sealed class OutboxWorkOptions
 
     /// <summary>
     /// Enqueues no job for a message the work reads as <see cref="OutboxWork.None"/>, so a frequent event that rarely
-    /// needs the work adds no empty jobs. A message the work cannot read is enqueued anyway, so its job fails visibly.
+    /// needs the work adds no empty jobs. A message the work cannot read, or whose read throws anything else, is
+    /// enqueued anyway, so its job fails visibly and the message's other subscribers are unaffected.
     /// The work is resolved and read in the relay's scope.
     /// </summary>
     public OutboxWorkOptions OnlyWhenThereIsWork()
@@ -150,9 +151,22 @@ internal sealed class OutboxWorkExpander<TPayload, TWork>(TWork work) : IOutboxS
         long tenantId,
         CancellationToken cancellationToken)
     {
-        var mayNeedWork = !OutboxWorkReader.TryRead(work, message, out var outboxWork) || !outboxWork.IsNone;
-        return Task.FromResult<IReadOnlyList<OutboxSubscriber<TPayload>>>(mayNeedWork
+        return Task.FromResult<IReadOnlyList<OutboxSubscriber<TPayload>>>(MayNeedWork(message)
             ? [new OutboxSubscriber<TPayload>(TPayload.JobType, TPayload.For(message.Id))]
             : []);
+    }
+
+    // Whatever Read throws, the job is enqueued and fails on its own, so one work's bad read never blocks the
+    // message's other subscribers.
+    private bool MayNeedWork(IOutboxMessage message)
+    {
+        try
+        {
+            return !work.Read(message).IsNone;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return true;
+        }
     }
 }

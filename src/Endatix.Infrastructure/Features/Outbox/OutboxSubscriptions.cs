@@ -31,10 +31,12 @@ public sealed class OutboxJobSubscription
 
     /// <summary>
     /// Whether this subscription does <paramref name="handler"/>'s work as a job: an <see cref="IOutboxWork"/> needs its
-    /// own job, any other handler one registered from its assembly.
+    /// own job, any other handler one registered from its assembly that no work owns.
     /// </summary>
     internal bool Covers(IOutboxIntegrationEventHandler handler) =>
-        handler is IOutboxWork ? WorkType == handler.GetType() : SourceAssembly == handler.GetType().Assembly;
+        handler is IOutboxWork
+            ? WorkType == handler.GetType()
+            : WorkType is null && SourceAssembly == handler.GetType().Assembly;
 
     /// <summary>Reads the tenant from an app-level message; <see langword="null"/> takes the message's own.</summary>
     internal Func<IOutboxMessage, long>? TenantResolver { private get; init; }

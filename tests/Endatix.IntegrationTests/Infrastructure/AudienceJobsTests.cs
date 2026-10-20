@@ -94,25 +94,19 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         (await LinkSubmissionIdAsync(host, linkId, ct)).Should().Be(seeded.SubmissionId);
     }
 
-    // The modules' inline handlers stay registered, so the host only starts when each has its job subscription.
-    [Theory]
-    [InlineData("test", 1)]
-    [InlineData("answers", 0)]
-    [InlineData("metadata", 0)]
-    [InlineData(null, 1)]
-    public async Task A_submission_update_enqueues_the_link_release_only_when_it_may_be_a_test_mark(
-        string? changeKind,
-        int expectedJobs)
+    [Fact]
+    public async Task A_submission_update_that_is_not_a_test_mark_enqueues_no_link_release()
     {
-        // Arrange — null stands for an unreadable payload, whose job must fail visibly rather than be dropped.
+        // Arrange — through the host's own registration; the other cases are unit tests of Read and the expander.
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
         const long tenantId = 5;
-        var payload = changeKind is null
-            ? "not json"
-            : $$"""{"submissionId":"20","tenantId":"{{tenantId}}","changeKind":"{{changeKind}}"}""";
-        var message = new OutboxMessageView(
-            new OutboxMessage("submission.updated", payload, tenantId, DateTime.UtcNow, 1) { Id = 7 });
+        var message = new OutboxMessageView(new OutboxMessage(
+            "submission.updated",
+            $$"""{"submissionId":"20","tenantId":"{{tenantId}}","changeKind":"answers"}""",
+            tenantId,
+            DateTime.UtcNow,
+            1) { Id = 7 });
         var release = host.Services.GetRequiredService<OutboxSubscriptions>().For("submission.updated")
             .Single(subscription => subscription.JobType == "AudienceReleaseLinkOnTestMark");
 
@@ -121,9 +115,10 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         var requests = await release.BuildRequestsAsync(scope.ServiceProvider, new OutboxDelivery(message, tenantId), ct);
 
         // Assert
-        requests.Should().HaveCount(expectedJobs);
+        requests.Should().BeEmpty();
     }
 
+    // The modules' inline handlers stay registered, so the host only starts when each has its job subscription.
     private Task<FanOutHost> StartHostAsync(CancellationToken ct) =>
         FanOutHost.StartAsync(
             fixture, new FanOutHostSetup(DeliverToJobQueue: true, _ => { }), ct);

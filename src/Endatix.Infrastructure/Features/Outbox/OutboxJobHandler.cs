@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -67,8 +68,6 @@ internal sealed class OutboxJobMessages(
     IRepository<OutboxMessage> outboxMessages,
     IOptionsMonitor<OutboxWorkSettings> settings)
 {
-    private const long AppLevelTenantId = 0;
-
     /// <summary>The job's message, or <see langword="null"/> when it is gone or belongs to another tenant.</summary>
     public async Task<IOutboxMessage?> FindAsync(BackgroundJobContext job, long outboxMessageId, CancellationToken cancellationToken)
     {
@@ -76,7 +75,7 @@ internal sealed class OutboxJobMessages(
         // no tenant; its job belongs to the tenant the payload names.
         var readTenant = settings.Get(job.JobType).ReadTenant;
         var row = await outboxMessages.FirstOrDefaultAsync(
-            new OutboxMessageByIdForTenantSpec(outboxMessageId, readTenant is null ? job.TenantId : AppLevelTenantId),
+            new OutboxMessageByIdForTenantSpec(outboxMessageId, readTenant is null ? job.TenantId : AuthConstants.DEFAULT_TENANT_ID),
             cancellationToken);
         if (row is null)
         {
