@@ -36,7 +36,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(Failures))]
+    [MemberData(nameof(Failures), DisableDiscoveryEnumeration = true)]
     public void IsOutage_DriverFailure_TellsAnOutageFromARefusal(Exception failure, bool expected)
     {
         // Act
@@ -94,7 +94,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(ConnectFailures))]
+    [MemberData(nameof(ConnectFailures), DisableDiscoveryEnumeration = true)]
     public void IsUnreachable_ConnectFailure_TellsADatabaseThatIsAwayFromOneThatRefuses(Exception failure, bool expected)
     {
         // Act
@@ -117,7 +117,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(Contention))]
+    [MemberData(nameof(Contention), DisableDiscoveryEnumeration = true)]
     public void IsContention_DriverFailure_TellsALostRaceFromAnOutageOrARefusal(Exception failure, bool expected)
     {
         // Act
@@ -137,7 +137,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(UnavailableDatabases))]
+    [MemberData(nameof(UnavailableDatabases), DisableDiscoveryEnumeration = true)]
     public void IsDatabaseUnavailable_ConnectFailure_TellsADatabaseThatCannotBeOpenedOnEitherProvider(
         Exception failure, bool expected)
     {
@@ -160,7 +160,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(AwayAtStartup))]
+    [MemberData(nameof(AwayAtStartup), DisableDiscoveryEnumeration = true)]
     public void IsAwayAtStartup_ConnectFailure_WaitsForADatabaseThatIsAwayOrNotThereYet(Exception failure, bool expected)
     {
         // Act
@@ -180,7 +180,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(ReadOnlyFailures))]
+    [MemberData(nameof(ReadOnlyFailures), DisableDiscoveryEnumeration = true)]
     public void IsReadOnly_DriverFailure_NamesAWriteToAReadOnlyDatabase(Exception failure, bool expected)
     {
         // Act
@@ -200,7 +200,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(SocketFailures))]
+    [MemberData(nameof(SocketFailures), DisableDiscoveryEnumeration = true)]
     public void HasSocketFailure_DriverFailure_TellsANetworkFailureFromALockWait(Exception failure, bool expected)
     {
         // Act
@@ -232,7 +232,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(FailuresToConnect))]
+    [MemberData(nameof(FailuresToConnect), DisableDiscoveryEnumeration = true)]
     public void FailedToConnect_DriverTimeout_TellsAConnectionThatNeverOpenedFromALockWait(Exception failure, bool expected)
     {
         // Act
@@ -252,7 +252,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(Timeouts))]
+    [MemberData(nameof(Timeouts), DisableDiscoveryEnumeration = true)]
     public void IsTimeout_DriverFailure_TellsAWaitThatRanOut(Exception failure, bool expected)
     {
         // Act

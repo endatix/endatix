@@ -198,9 +198,9 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     {
         var scheduler = Substitute.For<IScheduler>();
         var schedulers = Substitute.For<ISchedulerFactory>();
-        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
+        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(
             _ => throw failure,
-            _ => ValueTask.FromResult(scheduler));
+            _ => scheduler);
         var logs = new CapturingLoggerProvider();
         using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 

@@ -68,8 +68,8 @@ public sealed partial class JobsSchedulerStartupTests
         var scheduler = Substitute.For<IScheduler>();
         var tries = 0;
         var schedulers = Substitute.For<ISchedulerFactory>();
-        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(_ =>
-            ++tries <= RunOfUnexplainedAborts ? throw AbortedTransaction() : ValueTask.FromResult(scheduler));
+        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ =>
+            ++tries <= RunOfUnexplainedAborts ? throw AbortedTransaction() : scheduler);
         var logs = new CapturingLoggerProvider();
         using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
@@ -96,14 +96,14 @@ public sealed partial class JobsSchedulerStartupTests
         var ct = TestContext.Current.CancellationToken;
         var scheduler = Substitute.For<IScheduler>();
         var schedulers = Substitute.For<ISchedulerFactory>();
-        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(
+        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(
             _ => throw new SchedulerException(
                 "The store failed.",
                 new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown)),
             _ => throw new SchedulerException(
                 "The store failed.",
                 new PostgresException("cannot execute INSERT in a read-only transaction", "ERROR", "ERROR", PostgresErrorCodes.ReadOnlySqlTransaction)),
-            _ => ValueTask.FromResult(scheduler));
+            _ => scheduler);
         var logs = new CapturingLoggerProvider();
         using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
@@ -129,7 +129,7 @@ public sealed partial class JobsSchedulerStartupTests
         var scheduler = Substitute.For<IScheduler>();
         var tries = 0;
         var schedulers = Substitute.For<ISchedulerFactory>();
-        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(_ => ++tries switch
+        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => ++tries switch
         {
             1 or 3 or 5 => throw new SchedulerException(
                 "The store failed.",
@@ -137,7 +137,7 @@ public sealed partial class JobsSchedulerStartupTests
             2 or 4 or 6 => throw new SchedulerException(
                 "The store failed.",
                 new PostgresException("cannot execute INSERT in a read-only transaction", "ERROR", "ERROR", PostgresErrorCodes.ReadOnlySqlTransaction)),
-            _ => ValueTask.FromResult(scheduler),
+            _ => scheduler,
         });
         var logs = new CapturingLoggerProvider();
         using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);

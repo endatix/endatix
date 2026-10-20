@@ -15,7 +15,7 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposable
 {
     private readonly ISchedulerFactory _shipped = Substitute.For<ISchedulerFactory>();
-    private readonly ISchedulerRuntime _runtime = Substitute.For<ISchedulerRuntime>();
+    private readonly RestartingRuntime _runtime = new();
     private readonly IScheduler _restarted = Substitute.For<IScheduler>();
     private readonly JobsSchedulerSizing _sizing = new();
     private readonly CancellationTokenSource _stopping = new();
@@ -33,12 +33,11 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     public async Task GetScheduler_AfterAFailedFirstBuild_RestartsTheSchedulerWithoutStartingIt()
     {
         // Arrange — the first build failed, and Quartz now refuses the scheduler it shut down.
-        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns(
+        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(
             _ => throw new SchedulerException("The store failed."),
             _ => throw new SchedulerException("Scheduler 'endatix-jobs' has been shut down."),
-            _ => ValueTask.FromResult(_restarted));
-        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult(_restarted));
+            _ => _restarted);
+        _runtime.OnRestart = _ => ValueTask.FromResult(_restarted);
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
 
@@ -46,10 +45,8 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         await factory.GetScheduler(Ct);
 
         // Assert
-        await _runtime.Received(1).Restart(
-            QuartzRegistration.SchedulerName,
-            Arg.Is<SchedulerRestartOptions>(options => options.Start == false),
-            Arg.Any<CancellationToken>());
+        _runtime.Restarts.Should().ContainSingle()
+            .Which.Should().Match<RestartCall>(call => call.SchedulerName == QuartzRegistration.SchedulerName && call.Options.Start == false);
     }
 
     [Fact]
@@ -57,8 +54,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     {
         // Arrange — the rebuilt scheduler's container cannot resolve the job handlers its size comes from.
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
-        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns(ValueTask.FromResult(_restarted));
+        _runtime.OnRestart = _ => ValueTask.FromResult(_restarted);
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
 
@@ -77,8 +73,8 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         var failing = new TaskCompletionSource<IScheduler>(TaskCreationOptions.RunContinuationsAsynchronously);
         var succeeding = new TaskCompletionSource<IScheduler>(TaskCreationOptions.RunContinuationsAsynchronously);
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
-        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns(new ValueTask<IScheduler>(failing.Task), new ValueTask<IScheduler>(succeeding.Task));
+        var rebuilds = new Queue<Task<IScheduler>>([failing.Task, succeeding.Task]);
+        _runtime.OnRestart = _ => new ValueTask<IScheduler>(rebuilds.Dequeue());
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
 
@@ -93,8 +89,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         // Assert
         firstOutcomes.Should().AllSatisfy(outcome => outcome.Should().BeOfType<SchedulerException>());
         schedulers.Should().AllSatisfy(scheduler => scheduler.Should().BeSameAs(_restarted));
-        await _runtime.Received(2).Restart(
-            QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>());
+        Restarts().Should().Be(2);
     }
 
     [Fact]
@@ -103,8 +98,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         // Arrange
         var rebuilding = new TaskCompletionSource<IScheduler>(TaskCreationOptions.RunContinuationsAsynchronously);
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
-        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ => new ValueTask<IScheduler>(rebuilding.Task));
+        _runtime.OnRestart = _ => new ValueTask<IScheduler>(rebuilding.Task);
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
         using var cancelled = new CancellationTokenSource();
@@ -129,8 +123,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         // Arrange
         var rebuilding = new TaskCompletionSource<IScheduler>(TaskCreationOptions.RunContinuationsAsynchronously);
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
-        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ => new ValueTask<IScheduler>(rebuilding.Task));
+        _runtime.OnRestart = _ => new ValueTask<IScheduler>(rebuilding.Task);
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
         _ = SchedulerOfAsync(factory, Ct);
@@ -148,12 +141,11 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     {
         // Arrange — Quartz refuses to rebuild once the host is stopping; the caller's own token is not cancelled.
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
-        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns<IScheduler>(_ =>
-            {
-                _stopping.Cancel();
-                throw new SchedulerConfigException("Quartz will not rebuild a scheduler while the host stops.");
-            });
+        _runtime.OnRestart = _ =>
+        {
+            _stopping.Cancel();
+            throw new SchedulerConfigException("Quartz will not rebuild a scheduler while the host stops.");
+        };
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
 
@@ -170,8 +162,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         // Arrange — the only caller stops waiting before the rebuild fails.
         var rebuilding = new TaskCompletionSource<IScheduler>(TaskCreationOptions.RunContinuationsAsynchronously);
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
-        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ => new ValueTask<IScheduler>(rebuilding.Task));
+        _runtime.OnRestart = _ => new ValueTask<IScheduler>(rebuilding.Task);
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
         using var cancelled = new CancellationTokenSource();
@@ -195,7 +186,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         var shutDown = Scheduler(QuartzRegistration.SchedulerName);
         var other = Scheduler("other");
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
-        _shipped.GetAllSchedulers(Arg.Any<CancellationToken>()).Returns(ValueTask.FromResult(new List<IScheduler> { shutDown, other }));
+        _shipped.GetAllSchedulers(Arg.Any<CancellationToken>()).Returns([shutDown, other]);
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
 
@@ -216,8 +207,8 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     {
         // Arrange
         var built = Scheduler(QuartzRegistration.SchedulerName);
-        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns(ValueTask.FromResult(built));
-        _shipped.LookupScheduler(QuartzRegistration.SchedulerName, Arg.Any<CancellationToken>()).Returns(ValueTask.FromResult<IScheduler?>(built));
+        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns(built);
+        _shipped.LookupScheduler(QuartzRegistration.SchedulerName, Arg.Any<CancellationToken>()).Returns<IScheduler?>(built);
         var factory = Factory();
         await factory.GetScheduler(Ct);
 
@@ -248,8 +239,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         // Arrange
         var rebuilding = new TaskCompletionSource<IScheduler>(TaskCreationOptions.RunContinuationsAsynchronously);
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
-        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ => new ValueTask<IScheduler>(rebuilding.Task));
+        _runtime.OnRestart = _ => new ValueTask<IScheduler>(rebuilding.Task);
         var factory = Factory();
         await FirstBuildFailsAsync(factory);
         _ = SchedulerOfAsync(factory, Ct);
@@ -271,8 +261,8 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     {
         // Arrange — built once, then shut down by the host stopping: Quartz's refusal stands.
         var built = Substitute.For<IScheduler>();
-        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns(
-            _ => ValueTask.FromResult(built),
+        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(
+            _ => built,
             _ => throw new SchedulerException("Scheduler 'endatix-jobs' has been shut down."));
         var factory = Factory();
         await factory.GetScheduler(Ct);
@@ -283,13 +273,13 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         // Assert
         await afterShutdown.Should().ThrowAsync<SchedulerException>();
         await afterShutdown.Should().ThrowAsync<SchedulerException>();
-        await _runtime.DidNotReceive().Restart(Arg.Any<string>(), Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>());
+        Restarts().Should().Be(0);
     }
 
-    private static async Task<IScheduler> SchedulerOfAsync(ISchedulerFactory factory, CancellationToken cancellationToken) =>
+    private static async Task<IScheduler> SchedulerOfAsync(ReadCommittedSnapshotGatedSchedulerFactory factory, CancellationToken cancellationToken) =>
         await factory.GetScheduler(cancellationToken);
 
-    private static async Task FirstBuildFailsAsync(ISchedulerFactory factory)
+    private static async Task FirstBuildFailsAsync(ReadCommittedSnapshotGatedSchedulerFactory factory)
     {
         var failure = default(Exception);
         try
@@ -305,7 +295,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     }
 
     // Starts five callers and waits until the rebuild they share has asked for its restart.
-    private async Task<Task<IScheduler>[]> CallersWaitingOnRestartAsync(ISchedulerFactory factory, int restarts)
+    private async Task<Task<IScheduler>[]> CallersWaitingOnRestartAsync(ReadCommittedSnapshotGatedSchedulerFactory factory, int restarts)
     {
         var callers = Enumerable.Range(0, 5).Select(_ => factory.GetScheduler(Ct).AsTask()).ToArray();
         await RestartsAsync(restarts);
@@ -336,10 +326,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         return scheduler;
     }
 
-    private CancellationToken RestartToken() =>
-        (CancellationToken)_runtime.ReceivedCalls()
-            .Single(call => call.GetMethodInfo().Name == nameof(ISchedulerRuntime.Restart))
-            .GetArguments()[2]!;
+    private CancellationToken RestartToken() => _runtime.Restarts.Single().CancellationToken;
 
     private async Task<bool> LoggedAtDebugAsync()
     {
@@ -357,8 +344,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         return false;
     }
 
-    private int Restarts() =>
-        _runtime.ReceivedCalls().Count(call => call.GetMethodInfo().Name == nameof(ISchedulerRuntime.Restart));
+    private int Restarts() => _runtime.Restarts.Count;
 
     private static async Task<Exception?> OutcomeOf(Task<IScheduler> caller)
     {
@@ -376,7 +362,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     private ReadCommittedSnapshotGatedSchedulerFactory Factory()
     {
         var services = new ServiceCollection()
-            .AddSingleton(_runtime)
+            .AddSingleton<ISchedulerRuntime>(_runtime)
             .AddSingleton(Lifetime())
             .AddSingleton(_logger)
             .AddSingleton(_sizing)
@@ -385,6 +371,45 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
             .BuildServiceProvider();
         var database = new JobStoreDatabase("Host=localhost", isPostgreSql: true, locksOnInsert: false);
         return new ReadCommittedSnapshotGatedSchedulerFactory(_shipped, services, new ReadCommittedSnapshotRequirement(database));
+    }
+
+    /// <param name="SchedulerName">The scheduler asked for.</param>
+    /// <param name="Options">How it was to be rebuilt.</param>
+    /// <param name="CancellationToken">The token it was rebuilt on.</param>
+    private sealed record RestartCall(string SchedulerName, SchedulerRestartOptions Options, CancellationToken CancellationToken);
+
+    // Quartz's runtime as far as a rebuild goes: records each Restart and answers it as the test says. A substitute
+    // would be configured by calling Restart, whose ValueTask the configuration then holds on to (CA2012).
+    private sealed class RestartingRuntime : ISchedulerRuntime
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<RestartCall> _restarts = new();
+
+        public Func<CancellationToken, ValueTask<IScheduler>> OnRestart { get; set; } =
+            _ => throw new InvalidOperationException("The test did not expect a rebuild.");
+
+        public System.Collections.Concurrent.ConcurrentQueue<RestartCall> Restarts => _restarts;
+
+        public ValueTask<IScheduler> Restart(
+            string schedulerName,
+            SchedulerRestartOptions options = default,
+            CancellationToken cancellationToken = default)
+        {
+            _restarts.Enqueue(new RestartCall(schedulerName, options, cancellationToken));
+            return OnRestart(cancellationToken);
+        }
+
+        public ValueTask<IScheduler> Add(
+            string schedulerName,
+            Action<IQuartzBuilder>? configure = null,
+            SchedulerAddOptions options = default,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public ValueTask<bool> Remove(string schedulerName, bool waitForJobsToComplete = false, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public ValueTask<List<SchedulerRegistration>> QuerySchedulers(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private IHostApplicationLifetime Lifetime()
