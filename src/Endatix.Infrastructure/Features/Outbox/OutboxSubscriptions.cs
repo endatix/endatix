@@ -74,6 +74,8 @@ internal readonly record struct OutboxDelivery(IOutboxMessage Message, long Tena
 /// </summary>
 public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subscriptions)
 {
+    private readonly OutboxJobSubscription[] _all = [.. subscriptions];
+
     private readonly ILookup<string, OutboxJobSubscription> _byEventType =
         subscriptions.ToLookup(subscription => subscription.EventType, StringComparer.Ordinal);
 
@@ -90,6 +92,7 @@ public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subsc
     {
         foreach (var handler in inlineHandlers)
         {
+            ThrowIfJobRunsOnOtherEvents(handler);
             var eventType = handler.EventTypes.FirstOrDefault(type =>
                 !_byEventType[type].Any(subscription => subscription.Covers(handler)));
             if (eventType is not null)
@@ -99,6 +102,19 @@ public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subsc
                     $"no job subscription for it, so with Endatix:Outbox:DeliverToJobQueue on that work would be " +
                     $"marked sent and never done. Register the subscription or turn the switch off.");
             }
+        }
+    }
+
+    // A work's job subscribes HandledEventTypes, its inline handler runs on EventTypes: they must be the same events.
+    private void ThrowIfJobRunsOnOtherEvents(IOutboxIntegrationEventHandler handler)
+    {
+        var extra = _all.FirstOrDefault(subscription =>
+            subscription.WorkType == handler.GetType() && !handler.EventTypes.Contains(subscription.EventType));
+        if (extra is not null)
+        {
+            throw new InvalidOperationException(
+                $"The outbox work {handler.GetType().FullName} runs its job on '{extra.EventType}', which its EventTypes " +
+                $"do not list, so inline and job delivery would do different work. Make EventTypes return HandledEventTypes.");
         }
     }
 }

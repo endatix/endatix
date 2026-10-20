@@ -168,7 +168,7 @@ public sealed class OutboxWorkTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_AppLevelPayloadOfOtherTenant_FailsAsGone()
+    public async Task ExecuteAsync_AppLevelPayloadOfOtherTenant_FailsAsOtherTenant()
     {
         // Arrange — an app-level row is readable by any job; only its payload says whose it is.
         Seed("""{"newTenantId":"12","work":"run"}""", 0);
@@ -179,8 +179,53 @@ public sealed class OutboxWorkTests
 
         // Assert
         result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Be(OutboxJobFailures.MessageGone);
+            .Which.ErrorMessage.Should().Be(OutboxJobFailures.OtherTenant);
         work.Ran.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AppLevelTenantUnreadable_FailsAsUnreadable()
+    {
+        // Arrange — the tenant reader cannot read the payload, whatever the work's own Read would make of it.
+        Seed("""{"work":"run"}""", 0);
+        using var provider = Build(options => options.AppLevel(WorkStub.ReadNewTenant));
+
+        // Act
+        var (result, work) = await RunJobAsync(provider, TenantA);
+
+        // Assert
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(OutboxJobFailures.MessageUnreadable);
+        work.Ran.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AddOutboxWork_SameWorkTwice_Throws()
+    {
+        // Arrange — a second registration would run the work twice inline and subscribe its job twice.
+        var services = new ServiceCollection();
+        services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
+
+        // Act
+        var registerAgain = () => services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
+
+        // Assert
+        registerAgain.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain(typeof(WorkStub).FullName!);
+    }
+
+    [Fact]
+    public void Validate_WorkWhoseEventTypesMissAJobEvent_Throws()
+    {
+        // Arrange — the job subscribes HandledEventTypes, but the inline handler lists fewer events.
+        var services = new ServiceCollection();
+        services.AddOutboxWork<DriftingWorkStub, DriftingWorkPayload>(Defaults);
+        var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
+
+        // Act
+        var validate = () => subscriptions.Validate([new DriftingWorkStub()]);
+
+        // Assert
+        validate.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain("z.happened");
     }
 
     [Fact]
@@ -357,6 +402,25 @@ public sealed class OutboxWorkTests
         public static string JobType => "TestAppLevelWork";
 
         public static AppLevelWorkPayload For(long outboxMessageId) => new(outboxMessageId);
+    }
+
+    internal sealed record DriftingWorkPayload(long OutboxMessageId) : IOutboxJobPayload<DriftingWorkPayload>
+    {
+        public static string JobType => "TestDriftingWork";
+
+        public static DriftingWorkPayload For(long outboxMessageId) => new(outboxMessageId);
+    }
+
+    /// <summary>A work whose inline EventTypes list fewer events than its job subscribes.</summary>
+    internal sealed class DriftingWorkStub : IOutboxWork
+    {
+        public static IReadOnlyCollection<string> HandledEventTypes { get; } = ["x.happened", "z.happened"];
+
+        public IReadOnlyCollection<string> EventTypes { get; } = ["x.happened"];
+
+        public OutboxWork Read(IOutboxMessage message) => OutboxWork.None;
+
+        public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     /// <summary>A second work on another event, registered app-level.</summary>

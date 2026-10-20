@@ -48,6 +48,11 @@ public static class OutboxWorkServiceCollectionExtensions
         where THandler : class, IOutboxIntegrationEventHandler
     {
         ArgumentNullException.ThrowIfNull(services);
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(THandler)))
+        {
+            throw new InvalidOperationException(
+                $"The outbox handler {typeof(THandler).FullName} is already registered; register it once, so it runs once.");
+        }
 
         // Registered as itself too, so a job in the same scope reuses the very same work.
         services.AddScoped<THandler>();
