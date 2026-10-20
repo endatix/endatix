@@ -29,11 +29,8 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
 
     public void Dispose() => _stopping.Dispose();
 
-    public static TheoryData<string> Callers() => [nameof(ISchedulerFactory.GetScheduler), nameof(ISchedulerFactory.LookupScheduler), nameof(ISchedulerFactory.GetAllSchedulers)];
-
-    [Theory]
-    [MemberData(nameof(Callers))]
-    public async Task Caller_AfterAFailedFirstBuild_RestartsTheSchedulerWithoutStartingIt(string caller)
+    [Fact]
+    public async Task GetScheduler_AfterAFailedFirstBuild_RestartsTheSchedulerWithoutStartingIt()
     {
         // Arrange — the first build failed, and Quartz now refuses the scheduler it shut down.
         _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns(
@@ -46,7 +43,7 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         await FirstBuildFailsAsync(factory);
 
         // Act
-        await AskAsync(factory, caller);
+        await factory.GetScheduler(Ct);
 
         // Assert
         await _runtime.Received(1).Restart(
@@ -171,6 +168,46 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     }
 
     [Fact]
+    public async Task ListingAndLookup_WhileTheBuildFails_NeitherBuildNorThrow()
+    {
+        // Arrange — the first build failed and left Quartz holding a scheduler it shut down; another scheduler is up.
+        var shutDown = Scheduler(QuartzRegistration.SchedulerName);
+        var other = Scheduler("other");
+        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
+        _shipped.GetAllSchedulers(Arg.Any<CancellationToken>()).Returns(ValueTask.FromResult(new List<IScheduler> { shutDown, other }));
+        var factory = Factory();
+        await FirstBuildFailsAsync(factory);
+
+        // Act
+        var listed = await factory.GetAllSchedulers(Ct);
+        var lookedUp = await factory.LookupScheduler("ENDATIX-JOBS", Ct);
+
+        // Assert — no build, no rebuild, no failure, and nothing handed out of the failed build.
+        listed.Should().Equal(other);
+        lookedUp.Should().BeNull();
+        await _shipped.Received(1).GetScheduler(Arg.Any<CancellationToken>());
+        await _shipped.DidNotReceive().LookupScheduler(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        Restarts().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task LookupScheduler_AfterASuccessfulBuild_FindsTheScheduler()
+    {
+        // Arrange
+        var built = Scheduler(QuartzRegistration.SchedulerName);
+        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns(ValueTask.FromResult(built));
+        _shipped.LookupScheduler(QuartzRegistration.SchedulerName, Arg.Any<CancellationToken>()).Returns(ValueTask.FromResult<IScheduler?>(built));
+        var factory = Factory();
+        await factory.GetScheduler(Ct);
+
+        // Act
+        var lookedUp = await factory.LookupScheduler(QuartzRegistration.SchedulerName, Ct);
+
+        // Assert
+        lookedUp.Should().BeSameAs(built);
+    }
+
+    [Fact]
     public void Dispose_Twice_DoesNotThrow()
     {
         // Arrange — the container disposes the factory, and a test or host may dispose it again.
@@ -271,6 +308,13 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
             .GetField("_building", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
             .GetValue(factory);
 
+    private static IScheduler Scheduler(string name)
+    {
+        var scheduler = Substitute.For<IScheduler>();
+        scheduler.SchedulerName.Returns(name);
+        return scheduler;
+    }
+
     private CancellationToken RestartToken() =>
         (CancellationToken)_runtime.ReceivedCalls()
             .Single(call => call.GetMethodInfo().Name == nameof(ISchedulerRuntime.Restart))
@@ -327,21 +371,5 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         var lifetime = Substitute.For<IHostApplicationLifetime>();
         lifetime.ApplicationStopping.Returns(_stopping.Token);
         return lifetime;
-    }
-
-    private static async Task AskAsync(ISchedulerFactory factory, string caller)
-    {
-        switch (caller)
-        {
-            case nameof(ISchedulerFactory.GetScheduler):
-                await factory.GetScheduler(Ct);
-                break;
-            case nameof(ISchedulerFactory.LookupScheduler):
-                await factory.LookupScheduler(QuartzRegistration.SchedulerName, Ct);
-                break;
-            default:
-                await factory.GetAllSchedulers(Ct);
-                break;
-        }
     }
 }

@@ -12,11 +12,13 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Every member is gated, lookups and listings too: Quartz builds a registered scheduler that has not been built yet
-/// when it is looked up by name.
+/// Only <see cref="GetScheduler"/>, which the start and enqueueing call, builds the scheduler. Until it is built, a
+/// listing (<see cref="GetAllSchedulers"/>) leaves it out and a lookup of its name (<see cref="LookupScheduler"/>)
+/// finds none, since Quartz builds a registered scheduler that is looked up by name: a dashboard or HTTP API poll
+/// during an outage neither starts a build nor fails. Once it is built, both find it, behind the same gate.
 /// </para>
 /// <para>
-/// Every member also builds the scheduler the same way, one build at a time: a caller that asks while a build runs
+/// <see cref="GetScheduler"/> builds the scheduler one build at a time: a caller that asks while a build runs
 /// waits for that build rather than starting another, and a build that fails is not kept, so the next caller to ask
 /// once it has ended starts a fresh one. A build runs for whoever asked first and for everyone who asked meanwhile, so
 /// no caller's cancellation cancels it; a caller that is cancelled only stops waiting for it. It runs on the factory's
@@ -69,19 +71,47 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
         return _built ? await shipped.GetScheduler(cancellationToken) : await SharedBuild().WaitAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Every scheduler built in this container; the jobs scheduler only once it has been built, since listing never
+    /// builds it, and never one a failed build left shut down.
+    /// </summary>
     /// <exception cref="InvalidOperationException">The node would store triggers lock-free without snapshots.</exception>
     public async ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
     {
-        await GetScheduler(cancellationToken);
-        return await shipped.GetAllSchedulers(cancellationToken);
+        if (_built)
+        {
+            await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
+            return await shipped.GetAllSchedulers(cancellationToken);
+        }
+
+        var schedulers = await shipped.GetAllSchedulers(cancellationToken);
+        return [.. schedulers.Where(scheduler => !IsJobsScheduler(scheduler.SchedulerName))];
     }
 
+    /// <summary>
+    /// The scheduler named <paramref name="schedulerName"/>; for the jobs scheduler, <see langword="null"/> until it has
+    /// been built, since Quartz would build it to answer.
+    /// </summary>
     /// <exception cref="InvalidOperationException">The node would store triggers lock-free without snapshots.</exception>
     public async ValueTask<IScheduler?> LookupScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        await GetScheduler(cancellationToken);
+        if (!IsJobsScheduler(schedulerName))
+        {
+            return await shipped.LookupScheduler(schedulerName, cancellationToken);
+        }
+
+        if (!_built)
+        {
+            return null;
+        }
+
+        await readCommittedSnapshot.EnsureMetAsync(cancellationToken);
         return await shipped.LookupScheduler(schedulerName, cancellationToken);
     }
+
+    // Quartz's repository compares names ignoring case.
+    private static bool IsJobsScheduler(string schedulerName) =>
+        string.Equals(schedulerName, QuartzRegistration.SchedulerName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Cancels a build under way and releases its token, and with it the registration on the host's stopping. Taken
