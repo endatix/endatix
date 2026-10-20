@@ -32,6 +32,18 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         where TPayload : IBackgroundJobPayload =>
         services.AddJobSubscription(new SubscriptionSource(eventType, resolveTenantId, WorkType: null), createPayload);
 
+    /// <summary>
+    /// Subscribes jobs of <typeparamref name="TPayload"/>'s job type to <paramref name="eventType"/>, as many per
+    /// message as <typeparamref name="TExpander"/> finds subscribers.
+    /// </summary>
+    public static IServiceCollection AddOutboxJobSubscription<TPayload, TExpander>(
+        this IServiceCollection services,
+        string eventType,
+        Func<IOutboxMessage, long>? resolveTenantId = null)
+        where TPayload : IBackgroundJobPayload
+        where TExpander : class, IOutboxSubscriberExpander<TPayload> =>
+        services.AddExpandingJobSubscription<TPayload, TExpander>(new SubscriptionSource(eventType, resolveTenantId, WorkType: null));
+
     /// <summary>The one-job subscription, owned by the source's work type when an outbox work registers it.</summary>
     internal static IServiceCollection AddJobSubscription<TPayload>(
         this IServiceCollection services,
@@ -49,18 +61,6 @@ public static class OutboxSubscriptionServiceCollectionExtensions
                 Request(delivery, new OutboxSubscriber<TPayload>(TPayload.JobType, createPayload(delivery.Message))),
             ])));
     }
-
-    /// <summary>
-    /// Subscribes jobs of <typeparamref name="TPayload"/>'s job type to <paramref name="eventType"/>, as many per
-    /// message as <typeparamref name="TExpander"/> finds subscribers.
-    /// </summary>
-    public static IServiceCollection AddOutboxJobSubscription<TPayload, TExpander>(
-        this IServiceCollection services,
-        string eventType,
-        Func<IOutboxMessage, long>? resolveTenantId = null)
-        where TPayload : IBackgroundJobPayload
-        where TExpander : class, IOutboxSubscriberExpander<TPayload> =>
-        services.AddExpandingJobSubscription<TPayload, TExpander>(new SubscriptionSource(eventType, resolveTenantId, WorkType: null));
 
     /// <summary>The expanding subscription, owned by the source's work type when an outbox work registers it.</summary>
     internal static IServiceCollection AddExpandingJobSubscription<TPayload, TExpander>(
