@@ -73,11 +73,6 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -253,7 +248,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         }
     }
 
-    private void PrefixTableNames(ModelBuilder builder)
+    private static void PrefixTableNames(ModelBuilder builder)
     {
         Guard.Against.Null(builder);
         var entityTypes = builder.Model.GetEntityTypes();
@@ -262,16 +257,13 @@ public class AppDbContext : DbContext, ITenantDbContext
             return;
         }
 
-        foreach (var entity in entityTypes)
+        foreach (var entity in entityTypes.Where(ShouldPrefixTable))
         {
-            if (ShouldPrefixTable(entity))
-            {
-                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name, entity.GetTableName()));
-            }
+            builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name, entity.GetTableName()));
         }
     }
 
-    private bool ShouldPrefixTable(IMutableEntityType? entityType)
+    private static bool ShouldPrefixTable(IMutableEntityType? entityType)
     {
         Guard.Against.Null(entityType);
 

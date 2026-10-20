@@ -131,7 +131,7 @@ public class SubmissionTokenServiceObtainTokenTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNullOrEmpty();
         submission.Token.Should().NotBeNull();
-        submission.Token!.ExpiresAt.Should().NotBeNull();
+        submission.Token.ExpiresAt.Should().NotBeNull();
         await _submissionRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -161,8 +161,8 @@ public class SubmissionTokenServiceObtainTokenTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         submission.Token.Should().NotBeNull();
-        submission.Token!.ExpiresAt.Should().NotBeNull();
-        submission.Token.ExpiresAt!.Value.Should().BeOnOrAfter(before.AddHours(168).AddMinutes(-1));
+        submission.Token.ExpiresAt.Should().NotBeNull();
+        submission.Token.ExpiresAt.Value.Should().BeOnOrAfter(before.AddHours(168).AddMinutes(-1));
         submission.Token.ExpiresAt.Value.Should().BeOnOrBefore(DateTime.UtcNow.AddHours(168).AddMinutes(1));
         await _tenantSettingsRepository.DidNotReceive().FirstOrDefaultAsync(
             Arg.Any<TenantSettingsByTenantIdSpec>(),

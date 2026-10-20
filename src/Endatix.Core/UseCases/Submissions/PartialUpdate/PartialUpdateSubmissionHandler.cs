@@ -37,8 +37,8 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             mustPublishEvent = true;
         }
 
-        // TODO: add more advanced PATCH-ing where we can not only replace individual properties, but merge, remove and other typical operations. This is valid especially for the JSON based JsonData and Metadata properties, so we can keep payloads and client logic light, e.g. submit one answer at a time and update JsonData
-        // TODO: investigate if IsComplete and CurrentPage should be auto calculated as part of processing the submission
+        // Each given property replaces the stored one whole, JsonData included; only Metadata is merged, at its top level.
+        // IsComplete and CurrentPage come from the request as they are, not derived from the answers.
         var originalJson = submission.JsonData;
         var jsonData = request.JsonData ?? submission.JsonData;
         var currentPage = request.CurrentPage ?? submission.CurrentPage ?? DEFAULT_CURRENT_PAGE;
