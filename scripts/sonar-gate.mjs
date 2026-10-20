@@ -53,10 +53,12 @@ async function waitForAnalysis(ceTaskUrl, deadline = Date.now() + TIMEOUT_MS) {
 
 function report(verdict, dashboardUrl) {
   for (const c of verdict.advisory) {
-    console.log(`::warning title=SonarCloud (advisory)::${escapeCommand(`${describeCondition(c)}. Fix it later; it does not fail the build. ${dashboardUrl}`)}`);
+    const text = `${describeCondition(c)}. Fix it later; it does not fail the build. ${dashboardUrl}`;
+    console.log(`::warning title=SonarCloud (advisory)::${escapeCommand(text)}`);
   }
   for (const c of verdict.blocking) {
-    console.log(`::error title=SonarCloud quality gate::${escapeCommand(`${describeCondition(c)}. ${dashboardUrl}`)}`);
+    const text = `${describeCondition(c)}. ${dashboardUrl}`;
+    console.log(`::error title=SonarCloud quality gate::${escapeCommand(text)}`);
   }
   if (!process.env.GITHUB_STEP_SUMMARY) return;
   const rows = [...verdict.blocking.map((c) => ['❌ blocking', c]), ...verdict.advisory.map((c) => ['⚠️ advisory', c])]
