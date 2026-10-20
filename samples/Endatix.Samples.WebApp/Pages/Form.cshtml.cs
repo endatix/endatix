@@ -12,8 +12,8 @@ public class FormPage : PageModel
     private readonly IEndatixClient _client;
     private readonly HttpClientOptions _settings;
 
-    public string FormId { get; set; }
-    public FormDefinitionResponse Form { get; set; }
+    public string FormId { get; set; } = string.Empty;
+    public FormDefinitionResponse? Form { get; set; }
 
     public ApiError? ErrorState { get; private set; }
 

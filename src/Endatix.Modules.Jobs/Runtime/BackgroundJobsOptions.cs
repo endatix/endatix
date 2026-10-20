@@ -73,7 +73,8 @@ public sealed class BackgroundJobsOptions
     /// </summary>
     /// <remarks>
     /// Read from configuration once, when the module registers, because Quartz's store takes it then and cannot change
-    /// it afterwards; a <c>Configure</c> or <c>PostConfigure</c> of these options in code does not change it.
+    /// it afterwards; a <c>Configure</c> or <c>PostConfigure</c> of these options in code does not change it, and a
+    /// node whose options then say otherwise logs a warning at startup.
     /// </remarks>
     public bool? LockOnInsert { get; set; }
 

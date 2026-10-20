@@ -152,6 +152,33 @@ public class SmtpEmailSenderTests
     }
 
     [Fact]
+    public void Constructor_UsernameWithoutPassword_ThrowsArgumentException()
+    {
+        // Arrange
+        var settings = Options.Create(new SmtpSettings
+        {
+            Host = "smtp.example.com",
+            Port = 587,
+            Username = "user",
+            Password = null,
+            DefaultFromAddress = "noreply@example.com",
+            DefaultFromName = "Endatix"
+        });
+
+        // Act
+        var action = () => new TestableSmtpEmailSender(
+            Substitute.For<ILogger<SmtpEmailSender>>(),
+            settings,
+            new EmailTemplateRenderer(
+                Substitute.For<IRepository<EmailTemplate>>(),
+                Options.Create(new EmailTemplateSettings())),
+            Substitute.For<IMailTransport>());
+
+        // Assert
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
     public async Task SendEmailWithBody_BlankUsername_SkipsAuthentication()
     {
         // Arrange

@@ -23,9 +23,11 @@ internal sealed class FlattenSubmissionOutboxHandler(
         [SubmissionCompletedEvent.EventTypeName, SubmissionUpdatedEvent.EventTypeName];
 
     // A flattened row holds the submission's data and its submitter profile fields, so a submitter change flattens it
-    // again too. Core's data mask leaves the submitter out on purpose: its name describes the answers.
+    // again too. Core's data mask leaves the submitter out on purpose: its name describes the answers. A mark as real
+    // must bring back the row a schema replace may have cleared while the submission was a test; flattening is
+    // idempotent, so a mark as test flattens too.
     private const SubmissionChangeKinds FlattenedChanges =
-        SubmissionChangeKindsMasks.SubmissionData | SubmissionChangeKinds.Submitter;
+        SubmissionChangeKindsMasks.SubmissionData | SubmissionChangeKinds.Submitter | SubmissionChangeKinds.Test;
 
     public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
 

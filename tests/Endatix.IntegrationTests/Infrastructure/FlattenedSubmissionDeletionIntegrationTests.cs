@@ -95,7 +95,7 @@ public sealed class FlattenedSubmissionDeletionIntegrationTests(DbIntegrationFix
             .Returns(async _ =>
             {
                 await SoftDeleteFormAsync(appDb, seed.FormId, cancellationToken);
-                return CompiledSchema(seed);
+                return (Endatix.Modules.Reporting.Domain.FormSchema?)CompiledSchema(seed);
             });
         var processor = CreateFlatteningProcessor(CreateSubmissionRepository(appDb), reportingDb, schemas);
 

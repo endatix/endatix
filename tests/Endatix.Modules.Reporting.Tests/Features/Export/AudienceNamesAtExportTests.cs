@@ -60,7 +60,7 @@ public sealed class AudienceNamesAtExportTests
             .Should().Be("Town");
         root.GetProperty("personalization").GetProperty("variables").EnumerateObject().Select(variable => variable.Name)
             .Should().Equal("city", "age");
-        await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, default);
+        await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class AudienceNamesAtExportTests
         table.GetProperty("order").EnumerateArray().Select(alias => alias.GetString())
             .Where(alias => alias!.StartsWith("Audience", StringComparison.OrdinalIgnoreCase))
             .Should().Equal("AudienceIdentifier", "audience_city", "audience_age");
-        await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, default);
+        await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class AudienceNamesAtExportTests
         plan.Columns.Where(column => column.ExportKey.StartsWith("Audience", StringComparison.OrdinalIgnoreCase))
             .Select(column => (column.ExportKey, column.HeaderLabel))
             .Should().Equal(("AudienceIdentifier", "Audience identifier"), ("audience_city", "Town"), ("audience_age", "Age"));
-        await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, default);
+        await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     private static async Task<string> StreamTextAsync(IExportDataSource dataSource, ExportDataSourceContext context)

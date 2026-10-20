@@ -13,13 +13,15 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
-/// Adds a person to a form's audience (creates the tenant member when needed).
+/// Adds a person to a form's audience (creates the tenant member when needed). <see cref="IsTest"/> adds
+/// a test person, who is never issued a personalised link.
 /// </summary>
 public sealed record CreatePersonCommand(
     long TenantId,
     long FormId,
     string Identifier,
-    IReadOnlyDictionary<long, string>? Values = null) : ICommand<Result<PersonDto>>;
+    IReadOnlyDictionary<long, string>? Values = null,
+    bool IsTest = false) : ICommand<Result<PersonDto>>;
 
 internal sealed class CreatePersonHandler(
     IAudienceDbContext db,
@@ -155,13 +157,15 @@ internal sealed class CreatePersonHandler(
         Member member,
         CancellationToken cancellationToken)
     {
-        Membership membership = new(request.TenantId, request.FormId, member.Id);
+        Membership membership = new(
+            new MembershipCreateArgs(request.TenantId, request.FormId, member.Id, request.IsTest));
         db.Memberships.Add(membership);
 
         IReadOnlyDictionary<long, string> values = request.Values ?? new Dictionary<long, string>();
         PropertyValuesWriter.AddAll(new PropertyValueWrite(db, request.TenantId, membership.Id, values));
         await db.SaveChangesAsync(cancellationToken);
-        return new PersonDto(membership.Id, member.Id, member.Identifier, PropertyValuesWriter.Stored(values));
+        return new PersonDto(
+            membership.Id, member.Id, member.Identifier, PropertyValuesWriter.Stored(values), membership.IsTest);
     }
 
     private async Task<Member> FindOrAddMemberAsync(

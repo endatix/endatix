@@ -175,7 +175,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
             TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().Contain(e => e.Identifier.StartsWith("EnsureLocales."));
+        result.ValidationErrors.Should().Contain(e => e.Identifier!.StartsWith("EnsureLocales."));
     }
 
     [Fact]

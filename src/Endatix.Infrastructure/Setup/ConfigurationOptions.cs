@@ -5,7 +5,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 
 public class ConfigurationOptions
 {
-    internal SecurityOptions Security { get; set; }
+    internal SecurityOptions? Security { get; set; }
 
     internal LoggingOptions Logging { get; set; } = new();
 
