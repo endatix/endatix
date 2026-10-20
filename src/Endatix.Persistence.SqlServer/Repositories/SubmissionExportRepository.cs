@@ -19,14 +19,15 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         _dbContext = dbContext;
     }
 
-    public async IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, int? pageSize, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
+    /// <inheritdoc />
+    public async IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, int? pageSize, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         var procedureName = sqlFunctionName ?? "export_form_submissions";
         var effectivePageSize = pageSize ?? DefaultExportPageSize;
         var usePaging = effectivePageSize != 0 && typeof(T) == typeof(SubmissionExportRow);
         var stream = usePaging
-            ? StreamPagedAsync<T>(formId, procedureName, effectivePageSize, cancellationToken)
-            : StreamAllAsync<T>(formId, procedureName, cancellationToken);
+            ? StreamPagedAsync<T>(formId, procedureName, effectivePageSize, includeTestSubmissions, cancellationToken)
+            : StreamAllAsync<T>(formId, procedureName, includeTestSubmissions, cancellationToken);
 
         await foreach (var row in stream)
         {
@@ -34,9 +35,10 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         }
     }
 
-    private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string procedureName, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
+    private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string procedureName, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
-        var sql = ExecProcedure(procedureName, "@form_id");
+        // Custom procedures do not take the flag; the endpoint rejects it for them.
+        var sql = ExecProcedure(procedureName, "@form_id" + IncludeTestSubmissionsArgument(includeTestSubmissions));
         await foreach (var row in _dbContext.Set<T>()
             .FromSqlRaw(sql, new SqlParameter("@form_id", formId))
             .AsNoTracking()
@@ -47,10 +49,10 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         }
     }
 
-    private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string procedureName, int pageSize, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
+    private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string procedureName, int pageSize, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         long? afterId = null;
-        var sql = ExecProcedure(procedureName, "@form_id, @after_id, @page_size");
+        var sql = ExecProcedure(procedureName, "@form_id, @after_id, @page_size" + IncludeTestSubmissionsArgument(includeTestSubmissions));
 
         while (true)
         {
@@ -89,4 +91,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         var qualifiedName = name.Contains('.') ? name : $"dbo.{name}";
         return $"EXEC {qualifiedName} {parameters}";
     }
+
+    private static string IncludeTestSubmissionsArgument(bool includeTestSubmissions) =>
+        includeTestSubmissions ? ", @include_test_submissions = 1" : string.Empty;
 }

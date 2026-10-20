@@ -38,7 +38,8 @@ public sealed class SubmissionsExportHandler(
                 request.TenantId,
                 request.FormId,
                 request.Options,
-                request.ExportPageSize);
+                request.ExportPageSize,
+                request.IncludeTestSubmissions);
 
             var prepareResult = await dataSource.PrepareOptionsAsync(
                 dataSourceContext,
