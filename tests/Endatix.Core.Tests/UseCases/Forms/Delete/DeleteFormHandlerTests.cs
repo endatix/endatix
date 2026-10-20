@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Tests.TestUtils;
@@ -106,6 +107,26 @@ public class DeleteFormHandlerTests
     }
 
     [Fact]
+    public async Task Handle_DeletionChosenAsDeadlockVictim_ReturnsUnavailableWithoutPublishing()
+    {
+        // Arrange
+        var form = CreateForm();
+        var request = new DeleteFormCommand(form.Id);
+        _repository.SingleOrDefaultAsync(Arg.Any<FormWithDefinitionsSpec>(), Arg.Any<CancellationToken>())
+            .Returns(form);
+        _repository.DeleteSubmissionsAsync(form, Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new DeadlockVictimException("deadlock"));
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unavailable);
+        await _section.DidNotReceive().CommitAsync(Arg.Any<CancellationToken>());
+        await _mediator.DidNotReceive().Publish(Arg.Any<FormDeletedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_ValidRequest_DeletesForm()
     {
         // Arrange
@@ -126,14 +147,12 @@ public class DeleteFormHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.Should().Be(form);
 
-        await _repository.Received(1).UpdateAsync(
-            Arg.Is<Form>(f => f.Id == form.Id),
-            Arg.Any<CancellationToken>()
-        );
+        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Form>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_ValidRequest_DeletesSubmissionsByFormThenCommitsUnderTheLock()
+    public async Task Handle_ValidRequest_DeletesSubmissionsBeforeTheFormThenCommitsUnderTheLock()
     {
         // Arrange
         var form = CreateForm();
@@ -150,6 +169,7 @@ public class DeleteFormHandlerTests
             _formSubmissionsLock.BeginDeletingAsync(form.Id, Arg.Any<CancellationToken>());
             _repository.SingleOrDefaultAsync(Arg.Any<FormWithDefinitionsSpec>(), Arg.Any<CancellationToken>());
             _repository.DeleteSubmissionsAsync(form, Arg.Any<CancellationToken>());
+            _repository.SaveChangesAsync(Arg.Any<CancellationToken>());
             _section.CommitAsync(Arg.Any<CancellationToken>());
             _mediator.Publish(Arg.Any<FormDeletedEvent>(), Arg.Any<CancellationToken>());
         });

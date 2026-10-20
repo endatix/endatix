@@ -1,8 +1,6 @@
 using System.Globalization;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Infrastructure.Result;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Infrastructure.Data.Locking;
 
@@ -12,13 +10,16 @@ namespace Endatix.Infrastructure.Data.Locking;
 /// </summary>
 /// <remarks>
 /// The key is the form id alone. Ids are unique across tenants, and a deletion takes the lock before it reads the
-/// form, so it knows no tenant yet.
+/// form again, so it does not need a tenant. It is the request's 64-bit <see cref="TransactionLockRequest.Id"/>, so
+/// no two forms ever share the lock: with an add's near-zero wait, a shared lock would turn one form's deletion into
+/// refused creates on another.
 /// </remarks>
 public sealed class FormSubmissionsLock(AppDbContext db, ITransactionLock transactionLock) : IFormSubmissionsLock
 {
     /// <summary>
-    /// How long a deletion waits for the adds under way. Far longer than an add holds the lock; past it the deletion
-    /// gets a retryable 503, not a connection held for the whole command timeout.
+    /// How long a deletion waits for the adds under way, or for another deletion of the form. Far longer than an add
+    /// holds the lock; a deletion that waits for another one would find the form gone, so a retryable 503 serves it as
+    /// well as a longer wait, without holding a pooled connection for it.
     /// </summary>
     internal static readonly TimeSpan DeletionWait = TimeSpan.FromSeconds(5);
 
@@ -29,7 +30,8 @@ public sealed class FormSubmissionsLock(AppDbContext db, ITransactionLock transa
     /// </summary>
     internal static readonly TimeSpan AddWait = TimeSpan.FromMilliseconds(1);
 
-    private const string Busy = "This form is busy. Try again in a moment.";
+    /// <summary>The cause is left out: an add, or another deletion, may be what holds the form.</summary>
+    private const string Busy = "The form is busy; try again shortly.";
 
     /// <inheritdoc />
     public Task<Result<IFormSubmissionsSection>> BeginAddingAsync(long formId, CancellationToken cancellationToken) =>
@@ -50,7 +52,7 @@ public sealed class FormSubmissionsLock(AppDbContext db, ITransactionLock transa
         Request(formId) with { Timeout = DeletionWait };
 
     private static TransactionLockRequest Request(long formId) =>
-        new(TransactionLockScopes.FormSubmissions, formId.ToString(CultureInfo.InvariantCulture));
+        new(TransactionLockScopes.FormSubmissions, formId.ToString(CultureInfo.InvariantCulture)) { Id = formId };
 
     private async Task<Result<IFormSubmissionsSection>> BeginAsync(
         TransactionLockRequest request,
@@ -59,33 +61,11 @@ public sealed class FormSubmissionsLock(AppDbContext db, ITransactionLock transa
         try
         {
             var transaction = await transactionLock.BeginLockedTransactionAsync(db.Database, request, cancellationToken);
-            return Result<IFormSubmissionsSection>.Success(new LockedFormSubmissions(db, transaction));
+            return Result<IFormSubmissionsSection>.Success(new LockedSection(transaction, db));
         }
         catch (TransactionLockTimeoutException)
         {
             return Result<IFormSubmissionsSection>.Unavailable(Busy);
-        }
-    }
-
-    private sealed class LockedFormSubmissions(DbContext db, IDbContextTransaction transaction) : IFormSubmissionsSection
-    {
-        private bool _committed;
-
-        public async Task CommitAsync(CancellationToken cancellationToken)
-        {
-            await transaction.CommitAsync(cancellationToken);
-            _committed = true;
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            await transaction.DisposeAsync();
-            if (!_committed)
-            {
-                // The rows rolled back, but the context still tracks them. An insert the unique index refused stays
-                // Added, and the next save in this request would send it again.
-                db.ChangeTracker.Clear();
-            }
         }
     }
 }

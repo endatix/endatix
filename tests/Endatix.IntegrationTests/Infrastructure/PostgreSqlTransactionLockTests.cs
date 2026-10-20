@@ -100,6 +100,53 @@ public sealed class PostgreSqlTransactionLockTests(DbIntegrationFixture fixture)
         await act.Should().ThrowAsync<TransactionLockTimeoutException>();
     }
 
+    /// <summary>
+    /// Two form ids whose text hashes alike, so the two-key form would give them one lock. A form's lock is keyed by
+    /// the id itself, so a deletion of one never refuses an add to the other, which waits for at most a millisecond.
+    /// </summary>
+    [Fact]
+    public async Task AcquireAsync_FormIdsWhoseKeysHashAlike_DoNotShareTheFormsLock()
+    {
+        // Arrange
+        await using var probe = await BeginAsync();
+        var (deleted, other) = await IdsWhoseTextHashesAlikeAsync(probe);
+        await using var deletion = await BeginAsync();
+        await _lock.AcquireAsync(deletion.Database, FormLock(deleted), Cancellation);
+        await using var add = await BeginAsync();
+
+        // Act
+        var act = () => _lock.AcquireAsync(
+            add.Database,
+            FormLock(other) with { Mode = TransactionLockMode.Shared, Timeout = TimeSpan.FromMilliseconds(1) },
+            Cancellation);
+
+        // Assert
+        await act.Should().NotThrowAsync();
+    }
+
+    private static TransactionLockRequest FormLock(long formId) =>
+        new(TransactionLockScopes.FormSubmissions, formId.ToString(System.Globalization.CultureInfo.InvariantCulture))
+        {
+            Id = formId,
+        };
+
+    private sealed record IdPair(long First, long Second);
+
+    /// <summary>Snowflake-sized ids; among this many, 32-bit hashes collide many times over.</summary>
+    private static async Task<(long, long)> IdsWhoseTextHashesAlikeAsync(DbContext context)
+    {
+        var pair = await context.Database
+            .SqlQueryRaw<IdPair>("""
+                SELECT min(id) AS "First", max(id) AS "Second"
+                FROM (SELECT g::bigint + 1560000000000000000 AS id FROM generate_series(1, 400000) g) ids
+                GROUP BY hashtext(id::text)
+                HAVING count(*) > 1
+                LIMIT 1
+                """)
+            .SingleAsync(Cancellation);
+        return (pair.First, pair.Second);
+    }
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     private async Task<DbContext> BeginAsync()

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using Endatix.Infrastructure.Data;
@@ -21,9 +20,7 @@ public sealed partial class FormDeletionFlowTests
         // Arrange
         var (world, admin) = await AdminAsync();
         var formId = await CreateFormAsync(admin);
-        var deleting = new TransactionLockRequest(
-            TransactionLockScopes.FormSubmissions,
-            formId.ToString(CultureInfo.InvariantCulture));
+        var deleting = FormSubmissionsLock.Adding(formId) with { Mode = TransactionLockMode.Exclusive };
         await using var held = await HoldAsync(world.Services, deleting);
 
         // Act

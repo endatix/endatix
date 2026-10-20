@@ -18,6 +18,8 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
     private const int DEFAULT_CURRENT_PAGE = 0;
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Form submission not found.";
 
+    private SubmissionChangeSaver Saver => new(repository, versions);
+
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
         var mustPublishEvent = false;
@@ -68,10 +70,10 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             return Result.Invalid(new ValidationError(RejectionMessage(wasScreenedOut, screenOut)));
         }
 
-        var saver = new SubmissionChangeSaver(repository, versions);
-        if (!await saver.TrySaveAsync(submission, originalJson, cancellationToken))
+        var saved = await Saver.TrySaveAsync(submission, originalJson, cancellationToken);
+        if (!saved.IsSuccess)
         {
-            return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
+            return saved.ToErrorResult<Submission>();
         }
 
         if (mustPublishEvent)

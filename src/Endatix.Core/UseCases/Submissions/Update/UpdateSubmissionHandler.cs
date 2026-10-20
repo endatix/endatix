@@ -18,6 +18,8 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
     private const string DEFAULT_METADATA = null;
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Form submission not found.";
 
+    private SubmissionChangeSaver Saver => new(repository, versions);
+
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
@@ -55,10 +57,10 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
             return Result.Invalid(new ValidationError(message));
         }
 
-        var saver = new SubmissionChangeSaver(repository, versions);
-        if (!await saver.TrySaveAsync(submission, originalJson, cancellationToken))
+        var saved = await Saver.TrySaveAsync(submission, originalJson, cancellationToken);
+        if (!saved.IsSuccess)
         {
-            return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
+            return saved.ToErrorResult<Submission>();
         }
 
         if(mustPublishEvent) {

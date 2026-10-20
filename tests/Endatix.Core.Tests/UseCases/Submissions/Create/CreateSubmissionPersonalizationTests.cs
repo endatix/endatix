@@ -28,8 +28,8 @@ public class CreateSubmissionPersonalizationTests
             .Returns(Result.Success());
         _submitters.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(123, "123", null));
-        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
-            .Returns(true);
+        _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.OpenFormActiveDefinitionId>(), Arg.Any<CancellationToken>())
+            .Returns((long?)2);
         _handler = new CreateSubmissionHandler(
             _submissions,
             _forms,

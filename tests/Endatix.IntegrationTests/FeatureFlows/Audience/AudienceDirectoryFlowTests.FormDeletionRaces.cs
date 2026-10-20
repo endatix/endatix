@@ -108,6 +108,40 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Null(await TokenOfAsync(world.Services, submissionId));
     }
 
+    /// <summary>
+    /// The form is disabled after the open passed its gates, while the open resolves the person's Submitter on a
+    /// one-response form: the open reads the form again under the lock and does not open.
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_link_of_a_form_disabled_after_its_gate_check_is_not_found()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Lima", limitOnePerUser: true);
+        using var anonymous = world.AnonymousClient();
+        await using var requests = new StartedRequests();
+        using var pause = world.Services.GetRequiredService<AppCommandGate>().PauseAt(SubmitterRead());
+        var opening = requests.Add(
+            anonymous.PostAsJsonAsync(RedeemUrl(formId, token), new { }, admin.CancellationToken));
+        await PausedAsync(pause, opening);
+        using var disabled = await admin.Client.PatchAsJsonAsync(
+            $"/api/forms/{formId}", new { isEnabled = false }, admin.CancellationToken);
+
+        // Act
+        pause.Release();
+        using var opened = await opening.WaitAsync(_gateTimeout, admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, disabled.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, opened.StatusCode);
+        Assert.Empty(await SubmissionsOfAsync(world.Services, formId));
+    }
+
+    /// <summary>The open's lookup of the person's Submitter: after its form check, before the lock.</summary>
+    [GeneratedRegex("""FROM ["\[]Submitters["\]]""")]
+    private static partial Regex SubmitterRead();
+
     private static async Task<string?> TokenOfAsync(IServiceProvider services, long submissionId)
     {
         await using var scope = services.CreateAsyncScope();

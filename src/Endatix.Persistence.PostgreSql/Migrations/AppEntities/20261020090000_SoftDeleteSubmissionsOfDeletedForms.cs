@@ -14,8 +14,10 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             // Every live submission of a deleted form, whatever its definition. Re-running matches nothing.
-            // One statement: PostgreSQL does not escalate row locks, and it locks only these rows, which no request
-            // writes to, since their form is gone. The columns are timestamptz, so now() is the instant as it is.
+            // One statement in the migration's transaction: PostgreSQL does not escalate row locks, and the rows it
+            // holds until the commit are these only, whose form is gone, so no request waits for them: creates are
+            // refused by the form check, and a write to one is not found. They are the leftovers of a race, not a
+            // form's worth of submissions. The columns are timestamptz, so now() is the instant as it is.
             migrationBuilder.Sql("""
                 UPDATE "Submissions" s
                 SET "IsDeleted" = true,

@@ -33,6 +33,7 @@ public class CreateSubmissionHandler(
 
     private const string DEFAULT_JSON_DATA = "{}";
     private const string FORM_NOT_FOUND_MESSAGE = "Form not found. Cannot create a submission";
+    private const string BUSY_MESSAGE = "The form is busy; try again shortly.";
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -96,46 +97,19 @@ public class CreateSubmissionHandler(
             submitterId is not null &&
             !canBypassSingleSubmissionLimit;
 
-        var submission = Submission.Create(new SubmissionCreateArgs(
-            TenantId: activeDefinition!.TenantId,
-            FormId: request.FormId,
-            FormDefinitionId: activeDefinition.Id,
-            JsonData: request.JsonData ?? DEFAULT_JSON_DATA,
-            IsComplete: !screenOut && (request.IsComplete ?? DEFAULT_IS_COMPLETE),
-            CurrentPage: request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
-            Metadata: request.Metadata ?? DEFAULT_METADATA,
-            SubmitterId: submitterId,
-            SubmitterDisplayId: submitterResolution.DisplayId,
-            SubmitterProfileSnapshot: submitterResolution.ProfileSnapshot,
-            IsTestSubmission: canBypassSingleSubmissionLimit,
-            EnforceSingleSubmissionGate: shouldEnforceSingleSubmissionGate,
-            // Public/authenticated Create = respondent engagement; CreateOnBehalf = prefill.
-            StartSubmission: string.Equals(
-                request.RequiredPermission,
-                Actions.Submissions.Create,
-                StringComparison.Ordinal)));
-
-        ApplySnapshot(submission, request.PersonalizationSnapshot);
-        submission.UpdateToken(await tokenService.NewTokenAsync(formWithActiveDefinition, cancellationToken));
-        if (screenOut)
+        var draft = new SubmissionDraft(
+            request,
+            submitterResolution,
+            await tokenService.NewTokenAsync(formWithActiveDefinition, cancellationToken),
+            new SubmissionGate(canBypassSingleSubmissionLimit, shouldEnforceSingleSubmissionGate),
+            activeDefinition.TenantId);
+        var persisted = await PersistAsync(draft, cancellationToken);
+        if (persisted.IsSuccess && persisted.Value.IsComplete)
         {
-            submission.ScreenOut();
+            await mediator.Publish(new SubmissionCompletedEvent(persisted.Value), cancellationToken);
         }
 
-        Result<Submission>? refused = await PersistAsync(
-            new PersistArgs(submission, shouldEnforceSingleSubmissionGate, submitterId, request.FormId),
-            cancellationToken);
-        if (refused is not null)
-        {
-            return refused;
-        }
-
-        if (submission.IsComplete)
-        {
-            await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
-        }
-
-        return Result<Submission>.Created(submission);
+        return persisted;
     }
 
     /// <summary>A public form takes submissions from anyone; any other needs <paramref name="requiredPermission"/>.</summary>
@@ -161,81 +135,136 @@ public class CreateSubmissionHandler(
         };
     }
 
-    private static void ApplySnapshot(Submission submission, string? snapshot)
+    /// <summary>Stores a new submission, created, or says why it was refused.</summary>
+    private async Task<Result<Submission>> PersistAsync(SubmissionDraft draft, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrEmpty(snapshot))
-        {
-            submission.FreezeOnBehalf(snapshot);
-        }
+        Result<Submission>? conflict = await ExistingConflictAsync(draft, cancellationToken);
+        return conflict ?? await InsertAsync(draft, cancellationToken);
     }
 
-    /// <summary>Stores the submission; <see langword="null"/> when it is stored, else why it was refused.</summary>
-    private async Task<Result<Submission>?> PersistAsync(PersistArgs args, CancellationToken cancellationToken)
+    /// <summary>Inserts, or answers the refusal of a concurrent writer: a duplicate, or a deadlock it lost.</summary>
+    private async Task<Result<Submission>> InsertAsync(SubmissionDraft draft, CancellationToken cancellationToken)
     {
-        Result<Submission>? conflict = await ExistingConflictAsync(args, cancellationToken);
-        if (conflict is not null)
-        {
-            return conflict;
-        }
-
         try
         {
-            return await InsertLockedAsync(args, cancellationToken);
+            return await InsertLockedAsync(draft, cancellationToken);
         }
         catch (DuplicateSubmissionException)
         {
-            return await DuplicateConflictAsync(Spec(args), cancellationToken);
+            return await DuplicateConflictAsync(Spec(draft), cancellationToken);
+        }
+        catch (DeadlockVictimException)
+        {
+            return Result<Submission>.Unavailable(BUSY_MESSAGE);
         }
     }
 
     /// <summary>
-    /// Inserts under the form's lock, after reading the form again: the check in <see cref="Handle"/> ran before
-    /// the lock, and the form's deletion may have committed in between.
+    /// Inserts under the form's lock, after reading the form again, as the check in <see cref="Handle"/> does: that
+    /// check ran before the lock, and the form may have been deleted, disabled or given another active definition
+    /// since. The submission is built against the definition read here.
     /// </summary>
-    private async Task<Result<Submission>?> InsertLockedAsync(PersistArgs args, CancellationToken cancellationToken)
+    private async Task<Result<Submission>> InsertLockedAsync(SubmissionDraft draft, CancellationToken cancellationToken)
     {
-        var locked = await formSubmissionsLock.BeginAddingAsync(args.FormId, cancellationToken);
+        var locked = await formSubmissionsLock.BeginAddingAsync(draft.FormId, cancellationToken);
         if (!locked.IsSuccess)
         {
             return locked.ToErrorResult<Submission>();
         }
 
         await using var section = locked.Value;
-        var formSpec = new FormSpecifications.ByIdForTenant(args.FormId, args.Submission.TenantId);
-        if (!await formRepository.AnyAsync(formSpec, cancellationToken))
+        var openForm = new FormSpecifications.OpenFormActiveDefinitionId(draft.FormId, draft.TenantId);
+        if (await formRepository.FirstOrDefaultAsync(openForm, cancellationToken) is not long definitionId)
         {
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
 
-        await submissionRepository.AddAsync(args.Submission, cancellationToken);
+        var submission = draft.Build(definitionId);
+        await submissionRepository.AddAsync(submission, cancellationToken);
         await section.CommitAsync(cancellationToken);
-        return null;
+        return Result<Submission>.Created(submission);
     }
 
     private async Task<Result<Submission>?> ExistingConflictAsync(
-        PersistArgs args,
+        SubmissionDraft draft,
         CancellationToken cancellationToken)
     {
-        if (!args.EnforceGate)
+        if (!draft.EnforceGate)
         {
             return null;
         }
 
         // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
-        SubmissionByFormIdAndSubmitterIdSpec spec = Spec(args);
+        SubmissionByFormIdAndSubmitterIdSpec spec = Spec(draft);
         bool exists = await submissionRepository.AnyAsync(spec, cancellationToken);
         return exists ? await DuplicateConflictAsync(spec, cancellationToken) : null;
     }
 
-    private static SubmissionByFormIdAndSubmitterIdSpec Spec(PersistArgs args) =>
-        new(args.FormId, args.SubmitterId ?? throw new InvalidOperationException(
+    private static SubmissionByFormIdAndSubmitterIdSpec Spec(SubmissionDraft draft) =>
+        new(draft.FormId, draft.SubmitterId ?? throw new InvalidOperationException(
             "A single-submission conflict requires a submitter."));
 
-    private sealed record PersistArgs(
-        Submission Submission,
-        bool EnforceGate,
-        long? SubmitterId,
-        long FormId);
+    /// <summary>Whether the submission is a test one, and whether it carries the one-response restriction key.</summary>
+    private sealed record SubmissionGate(bool IsTest, bool Enforce);
+
+    /// <summary>
+    /// Everything the new submission is made of but its definition, which is read once the form's lock is held.
+    /// </summary>
+    private sealed record SubmissionDraft(
+        CreateSubmissionCommand Request,
+        SubmitterResolution Submitter,
+        Token Token,
+        SubmissionGate Gate,
+        long TenantId)
+    {
+        public long FormId => Request.FormId;
+
+        public long? SubmitterId => Submitter.SubmitterId;
+
+        public bool EnforceGate => Gate.Enforce;
+
+        public Submission Build(long definitionId)
+        {
+            var screenOut = CollectionOutcomes.IsScreenOut(Request.CollectionOutcome);
+            var submission = Submission.Create(CreateArgs(definitionId, screenOut));
+            ApplySnapshot(submission, Request.PersonalizationSnapshot);
+            submission.UpdateToken(Token);
+            if (screenOut)
+            {
+                submission.ScreenOut();
+            }
+
+            return submission;
+        }
+
+        private static void ApplySnapshot(Submission submission, string? snapshot)
+        {
+            if (!string.IsNullOrEmpty(snapshot))
+            {
+                submission.FreezeOnBehalf(snapshot);
+            }
+        }
+
+        private SubmissionCreateArgs CreateArgs(long definitionId, bool screenOut) =>
+            new(
+                TenantId: TenantId,
+                FormId: Request.FormId,
+                FormDefinitionId: definitionId,
+                JsonData: Request.JsonData ?? DEFAULT_JSON_DATA,
+                IsComplete: !screenOut && (Request.IsComplete ?? DEFAULT_IS_COMPLETE),
+                CurrentPage: Request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
+                Metadata: Request.Metadata ?? DEFAULT_METADATA,
+                SubmitterId: Submitter.SubmitterId,
+                SubmitterDisplayId: Submitter.DisplayId,
+                SubmitterProfileSnapshot: Submitter.ProfileSnapshot,
+                IsTestSubmission: Gate.IsTest,
+                EnforceSingleSubmissionGate: Gate.Enforce,
+                // Public/authenticated Create = respondent engagement; CreateOnBehalf = prefill.
+                StartSubmission: string.Equals(
+                    Request.RequiredPermission,
+                    Actions.Submissions.Create,
+                    StringComparison.Ordinal));
+    }
 
     private Task<Result<Submission>> DuplicateConflictAsync(
         SubmissionByFormIdAndSubmitterIdSpec spec,

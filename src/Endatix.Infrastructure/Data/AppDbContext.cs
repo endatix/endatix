@@ -126,6 +126,10 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
         }
+        catch (DbUpdateException dbUpdateException) when (DatabaseDeadlocks.IsVictim(dbUpdateException))
+        {
+            throw DatabaseDeadlocks.Victim(dbUpdateException);
+        }
         catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
             throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
@@ -144,6 +148,10 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
         }
+        catch (DbUpdateException dbUpdateException) when (DatabaseDeadlocks.IsVictim(dbUpdateException))
+        {
+            throw DatabaseDeadlocks.Victim(dbUpdateException);
+        }
         catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
             throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
@@ -151,7 +159,7 @@ public class AppDbContext : DbContext, ITenantDbContext
     }
 
     /// <summary>
-    /// <see cref="Submission.IsDeleted"/> is a concurrency token, so a tracked save of a submission deleted since it
+    /// <see cref="BaseEntity.IsDeleted"/> is a concurrency token on <see cref="Submission"/>, so a tracked save of a submission deleted since it
     /// was read, on its own or with its form, matches no row.
     /// </summary>
     private static bool IsSubmissionDeletedMeanwhile(DbUpdateConcurrencyException concurrencyException) =>

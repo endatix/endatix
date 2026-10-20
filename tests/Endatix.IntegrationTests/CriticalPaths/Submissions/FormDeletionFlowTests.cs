@@ -54,7 +54,7 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
 
     /// <summary>
     /// Earlier versions could leave a submission live under a deleted form. Writes to it are refused as if it were
-    /// gone, so it can no longer change or complete and raise its events.
+    /// gone, its own delete included, so it can no longer change, complete or raise its events.
     /// </summary>
     [Theory]
     [MemberData(nameof(SubmissionWrites))]
@@ -70,6 +70,7 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
         await LeaveLiveAsync(world.Services, target.SubmissionId);
         using var request = WriteRequest(ChangingWrites[write], target);
+        var since = DateTime.UtcNow;
 
         // Act
         using var response = await admin.SendAsync(request, Ct);
@@ -77,6 +78,8 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal(before, await StateAsync(world.Services, target.SubmissionId));
+        Assert.Equal(new Dictionary<long, bool> { [target.SubmissionId] = false }, await DeletedByIdAsync(world.Services, formId));
+        Assert.Empty(await EventTypesNamingAsync(world.Services, target.SubmissionId, since));
     }
 
     /// <summary>

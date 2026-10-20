@@ -27,4 +27,28 @@ public static class SoftDeleteExtensions
                 .SetProperty(row => row.ModifiedAt, now),
             cancellationToken);
     }
+
+    /// <summary>
+    /// Soft-deletes the rows <paramref name="rows"/> matches as <see cref="SoftDeleteAllAsync{TEntity}"/> does, at
+    /// most <paramref name="batchSize"/> per statement, until none is left. <paramref name="rows"/> must leave out
+    /// deleted rows, as the soft-delete query filter does, or the batches would never end.
+    /// </summary>
+    /// <returns>The number of rows it deleted.</returns>
+    public static async Task<int> SoftDeleteInBatchesAsync<TEntity>(
+        this IQueryable<TEntity> rows,
+        int batchSize,
+        CancellationToken cancellationToken)
+        where TEntity : BaseEntity
+    {
+        var total = 0;
+        int deleted;
+        do
+        {
+            deleted = await rows.OrderBy(row => row.Id).Take(batchSize).SoftDeleteAllAsync(cancellationToken);
+            total += deleted;
+        }
+        while (deleted == batchSize);
+
+        return total;
+    }
 }

@@ -36,7 +36,8 @@ internal sealed class RedeemLinkHandler(
     private const string LinkNotFound = "Link not found.";
 
     /// <summary>
-    /// Another open held the link, or the form's deletion held the form; the caller is not told which.
+    /// Another open held the link, the form's deletion held the form, or the open lost a deadlock; the caller is not
+    /// told which.
     /// </summary>
     private const string LinkBusy = "This link can't be opened right now. Try again in a moment.";
 
@@ -54,7 +55,7 @@ internal sealed class RedeemLinkHandler(
         {
             return await OpenOrResumeAsync(link, cancellationToken);
         }
-        catch (TransactionLockTimeoutException)
+        catch (Exception exception) when (exception is TransactionLockTimeoutException or DeadlockVictimException)
         {
             return Result.Unavailable(LinkBusy);
         }
@@ -140,7 +141,7 @@ internal sealed class RedeemLinkHandler(
             return null;
         }
 
-        var opened = await OpenNewAsync(opening, cancellationToken);
+        var opened = await OpenOnCurrentDefinitionAsync(opening, cancellationToken);
         if (opened is { IsSuccess: true })
         {
             await locked.CommitAsync(cancellationToken);
@@ -148,6 +149,16 @@ internal sealed class RedeemLinkHandler(
 
         return opened;
     }
+
+    /// <summary>
+    /// Reads the form again under the lock, as the gates did before it, and opens against the definition active now.
+    /// </summary>
+    private async Task<Result<RedeemedLinkDto>?> OpenOnCurrentDefinitionAsync(
+        LinkOpening opening,
+        CancellationToken cancellationToken) =>
+        await gates.OpenDefinitionIdAsync(opening.Link, cancellationToken) is long definitionId
+            ? await OpenNewAsync(opening with { DefinitionId = definitionId }, cancellationToken)
+            : Result.NotFound(LinkNotFound);
 
     /// <summary>
     /// Takes over the response an earlier open left before its claim, else the person's response on a one-response
@@ -183,7 +194,8 @@ internal sealed class RedeemLinkHandler(
     /// A response this open did not create becomes the link's: it is marked started, and it gets the live audience
     /// values when it has none (an on-behalf create before the person was in the audience). Values it has stay.
     /// The snapshot is read either way: it is the check under the lock that the person is still there.
-    /// <see langword="null"/> when the person was removed, or the response deleted, meanwhile.
+    /// <see langword="null"/> when the person was removed, or the response deleted or its save lost a deadlock,
+    /// meanwhile: the open rolls back with the lock, and every refusal reads the same.
     /// </summary>
     private async Task<Submission?> TakeOverAsync(
         AudienceLink link,
@@ -202,7 +214,7 @@ internal sealed class RedeemLinkHandler(
         }
 
         submission.EnsureStarted();
-        return await submissions.TrySaveChangesAsync(cancellationToken) ? submission : null;
+        return (await submissions.TrySaveChangesAsync(cancellationToken)).IsSuccess ? submission : null;
     }
 
     /// <summary>

@@ -30,7 +30,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormRequest, Results<Ok
             s.Responses[200] = "Form deleted successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
-            s.Responses[503] = "Submissions are being added to the form. Try again in a moment.";
+            s.Responses[503] = "The form is busy; try again shortly.";
         });
         Description(builder => builder
             .Produces<string>(StatusCodes.Status200OK, "application/json")

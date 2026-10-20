@@ -24,7 +24,10 @@ public sealed partial class FormDeletionFlowTests
     /// <summary>The save of the submission's answers, after a by-token write extended its token.</summary>
     private const string AnswersSave = """UPDATE ["\[]Submissions["\]] SET .*JsonData""";
 
-    /// <summary>Every route that changes a live submission: management, by submission token, by access token.</summary>
+    /// <summary>
+    /// Every route that writes a live submission: management, by submission token, by access token, and its own
+    /// delete, which a submission of a deleted form is not found by either.
+    /// </summary>
     private static readonly Dictionary<string, SubmissionWrite> ChangingWrites = new()
     {
         ["PATCH answers"] = new("PATCH", "{id}", ChangedAnswers),
@@ -33,18 +36,17 @@ public sealed partial class FormDeletionFlowTests
         ["POST status"] = new("POST", "{id}/status", $$"""{"status":"{{SubmissionStatusCodes.Read}}"}"""),
         ["PATCH by token"] = new("PATCH", "by-token/{token}", ChangedAnswers),
         ["PATCH by access token"] = new("PATCH", "by-access-token/{accessToken}", ChangedAnswers),
+        ["DELETE"] = new("DELETE", "{id}", null),
     };
 
     /// <summary>
-    /// The changing writes, each paused at its first save of the submission; the by-token PATCH once more, paused at
-    /// its answers' save; and the submission's own delete. Deleting a leftover live submission is allowed, but one
-    /// that loses the race to its form's deletion is not this delete's to report.
+    /// The writes, each paused at its first save of the submission, and the by-token PATCH once more, paused at its
+    /// answers' save.
     /// </summary>
     private static readonly Dictionary<string, SubmissionWrite> RacingWrites =
         new(ChangingWrites)
         {
             ["PATCH by token, at the answers' save"] = ChangingWrites["PATCH by token"] with { PauseAt = AnswersSave },
-            ["DELETE"] = new("DELETE", "{id}", null),
         };
 
     public static TheoryData<string> SubmissionWrites => new(ChangingWrites.Keys);

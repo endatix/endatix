@@ -36,11 +36,8 @@ public class SubmissionDeletedMeanwhileTests
     {
         _submissions.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(_submission);
-        _submissions.GetByIdAsync(SubmissionId, Arg.Any<CancellationToken>()).Returns(_submission);
         _submissions.SaveChangesAsync(Arg.Any<CancellationToken>())
             .Returns<int>(_ => throw new SubmissionDeletedException("deleted"));
-        _submissions.UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>())
-            .Returns<Task>(_ => throw new SubmissionDeletedException("deleted"));
     }
 
     [Fact]
@@ -99,5 +96,38 @@ public class SubmissionDeletedMeanwhileTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
+    public async Task UpdateStatusHandle_SaveChosenAsDeadlockVictim_ReturnsUnavailable()
+    {
+        // Arrange
+        _submissions.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new DeadlockVictimException("deadlock"));
+        var handler = new UpdateStatusHandler(_submissions, NullLogger<UpdateStatusHandler>.Instance);
+        var command = new UpdateStatusCommand(SubmissionId, FormId, SubmissionStatusCodes.Read);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unavailable);
+    }
+
+    [Fact]
+    public async Task PartialUpdateHandle_SaveChosenAsDeadlockVictim_ReturnsUnavailableWithoutPublishing()
+    {
+        // Arrange
+        _submissions.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new DeadlockVictimException("deadlock"));
+        var handler = new PartialUpdateSubmissionHandler(_submissions, _versions, _mediator);
+        var command = new PartialUpdateSubmissionCommand(SubmissionId, FormId, true, null, """{"q":"done"}""", null);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unavailable);
+        await _mediator.DidNotReceive().Publish(Arg.Any<SubmissionCompletedEvent>(), Arg.Any<CancellationToken>());
     }
 }

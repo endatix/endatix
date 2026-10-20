@@ -53,13 +53,15 @@ public class UpdateStatusHandler(
     /// <summary>
     /// Outside <see cref="ChangeStatus"/> and its catches: a persistence failure is not a rejected transition, and
     /// mapping one to a 400 would report an EF Core tracking conflict as caller error, so it reaches
-    /// EndatixExceptionHandler as an opaque, logged 500. A submission deleted meanwhile is not found.
+    /// EndatixExceptionHandler as an opaque, logged 500. A submission deleted meanwhile is not found; a deadlock
+    /// victim is busy.
     /// </summary>
     private async Task<Result<SubmissionDto>> SaveAsync(Submission submission, CancellationToken cancellationToken)
     {
-        return await submissionRepository.TryUpdateAsync(submission, cancellationToken)
+        var saved = await submissionRepository.TrySaveChangesAsync(cancellationToken);
+        return saved.IsSuccess
             ? Result<SubmissionDto>.Success(SubmissionDto.FromSubmission(submission))
-            : Result<SubmissionDto>.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
+            : saved.ToErrorResult<SubmissionDto>();
     }
 
     /// <summary><see langword="null"/> when the status changed, else why it was rejected.</summary>

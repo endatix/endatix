@@ -27,7 +27,7 @@ public sealed class Create(IMediator mediator)
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found. Cannot create a submission.";
             s.Responses[409] = "A submission already exists for this user and form.";
-            s.Responses[503] = "The form is being deleted. Try again in a moment.";
+            s.Responses[503] = "The form is busy; try again shortly.";
         });
         Description(builder => builder
             .Produces<SubmissionModel>(StatusCodes.Status201Created, "application/json")

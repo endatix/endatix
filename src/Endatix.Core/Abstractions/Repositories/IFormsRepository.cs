@@ -18,7 +18,7 @@ public interface IFormsRepository : IRepository<Form>
     Task<Form> CreateFormWithDefinitionAsync(Form form, FormDefinition formDefinition, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Soft-deletes every live submission of <paramref name="form"/> in one statement, in the caller's transaction,
+    /// Soft-deletes every live submission of <paramref name="form"/> in batches, all in the caller's transaction,
     /// without loading them. It raises no event per submission: the form's own deletion event is the signal, and its
     /// subscribers clean up by form.
     /// </summary>

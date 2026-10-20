@@ -50,11 +50,12 @@ public class SubmissionTokenService : ISubmissionTokenService
         return await SaveTokenAsync(submission, cancellationToken);
     }
 
-    /// <summary>A submission deleted since it was read, on its own or with its form, is not found.</summary>
-    private async Task<Result<string>> SaveTokenAsync(Submission submission, CancellationToken cancellationToken) =>
-        await _submissionRepository.TrySaveChangesAsync(cancellationToken)
-            ? Result<string>.Success(submission.Token!.Value)
-            : Result<string>.NotFound("Submission not found");
+    /// <summary>A submission deleted since it was read, on its own or with its form, is not found; a deadlock victim is busy.</summary>
+    private async Task<Result<string>> SaveTokenAsync(Submission submission, CancellationToken cancellationToken)
+    {
+        var saved = await _submissionRepository.TrySaveChangesAsync(cancellationToken);
+        return saved.IsSuccess ? Result<string>.Success(submission.Token!.Value) : saved.ToErrorResult<string>();
+    }
 
     public async Task<Token> NewTokenAsync(Form form, CancellationToken cancellationToken)
     {

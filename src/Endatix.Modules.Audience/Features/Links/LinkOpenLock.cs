@@ -30,7 +30,7 @@ internal sealed class LinkOpenLock(IAudienceDbContext db, AppDbContext app, ITra
     /// another one, so the opens and the deletion never wait in a cycle.
     /// </summary>
     /// <exception cref="TransactionLockTimeoutException">Another open held the link for longer than <see cref="Wait"/>, or the form's deletion held the form.</exception>
-    public async Task<LockedLink> BeginOpenAsync(AudienceLink link, CancellationToken cancellationToken)
+    public async Task<LockedSection> BeginOpenAsync(AudienceLink link, CancellationToken cancellationToken)
     {
         var locked = await BeginAsync(link.Id, cancellationToken);
         try
@@ -49,7 +49,7 @@ internal sealed class LinkOpenLock(IAudienceDbContext db, AppDbContext app, ITra
     }
 
     /// <exception cref="TransactionLockTimeoutException">Another open held the link for longer than <see cref="Wait"/>.</exception>
-    public async Task<LockedLink> BeginAsync(long linkId, CancellationToken cancellationToken)
+    public async Task<LockedSection> BeginAsync(long linkId, CancellationToken cancellationToken)
     {
         var audience = ((DbContext)db).Database;
         var transaction = await transactionLock.BeginLockedTransactionAsync(
@@ -60,7 +60,7 @@ internal sealed class LinkOpenLock(IAudienceDbContext db, AppDbContext app, ITra
         {
             app.Database.SetDbConnection(audience.GetDbConnection());
             await app.Database.UseTransactionAsync(transaction.GetDbTransaction(), cancellationToken);
-            return new LockedLink(app, transaction);
+            return new LockedSection(transaction, app);
         }
         catch
         {
@@ -74,28 +74,4 @@ internal sealed class LinkOpenLock(IAudienceDbContext db, AppDbContext app, ITra
         {
             Timeout = Wait,
         };
-}
-
-/// <summary>A locked section. Disposing it without <see cref="CommitAsync"/> rolls back everything it wrote.</summary>
-internal sealed class LockedLink(AppDbContext app, IDbContextTransaction transaction) : IAsyncDisposable
-{
-    private bool _committed;
-
-    public async Task CommitAsync(CancellationToken cancellationToken)
-    {
-        await transaction.CommitAsync(cancellationToken);
-        _committed = true;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await transaction.DisposeAsync();
-        await app.Database.UseTransactionAsync(null);
-        if (!_committed)
-        {
-            // The rows rolled back, but the context still tracks them. An insert the unique index refused stays
-            // Added, and the next save in this request would send it again.
-            app.ChangeTracker.Clear();
-        }
-    }
 }

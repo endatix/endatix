@@ -35,7 +35,7 @@ public class UpdateStatusHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.Errors.First().Should().Contain("Submission not found");
         await _submissionRepository.DidNotReceive()
-            .UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
+            .SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class UpdateStatusHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "Invalid status code.");
         await _submissionRepository.DidNotReceive()
-            .UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
+            .SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class UpdateStatusHandlerTests
         result.Value.Status.Should().Be("approved");
 
         await _submissionRepository.Received(1)
-            .UpdateAsync(Arg.Is<Submission>(s => s.Id == submission.Id), Arg.Any<CancellationToken>());
+            .SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -105,6 +105,6 @@ public class UpdateStatusHandlerTests
         result.Value.Status.Should().Be(statusCode);
 
         await _submissionRepository.Received(1)
-            .UpdateAsync(Arg.Is<Submission>(s => s.Id == submission.Id), Arg.Any<CancellationToken>());
+            .SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

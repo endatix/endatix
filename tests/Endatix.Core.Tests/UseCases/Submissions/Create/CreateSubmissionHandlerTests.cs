@@ -38,8 +38,8 @@ public class CreateSubmissionHandlerTests
         _submitterResolver = Substitute.For<ISubmitterResolver>();
         _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(null, null, null));
-        _formsRepository.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
-            .Returns(true);
+        _formsRepository.FirstOrDefaultAsync(Arg.Any<FormSpecifications.OpenFormActiveDefinitionId>(), Arg.Any<CancellationToken>())
+            .Returns((long?)2);
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,

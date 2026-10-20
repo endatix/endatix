@@ -60,14 +60,14 @@ public class CreateSubmissionFormLockTests
         Received.InOrder(() =>
         {
             _formLock.Lock.BeginAddingAsync(FormId, Arg.Any<CancellationToken>());
-            _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>());
+            _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.OpenFormActiveDefinitionId>(), Arg.Any<CancellationToken>());
             _submissions.AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
             _formLock.Section.CommitAsync(Arg.Any<CancellationToken>());
         });
     }
 
     [Fact]
-    public async Task Handle_FormDeletedWhileWaitingForTheLock_ReturnsNotFoundWithoutInserting()
+    public async Task Handle_FormDeletedOrDisabledWhileWaitingForTheLock_ReturnsNotFoundWithoutInserting()
     {
         // Arrange
         StubFormLiveUnderLock(false);
@@ -80,6 +80,37 @@ public class CreateSubmissionFormLockTests
         await _submissions.DidNotReceive().AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
         await _formLock.Section.DidNotReceive().CommitAsync(Arg.Any<CancellationToken>());
         await _formLock.Section.Received(1).DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Handle_DefinitionPublishedWhileWaitingForTheLock_InsertsAgainstTheDefinitionReadUnderIt()
+    {
+        // Arrange
+        const long publishedMeanwhile = 7;
+        StubDefinitionUnderLock(publishedMeanwhile);
+
+        // Act
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.FormDefinitionId.Should().Be(publishedMeanwhile);
+    }
+
+    [Fact]
+    public async Task Handle_InsertChosenAsDeadlockVictim_ReturnsUnavailable()
+    {
+        // Arrange
+        StubFormLiveUnderLock(true);
+        _submissions.AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new DeadlockVictimException("deadlock"));
+
+        // Act
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unavailable);
+        await _formLock.Section.DidNotReceive().CommitAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -121,9 +152,12 @@ public class CreateSubmissionFormLockTests
         });
     }
 
-    private void StubFormLiveUnderLock(bool live) =>
-        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
-            .Returns(live);
+    private void StubFormLiveUnderLock(bool live) => StubDefinitionUnderLock(live ? 2 : null);
+
+    /// <summary>The form's active definition as read under the lock; <see langword="null"/> once it takes none.</summary>
+    private void StubDefinitionUnderLock(long? definitionId) =>
+        _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.OpenFormActiveDefinitionId>(), Arg.Any<CancellationToken>())
+            .Returns(definitionId);
 
     private static CreateSubmissionCommand Command() =>
         new(FormId, "{}", null, null, false, null, Actions.Submissions.Create);

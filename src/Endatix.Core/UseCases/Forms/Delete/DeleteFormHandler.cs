@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -20,6 +21,7 @@ public class DeleteFormHandler(
     IMediator mediator) : ICommandHandler<DeleteFormCommand, Result<Form>>
 {
     private const string FORM_NOT_FOUND_MESSAGE = "Form not found.";
+    private const string BUSY_MESSAGE = "The form is busy; try again shortly.";
 
     public async Task<Result<Form>> Handle(DeleteFormCommand request, CancellationToken cancellationToken)
     {
@@ -49,14 +51,26 @@ public class DeleteFormHandler(
         }
 
         await using var section = locked.Value;
-        return await DeleteLockedAsync(formId, section, cancellationToken);
+        try
+        {
+            return await DeleteLockedAsync(formId, section, cancellationToken);
+        }
+        catch (DeadlockVictimException)
+        {
+            // Rolled back whole by the database; deleting again is safe.
+            return Result.Unavailable(BUSY_MESSAGE);
+        }
     }
 
     /// <summary>
     /// Reads the form again under the lock, so the read sees every create that committed before it, and a deletion
-    /// that committed while this one waited. The submissions are
-    /// deleted by form rather than loaded, which keeps the section short for the creates waiting on it.
+    /// that committed while this one waited. The submissions are deleted by form rather than loaded, in batches.
     /// </summary>
+    /// <remarks>
+    /// Submissions first, then the form and its definitions, the order a submission's writers lock them in: a
+    /// writer locks its submission's row and, when it changes the row's form or definition key, checks those rows.
+    /// Taking the form's rows first would let such a writer and this deletion each wait for the other.
+    /// </remarks>
     private async Task<Result<Form>> DeleteLockedAsync(
         long formId,
         IFormSubmissionsSection section,
@@ -68,9 +82,9 @@ public class DeleteFormHandler(
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
 
-        form.Delete();
-        await forms.UpdateAsync(form, cancellationToken);
         await forms.DeleteSubmissionsAsync(form, cancellationToken);
+        form.Delete();
+        await forms.SaveChangesAsync(cancellationToken);
         await section.CommitAsync(cancellationToken);
         return Result.Success(form);
     }

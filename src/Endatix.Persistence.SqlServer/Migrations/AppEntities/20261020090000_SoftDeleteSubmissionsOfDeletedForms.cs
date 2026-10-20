@@ -14,13 +14,16 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             // Every live submission of a deleted form, whatever its definition. Re-running matches nothing.
-            // Batches keep each statement well under the 5,000 locks at which SQL Server escalates it to a lock on
-            // the whole Submissions table, which would hold up every request while the migration's transaction runs.
-            // Earlier batches' row locks are still held until the migration commits; they cover only submissions of
-            // deleted forms, which nothing writes to.
+            // The deleted forms are read once, into a temp table, so a batch finds its rows through
+            // IX_Submissions_FormId instead of joining Forms again. Batches of 1,000 rows, with their index entries,
+            // stay under the 5,000 locks at which a statement escalates to a lock on the whole Submissions table.
+            // Outside a transaction, each batch commits on its own and lets its row locks go: the statement is
+            // idempotent, so a migration stopped half-way is finished by the next run.
             migrationBuilder.Sql("""
                 DECLARE @now datetime2 = SYSUTCDATETIME();
                 DECLARE @updated int = 1;
+                CREATE TABLE #DeletedForms (Id bigint NOT NULL PRIMARY KEY);
+                INSERT INTO #DeletedForms (Id) SELECT Id FROM Forms WHERE IsDeleted = 1;
                 WHILE @updated > 0
                 BEGIN
                     UPDATE TOP (1000) s
@@ -28,12 +31,13 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         s.DeletedAt = @now,
                         s.ModifiedAt = @now
                     FROM Submissions s
-                    INNER JOIN Forms f ON f.Id = s.FormId
-                    WHERE f.IsDeleted = 1
-                      AND s.IsDeleted = 0;
+                    INNER JOIN #DeletedForms f ON f.Id = s.FormId
+                    WHERE s.IsDeleted = 0;
                     SET @updated = @@ROWCOUNT;
                 END
-                """);
+                DROP TABLE #DeletedForms;
+                """,
+                suppressTransaction: true);
         }
 
         /// <inheritdoc />
