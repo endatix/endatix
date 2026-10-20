@@ -47,9 +47,6 @@ internal sealed class JobsSchedulerHostedService(
     // is seen without flooding the log.
     private const int TriesPerRepeatedWarning = 12;
 
-    // How Quartz 4.2.2 begins the SchedulerConfigException ISchedulerRuntime.Restart throws once the host is stopping.
-    private const string QuartzHostStoppingRefusal = "The host is stopping, so scheduler '";
-
     // A start still waiting for the database stops waiting as soon as the host starts stopping, before this service is
     // stopped: from then on Quartz refuses to rebuild a scheduler, and a try made then would only fail.
     private readonly CancellationTokenSource _stopping =
@@ -60,8 +57,7 @@ internal sealed class JobsSchedulerHostedService(
     private int _contendedTries;
     private int _unexplainedAborts;
     private int _unreachableTries;
-    private int _unreachableTriesSinceLogged;
-    private OutageKind? _loggedOutage;
+    private readonly Dictionary<OutageKind, int> _triesSinceLogged = [];
 
     private enum StartResult
     {
@@ -239,17 +235,34 @@ internal sealed class JobsSchedulerHostedService(
         return await database.UnreachableBecauseAsync(cancellationToken) is { } away ? Unreachable(away) : Contended(exception);
     }
 
-    // A 25P02 hides why its transaction failed, so the probe is asked again. A connection that landed on a read-only
-    // session during a switchover, after the probe found a writable one, is an outage. Anything else is retried, but
-    // Quartz 4.2.2's row-lock handler retries its lock statement inside the aborted transaction and reports only the
-    // last 25P02, so the cause it hid may be a lost race that clears, such as a lock wait past lock_timeout (55P03,
-    // measured), or a refusal that never does, such as a role without privileges on jobs.qrtz_LOCKS (42501), and every
-    // later try looks the same. A missing jobs.qrtz_LOCKS (42P01) looks the same too, and clears once migrated.
-    private async Task<StartResult> ExplainAbortedTransactionAsync(Exception aborted, CancellationToken cancellationToken) =>
-        await database.UnreachableBecauseAsync(cancellationToken) is { } explained ? Unreachable(explained) : UnexplainedAbort(aborted);
+    // A 25P02 hides why its transaction failed: Quartz 4.2.2's row-lock handler retries its lock statement inside the
+    // aborted transaction and reports only the last 25P02 (measured). So the database is asked. A connection that
+    // landed on a read-only session during a switchover, after the probe found a writable one, is an outage. A role
+    // that may not take the lock (42501, hidden the same way, measured) is a refusal, and fails the start as a refused
+    // login does. Anything else is a lost race inside the lock, such as a lock wait past lock_timeout (55P03, measured).
+    // A missing lock table never gets this far: Quartz's schema validation refuses the start first (measured).
+    private async Task<StartResult> ExplainAbortedTransactionAsync(Exception aborted, CancellationToken cancellationToken)
+    {
+        if (await database.UnreachableBecauseAsync(cancellationToken) is { } explained)
+        {
+            return Unreachable(explained);
+        }
 
-    // Paced as a lost race, and said to be one or a hidden refusal; a run of them is raised to an error, since a refusal
-    // would never end it.
+        string? refusal;
+        try
+        {
+            refusal = await database.LockTableRefusalAsync(cancellationToken);
+        }
+        catch (Exception away) when (DatabaseFailures.IsAwayAtStartup(away))
+        {
+            return Unreachable(away);
+        }
+
+        return refusal is null ? UnexplainedAbort(aborted) : throw new InvalidOperationException(refusal, aborted);
+    }
+
+    // Paced as a lost race; a run of them is raised to an error, since contention that never clears, such as a lock
+    // held for long or a lock_timeout shorter than the waits, needs someone to look.
     private StartResult UnexplainedAbort(Exception aborted)
     {
         _contendedTries++;
@@ -258,14 +271,14 @@ internal sealed class JobsSchedulerHostedService(
         {
             logger.LogError(
                 aborted,
-                "The background jobs scheduler has met a failed transaction inside Quartz's lock on {Tries} tries in a row. Quartz reports it without its cause, which is likely a refusal it hid rather than a lost race: check the role's privileges on jobs.qrtz_LOCKS, and that the table exists. Retrying.",
+                "The background jobs scheduler has met a failed transaction inside Quartz's lock on {Tries} tries in a row, which Quartz reports without its cause. The role may take the lock, so it is contention that does not clear: a lock on jobs.qrtz_LOCKS held for long, or a lock_timeout or statement_timeout shorter than the waits. Retrying.",
                 inARow);
         }
         else if (inARow == 1)
         {
             logger.LogWarning(
                 aborted,
-                "The background jobs scheduler met a failed transaction inside Quartz's lock while starting, which Quartz reports without its cause: a lost race, such as a lock wait past lock_timeout, or a refusal it hid, such as missing privileges on jobs.qrtz_LOCKS or a missing jobs.qrtz_LOCKS. Retrying.");
+                "The background jobs scheduler met a failed transaction inside Quartz's lock while starting, which Quartz reports without its cause; the role may take the lock, so it is a lost race, such as a lock wait past lock_timeout. Retrying.");
         }
 
         return StartResult.Contended;
@@ -312,10 +325,9 @@ internal sealed class JobsSchedulerHostedService(
         }
     }
 
-    // What a stop itself causes: the wait cancelled, or Quartz refusing to rebuild a scheduler once the host is stopping.
-    private static bool IsPartOfTheStop(Exception exception) =>
-        exception.HasCause(cause => cause is OperationCanceledException
-            || (cause is SchedulerConfigException && cause.Message.StartsWith(QuartzHostStoppingRefusal, StringComparison.Ordinal)));
+    // What a stop itself causes is a cancellation: the wait cancelled, or a rebuild the scheduler's factory turned into
+    // one because the host is stopping.
+    private static bool IsPartOfTheStop(Exception exception) => exception.HasCause(cause => cause is OperationCanceledException);
 
     // Waits after each failed try for as long as its kind of failure takes to clear, then tries again.
     private async Task RetryUntilStartedAsync(StartResult result, CancellationToken stoppingToken)
@@ -332,20 +344,23 @@ internal sealed class JobsSchedulerHostedService(
     // can tell an outage from a mistake, such as a mistyped host. A database that cannot be opened is named too, since
     // SQL Server reports a misnamed one as it reports a restoring one. Drivers leave the password out of what they
     // report, so the failure is safe to log.
-    // An outage of a different kind from the one last logged is logged at once, so a change, from unreachable to
-    // read-only say, is not held back behind the other's cadence.
+    // Each kind of outage keeps its own cadence: one met for the first time is logged at once, so a change, from
+    // unreachable to read-only say, is not held back behind the other's, and kinds that alternate, as during a
+    // failover, are each logged one try in twelve rather than every time.
     private StartResult Unreachable(Exception away)
     {
         _contendedTries = 0;
         _unexplainedAborts = 0;
         _unreachableTries++;
         var kind = KindOf(away);
-        if (kind != _loggedOutage || ++_unreachableTriesSinceLogged >= TriesPerRepeatedWarning)
+        var since = _triesSinceLogged.TryGetValue(kind, out var tries) ? tries + 1 : TriesPerRepeatedWarning;
+        if (since >= TriesPerRepeatedWarning)
         {
             LogUnreachable(away, kind);
-            _loggedOutage = kind;
-            _unreachableTriesSinceLogged = 0;
+            since = 0;
         }
+
+        _triesSinceLogged[kind] = since;
 
         return StartResult.Unreachable;
     }

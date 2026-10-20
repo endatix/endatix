@@ -144,6 +144,27 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
     }
 
     [Fact]
+    public async Task GetScheduler_RebuildRefusedWhileTheHostStops_FailsWithACancellation()
+    {
+        // Arrange — Quartz refuses to rebuild once the host is stopping; the caller's own token is not cancelled.
+        _shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw new SchedulerException("The store failed."));
+        _runtime.Restart(QuartzRegistration.SchedulerName, Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
+            .Returns<IScheduler>(_ =>
+            {
+                _stopping.Cancel();
+                throw new SchedulerConfigException("Quartz will not rebuild a scheduler while the host stops.");
+            });
+        var factory = Factory();
+        await FirstBuildFailsAsync(factory);
+
+        // Act
+        var rebuild = () => factory.GetScheduler(Ct).AsTask();
+
+        // Assert — a cancellation, told apart by its type, carrying what Quartz said.
+        (await rebuild.Should().ThrowAsync<OperationCanceledException>()).Which.InnerException.Should().BeOfType<SchedulerConfigException>();
+    }
+
+    [Fact]
     public async Task GetScheduler_RebuildFailingAfterEveryCallerLeft_LogsTheFailure()
     {
         // Arrange — the only caller stops waiting before the rebuild fails.

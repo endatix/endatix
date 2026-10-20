@@ -185,7 +185,10 @@ That is what allows API and worker roles to be deployed separately from the same
 out while connecting) starts without its scheduler, logs that it could not reach its database, with
 the driver's failure (which never includes the password), on the first try and every 12th after, and
 starts the scheduler once it can; a database that refuses, such as a login it does not accept, fails
-the start. A database that cannot be opened (SQL Server 4060, PostgreSQL 3D000) is retried too, with an
+the start. So does a PostgreSQL role that may not take Quartz's lock (it needs SELECT, UPDATE and
+INSERT on `jobs.qrtz_locks`): PostgreSQL's refusal reaches the start only as the 25P02 Quartz reports
+after it, so the scheduler asks for the role's privileges when it meets one, and a failed
+transaction inside the lock that the role and the database do not explain is retried as a lost race. A database that cannot be opened (SQL Server 4060, PostgreSQL 3D000) is retried too, with an
 error naming it ("cannot open database …: it is missing, offline or being restored, or not created
 yet"): SQL Server reports a missing database exactly as it reports one that is offline or being
 restored, and PostgreSQL's may still be being created. A read-only database (SQL Server 3906,

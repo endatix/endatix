@@ -28,6 +28,9 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// </remarks>
 internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSql, bool locksOnInsert)
 {
+    // The table Quartz takes its lock on, as PostgreSQL names it.
+    private const string PostgreSqlLockTable = QuartzRegistration.TablePrefix + "locks";
+
     /// <summary>The connection string; never printed (see <see cref="ToString"/>).</summary>
     public string ConnectionString { get; } = connectionString;
 
@@ -115,6 +118,38 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()";
         return await command.ExecuteScalarAsync(cancellationToken) is true;
+    }
+
+    /// <summary>
+    /// Why this connection's role may not take Quartz's lock on PostgreSQL, or <see langword="null"/> when it may, or
+    /// on SQL Server, or when the lock table is not there yet.
+    /// </summary>
+    /// <remarks>
+    /// Quartz takes its lock with <c>SELECT … FOR UPDATE</c> on <c>jobs.qrtz_locks</c> and inserts the row when it is
+    /// missing, so the role needs SELECT, UPDATE and INSERT on it. Without them PostgreSQL refuses with 42501, which
+    /// Quartz 4.2.2 reports as the 25P02 of its next statement (measured), so only asking tells the refusal from a lost
+    /// race. SQL Server reports a missing permission there as it is (229, measured), so it is not asked.
+    /// </remarks>
+    public async Task<string?> LockTableRefusalAsync(CancellationToken cancellationToken)
+    {
+        if (!IsPostgreSql)
+        {
+            return null;
+        }
+
+        await using var connection = Connect();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT to_regclass('{PostgreSqlLockTable}') IS NOT NULL
+                AND NOT (has_table_privilege('{PostgreSqlLockTable}', 'SELECT')
+                    AND has_table_privilege('{PostgreSqlLockTable}', 'UPDATE')
+                    AND has_table_privilege('{PostgreSqlLockTable}', 'INSERT'))
+            """;
+        return await command.ExecuteScalarAsync(cancellationToken) is true
+            ? $"The background jobs scheduler cannot start: database role '{new NpgsqlConnectionStringBuilder(ConnectionString).Username}' " +
+              $"cannot take Quartz's lock on {PostgreSqlLockTable}. Grant it SELECT, UPDATE and INSERT on that table."
+            : null;
     }
 
     // A read-only PostgreSQL database, a standby or one with default_transaction_read_only on, refuses the scheduler's

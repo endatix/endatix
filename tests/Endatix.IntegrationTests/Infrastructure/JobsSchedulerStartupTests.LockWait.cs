@@ -47,6 +47,48 @@ public sealed partial class JobsSchedulerStartupTests
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
     }
 
+    [Fact]
+    public async Task Scheduler_whose_role_may_not_update_the_lock_table_fails_startup_saying_so()
+    {
+        // Arrange — the role can read and write the job tables but not UPDATE Quartz's lock table, which PostgreSQL
+        // refuses with 42501 inside Quartz's lock, and Quartz reports as a 25P02.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, "SQL Server reports the missing permission as it is.");
+        var ct = TestContext.Current.CancellationToken;
+        var role = $"t9_lock_{Guid.NewGuid():N}"[..20];
+        const string password = "Lock-Role-Pa55word";
+        Func<Task> start;
+        var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        try
+        {
+            await MigrateAsync(database, ct);
+            await database.ExecuteAsync($"""
+                CREATE ROLE {role} LOGIN PASSWORD '{password}';
+                GRANT USAGE ON SCHEMA jobs TO {role};
+                GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA jobs TO {role};
+                REVOKE UPDATE ON jobs.qrtz_locks FROM {role};
+                """, ct);
+            var target = new JobsTestNodeDatabase(
+                database.Provider,
+                new NpgsqlConnectionStringBuilder(database.ConnectionString) { Username = role, Password = password }.ConnectionString);
+            await using var node = JobsTestNode.Create(target, migrate: false);
+
+            // Act
+            start = () => node.StartAsync(ct);
+
+            // Assert — refused at once, naming the role and the table, without the password.
+            var refused = (await start.Should().ThrowAsync<InvalidOperationException>()).Which;
+            refused.Message.Should().Contain($"database role '{role}' cannot take Quartz's lock on jobs.qrtz_locks");
+            refused.ToString().Should().NotContain(password);
+        }
+        finally
+        {
+            // A role is the server's, not the database's: its grants go first, so dropping it leaves nothing behind.
+            NpgsqlConnection.ClearAllPools();
+            await database.ExecuteAsync($"DROP OWNED BY {role}; DROP ROLE IF EXISTS {role}", CancellationToken.None);
+            await database.DisposeAsync();
+        }
+    }
+
     // Quartz's trigger lock row, held by a session of its own, on a database whose other sessions wait at most a second.
     private sealed class HeldTriggerLock : IAsyncDisposable
     {

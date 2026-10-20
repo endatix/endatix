@@ -1,6 +1,9 @@
 using Endatix.IntegrationTests.Infrastructure.Jobs;
+using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Quartz;
 
@@ -23,7 +26,8 @@ public sealed partial class JobsSchedulerStartupTests
         var ct = TestContext.Current.CancellationToken;
 
         // Act
-        var logs = await StopWhileWaitingAsync(stopping => throw new SchedulerConfigException(HostStopping), stopBetweenTries: true, ct);
+        var logs = await StopWhileWaitingAsync(
+            stopping => throw new SchedulerConfigException(HostStopping), new(StopBetweenTries: true, ThroughTheModulesFactory: true), ct);
 
         // Assert
         logs.Entries.Should().NotContain(entry => entry.Level >= LogLevel.Warning && entry.Message.Contains(StoppedBeforeStarting));
@@ -33,7 +37,8 @@ public sealed partial class JobsSchedulerStartupTests
     [Fact]
     public async Task Scheduler_whose_try_fails_because_the_host_is_stopping_stops_quietly()
     {
-        // Arrange — the host starts stopping while a try is under way, which Quartz then refuses.
+        // Arrange — the host starts stopping while a rebuild is under way, which Quartz then refuses; the module's factory
+        // turns that refusal into the cancellation the stop caused, whatever Quartz says.
         var ct = TestContext.Current.CancellationToken;
 
         // Act
@@ -43,7 +48,7 @@ public sealed partial class JobsSchedulerStartupTests
                 stopping.Cancel();
                 throw new SchedulerConfigException(HostStopping);
             },
-            stopBetweenTries: false,
+            new(StopBetweenTries: false, ThroughTheModulesFactory: true),
             ct);
 
         // Assert
@@ -66,7 +71,7 @@ public sealed partial class JobsSchedulerStartupTests
                 stopping.Cancel();
                 throw new InvalidOperationException(refusal);
             },
-            stopBetweenTries: false,
+            new(StopBetweenTries: false, ThroughTheModulesFactory: false),
             ct);
 
         // Assert
@@ -77,33 +82,69 @@ public sealed partial class JobsSchedulerStartupTests
     }
 
     // Starts the hosted service over a build that fails as in a failover, so the start waits; the next try runs
-    // nextTry, which is given the host's stopping signal. Waits past that try, then stops.
+    // nextTry, which is given the host's stopping signal. Through the module's factory the next try is its rebuild, as
+    // on a real node; otherwise the hosted service sees what nextTry throws as it is. Waits past that try, then stops.
     private async Task<CapturingLoggerProvider> StopWhileWaitingAsync(
         Func<CancellationTokenSource, IScheduler> nextTry,
-        bool stopBetweenTries,
+        StopTiming timing,
         CancellationToken ct)
     {
         using var stopping = new CancellationTokenSource();
         var lifetime = Substitute.For<IHostApplicationLifetime>();
         lifetime.ApplicationStopping.Returns(stopping.Token);
-        var schedulers = Substitute.For<ISchedulerFactory>();
-        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(
-            _ => throw new SchedulerException(
-                "The store failed.",
-                new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown)),
-            _ => nextTry(stopping));
+        var shipped = Substitute.For<ISchedulerFactory>();
+        var failover = new SchedulerException(
+            "The store failed.",
+            new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown));
         var logs = new CapturingLoggerProvider();
+        ISchedulerFactory schedulers;
+        if (timing.ThroughTheModulesFactory)
+        {
+            shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw failover);
+            var runtime = Substitute.For<ISchedulerRuntime>();
+            runtime.Restart(Arg.Any<string>(), Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
+                .Returns(_ => new ValueTask<IScheduler>(nextTry(stopping)));
+            schedulers = ModulesFactoryOver(shipped, runtime, lifetime);
+        }
+        else
+        {
+            shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw failover, _ => nextTry(stopping));
+            schedulers = shipped;
+        }
+
         using var service = HostedServiceOver(
             new HostedServiceParts(new(fixture.Provider, fixture.ConnectionString), schedulers, logs) { Lifetime = lifetime });
 
         await service.StartAsync(ct);
-        if (stopBetweenTries)
+        if (timing.StopBetweenTries)
         {
             await stopping.CancelAsync();
         }
 
         await Task.Delay(TimeSpan.FromSeconds(7), ct);
         await service.StopAsync(ct);
+        (schedulers as IDisposable)?.Dispose();
         return logs;
     }
+
+    // The module's own factory, over Quartz's that a test controls, with the services a rebuild resolves.
+    private static ReadCommittedSnapshotGatedSchedulerFactory ModulesFactoryOver(
+        ISchedulerFactory shipped,
+        ISchedulerRuntime runtime,
+        IHostApplicationLifetime lifetime)
+    {
+        var services = new ServiceCollection()
+            .AddSingleton(runtime)
+            .AddSingleton(lifetime)
+            .AddSingleton(new JobsSchedulerSizing())
+            .AddSingleton(JobHandlerRegistry.Build([]))
+            .AddSingleton(new JobTypePolicies(Options.Create(new BackgroundJobsOptions()), new JobTypeDefaults([])))
+            .BuildServiceProvider();
+        var database = new JobStoreDatabase("Host=localhost", isPostgreSql: true, locksOnInsert: false);
+        return new ReadCommittedSnapshotGatedSchedulerFactory(shipped, services, new ReadCommittedSnapshotRequirement(database));
+    }
+
+    /// <param name="StopBetweenTries">The host starts stopping before the next try rather than during it.</param>
+    /// <param name="ThroughTheModulesFactory">The next try is the module's factory rebuilding the scheduler.</param>
+    private sealed record StopTiming(bool StopBetweenTries, bool ThroughTheModulesFactory);
 }

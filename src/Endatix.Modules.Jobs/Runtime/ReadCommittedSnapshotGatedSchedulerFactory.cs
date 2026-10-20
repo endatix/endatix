@@ -220,10 +220,19 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
     // The rebuilt scheduler's container cannot resolve the application's job handlers, so its size is worked out here
     // first, from the application's. The runtime is resolved only when it is needed: Quartz builds it from services
     // that include this factory's own registration, so resolving it while this factory is being created never ends.
+    // A rebuild that fails once the host is stopping, as Quartz refuses one then, is a cancellation: the stop caused it,
+    // and callers tell it apart by its type, not by what Quartz says.
     private async ValueTask<IScheduler> RebuildAsync(CancellationToken cancellationToken)
     {
         services.GetRequiredService<JobsSchedulerSizing>().ThreadCount(services);
-        return await services.GetRequiredService<ISchedulerRuntime>().Restart(
-            QuartzRegistration.SchedulerName, SchedulerRestartOptions.WithoutStarting, cancellationToken);
+        try
+        {
+            return await services.GetRequiredService<ISchedulerRuntime>().Restart(
+                QuartzRegistration.SchedulerName, SchedulerRestartOptions.WithoutStarting, cancellationToken);
+        }
+        catch (Exception failure) when (cancellationToken.IsCancellationRequested && failure is not OperationCanceledException)
+        {
+            throw new OperationCanceledException("The host is stopping, so the background jobs scheduler was not rebuilt.", failure, cancellationToken);
+        }
     }
 }
