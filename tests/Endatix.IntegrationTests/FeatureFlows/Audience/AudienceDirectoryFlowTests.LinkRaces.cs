@@ -294,7 +294,7 @@ public sealed partial class AudienceDirectoryFlowTests
             forms,
             new EfRepository<Submitter>(app, evaluator),
             services.GetRequiredService<ISubmitterResolver>());
-        return new RedeemLinkHandler(audience, submissions, tokens, linkLock, gates);
+        return new RedeemLinkHandler(audience, submissions, app, tokens, linkLock, gates);
     }
 
     /// <summary>

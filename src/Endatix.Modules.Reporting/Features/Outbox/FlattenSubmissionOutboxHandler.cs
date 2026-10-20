@@ -67,7 +67,9 @@ internal sealed class FlattenSubmissionOutboxHandler(
         var changeKindWireValue = JsonElementReader.TryGetString(payload, "changeKind");
         var changeKind = SubmissionChangeKindsExtensions.ParseWireValue(changeKindWireValue);
 
-        if (changeKind.AffectsSubmissionData())
+        // A mark as real must bring back the row a schema replace may have cleared while the submission was a test.
+        // Flattening is idempotent, so a mark as test flattens too.
+        if (changeKind.AffectsSubmissionData() || changeKind.HasFlag(SubmissionChangeKinds.Test))
         {
             return false;
         }
