@@ -38,18 +38,17 @@ async function getJson(url, deadline = Date.now() + TIMEOUT_MS) {
   return response.json();
 }
 
-async function waitForAnalysis(ceTaskId) {
-  const ceTaskUrl = sonarApiUrl(SONAR_HOST, '/api/ce/task', { id: ceTaskId });
-  const deadline = Date.now() + TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const { task } = await getJson(ceTaskUrl, deadline);
-    if (task.status === 'SUCCESS') return task.analysisId;
-    if (task.status === 'FAILED' || task.status === 'CANCELED') {
-      throw new Error(`SonarCloud analysis ${task.status}: ${task.errorMessage ?? 'no message'}`);
-    }
-    await sleep(POLL_MS);
+async function waitForAnalysis(ceTaskUrl, deadline = Date.now() + TIMEOUT_MS) {
+  if (Date.now() >= deadline) {
+    throw new Error(`SonarCloud analysis did not finish within ${TIMEOUT_MS / 1000}s: ${ceTaskUrl}`);
   }
-  throw new Error(`SonarCloud analysis did not finish within ${TIMEOUT_MS / 1000}s: ${ceTaskUrl}`);
+  const { task } = await getJson(ceTaskUrl, deadline);
+  if (task.status === 'SUCCESS') return task.analysisId;
+  if (task.status === 'FAILED' || task.status === 'CANCELED') {
+    throw new Error(`SonarCloud analysis ${task.status}: ${task.errorMessage ?? 'no message'}`);
+  }
+  await sleep(POLL_MS);
+  return waitForAnalysis(ceTaskUrl, deadline);
 }
 
 function report(verdict, dashboardUrl) {
@@ -71,7 +70,7 @@ function report(verdict, dashboardUrl) {
 
 async function main() {
   const task = parseReportTask(readFileSync(REPORT_TASK, 'utf8'));
-  const analysisId = await waitForAnalysis(task.ceTaskId);
+  const analysisId = await waitForAnalysis(sonarApiUrl(SONAR_HOST, '/api/ce/task', { id: task.ceTaskId }));
   const { projectStatus } = await getJson(sonarApiUrl(SONAR_HOST, '/api/qualitygates/project_status', { analysisId }));
   const verdict = evaluateGate(projectStatus, ADVISORY);
   report(verdict, task.dashboardUrl);
