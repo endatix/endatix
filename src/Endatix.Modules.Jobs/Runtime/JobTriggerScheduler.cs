@@ -33,8 +33,8 @@ internal sealed class QuartzJobTriggerScheduler(
     StoredDurableJobs durableJobs) : IJobTriggerScheduler
 {
     // The factory refuses a node that may not store triggers lock-free (ReadCommittedSnapshotGatedSchedulerFactory),
-    // whether its start was refused or is still deferred. The scheduler is built here, outside any enlistment: it
-    // refuses to be started for the first time inside one.
+    // whether its start was refused or is still deferred, and rebuilds a scheduler whose build failed. The scheduler
+    // is built here, outside any enlistment: it refuses to be started for the first time inside one.
     public async Task PrepareAsync(CancellationToken cancellationToken) =>
         await schedulerFactory.GetScheduler(cancellationToken);
 
