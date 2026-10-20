@@ -72,13 +72,20 @@ internal sealed class JobOutcomeRecorder(
         return written;
     }
 
-    // Given the values rather than the plan, so nothing is worked out for a log that is off (CA1873).
-    private void LogRecordedLate(AttemptRef attempt, JobAttemptOutcome outcome) =>
+    // Nothing is worked out, nor boxed, for a log that is off (CA1873).
+    private void LogRecordedLate(AttemptRef attempt, JobAttemptOutcome outcome)
+    {
+        if (!logger.IsEnabled(LogLevel.Information))
+        {
+            return;
+        }
+
         logger.LogInformation(
             "Background job {JobId} attempt {Attempt} had its outcome {Outcome} recorded after the attempt's own write failed",
             attempt.JobId,
             attempt.AttemptCount,
             outcome);
+    }
 
     // Says why an outcome carried to the next firing could not be written, when a read-only database refused it. A
     // stopping host carries nothing on, so it says nothing.
