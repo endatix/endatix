@@ -4,9 +4,11 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.BackgroundJobs;
 using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Modules.Reporting.Tests.Features.BackgroundJobs;
@@ -34,6 +36,10 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         services.AddSingleton(_outbox);
         services.AddSingleton(_flattening);
         services.AddSingleton(_seeder);
+        services.AddSingleton(Substitute.For<IFormSchemaProcessor>());
+        services.AddSingleton(Substitute.For<IFormSchemaRepository>());
+        services.AddSingleton(Substitute.For<IFlattenedSubmissionRepository>());
+        services.AddSingleton(Substitute.For<IReportingUnitOfWork>());
         services.AddReportingOutboxWork();
         _provider = services.BuildServiceProvider();
     }
@@ -107,6 +113,28 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _seeder.Received(1).SeedAsync(TenantA, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("ReportingCompileFormSchema")]
+    [InlineData("ReportingFlattenSubmission")]
+    [InlineData("ReportingSeedDefaultExportFormats")]
+    [InlineData("ReportingSyncFormDeletion")]
+    [InlineData("ReportingSyncSubmissionDeletion")]
+    public async Task Job_QueuedBeforeTheOneCallRegistration_StillRunsAsItsJobType(string jobType)
+    {
+        // Arrange — the job type and input a job queued by the previous release holds, row gone since.
+        using var scope = _provider.CreateScope();
+        var handler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(jobType);
+        var job = new BackgroundJobContext(1, jobType, TenantA, $$"""{"outboxMessageId":{{MessageId}}}""", 1);
+
+        // Act
+        var result = await handler.ExecuteAsync(job, TestContext.Current.CancellationToken);
+
+        // Assert — the input was read (not "could not be read") and the job looked the row up.
+        handler.JobType.Should().Be(jobType);
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(OutboxJobFailures.MessageGone);
     }
 
     public void Dispose() => _provider.Dispose();

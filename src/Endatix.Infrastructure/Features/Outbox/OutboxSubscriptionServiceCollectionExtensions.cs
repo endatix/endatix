@@ -29,14 +29,23 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         string eventType,
         Func<IOutboxMessage, TPayload> createPayload,
         Func<IOutboxMessage, long>? resolveTenantId = null)
+        where TPayload : IBackgroundJobPayload =>
+        services.AddJobSubscription(eventType, createPayload, resolveTenantId, workType: null);
+
+    /// <summary>The one-job subscription, owned by <paramref name="workType"/> when an outbox work registers it.</summary>
+    internal static IServiceCollection AddJobSubscription<TPayload>(
+        this IServiceCollection services,
+        string eventType,
+        Func<IOutboxMessage, TPayload> createPayload,
+        Func<IOutboxMessage, long>? resolveTenantId,
+        Type? workType)
         where TPayload : IBackgroundJobPayload
     {
         Guard.Against.NullOrWhiteSpace(eventType);
         Guard.Against.Null(createPayload);
 
         return services.AddSubscription(SubscriptionOf<TPayload>(
-            eventType,
-            resolveTenantId,
+            new SubscriptionSource(eventType, resolveTenantId, workType),
             (_, delivery, _) => Task.FromResult<IReadOnlyList<BackgroundJobRequest>>(
             [
                 Request(delivery, new OutboxSubscriber<TPayload>(TPayload.JobType, createPayload(delivery.Message))),
@@ -52,6 +61,16 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         string eventType,
         Func<IOutboxMessage, long>? resolveTenantId = null)
         where TPayload : IBackgroundJobPayload
+        where TExpander : class, IOutboxSubscriberExpander<TPayload> =>
+        services.AddJobSubscription<TPayload, TExpander>(eventType, resolveTenantId, workType: null);
+
+    /// <summary>The expanding subscription, owned by <paramref name="workType"/> when an outbox work registers it.</summary>
+    internal static IServiceCollection AddJobSubscription<TPayload, TExpander>(
+        this IServiceCollection services,
+        string eventType,
+        Func<IOutboxMessage, long>? resolveTenantId,
+        Type? workType)
+        where TPayload : IBackgroundJobPayload
         where TExpander : class, IOutboxSubscriberExpander<TPayload>
     {
         Guard.Against.NullOrWhiteSpace(eventType);
@@ -59,7 +78,7 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         services.TryAddScoped<TExpander>();
 
         return services.AddSubscription(SubscriptionOf<TPayload>(
-            eventType, resolveTenantId, ExpandAsync<TPayload, TExpander>));
+            new SubscriptionSource(eventType, resolveTenantId, workType), ExpandAsync<TPayload, TExpander>));
     }
 
     // Runs in the relay tick's scope, which is where the expander is resolved from.
@@ -88,19 +107,22 @@ public static class OutboxSubscriptionServiceCollectionExtensions
             delivery.TenantId,
             dedupKey: DedupKeyFor(delivery.Message, subscriber.SubscriberKey));
 
-    private static OutboxJobSubscription SubscriptionOf<TPayload>(
-        string eventType,
-        Func<IOutboxMessage, long>? resolveTenantId,
-        OutboxRequestsBuilder requests)
+    private static OutboxJobSubscription SubscriptionOf<TPayload>(SubscriptionSource source, OutboxRequestsBuilder requests)
         where TPayload : IBackgroundJobPayload =>
         new()
         {
-            EventType = eventType,
+            EventType = source.EventType,
             JobType = TPayload.JobType,
             SourceAssembly = typeof(TPayload).Assembly,
-            TenantResolver = resolveTenantId,
+            WorkType = source.WorkType,
+            TenantResolver = source.ResolveTenantId,
             Requests = requests,
         };
+
+    private readonly record struct SubscriptionSource(
+        string EventType,
+        Func<IOutboxMessage, long>? ResolveTenantId,
+        Type? WorkType);
 
     private static IServiceCollection AddSubscription(this IServiceCollection services, OutboxJobSubscription subscription)
     {

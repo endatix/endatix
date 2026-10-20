@@ -26,6 +26,16 @@ public sealed class OutboxJobSubscription
     /// <summary>The assembly that owns the work — the payload's.</summary>
     public Assembly SourceAssembly { get; internal init; } = null!;
 
+    /// <summary>The <see cref="IOutboxWork"/> whose job this is, when the work registered it; otherwise none.</summary>
+    internal Type? WorkType { get; init; }
+
+    /// <summary>
+    /// Whether this subscription does <paramref name="handler"/>'s work as a job: an <see cref="IOutboxWork"/> needs its
+    /// own job, any other handler one registered from its assembly.
+    /// </summary>
+    internal bool Covers(IOutboxIntegrationEventHandler handler) =>
+        handler is IOutboxWork ? WorkType == handler.GetType() : SourceAssembly == handler.GetType().Assembly;
+
     /// <summary>Reads the tenant from an app-level message; <see langword="null"/> takes the message's own.</summary>
     internal Func<IOutboxMessage, long>? TenantResolver { private get; init; }
 
@@ -78,9 +88,8 @@ public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subsc
     {
         foreach (var handler in inlineHandlers)
         {
-            var handlerAssembly = handler.GetType().Assembly;
             var eventType = handler.EventTypes.FirstOrDefault(type =>
-                !_byEventType[type].Any(subscription => subscription.SourceAssembly == handlerAssembly));
+                !_byEventType[type].Any(subscription => subscription.Covers(handler)));
             if (eventType is not null)
             {
                 throw new InvalidOperationException(

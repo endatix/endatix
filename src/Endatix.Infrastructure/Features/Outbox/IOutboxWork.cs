@@ -23,6 +23,11 @@ public interface IOutboxWork : IOutboxIntegrationEventHandler
     /// Reads the work from <paramref name="message"/>, or <see cref="OutboxWork.None"/> when the message needs
     /// nothing done.
     /// </summary>
+    /// <remarks>
+    /// Only parse the message here; do every read and write in the returned work. Both exceptions below fail the job
+    /// for good, so a transient one thrown here would never be retried. With
+    /// <see cref="OutboxWorkOptions.OnlyWhenThereIsWork"/> the relay calls this too, before it enqueues the job.
+    /// </remarks>
     /// <exception cref="InvalidOperationException">The message cannot be read, or names another tenant.</exception>
     /// <exception cref="System.Text.Json.JsonException">The payload is not JSON.</exception>
     OutboxWork Read(IOutboxMessage message);

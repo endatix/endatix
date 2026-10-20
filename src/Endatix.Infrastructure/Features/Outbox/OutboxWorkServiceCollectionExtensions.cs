@@ -41,7 +41,8 @@ public static class OutboxWorkServiceCollectionExtensions
     /// <summary>
     /// Registers <typeparamref name="THandler"/> inline only, as itself and as an
     /// <see cref="IOutboxIntegrationEventHandler"/>, for a module whose work has no job yet. With
-    /// <c>Endatix:Outbox:DeliverToJobQueue</c> on, the host refuses to start while its events have no subscription.
+    /// <c>Endatix:Outbox:DeliverToJobQueue</c> on, the host refuses to start while its events have no subscription;
+    /// an <see cref="IOutboxWork"/> registered this way never has one, so register it with <c>AddOutboxWork</c>.
     /// </summary>
     public static IServiceCollection AddInlineOutboxHandler<THandler>(this IServiceCollection services)
         where THandler : class, IOutboxIntegrationEventHandler
@@ -63,7 +64,7 @@ public static class OutboxWorkServiceCollectionExtensions
     {
         services.AddBackgroundJobHandler<OutboxJobHandler<TPayload, TWork>, TPayload>(defaults);
         services.TryAddScoped<OutboxJobMessages>();
-        services.Configure<OutboxWorkSettings>(TPayload.JobType, settings => settings.AppLevel = options.ReadsTenant is not null);
+        services.Configure<OutboxWorkSettings>(TPayload.JobType, settings => settings.ReadTenant = options.ReadsTenant);
     }
 
     private static void Subscribe<TWork, TPayload>(IServiceCollection services, string eventType, OutboxWorkOptions options)
@@ -73,11 +74,11 @@ public static class OutboxWorkServiceCollectionExtensions
         var resolveTenantId = options.ReadsTenant is { } readTenant ? TenantOrNone(readTenant) : null;
         if (options.SkipsMessagesWithoutWork)
         {
-            services.AddOutboxJobSubscription<TPayload, OutboxWorkExpander<TPayload, TWork>>(eventType, resolveTenantId);
+            services.AddJobSubscription<TPayload, OutboxWorkExpander<TPayload, TWork>>(eventType, resolveTenantId, typeof(TWork));
         }
         else
         {
-            services.AddOutboxJobSubscription(eventType, message => TPayload.For(message.Id), resolveTenantId);
+            services.AddJobSubscription(eventType, message => TPayload.For(message.Id), resolveTenantId, typeof(TWork));
         }
     }
 
@@ -129,8 +130,11 @@ public sealed class OutboxWorkOptions
 /// <summary>What an outbox work's job needs to know of its registration, named by the job type.</summary>
 internal sealed class OutboxWorkSettings
 {
-    /// <summary>The work's rows carry no tenant; see <see cref="OutboxWorkOptions.AppLevel"/>.</summary>
-    public bool AppLevel { get; set; }
+    /// <summary>
+    /// Reads the job's tenant from an app-level row's payload; <see langword="null"/> when the rows carry their tenant.
+    /// See <see cref="OutboxWorkOptions.AppLevel"/>.
+    /// </summary>
+    public Func<IOutboxMessage, long>? ReadTenant { get; set; }
 }
 
 /// <summary>Subscribes the job of <typeparamref name="TWork"/> only for a message that may need its work.</summary>

@@ -96,7 +96,6 @@ To run code in the API host when a submission is screened out:
 3. Register it on the API host: `builder.Services.AddScoped<IOutboxIntegrationEventHandler, ScreenOutHandler>()`.
 4. Keep the in-process relay on (`Endatix:Outbox:RunInProcess`). The handler runs after the submission transaction commits. A throw fails the outbox delivery and the relay retries it.
 
-A host with `Endatix:Outbox:DeliverToJobQueue` on refuses to start while a handler like this has no background job. To run it either way, implement `IOutboxWork` instead (`Endatix.Infrastructure.Features.Outbox`): a static `HandledEventTypes` and a `Read(message)` that returns `OutboxWork.For(...)`, or `OutboxWork.None` when there is nothing to do. Declare a payload record such as `record ScreenOutPayload(long OutboxMessageId) : IOutboxJobPayload<ScreenOutPayload>` with its own `JobType`, and register both with `builder.Services.AddOutboxWork<ScreenOutHandler, ScreenOutPayload>(new BackgroundJobTypeDefaults { MaxAttempts = 5 })`.
 
 ```csharp
 using System.Text.Json;
@@ -118,6 +117,8 @@ public sealed class ScreenOutHandler : IOutboxIntegrationEventHandler
     }
 }
 ```
+
+A host with `Endatix:Outbox:DeliverToJobQueue` on refuses to start while a handler like this has no background job. To run it either way, implement `IOutboxWork` (`Endatix.Infrastructure.Features.Outbox`) instead: a static `HandledEventTypes`, and a `Read(message)` that only parses the message and returns `OutboxWork.For(...)` with the work, or `OutboxWork.None` when there is nothing to do. Declare a payload record such as `record ScreenOutPayload(long OutboxMessageId) : IOutboxJobPayload<ScreenOutPayload>` with its own `JobType`, in the handler's assembly, and register both with `builder.Services.AddOutboxWork<ScreenOutHandler, ScreenOutPayload>(new BackgroundJobTypeDefaults { MaxAttempts = 5 })`. The job runs only where the Jobs module is on.
 
 A system outside the API process uses the [webhook](/docs/guides/webhooks) `SubmissionCollectionStatusChanged` instead of this handler.
 

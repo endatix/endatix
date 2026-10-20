@@ -13,7 +13,10 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// <summary>Why an outbox work's job failed for good: no retry can fix either.</summary>
 public static class OutboxJobFailures
 {
-    /// <summary>The outbox row is gone, or belongs to another tenant than the job.</summary>
+    /// <summary>
+    /// The outbox row is gone, or belongs to another tenant than the job: for app-level work, its payload names another
+    /// tenant.
+    /// </summary>
     /// <remarks>Each attempt re-reads the row, so outbox retention must allow for it: see background-processing.mdx.</remarks>
     public const string MessageGone = "The outbox message no longer exists.";
 
@@ -71,11 +74,30 @@ internal sealed class OutboxJobMessages(
     {
         // Scoped to the tenant explicitly: outside a request nothing else scopes this read. An app-level row carries
         // no tenant; its job belongs to the tenant the payload names.
-        var rowTenantId = settings.Get(job.JobType).AppLevel ? AppLevelTenantId : job.TenantId;
+        var readTenant = settings.Get(job.JobType).ReadTenant;
         var row = await outboxMessages.FirstOrDefaultAsync(
-            new OutboxMessageByIdForTenantSpec(outboxMessageId, rowTenantId),
+            new OutboxMessageByIdForTenantSpec(outboxMessageId, readTenant is null ? job.TenantId : AppLevelTenantId),
             cancellationToken);
-        return row is null ? null : new OutboxMessageView(row);
+        if (row is null)
+        {
+            return null;
+        }
+
+        var message = new OutboxMessageView(row);
+        return readTenant is null || NamesTenant(readTenant, message, job.TenantId) ? message : null;
+    }
+
+    // A payload that cannot be read is the work's to fail, as unreadable.
+    private static bool NamesTenant(Func<IOutboxMessage, long> readTenant, IOutboxMessage message, long tenantId)
+    {
+        try
+        {
+            return readTenant(message) == tenantId;
+        }
+        catch (Exception exception) when (OutboxWorkReader.IsUnreadable(exception))
+        {
+            return true;
+        }
     }
 }
 
