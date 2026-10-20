@@ -29,6 +29,15 @@ internal sealed class OpenFormSpec : Specification<Form, OpenForm>
             .Select(form => new OpenForm(form.IsEnabled, form.ActiveDefinitionId, form.LimitOnePerUser));
 }
 
+/// <summary>A Submitter's label alone, untracked; <see langword="null"/> when it has none.</summary>
+internal sealed class SubmitterLabelSpec : SingleResultSpecification<Submitter, string?>
+{
+    public SubmitterLabelSpec(long submitterId) =>
+        Query.Where(submitter => submitter.Id == submitterId)
+            .AsNoTracking()
+            .Select(submitter => submitter.DisplayId);
+}
+
 /// <summary>
 /// What a resume decides on: whether the submission has its token, whether its form is enabled, and whether it was
 /// marked as test.

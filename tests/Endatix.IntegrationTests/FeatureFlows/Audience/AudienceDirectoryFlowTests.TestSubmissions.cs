@@ -281,7 +281,11 @@ public sealed partial class AudienceDirectoryFlowTests
         var forms = new EfRepository<Form>(app, evaluator);
         var submissions = new EfRepository<Submission>(app, evaluator);
         var tokens = new SubmissionTokenService(submissions, forms, new EfRepository<TenantSettings>(app, evaluator));
-        var gates = new LinkOpenGates(audience, forms, services.GetRequiredService<ISubmitterResolver>());
+        var gates = new LinkOpenGates(
+            audience,
+            forms,
+            new EfRepository<Submitter>(app, evaluator),
+            services.GetRequiredService<ISubmitterResolver>());
         return new RestartTestSubmissionHandler(
             submissions,
             app,

@@ -7,8 +7,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Features.Links;
 
-/// <summary>What a first open locks with: the definition it pins, and on a one-response form the person's Submitter.</summary>
-internal sealed record LinkOpening(AudienceLink Link, long DefinitionId, long? SubmitterId);
+/// <summary>
+/// What a first open locks with: the definition it pins, on a one-response form the person's Submitter, and the
+/// label its response shows.
+/// </summary>
+internal sealed record LinkOpening(AudienceLink Link, long DefinitionId, long? SubmitterId, string SubmitterLabel);
 
 /// <summary>The person behind a membership.</summary>
 internal sealed record LinkPerson(long TenantId, long MembershipId, string Identifier, long MemberId, long? SubmitterId);
@@ -18,7 +21,11 @@ internal sealed record LinkPerson(long TenantId, long MembershipId, string Ident
 /// the person is still on it. A link open never writes what they read, so they need no ordering, and a refused
 /// open returns without waiting for the lock or holding a connection for it.
 /// </summary>
-internal sealed class LinkOpenGates(IAudienceDbContext db, IRepository<Form> forms, ISubmitterResolver resolver)
+internal sealed class LinkOpenGates(
+    IAudienceDbContext db,
+    IRepository<Form> forms,
+    IRepository<Submitter> submitters,
+    ISubmitterResolver resolver)
 {
     /// <summary><see langword="null"/> when the link must not open.</summary>
     public async Task<LinkOpening?> CheckAsync(AudienceLink link, CancellationToken cancellationToken)
@@ -38,7 +45,8 @@ internal sealed class LinkOpenGates(IAudienceDbContext db, IRepository<Form> for
         var submitterId = form.LimitOnePerUser
             ? await SubmitterIdAsync(link.TenantId, person, cancellationToken)
             : null;
-        return new LinkOpening(link, definitionId, submitterId);
+        var label = await LabelAsync(submitterId ?? person.SubmitterId, person.Identifier, cancellationToken);
+        return new LinkOpening(link, definitionId, submitterId, label);
     }
 
     /// <summary>The person, or <see langword="null"/> once they are removed from the form.</summary>
@@ -89,6 +97,12 @@ internal sealed class LinkOpenGates(IAudienceDbContext db, IRepository<Form> for
         return existing.SubmitterId
             ?? (await resolver.EnsureSubmitterAsync(context, cancellationToken)).SubmitterId;
     }
+
+    /// <summary>The label of the person's Submitter, as an on-behalf create shows it, else their identifier.</summary>
+    private async Task<string> LabelAsync(long? submitterId, string identifier, CancellationToken cancellationToken) =>
+        submitterId is long id
+            ? await submitters.FirstOrDefaultAsync(new SubmitterLabelSpec(id), cancellationToken) ?? identifier
+            : identifier;
 
     /// <summary>A parallel on-behalf create may have bound its Submitter first; the bound one is the person's.</summary>
     private Task<long?> BoundSubmitterIdAsync(long memberId, CancellationToken cancellationToken) =>
