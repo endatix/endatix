@@ -39,18 +39,31 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
     protected override IHost CreateHost(IHostBuilder builder) => new StopOnceHost(base.CreateHost(builder));
 }
 
-/// <summary>TestServer leaves <c>RemoteIpAddress</c> empty. Anonymous throttles key on it.</summary>
+/// <summary>
+/// TestServer leaves <c>RemoteIpAddress</c> empty, and anonymous throttles key on it.
+/// A client that sends <c>X-Forwarded-For</c> is that address; every other request stays on loopback.
+/// The host's forwarded-headers middleware does not do this here: it trusts only <c>::1</c>, and the
+/// test peer is not a proxy.
+/// </summary>
 internal sealed class LoopbackClientIpStartupFilter : IStartupFilter
 {
     public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
     {
         app.Use(async (HttpContext context, RequestDelegate continuation) =>
         {
-            context.Connection.RemoteIpAddress ??= IPAddress.Loopback;
+            var forwarded = context.Request.Headers["X-Forwarded-For"].ToString();
+            context.Connection.RemoteIpAddress ??= ClientIp(string.IsNullOrEmpty(forwarded) ? null : forwarded);
             await continuation(context);
         });
         next(app);
     };
+
+    /// <summary>The first address in <paramref name="forwardedFor"/>, or loopback when it is missing or not an address.</summary>
+    internal static IPAddress ClientIp(string? forwardedFor)
+    {
+        var first = forwardedFor?.Split(',', 2)[0].Trim();
+        return IPAddress.TryParse(first, out var address) ? address : IPAddress.Loopback;
+    }
 }
 
 internal static class EndatixWebApplicationFactoryConfiguration

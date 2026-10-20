@@ -38,8 +38,9 @@ public sealed class IntegrationTestWorld
     private static int _anonymousClients;
 
     /// <summary>
-    /// Creates an anonymous HTTP client. Each one sends its own <c>X-Forwarded-For</c>, so anonymous throttles
-    /// (such as the personalised link redeem) count each test's calls on their own instead of the whole run's.
+    /// Creates an anonymous HTTP client. Each one sends its own <c>X-Forwarded-For</c>, and the test host copies
+    /// that onto the connection address, so anonymous throttles (such as the personalised link redeem) count each
+    /// test's calls on their own instead of the whole run's.
     /// </summary>
     public HttpClient AnonymousClient()
     {
