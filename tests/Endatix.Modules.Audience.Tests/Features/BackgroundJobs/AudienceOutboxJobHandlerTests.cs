@@ -35,7 +35,7 @@ public sealed class AudienceOutboxJobHandlerTests
         var handler = CreateReleaseLinkHandler();
 
         // Act
-        var result = await handler.ExecuteAsync(ReleaseLinkJob(TenantA), CancellationToken.None);
+        var result = await handler.ExecuteAsync(ReleaseLinkJob(TenantA), TestContext.Current.CancellationToken);
 
         // Assert — a failure result, not a throw, so the job is not retried.
         result.ValidationErrors.Should().ContainSingle()
@@ -50,7 +50,7 @@ public sealed class AudienceOutboxJobHandlerTests
         var handler = CreateReleaseLinkHandler();
 
         // Act
-        var result = await handler.ExecuteAsync(ReleaseLinkJob(TenantA), CancellationToken.None);
+        var result = await handler.ExecuteAsync(ReleaseLinkJob(TenantA), TestContext.Current.CancellationToken);
 
         // Assert
         result.ValidationErrors.Should().ContainSingle()
@@ -68,7 +68,7 @@ public sealed class AudienceOutboxJobHandlerTests
         var handler = CreateReleaseLinkHandler();
 
         // Act
-        var result = await handler.ExecuteAsync(ReleaseLinkJob(TenantA), CancellationToken.None);
+        var result = await handler.ExecuteAsync(ReleaseLinkJob(TenantA), TestContext.Current.CancellationToken);
 
         // Assert
         result.ValidationErrors.Should().ContainSingle()
@@ -83,7 +83,7 @@ public sealed class AudienceOutboxJobHandlerTests
         var handler = CreateReleaseLinkHandler();
 
         // Act
-        var result = await handler.ExecuteAsync(ReleaseLinkJob(TenantA), CancellationToken.None);
+        var result = await handler.ExecuteAsync(ReleaseLinkJob(TenantA), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -100,7 +100,7 @@ public sealed class AudienceOutboxJobHandlerTests
             BackgroundJobPayloadSerializer.Serialize(new AudienceDeleteFormAudiencePayload(MessageId)), 1);
 
         // Act
-        var result = await handler.ExecuteAsync(job, CancellationToken.None);
+        var result = await handler.ExecuteAsync(job, TestContext.Current.CancellationToken);
 
         // Assert
         result.ValidationErrors.Should().ContainSingle()
