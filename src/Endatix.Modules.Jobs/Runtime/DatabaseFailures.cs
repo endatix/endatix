@@ -215,8 +215,9 @@ internal static class DatabaseFailures
     /// </summary>
     /// <remarks>
     /// Only the start waits for a database that cannot be opened: a pipeline may still be creating or restoring it.
-    /// Once a node runs, PostgreSQL's missing database (3D000) is not an outage to a job's outcome, which fails loudly
-    /// as before; SQL Server's 4060 was an outage to it already.
+    /// Once a node runs, PostgreSQL's missing database (3D000) is no longer listed as an outage, but an outcome write it
+    /// fails is still carried as one: the row read that would tell a refusal from an outage fails on the missing
+    /// database too. SQL Server's 4060 is listed as an outage.
     /// </remarks>
     public static bool IsAwayAtStartup(Exception failure) => IsUnreachable(failure) || IsDatabaseUnavailable(failure);
 
