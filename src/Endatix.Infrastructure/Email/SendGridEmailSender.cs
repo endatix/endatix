@@ -79,7 +79,7 @@ public class SendGridEmailSender(
                     .SendEmailAsync(msg, cancellationToken)
                     .ConfigureAwait(false);
 
-        var responseBody = await response.Body.ReadAsStringAsync(cancellationToken);
+        var responseBody = await ReadAcceptedResponseAsync(response.Body);
         _logger.LogInformation("Sending SendGrid message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 
@@ -116,7 +116,11 @@ public class SendGridEmailSender(
             .SendEmailAsync(msg, cancellationToken)
             .ConfigureAwait(false);
 
-        var responseBody = await response.Body.ReadAsStringAsync(cancellationToken);
+        var responseBody = await ReadAcceptedResponseAsync(response.Body);
         _logger.LogInformation("Sending SendGrid template message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
+
+    // CancellationToken.None: the email is already sent, so a cancelled token must not turn it into a failure (and a retry).
+    private static Task<string> ReadAcceptedResponseAsync(HttpContent body) =>
+        body.ReadAsStringAsync(CancellationToken.None);
 }

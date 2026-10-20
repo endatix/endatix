@@ -223,4 +223,43 @@ public class SendGridEmailSenderTests
         sentMessage.Personalizations[0].TemplateData.Should().BeEquivalentTo(email.Metadata);
     }
 
+    // -- late cancellation tests --
+
+    [Fact]
+    public async Task SendEmailWithBody_CancelledAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts);
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), cts.Token);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateCancelledAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts);
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            From = "sender@example.com",
+            TemplateId = "sendgrid-template",
+            IsExternal = true
+        };
+
+        Func<Task> act = () => _sut.SendEmailAsync(email, cts.Token);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    private void AcceptThenCancel(CancellationTokenSource cts) =>
+        _sendGridClient
+            .SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                cts.Cancel();
+                return new Response(HttpStatusCode.Accepted, new CancellationAwareContent("{}"), null!);
+            });
 }

@@ -281,6 +281,51 @@ public class MailgunEmailSenderTests
         variables.RootElement.GetProperty("attempt").GetInt32().Should().Be(2);
     }
 
+    // -- late cancellation tests --
+
+    [Fact]
+    public async Task SendEmailWithBody_CancelledAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts);
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), cts.Token);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateCancelledAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts);
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            TemplateId = "mailgun-template",
+            IsExternal = true
+        };
+
+        Func<Task> act = () => _sut.SendEmailAsync(email, cts.Token);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    private void AcceptThenCancel(CancellationTokenSource cts) =>
+        _httpClientFactory.CreateClient().Returns(new HttpClient(new AcceptThenCancelHttpMessageHandler(cts)));
+
+    private sealed class AcceptThenCancelHttpMessageHandler(CancellationTokenSource cts) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            cts.Cancel();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new CancellationAwareContent("{\"message\":\"Queued. Thank you.\"}")
+            });
+        }
+    }
+
     private sealed class CapturingHttpMessageHandler : HttpMessageHandler
     {
         public HttpRequestMessage? Request { get; private set; }

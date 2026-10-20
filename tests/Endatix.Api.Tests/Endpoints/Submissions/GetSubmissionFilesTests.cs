@@ -5,22 +5,26 @@ using Endatix.Core.UseCases.Submissions.GetFiles;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
 public class GetSubmissionFilesTests
 {
     private readonly IMediator _mediator = Substitute.For<IMediator>();
+    private readonly ILogger<GetSubmissionFiles> _logger = Substitute.For<ILogger<GetSubmissionFiles>>();
+    private readonly AbortRecordingLifetimeFeature _lifetime = new();
     private readonly GetSubmissionFiles _endpoint;
 
     public GetSubmissionFilesTests()
     {
         var httpContext = new DefaultHttpContext();
+        httpContext.Features.Set<IHttpRequestLifetimeFeature>(_lifetime);
         _endpoint = Factory.Create<GetSubmissionFiles>(
             httpContext: httpContext,
             _mediator,
-            NullLogger<GetSubmissionFiles>.Instance);
+            _logger);
     }
 
     [Fact]
@@ -90,5 +94,110 @@ public class GetSubmissionFilesTests
 
         // Assert
         Assert.Equal(500, _endpoint.HttpContext.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FailureWhileBuildingZip_Returns500WithoutZipHeaders()
+    {
+        // Arrange
+        ReturnFiles(new UnreadableStream());
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        var response = _endpoint.HttpContext.Response;
+        Assert.Equal(500, response.StatusCode);
+        Assert.NotEqual("application/zip", response.ContentType);
+        Assert.False(response.Headers.ContainsKey("Content-Disposition"));
+        Assert.False(_lifetime.Aborted);
+    }
+
+    [Fact]
+    public async Task FailureAfterResponseStarted_AbortsConnection()
+    {
+        // Arrange
+        ReturnFiles(new MemoryStream(Encoding.UTF8.GetBytes("abc")));
+        _endpoint.HttpContext.Response.Body = new UnwritableStream();
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        Assert.True(_lifetime.Aborted);
+    }
+
+    [Fact]
+    public async Task ClientCancellation_IsNotLoggedAsError()
+    {
+        // Arrange
+        ReturnFiles(new MemoryStream(Encoding.UTF8.GetBytes("abc")));
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, cts.Token);
+
+        // Assert
+        _logger.DidNotReceive().Log(
+            LogLevel.Error,
+            Arg.Any<EventId>(),
+            Arg.Any<object>(),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
+    public async Task CopyFailure_DisposesFileStream()
+    {
+        // Arrange
+        var content = new UnreadableStream();
+        ReturnFiles(content);
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        Assert.True(content.Disposed);
+    }
+
+    private void ReturnFiles(Stream content)
+    {
+        var files = new List<FileDescriptor> { new("file1.txt", "text/plain", content) };
+        _mediator.Send(Arg.Any<GetFilesQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new GetFilesResult("TestForm", 123, files)));
+    }
+
+    private sealed class AbortRecordingLifetimeFeature : IHttpRequestLifetimeFeature
+    {
+        public bool Aborted { get; private set; }
+        public CancellationToken RequestAborted { get; set; }
+        public void Abort() => Aborted = true;
+    }
+
+    /// <summary>A file stream that fails on read, like storage dropping mid-download.</summary>
+    private sealed class UnreadableStream : MemoryStream
+    {
+        public bool Disposed { get; private set; }
+        public override int Read(byte[] buffer, int offset, int count) => throw new IOException("Storage read failed");
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            throw new IOException("Storage read failed");
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>A response body that fails on write, like a connection reset mid-download.</summary>
+    private sealed class UnwritableStream : MemoryStream
+    {
+        public override void Write(byte[] buffer, int offset, int count) => throw new IOException("Connection reset");
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) =>
+            throw new IOException("Connection reset");
     }
 }
