@@ -79,7 +79,7 @@ public class EndatixProblemDetailsTests
             StatusCodes.Status403Forbidden,
             title: "This survey is no longer available.",
             detail: "Thank you for your interest. Unfortunately, this survey can no longer be completed.",
-            errorCode: EndatixProblemCodes.FORM_UNAVAILABLE);
+            errorCode: EndatixProblemCodes.FORM_UNAVAILABLE, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
@@ -102,7 +102,7 @@ public class EndatixProblemDetailsTests
         await httpContext.WriteEndatixProblemAsync(
             StatusCodes.Status500InternalServerError,
             title: "Export failed",
-            detail: "connection string leaked");
+            detail: "connection string leaked", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         using var document = await ReadProblemAsync(httpContext);

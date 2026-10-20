@@ -639,6 +639,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
+                        .IsConcurrencyToken()
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsTestSubmission")

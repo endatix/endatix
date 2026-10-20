@@ -227,7 +227,7 @@ public class SlackNotificationHandlerTests
     private sealed class StubHandler : HttpMessageHandler
     {
         private readonly HttpStatusCode _statusCode;
-        private readonly string _body;
+        private readonly string _body = string.Empty;
         private readonly Exception? _exception;
 
         public StubHandler(HttpStatusCode statusCode, string body = """{"ok":true}""")

@@ -15,6 +15,9 @@
         <RollForward>LatestMinor</RollForward>
         <!-- Keep dotnet test on VSTest (coverlet.collector, trait filters). .NET 10 defaults to MTP otherwise. -->
         <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+        <!-- Sonar imports xUnit1051 from the build. Pass TestContext.Current.CancellationToken (or
+             Arg.Any<CancellationToken>() in an NSubstitute call) so no test adds one. -->
+        <WarningsAsErrors>$(WarningsAsErrors);xUnit1051</WarningsAsErrors>
     </PropertyGroup>
 
     <ItemGroup>

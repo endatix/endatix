@@ -28,7 +28,7 @@ public class FormsRepositoryTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID);
 
         // Act
-        await _sut.CreateFormWithDefinitionAsync(form, formDefinition);
+        await _sut.CreateFormWithDefinitionAsync(form, formDefinition, TestContext.Current.CancellationToken);
 
         // Assert
         await _unitOfWork.Received(1).BeginTransactionAsync(Arg.Any<CancellationToken>());
@@ -45,7 +45,7 @@ public class FormsRepositoryTests
         _dbContext.Set<FormDefinition>().When(x => x.Add(formDefinition)).Do(x => { throw new Exception("Test exception"); });
 
         // Act & Assert
-        await Assert.ThrowsAsync<Exception>(() => _sut.CreateFormWithDefinitionAsync(form, formDefinition));
+        await Assert.ThrowsAsync<Exception>(() => _sut.CreateFormWithDefinitionAsync(form, formDefinition, TestContext.Current.CancellationToken));
 
         await _unitOfWork.Received(1).BeginTransactionAsync(Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());

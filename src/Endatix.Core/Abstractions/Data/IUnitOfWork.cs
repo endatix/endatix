@@ -32,5 +32,11 @@ namespace Endatix.Core.Abstractions.Data
         /// own cause. Failures are logged by the implementation.
         /// </remarks>
         Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Stops tracking every entity loaded so far. Work that saves page by page calls it after each save, so
+        /// memory and each save's change detection stay bounded by one page. Unsaved changes are discarded.
+        /// </summary>
+        void ClearChangeTracker();
     }
 }

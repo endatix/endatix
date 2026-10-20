@@ -36,7 +36,7 @@ public sealed partial class BackgroundJobExecutionRefireTests
         IsReclaim(scheduled[1]).Should().BeTrue();
         scheduled[1].Key.Should().Be(new TriggerKey(JobId.ToString(), ProbeJobType));
         scheduled[1].RetryPolicy.Should().BeNull();
-        await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default!, default);
+        await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default!, Arg.Any<CancellationToken>());
         provider.GetRequiredService<IJobMetrics>().DidNotReceive()
             .Record(JobLifecycleEvent.RetryScheduled, Arg.Any<string>());
     }
@@ -54,7 +54,7 @@ public sealed partial class BackgroundJobExecutionRefireTests
 
         // Act
         var executing = execution.Execute(context, TestContext.Current.CancellationToken).AsTask();
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        await UntilAsync(() => ScheduleJobCalls(context.Scheduler) > 2 || executing.IsCompleted, Patience);
         var openUntilSignal = !executing.IsCompleted;
         provider.GetRequiredService<JobsShutdownSignal>().Raise();
         await executing.WaitAsync(Patience, TestContext.Current.CancellationToken);
@@ -62,10 +62,8 @@ public sealed partial class BackgroundJobExecutionRefireTests
         // Assert — it kept trying the reclaim trigger, beyond the retry's and the reclaim's first tries.
         openUntilSignal.Should().BeTrue();
         executing.IsCompletedSuccessfully.Should().BeTrue();
-        context.Scheduler.ReceivedCalls()
-            .Count(call => call.GetMethodInfo().Name == nameof(IScheduler.ScheduleJob))
-            .Should().BeGreaterThan(2);
-        await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default!, default);
+        ScheduleJobCalls(context.Scheduler).Should().BeGreaterThan(2);
+        await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -175,7 +173,7 @@ public sealed partial class BackgroundJobExecutionRefireTests
 
         // Assert
         scheduled.Should().ContainSingle().Which.Should().Match<ITrigger>(trigger => IsReclaim(trigger));
-        await repository.DidNotReceiveWithAnyArgs().TryClaimAsync(default!, default);
+        await repository.DidNotReceiveWithAnyArgs().TryClaimAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -10,5 +10,5 @@ public interface IResult
     IEnumerable<ValidationError> ValidationErrors { get; }
     ExistingResource? Existing { get; }
     Type ValueType { get; }
-    object GetValue();
+    object? GetValue();
 }

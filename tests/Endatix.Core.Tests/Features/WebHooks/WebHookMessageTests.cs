@@ -32,7 +32,7 @@ public class WebHookMessageTests
         Submission? nullPayload = null;
 
         // Act
-        var message = new WebHookMessage<Submission>(expectedId, expectedOperation, nullPayload);
+        var message = new WebHookMessage<Submission>(expectedId, expectedOperation, nullPayload!);
 
         // Assert
         message.id.Should().Be(expectedId);

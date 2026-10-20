@@ -15,7 +15,8 @@ public interface ISubmissionExportRepository
     /// <param name="formId">The form identifier</param>
     /// <param name="sqlFunctionName">Optional SQL function name to use. If null, uses the default export function.</param>
     /// <param name="pageSize">Optional page size for paged exports. Null = default (500), 0 = no paging, &gt;0 = use that size.</param>
+    /// <param name="includeTestSubmissions">Keeps test submissions. Only the default export function takes it; false leaves them out.</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>An async enumerable of export rows</returns>
-    IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, int? pageSize, CancellationToken cancellationToken) where T : class, IExportItem;
+    IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, int? pageSize, bool includeTestSubmissions, CancellationToken cancellationToken) where T : class, IExportItem;
 }

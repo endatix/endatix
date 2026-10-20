@@ -16,6 +16,9 @@ namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator) : ICommandHandler<PartialUpdateSubmissionCommand, Result<Submission>>
 {
     private const int DEFAULT_CURRENT_PAGE = 0;
+    private const string SUBMISSION_NOT_FOUND_MESSAGE = "Form submission not found.";
+
+    private SubmissionChangeSaver Saver => new(repository, versions);
 
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -24,7 +27,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
         if (submission == null)
         {
-            return Result.NotFound("Form submission not found.");
+            return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
         var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
@@ -34,8 +37,8 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             mustPublishEvent = true;
         }
 
-        // TODO: add more advanced PATCH-ing where we can not only replace individual properties, but merge, remove and other typical operations. This is valid especially for the JSON based JsonData and Metadata properties, so we can keep payloads and client logic light, e.g. submit one answer at a time and update JsonData
-        // TODO: investigate if IsComplete and CurrentPage should be auto calculated as part of processing the submission
+        // Each given property replaces the stored one whole, JsonData included; only Metadata is merged, at its top level.
+        // IsComplete and CurrentPage come from the request as they are, not derived from the answers.
         var originalJson = submission.JsonData;
         var jsonData = request.JsonData ?? submission.JsonData;
         var currentPage = request.CurrentPage ?? submission.CurrentPage ?? DEFAULT_CURRENT_PAGE;
@@ -67,19 +70,11 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             return Result.Invalid(new ValidationError(RejectionMessage(wasScreenedOut, screenOut)));
         }
 
-        if (!string.Equals(originalJson, submission.JsonData, StringComparison.Ordinal))
+        var saved = await Saver.TrySaveAsync(submission, originalJson, cancellationToken);
+        if (!saved.IsSuccess)
         {
-            var effectiveTimestamp = submission.ModifiedAt ?? submission.CreatedAt;
-            var version = new SubmissionVersion(
-                submission.Id,
-                originalJson,
-                effectiveTimestamp
-            );
-
-            await versions.AddAsync(version, cancellationToken);
+            return saved.ToErrorResult<Submission>();
         }
-
-        await repository.SaveChangesAsync(cancellationToken);
 
         if (mustPublishEvent)
         {

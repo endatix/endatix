@@ -34,7 +34,9 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     public bool IsDraft { get; private set; }
     public string JsonData { get; private set; } = EndatixConfig.Configuration.DefaultFormDefinitionJson;
 
+#pragma warning disable S1144 // EF Core sets it when it loads the definition, and FormDefinitionFactory in the tests.
     public long FormId { get; private set; }
+#pragma warning restore S1144
 
     /// <summary>
     /// Updates the form definition's JSON data with the provided value, or keeps the current data if null is provided.
@@ -54,11 +56,15 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
         IsDraft = isDraft ?? IsDraft;
     }
 
+    /// <summary>
+    /// Soft-deletes the definition and the submissions loaded with it. It reaches only those: a form's deletion
+    /// deletes all of the form's submissions by form instead (<c>IFormsRepository.DeleteSubmissionsAsync</c>).
+    /// </summary>
     public override void Delete()
     {
         if (!IsDeleted)
         {
-            // Delete all related submissions
+            // Only the submissions loaded with the definition.
             foreach (var submission in _submissions)
             {
                 submission.Delete();

@@ -122,6 +122,27 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         PersonalizationSnapshot = snapshot;
     }
 
+    /// <summary>
+    /// Freezes the values a test submission is opened with. Unlike a link or an on-behalf create, a second freeze is
+    /// a bug, not a retry, so it throws rather than keeping the first.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Not a test submission, or its values are already frozen.</exception>
+    public void FreezeForTest(string snapshot)
+    {
+        Guard.Against.NullOrEmpty(snapshot);
+        if (!IsTestSubmission)
+        {
+            throw new InvalidOperationException("Only a test submission takes test personalization.");
+        }
+
+        if (PersonalizationSnapshot is not null)
+        {
+            throw new InvalidOperationException("The test submission's personalization is already frozen.");
+        }
+
+        PersonalizationSnapshot = snapshot;
+    }
+
     public bool IsComplete { get; private set; }
     public string JsonData { get; private set; } = null!;
     public FormDefinition FormDefinition { get; private set; } = null!;
@@ -325,6 +346,39 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
             throw new InvalidOperationException(
                 "Cannot screen out a submission whose collection status is not resumable.");
         }
+    }
+
+    /// <summary>
+    /// Flags the submission as test and clears its one-per-person key, so the person may answer for real.
+    /// Idempotent.
+    /// </summary>
+    public void MarkAsTest()
+    {
+        if (IsTestSubmission)
+        {
+            return;
+        }
+
+        IsTestSubmission = true;
+        ApplySingleSubmissionRestriction(FormId, shouldEnforce: false);
+        RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
+    }
+
+    /// <summary>
+    /// Flags the submission as real. When the form allows one response per person, the key is re-applied and
+    /// the unique index refuses the save if the person already has a real one (<c>DuplicateSubmissionException</c>).
+    /// Idempotent.
+    /// </summary>
+    public void MarkAsReal(bool enforceSingleSubmissionGate)
+    {
+        if (!IsTestSubmission)
+        {
+            return;
+        }
+
+        IsTestSubmission = false;
+        ApplySingleSubmissionRestriction(FormId, enforceSingleSubmissionGate);
+        RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
     }
 
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>

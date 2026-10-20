@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -46,8 +47,14 @@ public class SubmissionTokenService : ISubmissionTokenService
         }
 
         IssueOrExtend(submission, await GetTokenExpiryHoursAsync(formExpiry, submission.TenantId, cancellationToken));
-        await _submissionRepository.SaveChangesAsync(cancellationToken);
-        return Result<string>.Success(submission!.Token!.Value);
+        return await SaveTokenAsync(submission, cancellationToken);
+    }
+
+    /// <summary>A submission deleted since it was read, on its own or with its form, is not found; a deadlock victim is busy.</summary>
+    private async Task<Result<string>> SaveTokenAsync(Submission submission, CancellationToken cancellationToken)
+    {
+        var saved = await _submissionRepository.TrySaveChangesAsync(cancellationToken);
+        return saved.IsSuccess ? Result<string>.Success(submission.Token!.Value) : saved.ToErrorResult<string>();
     }
 
     public async Task<Token> NewTokenAsync(Form form, CancellationToken cancellationToken)

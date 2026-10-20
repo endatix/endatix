@@ -640,6 +640,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsDeleted")
+                        .IsConcurrencyToken()
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsTestSubmission")

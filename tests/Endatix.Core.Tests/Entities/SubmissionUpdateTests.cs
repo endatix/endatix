@@ -14,7 +14,7 @@ public class SubmissionUpdateTests
         var submission = NewSubmission();
 
         // Act
-        var action = () => submission.Update(null, formDefinitionId: 123, formDefinitionFormId: 123);
+        var action = () => submission.Update(null!, formDefinitionId: 123, formDefinitionFormId: 123);
 
         // Assert
         action.Should().Throw<ArgumentNullException>()

@@ -267,8 +267,8 @@ public sealed partial class AudienceDirectoryFlowTests
     /// <summary>Long enough for an open that does not wait to finish; the real one waits until released.</summary>
     private static readonly TimeSpan SecondOpenProbe = TimeSpan.FromSeconds(2);
 
-    /// <summary>The host's <see cref="AppDbContext"/> options plus the gate, so only this open pauses.</summary>
-    private static AppDbContext GatedAppDbContext(IServiceProvider services, SubmissionCommandGate gate)
+    /// <summary>The host's <see cref="AppDbContext"/> options plus the gate, so only this request pauses.</summary>
+    private static AppDbContext GatedAppDbContext(IServiceProvider services, IInterceptor gate)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>(
                 services.GetRequiredService<DbContextOptions<AppDbContext>>())
@@ -289,8 +289,12 @@ public sealed partial class AudienceDirectoryFlowTests
         var submissions = new EfRepository<Submission>(app, evaluator);
         var tokens = new SubmissionTokenService(submissions, forms, new EfRepository<TenantSettings>(app, evaluator));
         var linkLock = new LinkOpenLock(audience, app, services.GetRequiredService<ITransactionLock>());
-        var gates = new LinkOpenGates(audience, forms, services.GetRequiredService<ISubmitterResolver>());
-        return new RedeemLinkHandler(audience, submissions, tokens, linkLock, gates);
+        var gates = new LinkOpenGates(
+            audience,
+            forms,
+            new EfRepository<Submitter>(app, evaluator),
+            services.GetRequiredService<ISubmitterResolver>());
+        return new RedeemLinkHandler(audience, submissions, app, tokens, linkLock, gates);
     }
 
     /// <summary>

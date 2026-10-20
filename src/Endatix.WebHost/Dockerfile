@@ -13,4 +13,8 @@ WORKDIR /app
 COPY --from=build /app/publish .
 # Third-party licences (Quartz.NET is Apache-2.0) ship with the image.
 COPY THIRD-PARTY-NOTICES /app/THIRD-PARTY-NOTICES
+# Opt-in file logging writes to logs/ under the content root, so the app user must own it.
+RUN mkdir logs && chown "$APP_UID" logs
+# Run as the image's non-root "app" user (uid 1654).
+USER $APP_UID
 ENTRYPOINT ["dotnet", "Endatix.WebHost.dll"]
