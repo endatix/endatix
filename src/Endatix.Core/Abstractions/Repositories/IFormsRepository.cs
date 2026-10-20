@@ -22,6 +22,5 @@ public interface IFormsRepository : IRepository<Form>
     /// without loading them. It raises no event per submission: the form's own deletion event is the signal, and its
     /// subscribers clean up by form.
     /// </summary>
-    /// <returns>The number of submissions it deleted.</returns>
-    Task<int> DeleteSubmissionsAsync(Form form, CancellationToken cancellationToken);
+    Task DeleteSubmissionsAsync(Form form, CancellationToken cancellationToken);
 }

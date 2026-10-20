@@ -54,7 +54,7 @@ public class DeleteFormHandlerTests
         _repository.SingleOrDefaultAsync(Arg.Any<FormWithDefinitionsSpec>(), Arg.Any<CancellationToken>())
             .Returns(form);
         _repository.DeleteSubmissionsAsync(form, Arg.Any<CancellationToken>())
-            .Returns<int>(_ => throw new InvalidOperationException("database unavailable"));
+            .Returns<Task>(_ => throw new InvalidOperationException("database unavailable"));
 
         // Act
         var act = () => _handler.Handle(request, CancellationToken.None);
@@ -115,7 +115,7 @@ public class DeleteFormHandlerTests
         _repository.SingleOrDefaultAsync(Arg.Any<FormWithDefinitionsSpec>(), Arg.Any<CancellationToken>())
             .Returns(form);
         _repository.DeleteSubmissionsAsync(form, Arg.Any<CancellationToken>())
-            .Returns<int>(_ => throw new DeadlockVictimException("deadlock"));
+            .Returns<Task>(_ => throw new DeadlockVictimException("deadlock"));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

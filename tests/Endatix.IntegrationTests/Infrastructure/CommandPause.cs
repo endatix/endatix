@@ -6,7 +6,7 @@ namespace Endatix.IntegrationTests.Infrastructure;
 /// One armed pause. Disposing it releases the paused command and disarms the gate, so a failed assert never leaves
 /// a request held into the next test.
 /// </summary>
-public sealed class CommandPause(Regex statement, AppCommandGate gate) : IDisposable
+public sealed class CommandPause(Regex statement, AppCommandGate gate, Exception? fault = null) : IDisposable
 {
     private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -23,6 +23,9 @@ public sealed class CommandPause(Regex statement, AppCommandGate gate) : IDispos
         gate.Disarm(this);
         Release();
     }
+
+    /// <summary>What the paused command fails with once released, if anything.</summary>
+    internal Exception? Fault => fault;
 
     internal bool Matches(string commandText) => statement.IsMatch(commandText);
 

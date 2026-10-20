@@ -9,7 +9,11 @@ internal static class DatabaseDeadlocks
 {
     private const int SqlServerDeadlockVictim = 1205;
 
-    /// <summary>Whether <paramref name="exception"/>, or one it wraps, is the deadlock victim's error.</summary>
+    /// <summary>
+    /// Whether <paramref name="exception"/>, or one it wraps, is the deadlock victim's error. A save reports it inside
+    /// a <c>DbUpdateException</c>, which the provider's execution strategy wraps again in an
+    /// <see cref="InvalidOperationException"/>, as it does every transient failure.
+    /// </summary>
     public static bool IsVictim(Exception exception)
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)

@@ -60,11 +60,11 @@ namespace Endatix.Infrastructure.Repositories
         /// commits. The row locks the batches keep until then are on this form's submissions only, which no other
         /// writer may change once the form is being deleted.
         /// </remarks>
-        public async Task<int> DeleteSubmissionsAsync(Form form, CancellationToken cancellationToken)
+        public async Task DeleteSubmissionsAsync(Form form, CancellationToken cancellationToken)
         {
             try
             {
-                return await _dbContext.Submissions
+                await _dbContext.Submissions
                     .Where(submission => submission.TenantId == form.TenantId && submission.FormId == form.Id)
                     .SoftDeleteInBatchesAsync(SubmissionDeleteBatch, cancellationToken);
             }

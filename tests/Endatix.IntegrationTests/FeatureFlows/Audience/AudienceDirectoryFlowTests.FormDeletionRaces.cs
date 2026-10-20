@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -141,6 +142,32 @@ public sealed partial class AudienceDirectoryFlowTests
     /// <summary>The open's lookup of the person's Submitter: after its form check, before the lock.</summary>
     [GeneratedRegex("""FROM ["\[]Submitters["\]]""")]
     private static partial Regex SubmitterRead();
+
+    /// <summary>
+    /// The open takes over the person's on-behalf response, and that save loses a deadlock: the open answers busy,
+    /// which a retry gets past, not "Link not found".
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_link_whose_take_over_loses_a_deadlock_is_unavailable()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Quito", limitOnePerUser: true);
+        using var created = await OnBehalfAsync(admin, link.FormId, link.Identifier);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var anonymous = world.AnonymousClient();
+        var deadlock = new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected);
+        using var fault = world.Services.GetRequiredService<AppCommandGate>().FailAt(OpenTokenSave(), deadlock);
+
+        // Act
+        using var opened = await anonymous.PostAsJsonAsync(
+            RedeemUrl(link.FormId, link.Token), new { }, admin.CancellationToken);
+
+        // Assert
+        Assert.True(fault.Reached.IsCompleted, "The take-over never saved.");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, opened.StatusCode);
+    }
 
     private static async Task<string?> TokenOfAsync(IServiceProvider services, long submissionId)
     {

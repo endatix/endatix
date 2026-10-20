@@ -126,9 +126,9 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
         }
-        catch (DbUpdateException dbUpdateException) when (DatabaseDeadlocks.IsVictim(dbUpdateException))
+        catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
         {
-            throw DatabaseDeadlocks.Victim(dbUpdateException);
+            throw DatabaseDeadlocks.Victim(exception);
         }
         catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
@@ -148,9 +148,9 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
         }
-        catch (DbUpdateException dbUpdateException) when (DatabaseDeadlocks.IsVictim(dbUpdateException))
+        catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
         {
-            throw DatabaseDeadlocks.Victim(dbUpdateException);
+            throw DatabaseDeadlocks.Victim(exception);
         }
         catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {

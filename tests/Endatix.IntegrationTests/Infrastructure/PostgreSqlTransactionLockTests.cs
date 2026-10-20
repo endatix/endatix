@@ -111,24 +111,15 @@ public sealed class PostgreSqlTransactionLockTests(DbIntegrationFixture fixture)
         await using var probe = await BeginAsync();
         var (deleted, other) = await IdsWhoseTextHashesAlikeAsync(probe);
         await using var deletion = await BeginAsync();
-        await _lock.AcquireAsync(deletion.Database, FormLock(deleted), Cancellation);
+        await _lock.AcquireAsync(deletion.Database, FormSubmissionsLock.Deleting(deleted), Cancellation);
         await using var add = await BeginAsync();
 
         // Act
-        var act = () => _lock.AcquireAsync(
-            add.Database,
-            FormLock(other) with { Mode = TransactionLockMode.Shared, Timeout = TimeSpan.FromMilliseconds(1) },
-            Cancellation);
+        var act = () => _lock.AcquireAsync(add.Database, FormSubmissionsLock.Adding(other), Cancellation);
 
         // Assert
         await act.Should().NotThrowAsync();
     }
-
-    private static TransactionLockRequest FormLock(long formId) =>
-        new(TransactionLockScopes.FormSubmissions, formId.ToString(System.Globalization.CultureInfo.InvariantCulture))
-        {
-            Id = formId,
-        };
 
     private sealed record IdPair(long First, long Second);
 

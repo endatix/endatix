@@ -25,6 +25,18 @@ public sealed class AppCommandGate : DbCommandInterceptor
         return pause;
     }
 
+    /// <summary>
+    /// Fails the next command whose text matches <paramref name="statement"/> with <paramref name="fault"/>, as the
+    /// database would, before it runs.
+    /// </summary>
+    public CommandPause FailAt(Regex statement, Exception fault)
+    {
+        var pause = new CommandPause(statement, this, fault);
+        pause.Release();
+        Volatile.Write(ref _armed, pause);
+        return pause;
+    }
+
     /// <inheritdoc />
     public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
         DbCommand command,
@@ -56,6 +68,10 @@ public sealed class AppCommandGate : DbCommandInterceptor
         {
             Disarm(pause);
             await pause.WaitForReleaseAsync(cancellationToken);
+            if (pause.Fault is { } fault)
+            {
+                throw fault;
+            }
         }
     }
 }

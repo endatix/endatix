@@ -29,7 +29,7 @@ public sealed partial class FormDeletionFlowTests(EndatixIntegrationWebHostFixtu
     private static readonly object DraftSubmission = new { isComplete = false, jsonData = "{}", currentPage = 0 };
 
     /// <summary>
-    /// The submissions go by form in one statement, not one by one: each is stamped deleted, and the form's own
+    /// The submissions go by form in batches, not loaded one by one: each is stamped deleted, and the form's own
     /// deletion event is the only one raised for them.
     /// </summary>
     [Fact]

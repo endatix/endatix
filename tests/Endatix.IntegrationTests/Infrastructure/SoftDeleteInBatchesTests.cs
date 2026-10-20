@@ -15,7 +15,8 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// The batched soft-delete a form's deletion runs on its submissions, on the provider's own SQL: each statement
-/// takes at most a batch, so SQL Server never escalates one to a lock on the whole table.
+/// takes at most a batch, so SQL Server never escalates one to a lock on the whole table, and starts after the last
+/// id deleted, so none reads again what earlier batches deleted.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -26,7 +27,7 @@ public sealed partial class SoftDeleteInBatchesTests(EndatixIntegrationWebHostFi
     private const int BatchSize = 2;
 
     [Fact]
-    public async Task SoftDeleteInBatchesAsync_MoreRowsThanABatch_DeletesThemAllABatchAStatement()
+    public async Task SoftDeleteInBatchesAsync_MoreRowsThanABatch_ReadsAndDeletesABatchAStatementAfterTheLastId()
     {
         // Arrange
         var (services, formId) = await FormWithSubmissionsAsync();
@@ -40,10 +41,38 @@ public sealed partial class SoftDeleteInBatchesTests(EndatixIntegrationWebHostFi
             .SoftDeleteInBatchesAsync(BatchSize, Ct);
 
         // Assert
+        var reads = statements.Reads.ToList();
+        var updates = statements.Updates.ToList();
         Assert.Equal(Submissions, deleted);
-        Assert.Equal(3, statements.Count);
+        Assert.Equal(3, reads.Count);
+        Assert.Equal(3, updates.Count);
+        Assert.All(reads.Concat(updates), text => Assert.Matches(IdLowerBound(), text));
         Assert.False(await app.Submissions.AnyAsync(submission => submission.FormId == formId, Ct));
     }
+
+    /// <summary>A caller that drops the soft-delete filter still gets batches that end: deleted rows are left out.</summary>
+    [Fact]
+    public async Task SoftDeleteInBatchesAsync_WithoutTheSoftDeleteFilter_StillEnds()
+    {
+        // Arrange
+        var (services, formId) = await FormWithSubmissionsAsync();
+        await using var scope = services.CreateAsyncScope();
+        await using var app = AppWith(scope.ServiceProvider, new UpdateRecorder());
+
+        // Act
+        var deleted = await app.Submissions
+            .IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete])
+            .Where(submission => submission.FormId == formId)
+            .SoftDeleteInBatchesAsync(BatchSize, Ct)
+            .WaitAsync(TimeSpan.FromSeconds(30), Ct);
+
+        // Assert
+        Assert.Equal(Submissions, deleted);
+    }
+
+    /// <summary>PostgreSQL quotes the column <c>"Id"</c>, SQL Server <c>[Id]</c>.</summary>
+    [GeneratedRegex("""["\[]Id["\]] > """)]
+    private static partial Regex IdLowerBound();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -89,12 +118,29 @@ public sealed partial class SoftDeleteInBatchesTests(EndatixIntegrationWebHostFi
             services.GetRequiredService<OutboxIntegrationEventDispatcher>());
     }
 
-    /// <summary>Counts the statements that update Submissions.</summary>
+    /// <summary>Records the statements that read Submissions, and those that update it.</summary>
     private sealed partial class UpdateRecorder : DbCommandInterceptor
     {
-        private int _count;
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> _reads = new();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> _updates = new();
 
-        public int Count => _count;
+        public IReadOnlyCollection<string> Reads => _reads;
+
+        public IReadOnlyCollection<string> Updates => _updates;
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (SubmissionRead().IsMatch(command.CommandText))
+            {
+                _reads.Enqueue(command.CommandText);
+            }
+
+            return ValueTask.FromResult(result);
+        }
 
         public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
             DbCommand command,
@@ -104,11 +150,14 @@ public sealed partial class SoftDeleteInBatchesTests(EndatixIntegrationWebHostFi
         {
             if (SubmissionUpdate().IsMatch(command.CommandText))
             {
-                Interlocked.Increment(ref _count);
+                _updates.Enqueue(command.CommandText);
             }
 
             return ValueTask.FromResult(result);
         }
+
+        [GeneratedRegex("""FROM ["\[]Submissions["\]]""")]
+        private static partial Regex SubmissionRead();
 
         [GeneratedRegex("""UPDATE ["\[]Submissions["\]]""")]
         private static partial Regex SubmissionUpdate();

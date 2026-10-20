@@ -9,10 +9,17 @@ namespace Endatix.Infrastructure.Data.Locking;
 /// <see cref="AppDbContext"/>: shared by the adds, exclusive for the deletion.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The key is the form id alone. Ids are unique across tenants, and a deletion takes the lock before it reads the
-/// form again, so it does not need a tenant. It is the request's 64-bit <see cref="TransactionLockRequest.Id"/>, so
-/// no two forms ever share the lock: with an add's near-zero wait, a shared lock would turn one form's deletion into
-/// refused creates on another.
+/// form again, so it does not need a tenant. Two forms must not share the lock: with an add's near-zero wait, a
+/// shared lock would turn one form's deletion into refused creates on another.
+/// </para>
+/// <para>
+/// PostgreSQL keys it by the request's 64-bit <see cref="TransactionLockRequest.Id"/>, so two forms never share it.
+/// SQL Server names the resource <c>1119:{formId}</c>, at most 24 characters. It keeps the first 32 characters of a
+/// resource name as they are and hashes only the rest, so two forms' names stay apart too; a key that grew past 32
+/// characters would lose that.
+/// </para>
 /// </remarks>
 public sealed class FormSubmissionsLock(AppDbContext db, ITransactionLock transactionLock) : IFormSubmissionsLock
 {
@@ -48,7 +55,8 @@ public sealed class FormSubmissionsLock(AppDbContext db, ITransactionLock transa
     public static TransactionLockRequest Adding(long formId) =>
         Request(formId) with { Mode = TransactionLockMode.Shared, Timeout = AddWait };
 
-    private static TransactionLockRequest Deleting(long formId) =>
+    /// <summary>The lock a deletion takes.</summary>
+    internal static TransactionLockRequest Deleting(long formId) =>
         Request(formId) with { Timeout = DeletionWait };
 
     private static TransactionLockRequest Request(long formId) =>

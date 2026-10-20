@@ -170,14 +170,15 @@ internal sealed class RedeemLinkHandler(
         var link = opening.Link;
         var existing = await submissions.FirstOrDefaultAsync(new SubmissionForLinkSpec(link.FormId, link.Id), cancellationToken)
             ?? await PersonsResponseAsync(opening, cancellationToken);
-        var submission = existing is null
+        var started = existing is null
             ? await StartAsync(opening, cancellationToken)
             : await TakeOverAsync(link, existing, cancellationToken);
-        if (submission is null)
+        if (!started.IsSuccess)
         {
-            return Result.NotFound(LinkNotFound);
+            return Refused(started);
         }
 
+        var submission = started.Value;
         var redeemed = await RedeemedAsync(submission.Id, existing is null, cancellationToken);
         return !redeemed.IsSuccess || await ClaimAsync(link.Id, submission.Id, cancellationToken) ? redeemed : null;
     }
@@ -194,10 +195,10 @@ internal sealed class RedeemLinkHandler(
     /// A response this open did not create becomes the link's: it is marked started, and it gets the live audience
     /// values when it has none (an on-behalf create before the person was in the audience). Values it has stay.
     /// The snapshot is read either way: it is the check under the lock that the person is still there.
-    /// <see langword="null"/> when the person was removed, or the response deleted or its save lost a deadlock,
-    /// meanwhile: the open rolls back with the lock, and every refusal reads the same.
+    /// Not found when the person was removed, or the response deleted, meanwhile; unavailable when its save lost a
+    /// deadlock. Either way the open rolls back with the lock.
     /// </summary>
-    private async Task<Submission?> TakeOverAsync(
+    private async Task<Result<Submission>> TakeOverAsync(
         AudienceLink link,
         Submission submission,
         CancellationToken cancellationToken)
@@ -205,7 +206,7 @@ internal sealed class RedeemLinkHandler(
         var snapshot = await SnapshotAsync(link, cancellationToken);
         if (snapshot is null)
         {
-            return null;
+            return Result.NotFound(LinkNotFound);
         }
 
         if (submission.PersonalizationSnapshot is null)
@@ -214,7 +215,8 @@ internal sealed class RedeemLinkHandler(
         }
 
         submission.EnsureStarted();
-        return (await submissions.TrySaveChangesAsync(cancellationToken)).IsSuccess ? submission : null;
+        var saved = await submissions.TrySaveChangesAsync(cancellationToken);
+        return saved.IsSuccess ? Result.Success(submission) : saved.ToErrorResult<Submission>();
     }
 
     /// <summary>
@@ -284,21 +286,25 @@ internal sealed class RedeemLinkHandler(
         return updated == 1;
     }
 
-    /// <summary><see langword="null"/> when the person was removed meanwhile.</summary>
-    private async Task<Submission?> StartAsync(LinkOpening opening, CancellationToken cancellationToken)
+    /// <summary>Not found when the person was removed meanwhile.</summary>
+    private async Task<Result<Submission>> StartAsync(LinkOpening opening, CancellationToken cancellationToken)
     {
         var snapshot = await SnapshotAsync(opening.Link, cancellationToken);
         if (snapshot is null)
         {
-            return null;
+            return Result.NotFound(LinkNotFound);
         }
 
         var submission = NewResponse(opening);
         submission.FreezePersonalization(opening.Link.Id, snapshot);
         await submissions.AddAsync(submission, cancellationToken);
         await submissions.SaveChangesAsync(cancellationToken);
-        return submission;
+        return Result.Success(submission);
     }
+
+    /// <summary>A busy refusal stays busy, a retryable 503; every other one reads the same.</summary>
+    private static Result<RedeemedLinkDto> Refused(IResult refusal) =>
+        refusal.IsUnavailable() ? Result.Unavailable(LinkBusy) : Result.NotFound(LinkNotFound);
 
     /// <summary>
     /// On a one-response form the response carries the person's Submitter and the single-response gate, so
