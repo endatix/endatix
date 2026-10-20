@@ -40,19 +40,19 @@ public sealed partial class JobsSchedulerStartupTests
     }
 
     [Fact]
-    public async Task Scheduler_whose_build_meets_an_aborted_transaction_the_probe_cannot_explain_fails_startup()
+    public async Task Scheduler_whose_build_meets_an_aborted_transaction_the_probe_cannot_explain_retries_as_contention_and_starts()
     {
-        // Arrange — the database is writable and reachable, so nothing explains the 25P02: a refusal, as before.
+        // Arrange — the database is writable and reachable, so nothing the probe sees explains the 25P02: a lost race
+        // inside Quartz's lock, such as a lock wait past lock_timeout, which clears once the other transaction ends.
         var ct = TestContext.Current.CancellationToken;
-        var schedulers = new SchedulerFactoryFailingOnce(() => Task.FromResult<Exception>(AbortedTransaction()));
-        var logs = new CapturingLoggerProvider();
-        using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
 
         // Act
-        var start = () => service.StartAsync(ct);
+        var (started, logs) = await StartAfterAFailedBuildAsync(AbortedTransaction(), ct);
 
         // Assert
-        await start.Should().ThrowAsync<LockException>();
+        started.Should().BeTrue();
+        logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains(LostRaceWarning));
+        logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
     }
 
     [Fact]

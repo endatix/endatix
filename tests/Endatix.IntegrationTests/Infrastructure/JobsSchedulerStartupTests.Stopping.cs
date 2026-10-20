@@ -9,6 +9,8 @@ namespace Endatix.IntegrationTests;
 /// <summary>A start still waiting for its database when the host stops, which Quartz refuses to rebuild for.</summary>
 public sealed partial class JobsSchedulerStartupTests
 {
+    private const string StoppedBeforeStarting = "The background jobs scheduler could not start before the host stopped";
+
     // What Quartz 4.2.2 throws when asked to rebuild a scheduler once the host is stopping.
     private const string HostStopping =
         "The host is stopping, so scheduler 'endatix-jobs' was not restarted: it would be created after the shutdown that would have stopped it, and nothing would come back for it.";
@@ -24,6 +26,7 @@ public sealed partial class JobsSchedulerStartupTests
         var logs = await StopWhileWaitingAsync(stopping => throw new SchedulerConfigException(HostStopping), stopBetweenTries: true, ct);
 
         // Assert
+        logs.Entries.Should().NotContain(entry => entry.Level >= LogLevel.Warning && entry.Message.Contains(StoppedBeforeStarting));
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
     }
 
@@ -44,6 +47,32 @@ public sealed partial class JobsSchedulerStartupTests
             ct);
 
         // Assert
+        logs.Entries.Should().NotContain(entry => entry.Level >= LogLevel.Warning && entry.Message.Contains(StoppedBeforeStarting));
+        logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    [Fact]
+    public async Task Scheduler_whose_try_is_refused_as_the_host_starts_stopping_says_why_at_warning()
+    {
+        // Arrange — the host starts stopping while a try is under way, and the try is refused for a reason of its own,
+        // which still says why this host ran no jobs.
+        var ct = TestContext.Current.CancellationToken;
+        const string refusal = "The background jobs scheduler cannot start: READ_COMMITTED_SNAPSHOT is off.";
+
+        // Act
+        var logs = await StopWhileWaitingAsync(
+            stopping =>
+            {
+                stopping.Cancel();
+                throw new InvalidOperationException(refusal);
+            },
+            stopBetweenTries: false,
+            ct);
+
+        // Assert
+        logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning
+            && entry.Message.StartsWith(StoppedBeforeStarting, StringComparison.Ordinal)
+            && entry.Message.Contains(refusal));
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
     }
 

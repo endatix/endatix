@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -48,6 +46,9 @@ internal sealed class JobsSchedulerHostedService(
     // A lost race, or an outage, is logged the first time and then one in this many tries, so one that keeps recurring
     // is seen without flooding the log.
     private const int TriesPerRepeatedWarning = 12;
+
+    // How Quartz 4.2.2 begins the SchedulerConfigException ISchedulerRuntime.Restart throws once the host is stopping.
+    private const string QuartzHostStoppingRefusal = "The host is stopping, so scheduler '";
 
     // A start still waiting for the database stops waiting as soon as the host starts stopping, before this service is
     // stopped: from then on Quartz refuses to rebuild a scheduler, and a try made then would only fail.
@@ -237,19 +238,13 @@ internal sealed class JobsSchedulerHostedService(
         return await database.UnreachableBecauseAsync(cancellationToken) is { } away ? Unreachable(away) : Contended(exception);
     }
 
-    // A 25P02 hides why its transaction failed, such as a connection that landed on a read-only session during a
-    // switchover after the probe found a writable one, so the probe is asked again; a failure it cannot explain stays a
-    // refusal.
-    private async Task<StartResult> ExplainAbortedTransactionAsync(Exception aborted, CancellationToken cancellationToken)
-    {
-        if (await database.UnreachableBecauseAsync(cancellationToken) is { } explained)
-        {
-            return Unreachable(explained);
-        }
-
-        ExceptionDispatchInfo.Throw(aborted);
-        throw new UnreachableException();
-    }
+    // A 25P02 hides why its transaction failed, so the probe is asked again. A connection that landed on a read-only
+    // session during a switchover, after the probe found a writable one, is an outage. Anything else is taken for a lost
+    // race inside Quartz's lock: on PostgreSQL a lock wait that runs past lock_timeout (55P03) comes out of Quartz's
+    // lock handler as this 25P02, measured with Quartz 4.2.2, and a deadlock or a statement_timeout there would too. A
+    // real refusal shows itself as some other failure on a later try.
+    private async Task<StartResult> ExplainAbortedTransactionAsync(Exception aborted, CancellationToken cancellationToken) =>
+        await database.UnreachableBecauseAsync(cancellationToken) is { } explained ? Unreachable(explained) : Contended(aborted);
 
     private StartResult Contended(Exception lostRace)
     {
@@ -270,10 +265,14 @@ internal sealed class JobsSchedulerHostedService(
         {
             await RetryUntilStartedAsync(result, stoppingToken);
         }
-        catch (Exception) when (stoppingToken.IsCancellationRequested)
+        catch (Exception exception) when (stoppingToken.IsCancellationRequested && IsPartOfTheStop(exception))
         {
-            // The host stopped before the database came back; a try that failed because it is stopping, as Quartz
-            // refusing to rebuild the scheduler does, is part of the stop.
+            // The host stopped before the database came back.
+        }
+        catch (Exception exception) when (stoppingToken.IsCancellationRequested)
+        {
+            // A refusal that arrived as the host began to stop still says why this host ran no jobs.
+            logger.LogWarning(exception, "The background jobs scheduler could not start before the host stopped; this host ran no jobs.");
         }
         catch (Exception exception)
         {
@@ -281,6 +280,11 @@ internal sealed class JobsSchedulerHostedService(
             logger.LogCritical(exception, "The background jobs scheduler could not start; this host runs no jobs.");
         }
     }
+
+    // What a stop itself causes: the wait cancelled, or Quartz refusing to rebuild a scheduler once the host is stopping.
+    private static bool IsPartOfTheStop(Exception exception) =>
+        exception is OperationCanceledException || exception.HasCause(cause =>
+            cause is SchedulerConfigException && cause.Message.StartsWith(QuartzHostStoppingRefusal, StringComparison.Ordinal));
 
     // Waits after each failed try for as long as its kind of failure takes to clear, then tries again.
     private async Task RetryUntilStartedAsync(StartResult result, CancellationToken stoppingToken)
