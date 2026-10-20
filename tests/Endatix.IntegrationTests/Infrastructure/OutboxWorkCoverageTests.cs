@@ -3,6 +3,7 @@ using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Endatix.IntegrationTests;
 
@@ -28,7 +29,8 @@ public sealed class OutboxWorkCoverageTests(DbIntegrationFixture fixture)
         await using var host = await FanOutHost.StartAsync(
             fixture, new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = everyFlagOn }, ct);
 
-        // Assert — the check saw the modules' handlers, so it was not vacuous.
+        // Assert — the check ran on this host and saw the modules' handlers, so it was not vacuous.
+        host.Services.GetServices<IHostedService>().Should().ContainSingle(service => service is OutboxSubscriptionsStartupCheck);
         using var scope = host.Services.CreateScope();
         var handlerAssemblies = scope.ServiceProvider.GetServices<IOutboxIntegrationEventHandler>()
             .Select(handler => handler.GetType().Assembly.GetName().Name)

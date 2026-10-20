@@ -74,8 +74,6 @@ internal readonly record struct OutboxDelivery(IOutboxMessage Message, long Tena
 /// </summary>
 public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subscriptions)
 {
-    private readonly OutboxJobSubscription[] _all = [.. subscriptions];
-
     private readonly ILookup<string, OutboxJobSubscription> _byEventType =
         subscriptions.ToLookup(subscription => subscription.EventType, StringComparer.Ordinal);
 
@@ -90,7 +88,9 @@ public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subsc
     /// </summary>
     public void Validate(IEnumerable<IOutboxIntegrationEventHandler> inlineHandlers)
     {
-        foreach (var handler in inlineHandlers)
+        var handlers = inlineHandlers.ToList();
+        ThrowIfRegisteredTwice(handlers);
+        foreach (var handler in handlers)
         {
             ThrowIfJobRunsOnOtherEvents(handler);
             var eventType = handler.EventTypes.FirstOrDefault(type =>
@@ -105,10 +105,22 @@ public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subsc
         }
     }
 
+    // However it was registered, an inline handler type that resolves twice runs every message twice.
+    private static void ThrowIfRegisteredTwice(List<IOutboxIntegrationEventHandler> handlers)
+    {
+        var twice = handlers.GroupBy(handler => handler.GetType()).FirstOrDefault(group => group.Count() > 1);
+        if (twice is not null)
+        {
+            throw new InvalidOperationException(
+                $"The outbox handler {twice.Key.FullName} is registered {twice.Count()} times, so it would run every " +
+                $"message that often inline. Register it once.");
+        }
+    }
+
     // A work's job subscribes HandledEventTypes, its inline handler runs on EventTypes: they must be the same events.
     private void ThrowIfJobRunsOnOtherEvents(IOutboxIntegrationEventHandler handler)
     {
-        var extra = _all.FirstOrDefault(subscription =>
+        var extra = _byEventType.SelectMany(group => group).FirstOrDefault(subscription =>
             subscription.WorkType == handler.GetType() && !handler.EventTypes.Contains(subscription.EventType));
         if (extra is not null)
         {

@@ -220,7 +220,6 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         return rows.Count == 0 ? null : rows[0];
     }
 
-
     private sealed record OpenedLink(SeededSubmission Submission, long MembershipId);
 
     /// <summary>The job, by its type and tenant, waited for until it finishes.</summary>

@@ -378,7 +378,6 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         return rows.Count == 0 ? null : rows[0];
     }
 
-
     /// <summary>The answer and revision a test writes straight to a submission's row.</summary>
     private sealed record SubmissionAnswer(long SubmissionId, long Revision, string Answer);
 

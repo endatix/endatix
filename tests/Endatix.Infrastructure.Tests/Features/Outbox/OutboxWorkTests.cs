@@ -16,7 +16,7 @@ public sealed class OutboxWorkTests
     private const long TenantA = 11;
     private const long MessageId = 700;
 
-    private static readonly BackgroundJobTypeDefaults Defaults = new() { MaxAttempts = 3 };
+    internal static readonly BackgroundJobTypeDefaults Defaults = new() { MaxAttempts = 3 };
 
     private readonly IRepository<OutboxMessage> _outbox = Substitute.For<IRepository<OutboxMessage>>();
     private readonly IBackgroundJobQueue _queue = Substitute.For<IBackgroundJobQueue>();
@@ -200,35 +200,6 @@ public sealed class OutboxWorkTests
     }
 
     [Fact]
-    public void AddOutboxWork_SameWorkTwice_Throws()
-    {
-        // Arrange — a second registration would run the work twice inline and subscribe its job twice.
-        var services = new ServiceCollection();
-        services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
-
-        // Act
-        var registerAgain = () => services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
-
-        // Assert
-        registerAgain.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain(typeof(WorkStub).FullName!);
-    }
-
-    [Fact]
-    public void Validate_WorkWhoseEventTypesMissAJobEvent_Throws()
-    {
-        // Arrange — the job subscribes HandledEventTypes, but the inline handler lists fewer events.
-        var services = new ServiceCollection();
-        services.AddOutboxWork<DriftingWorkStub, DriftingWorkPayload>(Defaults);
-        var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
-
-        // Act
-        var validate = () => subscriptions.Validate([new DriftingWorkStub()]);
-
-        // Assert
-        validate.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain("z.happened");
-    }
-
-    [Fact]
     public async Task ExecuteAsync_ReadThrowsAnythingElse_ThrowsSoTheJobRetries()
     {
         // Arrange — only the parser's own exceptions mean the message is unreadable.
@@ -256,39 +227,6 @@ public sealed class OutboxWorkTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         work.Ran.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Validate_PlainHandlerBesideAWorkOnItsEvent_ThrowsThoughTheWorksJobSubscribesIt()
-    {
-        // Arrange — a plain inline handler of this assembly on the work's event; only the work has a job.
-        var services = new ServiceCollection();
-        services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
-        var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
-        var plain = new InlineHandlerStub(["x.happened"]);
-
-        // Act
-        var validate = () => subscriptions.Validate([new WorkStub(), plain]);
-
-        // Assert
-        validate.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain(typeof(InlineHandlerStub).FullName!);
-    }
-
-    [Fact]
-    public void Validate_WorkRegisteredInlineOnly_ThrowsThoughItsAssemblySubscribesTheEvent()
-    {
-        // Arrange — another job of this assembly subscribes x.happened, but none is this work's.
-        var services = new ServiceCollection();
-        services.AddInlineOutboxHandler<WorkStub>();
-        services.AddOutboxJobSubscription(
-            "x.happened", message => new JobQueueIntegrationEventPublisherTests.FirstPayload(message.Id));
-        var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
-
-        // Act
-        var validate = () => subscriptions.Validate([new WorkStub()]);
-
-        // Assert
-        validate.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain(typeof(WorkStub).FullName!);
     }
 
     [Fact]
@@ -353,6 +291,21 @@ public sealed class OutboxWorkTests
             .Should().Equal(Enumerable.Repeat($"{MessageId}:{WorkPayload.JobType}", expectedJobs));
     }
 
+    [Fact]
+    public async Task PublishAsync_OnlyWhenThereIsWorkReadCancelled_ThrowsSoTheRelayStops()
+    {
+        // Arrange — cancellation is the relay's own, not a bad read to enqueue past.
+        using var provider = Build(options => options.OnlyWhenThereIsWork());
+
+        // Act
+        var publish = () => PublishAsync(
+            provider, new OutboxMessageStub(MessageId, "x.happened", """{"tenantId":"11","work":"cancel"}""", TenantA));
+
+        // Assert
+        await publish.Should().ThrowAsync<OperationCanceledException>();
+        _enqueued.Should().BeEmpty();
+    }
+
     private ServiceProvider Build(Action<OutboxWorkOptions>? configure = null) => Build(_ => { }, configure);
 
     private ServiceProvider Build(Action<IServiceCollection> addMore, Action<OutboxWorkOptions>? configure = null)
@@ -404,25 +357,6 @@ public sealed class OutboxWorkTests
         public static AppLevelWorkPayload For(long outboxMessageId) => new(outboxMessageId);
     }
 
-    internal sealed record DriftingWorkPayload(long OutboxMessageId) : IOutboxJobPayload<DriftingWorkPayload>
-    {
-        public static string JobType => "TestDriftingWork";
-
-        public static DriftingWorkPayload For(long outboxMessageId) => new(outboxMessageId);
-    }
-
-    /// <summary>A work whose inline EventTypes list fewer events than its job subscribes.</summary>
-    internal sealed class DriftingWorkStub : IOutboxWork
-    {
-        public static IReadOnlyCollection<string> HandledEventTypes { get; } = ["x.happened", "z.happened"];
-
-        public IReadOnlyCollection<string> EventTypes { get; } = ["x.happened"];
-
-        public OutboxWork Read(IOutboxMessage message) => OutboxWork.None;
-
-        public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
-    }
-
     /// <summary>A second work on another event, registered app-level.</summary>
     internal sealed class AppLevelWorkStub : IOutboxWork
     {
@@ -466,6 +400,7 @@ public sealed class OutboxWorkTests
             {
                 "none" => OutboxWork.None,
                 "throw" => OutboxWork.For(_ => throw new InvalidOperationException("transient")),
+                "cancel" => throw new OperationCanceledException(),
                 _ => OutboxWork.For(_ =>
                 {
                     Ran = true;

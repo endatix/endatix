@@ -3,6 +3,7 @@ using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Features.Outbox;
 
@@ -48,7 +49,7 @@ public static class OutboxWorkServiceCollectionExtensions
         where THandler : class, IOutboxIntegrationEventHandler
     {
         ArgumentNullException.ThrowIfNull(services);
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(THandler)))
+        if (services.Any(descriptor => RegistersInline<THandler>(descriptor)))
         {
             throw new InvalidOperationException(
                 $"The outbox handler {typeof(THandler).FullName} is already registered; register it once, so it runs once.");
@@ -71,6 +72,12 @@ public static class OutboxWorkServiceCollectionExtensions
         services.TryAddScoped<OutboxJobMessages>();
         services.Configure<OutboxWorkSettings>(TPayload.JobType, settings => settings.ReadTenant = options.ReadsTenant);
     }
+
+    private static bool RegistersInline<THandler>(ServiceDescriptor descriptor) =>
+        descriptor.ServiceType == typeof(THandler)
+        || (descriptor.ServiceType == typeof(IOutboxIntegrationEventHandler)
+            && !descriptor.IsKeyedService
+            && descriptor.ImplementationType == typeof(THandler));
 
     private static void Subscribe<TWork, TPayload>(IServiceCollection services, string eventType, OutboxWorkOptions options)
         where TWork : class, IOutboxWork
@@ -147,7 +154,9 @@ internal sealed class OutboxWorkSettings
 }
 
 /// <summary>Subscribes the job of <typeparamref name="TWork"/> only for a message that may need its work.</summary>
-internal sealed class OutboxWorkExpander<TPayload, TWork>(TWork work) : IOutboxSubscriberExpander<TPayload>
+internal sealed partial class OutboxWorkExpander<TPayload, TWork>(
+    TWork work,
+    ILogger<OutboxWorkExpander<TPayload, TWork>> logger) : IOutboxSubscriberExpander<TPayload>
     where TPayload : IOutboxJobPayload<TPayload>
     where TWork : class, IOutboxWork
 {
@@ -171,7 +180,19 @@ internal sealed class OutboxWorkExpander<TPayload, TWork>(TWork work) : IOutboxS
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            LogReadFailed(logger, typeof(TWork).Name, message.Id, TPayload.JobType, exception);
             return true;
         }
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventName = "OutboxWorkReadFailed",
+        Message = "Outbox work {Work} could not read message {OutboxMessageId}; its {JobType} job is enqueued to fail on its own")]
+    private static partial void LogReadFailed(
+        ILogger logger,
+        string work,
+        long outboxMessageId,
+        string jobType,
+        Exception exception);
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
@@ -11,10 +12,10 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Features.Outbox;
 
-/// <summary>Why an outbox work's job failed for good: no retry can fix either.</summary>
+/// <summary>Why an outbox work's job failed for good: no retry can fix any of these.</summary>
 public static class OutboxJobFailures
 {
-    /// <summary>The outbox row is gone, or belongs to another tenant than the job.</summary>
+    /// <summary>The outbox row is gone, or, for tenant-scoped work, belongs to another tenant than the job.</summary>
     /// <remarks>Each attempt re-reads the row, so outbox retention must allow for it: see background-processing.mdx.</remarks>
     public const string MessageGone = "The outbox message no longer exists.";
 
@@ -45,13 +46,13 @@ internal sealed class OutboxJobHandler<TPayload, TWork>(
         TPayload payload,
         CancellationToken cancellationToken)
     {
-        var (message, refused) = await messages.FindAsync(job, payload.OutboxMessageId, cancellationToken);
-        if (refused is not null)
+        var lookup = await messages.FindAsync(job, payload.OutboxMessageId, cancellationToken);
+        if (!lookup.TryGet(out var message, out var refused))
         {
             return Failure(refused);
         }
 
-        if (!OutboxWorkReader.TryRead(work, message!, out var outboxWork))
+        if (!OutboxWorkReader.TryRead(work, message, out var outboxWork))
         {
             return Failure(OutboxJobFailures.MessageUnreadable);
         }
@@ -83,7 +84,7 @@ internal sealed class OutboxJobMessages(
         }
 
         var message = new OutboxMessageView(row);
-        return readTenant is null ? new OutboxJobLookup(message, null) : ForTenant(readTenant, message, job.TenantId);
+        return readTenant is null ? OutboxJobLookup.Found(message) : ForTenant(readTenant, message, job.TenantId);
     }
 
     private static OutboxJobLookup ForTenant(Func<IOutboxMessage, long> readTenant, IOutboxMessage message, long tenantId)
@@ -91,7 +92,7 @@ internal sealed class OutboxJobMessages(
         try
         {
             return readTenant(message) == tenantId
-                ? new OutboxJobLookup(message, null)
+                ? OutboxJobLookup.Found(message)
                 : OutboxJobLookup.Refused(OutboxJobFailures.OtherTenant);
         }
         catch (Exception exception) when (OutboxWorkReader.IsUnreadable(exception))
@@ -101,10 +102,29 @@ internal sealed class OutboxJobMessages(
     }
 }
 
-/// <summary>A job's outbox message, or why the job is refused it; exactly one is set.</summary>
-internal readonly record struct OutboxJobLookup(IOutboxMessage? Message, string? Failure)
+/// <summary>A job's outbox message, or why the job is refused it.</summary>
+internal readonly struct OutboxJobLookup
 {
+    private readonly IOutboxMessage? _message;
+    private readonly string? _failure;
+
+    private OutboxJobLookup(IOutboxMessage? message, string? failure)
+    {
+        _message = message;
+        _failure = failure;
+    }
+
+    public static OutboxJobLookup Found(IOutboxMessage message) => new(message, null);
+
     public static OutboxJobLookup Refused(string failure) => new(null, failure);
+
+    /// <summary>The message, or the <see cref="OutboxJobFailures"/> reason; a default lookup reads as gone.</summary>
+    public bool TryGet([NotNullWhen(true)] out IOutboxMessage? message, [NotNullWhen(false)] out string? failure)
+    {
+        message = _message;
+        failure = _message is null ? _failure ?? OutboxJobFailures.MessageGone : null;
+        return message is not null;
+    }
 }
 
 /// <summary>The one rule for a message an outbox work cannot read: its failure is the message's, not the moment's.</summary>
