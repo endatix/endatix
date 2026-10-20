@@ -97,6 +97,44 @@ public class GetSubmissionFilesTests
     }
 
     [Fact]
+    public async Task SendsZipOfEachFile()
+    {
+        // Arrange
+        ReturnFiles(new MemoryStream(Encoding.UTF8.GetBytes("abc")), new MemoryStream(Encoding.UTF8.GetBytes("defg")));
+        var body = new MemoryStream();
+        _endpoint.HttpContext.Response.Body = body;
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        body.Position = 0;
+        using var archive = new ZipArchive(body, ZipArchiveMode.Read);
+        Assert.Equal(["file1.txt", "file2.txt"], archive.Entries.Select(e => e.FullName));
+        using var reader = new StreamReader(archive.GetEntry("file2.txt")!.Open());
+        Assert.Equal("defg", await reader.ReadToEndAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SendsValidEmptyZipWhenNoFiles()
+    {
+        // Arrange
+        ReturnFiles();
+        var body = new MemoryStream();
+        _endpoint.HttpContext.Response.Body = body;
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        body.Position = 0;
+        using var archive = new ZipArchive(body, ZipArchiveMode.Read);
+        Assert.Empty(archive.Entries);
+    }
+
+    [Fact]
     public async Task FailureWhileBuildingZip_Returns500WithoutZipHeaders()
     {
         // Arrange
@@ -142,6 +180,29 @@ public class GetSubmissionFilesTests
         await _endpoint.HandleAsync(request, cts.Token);
 
         // Assert
+        Assert.NotEqual(500, _endpoint.HttpContext.Response.StatusCode);
+        Assert.False(_lifetime.Aborted);
+        _logger.DidNotReceive().Log(
+            LogLevel.Error,
+            Arg.Any<EventId>(),
+            Arg.Any<object>(),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
+    public async Task ClientDisconnectWhileSending_IsNotLoggedAsError()
+    {
+        // Arrange
+        ReturnFiles(new MemoryStream(Encoding.UTF8.GetBytes("abc")));
+        using var cts = new CancellationTokenSource();
+        _endpoint.HttpContext.Response.Body = new UnwritableStream(onWrite: cts.Cancel);
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, cts.Token);
+
+        // Assert
         _logger.DidNotReceive().Log(
             LogLevel.Error,
             Arg.Any<EventId>(),
@@ -165,9 +226,24 @@ public class GetSubmissionFilesTests
         Assert.True(content.Disposed);
     }
 
-    private void ReturnFiles(Stream content)
+    [Fact]
+    public async Task CopyFailure_DisposesFilesNotYetCopied()
     {
-        var files = new List<FileDescriptor> { new("file1.txt", "text/plain", content) };
+        // Arrange
+        var notYetCopied = new UnreadableStream();
+        ReturnFiles(new UnreadableStream(), notYetCopied);
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        Assert.True(notYetCopied.Disposed);
+    }
+
+    private void ReturnFiles(params Stream[] contents)
+    {
+        var files = contents.Select((content, i) => new FileDescriptor($"file{i + 1}.txt", "text/plain", content)).ToList();
         _mediator.Send(Arg.Any<GetFilesQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new GetFilesResult("TestForm", 123, files)));
     }
@@ -194,10 +270,16 @@ public class GetSubmissionFilesTests
     }
 
     /// <summary>A response body that fails on write, like a connection reset mid-download.</summary>
-    private sealed class UnwritableStream : MemoryStream
+    private sealed class UnwritableStream(Action? onWrite = null) : MemoryStream
     {
-        public override void Write(byte[] buffer, int offset, int count) => throw new IOException("Connection reset");
+        public override void Write(byte[] buffer, int offset, int count) => throw Reset();
         public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) =>
-            throw new IOException("Connection reset");
+            throw Reset();
+
+        private IOException Reset()
+        {
+            onWrite?.Invoke();
+            return new IOException("Connection reset");
+        }
     }
 }

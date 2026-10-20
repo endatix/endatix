@@ -36,9 +36,10 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
         {
             await SendFilesAsync(request, cancellationToken);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
-            // The client went away; there is no one to send an error to.
+            // The client went away (as a cancellation or a reset write); there is no one to send an error to.
+            AbortIfResponseStarted();
         }
         catch (Exception ex)
         {
@@ -57,14 +58,21 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
             return;
         }
 
+        using var zipStream = await BuildZipAsync(result.Value.Files, cancellationToken);
         if (result.Value.Files.Count == 0)
         {
-            await SendEmptyZipAsync(cancellationToken);
+            await SendEmptyZipAsync(zipStream, cancellationToken);
             return;
         }
 
-        using var zipStream = await BuildZipAsync(result.Value.Files, cancellationToken);
         await SendZipAsync(zipStream, result.Value, cancellationToken);
+    }
+
+    private async Task SendEmptyZipAsync(MemoryStream zipStream, CancellationToken cancellationToken)
+    {
+        HttpContext.Response.Headers["X-Endatix-Empty-File"] = "true";
+        HttpContext.Response.ContentType = "application/zip";
+        await Send.StreamAsync(zipStream, contentType: "application/zip", cancellation: cancellationToken);
     }
 
     private async Task SendZipAsync(MemoryStream zipStream, GetFilesResult filesResult, CancellationToken cancellationToken)
@@ -79,48 +87,68 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
         await zipStream.CopyToAsync(HttpContext.Response.Body, cancellationToken);
     }
 
-    private async Task SendEmptyZipAsync(CancellationToken cancellationToken)
-    {
-        using var emptyZipStream = new MemoryStream();
-        // Disposing the archive writes the empty zip's end-of-central-directory record.
-        await new ZipArchive(emptyZipStream, ZipArchiveMode.Create, true).DisposeAsync();
-        emptyZipStream.Position = 0;
-        HttpContext.Response.Headers["X-Endatix-Empty-File"] = "true";
-        HttpContext.Response.ContentType = "application/zip";
-        await Send.StreamAsync(emptyZipStream, contentType: "application/zip", cancellation: cancellationToken);
-    }
-
-    private static async Task<MemoryStream> BuildZipAsync(IEnumerable<FileDescriptor> files, CancellationToken cancellationToken)
+    private static async Task<MemoryStream> BuildZipAsync(IReadOnlyCollection<FileDescriptor> files, CancellationToken cancellationToken)
     {
         var zipStream = new MemoryStream();
-        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
+        try
         {
-            foreach (var file in files)
+            await using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
             {
-                await using var content = file.Content;
-                var entry = archive.CreateEntry(file.FileName, CompressionLevel.Fastest);
-                await using var entryStream = await entry.OpenAsync(cancellationToken);
-                await content.CopyToAsync(entryStream, cancellationToken);
+                await AddEntriesAsync(archive, files, cancellationToken);
             }
+        }
+        finally
+        {
+            await DisposeAllAsync(files);
         }
 
         zipStream.Seek(0, SeekOrigin.Begin);
         return zipStream;
     }
 
+    private static async Task AddEntriesAsync(ZipArchive archive, IEnumerable<FileDescriptor> files, CancellationToken cancellationToken)
+    {
+        foreach (var file in files)
+        {
+            await using var content = file.Content;
+            var entry = archive.CreateEntry(file.FileName, CompressionLevel.Fastest);
+            await using var entryStream = await entry.OpenAsync(cancellationToken);
+            await content.CopyToAsync(entryStream, cancellationToken);
+        }
+    }
+
+    // The streams arrive already open, so the ones a failure skipped over must be disposed too.
+    private static async Task DisposeAllAsync(IEnumerable<FileDescriptor> files)
+    {
+        foreach (var file in files)
+        {
+            await file.Content.DisposeAsync();
+        }
+    }
+
     private async Task SendFailureAsync(Exception ex, CancellationToken cancellationToken)
     {
         logger.LogError(ex, "Failed to download submission files");
 
-        if (HttpContext.ResponseStarted())
+        if (AbortIfResponseStarted())
         {
-            // Headers and part of the zip are out, so a 500 can't be sent; cut the connection
-            // so the client sees a broken download rather than a truncated zip.
-            HttpContext.Abort();
             return;
         }
 
         ValidationFailures.Add(new ValidationFailure("error", "Failed to download submission files."));
         await Send.ErrorsAsync(500, cancellationToken);
+    }
+
+    private bool AbortIfResponseStarted()
+    {
+        if (!HttpContext.ResponseStarted())
+        {
+            return false;
+        }
+
+        // Headers and part of the zip are out, so a 500 can't be sent; cut the connection
+        // so the client sees a broken download rather than a truncated zip.
+        HttpContext.Abort();
+        return true;
     }
 }

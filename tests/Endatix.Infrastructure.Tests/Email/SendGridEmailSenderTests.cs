@@ -254,12 +254,23 @@ public class SendGridEmailSenderTests
         await act.Should().NotThrowAsync();
     }
 
-    private void AcceptThenCancel(CancellationTokenSource cts) =>
+    [Fact]
+    public async Task SendEmailWithBody_ResponseBodyFailsAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts, resetOnRead: true);
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    private void AcceptThenCancel(CancellationTokenSource cts, bool resetOnRead = false) =>
         _sendGridClient
             .SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 cts.Cancel();
-                return new Response(HttpStatusCode.Accepted, new CancellationAwareContent("{}"), null!);
+                return new Response(HttpStatusCode.Accepted, new CancellationAwareContent("{}", resetOnRead), null!);
             });
 }

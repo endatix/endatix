@@ -77,7 +77,7 @@ public class MailgunEmailSender(
 
         using var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
 
-        var responseContent = await ReadAcceptedResponseAsync(response.Content);
+        var responseContent = await ProviderResponse.ReadBodyForLogAsync(response.Content);
         _logger.LogInformation("Sending Mailgun message with status code {statusCode} and response: {response}", response.StatusCode, responseContent);
     }
 
@@ -125,7 +125,7 @@ public class MailgunEmailSender(
 
         using var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
 
-        var responseContent = await ReadAcceptedResponseAsync(response.Content);
+        var responseContent = await ProviderResponse.ReadBodyForLogAsync(response.Content);
         _logger.LogInformation("Sending Mailgun template message with status code {statusCode} and response: {response}", response.StatusCode, responseContent);
     }
 
@@ -166,8 +166,4 @@ public class MailgunEmailSender(
             return $"{baseUrl}/{_settings.Domain}/messages";
         }
     }
-
-    // CancellationToken.None: the email is already sent, so a cancelled token must not turn it into a failure (and a retry).
-    private static Task<string> ReadAcceptedResponseAsync(HttpContent content) =>
-        content.ReadAsStringAsync(CancellationToken.None);
 }

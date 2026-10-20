@@ -311,17 +311,28 @@ public class MailgunEmailSenderTests
         await act.Should().NotThrowAsync();
     }
 
-    private void AcceptThenCancel(CancellationTokenSource cts) =>
-        _httpClientFactory.CreateClient().Returns(new HttpClient(new AcceptThenCancelHttpMessageHandler(cts)));
+    [Fact]
+    public async Task SendEmailWithBody_ResponseBodyFailsAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts, resetOnRead: true);
 
-    private sealed class AcceptThenCancelHttpMessageHandler(CancellationTokenSource cts) : HttpMessageHandler
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    private void AcceptThenCancel(CancellationTokenSource cts, bool resetOnRead = false) =>
+        _httpClientFactory.CreateClient().Returns(new HttpClient(new AcceptThenCancelHttpMessageHandler(cts, resetOnRead)));
+
+    private sealed class AcceptThenCancelHttpMessageHandler(CancellationTokenSource cts, bool resetOnRead) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cts.Cancel();
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new CancellationAwareContent("{\"message\":\"Queued. Thank you.\"}")
+                Content = new CancellationAwareContent("{\"message\":\"Queued. Thank you.\"}", resetOnRead)
             });
         }
     }
