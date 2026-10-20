@@ -35,10 +35,13 @@ public static class SoftDeleteExtensions
     /// batches end even where a caller drops the soft-delete query filter.
     /// </summary>
     /// <remarks>
-    /// SQL Server reads a batch by seeking <c>IX_Submissions_FormId</c>, which carries the clustered id. PostgreSQL has
-    /// no index on a form's rows in id order, so it scans the primary key from the last id and skips other forms' rows:
-    /// linear in the span of the form's ids rather than in its size, which an index would fix at the cost of a
-    /// migration that builds one on Submissions.
+    /// The plan is the database's to choose, and neither keeps a batch to its own rows for certain. SQL Server can seek
+    /// <c>IX_Submissions_FormId</c>, which carries the clustered id, but may prefer the filtered
+    /// <c>IX_Submissions_FormId_CollectionStatus</c>, on which the id narrows nothing: each batch then reads and sorts
+    /// all the form's rows still live. That is a known gap, left to a follow-up. PostgreSQL has no index on a form's
+    /// rows in id order, so it scans the primary key from the last id and skips other forms' rows: linear in the span
+    /// of the form's ids rather than in its size, which an index would fix at the cost of a migration that builds one
+    /// on Submissions.
     /// </remarks>
     /// <returns>The number of rows it deleted.</returns>
     public static Task<int> SoftDeleteInBatchesAsync<TEntity>(

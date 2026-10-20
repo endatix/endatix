@@ -15,8 +15,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         {
             // Every live submission of a deleted form, whatever its definition. Re-running matches nothing.
             // The deleted forms are read once, into a temp table. Within each form the batches are an id keyset
-            // along IX_Submissions_FormId (FormId, then the clustered Id): each batch starts after the last id the
-            // one before deleted, so no row is read twice. Batches of 1,000 rows, with their index entries, stay
+            // along IX_Submissions_FormId (FormId, then the clustered Id), which both statements name in a hint: left
+            // to choose, SQL Server reads the filtered IX_Submissions_FormId_CollectionStatus (WHERE IsDeleted = 0),
+            // where Id > @last narrows nothing, so every batch would read and sort all the form's remaining live rows.
+            // Along IX_Submissions_FormId each batch seeks to the first id after the last one the batch before
+            // deleted, so no row is read twice. Batches of 1,000 rows, with their index entries, stay
             // under the 5,000 locks at which a statement escalates to a lock on the whole Submissions table.
             // Outside a transaction, each batch commits on its own and lets its row locks go: the statements are
             // idempotent, so a migration stopped half-way is finished by the next run.
@@ -37,15 +40,16 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                             SELECT MAX(batch.Id)
                             FROM (
                                 SELECT TOP (1000) s.Id
-                                FROM Submissions s
+                                FROM Submissions s WITH (INDEX(IX_Submissions_FormId))
                                 WHERE s.FormId = @formId AND s.Id > @last AND s.IsDeleted = 0
                                 ORDER BY s.Id) batch);
                         IF @batchLast IS NULL BREAK;
-                        UPDATE Submissions
-                        SET IsDeleted = 1,
-                            DeletedAt = @now,
-                            ModifiedAt = @now
-                        WHERE FormId = @formId AND Id > @last AND Id <= @batchLast AND IsDeleted = 0;
+                        UPDATE s
+                        SET s.IsDeleted = 1,
+                            s.DeletedAt = @now,
+                            s.ModifiedAt = @now
+                        FROM Submissions s WITH (INDEX(IX_Submissions_FormId))
+                        WHERE s.FormId = @formId AND s.Id > @last AND s.Id <= @batchLast AND s.IsDeleted = 0;
                         SET @last = @batchLast;
                     END
                     SET @formId = (SELECT MIN(Id) FROM #DeletedForms WHERE Id > @formId);

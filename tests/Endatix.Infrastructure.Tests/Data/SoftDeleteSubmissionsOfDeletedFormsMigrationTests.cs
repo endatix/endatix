@@ -20,7 +20,20 @@ public sealed class SoftDeleteSubmissionsOfDeletedFormsMigrationTests
         // Assert
         operation.SuppressTransaction.Should().BeTrue();
         operation.Sql.Should().Contain("#DeletedForms").And.Contain("SELECT TOP (1000) s.Id")
-            .And.Contain("s.Id > @last").And.Contain("Id > @last AND Id <= @batchLast");
+            .And.Contain("s.Id > @last").And.Contain("s.Id > @last AND s.Id <= @batchLast");
+    }
+
+    [Fact]
+    public void Up_OnSqlServer_ReadsAndUpdatesEachBatchAlongTheFormIdIndex()
+    {
+        // Arrange
+        var migration = new SqlServerMigration();
+
+        // Act
+        var sql = migration.UpOperations.OfType<SqlOperation>().Single().Sql;
+
+        // Assert
+        sql.Split("FROM Submissions s WITH (INDEX(IX_Submissions_FormId))").Should().HaveCount(3);
     }
 
     [Fact]
