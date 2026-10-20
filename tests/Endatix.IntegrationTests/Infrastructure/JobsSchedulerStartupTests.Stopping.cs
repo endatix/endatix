@@ -92,26 +92,8 @@ public sealed partial class JobsSchedulerStartupTests
         using var stopping = new CancellationTokenSource();
         var lifetime = Substitute.For<IHostApplicationLifetime>();
         lifetime.ApplicationStopping.Returns(stopping.Token);
-        var shipped = Substitute.For<ISchedulerFactory>();
-        var failover = new SchedulerException(
-            "The store failed.",
-            new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown));
         var logs = new CapturingLoggerProvider();
-        ISchedulerFactory schedulers;
-        if (timing.ThroughTheModulesFactory)
-        {
-            shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw failover);
-            var runtime = Substitute.For<ISchedulerRuntime>();
-            runtime.Restart(Arg.Any<string>(), Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
-                .Returns(_ => new ValueTask<IScheduler>(nextTry(stopping)));
-            schedulers = ModulesFactoryOver(shipped, runtime, lifetime);
-        }
-        else
-        {
-            shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw failover, _ => nextTry(stopping));
-            schedulers = shipped;
-        }
-
+        var schedulers = FailingOverThen(() => nextTry(stopping), lifetime, timing.ThroughTheModulesFactory);
         using var service = HostedServiceOver(
             new HostedServiceParts(new(fixture.Provider, fixture.ConnectionString), schedulers, logs) { Lifetime = lifetime });
 
@@ -125,6 +107,27 @@ public sealed partial class JobsSchedulerStartupTests
         await service.StopAsync(ct);
         (schedulers as IDisposable)?.Dispose();
         return logs;
+    }
+
+    // A first build that fails as in a failover, and a next try that runs nextTry: the module's factory rebuilding the
+    // scheduler, or a bare factory building it again.
+    private static ISchedulerFactory FailingOverThen(Func<IScheduler> nextTry, IHostApplicationLifetime lifetime, bool throughTheModulesFactory)
+    {
+        var shipped = Substitute.For<ISchedulerFactory>();
+        var failover = new SchedulerException(
+            "The store failed.",
+            new PostgresException("terminating connection due to administrator command", "FATAL", "FATAL", PostgresErrorCodes.AdminShutdown));
+        if (!throughTheModulesFactory)
+        {
+            shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw failover, _ => nextTry());
+            return shipped;
+        }
+
+        shipped.GetScheduler(Arg.Any<CancellationToken>()).Returns<IScheduler>(_ => throw failover);
+        var runtime = Substitute.For<ISchedulerRuntime>();
+        runtime.Restart(Arg.Any<string>(), Arg.Any<SchedulerRestartOptions>(), Arg.Any<CancellationToken>())
+            .Returns<IScheduler>(_ => nextTry());
+        return ModulesFactoryOver(shipped, runtime, lifetime);
     }
 
     // The module's own factory, over Quartz's that a test controls, with the services a rebuild resolves.

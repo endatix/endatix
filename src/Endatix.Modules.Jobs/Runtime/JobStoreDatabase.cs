@@ -31,6 +31,13 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
     // The table Quartz takes its lock on, as PostgreSQL names it.
     private const string PostgreSqlLockTable = QuartzRegistration.TablePrefix + "locks";
 
+    // True when the lock table is there and this role lacks what taking the lock needs; a missing table is not asked.
+    private const string LockTableRefusedSql =
+        $"SELECT to_regclass('{PostgreSqlLockTable}') IS NOT NULL " +
+        $"AND NOT (has_table_privilege('{PostgreSqlLockTable}', 'SELECT') " +
+        $"AND has_table_privilege('{PostgreSqlLockTable}', 'UPDATE') " +
+        $"AND has_table_privilege('{PostgreSqlLockTable}', 'INSERT'))";
+
     /// <summary>The connection string; never printed (see <see cref="ToString"/>).</summary>
     public string ConnectionString { get; } = connectionString;
 
@@ -140,17 +147,14 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
         await using var connection = Connect();
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = $"""
-            SELECT to_regclass('{PostgreSqlLockTable}') IS NOT NULL
-                AND NOT (has_table_privilege('{PostgreSqlLockTable}', 'SELECT')
-                    AND has_table_privilege('{PostgreSqlLockTable}', 'UPDATE')
-                    AND has_table_privilege('{PostgreSqlLockTable}', 'INSERT'))
-            """;
-        return await command.ExecuteScalarAsync(cancellationToken) is true
-            ? $"The background jobs scheduler cannot start: database role '{new NpgsqlConnectionStringBuilder(ConnectionString).Username}' " +
-              $"cannot take Quartz's lock on {PostgreSqlLockTable}. Grant it SELECT, UPDATE and INSERT on that table."
-            : null;
+        command.CommandText = LockTableRefusedSql;
+        return await command.ExecuteScalarAsync(cancellationToken) is true ? LockTableRefusal() : null;
     }
+
+    // Names the role, never its password.
+    private string LockTableRefusal() =>
+        $"The background jobs scheduler cannot start: database role '{new NpgsqlConnectionStringBuilder(ConnectionString).Username}' " +
+        $"cannot take Quartz's lock on {PostgreSqlLockTable}. Grant it SELECT, UPDATE and INSERT on that table.";
 
     // A read-only PostgreSQL database, a standby or one with default_transaction_read_only on, refuses the scheduler's
     // first write with 25006 inside the lock Quartz takes, and Quartz then reports only the 25P02 ("current transaction
