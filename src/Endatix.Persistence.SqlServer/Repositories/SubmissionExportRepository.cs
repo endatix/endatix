@@ -81,6 +81,12 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         }
     }
 
-    private static string ExecProcedure(string procedureName, string parameters) =>
-        $"EXEC dbo.{SqlIdentifier.EnsureValid(procedureName)} {parameters}";
+    private static string ExecProcedure(string procedureName, string parameters)
+    {
+        var name = SqlIdentifier.EnsureValid(procedureName);
+
+        // A schema-qualified name keeps its schema; "dbo.reporting.x" would read as database.schema.name.
+        var qualifiedName = name.Contains('.') ? name : $"dbo.{name}";
+        return $"EXEC {qualifiedName} {parameters}";
+    }
 }
