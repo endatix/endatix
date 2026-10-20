@@ -27,6 +27,11 @@ public sealed record ExportDataSourceRequest(
 /// <summary>
 /// Runtime context passed to an export data source.
 /// </summary>
+/// <param name="Request">What to export and in which format.</param>
+/// <param name="TenantId">The tenant the export runs for.</param>
+/// <param name="FormId">The form whose submissions are exported.</param>
+/// <param name="Options">Export options.</param>
+/// <param name="ExportPageSize">Rows per page for a paged SQL export; null uses the default.</param>
 /// <param name="IncludeTestSubmissions">
 /// Keeps test submissions in a legacy SQL export. Reporting data sources read
 /// <see cref="SubmissionExportExecutionSettings.IncludeTestSubmissions"/> instead.

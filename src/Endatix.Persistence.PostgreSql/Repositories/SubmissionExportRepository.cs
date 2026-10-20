@@ -23,6 +23,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         _options = options.Value;
     }
 
+    /// <inheritdoc />
     public async IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, int? pageSize, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         var timeoutSeconds = _options.ExportCommandTimeout ?? DefaultExportCommandTimeoutSeconds;
