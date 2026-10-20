@@ -33,8 +33,21 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
     {
         var files = new List<ISubmissionFileExtractor.ExtractedFile>();
         var context = new ExtractionContext(prefix, formId, submissionId, cancellationToken, files);
-        await FindFilesRecursiveAsync(root, string.Empty, context);
+        await FindFilesOrDisposeAsync(root, context);
         return files;
+    }
+
+    private async Task FindFilesOrDisposeAsync(JsonElement root, ExtractionContext context)
+    {
+        try
+        {
+            await FindFilesRecursiveAsync(root, string.Empty, context);
+        }
+        catch (OperationCanceledException)
+        {
+            context.Files.ForEach(file => file.Content.Dispose());
+            throw;
+        }
     }
 
     private sealed class ExtractionContext
