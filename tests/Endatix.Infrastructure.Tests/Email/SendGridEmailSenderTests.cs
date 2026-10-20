@@ -223,8 +223,6 @@ public class SendGridEmailSenderTests
         sentMessage.Personalizations[0].TemplateData.Should().BeEquivalentTo(email.Metadata);
     }
 
-    // -- late cancellation tests --
-
     [Fact]
     public async Task SendEmailWithBody_CancelledAfterProviderAccepted_DoesNotFail()
     {

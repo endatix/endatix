@@ -38,7 +38,6 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
         }
         catch (Exception) when (cancellationToken.IsCancellationRequested)
         {
-            // The client went away (as a cancellation or a reset write); there is no one to send an error to.
             AbortIfResponseStarted();
         }
         catch (Exception ex)
@@ -77,7 +76,6 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
 
     private async Task SendZipAsync(MemoryStream zipStream, GetFilesResult filesResult, CancellationToken cancellationToken)
     {
-        // Marked started only once the zip is built, so a failure while building still gets a 500.
         var zipFileName = $"{StringUtils.ToKebabCase(filesResult.FormName)}-{filesResult.SubmissionId}.zip";
         HttpContext.MarkResponseStart();
         HttpContext.Response.StatusCode = 200;
@@ -117,7 +115,6 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
         }
     }
 
-    // The streams arrive already open, so the ones a failure skipped over must be disposed too.
     private static async Task DisposeAllAsync(IEnumerable<FileDescriptor> files)
     {
         foreach (var file in files)

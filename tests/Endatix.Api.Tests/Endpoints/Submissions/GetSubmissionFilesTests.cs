@@ -255,7 +255,6 @@ public class GetSubmissionFilesTests
         public void Abort() => Aborted = true;
     }
 
-    /// <summary>A file stream that fails on read, like storage dropping mid-download.</summary>
     private sealed class UnreadableStream : MemoryStream
     {
         public bool Disposed { get; private set; }
@@ -269,7 +268,6 @@ public class GetSubmissionFilesTests
         }
     }
 
-    /// <summary>A response body that fails on write, like a connection reset mid-download.</summary>
     private sealed class UnwritableStream(Action? onWrite = null) : MemoryStream
     {
         public override void Write(byte[] buffer, int offset, int count) => throw Reset();

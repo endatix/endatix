@@ -281,8 +281,6 @@ public class MailgunEmailSenderTests
         variables.RootElement.GetProperty("attempt").GetInt32().Should().Be(2);
     }
 
-    // -- late cancellation tests --
-
     [Fact]
     public async Task SendEmailWithBody_CancelledAfterProviderAccepted_DoesNotFail()
     {

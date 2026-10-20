@@ -141,7 +141,6 @@ public class MailgunEmailSender(
             Content = new FormUrlEncodedContent(contentValues)
         };
 
-        // ResponseHeadersRead: return once Mailgun has accepted the email, leaving the body to be read without the token.
         return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
     }
 
