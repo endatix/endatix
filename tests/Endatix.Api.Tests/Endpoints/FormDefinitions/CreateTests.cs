@@ -46,7 +46,7 @@ public class CreateTests
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = response.Result.As<Created<CreateFormDefinitionResponse>>();
@@ -80,7 +80,7 @@ public class CreateTests
             .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -110,7 +110,7 @@ public class CreateTests
             .Returns(notFoundResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;

@@ -92,5 +92,7 @@
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
+    <!-- Build-time only: reports SonarCloud S-rules as build warnings in non-test projects. -->
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" />
   </ItemGroup>
 </Project>

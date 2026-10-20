@@ -37,7 +37,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
     private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string procedureName, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         // Custom procedures do not take the flag; the endpoint rejects it for them.
-        var sql = "EXEC dbo." + procedureName + " @form_id" + IncludeTestSubmissionsArgument(includeTestSubmissions);
+        var sql = ExecProcedure(procedureName, "@form_id" + IncludeTestSubmissionsArgument(includeTestSubmissions));
         await foreach (var row in _dbContext.Set<T>()
             .FromSqlRaw(sql, new SqlParameter("@form_id", formId))
             .AsNoTracking()
@@ -51,7 +51,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
     private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string procedureName, int pageSize, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         long? afterId = null;
-        var sql = "EXEC dbo." + procedureName + " @form_id, @after_id, @page_size" + IncludeTestSubmissionsArgument(includeTestSubmissions);
+        var sql = ExecProcedure(procedureName, "@form_id, @after_id, @page_size" + IncludeTestSubmissionsArgument(includeTestSubmissions));
 
         while (true)
         {
@@ -80,6 +80,15 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
 
             afterId = last.Id;
         }
+    }
+
+    private static string ExecProcedure(string procedureName, string parameters)
+    {
+        var name = SqlIdentifier.EnsureValid(procedureName);
+
+        // A schema-qualified name keeps its schema; "dbo.reporting.x" would read as database.schema.name.
+        var qualifiedName = name.Contains('.') ? name : $"dbo.{name}";
+        return $"EXEC {qualifiedName} {parameters}";
     }
 
     private static string IncludeTestSubmissionsArgument(bool includeTestSubmissions) =>

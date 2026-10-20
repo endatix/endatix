@@ -62,12 +62,12 @@ public class PublicFormAccessData : AccessDataBase
     /// <summary>
     /// Permissions for the form resource.
     /// </summary>
-    public ImmutableHashSet<string> FormPermissions { get; init; }
+    public ImmutableHashSet<string> FormPermissions { get; init; } = [];
 
     /// <summary>
     /// Permissions for the submission resource (or "new" submission when no submissionId provided).
     /// </summary>
-    public ImmutableHashSet<string> SubmissionPermissions { get; init; }
+    public ImmutableHashSet<string> SubmissionPermissions { get; init; } = [];
 
     /// <summary>
     /// Indicates whether the form enforces one response per user.

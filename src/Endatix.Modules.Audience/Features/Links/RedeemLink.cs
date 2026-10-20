@@ -274,7 +274,12 @@ internal sealed class RedeemLinkHandler(
         return person is null
             ? null
             : PersonalizationSnapshotJson.Write(
-                new SnapshotHeader(link.Id, person.Identifier, DateTime.UtcNow, MemberId: person.MemberId),
+                new SnapshotHeader(
+                    link.Id,
+                    person.Identifier,
+                    DateTime.UtcNow,
+                    PersonalizationSources.Link,
+                    person.MemberId),
                 cells);
     }
 

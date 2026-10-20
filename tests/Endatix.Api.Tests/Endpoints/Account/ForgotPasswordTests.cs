@@ -27,11 +27,11 @@ public class ForgotPasswordTests
         var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
         var successResult = Result.Success(ForgotPasswordHandler.GENERAL_SUCCESS_MESSAGE);
 
-        _mediator.Send(forgotPasswordCommand)
+        _mediator.Send(forgotPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response!.Result.As<Ok<ForgotPasswordResponse>>();
@@ -51,11 +51,11 @@ public class ForgotPasswordTests
         var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
         var errorResult = Result.Invalid(new ValidationError("Invalid email format."));
 
-        _mediator.Send(forgotPasswordCommand)
+        _mediator.Send(forgotPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -71,11 +71,11 @@ public class ForgotPasswordTests
         var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
         var errorResult = Result<string>.Unavailable(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
 
-        _mediator.Send(forgotPasswordCommand)
+        _mediator.Send(forgotPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert - an upstream provider failure is 503, not 500.
         var problemResult = response!.Result as ProblemHttpResult;

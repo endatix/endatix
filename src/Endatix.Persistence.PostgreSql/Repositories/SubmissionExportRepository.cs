@@ -44,9 +44,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
     private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string functionName, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         // Custom functions do not take the flag; the endpoint rejects it for them.
-        var sql = includeTestSubmissions
-            ? $@"SELECT * FROM {functionName}({{0}}, include_test_submissions => true)"
-            : $@"SELECT * FROM {functionName}({{0}})";
+        var sql = SelectFromFunction(functionName, "{0}" + IncludeTestSubmissionsArgument(includeTestSubmissions));
         await foreach (var row in _dbContext.Set<T>()
             .FromSqlRaw(sql, formId)
             .AsNoTracking()
@@ -60,9 +58,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
     private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string functionName, int pageSize, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         long? afterId = null;
-        var sql = includeTestSubmissions
-            ? $@"SELECT * FROM {functionName}({{0}}, {{1}}, {{2}}, include_test_submissions => true)"
-            : $@"SELECT * FROM {functionName}({{0}}, {{1}}, {{2}})";
+        var sql = SelectFromFunction(functionName, "{0}, {1}, {2}" + IncludeTestSubmissionsArgument(includeTestSubmissions));
 
         while (true)
         {
@@ -89,4 +85,10 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
             afterId = last.Id;
         }
     }
+
+    private static string SelectFromFunction(string functionName, string arguments) =>
+        $"SELECT * FROM {SqlIdentifier.EnsureValid(functionName)}({arguments})";
+
+    private static string IncludeTestSubmissionsArgument(bool includeTestSubmissions) =>
+        includeTestSubmissions ? ", include_test_submissions => true" : string.Empty;
 }

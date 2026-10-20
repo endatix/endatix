@@ -64,7 +64,7 @@ public class SubmissionTokenServiceObtainTokenTests
     {
         // Arrange
         var submissionId = 1L;
-        _submissionRepository.GetByIdAsync(submissionId).Returns((Submission)null!);
+        _submissionRepository.GetByIdAsync(submissionId, Arg.Any<CancellationToken>()).Returns((Submission)null!);
 
         // Act
         var result = await _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
@@ -81,7 +81,7 @@ public class SubmissionTokenServiceObtainTokenTests
         // Arrange
         var submissionId = 1L;
         var submission = IncompleteSubmission(submissionId);
-        _submissionRepository.GetByIdAsync(submissionId).Returns(submission);
+        _submissionRepository.GetByIdAsync(submissionId, Arg.Any<CancellationToken>()).Returns(submission);
         _formRepository.FirstOrDefaultAsync(
             Arg.Any<FormProjections.SessionTokenExpiryDtoSpec>(),
             Arg.Any<CancellationToken>())
@@ -103,7 +103,7 @@ public class SubmissionTokenServiceObtainTokenTests
         // Arrange
         var submissionId = 1L;
         var submission = IncompleteSubmission(submissionId);
-        _submissionRepository.GetByIdAsync(submissionId).Returns(submission);
+        _submissionRepository.GetByIdAsync(submissionId, Arg.Any<CancellationToken>()).Returns(submission);
 
         // Act
         var result = await _sut.ObtainTokenAsync(submissionId, CancellationToken.None);
@@ -114,7 +114,7 @@ public class SubmissionTokenServiceObtainTokenTests
         result.Value.Should().NotBeNullOrEmpty();
         submission.Token.Should().NotBeNull();
         submission.Token!.ExpiresAt.Should().NotBeNull();
-        await _submissionRepository.Received(1).SaveChangesAsync();
+        await _submissionRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class SubmissionTokenServiceObtainTokenTests
         // Arrange
         var submissionId = 1L;
         var submission = IncompleteSubmission(submissionId);
-        _submissionRepository.GetByIdAsync(submissionId).Returns(submission);
+        _submissionRepository.GetByIdAsync(submissionId, Arg.Any<CancellationToken>()).Returns(submission);
 
         var form = Form.Create(new FormCreateArgs(
             TenantId: TENANT_ID,
@@ -157,7 +157,7 @@ public class SubmissionTokenServiceObtainTokenTests
         // Arrange
         var submissionId = 1L;
         var submission = IncompleteSubmission(submissionId);
-        _submissionRepository.GetByIdAsync(submissionId).Returns(submission);
+        _submissionRepository.GetByIdAsync(submissionId, Arg.Any<CancellationToken>()).Returns(submission);
         _tenantSettingsRepository.FirstOrDefaultAsync(
             Arg.Any<TenantSettingsByTenantIdSpec>(),
             Arg.Any<CancellationToken>()).Returns((TenantSettings)null!);

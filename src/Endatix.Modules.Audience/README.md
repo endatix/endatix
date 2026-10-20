@@ -50,7 +50,7 @@ Database schema: `audience`
 | `Settings` | One row per tenant: match key (`email` / `external_id`). No row means `email` |
 | `Properties` | Property definitions per form (`VariableName` immutable). Choice types need `ChoicesJson`, a JSON array of distinct keys; other types take no choices |
 | `Members` | One person per tenant + match key. `Identifier` keeps the value as entered; `NormalizedIdentifier` is the unique match key. Emails must be one valid address and use the same normalizer as app users; external ids keep their case. On SQL Server the match key uses the binary collation `Latin1_General_100_BIN2`, so it compares case-sensitively as on PostgreSQL |
-| `Memberships` | Person on one form |
+| `Memberships` | Person on one form. `IsTest` marks a test person; it is set when the person is added and never changed |
 | `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). A stored value is never empty: saving `""` clears (soft-deletes) the cell |
 | `Imports` | One row per confirmed CSV import: counts, file name, who ran it |
 | `Links` | One hashed token per membership (`IX_Links_Membership`). `SubmissionId` is set once, on first open |
@@ -62,13 +62,17 @@ Database schema: `audience`
 | GET/PUT | `audience/settings` | Tenant match key and `isLocked` |
 | GET/POST | `forms/{formId}/audience/properties` | List / create |
 | PATCH/DELETE | `forms/{formId}/audience/properties/{propertyId}` | Rename/reorder / delete |
-| GET/POST | `forms/{formId}/audience/people` | List (page ≤ 5,000) / add |
+| GET/POST | `forms/{formId}/audience/people` | List (page ≤ 5,000) / add. The list takes `test=all\|real\|test` (default `all`, anything else is a 400); its total counts only the people kept, and each item has `isTest`. Add takes `isTest` (default `false`) |
 | PUT/DELETE | `forms/{formId}/audience/people/{membershipId}` | Edit values / remove from this form only |
-| POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400 |
-| POST | `forms/{formId}/audience/links` | Issue one link per person who does not have one, up to 5,000. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
+| POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400. With `isTest`, people new to this form are added as test persons; people already on it get no writes (flag and values) and are counted as skipped |
+| POST | `forms/{formId}/audience/links` | Issue one link per real person who does not have one, up to 5,000 real people; test persons get none. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
+| POST | `forms/{formId}/audience/test-submissions` | Test as this person: `{membershipId}` → 201 `{submissionId, token}`. Every call opens a new test submission (see Rules → Test submissions). A disabled form, a form without a definition, or a person not on the form is 404 |
+| POST | `forms/{formId}/audience/test-submissions/{submissionId}/restart` | Start over: `{token}` → deletes that test submission and opens a new one for the same person → 201 `{submissionId, token}`. `token` is the one the test submission was opened with; a missing token is 400, a wrong one 404. A submission that is not a test submission opened as a person is 400; a person removed from the form is 404 and keeps the old one |
 | POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open pins the active form definition and the live audience cells on one in-progress submission. A later publish, a new property, or an edited cell does not change that response. A parallel first open keeps one submission. A later open returns it. Unknown token, a deleted submission, a disabled form, or a person removed before the first open is 404 and does not mark the link opened. A person removed after open still resumes while the form is enabled. On a one-response form, a person who already has a submission (from on-behalf, or an earlier link) opens that one; it is marked started and gets the live cells if it has none. Another open of the same link holding it past 5 s is 503. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
 
-Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`, and redeem, which is anonymous.
+Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`, the test submission
+routes, which need both `Forms.Test` and `Forms.Edit` (a test submission carries the person's identifier and values),
+and redeem, which is anonymous.
 
 ## Rules
 
@@ -86,12 +90,34 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
   updates adding the same cell: the second pass overwrites. Cells are written in property-id order. The people
   list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
   person added in between makes the page longer than the count, the total is raised to cover the rows shown.
+- **Test persons.** A test person is on one form only for testing: never issued a personalised link, and shown with
+  `isTest` so the list can filter them. The flag belongs to the membership, so the same member can be a test person on
+  one form and a real person on another. It is set at add (`isTest` on add or import) and cannot change: to turn a test
+  person into a real one, remove them and add them again. An import marked as test never touches a person already on
+  the form (neither its flag nor its values), so real people's data stays as it was. A test person locks the match key
+  like any other person. Removing a test person removes only that membership.
 - **Deletes.** Removing a person deletes the membership and its cells; the member stays. Deleting a
   property soft-deletes its cells in one statement. Reads skip cells of deleted properties.
 - **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships
   and properties; tenant members stay. Until it runs, the form's people still count toward the
   match-key lock.
 - **On behalf.** `POST forms/{formId}/submissions/onbehalf` (`Submissions.CreateOnBehalf`, not this module's routes) freezes a snapshot when `Submitter.ExternalSubjectId` matches a member on a form that has properties. Unknown id, no properties, or no submitter leaves the create unchanged. The snapshot is `source: on_behalf` plus `memberId` and `values[]` beside `variables`. Binding `Member.SubmitterId` is one update that matches only while it is null.
+- **Test submissions.** `TestSubmissionOpener` is the one way to build one: a started submission on the form's active
+  definition, `IsTestSubmission`, no Submitter and no single-response gate, labelled with the person's identifier,
+  and a snapshot of the person's current cells with `source: test` and `memberId`. It never reads or writes `Links`,
+  `Member.SubmitterId` or `Submitters`, so testing as a person leaves their personalised link unopened (or still
+  pointing at their real response) and their one-response gate as it was. The person is found through
+  `LinkOpenGates.PersonAsync`, the query a link open uses, with the tenant and form stated in the read. The values
+  freeze with `Submission.FreezeForTest`, which refuses a real submission or a second freeze. Start over needs the
+  submission's token, so one builder cannot discard another's test. It finds the person by the snapshot's
+  `memberId`, checks they are still on the form, and reads their values and mints the token before it deletes
+  anything. Then, in one transaction, a conditional update deletes the old submission only while it is live, and
+  the new one is inserted: of two Start overs at once, one replaces the submission and the other gets 404. A failure
+  to mint the token saves nothing and the old test submission stays. Test submissions are left out of exports unless the export asks for them.
+- **Two personalised create paths.** On behalf (`source: on_behalf`) is for real responses entered by a trusted
+  caller: it resolves and binds a Submitter and counts against one-per-person. Test as this person
+  (`source: test`) is for survey builders and does neither. The snapshot shape is the same, since both read cells
+  through `SnapshotCells`; `source` on the submission's `personalization` read tells them apart.
 - **Links.** The token is stored as a SHA-256 hash. A claimed link resumes without a lock. A first open checks
   `LinkOpenGates` before the lock: a disabled form or a removed person is 404 at once, and a link open never
   writes either. It then takes `ITransactionLock` (scope `AudienceLinkOpen`, key the link id, 5 s wait, then 503) through `LinkOpenLock`, on one

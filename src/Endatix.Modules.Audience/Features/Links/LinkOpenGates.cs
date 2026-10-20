@@ -11,7 +11,7 @@ namespace Endatix.Modules.Audience.Features.Links;
 internal sealed record LinkOpening(AudienceLink Link, long DefinitionId, long? SubmitterId);
 
 /// <summary>The person behind a membership.</summary>
-internal sealed record LinkPerson(string Identifier, long MemberId, long? SubmitterId);
+internal sealed record LinkPerson(long TenantId, long MembershipId, string Identifier, long MemberId, long? SubmitterId);
 
 /// <summary>
 /// The checks a first open makes before it takes the link's lock: the form is enabled and has a definition, and
@@ -43,11 +43,17 @@ internal sealed class LinkOpenGates(IAudienceDbContext db, IRepository<Form> for
 
     /// <summary>The person, or <see langword="null"/> once they are removed from the form.</summary>
     public Task<LinkPerson?> PersonAsync(long membershipId, CancellationToken cancellationToken) =>
+        PersonAsync(db.Memberships.Where(membership => membership.Id == membershipId), cancellationToken);
+
+    /// <summary>
+    /// The person behind the first of <paramref name="memberships"/>, or <see langword="null"/> once they are removed
+    /// from the form. Test submissions open through it too, so "still on the form" means one thing.
+    /// </summary>
+    public Task<LinkPerson?> PersonAsync(IQueryable<Membership> memberships, CancellationToken cancellationToken) =>
         (
-            from membership in db.Memberships
+            from membership in memberships
             join member in db.Members on membership.MemberId equals member.Id
-            where membership.Id == membershipId
-            select new LinkPerson(member.Identifier, member.Id, member.SubmitterId))
+            select new LinkPerson(membership.TenantId, membership.Id, member.Identifier, member.Id, member.SubmitterId))
         .FirstOrDefaultAsync(cancellationToken);
 
     /// <summary>
@@ -62,7 +68,7 @@ internal sealed class LinkOpenGates(IAudienceDbContext db, IRepository<Form> for
             return bound;
         }
 
-        var input = new SubmitterInput(person.Identifier, person.Identifier);
+        var input = new SubmitterInput(person.Identifier);
         if (await ResolveAsync(new SubmitterResolveContext(tenantId, Submitter: input), cancellationToken)
             is not long submitterId)
         {

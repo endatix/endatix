@@ -39,7 +39,7 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
 
             if (!result.IsSuccess || result.Value is null)
             {
-                await Send.NotFoundAsync();
+                await Send.NotFoundAsync(cancellationToken);
                 return;
             }
 
@@ -52,7 +52,7 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
                 emptyZipStream.Position = 0;
                 HttpContext.Response.Headers["X-Endatix-Empty-File"] = "true";
                 HttpContext.Response.ContentType = "application/zip";
-                await Send.StreamAsync(emptyZipStream, contentType: "application/zip");
+                await Send.StreamAsync(emptyZipStream, contentType: "application/zip", cancellation: cancellationToken);
                 return;
             }
 
@@ -69,9 +69,9 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
                 foreach (var file in filesResult.Files)
                 {
                     var entry = archive.CreateEntry(file.FileName, CompressionLevel.Fastest);
-                    using var entryStream = entry.Open();
+                    await using var entryStream = await entry.OpenAsync(cancellationToken);
                     await file.Content.CopyToAsync(entryStream, cancellationToken);
-                    file.Content.Dispose();
+                    await file.Content.DisposeAsync();
                 }
             }
 

@@ -335,3 +335,15 @@ dotnet_naming_rule.instance_fields_should_be_camel_case.style = instance_field_s
 dotnet_naming_symbols.instance_fields.applicable_kinds = field
 dotnet_naming_style.instance_field_style.capitalization = camel_case
 dotnet_naming_style.instance_field_style.required_prefix = _
+
+##########################################
+# Test code
+# SonarCloud imports every diagnostic in the build's SARIF log, suggestions included,
+# so a rule silenced for tests needs `none`, not `suggestion`.
+##########################################
+
+[tests/**.cs]
+# NSubstitute's .Returns(ValueTask.FromResult(..)) stores the ValueTask by design.
+dotnet_diagnostic.CA2012.severity = none
+# Test helpers take the interface the code under test exposes, on purpose.
+dotnet_diagnostic.CA1859.severity = none

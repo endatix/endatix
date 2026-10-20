@@ -55,7 +55,7 @@ public abstract class EfUnitOfWorkBase<TContext> : IUnitOfWork
         }
         finally
         {
-            await _transaction.DisposeAsync();
+            await _transaction!.DisposeAsync();
             _transaction = null;
         }
     }

@@ -16,7 +16,7 @@ public class CorsWildcardSearcherTests
     {
         // Arrange
         IList<string> emptyArray = [];
-        IList<string> nullArray = null;
+        IList<string> nullArray = null!;
 
         // Act
         var emptyArrayResult = _searcher.SearchForWildcard(emptyArray);
