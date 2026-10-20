@@ -1,9 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -135,6 +138,110 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.DoesNotContain("marked-as-test", csv);
     }
 
+    /// <summary>
+    /// The submission becomes a test with no outbox message at all, so only redeem can free the link: the person
+    /// gets a new real submission, not the test one, however late the release handler runs.
+    /// </summary>
+    [Fact]
+    public async Task Redeeming_a_link_whose_submission_became_a_test_opens_a_new_real_one_without_the_outbox()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Akron", limitOnePerUser: true);
+        using var anonymous = world.AnonymousClient();
+        var testedId = IdOf(await RedeemAsync(anonymous, link.FormId, link.Token), "submissionId");
+        await SetSubmissionColumnsSilentlyAsync(world.Services, testedId, isTest: true, isDeleted: false);
+
+        // Act
+        var reopened = await RedeemAsync(anonymous, link.FormId, link.Token);
+
+        // Assert
+        Assert.True(reopened.GetProperty("created").GetBoolean());
+        var realId = IdOf(reopened, "submissionId");
+        Assert.NotEqual(testedId, realId);
+        Assert.Equal(realId, await LinkSubmissionIdAsync(world.Services, link.FormId));
+        Assert.False((await ReadSubmissionAsync(admin, link.FormId, realId)).GetProperty("isTestSubmission").GetBoolean());
+    }
+
+    /// <summary>
+    /// A deleted test submission the link still claims, as a go-live clean-up of a test created before the release,
+    /// no longer leaves the link answering 404 for good.
+    /// </summary>
+    [Fact]
+    public async Task Redeeming_a_link_whose_test_submission_was_deleted_opens_a_new_one()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Toledo");
+        using var anonymous = world.AnonymousClient();
+        var deletedId = IdOf(await RedeemAsync(anonymous, link.FormId, link.Token), "submissionId");
+        await SetSubmissionColumnsSilentlyAsync(world.Services, deletedId, isTest: true, isDeleted: true);
+
+        // Act
+        var reopened = await RedeemAsync(anonymous, link.FormId, link.Token);
+
+        // Assert
+        Assert.True(reopened.GetProperty("created").GetBoolean());
+        Assert.NotEqual(deletedId, IdOf(reopened, "submissionId"));
+    }
+
+    /// <summary>
+    /// On a form without the one-response limit nothing keys the person by Submitter, but the link that opened the
+    /// test submission has since opened a real one: marking the test real would give one link two real responses.
+    /// </summary>
+    [Fact]
+    public async Task Marking_a_test_submission_real_when_its_link_opened_a_real_one_is_a_conflict_naming_it()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Dover");
+        using var anonymous = world.AnonymousClient();
+        var testedId = IdOf(await RedeemAsync(anonymous, link.FormId, link.Token), "submissionId");
+        using var marked = await SetTestAsync(admin, link.FormId, testedId, isTest: true);
+        var realId = IdOf(await RedeemAsync(anonymous, link.FormId, link.Token), "submissionId");
+
+        // Act
+        using var conflict = await SetTestAsync(admin, link.FormId, testedId, isTest: false);
+
+        // Assert
+        Assert.NotEqual(testedId, realId);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        Assert.Equal(realId, IdOf(await admin.ReadAsync(conflict), "submissionId"));
+        Assert.True((await ReadSubmissionAsync(admin, link.FormId, testedId)).GetProperty("isTestSubmission").GetBoolean());
+    }
+
+    /// <summary>
+    /// A schema replace clears a test submission's flattened row while the form has no real submissions. Marking it
+    /// real flattens it again, so it is back in the default export without a backfill. This host keeps the relay
+    /// closed, so the mark's <c>submission.updated</c> message is handed to the inline handlers here.
+    /// </summary>
+    [Fact]
+    public async Task A_test_submission_marked_real_returns_to_the_default_export()
+    {
+        // Arrange
+        await using ReportingWebHost host = new(fixture);
+        var world = await WorldAsync(host);
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var testId = await CompletedWithAnswerAsync(admin, formId, "back-for-real");
+        await CompletedWithAnswerAsync(admin, formId, "always-real");
+        using var markedTest = await SetTestAsync(admin, formId, testId, isTest: true);
+        await ExpectOkAsync(admin.PostAsync($"/api/forms/{formId}/submissions/backfill", new { }));
+        await DeleteFlattenedRowAsync(world.Services, testId);
+
+        // Act
+        using var markedReal = await SetTestAsync(admin, formId, testId, isTest: false);
+        await DeliverLatestUpdateAsync(world.Services, testId);
+        var csv = await ExportAsync(admin, formId, "csv");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, markedReal.StatusCode);
+        Assert.Contains("back-for-real", csv);
+    }
+
     private static Task<HttpResponseMessage> SetTestAsync(AudienceApi admin, long formId, long submissionId, bool isTest) =>
         admin.Client.PatchAsJsonAsync(
             $"/api/forms/{formId}/submissions/{submissionId}/test", new { isTest }, admin.CancellationToken);
@@ -197,6 +304,56 @@ public sealed partial class AudienceDirectoryFlowTests
         submission.MarkAsTest();
         submission.Delete();
         await app.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes what <see cref="Submission.MarkAsTest"/> (and a delete) would, straight to the row and raising no event,
+    /// so no outbox handler follows. The one-per-person key goes with the flag, as it does in the mark.
+    /// </summary>
+    private static async Task SetSubmissionColumnsSilentlyAsync(IServiceProvider services, long submissionId, bool isTest, bool isDeleted)
+    {
+        await using var scope = services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Submissions
+            .IgnoreQueryFilters()
+            .Where(submission => submission.Id == submissionId)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(submission => submission.IsTestSubmission, isTest)
+                    .SetProperty(submission => submission.RestrictionKey, (string?)null)
+                    .SetProperty(submission => submission.IsDeleted, isDeleted),
+                TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>What a schema replace on a form without real submissions leaves: no flattened row for it.</summary>
+    private static async Task DeleteFlattenedRowAsync(IServiceProvider services, long submissionId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var deleted = await scope.ServiceProvider.GetRequiredService<IReportingDbContext>().FlattenedSubmissions
+            .IgnoreQueryFilters()
+            .Where(row => row.SubmissionId == submissionId)
+            .ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, deleted);
+    }
+
+    /// <summary>What the relay does with the submission's latest <c>submission.updated</c> message.</summary>
+    private static async Task DeliverLatestUpdateAsync(IServiceProvider services, long submissionId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var messages = await app.OutboxMessages.AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(row => row.EventType == SubmissionUpdatedEvent.EventTypeName)
+            .OrderByDescending(row => row.Id)
+            .ToListAsync(cancellationToken);
+        var latest = messages.First(row =>
+            IdOf(JsonDocument.Parse(row.Payload).RootElement, "submissionId") == submissionId);
+        var handlers = scope.ServiceProvider.GetServices<IOutboxIntegrationEventHandler>()
+            .Where(handler => handler.EventTypes.Contains(SubmissionUpdatedEvent.EventTypeName));
+        foreach (var handler in handlers)
+        {
+            await handler.HandleAsync(new OutboxMessageView(latest), cancellationToken);
+        }
     }
 
     /// <summary>Polls the form's one link until its claim is cleared; outbox handlers run in the background.</summary>

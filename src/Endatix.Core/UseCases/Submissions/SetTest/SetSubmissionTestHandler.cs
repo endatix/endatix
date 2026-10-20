@@ -1,3 +1,4 @@
+using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
@@ -9,11 +10,15 @@ namespace Endatix.Core.UseCases.Submissions.SetTest;
 
 /// <summary>
 /// Marking as test lifts the one-per-person limit (the Audience module then frees the person's link). Marking as
-/// real restores it, and is refused when the submitter already has a real submission on the form.
+/// real restores it, and is refused when the person already has a real submission on the form: by Submitter on a
+/// one-response form, and through the personalised link that opened this one on any form.
 /// </summary>
 /// <remarks>
-/// Saves the tracked submission, so only the flag and key columns are written: an answer the respondent saves at the
-/// same moment is not overwritten. A mark that changes nothing is not saved.
+/// Saves the tracked submission, so only the columns the mark changes are written: the test flag, the one-per-person
+/// key and <see cref="Submission.Revision"/>. An answer the respondent saves at the same moment is not overwritten.
+/// <see cref="Submission.Revision"/> is not a concurrency token, though, so that save and this one, both from the
+/// same read, write the same revision. A mark that changes nothing is not saved. The link check has no index behind
+/// it: a link open that commits between the check and the save is not refused.
 /// </remarks>
 public sealed class SetSubmissionTestHandler(
     IRepository<Submission> submissions,
@@ -57,9 +62,9 @@ public sealed class SetSubmissionTestHandler(
         CancellationToken cancellationToken)
     {
         // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
-        if (enforceGate && await submissions.AnyAsync(Spec(submission), cancellationToken))
+        if (await ExistingRealAsync(submission, enforceGate, cancellationToken) is { } existing)
         {
-            return await SingleSubmissionConflict.ResultAsync<SubmissionDto>(submissions, Spec(submission), cancellationToken);
+            return SingleSubmissionConflict.For<SubmissionDto>(existing);
         }
 
         try
@@ -74,6 +79,36 @@ public sealed class SetSubmissionTestHandler(
         }
     }
 
+    /// <summary>
+    /// The person's real submission, if they have one: by Submitter when the form allows one response, and by the
+    /// link that opened <paramref name="submission"/> on any form, since a personalised link answers for one person.
+    /// </summary>
+    private async Task<Submission?> ExistingRealAsync(
+        Submission submission,
+        bool enforceGate,
+        CancellationToken cancellationToken)
+    {
+        if (enforceGate && await submissions.FirstOrDefaultAsync(Spec(submission), cancellationToken) is { } bySubmitter)
+        {
+            return bySubmitter;
+        }
+
+        return submission.AudienceLinkId is long linkId
+            ? await submissions.FirstOrDefaultAsync(new OtherRealSubmissionOfLinkSpec(submission, linkId), cancellationToken)
+            : null;
+    }
+
     private static SubmissionByFormIdAndSubmitterIdSpec Spec(Submission submission) =>
         new(submission.FormId, submission.SubmitterId!.Value);
+
+    /// <summary>A real submission the same link opened after this one was marked as test and the link freed.</summary>
+    private sealed class OtherRealSubmissionOfLinkSpec : SingleResultSpecification<Submission>
+    {
+        public OtherRealSubmissionOfLinkSpec(Submission submission, long audienceLinkId) =>
+            Query.Where(other => other.FormId == submission.FormId
+                    && other.AudienceLinkId == audienceLinkId
+                    && other.Id != submission.Id
+                    && !other.IsTestSubmission)
+                .AsNoTracking();
+    }
 }

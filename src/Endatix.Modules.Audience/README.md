@@ -66,7 +66,7 @@ Database schema: `audience`
 | PUT/DELETE | `forms/{formId}/audience/people/{membershipId}` | Edit values / remove from this form only |
 | POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400 |
 | POST | `forms/{formId}/audience/links` | Issue one link per person who does not have one, up to 5,000. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
-| POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open pins the active form definition and the live audience cells on one in-progress submission. A later publish, a new property, or an edited cell does not change that response. A parallel first open keeps one submission. A later open returns it. Unknown token, a deleted submission, a disabled form, or a person removed before the first open is 404 and does not mark the link opened. A person removed after open still resumes while the form is enabled. On a one-response form, a person who already has a submission (from on-behalf, or an earlier link) opens that one; it is marked started and gets the live cells if it has none. Another open of the same link holding it past 5 s is 503. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
+| POST | `forms/{formId}/audience/links/{token}/redeem` | Anonymous, `Throttle(60, 60)` (in-process; over the limit is 403). First open pins the active form definition and the live audience cells on one in-progress submission. A later publish, a new property, or an edited cell does not change that response. A parallel first open keeps one submission. A later open returns it. Unknown token, a disabled form, or a person removed before the first open is 404 and does not mark the link opened. A deleted submission is 404, unless it was a test. A link whose submission was marked as test, deleted or not, opens a new one: redeem clears that claim itself (only while the link still names that submission) instead of waiting for the outbox. A person removed after open still resumes while the form is enabled. On a one-response form, a person who already has a submission (from on-behalf, or an earlier link) opens that one; it is marked started and gets the live cells if it has none. Another open of the same link holding it past 5 s is 503. Response is `submissionId`, `created`, `accessToken` — not the snapshot |
 
 Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.ManageSettings`, and redeem, which is anonymous.
 
@@ -91,6 +91,13 @@ Permission: `Forms.Edit`, except `PUT audience/settings`, which needs `Tenant.Ma
 - **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships
   and properties; tenant members stay. Until it runs, the form's people still count toward the
   match-key lock.
+- **Marked as test.** The `submission.updated` outbox handler (`changeKind` `test`) frees the link of a submission
+  still marked as test, deleted or not, keeping the token. Redeem frees such a link itself too, so the handler only
+  tidies the link early. Marking a submission real is a 409 naming the other one when its link has since opened a
+  real submission.
+- **Outbox delivery.** Both outbox handlers also run as background jobs (`AudienceDeleteFormAudience`,
+  `AudienceReleaseLinkOnTestMark`), subscribed in `AudienceOutboxJobs`, so the host starts with
+  `Endatix:Outbox:DeliverToJobQueue` on.
 - **On behalf.** `POST forms/{formId}/submissions/onbehalf` (`Submissions.CreateOnBehalf`, not this module's routes) freezes a snapshot when `Submitter.ExternalSubjectId` matches a member on a form that has properties. Unknown id, no properties, or no submitter leaves the create unchanged. The snapshot is `source: on_behalf` plus `memberId` and `values[]` beside `variables`. Binding `Member.SubmitterId` is one update that matches only while it is null.
 - **Links.** The token is stored as a SHA-256 hash. A claimed link resumes without a lock. A first open checks
   `LinkOpenGates` before the lock: a disabled form or a removed person is 404 at once, and a link open never

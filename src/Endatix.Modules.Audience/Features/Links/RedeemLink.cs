@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
@@ -23,6 +24,7 @@ public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Res
 internal sealed class RedeemLinkHandler(
     IAudienceDbContext db,
     IRepository<Submission> submissions,
+    AppDbContext app,
     ISubmissionTokenService tokens,
     LinkOpenLock linkLock,
     LinkOpenGates gates)
@@ -56,27 +58,47 @@ internal sealed class RedeemLinkHandler(
             item => item.FormId == request.FormId && item.TokenHash == AudienceLink.Hash(request.Token),
             cancellationToken);
 
-    /// <summary>The lock covers only what must not interleave; resuming a claimed link never waits.</summary>
+    /// <summary>
+    /// The lock covers only what must not interleave; resuming a claimed link never waits. A claim on a submission
+    /// marked as test, deleted or not, is no longer the person's: it is cleared here, without waiting for the outbox,
+    /// and the link opens afresh, so the person never resumes a test submission or meets a dead link.
+    /// </summary>
     private async Task<Result<RedeemedLinkDto>> OpenOrResumeAsync(
         AudienceLink link,
         CancellationToken cancellationToken)
     {
-        var claimedId = link.SubmissionId;
-        if (claimedId is null)
+        if (link.SubmissionId is long claimed)
         {
-            var opened = await OpenAsync(link, cancellationToken);
-            if (opened is not null)
+            var resumed = await ResumeAsync(link.Id, claimed, cancellationToken);
+            if (resumed is not null)
             {
-                return opened;
+                return resumed;
             }
 
-            claimedId = await ClaimedIdAsync(link.Id, cancellationToken);
+            await ReleaseStaleClaimAsync(link.Id, claimed, cancellationToken);
         }
 
-        return claimedId is long submissionId
-            ? await ResumeAsync(link.Id, submissionId, cancellationToken)
+        var opened = await OpenAsync(link, cancellationToken);
+        if (opened is not null)
+        {
+            return opened;
+        }
+
+        // Another open claimed the link first. Its claim is fresh, so a stale one now is a refusal, not a loop.
+        return await ClaimedIdAsync(link.Id, cancellationToken) is long submissionId
+            ? await ResumeAsync(link.Id, submissionId, cancellationToken) ?? Result.NotFound(LinkNotFound)
             : Result.NotFound(LinkNotFound);
     }
+
+    /// <summary>Matches only while the link still names that submission, so a claim made meanwhile stays.</summary>
+    private Task<int> ReleaseStaleClaimAsync(long linkId, long submissionId, CancellationToken cancellationToken) =>
+        db.Links
+            .Where(item => item.Id == linkId && item.SubmissionId == submissionId)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(item => item.SubmissionId, (long?)null)
+                    .SetProperty(item => item.OpenedAt, (DateTime?)null),
+                cancellationToken);
 
     /// <summary>
     /// Checks the gates, then opens under the lock. An insert refused by <c>UX_Submissions_RestrictionKey</c> means
@@ -179,17 +201,24 @@ internal sealed class RedeemLinkHandler(
 
     /// <summary>
     /// A link claimed before tokens were issued under the lock can name a submission without one. Its first
-    /// token is issued under the lock, so parallel opens do not each write their own.
+    /// token is issued under the lock, so parallel opens do not each write their own. <see langword="null"/> when the
+    /// claim is stale: the submission is a test, live or deleted. A deleted real response keeps the link refused.
     /// </summary>
-    private async Task<Result<RedeemedLinkDto>> ResumeAsync(
+    private async Task<Result<RedeemedLinkDto>?> ResumeAsync(
         long linkId,
         long submissionId,
         CancellationToken cancellationToken)
     {
         var state = await submissions.FirstOrDefaultAsync(new SubmissionResumeSpec(submissionId), cancellationToken);
+        if (state is null && !await IsDeletedTestAsync(submissionId, cancellationToken))
+        {
+            return Result.NotFound(LinkNotFound);
+        }
+
         return state switch
         {
-            null or { FormIsEnabled: false } => Result.NotFound(LinkNotFound),
+            null or { IsTest: true } => null,
+            { FormIsEnabled: false } => Result.NotFound(LinkNotFound),
             { HasToken: true } => await RedeemedAsync(submissionId, false, cancellationToken),
             _ => await FirstTokenLockedAsync(linkId, submissionId, cancellationToken),
         };
@@ -209,6 +238,14 @@ internal sealed class RedeemLinkHandler(
 
         return redeemed;
     }
+
+    /// <summary>Only the soft-delete filter is lifted; a deleted form still hides its submissions.</summary>
+    private Task<bool> IsDeletedTestAsync(long submissionId, CancellationToken cancellationToken) =>
+        app.Submissions
+            .IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete])
+            .AnyAsync(
+                submission => submission.Id == submissionId && submission.IsDeleted && submission.IsTestSubmission,
+                cancellationToken);
 
     private Task<long?> ClaimedIdAsync(long linkId, CancellationToken cancellationToken) =>
         db.Links.AsNoTracking()

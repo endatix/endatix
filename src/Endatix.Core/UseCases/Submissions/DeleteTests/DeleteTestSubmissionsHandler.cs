@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -14,11 +15,14 @@ namespace Endatix.Core.UseCases.Submissions.DeleteTests;
 /// </summary>
 /// <remarks>
 /// Each page commits on its own: a failure part way leaves the earlier pages deleted, and a retry carries on, since
-/// deleted submissions no longer match.
+/// deleted submissions no longer match. The change tracker is cleared after each page, so a form with many test
+/// submissions holds one page in memory, not all of them. The keyset (<c>afterId</c>) stays although deleted rows drop
+/// out of the query anyway: a row whose delete did not take would otherwise be read again on every page, for ever.
 /// </remarks>
 public sealed class DeleteTestSubmissionsHandler(
     IRepository<Submission> submissions,
     IRepository<Form> forms,
+    IUnitOfWork unitOfWork,
     ICurrentUserAuthorizationService authorization) : ICommandHandler<DeleteTestSubmissionsCommand, Result<DeletedTestSubmissions>>
 {
     /// <summary>Submissions loaded and saved per round trip, which bounds each query and each save.</summary>
@@ -59,6 +63,7 @@ public sealed class DeleteTestSubmissionsHandler(
             }
 
             await submissions.SaveChangesAsync(cancellationToken);
+            unitOfWork.ClearChangeTracker();
             deleted += page.Count;
             if (page.Count < PAGE_SIZE)
             {
