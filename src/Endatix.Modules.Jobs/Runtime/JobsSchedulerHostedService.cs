@@ -243,15 +243,21 @@ internal sealed class JobsSchedulerHostedService(
     // A missing lock table never gets this far: Quartz's schema validation refuses the start first (measured).
     private async Task<StartResult> ExplainAbortedTransactionAsync(Exception aborted, CancellationToken cancellationToken)
     {
-        if (await database.UnreachableBecauseAsync(cancellationToken) is { } explained)
-        {
-            return Unreachable(explained);
-        }
+        return await database.UnreachableBecauseAsync(cancellationToken) is { } explained
+            ? Unreachable(explained)
+            : await RetryUnlessTheLockIsRefusedAsync(aborted, cancellationToken);
+    }
 
-        string? refusal;
+    // A role that may not take the lock fails the start. A check that could not be made because the database went away,
+    // or waited too long on a statement_timeout or the command timeout, is no refusal; one it was refused, such as a
+    // 42501 without USAGE on the schema, still fails the start.
+    private async Task<StartResult> RetryUnlessTheLockIsRefusedAsync(Exception aborted, CancellationToken cancellationToken)
+    {
         try
         {
-            refusal = await database.LockTableRefusalAsync(cancellationToken);
+            return await database.LockTableRefusalAsync(cancellationToken) is { } refusal
+                ? throw new InvalidOperationException(refusal, aborted)
+                : UnexplainedAbort(aborted);
         }
         catch (Exception away) when (DatabaseFailures.IsAwayAtStartup(away))
         {
@@ -259,12 +265,8 @@ internal sealed class JobsSchedulerHostedService(
         }
         catch (Exception waited) when (DatabaseFailures.IsTimeout(waited) || DatabaseFailures.IsContention(waited))
         {
-            // The check itself waited too long, on a statement_timeout or the command timeout: contention, not a
-            // refusal. One it was refused, such as a 42501 without USAGE on the schema, still fails the start.
             return UnexplainedAbort(aborted);
         }
-
-        return refusal is null ? UnexplainedAbort(aborted) : throw new InvalidOperationException(refusal, aborted);
     }
 
     // Paced as a lost race; a run of them is raised to an error, since contention that never clears, such as a lock

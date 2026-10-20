@@ -73,44 +73,53 @@ public sealed partial class JobsSchedulerStartupTests
         // asks for the role's privileges, and a column's UPDATE, or INSERT once the rows exist, is all the lock needs.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, "SQL Server reports a missing permission as it is.");
         var ct = TestContext.Current.CancellationToken;
-        var role = $"t9_lock_{Guid.NewGuid():N}"[..20];
-        const string password = "Lock-Role-Pa55word";
         var database = await JobsTestDatabase.CreateAsync(fixture, ct);
-        try
+        await using var role = new LockTableRole(database);
+        await MigrateAsync(database, ct);
+        await role.CreateAsync(grantSql, ct);
+        await using var node = JobsTestNode.Create(new JobsTestNodeDatabase(database.Provider, role.ConnectionString), migrate: false);
+
+        // Act
+        var check = await new JobStoreDatabase(role.ConnectionString, isPostgreSql: true, locksOnInsert: false).LockTableRefusalAsync(ct);
+        var start = () => node.StartAsync(ct);
+
+        // Assert — refused at once, naming the role and the table without the password, or started.
+        if (refused)
         {
-            await MigrateAsync(database, ct);
-            await database.ExecuteAsync($"""
-                CREATE ROLE {role} LOGIN PASSWORD '{password}';
-                GRANT USAGE ON SCHEMA jobs TO {role};
-                GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA jobs TO {role};
-                {string.Format(System.Globalization.CultureInfo.InvariantCulture, grantSql, role)}
-                """, ct);
-            var asRole = new NpgsqlConnectionStringBuilder(database.ConnectionString) { Username = role, Password = password }.ConnectionString;
-            await using var node = JobsTestNode.Create(new JobsTestNodeDatabase(database.Provider, asRole), migrate: false);
-
-            // Act
-            var check = await new JobStoreDatabase(asRole, isPostgreSql: true, locksOnInsert: false).LockTableRefusalAsync(ct);
-            var start = () => node.StartAsync(ct);
-
-            // Assert — refused at once, naming the role and the table without the password, or started.
-            if (refused)
-            {
-                check.Should().Contain($"database role '{role}' cannot take Quartz's lock on jobs.qrtz_locks", grants);
-                var failure = (await start.Should().ThrowAsync<InvalidOperationException>(grants)).Which;
-                failure.Message.Should().Be(check);
-                failure.ToString().Should().NotContain(password);
-            }
-            else
-            {
-                check.Should().BeNull(grants);
-                await start.Should().NotThrowAsync(grants);
-            }
+            check.Should().Contain($"database role '{role.Name}' cannot take Quartz's lock on jobs.qrtz_locks", grants);
+            var failure = (await start.Should().ThrowAsync<InvalidOperationException>(grants)).Which;
+            failure.Message.Should().Be(check);
+            failure.ToString().Should().NotContain(LockTableRole.Password);
         }
-        finally
+        else
         {
-            // A role is the server's, not the database's: its grants go first, so dropping it leaves nothing behind.
+            check.Should().BeNull(grants);
+            await start.Should().NotThrowAsync(grants);
+        }
+    }
+
+    // A PostgreSQL role with full access to the job tables but what a case grants on the lock table, and the database
+    // it was made for, both dropped with it: a role is the server's, so its grants go first.
+    private sealed class LockTableRole(JobsTestDatabase database) : IAsyncDisposable
+    {
+        public const string Password = "Lock-Role-Pa55word";
+
+        public string Name { get; } = $"t9_lock_{Guid.NewGuid():N}"[..20];
+
+        public string ConnectionString =>
+            new NpgsqlConnectionStringBuilder(database.ConnectionString) { Username = Name, Password = Password }.ConnectionString;
+
+        public Task CreateAsync(string grantSql, CancellationToken ct) => database.ExecuteAsync($"""
+            CREATE ROLE {Name} LOGIN PASSWORD '{Password}';
+            GRANT USAGE ON SCHEMA jobs TO {Name};
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA jobs TO {Name};
+            {string.Format(System.Globalization.CultureInfo.InvariantCulture, grantSql, Name)}
+            """, ct);
+
+        public async ValueTask DisposeAsync()
+        {
             NpgsqlConnection.ClearAllPools();
-            await database.ExecuteAsync($"DROP OWNED BY {role}; DROP ROLE IF EXISTS {role}", CancellationToken.None);
+            await database.ExecuteAsync($"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{Name}') THEN DROP OWNED BY {Name}; DROP ROLE {Name}; END IF; END $$", CancellationToken.None);
             await database.DisposeAsync();
         }
     }
