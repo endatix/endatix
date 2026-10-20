@@ -245,9 +245,9 @@ jobs:
         run: dotnet tool install --global dotnet-sonarscanner --version 11.3.0
       - name: 🔎 Build & analyze
         # The gate is read in the next step, not here (no sonar.qualitygate.wait).
-        # These exclusions replace the ones set in the SonarCloud project. Endpoints
-        # repeat FastEndpoints Configure() boilerplate by the one-file-per-operation
-        # rule, so they stay out of duplication.
+        # These exclusions replace the ones set in the SonarCloud project; the cpd list
+        # is the UI's plus Endpoints, which repeat FastEndpoints Configure() boilerplate
+        # by the one-file-per-operation rule.
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
           for a in unit integration integration-sqlserver; do
@@ -262,7 +262,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="tests/**,**/Migrations/**" \
             /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,docs/**,samples/**" \
-            /d:sonar.cpd.exclusions="**/Endpoints/**,**/Migrations/**"
+            /d:sonar.cpd.exclusions="tests/**,**/*Tests.cs,**/*Test.cs,**/Endatix.Persistence.*/**,**/Migrations/**,**/Endpoints/**"
           dotnet build
           dotnet-sonarscanner end /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN"
       - name: 🚦 Quality gate

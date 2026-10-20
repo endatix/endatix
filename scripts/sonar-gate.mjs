@@ -17,10 +17,19 @@ const ADVISORY = (process.env.SONAR_ADVISORY_METRICS ?? 'new_duplicated_lines_de
   .filter(Boolean);
 const POLL_MS = 5_000;
 const TIMEOUT_MS = 300_000;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function getJson(url) {
+// Workflow commands end at a newline, so an error body must be escaped to stay one annotation.
+const escapeCommand = (text) => text.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+
+async function getJson(url, deadline = Date.now() + TIMEOUT_MS) {
   const headers = process.env.SONAR_TOKEN ? { Authorization: `Bearer ${process.env.SONAR_TOKEN}` } : {};
   const response = await fetch(url, { headers });
+  // SonarCloud has brief 5xx hiccups; sonar.qualitygate.wait rode them out, so we do too.
+  if (response.status >= 500 && Date.now() + POLL_MS < deadline) {
+    await sleep(POLL_MS);
+    return getJson(url, deadline);
+  }
   if (!response.ok) {
     throw new Error(`GET ${url} returned ${response.status}: ${await response.text()}`);
   }
@@ -30,12 +39,12 @@ async function getJson(url) {
 async function waitForAnalysis(ceTaskUrl) {
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
-    const { task } = await getJson(ceTaskUrl);
+    const { task } = await getJson(ceTaskUrl, deadline);
     if (task.status === 'SUCCESS') return task.analysisId;
     if (task.status === 'FAILED' || task.status === 'CANCELED') {
       throw new Error(`SonarCloud analysis ${task.status}: ${task.errorMessage ?? 'no message'}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    await sleep(POLL_MS);
   }
   throw new Error(`SonarCloud analysis did not finish within ${TIMEOUT_MS / 1000}s: ${ceTaskUrl}`);
 }
@@ -72,7 +81,7 @@ async function main() {
 main().then(
   (code) => process.exit(code),
   (error) => {
-    console.log(`::error title=SonarCloud gate::${error.message}`);
+    console.log(`::error title=SonarCloud gate::${escapeCommand(error.message)}`);
     process.exit(1);
   },
 );
