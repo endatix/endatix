@@ -241,6 +241,21 @@ public class GetSubmissionFilesTests
         Assert.True(notYetCopied.Disposed);
     }
 
+    [Fact]
+    public async Task CopyFailure_DisposesFilesAlreadyCopied()
+    {
+        // Arrange
+        var copied = new DisposableStream("abc"u8.ToArray());
+        ReturnFiles(copied, new UnreadableStream());
+        var request = new GetSubmissionFilesRequest { FormId = 1, SubmissionId = 123 };
+
+        // Act
+        await _endpoint.HandleAsync(request, CancellationToken.None);
+
+        // Assert
+        Assert.True(copied.Disposed);
+    }
+
     private void ReturnFiles(params Stream[] contents)
     {
         var files = contents.Select((content, i) => new FileDescriptor($"file{i + 1}.txt", "text/plain", content)).ToList();
@@ -253,6 +268,17 @@ public class GetSubmissionFilesTests
         public bool Aborted { get; private set; }
         public CancellationToken RequestAborted { get; set; }
         public void Abort() => Aborted = true;
+    }
+
+    private sealed class DisposableStream(byte[] data) : MemoryStream(data)
+    {
+        public bool Disposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
     }
 
     private sealed class UnreadableStream : MemoryStream

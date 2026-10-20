@@ -1,10 +1,10 @@
 using System.IO.Compression;
-using FastEndpoints;
-using MediatR;
-using Endatix.Infrastructure.Utils;
-using Endatix.Core.UseCases.Submissions.GetFiles;
-using FluentValidation.Results;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Submissions.GetFiles;
+using Endatix.Infrastructure.Utils;
+using FastEndpoints;
+using FluentValidation.Results;
+using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -77,17 +77,35 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
     private async Task SendZipAsync(MemoryStream zipStream, GetFilesResult filesResult, CancellationToken cancellationToken)
     {
         var zipFileName = $"{StringUtils.ToKebabCase(filesResult.FormName)}-{filesResult.SubmissionId}.zip";
-        HttpContext.MarkResponseStart();
         HttpContext.Response.StatusCode = 200;
         HttpContext.Response.ContentType = "application/zip";
         HttpContext.Response.Headers.ContentDisposition = $"attachment; filename={zipFileName}";
+        HttpContext.MarkResponseStart();
 
         await zipStream.CopyToAsync(HttpContext.Response.Body, cancellationToken);
     }
 
+    /// <summary>
+    /// The returned stream is the caller's. A failure disposes it here, because the caller never receives it.
+    /// </summary>
     private static async Task<MemoryStream> BuildZipAsync(IReadOnlyCollection<FileDescriptor> files, CancellationToken cancellationToken)
     {
         var zipStream = new MemoryStream();
+        try
+        {
+            await WriteEntriesAsync(zipStream, files, cancellationToken);
+            zipStream.Position = 0;
+            return zipStream;
+        }
+        catch
+        {
+            await zipStream.DisposeAsync();
+            throw;
+        }
+    }
+
+    private static async Task WriteEntriesAsync(Stream zipStream, IReadOnlyCollection<FileDescriptor> files, CancellationToken cancellationToken)
+    {
         try
         {
             await using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
@@ -99,19 +117,15 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
         {
             await DisposeAllAsync(files);
         }
-
-        zipStream.Seek(0, SeekOrigin.Begin);
-        return zipStream;
     }
 
     private static async Task AddEntriesAsync(ZipArchive archive, IEnumerable<FileDescriptor> files, CancellationToken cancellationToken)
     {
         foreach (var file in files)
         {
-            await using var content = file.Content;
             var entry = archive.CreateEntry(file.FileName, CompressionLevel.Fastest);
             await using var entryStream = await entry.OpenAsync(cancellationToken);
-            await content.CopyToAsync(entryStream, cancellationToken);
+            await file.Content.CopyToAsync(entryStream, cancellationToken);
         }
     }
 
