@@ -186,6 +186,10 @@ public sealed class SubmissionFileExtractor : ISubmissionFileExtractor
             var stream = new BoundedHttpResponseStream(response, MaxFetchedFileBytes);
             context.Files.Add(new ISubmissionFileExtractor.ExtractedFile(fileName, mimeType, stream));
         }
+        catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(

@@ -292,6 +292,43 @@ public sealed class SubmissionFileExtractorTests
     Assert.Equal("question9.wav", files[0].FileName);
   }
 
+  [Fact]
+  public async Task ExtractFiles_RequestCancelledDuringUrlFetch_PropagatesWithoutErrorLog()
+  {
+    using var cts = new CancellationTokenSource();
+    var httpClient = new HttpClient(new CancellingHandler(cts));
+    _httpClientFactory
+        .CreateClient(SubmissionFileFetchHttpClient.Name)
+        .Returns(httpClient);
+    var json = $$"""
+        {
+          "imagesUpload": [
+            { "name": "foo.png", "type": "image/jpeg", "content": "{{CanonicalUrl("foo.png")}}" },
+            { "name": "bar.png", "type": "image/jpeg", "content": "{{CanonicalUrl("bar.png")}}" }
+          ]
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        () => _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: cts.Token));
+
+    Assert.DoesNotContain(
+        _logger.ReceivedCalls(),
+        call => call.GetMethodInfo().Name == nameof(ILogger.Log)
+            && (LogLevel)call.GetArguments()[0]! == LogLevel.Error);
+  }
+
+  private sealed class CancellingHandler(CancellationTokenSource cts) : HttpMessageHandler
+  {
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+      cts.Cancel();
+      cancellationToken.ThrowIfCancellationRequested();
+      throw new InvalidOperationException("The linked request token should be cancelled.");
+    }
+  }
+
   private sealed class DummyHandler(long? contentLength = null) : HttpMessageHandler
   {
     public bool WasCalled { get; private set; }
