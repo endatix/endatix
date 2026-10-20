@@ -289,8 +289,12 @@ public sealed partial class AudienceDirectoryFlowTests
         var submissions = new EfRepository<Submission>(app, evaluator);
         var tokens = new SubmissionTokenService(submissions, forms, new EfRepository<TenantSettings>(app, evaluator));
         var linkLock = new LinkOpenLock(audience, app, services.GetRequiredService<ITransactionLock>());
-        var gates = new LinkOpenGates(audience, forms, services.GetRequiredService<ISubmitterResolver>());
-        return new RedeemLinkHandler(audience, submissions, tokens, linkLock, gates);
+        var gates = new LinkOpenGates(
+            audience,
+            forms,
+            new EfRepository<Submitter>(app, evaluator),
+            services.GetRequiredService<ISubmitterResolver>());
+        return new RedeemLinkHandler(audience, submissions, app, tokens, linkLock, gates);
     }
 
     /// <summary>
