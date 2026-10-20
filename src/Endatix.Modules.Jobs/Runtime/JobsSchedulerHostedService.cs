@@ -257,6 +257,12 @@ internal sealed class JobsSchedulerHostedService(
         {
             return Unreachable(away);
         }
+        catch (Exception waited) when (DatabaseFailures.IsTimeout(waited) || DatabaseFailures.IsContention(waited))
+        {
+            // The check itself waited too long, on a statement_timeout or the command timeout: contention, not a
+            // refusal. One it was refused, such as a 42501 without USAGE on the schema, still fails the start.
+            return UnexplainedAbort(aborted);
+        }
 
         return refusal is null ? UnexplainedAbort(aborted) : throw new InvalidOperationException(refusal, aborted);
     }
@@ -326,7 +332,8 @@ internal sealed class JobsSchedulerHostedService(
     }
 
     // What a stop itself causes is a cancellation: the wait cancelled, or a rebuild the scheduler's factory turned into
-    // one because the host is stopping.
+    // one because the host is stopping, which the factory logs at Debug. A refusal raised outside the rebuild, such as
+    // the snapshot check's, is not a cancellation, and is logged at Warning.
     private static bool IsPartOfTheStop(Exception exception) => exception.HasCause(cause => cause is OperationCanceledException);
 
     // Waits after each failed try for as long as its kind of failure takes to clear, then tries again.

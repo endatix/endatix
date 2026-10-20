@@ -31,12 +31,24 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
     // The table Quartz takes its lock on, as PostgreSQL names it.
     private const string PostgreSqlLockTable = QuartzRegistration.TablePrefix + "locks";
 
-    // True when the lock table is there and this role lacks what taking the lock needs; a missing table is not asked.
-    private const string LockTableRefusedSql =
-        $"SELECT to_regclass('{PostgreSqlLockTable}') IS NOT NULL " +
-        $"AND NOT (has_table_privilege('{PostgreSqlLockTable}', 'SELECT') " +
-        $"AND has_table_privilege('{PostgreSqlLockTable}', 'UPDATE') " +
-        $"AND has_table_privilege('{PostgreSqlLockTable}', 'INSERT'))";
+    // What this role may do with the lock table: 'missing' when it is not there yet, 'refused' without SELECT or an
+    // UPDATE on one column at least (all SELECT … FOR UPDATE asks), 'no-insert' without INSERT, otherwise 'ok'. It does
+    // not read the table, so neither a missing table nor a missing SELECT fails the question.
+    private const string LockTablePrivilegesSql = $"""
+        SELECT CASE
+            WHEN to_regclass('{PostgreSqlLockTable}') IS NULL THEN 'missing'
+            WHEN NOT has_table_privilege('{PostgreSqlLockTable}', 'SELECT')
+                OR NOT has_any_column_privilege('{PostgreSqlLockTable}', 'UPDATE') THEN 'refused'
+            WHEN NOT has_table_privilege('{PostgreSqlLockTable}', 'INSERT') THEN 'no-insert'
+            ELSE 'ok'
+        END
+        """;
+
+    // Quartz inserts a lock row only when it is missing, so INSERT is needed only until both of this scheduler's exist.
+    private const string MissingLockRowsSql = $"""
+        SELECT count(DISTINCT lock_name) < 2 FROM {PostgreSqlLockTable}
+        WHERE sched_name = '{QuartzRegistration.SchedulerName}' AND lock_name IN ('TRIGGER_ACCESS', 'STATE_ACCESS')
+        """;
 
     /// <summary>The connection string; never printed (see <see cref="ToString"/>).</summary>
     public string ConnectionString { get; } = connectionString;
@@ -133,7 +145,8 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
     /// </summary>
     /// <remarks>
     /// Quartz takes its lock with <c>SELECT … FOR UPDATE</c> on <c>jobs.qrtz_locks</c> and inserts the row when it is
-    /// missing, so the role needs SELECT, UPDATE and INSERT on it. Without them PostgreSQL refuses with 42501, which
+    /// missing, so the role needs SELECT and UPDATE on it, on one column at least for UPDATE, and INSERT while a row is
+    /// missing. Without them PostgreSQL refuses with 42501, which
     /// Quartz 4.2.2 reports as the 25P02 of its next statement (measured), so only asking tells the refusal from a lost
     /// race. SQL Server reports a missing permission there as it is (229, measured), so it is not asked.
     /// </remarks>
@@ -146,15 +159,26 @@ internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSq
 
         await using var connection = Connect();
         await connection.OpenAsync(cancellationToken);
+        var refused = await ScalarAsync(connection, LockTablePrivilegesSql, cancellationToken) switch
+        {
+            "refused" => true,
+            "no-insert" => await ScalarAsync(connection, MissingLockRowsSql, cancellationToken) is true,
+            _ => false,
+        };
+        return refused ? LockTableRefusal() : null;
+    }
+
+    private static async Task<object?> ScalarAsync(DbConnection connection, string sql, CancellationToken cancellationToken)
+    {
         await using var command = connection.CreateCommand();
-        command.CommandText = LockTableRefusedSql;
-        return await command.ExecuteScalarAsync(cancellationToken) is true ? LockTableRefusal() : null;
+        command.CommandText = sql;
+        return await command.ExecuteScalarAsync(cancellationToken);
     }
 
     // Names the role, never its password.
     private string LockTableRefusal() =>
         $"The background jobs scheduler cannot start: database role '{new NpgsqlConnectionStringBuilder(ConnectionString).Username}' " +
-        $"cannot take Quartz's lock on {PostgreSqlLockTable}. Grant it SELECT, UPDATE and INSERT on that table.";
+        $"cannot take Quartz's lock on {PostgreSqlLockTable}. Grant it SELECT and UPDATE on that table, and INSERT until its lock rows exist.";
 
     // A read-only PostgreSQL database, a standby or one with default_transaction_read_only on, refuses the scheduler's
     // first write with 25006 inside the lock Quartz takes, and Quartz then reports only the 25P02 ("current transaction

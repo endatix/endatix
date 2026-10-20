@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -47,16 +48,33 @@ public sealed partial class JobsSchedulerStartupTests
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
     }
 
-    [Fact]
-    public async Task Scheduler_whose_role_may_not_update_the_lock_table_fails_startup_saying_so()
+    // What a role may do with Quartz's lock table, granted beyond full access to the other job tables, and whether the
+    // start should refuse it.
+    public static TheoryData<string, string, bool> LockTableGrants() => new()
     {
-        // Arrange — the role can read and write the job tables but not UPDATE Quartz's lock table, which PostgreSQL
-        // refuses with 42501 inside Quartz's lock, and Quartz reports as a 25P02.
-        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, "SQL Server reports the missing permission as it is.");
+        { "no UPDATE", "REVOKE UPDATE ON jobs.qrtz_locks FROM {0};", true },
+        { "UPDATE on one column", "REVOKE UPDATE ON jobs.qrtz_locks FROM {0}; GRANT UPDATE (lock_name) ON jobs.qrtz_locks TO {0};", false },
+        { "no INSERT, lock rows there", "REVOKE INSERT ON jobs.qrtz_locks FROM {0};" + LockRows, false },
+        { "no INSERT, lock rows missing", "REVOKE INSERT ON jobs.qrtz_locks FROM {0}; DELETE FROM jobs.qrtz_locks;", true },
+    };
+
+    // Both of the scheduler's lock rows, as Quartz inserts them the first time it takes each lock.
+    private const string LockRows =
+        " INSERT INTO jobs.qrtz_locks (sched_name, lock_name) VALUES ('endatix-jobs', 'TRIGGER_ACCESS'), ('endatix-jobs', 'STATE_ACCESS') ON CONFLICT DO NOTHING;";
+
+    [Theory]
+    [MemberData(nameof(LockTableGrants))]
+    public async Task Scheduler_started_by_a_role_that_may_not_take_the_lock_fails_saying_so_and_one_that_may_starts(
+        string grants,
+        string grantSql,
+        bool refused)
+    {
+        // Arrange — PostgreSQL refuses a role inside Quartz's lock with 42501, which Quartz reports as a 25P02; the start
+        // asks for the role's privileges, and a column's UPDATE, or INSERT once the rows exist, is all the lock needs.
+        Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.PostgreSql, "SQL Server reports a missing permission as it is.");
         var ct = TestContext.Current.CancellationToken;
         var role = $"t9_lock_{Guid.NewGuid():N}"[..20];
         const string password = "Lock-Role-Pa55word";
-        Func<Task> start;
         var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         try
         {
@@ -65,20 +83,28 @@ public sealed partial class JobsSchedulerStartupTests
                 CREATE ROLE {role} LOGIN PASSWORD '{password}';
                 GRANT USAGE ON SCHEMA jobs TO {role};
                 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA jobs TO {role};
-                REVOKE UPDATE ON jobs.qrtz_locks FROM {role};
+                {string.Format(System.Globalization.CultureInfo.InvariantCulture, grantSql, role)}
                 """, ct);
-            var target = new JobsTestNodeDatabase(
-                database.Provider,
-                new NpgsqlConnectionStringBuilder(database.ConnectionString) { Username = role, Password = password }.ConnectionString);
-            await using var node = JobsTestNode.Create(target, migrate: false);
+            var asRole = new NpgsqlConnectionStringBuilder(database.ConnectionString) { Username = role, Password = password }.ConnectionString;
+            await using var node = JobsTestNode.Create(new JobsTestNodeDatabase(database.Provider, asRole), migrate: false);
 
             // Act
-            start = () => node.StartAsync(ct);
+            var check = await new JobStoreDatabase(asRole, isPostgreSql: true, locksOnInsert: false).LockTableRefusalAsync(ct);
+            var start = () => node.StartAsync(ct);
 
-            // Assert — refused at once, naming the role and the table, without the password.
-            var refused = (await start.Should().ThrowAsync<InvalidOperationException>()).Which;
-            refused.Message.Should().Contain($"database role '{role}' cannot take Quartz's lock on jobs.qrtz_locks");
-            refused.ToString().Should().NotContain(password);
+            // Assert — refused at once, naming the role and the table without the password, or started.
+            if (refused)
+            {
+                check.Should().Contain($"database role '{role}' cannot take Quartz's lock on jobs.qrtz_locks", grants);
+                var failure = (await start.Should().ThrowAsync<InvalidOperationException>(grants)).Which;
+                failure.Message.Should().Be(check);
+                failure.ToString().Should().NotContain(password);
+            }
+            else
+            {
+                check.Should().BeNull(grants);
+                await start.Should().NotThrowAsync(grants);
+            }
         }
         finally
         {

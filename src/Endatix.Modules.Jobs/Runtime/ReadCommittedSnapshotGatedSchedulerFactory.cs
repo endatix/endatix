@@ -232,6 +232,8 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
         }
         catch (Exception failure) when (cancellationToken.IsCancellationRequested && failure is not OperationCanceledException)
         {
+            // Said at Debug, so a refusal that happened to come as the host stopped still leaves a trace.
+            _logger?.LogDebug(failure, "Rebuilding the background jobs scheduler failed as the host stopped");
             throw new OperationCanceledException("The host is stopping, so the background jobs scheduler was not rebuilt.", failure, cancellationToken);
         }
     }

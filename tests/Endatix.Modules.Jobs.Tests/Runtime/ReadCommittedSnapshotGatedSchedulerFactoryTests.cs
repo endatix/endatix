@@ -152,8 +152,9 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
         // Act
         var rebuild = () => factory.GetScheduler(Ct).AsTask();
 
-        // Assert — a cancellation, told apart by its type, carrying what Quartz said.
+        // Assert — a cancellation, told apart by its type, carrying what Quartz said, which is left at Debug.
         (await rebuild.Should().ThrowAsync<OperationCanceledException>()).Which.InnerException.Should().BeOfType<SchedulerConfigException>();
+        (await LoggedAtDebugAsync(exception => exception is SchedulerConfigException)).Should().BeTrue();
     }
 
     [Fact]
@@ -328,12 +329,13 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
 
     private CancellationToken RestartToken() => _runtime.Restarts.Single().CancellationToken;
 
-    private async Task<bool> LoggedAtDebugAsync()
+    private async Task<bool> LoggedAtDebugAsync(Func<Exception?, bool>? withException = null)
     {
         for (var waited = 0; waited < 200; waited++)
         {
             if (_logger.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(ILogger.Log)
-                && (LogLevel)call.GetArguments()[0]! == LogLevel.Debug))
+                && (LogLevel)call.GetArguments()[0]! == LogLevel.Debug
+                && (withException?.Invoke(call.GetArguments()[3] as Exception) ?? true)))
             {
                 return true;
             }
