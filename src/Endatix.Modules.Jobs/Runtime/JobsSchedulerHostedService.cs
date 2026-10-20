@@ -58,6 +58,7 @@ internal sealed class JobsSchedulerHostedService(
     private IScheduler? _scheduler;
     private Task? _deferredStart;
     private int _contendedTries;
+    private int _unexplainedAborts;
     private int _unreachableTries;
     private int _unreachableTriesSinceLogged;
     private OutageKind? _loggedOutage;
@@ -239,15 +240,40 @@ internal sealed class JobsSchedulerHostedService(
     }
 
     // A 25P02 hides why its transaction failed, so the probe is asked again. A connection that landed on a read-only
-    // session during a switchover, after the probe found a writable one, is an outage. Anything else is taken for a lost
-    // race inside Quartz's lock: on PostgreSQL a lock wait that runs past lock_timeout (55P03) comes out of Quartz's
-    // lock handler as this 25P02, measured with Quartz 4.2.2, and a deadlock or a statement_timeout there would too. A
-    // real refusal shows itself as some other failure on a later try.
+    // session during a switchover, after the probe found a writable one, is an outage. Anything else is retried, but
+    // Quartz 4.2.2's row-lock handler retries its lock statement inside the aborted transaction and reports only the
+    // last 25P02, so the cause it hid may be a lost race that clears, such as a lock wait past lock_timeout (55P03,
+    // measured), or a refusal that never does, such as a role without privileges on jobs.qrtz_LOCKS (42501), and every
+    // later try looks the same. A missing jobs.qrtz_LOCKS (42P01) looks the same too, and clears once migrated.
     private async Task<StartResult> ExplainAbortedTransactionAsync(Exception aborted, CancellationToken cancellationToken) =>
-        await database.UnreachableBecauseAsync(cancellationToken) is { } explained ? Unreachable(explained) : Contended(aborted);
+        await database.UnreachableBecauseAsync(cancellationToken) is { } explained ? Unreachable(explained) : UnexplainedAbort(aborted);
+
+    // Paced as a lost race, and said to be one or a hidden refusal; a run of them is raised to an error, since a refusal
+    // would never end it.
+    private StartResult UnexplainedAbort(Exception aborted)
+    {
+        _contendedTries++;
+        var inARow = ++_unexplainedAborts;
+        if (inARow % TriesPerRepeatedWarning == 0)
+        {
+            logger.LogError(
+                aborted,
+                "The background jobs scheduler has met a failed transaction inside Quartz's lock on {Tries} tries in a row. Quartz reports it without its cause, which is likely a refusal it hid rather than a lost race: check the role's privileges on jobs.qrtz_LOCKS, and that the table exists. Retrying.",
+                inARow);
+        }
+        else if (inARow == 1)
+        {
+            logger.LogWarning(
+                aborted,
+                "The background jobs scheduler met a failed transaction inside Quartz's lock while starting, which Quartz reports without its cause: a lost race, such as a lock wait past lock_timeout, or a refusal it hid, such as missing privileges on jobs.qrtz_LOCKS or a missing jobs.qrtz_LOCKS. Retrying.");
+        }
+
+        return StartResult.Contended;
+    }
 
     private StartResult Contended(Exception lostRace)
     {
+        _unexplainedAborts = 0;
         if (++_contendedTries % TriesPerRepeatedWarning == 1)
         {
             logger.LogWarning(
@@ -288,8 +314,8 @@ internal sealed class JobsSchedulerHostedService(
 
     // What a stop itself causes: the wait cancelled, or Quartz refusing to rebuild a scheduler once the host is stopping.
     private static bool IsPartOfTheStop(Exception exception) =>
-        exception is OperationCanceledException || exception.HasCause(cause =>
-            cause is SchedulerConfigException && cause.Message.StartsWith(QuartzHostStoppingRefusal, StringComparison.Ordinal));
+        exception.HasCause(cause => cause is OperationCanceledException
+            || (cause is SchedulerConfigException && cause.Message.StartsWith(QuartzHostStoppingRefusal, StringComparison.Ordinal)));
 
     // Waits after each failed try for as long as its kind of failure takes to clear, then tries again.
     private async Task RetryUntilStartedAsync(StartResult result, CancellationToken stoppingToken)
@@ -311,6 +337,7 @@ internal sealed class JobsSchedulerHostedService(
     private StartResult Unreachable(Exception away)
     {
         _contendedTries = 0;
+        _unexplainedAborts = 0;
         _unreachableTries++;
         var kind = KindOf(away);
         if (kind != _loggedOutage || ++_unreachableTriesSinceLogged >= TriesPerRepeatedWarning)

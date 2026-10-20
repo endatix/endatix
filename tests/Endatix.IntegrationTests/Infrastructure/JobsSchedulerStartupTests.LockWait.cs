@@ -34,7 +34,7 @@ public sealed partial class JobsSchedulerStartupTests
         // Act
         await node.StartAsync(ct);
         var retried = await JobsTestWait.UntilAsync(
-            () => Task.FromResult(logs.Entries.Any(entry => entry.Level == LogLevel.Warning && entry.Message.Contains(LostRaceWarning))),
+            () => Task.FromResult(logs.Entries.Any(entry => entry.Level == LogLevel.Warning && entry.Message.Contains(HiddenCauseWarning))),
             TimeSpan.FromSeconds(30),
             ct);
         await held.ReleaseAsync(ct);

@@ -13,6 +13,10 @@ namespace Endatix.IntegrationTests;
 public sealed partial class JobsSchedulerStartupTests
 {
     private const string UnreachableStartError = "The background jobs scheduler could not reach its database";
+    private const string HiddenCauseWarning = "met a failed transaction inside Quartz's lock while starting";
+
+    // As many tries as the scheduler makes before it says a 25P02 it keeps meeting is likely a refusal.
+    private const int RunOfUnexplainedAborts = 12;
 
     [Fact]
     public async Task Scheduler_whose_build_meets_an_aborted_transaction_on_a_database_turned_read_only_waits_saying_so()
@@ -51,8 +55,38 @@ public sealed partial class JobsSchedulerStartupTests
 
         // Assert
         started.Should().BeTrue();
-        logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains(LostRaceWarning));
+        logs.Entries.Should().Contain(entry => entry.Level == LogLevel.Warning && entry.Message.Contains(HiddenCauseWarning));
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    [Fact]
+    public async Task Scheduler_whose_build_meets_unexplained_aborted_transactions_twelve_times_in_a_row_says_so_at_error()
+    {
+        // Arrange — a refusal Quartz hides behind the 25P02, such as a role without privileges on its lock table, looks
+        // the same on every try; this one clears after twelve.
+        var ct = TestContext.Current.CancellationToken;
+        var scheduler = Substitute.For<IScheduler>();
+        var tries = 0;
+        var schedulers = Substitute.For<ISchedulerFactory>();
+        schedulers.GetScheduler(Arg.Any<CancellationToken>()).Returns(_ =>
+            ++tries <= RunOfUnexplainedAborts ? throw AbortedTransaction() : ValueTask.FromResult(scheduler));
+        var logs = new CapturingLoggerProvider();
+        using var service = HostedServiceOver(new(fixture.Provider, fixture.ConnectionString), schedulers, logs);
+
+        // Act
+        await service.StartAsync(ct);
+        var started = await JobsTestWait.UntilAsync(
+            () => Task.FromResult(scheduler.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IScheduler.Start))),
+            TimeSpan.FromSeconds(90),
+            ct);
+        await service.StopAsync(ct);
+
+        // Assert — warned on the first, raised to an error on the twelfth, and started once it cleared.
+        started.Should().BeTrue();
+        logs.Entries.Should().ContainSingle(entry => entry.Level == LogLevel.Warning && entry.Message.Contains(HiddenCauseWarning));
+        logs.Entries.Should().ContainSingle(entry => entry.Level == LogLevel.Error
+            && entry.Message.Contains($"on {RunOfUnexplainedAborts} tries in a row")
+            && entry.Message.Contains("privileges on jobs.qrtz_LOCKS"));
     }
 
     [Fact]
