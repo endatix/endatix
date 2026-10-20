@@ -8,6 +8,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
 - Comment a decision, constraint or non-obvious invariant, not what the name already says.
 - Before committing C#, `dotnet build Endatix.slnx` must add no new warnings in the files you changed (these are the warnings SonarCloud reports). Format only the changed files with `dotnet format whitespace|style --include <files>`, never the whole solution.
+- **Sonar gate.** CI reads the SonarCloud gate itself (`scripts/sonar-gate.mjs`): every red condition fails the build (reliability, security and maintainability ratings, unreviewed hotspots, coverage under 80%) except duplication, which only warns. Ship it, and give a block a `tech-debt` issue when it is copied a third time. `**/Endpoints/**` is out of duplication: one file per operation repeats `Configure()` by design.
 
 ## Endpoints (FastEndpoints)
 

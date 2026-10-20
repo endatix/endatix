@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+// CI gate step for the SonarCloud job (ci.yml). Waits for the analysis the scanner just
+// uploaded, then fails the job only on blocking conditions; advisory ones become warnings.
+//
+// Usage: node scripts/sonar-gate.mjs [report-task.txt]
+// Env:   SONAR_TOKEN               the scanner's token
+//        SONAR_ADVISORY_METRICS    comma-separated metric keys that warn instead of failing
+//                                  (default: new_duplicated_lines_density)
+//        GITHUB_STEP_SUMMARY       set by GitHub Actions; the verdict table goes there
+import { appendFileSync, readFileSync } from 'node:fs';
+import { describeCondition, evaluateGate, parseReportTask } from './lib/sonar-gate.mjs';
+
+const REPORT_TASK = process.argv[2] ?? '.sonarqube/out/.sonar/report-task.txt';
+const ADVISORY = (process.env.SONAR_ADVISORY_METRICS ?? 'new_duplicated_lines_density')
+  .split(',')
+  .map((metric) => metric.trim())
+  .filter(Boolean);
+const POLL_MS = 5_000;
+const TIMEOUT_MS = 300_000;
+
+async function getJson(url) {
+  const headers = process.env.SONAR_TOKEN ? { Authorization: `Bearer ${process.env.SONAR_TOKEN}` } : {};
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    throw new Error(`GET ${url} returned ${response.status}: ${await response.text()}`);
+  }
+  return response.json();
+}
+
+async function waitForAnalysis(ceTaskUrl) {
+  const deadline = Date.now() + TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const { task } = await getJson(ceTaskUrl);
+    if (task.status === 'SUCCESS') return task.analysisId;
+    if (task.status === 'FAILED' || task.status === 'CANCELED') {
+      throw new Error(`SonarCloud analysis ${task.status}: ${task.errorMessage ?? 'no message'}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+  }
+  throw new Error(`SonarCloud analysis did not finish within ${TIMEOUT_MS / 1000}s: ${ceTaskUrl}`);
+}
+
+function report(verdict, dashboardUrl) {
+  for (const c of verdict.advisory) {
+    console.log(`::warning title=SonarCloud (advisory)::${describeCondition(c)}. Fix it later; it does not fail the build. ${dashboardUrl}`);
+  }
+  for (const c of verdict.blocking) {
+    console.log(`::error title=SonarCloud quality gate::${describeCondition(c)}. ${dashboardUrl}`);
+  }
+  if (!process.env.GITHUB_STEP_SUMMARY) return;
+  const rows = [...verdict.blocking.map((c) => ['❌ blocking', c]), ...verdict.advisory.map((c) => ['⚠️ advisory', c])]
+    .map(([kind, c]) => `| ${kind} | ${describeCondition(c)} |`);
+  const verdictLine = verdict.passed ? '✅ passed' : '❌ failed';
+  appendFileSync(
+    process.env.GITHUB_STEP_SUMMARY,
+    [`### SonarCloud gate: ${verdictLine}`, '', ...(rows.length ? ['| | Condition |', '|---|---|', ...rows, ''] : []), `[Dashboard](${dashboardUrl})`, ''].join('\n'),
+  );
+}
+
+async function main() {
+  const task = parseReportTask(readFileSync(REPORT_TASK, 'utf8'));
+  const analysisId = await waitForAnalysis(task.ceTaskUrl);
+  const { projectStatus } = await getJson(
+    `${task.serverUrl}/api/qualitygates/project_status?analysisId=${encodeURIComponent(analysisId)}`,
+  );
+  const verdict = evaluateGate(projectStatus, ADVISORY);
+  report(verdict, task.dashboardUrl);
+  console.log(`SonarCloud gate ${verdict.passed ? 'passed' : 'failed'} (advisory: ${ADVISORY.join(', ') || 'none'}).`);
+  return verdict.passed ? 0 : 1;
+}
+
+main().then(
+  (code) => process.exit(code),
+  (error) => {
+    console.log(`::error title=SonarCloud gate::${error.message}`);
+    process.exit(1);
+  },
+);
