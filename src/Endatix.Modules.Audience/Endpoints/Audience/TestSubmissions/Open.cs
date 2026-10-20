@@ -1,6 +1,4 @@
-using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Modules.Audience.Features.TestSubmissions;
 using FastEndpoints;
 using FluentValidation;
@@ -14,43 +12,29 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.TestSubmissions;
 /// Test as this person: opens a new test submission on the form's current definition with the person's current values.
 /// </summary>
 public sealed class Open(IMediator mediator, ITenantContext tenantContext)
-    : Endpoint<OpenTestSubmissionRequest, Results<Created<TestSubmissionResponse>, ProblemHttpResult>>
+    : TestSubmissionEndpoint<OpenTestSubmissionRequest>(mediator, tenantContext)
 {
     /// <inheritdoc />
-    public override void Configure()
-    {
-        Post("forms/{formId}/audience/test-submissions");
-        // forms.edit too: the submission carries the person's identifier and values, which every other Audience
-        // route shows only to forms.edit.
-        PermissionsAll(Actions.Forms.Test, Actions.Forms.Edit);
-        Summary(summary =>
-        {
-            summary.Summary = "Open a test submission as a person";
-            summary.Description =
-                "Creates a new test submission for the person on the form's current definition, with their current " +
-                "values frozen as personalization (source test). Every call creates a new one. The person's " +
-                "personalised link and Submitter are not touched.";
-            summary.Responses[201] = "Test submission opened. The token opens it on the respondent page.";
-            summary.Responses[400] = "Invalid input.";
-            summary.Responses[404] = "Form not found or not enabled, or the person is not on this form.";
-        });
-        Description(builder => builder
-            .Produces<TestSubmissionResponse>(StatusCodes.Status201Created, "application/json")
-            .ProducesProblem(400)
-            .ProducesProblem(404));
-    }
+    public override void Configure() =>
+        ConfigureRoute(new TestRoute(
+            "forms/{formId}/audience/test-submissions",
+            "Open a test submission as a person",
+            "Creates a new test submission for the person on the form's current definition, with their current " +
+            "values frozen as personalization (source test). Every call creates a new one. The person's " +
+            "personalised link and Submitter are not touched.",
+            "Test submission opened. The token opens it on the respondent page.",
+            "Invalid input.",
+            "Form not found or not enabled, or the person is not on this form."));
 
     /// <inheritdoc />
     public override async Task<Results<Created<TestSubmissionResponse>, ProblemHttpResult>> ExecuteAsync(
         OpenTestSubmissionRequest request,
         CancellationToken ct)
     {
-        var result = await mediator.Send(
-            new OpenTestSubmissionCommand(tenantContext.TenantId, request.FormId, request.MembershipId),
+        var result = await Mediator.Send(
+            new OpenTestSubmissionCommand(TenantId, request.FormId, request.MembershipId),
             ct);
-        return TypedResultsBuilder
-            .MapResult(result, TestSubmissionResponse.From)
-            .SetTypedResults<Created<TestSubmissionResponse>, ProblemHttpResult>();
+        return Respond(result);
     }
 }
 
