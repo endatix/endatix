@@ -263,6 +263,44 @@ public class SendGridEmailSenderTests
         await act.Should().NotThrowAsync();
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public async Task SendEmailWithBody_ProviderRejects_ThrowsWithStatus(HttpStatusCode status)
+    {
+        RespondWith(status, "{\"errors\":[{\"message\":\"Permission denied\"}]}");
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        var thrown = await act.Should().ThrowAsync<EmailProviderException>();
+        thrown.Which.Provider.Should().Be("SendGrid");
+        thrown.Which.StatusCode.Should().Be(status);
+        thrown.Which.Message.Should().Contain("Permission denied");
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateProviderRejects_Throws()
+    {
+        RespondWith(HttpStatusCode.BadRequest, "{}");
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            From = "sender@example.com",
+            TemplateId = "sendgrid-template",
+            IsExternal = true
+        };
+
+        Func<Task> act = () => _sut.SendEmailAsync(email, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<EmailProviderException>()).Which.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    private void RespondWith(HttpStatusCode status, string body) =>
+        _sendGridClient
+            .SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
+            .Returns(new Response(status, new StringContent(body), null!));
+
     private void AcceptThenCancel(CancellationTokenSource cts, bool resetOnRead = false) =>
         _sendGridClient
             .SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())

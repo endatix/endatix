@@ -320,6 +320,47 @@ public class MailgunEmailSenderTests
         await act.Should().NotThrowAsync();
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public async Task SendEmailWithBody_ProviderRejects_ThrowsWithStatus(HttpStatusCode status)
+    {
+        RespondWith(status, "{\"message\":\"Forbidden\"}");
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        var thrown = await act.Should().ThrowAsync<EmailProviderException>();
+        thrown.Which.Provider.Should().Be("Mailgun");
+        thrown.Which.StatusCode.Should().Be(status);
+        thrown.Which.Message.Should().Contain("Forbidden");
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateProviderRejects_Throws()
+    {
+        RespondWith(HttpStatusCode.BadRequest, "{\"message\":\"template not found\"}");
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            TemplateId = "mailgun-template",
+            IsExternal = true
+        };
+
+        Func<Task> act = () => _sut.SendEmailAsync(email, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<EmailProviderException>()).Which.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    private void RespondWith(HttpStatusCode status, string body) =>
+        _httpClientFactory.CreateClient().Returns(new HttpClient(new FixedResponseHttpMessageHandler(status, body)));
+
+    private sealed class FixedResponseHttpMessageHandler(HttpStatusCode status, string body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
+    }
+
     private void AcceptThenCancel(CancellationTokenSource cts, bool resetOnRead = false) =>
         _httpClientFactory.CreateClient().Returns(new HttpClient(new AcceptThenCancelHttpMessageHandler(cts, resetOnRead)));
 

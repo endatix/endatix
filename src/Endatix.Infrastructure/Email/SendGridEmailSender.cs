@@ -48,7 +48,7 @@ public class SendGridEmailSender(
         {
             var settings = provider.GetRequiredService<IOptions<SendGridSettings>>().Value;
             options.ApiKey = settings.ApiKey;
-        });
+        }).AddHttpMessageHandler(() => new SendGridResponseBufferingHandler());
     };
 
     /// <inheritdoc />
@@ -80,6 +80,7 @@ public class SendGridEmailSender(
                     .ConfigureAwait(false);
 
         var responseBody = await ProviderResponse.ReadBodyForLogAsync(response.Body);
+        ProviderResponse.EnsureAccepted(ProviderName, response.StatusCode, responseBody);
         _logger.LogInformation("Sending SendGrid message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 
@@ -117,6 +118,7 @@ public class SendGridEmailSender(
             .ConfigureAwait(false);
 
         var responseBody = await ProviderResponse.ReadBodyForLogAsync(response.Body);
+        ProviderResponse.EnsureAccepted(ProviderName, response.StatusCode, responseBody);
         _logger.LogInformation("Sending SendGrid template message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 }

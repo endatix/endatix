@@ -78,6 +78,7 @@ public class MailgunEmailSender(
         using var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
 
         var responseContent = await ProviderResponse.ReadBodyForLogAsync(response.Content);
+        ProviderResponse.EnsureAccepted(ProviderName, response.StatusCode, responseContent);
         _logger.LogInformation("Sending Mailgun message with status code {statusCode} and response: {response}", response.StatusCode, responseContent);
     }
 
@@ -126,6 +127,7 @@ public class MailgunEmailSender(
         using var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
 
         var responseContent = await ProviderResponse.ReadBodyForLogAsync(response.Content);
+        ProviderResponse.EnsureAccepted(ProviderName, response.StatusCode, responseContent);
         _logger.LogInformation("Sending Mailgun template message with status code {statusCode} and response: {response}", response.StatusCode, responseContent);
     }
 
