@@ -2,8 +2,8 @@ using System.Linq.Expressions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Modules.Audience.Domain;
-using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,19 +15,19 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 /// </summary>
 internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> forms)
 {
-    public Task<Result<TestSubject>> ByMembershipAsync(long formId, long membershipId, CancellationToken cancellationToken) =>
+    public Task<Result<TestOpening>> ByMembershipAsync(long formId, long membershipId, CancellationToken cancellationToken) =>
         FindAsync(formId, membership => membership.Id == membershipId, cancellationToken);
 
-    public Task<Result<TestSubject>> ByMemberAsync(long formId, long memberId, CancellationToken cancellationToken) =>
+    public Task<Result<TestOpening>> ByMemberAsync(long formId, long memberId, CancellationToken cancellationToken) =>
         FindAsync(formId, membership => membership.MemberId == memberId, cancellationToken);
 
-    private async Task<Result<TestSubject>> FindAsync(
+    private async Task<Result<TestOpening>> FindAsync(
         long formId,
         Expression<Func<Membership, bool>> which,
         CancellationToken cancellationToken)
     {
-        var form = await forms.FirstOrDefaultAsync(new OpenFormSpec(formId), cancellationToken);
-        if (form is not { IsEnabled: true, DefinitionId: long definitionId })
+        var form = await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdReadOnly(formId), cancellationToken);
+        if (form is not { IsEnabled: true, ActiveDefinitionId: long definitionId })
         {
             return Result.NotFound("Form not found.");
         }
@@ -36,7 +36,7 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
         var subject = await SubjectAsync(memberships, definitionId, cancellationToken);
         return subject is null
             ? Result.NotFound("Person not found on this form.")
-            : Result.Success(subject);
+            : Result.Success(new TestOpening(subject, form));
     }
 
     private Task<TestSubject?> SubjectAsync(

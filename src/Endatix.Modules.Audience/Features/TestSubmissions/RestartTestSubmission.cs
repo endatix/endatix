@@ -44,14 +44,14 @@ internal sealed class RestartTestSubmissionHandler(
         long memberId,
         CancellationToken cancellationToken)
     {
-        var subject = await subjects.ByMemberAsync(current.FormId, memberId, cancellationToken);
-        if (!subject.IsSuccess)
+        var opening = await subjects.ByMemberAsync(current.FormId, memberId, cancellationToken);
+        if (!opening.IsSuccess)
         {
-            return subject.ToErrorResult<OpenedTestSubmissionDto>();
+            return opening.ToErrorResult<OpenedTestSubmissionDto>();
         }
 
         current.Delete();
-        return await opener.OpenAsync(subject.Value, cancellationToken);
+        return await opener.OpenAsync(opening.Value, cancellationToken);
     }
 
     /// <summary>The person a test submission was opened as; <see langword="null"/> for any other submission.</summary>

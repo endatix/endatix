@@ -16,6 +16,12 @@ internal sealed record TestSubject(
     long MemberId,
     string Identifier);
 
+/// <summary>
+/// That person, and the form already loaded for them. The form supplies the token expiry; nothing else is read
+/// from it.
+/// </summary>
+internal sealed record TestOpening(TestSubject Subject, Form Form);
+
 /// <summary>A test submission just opened, and the token the respondent page works on it with.</summary>
 public sealed record OpenedTestSubmissionDto(long SubmissionId, string Token);
 
@@ -30,21 +36,32 @@ internal sealed class TestSubmissionOpener(
     ISubmissionTokenService tokens)
 {
     /// <summary>
-    /// Adds the test submission, saves, and issues its token. Changes already tracked on the submissions context
-    /// (a Start over's delete) save in the same call.
+    /// Mints the token from the form already loaded, attaches it, then saves. A Start over's delete is already
+    /// tracked, so it commits in that same save. A token that cannot be minted saves nothing, and the old test
+    /// submission stays.
     /// </summary>
-    public async Task<Result<OpenedTestSubmissionDto>> OpenAsync(TestSubject subject, CancellationToken cancellationToken)
+    public async Task<Result<OpenedTestSubmissionDto>> OpenAsync(
+        TestOpening opening,
+        CancellationToken cancellationToken)
     {
         var cells = await SnapshotCells.LoadAsync(
             db,
-            new SnapshotMembership(subject.TenantId, subject.MembershipId),
+            new SnapshotMembership(opening.Subject.TenantId, opening.Subject.MembershipId),
             cancellationToken);
-        var submission = Build(subject, cells, DateTime.UtcNow);
+        return await OpenAsync(opening, cells, cancellationToken);
+    }
+
+    /// <summary>The insert. The token is on the submission before this saves, including a Start over's delete.</summary>
+    internal async Task<Result<OpenedTestSubmissionDto>> OpenAsync(
+        TestOpening opening,
+        IReadOnlyCollection<SnapshotCell> cells,
+        CancellationToken cancellationToken)
+    {
+        var submission = Build(opening.Subject, cells, DateTime.UtcNow);
+        var token = await tokens.NewTokenAsync(opening.Form, cancellationToken);
+        submission.UpdateToken(token);
         await submissions.AddAsync(submission, cancellationToken);
-        var token = await tokens.ObtainTokenAsync(submission.Id, cancellationToken);
-        return token.IsSuccess
-            ? Result<OpenedTestSubmissionDto>.Created(new OpenedTestSubmissionDto(submission.Id, token.Value))
-            : token.ToErrorResult<OpenedTestSubmissionDto>();
+        return Result<OpenedTestSubmissionDto>.Created(new OpenedTestSubmissionDto(submission.Id, token.Value));
     }
 
     /// <summary>

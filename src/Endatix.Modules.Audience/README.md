@@ -107,7 +107,8 @@ routes, which need `Forms.Test`, and redeem, which is anonymous.
   `Member.SubmitterId` or `Submitters`, so testing as a person leaves their personalised link unopened (or still
   pointing at their real response) and their one-response gate as it was. Start over finds the person by the
   snapshot's `memberId`, checks they are still on the form before it deletes anything, and saves the delete and the
-  new submission together. Test submissions are left out of exports unless the export asks for them.
+  new submission together. The token is minted from the form already loaded and written in that insert, so a failure
+  to mint it saves nothing and the old test submission stays. Test submissions are left out of exports unless the export asks for them.
 - **Two personalised create paths.** On behalf (`source: on_behalf`) is for real responses entered by a trusted
   caller: it resolves and binds a Submitter and counts against one-per-person. Test as this person
   (`source: test`) is for survey builders and does neither. The snapshot shape is the same, since both read cells
