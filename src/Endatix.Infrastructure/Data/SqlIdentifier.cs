@@ -10,8 +10,10 @@ public static partial class SqlIdentifier
 {
     /// <summary>
     /// An unquoted identifier (<c>export_form_submissions</c>), optionally schema-qualified (<c>reporting.export_rows</c>).
+    /// <c>\z</c> is the end of the string. <c>$</c> also matches before a final newline, and the name
+    /// returned would still contain it.
     /// </summary>
-    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?\\z", RegexOptions.CultureInvariant)]
     private static partial Regex IdentifierPattern { get; }
 
     /// <summary>

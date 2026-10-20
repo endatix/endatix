@@ -25,6 +25,8 @@ public class SqlIdentifierTests
     [InlineData("1export")]
     [InlineData("export;")]
     [InlineData(" ")]
+    [InlineData("export_form_submissions\n")]
+    [InlineData("export_form_submissions\r\n")]
     public void EnsureValid_AnythingButAnIdentifier_Throws(string name)
     {
         // Act
