@@ -35,10 +35,19 @@ public sealed class IntegrationTestWorld
     /// </summary>
     public IReadOnlyList<SeededTenant> Tenants => SeedResult?.Tenants ?? [];
 
+    private static int _anonymousClients;
+
     /// <summary>
-    /// Creates an anonymous HTTP client.
+    /// Creates an anonymous HTTP client. Each one sends its own <c>X-Forwarded-For</c>, so anonymous throttles
+    /// (such as the personalised link redeem) count each test's calls on their own instead of the whole run's.
     /// </summary>
-    public HttpClient AnonymousClient() => CreateClientFactory();
+    public HttpClient AnonymousClient()
+    {
+        var client = CreateClientFactory();
+        var n = Interlocked.Increment(ref _anonymousClients);
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", $"10.{(n >> 16) & 255}.{(n >> 8) & 255}.{n & 255}");
+        return client;
+    }
 
     /// <summary>
     /// Creates an HTTP client authenticated as the given <paramref name="persona"/>.
