@@ -62,6 +62,33 @@ public sealed class SoftDeleteSubmissionsOfDeletedFormsMigrationTests(EndatixInt
         Assert.False((await RowAsync(services, seeded.OfLiveForm)).IsDeleted);
     }
 
+    /// <summary>More leftovers than one batch in one deleted form, and a second deleted form: every one is deleted.</summary>
+    [Fact]
+    public async Task Migrating_deletes_every_leftover_across_batches_and_forms()
+    {
+        // Arrange
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" },
+            Ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Ct);
+        var manyLeft = await CreateFormAsync(admin);
+        var oneLeft = await CreateFormAsync(admin);
+        await AddLiveSubmissionsAsync(world.Services, await CreateSubmissionAsync(admin, manyLeft), MoreThanABatch);
+        await CreateSubmissionAsync(admin, oneLeft);
+        await LeaveFormDeletedAsync(world.Services, manyLeft);
+        await LeaveFormDeletedAsync(world.Services, oneLeft);
+
+        // Act
+        await MigrateAsync(world.Services);
+
+        // Assert
+        await using var scope = world.Services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var live = await AllSubmissions(app)
+            .CountAsync(row => (row.FormId == manyLeft || row.FormId == oneLeft) && !row.IsDeleted, Ct);
+        Assert.Equal(0, live);
+    }
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private sealed record Seeded(long Leftover, long DeletedEarlier, long OfLiveForm);
@@ -89,13 +116,34 @@ public sealed class SoftDeleteSubmissionsOfDeletedFormsMigrationTests(EndatixInt
         return (world.Services, new Seeded(leftover, deletedEarlier, ofLiveForm));
     }
 
-    private static async Task LeaveAsAnEarlierVersionWouldAsync(IServiceProvider services, long formId, long deletedEarlier)
+    /// <summary>Added beside the form's first submission: 1,001 rows, one more than the migration's batch.</summary>
+    private const int MoreThanABatch = 1_000;
+
+    /// <summary>Adds <paramref name="count"/> live submissions beside <paramref name="like"/>, on its form and definition.</summary>
+    private static async Task AddLiveSubmissionsAsync(IServiceProvider services, long like, int count)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var model = await AllSubmissions(app).AsNoTracking().SingleAsync(row => row.Id == like, Ct);
+        app.Submissions.AddRange(Enumerable.Range(0, count).Select(_ =>
+            Submission.Create(new SubmissionCreateArgs(model.TenantId, model.FormId, model.FormDefinitionId, "{}"))));
+        await app.SaveChangesAsync(Ct);
+    }
+
+    private static async Task LeaveFormDeletedAsync(IServiceProvider services, long formId)
     {
         await using var scope = services.CreateAsyncScope();
         var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await app.Forms.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
             .Where(form => form.Id == formId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(form => form.IsDeleted, true), Ct);
+    }
+
+    private static async Task LeaveAsAnEarlierVersionWouldAsync(IServiceProvider services, long formId, long deletedEarlier)
+    {
+        await LeaveFormDeletedAsync(services, formId);
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await AllSubmissions(app)
             .Where(row => row.Id == deletedEarlier)
             .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.DeletedAt, EarlierDeletion), Ct);

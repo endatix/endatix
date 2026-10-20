@@ -19,7 +19,8 @@ public sealed class SoftDeleteSubmissionsOfDeletedFormsMigrationTests
 
         // Assert
         operation.SuppressTransaction.Should().BeTrue();
-        operation.Sql.Should().Contain("UPDATE TOP (1000)").And.Contain("#DeletedForms");
+        operation.Sql.Should().Contain("#DeletedForms").And.Contain("SELECT TOP (1000) s.Id")
+            .And.Contain("s.Id > @last").And.Contain("Id > @last AND Id <= @batchLast");
     }
 
     [Fact]
