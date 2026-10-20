@@ -8,14 +8,17 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// <summary>
 /// The jobs scheduler's factory, which builds the scheduler only once <see cref="ReadCommittedSnapshotRequirement"/> is
 /// met, so no path gets a scheduler that would store triggers lock-free on a database that does not read committed
-/// snapshots: the hosted service's start, enqueueing, and the dashboard and its HTTP API alike.
+/// snapshots: the hosted service's start, enqueueing, and a host that injects the keyed <see cref="IScheduler"/>, whose
+/// handle builds through <see cref="GetScheduler"/> too.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Only <see cref="GetScheduler"/>, which the start and enqueueing call, builds the scheduler. Until it is built, a
-/// listing (<see cref="GetAllSchedulers"/>) leaves it out and a lookup of its name (<see cref="LookupScheduler"/>)
-/// finds none, since Quartz builds a registered scheduler that is looked up by name: a dashboard or HTTP API poll
-/// during an outage neither starts a build nor fails. Once it is built, both find it, behind the same gate.
+/// Only <see cref="GetScheduler"/> builds the scheduler. The dashboard and its HTTP API are not callers of this
+/// factory: they list Quartz's registrations (<see cref="ISchedulerRegistry"/>), which never build, and reach a
+/// scheduler through the repository, which holds only built ones. For any direct caller all the same, a listing
+/// (<see cref="GetAllSchedulers"/>) leaves the jobs scheduler out until it is built and a lookup of its name
+/// (<see cref="LookupScheduler"/>) finds none, since Quartz builds a registered scheduler that is looked up by name;
+/// neither starts a build nor fails during an outage. Once it is built, both find it, behind the same gate.
 /// </para>
 /// <para>
 /// <see cref="GetScheduler"/> builds the scheduler one build at a time: a caller that asks while a build runs
@@ -28,8 +31,8 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// still observed. A build that fails, as one does while
 /// the database is away, leaves Quartz holding a scheduler it has shut down, which it refuses to hand out or build
 /// again; until a build succeeds, the next one is therefore a <see cref="ISchedulerRuntime.Restart"/>, which builds
-/// another from the same registration. So no caller, the hosted service's start, an enqueue or the dashboard, can
-/// leave the node without a scheduler. A restart never starts what it builds: starting is the hosted service's, and a
+/// another from the same registration. So no caller, the hosted service's start or an enqueue, can leave the node
+/// without a scheduler. A restart never starts what it builds: starting is the hosted service's, and a
 /// node that does not run jobs in process never starts its scheduler. Once a build has succeeded, a scheduler shut
 /// down later, by the host stopping, is refused as Quartz refuses it.
 /// </para>

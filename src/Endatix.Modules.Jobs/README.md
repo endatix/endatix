@@ -193,9 +193,9 @@ PostgreSQL 25006, or a standby) is waited out the same way, with an error saying
 as during a failover, or set read-only on purpose. A deadlock, or a statement that times out once
 the node has connected, is a lost race rather than an outage, and is retried as one, with its own
 warning. An outage that fails building the scheduler, whether the start or an enqueue asked for it,
-is waited out the same way. The dashboard and its HTTP API never build it: until it is built they
-do not list it, and looking it up by name finds none, so a poll during an outage neither fails nor
-starts a build. Quartz never hands out a scheduler whose build failed, so
+is waited out the same way. The dashboard and its HTTP API never build it: until it is built, the
+dashboard lists it as a registration with no status yet, and calls for it answer not found, so a poll
+during an outage neither fails nor starts a build. Quartz never hands out a scheduler whose build failed, so
 the next try rebuilds it from the module's Quartz registration, with the same thread pool, batch
 size, store and listeners as a first build; it is started by the waiting start, as a first build is,
 and only on a node that runs jobs. A node stopping while it waits stops waiting at once. Meanwhile
