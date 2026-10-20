@@ -58,6 +58,8 @@
         <LangVersion>14</LangVersion>
         <NeutralLanguage>en-US</NeutralLanguage>
         <Nullable>enable</Nullable>
+        <!-- SonarCloud imports nullable warnings from the build; a new one fails it instead. -->
+        <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
@@ -91,6 +93,12 @@
             <Pack>True</Pack>
             <PackagePath>README.md</PackagePath>
         </None>
+    </ItemGroup>
+
+    <!-- SonarCloud runs its S-rules on src only (tests/** is excluded), so only non-test projects get
+         them locally. They stay warnings. Item conditions see IsTestProject from tests/Directory.Build.props. -->
+    <ItemGroup Condition="'$(IsTestProject)' != 'true'">
+        <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     </ItemGroup>
 
     <PropertyGroup>

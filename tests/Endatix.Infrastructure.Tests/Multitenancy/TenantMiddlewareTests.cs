@@ -57,7 +57,7 @@ public class TenantMiddlewareTests
         _logger.Received().Log(
             LogLevel.Error,
             0,
-            Arg.Is<object>(o => o.ToString().Contains($"Invalid tenant ID format: {invalidTenantId}")),
+            Arg.Is<object>(o => o.ToString()!.Contains($"Invalid tenant ID format: {invalidTenantId}")),
             null,
             Arg.Any<Func<object, Exception?, string>>());
         await _next.Received(1).Invoke(_httpContext);
@@ -79,7 +79,7 @@ public class TenantMiddlewareTests
         _logger.Received().Log(
             LogLevel.Error,
             0,
-            Arg.Is<object>(o => o.ToString().Contains($"Expected TenantContext but got {invalidTenantContext.GetType().Name}")),
+            Arg.Is<object>(o => o.ToString()!.Contains($"Expected TenantContext but got {invalidTenantContext.GetType().Name}")),
             null,
             Arg.Any<Func<object, Exception?, string>>());
         await _next.Received(1).Invoke(_httpContext);

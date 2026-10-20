@@ -34,7 +34,7 @@ public sealed class ExportValidatorTests
             MaxSubmissionId = 10,
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -44,7 +44,7 @@ public sealed class ExportValidatorTests
     {
         ExportRequest request = new() { FormId = 0, ExportFormatId = 10 };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor(x => x.FormId);
     }
@@ -59,7 +59,7 @@ public sealed class ExportValidatorTests
             Locale = new string('x', 33),
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor(x => x.Locale);
     }
@@ -75,7 +75,7 @@ public sealed class ExportValidatorTests
             CreatedTo = "2026-01-02",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor("CreatedFrom");
     }
@@ -92,7 +92,7 @@ public sealed class ExportValidatorTests
             CreatedTo = "2026-01-02",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -108,7 +108,7 @@ public sealed class ExportValidatorTests
             ModifiedTo = "2026-01-02",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor("ModifiedFrom");
     }
@@ -124,7 +124,7 @@ public sealed class ExportValidatorTests
             StartedTo = "2026-01-02",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor("StartedFrom");
     }
@@ -140,7 +140,7 @@ public sealed class ExportValidatorTests
             CompletedTo = "2026-01-04",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor("CompletedFrom");
     }
@@ -156,7 +156,7 @@ public sealed class ExportValidatorTests
             CompletedFrom = "2026-01-01",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor("CompletionStatus");
     }
@@ -175,7 +175,7 @@ public sealed class ExportValidatorTests
             CollectionStatus = collectionStatus,
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveValidationErrorFor(x => x.CollectionStatus);
     }
@@ -195,7 +195,7 @@ public sealed class ExportValidatorTests
             CollectionStatus = collectionStatus,
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor(x => x.CollectionStatus);
     }
@@ -211,7 +211,7 @@ public sealed class ExportValidatorTests
             MaxSubmissionId = 10,
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor("MinSubmissionId");
     }
@@ -227,7 +227,7 @@ public sealed class ExportValidatorTests
             MaxSubmissionId = -1,
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor(x => x.MinSubmissionId);
         result.ShouldHaveValidationErrorFor(x => x.MaxSubmissionId);
@@ -242,7 +242,7 @@ public sealed class ExportValidatorTests
             ExportFormat = "xlsx",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor(x => x.ExportFormat);
     }
@@ -258,7 +258,7 @@ public sealed class ExportValidatorTests
             CompletedTo = "2026-01-02",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -274,7 +274,7 @@ public sealed class ExportValidatorTests
             MaxSubmissionId = 42,
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -289,7 +289,7 @@ public sealed class ExportValidatorTests
             CompletionStatus = ExportCompletionStatus.Incomplete,
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -306,7 +306,7 @@ public sealed class ExportValidatorTests
             CompletedTo = "2026-01-05",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -321,7 +321,7 @@ public sealed class ExportValidatorTests
             CreatedTo = "2026-01-03",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -336,7 +336,7 @@ public sealed class ExportValidatorTests
             CreatedFrom = "01-01-2026",
         };
 
-        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request);
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
         result.ShouldHaveValidationErrorFor(x => x.CreatedFrom);
     }

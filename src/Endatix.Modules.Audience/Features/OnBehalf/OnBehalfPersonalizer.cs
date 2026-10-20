@@ -125,7 +125,7 @@ internal sealed class OnBehalfPersonalizer(
             new SnapshotMembership(member.TenantId, membershipId),
             cancellationToken);
         return PersonalizationSnapshotJson.Write(
-            new SnapshotHeader(null, member.Identifier, DateTime.UtcNow, "on_behalf", member.Id),
+            new SnapshotHeader(null, member.Identifier, DateTime.UtcNow, PersonalizationSources.OnBehalf, member.Id),
             cells);
     }
 

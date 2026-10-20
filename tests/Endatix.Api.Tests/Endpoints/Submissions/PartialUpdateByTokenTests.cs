@@ -35,12 +35,12 @@ public class PartialUpdateByTokenTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
         problemResult.Should().NotBeNull();
-        problemResult!.ProblemDetails.Detail.Trim().Should().Be(SubmissonTokenErrors.Messages.SUBMISSION_TOKEN_INVALID);
+        problemResult!.ProblemDetails.Detail!.Trim().Should().Be(SubmissonTokenErrors.Messages.SUBMISSION_TOKEN_INVALID);
         problemResult!.ProblemDetails.Extensions["errorCode"].Should().Be(SubmissonTokenErrors.ErrorCodes.SUBMISSION_TOKEN_INVALID);
     }
 
@@ -57,7 +57,7 @@ public class PartialUpdateByTokenTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -79,12 +79,12 @@ public class PartialUpdateByTokenTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
         problemResult.Should().NotBeNull();
-        problemResult!.ProblemDetails.Detail.Trim().Should().Be(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
+        problemResult!.ProblemDetails.Detail!.Trim().Should().Be(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED);
         problemResult!.ProblemDetails.Extensions["errorCode"].Should().Be(ReCaptchaErrors.ErrorCodes.RECAPTCHA_VERIFICATION_FAILED);
     }
 
@@ -114,7 +114,7 @@ public class PartialUpdateByTokenTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response.Result as Ok<PartialUpdateSubmissionByTokenResponse>;
@@ -122,7 +122,7 @@ public class PartialUpdateByTokenTests
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Id.Should().Be("1");
         okResult!.Value!.Token.Should().NotBeNull();
-        okResult!.Value!.Token!.Should().Be(submission.Token.Value);
+        okResult!.Value!.Token!.Should().Be(submission.Token!.Value);
     }
 
     [Fact]

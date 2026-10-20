@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.UseCases.Submissions;
 
 namespace Endatix.Core.Tests.UseCases.Submissions;
@@ -40,6 +41,19 @@ public sealed class PersonalizationReaderTests
         read!.Source.Should().Be("on_behalf");
         read.MemberId.Should().Be(42);
         read.Variables.GetProperty("age").GetDouble().Should().Be(65);
+    }
+
+    [Fact]
+    public void Read_TestSubmission_ReturnsTestSourceAndMember()
+    {
+        const string snapshot = """
+            {"schemaVersion":1,"source":"test","memberId":7,"capturedAt":"2026-10-19T08:00:00Z","identifier":"ada@example.com","variables":{}}
+            """;
+
+        PersonalizationRead? read = PersonalizationReader.Read(snapshot);
+
+        read!.Source.Should().Be(PersonalizationSources.Test);
+        read.MemberId.Should().Be(7);
     }
 
     [Theory]

@@ -78,7 +78,7 @@ public sealed class BackgroundJobQueueRaceTests
 
         // Assert — the retry inserted and scheduled the job, once.
         (await context.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken)).Id.Should().Be(jobId);
-        await _triggerScheduler.ReceivedWithAnyArgs(1).ScheduleAndCommitAsync(default!, default!, default);
+        await _triggerScheduler.ReceivedWithAnyArgs(1).ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -95,7 +95,7 @@ public sealed class BackgroundJobQueueRaceTests
 
         // Assert
         await enqueue.Should().ThrowAsync<DbUpdateException>();
-        await _triggerScheduler.DidNotReceiveWithAnyArgs().ScheduleAndCommitAsync(default!, default!, default);
+        await _triggerScheduler.DidNotReceiveWithAnyArgs().ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -105,7 +105,7 @@ public sealed class BackgroundJobQueueRaceTests
         // Arrange — Quartz wraps what the driver raised while it stored the triggers. The in-memory store keeps the
         // first attempt's row, which a database rolls back, so the job carries no key: the retry inserts it afresh.
         await using var context = new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
-        _triggerScheduler.ScheduleAndCommitAsync(default!, default!, default).ReturnsForAnyArgs(
+        _triggerScheduler.ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>()).ReturnsForAnyArgs(
             Task.FromException(new JobPersistenceException("Couldn't store trigger.", deadlock)),
             Task.CompletedTask);
         var queue = QueueOver(context);
@@ -114,7 +114,7 @@ public sealed class BackgroundJobQueueRaceTests
         var jobId = await queue.EnqueueAsync(Unkeyed(), TestContext.Current.CancellationToken);
 
         // Assert — the second attempt's job, scheduled by the second call.
-        await _triggerScheduler.ReceivedWithAnyArgs(2).ScheduleAndCommitAsync(default!, default!, default);
+        await _triggerScheduler.ReceivedWithAnyArgs(2).ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>());
         (await context.BackgroundJobs.OrderBy(job => job.Id).LastAsync(TestContext.Current.CancellationToken))
             .Id.Should().Be(jobId);
     }
@@ -125,7 +125,7 @@ public sealed class BackgroundJobQueueRaceTests
     {
         // Arrange
         await using var context = new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
-        _triggerScheduler.ScheduleAndCommitAsync(default!, default!, default).ReturnsForAnyArgs(
+        _triggerScheduler.ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>()).ReturnsForAnyArgs(
             Task.FromException(new JobPersistenceException("Couldn't store trigger.", deadlock)));
         var queue = QueueOver(context);
 
@@ -134,7 +134,7 @@ public sealed class BackgroundJobQueueRaceTests
 
         // Assert
         await enqueue.Should().ThrowAsync<JobPersistenceException>();
-        await _triggerScheduler.ReceivedWithAnyArgs(2).ScheduleAndCommitAsync(default!, default!, default);
+        await _triggerScheduler.ReceivedWithAnyArgs(2).ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>());
     }
 
     public static TheoryData<Exception> Deadlocks() => new()
