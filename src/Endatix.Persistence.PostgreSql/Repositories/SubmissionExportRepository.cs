@@ -43,7 +43,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
 
     private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string functionName, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
-        var sql = $@"SELECT * FROM {functionName}({{0}})";
+        var sql = SelectFromFunction(functionName, "{0}");
         await foreach (var row in _dbContext.Set<T>()
             .FromSqlRaw(sql, formId)
             .AsNoTracking()
@@ -57,7 +57,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
     private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string functionName, int pageSize, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         long? afterId = null;
-        var sql = $@"SELECT * FROM {functionName}({{0}}, {{1}}, {{2}})";
+        var sql = SelectFromFunction(functionName, "{0}, {1}, {2}");
 
         while (true)
         {
@@ -84,4 +84,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
             afterId = last.Id;
         }
     }
+
+    private static string SelectFromFunction(string functionName, string arguments) =>
+        $"SELECT * FROM {SqlIdentifier.EnsureValid(functionName)}({arguments})";
 }
