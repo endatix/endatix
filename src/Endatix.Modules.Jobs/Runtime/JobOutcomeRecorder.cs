@@ -62,7 +62,7 @@ internal sealed class JobOutcomeRecorder(
         var tried = await WriteAndCountAsync(plan);
         if (tried.Written is OutcomeWrite.Landed)
         {
-            LogRecordedLate(plan);
+            LogRecordedLate(plan.Attempt.Ref, plan.Outcome);
         }
 
         var written = tried.Failure is { } failure && await IsRejectedAsync(job.JobId, failure)
@@ -72,12 +72,13 @@ internal sealed class JobOutcomeRecorder(
         return written;
     }
 
-    private void LogRecordedLate(OutcomeWritePlan plan) =>
+    // Given the values rather than the plan, so nothing is worked out for a log that is off (CA1873).
+    private void LogRecordedLate(AttemptRef attempt, JobAttemptOutcome outcome) =>
         logger.LogInformation(
             "Background job {JobId} attempt {Attempt} had its outcome {Outcome} recorded after the attempt's own write failed",
-            plan.Attempt.Ref.JobId,
-            plan.Attempt.Ref.AttemptCount,
-            plan.Outcome);
+            attempt.JobId,
+            attempt.AttemptCount,
+            outcome);
 
     // Says why an outcome carried to the next firing could not be written, when a read-only database refused it. A
     // stopping host carries nothing on, so it says nothing.
