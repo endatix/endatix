@@ -20,16 +20,19 @@ public sealed class Restart(IMediator mediator, ITenantContext tenantContext)
     public override void Configure()
     {
         Post("forms/{formId}/audience/test-submissions/{submissionId}/restart");
-        Permissions(Actions.Forms.Test);
+        // forms.edit too: the submission carries the person's identifier and values, which every other Audience
+        // route shows only to forms.edit.
+        PermissionsAll(Actions.Forms.Test, Actions.Forms.Edit);
         Summary(summary =>
         {
             summary.Summary = "Start over a test submission";
             summary.Description =
                 "Deletes the test submission and opens a new one for the same person, on the form's current " +
-                "definition and the person's current values. Only a test submission opened as a person can start over.";
+                "definition and the person's current values. Only a test submission opened as a person can start over, " +
+                "and only with its token.";
             summary.Responses[201] = "New test submission opened. The token opens it on the respondent page.";
             summary.Responses[400] = "Not a test submission opened as a person.";
-            summary.Responses[404] = "Form, submission or person not found.";
+            summary.Responses[404] = "Form, submission or person not found, or the token is not the submission's.";
         });
         Description(builder => builder
             .Produces<TestSubmissionResponse>(StatusCodes.Status201Created, "application/json")
@@ -43,7 +46,7 @@ public sealed class Restart(IMediator mediator, ITenantContext tenantContext)
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new RestartTestSubmissionCommand(tenantContext.TenantId, request.FormId, request.SubmissionId),
+            new RestartTestSubmissionCommand(tenantContext.TenantId, request.FormId, request.SubmissionId, request.Token),
             ct);
         return TypedResultsBuilder
             .MapResult(result, TestSubmissionResponse.From)
@@ -54,11 +57,12 @@ public sealed class Restart(IMediator mediator, ITenantContext tenantContext)
 /// <summary>Validates <see cref="RestartTestSubmissionRequest"/>.</summary>
 public sealed class RestartTestSubmissionValidator : Validator<RestartTestSubmissionRequest>
 {
-    /// <summary>Requires a form and a submission id.</summary>
+    /// <summary>Requires a form, a submission id and the submission's token.</summary>
     public RestartTestSubmissionValidator()
     {
         RuleFor(request => request.FormId).GreaterThan(0);
         RuleFor(request => request.SubmissionId).GreaterThan(0);
+        RuleFor(request => request.Token).NotEmpty();
     }
 }
 
@@ -70,4 +74,7 @@ public sealed class RestartTestSubmissionRequest
 
     /// <summary>The test submission to discard.</summary>
     public long SubmissionId { get; init; }
+
+    /// <summary>The token the test submission was opened with.</summary>
+    public string Token { get; init; } = string.Empty;
 }

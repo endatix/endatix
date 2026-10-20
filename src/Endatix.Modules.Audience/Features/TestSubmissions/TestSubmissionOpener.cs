@@ -36,32 +36,43 @@ internal sealed class TestSubmissionOpener(
     ISubmissionTokenService tokens)
 {
     /// <summary>
-    /// Mints the token from the form already loaded, attaches it, then saves. A Start over's delete is already
-    /// tracked, so it commits in that same save. A token that cannot be minted saves nothing, and the old test
-    /// submission stays.
+    /// Mints the token from the form already loaded, attaches it, then saves. A token that cannot be minted saves
+    /// nothing.
     /// </summary>
     public async Task<Result<OpenedTestSubmissionDto>> OpenAsync(
         TestOpening opening,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        await AddAsync(await PrepareAsync(opening, cancellationToken), cancellationToken);
+
+    /// <summary>
+    /// Every read an open makes: the person's values and the token. A Start over runs it before its transaction, so
+    /// the transaction only writes and never waits for a second connection.
+    /// </summary>
+    public async Task<Submission> PrepareAsync(TestOpening opening, CancellationToken cancellationToken)
     {
         var cells = await SnapshotCells.LoadAsync(
             db,
             new SnapshotMembership(opening.Subject.TenantId, opening.Subject.MembershipId),
             cancellationToken);
-        return await OpenAsync(opening, cells, cancellationToken);
+        return await PrepareAsync(opening, cells, cancellationToken);
     }
 
-    /// <summary>The insert. The token is on the submission before this saves, including a Start over's delete.</summary>
-    internal async Task<Result<OpenedTestSubmissionDto>> OpenAsync(
+    /// <summary>The token is on the submission before anything saves it.</summary>
+    internal async Task<Submission> PrepareAsync(
         TestOpening opening,
         IReadOnlyCollection<SnapshotCell> cells,
         CancellationToken cancellationToken)
     {
         var submission = Build(opening.Subject, cells, DateTime.UtcNow);
-        var token = await tokens.NewTokenAsync(opening.Form, cancellationToken);
-        submission.UpdateToken(token);
-        await submissions.AddAsync(submission, cancellationToken);
-        return Result<OpenedTestSubmissionDto>.Created(new OpenedTestSubmissionDto(submission.Id, token.Value));
+        submission.UpdateToken(await tokens.NewTokenAsync(opening.Form, cancellationToken));
+        return submission;
+    }
+
+    /// <summary>The insert. A Start over's delete is already tracked, so it commits in this same save.</summary>
+    public async Task<Result<OpenedTestSubmissionDto>> AddAsync(Submission prepared, CancellationToken cancellationToken)
+    {
+        await submissions.AddAsync(prepared, cancellationToken);
+        return Result<OpenedTestSubmissionDto>.Created(new OpenedTestSubmissionDto(prepared.Id, prepared.Token!.Value));
     }
 
     /// <summary>
@@ -81,7 +92,7 @@ internal sealed class TestSubmissionOpener(
             IsTestSubmission: true,
             EnforceSingleSubmissionGate: false,
             StartSubmission: true));
-        submission.FreezeOnBehalf(PersonalizationSnapshotJson.Write(
+        submission.FreezeForTest(PersonalizationSnapshotJson.Write(
             new SnapshotHeader(null, subject.Identifier, capturedAt, PersonalizationSources.Test, subject.MemberId),
             cells));
         return submission;

@@ -20,7 +20,9 @@ public sealed class Open(IMediator mediator, ITenantContext tenantContext)
     public override void Configure()
     {
         Post("forms/{formId}/audience/test-submissions");
-        Permissions(Actions.Forms.Test);
+        // forms.edit too: the submission carries the person's identifier and values, which every other Audience
+        // route shows only to forms.edit.
+        PermissionsAll(Actions.Forms.Test, Actions.Forms.Edit);
         Summary(summary =>
         {
             summary.Summary = "Open a test submission as a person";

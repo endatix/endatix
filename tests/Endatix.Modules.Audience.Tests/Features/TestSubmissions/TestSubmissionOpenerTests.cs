@@ -21,10 +21,12 @@ public sealed class TestSubmissionOpenerTests
         Identifier: "ada@example.com");
 
     [Fact]
-    public void Build_IsAStartedTestSubmissionOnTheActiveDefinition()
+    public void Build_Subject_IsAStartedTestSubmissionOnTheActiveDefinition()
     {
+        // Act
         var submission = TestSubmissionOpener.Build(_subject, [], DateTime.UnixEpoch);
 
+        // Assert
         submission.IsTestSubmission.Should().BeTrue();
         submission.FormId.Should().Be(10);
         submission.FormDefinitionId.Should().Be(20);
@@ -34,24 +36,37 @@ public sealed class TestSubmissionOpenerTests
     }
 
     [Fact]
-    public void Build_HasNoSubmitterLinkOrOneResponseKey_AndIsLabelledWithTheIdentifier()
+    public void Build_Subject_HasNoSubmitterLinkOrOneResponseKey()
     {
+        // Act
         var submission = TestSubmissionOpener.Build(_subject, [], DateTime.UnixEpoch);
 
+        // Assert
         submission.SubmitterId.Should().BeNull();
-        submission.SubmitterDisplayId.Should().Be("ada@example.com");
         submission.AudienceLinkId.Should().BeNull();
         submission.RestrictionKey.Should().BeNull();
     }
 
     [Fact]
-    public void Build_FreezesTheValuesAsATestSnapshotOfTheMember()
+    public void Build_Subject_IsLabelledWithTheIdentifier()
     {
-        var submission = TestSubmissionOpener.Build(
-            _subject,
-            [new SnapshotCell(1, "city", "City", AudienceDataTypeCodes.Text, "Columbus")],
-            DateTime.UnixEpoch);
+        // Act
+        var submission = TestSubmissionOpener.Build(_subject, [], DateTime.UnixEpoch);
 
+        // Assert
+        submission.SubmitterDisplayId.Should().Be("ada@example.com");
+    }
+
+    [Fact]
+    public void Build_WithValues_FreezesThemAsATestSnapshotOfTheMember()
+    {
+        // Arrange
+        SnapshotCell[] cells = [new SnapshotCell(1, "city", "City", AudienceDataTypeCodes.Text, "Columbus")];
+
+        // Act
+        var submission = TestSubmissionOpener.Build(_subject, cells, DateTime.UnixEpoch);
+
+        // Assert
         var read = PersonalizationReader.Read(submission.PersonalizationSnapshot);
         read!.Source.Should().Be(PersonalizationSources.Test);
         read.MemberId.Should().Be(40);
@@ -60,38 +75,61 @@ public sealed class TestSubmissionOpenerTests
     }
 
     [Fact]
-    public async Task OpenAsync_WritesTheTokenInTheInsert()
+    public async Task PrepareAsync_TokenMinted_PutsItOnTheSubmissionWithoutSaving()
     {
-        var submissions = Substitute.For<IRepository<Submission>>();
-        var tokens = Substitute.For<ISubmissionTokenService>();
+        // Arrange
+        var (opener, submissions, tokens) = Opener();
         var form = Form.Create(new FormCreateArgs(TenantId: _subject.TenantId, Name: "Survey", SubmissionTokenExpiryHours: 24));
         var token = new Token(24);
         tokens.NewTokenAsync(form, Arg.Any<CancellationToken>()).Returns(token);
-        var opener = new TestSubmissionOpener(Substitute.For<IAudienceDbContext>(), submissions, tokens);
 
-        var result = await opener.OpenAsync(new TestOpening(_subject, form), [], CancellationToken.None);
+        // Act
+        var prepared = await opener.PrepareAsync(new TestOpening(_subject, form), [], CancellationToken.None);
 
-        result.Status.Should().Be(ResultStatus.Created);
-        result.Value.Token.Should().Be(token.Value);
-        await submissions.Received(1).AddAsync(
-            Arg.Is<Submission>(submission => submission.Token == token),
-            Arg.Any<CancellationToken>());
+        // Assert
+        prepared.Token.Should().BeSameAs(token);
+        await submissions.DidNotReceive().AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
         await tokens.DidNotReceive().ObtainTokenAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task OpenAsync_WhenTheTokenCannotBeMinted_InsertsNothing()
+    public async Task AddAsync_PreparedSubmission_InsertsItAndReturnsItsToken()
     {
-        var submissions = Substitute.For<IRepository<Submission>>();
-        var tokens = Substitute.For<ISubmissionTokenService>();
+        // Arrange
+        var (opener, submissions, _) = Opener();
+        var prepared = TestSubmissionOpener.Build(_subject, [], DateTime.UnixEpoch);
+        var token = new Token(24);
+        prepared.UpdateToken(token);
+
+        // Act
+        var result = await opener.AddAsync(prepared, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.Token.Should().Be(token.Value);
+        await submissions.Received(1).AddAsync(prepared, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PrepareAsync_TokenCannotBeMinted_Throws()
+    {
+        // Arrange
+        var (opener, _, tokens) = Opener();
         var form = Form.Create(new FormCreateArgs(TenantId: _subject.TenantId, Name: "Survey"));
         tokens.NewTokenAsync(form, Arg.Any<CancellationToken>())
             .Returns<Task<Token>>(_ => throw new InvalidOperationException("settings unavailable"));
-        var opener = new TestSubmissionOpener(Substitute.For<IAudienceDbContext>(), submissions, tokens);
 
-        var act = () => opener.OpenAsync(new TestOpening(_subject, form), [], CancellationToken.None);
+        // Act
+        var act = () => opener.PrepareAsync(new TestOpening(_subject, form), [], CancellationToken.None);
 
+        // Assert
         await act.Should().ThrowAsync<InvalidOperationException>();
-        await submissions.DidNotReceive().AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
+    }
+
+    private static (TestSubmissionOpener Opener, IRepository<Submission> Submissions, ISubmissionTokenService Tokens) Opener()
+    {
+        var submissions = Substitute.For<IRepository<Submission>>();
+        var tokens = Substitute.For<ISubmissionTokenService>();
+        return (new TestSubmissionOpener(Substitute.For<IAudienceDbContext>(), submissions, tokens), submissions, tokens);
     }
 }

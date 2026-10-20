@@ -1,9 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Endatix.Core.Abstractions.Submitters;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Features.Submissions;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Features.Links;
+using Endatix.Modules.Audience.Features.TestSubmissions;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -113,7 +119,7 @@ public sealed partial class AudienceDirectoryFlowTests
         using var changed = await admin.PutValueAsync(person.PersonUrl, person.PropertyId, "Dayton");
 
         // Act
-        using var restarted = await admin.PostAsync(RestartUrl(person.FormId, openedId), new { });
+        using var restarted = await admin.PostAsync(RestartUrl(person.FormId, openedId), new { token = TokenOf(opened) });
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, restarted.StatusCode);
@@ -134,10 +140,13 @@ public sealed partial class AudienceDirectoryFlowTests
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var person = await LinkForPersonWithCityAsync(admin, "Columbus");
         using var anonymous = world.AnonymousClient();
-        var linkSubmissionId = IdOf(await RedeemAsync(anonymous, person.FormId, person.Token), "submissionId");
+        var redeemed = await RedeemAsync(anonymous, person.FormId, person.Token);
+        var linkSubmissionId = IdOf(redeemed, "submissionId");
+        var linkSubmissionToken = await SubmissionTokenAsync(world.Services, linkSubmissionId);
 
         // Act
-        using var response = await admin.PostAsync(RestartUrl(person.FormId, linkSubmissionId), new { });
+        using var response = await admin.PostAsync(
+            RestartUrl(person.FormId, linkSubmissionId), new { token = linkSubmissionToken });
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -149,11 +158,12 @@ public sealed partial class AudienceDirectoryFlowTests
         // Arrange
         var admin = await AdminAsync();
         var person = await LinkForPersonWithCityAsync(admin, "Columbus");
-        var openedId = IdOf(await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person)), "submissionId");
+        var opened = await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person));
+        var openedId = IdOf(opened, "submissionId");
         using var removed = await admin.Client.DeleteAsync(person.PersonUrl, admin.CancellationToken);
 
         // Act
-        using var response = await admin.PostAsync(RestartUrl(person.FormId, openedId), new { });
+        using var response = await admin.PostAsync(RestartUrl(person.FormId, openedId), new { token = TokenOf(opened) });
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -162,12 +172,152 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(HttpStatusCode.OK, kept.StatusCode);
     }
 
+    [Fact]
+    public async Task Starting_over_without_the_submissions_token_is_not_found_and_keeps_the_submission()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var person = await LinkForPersonWithCityAsync(admin, "Columbus");
+        var openedId = IdOf(await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person)), "submissionId");
+        var another = await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person));
+
+        // Act
+        using var response = await admin.PostAsync(RestartUrl(person.FormId, openedId), new { token = TokenOf(another) });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var kept = await admin.Client.GetAsync(
+            $"/api/forms/{person.FormId}/submissions/{openedId}", admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, kept.StatusCode);
+    }
+
+    [Fact]
+    public async Task Starting_over_with_no_token_is_rejected()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var person = await LinkForPersonWithCityAsync(admin, "Columbus");
+        var openedId = IdOf(await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person)), "submissionId");
+
+        // Act
+        using var response = await admin.PostAsync(RestartUrl(person.FormId, openedId), new { });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Two Start overs of one test submission, forced to overlap: the first has claimed the delete and is paused at
+    /// its insert when the second arrives. The second waits on the row, then finds it deleted, so the person is left
+    /// with one new test submission, not two.
+    /// </summary>
+    [Fact]
+    public async Task Starting_over_twice_at_once_opens_one_replacement()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var person = await LinkForPersonWithCityAsync(admin, "Columbus");
+        var opened = await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person));
+        var openedId = IdOf(opened, "submissionId");
+        var command = new RestartTestSubmissionCommand(
+            await TenantIdOfAsync(world.Services, person.FormId), person.FormId, openedId, TokenOf(opened));
+        var gate = SubmissionCommandGate.AtInsert();
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
+        var first = RestartHandlerWith(scope.ServiceProvider, gatedApp).Handle(command, admin.CancellationToken);
+        await Task.WhenAny(gate.Reached, first).WaitAsync(_gateTimeout, admin.CancellationToken);
+        Assert.True(gate.Reached.IsCompleted, "The first Start over never reached its insert.");
+
+        // Act
+        var second = admin.PostAsync(RestartUrl(person.FormId, openedId), new { token = TokenOf(opened) });
+        var secondWaited = await Task.WhenAny(second, Task.Delay(SecondOpenProbe, admin.CancellationToken)) != second;
+        gate.Release();
+        var firstResult = await first.WaitAsync(_gateTimeout, admin.CancellationToken);
+        using var secondResponse = await second.WaitAsync(_gateTimeout, admin.CancellationToken);
+
+        // Assert
+        Assert.True(secondWaited, "The second Start over did not wait for the first one's delete.");
+        Assert.Equal(ResultStatus.Created, firstResult.Status);
+        Assert.Equal(HttpStatusCode.NotFound, secondResponse.StatusCode);
+        Assert.Equal([firstResult.Value.SubmissionId], await LiveSubmissionIdsAsync(world.Services, person.FormId));
+    }
+
+    [Fact]
+    public async Task Starting_over_a_test_submission_of_another_tenant_is_not_found()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var person = await LinkForPersonWithCityAsync(admin, "Columbus");
+        var opened = await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person));
+        var otherTenantId = await TenantIdOfAsync(world.Services, person.FormId) + 1;
+        await using var scope = world.Services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // Act
+        var result = await RestartHandlerWith(scope.ServiceProvider, app).Handle(
+            new RestartTestSubmissionCommand(otherTenantId, person.FormId, IdOf(opened, "submissionId"), TokenOf(opened)),
+            admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.NotFound, result.Status);
+    }
+
     private static string TestSubmissionsUrl(long formId) => $"/api/forms/{formId}/audience/test-submissions";
 
     private static string RestartUrl(long formId, long submissionId) =>
         $"{TestSubmissionsUrl(formId)}/{submissionId}/restart";
 
     private static long MembershipIdOf(IssuedLink person) => long.Parse(person.PersonUrl.Split('/')[^1]);
+
+    private static string TokenOf(JsonElement opened) => opened.GetProperty("token").GetString()!;
+
+    /// <summary>The host's Start over handler, with every <see cref="AppDbContext"/> read and write going through <paramref name="app"/>.</summary>
+    private static RestartTestSubmissionHandler RestartHandlerWith(IServiceProvider services, AppDbContext app)
+    {
+        var evaluator = services.GetRequiredService<EndatixSpecificationEvaluator>();
+        var audience = services.GetRequiredService<IAudienceDbContext>();
+        var forms = new EfRepository<Form>(app, evaluator);
+        var submissions = new EfRepository<Submission>(app, evaluator);
+        var tokens = new SubmissionTokenService(submissions, forms, new EfRepository<TenantSettings>(app, evaluator));
+        var gates = new LinkOpenGates(audience, forms, services.GetRequiredService<ISubmitterResolver>());
+        return new RestartTestSubmissionHandler(
+            submissions,
+            app,
+            new TestSubjects(audience, forms, gates),
+            new TestSubmissionOpener(audience, submissions, tokens));
+    }
+
+    private static async Task<long> TenantIdOfAsync(IServiceProvider services, long formId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Forms
+            .IgnoreQueryFilters()
+            .Where(form => form.Id == formId)
+            .Select(form => form.TenantId)
+            .SingleAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<string> SubmissionTokenAsync(IServiceProvider services, long submissionId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Submissions
+            .IgnoreQueryFilters()
+            .Where(submission => submission.Id == submissionId)
+            .Select(submission => submission.Token!.Value)
+            .SingleAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<long[]> LiveSubmissionIdsAsync(IServiceProvider services, long formId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Submissions
+            .IgnoreQueryFilters()
+            .Where(submission => submission.FormId == formId && !submission.IsDeleted)
+            .Select(submission => submission.Id)
+            .ToArrayAsync(TestContext.Current.CancellationToken);
+    }
 
     private static string? CityOf(JsonElement submission) =>
         submission.GetProperty("personalization").GetProperty("variables").GetProperty("city").GetString();
