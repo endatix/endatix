@@ -71,14 +71,17 @@ public static class OutboxWorkServiceCollectionExtensions
         where TWork : class, IOutboxWork
         where TPayload : IOutboxJobPayload<TPayload>
     {
-        var resolveTenantId = options.ReadsTenant is { } readTenant ? TenantOrNone(readTenant) : null;
+        var source = new OutboxSubscriptionServiceCollectionExtensions.SubscriptionSource(
+            eventType,
+            options.ReadsTenant is { } readTenant ? TenantOrNone(readTenant) : null,
+            typeof(TWork));
         if (options.SkipsMessagesWithoutWork)
         {
-            services.AddJobSubscription<TPayload, OutboxWorkExpander<TPayload, TWork>>(eventType, resolveTenantId, typeof(TWork));
+            services.AddExpandingJobSubscription<TPayload, OutboxWorkExpander<TPayload, TWork>>(source);
         }
         else
         {
-            services.AddJobSubscription(eventType, message => TPayload.For(message.Id), resolveTenantId, typeof(TWork));
+            services.AddJobSubscription(source, message => TPayload.For(message.Id));
         }
     }
 
