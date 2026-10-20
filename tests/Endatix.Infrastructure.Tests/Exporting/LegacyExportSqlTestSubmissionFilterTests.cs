@@ -8,6 +8,7 @@ public sealed class LegacyExportSqlTestSubmissionFilterTests
 {
     [Theory]
     [InlineData("Endatix.Persistence.PostgreSql", "Functions/export_form_submissions_v5.sql", "include_test_submissions boolean DEFAULT false", "s.\"IsTestSubmission\" = false")]
+    [InlineData("Endatix.Persistence.PostgreSql", "Functions/export_form_submissions_nested_loops_v5.sql", "include_test_submissions boolean DEFAULT false", "s.\"IsTestSubmission\" = false")]
     [InlineData("Endatix.Persistence.SqlServer", "Procedures/export_form_submissions_v6.sql", "@include_test_submissions bit = 0", "IsTestSubmission = 0")]
     public void ReadSqlScript_LatestLegacyExportScripts_LeaveOutTestSubmissionsByDefault(
         string assemblyName,
