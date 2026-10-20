@@ -1,4 +1,5 @@
 using Ardalis.Specification;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
@@ -19,8 +20,9 @@ namespace Endatix.Core.UseCases.Submissions.SetTest;
 /// Saves the tracked submission, so only the columns the mark changes are written: the test flag, the one-per-person
 /// key and <see cref="Submission.Revision"/>. An answer the respondent saves at the same moment is not overwritten.
 /// <see cref="Submission.Revision"/> is not a concurrency token, though, so that save and this one, both from the
-/// same read, write the same revision. A mark that changes nothing is not saved. The link check has no index behind
-/// it: a link open that commits between the check and the save is not refused.
+/// same read, write the same revision. <see cref="BaseEntity.IsDeleted"/> is one, so a mark that races the
+/// submission's deletion, or its form's, is not found. A mark that changes nothing is not saved. The link check has
+/// no index behind it: a link open that commits between the check and the save is not refused.
 /// </remarks>
 public sealed class SetSubmissionTestHandler(
     IRepository<Submission> submissions,
@@ -75,8 +77,7 @@ public sealed class SetSubmissionTestHandler(
     private async Task<Result<SubmissionDto>> MarkAsTestAsync(Submission submission, CancellationToken cancellationToken)
     {
         submission.MarkAsTest();
-        await submissions.SaveChangesAsync(cancellationToken);
-        return Result.Success(SubmissionDto.FromSubmission(submission));
+        return await SaveAsync(submission, cancellationToken);
     }
 
     private async Task<Result<SubmissionDto>> MarkAsRealAsync(
@@ -93,13 +94,24 @@ public sealed class SetSubmissionTestHandler(
         try
         {
             submission.MarkAsReal(enforceGate);
-            await submissions.SaveChangesAsync(cancellationToken);
-            return Result.Success(SubmissionDto.FromSubmission(submission));
+            return await SaveAsync(submission, cancellationToken);
         }
         catch (DuplicateSubmissionException)
         {
             return await SingleSubmissionConflict.ResultAsync<SubmissionDto>(submissions, Spec(submission), cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Not found when the submission was deleted since it was read, on its own or with its form; unavailable when the
+    /// save lost a deadlock. Either way nothing is saved.
+    /// </summary>
+    private async Task<Result<SubmissionDto>> SaveAsync(Submission submission, CancellationToken cancellationToken)
+    {
+        var saved = await submissions.TrySaveChangesAsync(cancellationToken);
+        return saved.IsSuccess
+            ? Result.Success(SubmissionDto.FromSubmission(submission))
+            : saved.ToErrorResult<SubmissionDto>();
     }
 
     /// <summary>

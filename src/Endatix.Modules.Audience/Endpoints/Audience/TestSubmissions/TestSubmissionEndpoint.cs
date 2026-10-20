@@ -28,6 +28,9 @@ public abstract class TestSubmissionEndpoint<TRequest>(IMediator mediator, ITena
     : Endpoint<TRequest, Results<Created<TestSubmissionResponse>, ProblemHttpResult>>
     where TRequest : notnull
 {
+    /// <summary>Both open a submission under the form's lock, which its deletion holds.</summary>
+    private const string Busy = "The form is being deleted, or the save lost to a concurrent write; try again shortly.";
+
     protected IMediator Mediator { get; } = mediator;
 
     protected long TenantId => tenantContext.TenantId;
@@ -43,14 +46,16 @@ public abstract class TestSubmissionEndpoint<TRequest>(IMediator mediator, ITena
             summary.Responses[201] = route.Created;
             summary.Responses[400] = route.BadRequest;
             summary.Responses[404] = route.NotFound;
+            summary.Responses[503] = Busy;
         });
         Description(builder => builder
             .Produces<TestSubmissionResponse>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(400)
-            .ProducesProblem(404));
+            .ProducesProblem(404)
+            .ProducesProblem(503));
     }
 
-    protected Results<Created<TestSubmissionResponse>, ProblemHttpResult> Respond(
+    protected static Results<Created<TestSubmissionResponse>, ProblemHttpResult> Respond(
         Result<OpenedTestSubmissionDto> result) =>
         TypedResultsBuilder
             .MapResult(result, TestSubmissionResponse.From)

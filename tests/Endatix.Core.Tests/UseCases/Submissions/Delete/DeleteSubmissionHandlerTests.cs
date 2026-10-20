@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions.Delete;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.Delete;
@@ -23,7 +24,7 @@ public class DeleteSubmissionHandlerTests
     {
         // Arrange
         var request = new DeleteSubmissionCommand(formId: 1, submissionId: 99);
-        _repository.GetByIdAsync(request.SubmissionId, Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns((Submission?)null);
 
         // Act
@@ -32,25 +33,7 @@ public class DeleteSubmissionHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Submission not found");
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_FormIdMismatch_ReturnsNotFound()
-    {
-        // Arrange
-        var submission = CreateSubmission(formId: 2, submissionId: 99);
-        var request = new DeleteSubmissionCommand(formId: 1, submissionId: 99);
-        _repository.GetByIdAsync(request.SubmissionId, Arg.Any<CancellationToken>())
-            .Returns(submission);
-
-        // Act
-        var result = await _handler.Handle(request, CancellationToken.None);
-
-        // Assert
-        result.Status.Should().Be(ResultStatus.NotFound);
-        result.Errors.Should().Contain("Submission not found");
-        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -59,7 +42,7 @@ public class DeleteSubmissionHandlerTests
         // Arrange
         var submission = CreateSubmission(formId: 1, submissionId: 99);
         var request = new DeleteSubmissionCommand(formId: 1, submissionId: 99);
-        _repository.GetByIdAsync(request.SubmissionId, Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
 
         // Act
@@ -69,7 +52,8 @@ public class DeleteSubmissionHandlerTests
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().Be(submission);
         submission.IsDeleted.Should().BeTrue();
-        await _repository.Received(1).UpdateAsync(submission, Arg.Any<CancellationToken>());
+        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -78,7 +62,7 @@ public class DeleteSubmissionHandlerTests
         // Arrange
         var submission = CreateSubmission(formId: 1, submissionId: 99);
         var request = new DeleteSubmissionCommand(formId: 1, submissionId: 99);
-        _repository.GetByIdAsync(request.SubmissionId, Arg.Any<CancellationToken>())
+        _repository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
 
         // Act

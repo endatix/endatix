@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Specifications;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,16 @@ internal sealed class LinkOpenGates(
         var label = await LabelAsync(submitterId ?? person.SubmitterId, person.Identifier, cancellationToken);
         return new LinkOpening(link, definitionId, submitterId, label);
     }
+
+    /// <summary>
+    /// The form's active definition while it takes submissions, read again under the link's lock: the form may have
+    /// been disabled, deleted or given another active definition since <see cref="CheckAsync"/>.
+    /// <see langword="null"/> when the link must not open.
+    /// </summary>
+    public Task<long?> OpenDefinitionIdAsync(AudienceLink link, CancellationToken cancellationToken) =>
+        forms.FirstOrDefaultAsync(
+            new FormSpecifications.OpenFormActiveDefinitionId(link.FormId, link.TenantId),
+            cancellationToken);
 
     /// <summary>The person, or <see langword="null"/> once they are removed from the form.</summary>
     public Task<LinkPerson?> PersonAsync(long membershipId, CancellationToken cancellationToken) =>

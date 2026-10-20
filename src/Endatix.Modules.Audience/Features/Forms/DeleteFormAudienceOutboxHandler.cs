@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Core.Events;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;

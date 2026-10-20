@@ -9,6 +9,7 @@ using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Tests.TestUtils;
 using Endatix.Core.Exceptions;
 using Endatix.Core.UseCases.Submissions.Create;
 using MediatR;
@@ -37,6 +38,8 @@ public class CreateSubmissionHandlerTests
         _submitterResolver = Substitute.For<ISubmitterResolver>();
         _submitterResolver.EnsureSubmitterAsync(Arg.Any<SubmitterResolveContext>(), Arg.Any<CancellationToken>())
             .Returns(new SubmitterResolution(null, null, null));
+        _formsRepository.FirstOrDefaultAsync(Arg.Any<FormSpecifications.OpenFormActiveDefinitionId>(), Arg.Any<CancellationToken>())
+            .Returns((long?)2);
         _handler = new CreateSubmissionHandler(
             _submissionsRepository,
             _formsRepository,
@@ -44,7 +47,8 @@ public class CreateSubmissionHandlerTests
             _recaptchaService,
             _mediator,
             _authorizationService,
-            _submitterResolver);
+            _submitterResolver,
+            new FormSubmissionsLockStub().Lock);
     }
 
     [Fact]
@@ -441,7 +445,7 @@ public class CreateSubmissionHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.Created);
         createdSubmission.Should().NotBeNull();
-        createdSubmission!.SubmitterProfileSnapshot.Should().Be(profileSnapshot);
+        createdSubmission.SubmitterProfileSnapshot.Should().Be(profileSnapshot);
     }
 
     [Fact]
@@ -1107,7 +1111,7 @@ public class CreateSubmissionHandlerTests
         result.Value.HasStarted.Should().BeTrue();
         result.Value.StartedAt.Should().NotBeNull();
         result.Value.CompletedAt.Should().NotBeNull();
-        result.Value.StartedAt.Should().BeOnOrBefore(result.Value.CompletedAt!.Value);
+        result.Value.StartedAt.Should().BeOnOrBefore(result.Value.CompletedAt.Value);
     }
 
     #endregion

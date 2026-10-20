@@ -1,5 +1,7 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Tests;
 using Endatix.Infrastructure.Features.Submissions;
@@ -76,6 +78,22 @@ public class SubmissionTokenServiceObtainTokenTests
     }
 
     [Fact]
+    public async Task ObtainToken_SubmissionDeletedBeforeTheSave_ReturnsNotFound()
+    {
+        // Arrange
+        var submission = IncompleteSubmission(1);
+        _submissionRepository.GetByIdAsync(submission.Id, Arg.Any<CancellationToken>()).Returns(submission);
+        _submissionRepository.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new SubmissionDeletedException("deleted"));
+
+        // Act
+        var result = await _sut.ObtainTokenAsync(submission.Id, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
     public async Task ObtainToken_FormDeleted_ReturnsNotFoundWithoutSaving()
     {
         // Arrange
@@ -113,7 +131,7 @@ public class SubmissionTokenServiceObtainTokenTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNullOrEmpty();
         submission.Token.Should().NotBeNull();
-        submission.Token!.ExpiresAt.Should().NotBeNull();
+        submission.Token.ExpiresAt.Should().NotBeNull();
         await _submissionRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -143,8 +161,8 @@ public class SubmissionTokenServiceObtainTokenTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         submission.Token.Should().NotBeNull();
-        submission.Token!.ExpiresAt.Should().NotBeNull();
-        submission.Token.ExpiresAt!.Value.Should().BeOnOrAfter(before.AddHours(168).AddMinutes(-1));
+        submission.Token.ExpiresAt.Should().NotBeNull();
+        submission.Token.ExpiresAt.Value.Should().BeOnOrAfter(before.AddHours(168).AddMinutes(-1));
         submission.Token.ExpiresAt.Value.Should().BeOnOrBefore(DateTime.UtcNow.AddHours(168).AddMinutes(1));
         await _tenantSettingsRepository.DidNotReceive().FirstOrDefaultAsync(
             Arg.Any<TenantSettingsByTenantIdSpec>(),
