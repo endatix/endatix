@@ -89,7 +89,7 @@ public sealed partial class BackgroundJobExecutionTests
 
         // Assert
         observed.ContextTenantId.Should().Be(-1);
-        await repository.DidNotReceiveWithAnyArgs().TryClaimAsync(default!, default);
+        await repository.DidNotReceiveWithAnyArgs().TryClaimAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed partial class BackgroundJobExecutionTests
         var metrics = provider.GetRequiredService<IJobMetrics>();
         metrics.Received(1).Record(JobLifecycleEvent.Abandoned, ProbeJobType);
         metrics.Received(1).ObserveDuration(ProbeJobType, Arg.Any<TimeSpan>(), JobAttemptOutcome.Abandoned);
-        await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default, default);
+        await repository.DidNotReceiveWithAnyArgs().RecordFailedAttemptAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -387,9 +387,9 @@ public sealed partial class BackgroundJobExecutionTests
 
         // Assert
         observed.HandlerTokenCancelled.Should().BeTrue();
-        await repository.DidNotReceiveWithAnyArgs().TryCompleteAsync(default, default, default);
+        await repository.DidNotReceiveWithAnyArgs().TryCompleteAsync(default, default, Arg.Any<CancellationToken>());
         await repository.DidNotReceiveWithAnyArgs()
-            .RecordFailedAttemptAsync(default, default, default);
+            .RecordFailedAttemptAsync(default, default, Arg.Any<CancellationToken>());
         var metrics = provider.GetRequiredService<IJobMetrics>();
         metrics.Received(1).Record(JobLifecycleEvent.Abandoned, ProbeJobType);
         metrics.Received(1).ObserveDuration(ProbeJobType, Arg.Any<TimeSpan>(), JobAttemptOutcome.Abandoned);

@@ -26,7 +26,7 @@ public class Result<T> : IResult
     public static implicit operator T(Result<T> result) => result.Value;
     public static implicit operator Result<T>(T value) => new Result<T>(value);
 
-    public static implicit operator Result<T>(Result result) => new Result<T>(default(T))
+    public static implicit operator Result<T>(Result result) => new Result<T>(default(T)!)
     {
         Status = result.Status,
         Errors = result.Errors,
@@ -37,7 +37,7 @@ public class Result<T> : IResult
     };
 
     [JsonInclude]
-    public T Value { get; init; }
+    public T Value { get; init; } = default!;
 
     [JsonIgnore]
     public Type ValueType => typeof(T);
@@ -63,7 +63,7 @@ public class Result<T> : IResult
     /// Returns the current value.
     /// </summary>
     /// <returns></returns>
-    public object GetValue()
+    public object? GetValue()
     {
         return this.Value;
     }
@@ -130,7 +130,7 @@ public class Result<T> : IResult
     /// </summary>
     /// <param name="error">An optional instance of ErrorList with list of string error messages and CorrelationId.</param>
     /// <returns>A Result<typeparamref name="T"/></returns>
-    public static Result<T> Error(ErrorList error = null)
+    public static Result<T> Error(ErrorList? error = null)
     {
         return new Result<T>(ResultStatus.Error)
         {

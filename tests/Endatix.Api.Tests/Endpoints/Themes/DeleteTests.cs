@@ -31,7 +31,7 @@ public class DeleteTests
             .Returns(Task.FromResult(result));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -50,7 +50,7 @@ public class DeleteTests
             .Returns(Task.FromResult(result));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -69,7 +69,7 @@ public class DeleteTests
             .Returns(Task.FromResult(result));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response.Result as Ok<string>;

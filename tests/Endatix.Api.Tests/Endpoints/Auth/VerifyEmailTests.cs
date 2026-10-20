@@ -32,7 +32,7 @@ public class VerifyEmailTests
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResponse = response!.Result as Ok<string>;
@@ -53,7 +53,7 @@ public class VerifyEmailTests
             .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -75,7 +75,7 @@ public class VerifyEmailTests
             .Returns(Result<User>.Invalid(new ValidationError("Invalid verification token")));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;

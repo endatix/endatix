@@ -37,7 +37,7 @@ public sealed class FlattenSubmissionJobHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, default);
+        await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class FlattenSubmissionJobHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, default);
+        await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -33,11 +33,11 @@ public class LoginTests
             new TokenDto("valid_refresh_token", DateTime.UtcNow.AddDays(1)));
         var successLoginResult = Result.Success(authTokens);
 
-        _mediator.Send(loginCommand)
+        _mediator.Send(loginCommand, Arg.Any<CancellationToken>())
            .Returns(successLoginResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response!.Result.As<Ok<LoginResponse>>();
@@ -58,10 +58,10 @@ public class LoginTests
         var request = new LoginRequest("wrong.user@example.com", "Password123!");
         var loginCommand = new LoginCommand(request.Email, request.Password);
         var errorLoginResult = Result.Invalid(new ValidationError("The supplied credentials are invalid!"));
-        _mediator.Send(loginCommand).Returns(errorLoginResult);
+        _mediator.Send(loginCommand, Arg.Any<CancellationToken>()).Returns(errorLoginResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;

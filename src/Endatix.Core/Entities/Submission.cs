@@ -122,6 +122,27 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         PersonalizationSnapshot = snapshot;
     }
 
+    /// <summary>
+    /// Freezes the values a test submission is opened with. Unlike a link or an on-behalf create, a second freeze is
+    /// a bug, not a retry, so it throws rather than keeping the first.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Not a test submission, or its values are already frozen.</exception>
+    public void FreezeForTest(string snapshot)
+    {
+        Guard.Against.NullOrEmpty(snapshot);
+        if (!IsTestSubmission)
+        {
+            throw new InvalidOperationException("Only a test submission takes test personalization.");
+        }
+
+        if (PersonalizationSnapshot is not null)
+        {
+            throw new InvalidOperationException("The test submission's personalization is already frozen.");
+        }
+
+        PersonalizationSnapshot = snapshot;
+    }
+
     public bool IsComplete { get; private set; }
     public string JsonData { get; private set; } = null!;
     public FormDefinition FormDefinition { get; private set; } = null!;

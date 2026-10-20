@@ -30,7 +30,7 @@ public class TypedResultsBuilderTests
         Result<string>? nullResult = null;
 
         // Act
-        var action = () => TypedResultsBuilder.FromResult(nullResult);
+        var action = () => TypedResultsBuilder.FromResult(nullResult!);
 
         //Assert
         action.Should().Throw<ArgumentNullException>();

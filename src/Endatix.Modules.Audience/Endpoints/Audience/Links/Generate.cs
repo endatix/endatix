@@ -22,7 +22,7 @@ public sealed class Generate(IMediator mediator, ITenantContext tenantContext)
         {
             summary.Summary = "Issue personalised links";
             summary.Responses[200] = "Links issued. Each raw token is returned once.";
-            summary.Responses[400] = "Invalid input, or the form has more than 5,000 people.";
+            summary.Responses[400] = "Invalid input, or the form has more than 5,000 real people.";
             summary.Responses[404] = "Form not found.";
         });
         Description(builder => builder
