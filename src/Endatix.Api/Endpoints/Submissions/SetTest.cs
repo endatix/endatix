@@ -33,17 +33,19 @@ public class SetTest(IMediator mediator, ITenantContext tenantContext) : Endpoin
             s.Responses[200] = "The submission was marked.";
             s.Responses[400] = "Invalid input data, or marking real a test submission opened as a person.";
             s.Responses[403] = "The caller lacks forms.test or submissions.edit.";
-            s.Responses[404] = "Form or submission not found.";
+            s.Responses[404] = "Form or submission not found, or deleted while it was being marked.";
             s.Responses[409] =
                 "The person already has a real submission on this form, by submitter or through the same personalised link " +
                 "(errorCode submission_exists, submissionId).";
+            s.Responses[503] = "The save lost to a concurrent write; try again shortly.";
         });
         Description(builder => builder
             .Produces<SubmissionModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict));
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
     }
 
     /// <inheritdoc/>

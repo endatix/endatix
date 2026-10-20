@@ -25,8 +25,8 @@ public sealed partial class FormDeletionFlowTests
     private const string AnswersSave = """UPDATE ["\[]Submissions["\]] SET .*JsonData""";
 
     /// <summary>
-    /// Every route that writes a live submission: management, by submission token, by access token, and its own
-    /// delete, which a submission of a deleted form is not found by either.
+    /// Every route that writes a live submission: management, its test mark, by submission token, by access token, and
+    /// its own delete, which a submission of a deleted form is not found by either.
     /// </summary>
     private static readonly Dictionary<string, SubmissionWrite> ChangingWrites = new()
     {
@@ -34,6 +34,7 @@ public sealed partial class FormDeletionFlowTests
         ["PATCH complete"] = new("PATCH", "{id}", """{"isComplete":true,"jsonData":"{\"q\":\"done\"}"}"""),
         ["PUT"] = new("PUT", "{id}", """{"isComplete":false,"jsonData":"{\"q\":\"replaced\"}","currentPage":1}"""),
         ["POST status"] = new("POST", "{id}/status", $$"""{"status":"{{SubmissionStatusCodes.Read}}"}"""),
+        ["PATCH test"] = new("PATCH", "{id}/test", """{"isTest":true}"""),
         ["PATCH by token"] = new("PATCH", "by-token/{token}", ChangedAnswers),
         ["PATCH by access token"] = new("PATCH", "by-access-token/{accessToken}", ChangedAnswers),
         ["DELETE"] = new("DELETE", "{id}", null),

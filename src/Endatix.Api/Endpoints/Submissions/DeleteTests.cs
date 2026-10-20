@@ -32,13 +32,16 @@ public class DeleteTests(IMediator mediator, ITenantContext tenantContext)
             s.Responses[200] = "The test submissions were deleted; deletedCount says how many.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[403] = "The caller lacks forms.test or submissions.delete.";
-            s.Responses[404] = "Form not found.";
+            s.Responses[404] = "Form not found, or deleted while its test submissions were being deleted.";
+            s.Responses[503] = "Other writes kept deleting the same test submissions, or a save lost a deadlock; " +
+                "try again shortly. The pages already deleted stay deleted.";
         });
         Description(builder => builder
             .Produces<DeleteTestSubmissionsResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
     }
 
     /// <inheritdoc/>
