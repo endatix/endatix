@@ -35,12 +35,15 @@ internal static class ProviderResponse
         }
     }
 
-    internal static void EnsureAccepted(string provider, HttpStatusCode statusCode, string body)
+    internal static async Task<string> ReadAcceptedBodyForLogAsync(string provider, HttpStatusCode statusCode, HttpContent body)
     {
+        var bodyText = await ReadBodyForLogAsync(body);
         if ((int)statusCode is < 200 or > 299)
         {
-            throw new EmailProviderException(provider, statusCode, body);
+            throw new EmailProviderException(provider, statusCode, bodyText);
         }
+
+        return bodyText;
     }
 
     private static bool IsReadFailure(Exception ex) =>

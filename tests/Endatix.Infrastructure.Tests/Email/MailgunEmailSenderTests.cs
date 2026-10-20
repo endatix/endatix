@@ -337,6 +337,16 @@ public class MailgunEmailSenderTests
     }
 
     [Fact]
+    public async Task SendEmailWithBody_ProviderRejectsWithLongBody_KeepsMessageBounded()
+    {
+        RespondWith(HttpStatusCode.BadGateway, new string('x', 10_000));
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<EmailProviderException>()).Which.Message.Length.Should().BeLessThan(1_200);
+    }
+
+    [Fact]
     public async Task SendEmailWithTemplate_ExternalTemplateProviderRejects_Throws()
     {
         RespondWith(HttpStatusCode.BadRequest, "{\"message\":\"template not found\"}");

@@ -79,8 +79,7 @@ public class SendGridEmailSender(
                     .SendEmailAsync(msg, cancellationToken)
                     .ConfigureAwait(false);
 
-        var responseBody = await ProviderResponse.ReadBodyForLogAsync(response.Body);
-        ProviderResponse.EnsureAccepted(ProviderName, response.StatusCode, responseBody);
+        var responseBody = await ProviderResponse.ReadAcceptedBodyForLogAsync(ProviderName, response.StatusCode, response.Body);
         _logger.LogInformation("Sending SendGrid message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 
@@ -117,8 +116,7 @@ public class SendGridEmailSender(
             .SendEmailAsync(msg, cancellationToken)
             .ConfigureAwait(false);
 
-        var responseBody = await ProviderResponse.ReadBodyForLogAsync(response.Body);
-        ProviderResponse.EnsureAccepted(ProviderName, response.StatusCode, responseBody);
+        var responseBody = await ProviderResponse.ReadAcceptedBodyForLogAsync(ProviderName, response.StatusCode, response.Body);
         _logger.LogInformation("Sending SendGrid template message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 }
