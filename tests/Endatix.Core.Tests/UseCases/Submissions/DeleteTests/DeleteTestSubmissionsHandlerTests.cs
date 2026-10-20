@@ -1,4 +1,4 @@
-using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -10,38 +10,45 @@ namespace Endatix.Core.Tests.UseCases.Submissions.DeleteTests;
 
 public class DeleteTestSubmissionsHandlerTests
 {
+    private const long TenantId = SampleData.TENANT_ID;
     private const long FormId = 10;
 
     private readonly IRepository<Submission> _submissions = Substitute.For<IRepository<Submission>>();
     private readonly IRepository<Form> _forms = Substitute.For<IRepository<Form>>();
-    private readonly ICurrentUserAuthorizationService _authorization = Substitute.For<ICurrentUserAuthorizationService>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly DeleteTestSubmissionsHandler _handler;
 
     public DeleteTestSubmissionsHandlerTests()
     {
-        _handler = new DeleteTestSubmissionsHandler(_submissions, _forms, _authorization);
-        _authorization.ValidateAccessAsync(Actions.Submissions.Delete, Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
-        _forms.GetByIdAsync(FormId, Arg.Any<CancellationToken>())
-            .Returns(Form.Create(FormId, new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Form")));
+        _handler = new DeleteTestSubmissionsHandler(_submissions, _forms, _unitOfWork);
+        var form = Form.Create(FormId, new FormCreateArgs(TenantId: TenantId, Name: "Form"));
+        _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<FormSpecifications.ByIdForTenant>().IsSatisfiedBy(form) ? form : null);
     }
 
     private static Submission TestSubmission(long id) =>
         Submission.Create(id, new SubmissionCreateArgs(
-            TenantId: SampleData.TENANT_ID, FormId: FormId, FormDefinitionId: 1, JsonData: "{}", IsTestSubmission: true));
+            TenantId: TenantId, FormId: FormId, FormDefinitionId: 1, JsonData: "{}", IsTestSubmission: true));
 
     [Fact]
-    public async Task Handle_WithoutDeletePermission_ReturnsForbiddenAndDeletesNothing()
+    public async Task Handle_NoTenant_IsUnauthorizedAndDeletesNothing()
     {
-        // Arrange
-        _authorization.ValidateAccessAsync(Actions.Submissions.Delete, Arg.Any<CancellationToken>())
-            .Returns(Result.Forbidden());
-
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(0, FormId), CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(ResultStatus.Forbidden);
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+        await _submissions.DidNotReceive().ListAsync(Arg.Any<TestSubmissionsByFormIdPageSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_FormOfAnotherTenant_ReturnsNotFoundAndDeletesNothing()
+    {
+        // Act
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId + 1, FormId), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
         await _submissions.DidNotReceive().ListAsync(Arg.Any<TestSubmissionsByFormIdPageSpec>(), Arg.Any<CancellationToken>());
     }
 
@@ -49,10 +56,11 @@ public class DeleteTestSubmissionsHandlerTests
     public async Task Handle_FormMissing_ReturnsNotFound()
     {
         // Arrange
-        _forms.GetByIdAsync(FormId, Arg.Any<CancellationToken>()).Returns((Form?)null);
+        _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns((Form?)null);
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
@@ -68,7 +76,7 @@ public class DeleteTestSubmissionsHandlerTests
             .Returns(firstPage, secondPage);
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -79,6 +87,28 @@ public class DeleteTestSubmissionsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_PagesOfTestSubmissions_ClearsTheChangeTrackerAfterEachSave()
+    {
+        // Arrange
+        var firstPage = Enumerable.Range(1, DeleteTestSubmissionsHandler.PAGE_SIZE).Select(i => TestSubmission(i)).ToList();
+        var secondPage = new List<Submission> { TestSubmission(DeleteTestSubmissionsHandler.PAGE_SIZE + 1) };
+        _submissions.ListAsync(Arg.Any<TestSubmissionsByFormIdPageSpec>(), Arg.Any<CancellationToken>())
+            .Returns(firstPage, secondPage);
+
+        // Act
+        await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), CancellationToken.None);
+
+        // Assert
+        Received.InOrder(() =>
+        {
+            _submissions.SaveChangesAsync(Arg.Any<CancellationToken>());
+            _unitOfWork.ClearChangeTracker();
+            _submissions.SaveChangesAsync(Arg.Any<CancellationToken>());
+            _unitOfWork.ClearChangeTracker();
+        });
+    }
+
+    [Fact]
     public async Task Handle_NoTestSubmissions_ReturnsZero()
     {
         // Arrange
@@ -86,7 +116,7 @@ public class DeleteTestSubmissionsHandlerTests
             .Returns(new List<Submission>());
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), CancellationToken.None);
 
         // Assert
         result.Value.Count.Should().Be(0);

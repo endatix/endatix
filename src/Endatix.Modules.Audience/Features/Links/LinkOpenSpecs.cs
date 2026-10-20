@@ -29,8 +29,11 @@ internal sealed class OpenFormSpec : Specification<Form, OpenForm>
             .Select(form => new OpenForm(form.IsEnabled, form.ActiveDefinitionId, form.LimitOnePerUser));
 }
 
-/// <summary>What a resume decides on: whether the submission has its token, and whether its form is enabled.</summary>
-internal sealed record ResumeState(bool HasToken, bool FormIsEnabled);
+/// <summary>
+/// What a resume decides on: whether the submission has its token, whether its form is enabled, and whether it was
+/// marked as test.
+/// </summary>
+internal sealed record ResumeState(bool HasToken, bool FormIsEnabled, bool IsTest);
 
 /// <summary>
 /// One untracked read for both. <see langword="null"/> when the submission is gone, or its form: the form's
@@ -41,5 +44,8 @@ internal sealed class SubmissionResumeSpec : Specification<Submission, ResumeSta
     public SubmissionResumeSpec(long submissionId) =>
         Query.Where(submission => submission.Id == submissionId)
             .AsNoTracking()
-            .Select(submission => new ResumeState(submission.Token!.Value != null, submission.Form.IsEnabled));
+            .Select(submission => new ResumeState(
+                submission.Token!.Value != null,
+                submission.Form.IsEnabled,
+                submission.IsTestSubmission));
 }

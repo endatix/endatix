@@ -75,7 +75,7 @@ public class SubmissionCsvExporter(
                 }
             }
 
-            await streamWriter.FlushAsync();
+            await streamWriter.FlushAsync(cancellationToken);
             await writer.FlushAsync(cancellationToken);
 
             return Result<FileExport>.Success(new FileExport(ContentType, GetFileName(options, firstRow, FileExtension)));

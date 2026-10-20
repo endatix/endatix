@@ -141,7 +141,7 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
             seeded.TenantId, "ada@example.com", AudienceIdentifierKindCodes.Email, normalizer));
         audience.Members.Add(member);
         await audience.SaveChangesAsync(ct);
-        var membership = new Membership(seeded.TenantId, seeded.FormId, member.Id);
+        var membership = new Membership(new MembershipCreateArgs(seeded.TenantId, seeded.FormId, member.Id, IsTest: false));
         audience.Memberships.Add(membership);
         await audience.SaveChangesAsync(ct);
         return membership.Id;

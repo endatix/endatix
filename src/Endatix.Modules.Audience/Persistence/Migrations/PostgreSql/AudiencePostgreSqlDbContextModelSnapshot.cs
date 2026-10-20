@@ -254,6 +254,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean");
+
                     b.Property<long>("MemberId")
                         .HasColumnType("bigint");
 

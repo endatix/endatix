@@ -32,11 +32,11 @@ public class DeleteRoleTests
         var successResult = Result.Success(successMessage);
 
         _mediator.Send(Arg.Is<DeleteRoleCommand>(c =>
-            c.RoleName == request.RoleName))
+            c.RoleName == request.RoleName), Arg.Any<CancellationToken>())
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         response.Should().NotBeNull();
@@ -58,11 +58,11 @@ public class DeleteRoleTests
 
         var notFoundResult = Result<string>.NotFound("Role 'NonExistent' not found for this tenant.");
 
-        _mediator.Send(Arg.Is<DeleteRoleCommand>(c => c.RoleName == request.RoleName))
+        _mediator.Send(Arg.Is<DeleteRoleCommand>(c => c.RoleName == request.RoleName), Arg.Any<CancellationToken>())
             .Returns(notFoundResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -86,11 +86,11 @@ public class DeleteRoleTests
             ErrorMessage = "Cannot delete system-defined role 'Admin'."
         });
 
-        _mediator.Send(Arg.Is<DeleteRoleCommand>(c => c.RoleName == request.RoleName))
+        _mediator.Send(Arg.Is<DeleteRoleCommand>(c => c.RoleName == request.RoleName), Arg.Any<CancellationToken>())
             .Returns(invalidResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -114,11 +114,11 @@ public class DeleteRoleTests
             ErrorMessage = "Cannot delete role 'Manager' because it is assigned to one or more users."
         });
 
-        _mediator.Send(Arg.Is<DeleteRoleCommand>(c => c.RoleName == request.RoleName))
+        _mediator.Send(Arg.Is<DeleteRoleCommand>(c => c.RoleName == request.RoleName), Arg.Any<CancellationToken>())
             .Returns(invalidResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -139,6 +139,6 @@ public class DeleteRoleTests
         // Act & Assert
         // The guard clause in DeleteRoleCommand constructor throws before reaching the mediator
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await _endpoint.ExecuteAsync(request, default));
+            await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken));
     }
 }

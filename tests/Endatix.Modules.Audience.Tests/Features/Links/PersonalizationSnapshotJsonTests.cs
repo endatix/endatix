@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Features.Links;
 
@@ -44,6 +45,19 @@ public sealed class PersonalizationSnapshotJsonTests
         document.RootElement.GetProperty("memberId").GetInt64().Should().Be(42);
         document.RootElement.TryGetProperty("audienceLinkId", out _).Should().BeFalse();
         document.RootElement.GetProperty("variables").GetProperty("age").GetDouble().Should().Be(65);
+    }
+
+    [Fact]
+    public void Write_Test_OmitsLinkAndKeepsMember()
+    {
+        var json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(null, "ada@example.com", DateTime.UnixEpoch, PersonalizationSources.Test, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("source").GetString().Should().Be("test");
+        document.RootElement.GetProperty("memberId").GetInt64().Should().Be(42);
+        document.RootElement.TryGetProperty("audienceLinkId", out _).Should().BeFalse();
     }
 
     [Fact]

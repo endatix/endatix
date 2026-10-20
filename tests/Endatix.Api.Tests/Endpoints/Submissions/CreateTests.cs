@@ -73,7 +73,7 @@ public class CreateTests
         createdResult!.Value.Should().NotBeNull();
         createdResult!.Value!.Id.Should().Be("1");
         createdResult!.Value!.Token.Should().NotBeNull();
-        createdResult!.Value!.Token!.Should().Be(submission.Token.Value);
+        createdResult!.Value!.Token!.Should().Be(submission.Token!.Value);
     }
 
     [Fact]

@@ -53,6 +53,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [InlineData("answers")]
     [InlineData("definition")]
     [InlineData("answers,metadata")]
+    [InlineData("test")]
     public async Task HandleAsync_WithSubmissionUpdated_DataAffectingChangeKind_CallsProcessor(string changeKind)
     {
         Submission submission = CreateSubmission();

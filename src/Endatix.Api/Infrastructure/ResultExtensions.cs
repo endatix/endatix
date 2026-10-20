@@ -57,7 +57,7 @@ public static partial class ResultExtensions
 
             fields = result.ValidationErrors
                 .Where(error => !string.IsNullOrWhiteSpace(error.Identifier))
-                .GroupBy(error => error.Identifier)
+                .GroupBy(error => error.Identifier!)
                 .ToDictionary(
                     group => group.Key,
                     group => group.Select(error => error.ErrorMessage).ToArray());

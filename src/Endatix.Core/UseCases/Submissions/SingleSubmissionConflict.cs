@@ -17,13 +17,14 @@ internal static class SingleSubmissionConflict
     public static async Task<Result<T>> ResultAsync<T>(
         IRepository<Submission> submissions,
         SubmissionByFormIdAndSubmitterIdSpec spec,
-        CancellationToken cancellationToken)
-    {
-        var existing = await submissions.FirstOrDefaultAsync(spec, cancellationToken);
-        return existing is null
+        CancellationToken cancellationToken) =>
+        For<T>(await submissions.FirstOrDefaultAsync(spec, cancellationToken));
+
+    /// <summary>The conflict for a submission already found; without one it names nothing.</summary>
+    public static Result<T> For<T>(Submission? existing) =>
+        existing is null
             ? Result<T>.Conflict(MESSAGE)
             : Result<T>.Conflict(
                 new ExistingResource(SUBMISSION_EXISTS_CODE, "submissionId", existing.Id.ToString()),
                 MESSAGE);
-    }
 }

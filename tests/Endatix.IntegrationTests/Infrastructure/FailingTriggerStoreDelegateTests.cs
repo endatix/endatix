@@ -55,6 +55,24 @@ public sealed class FailingTriggerStoreDelegateTests
         acquired.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(TestDatabaseProvider.PostgreSql)]
+    [InlineData(TestDatabaseProvider.SqlServer)]
+    public async Task Register_RebuildingTheScheduler_IsRefused(TestDatabaseProvider provider)
+    {
+        // Arrange — a rebuild replays only the scheduler's recipe, which would drop the failing dialect.
+        var services = ModuleServices(provider);
+        FailingTriggerStoreDelegate.Register(services, provider, TriggerStoreFailures.Rejected(stores: 1));
+        await using var withFailures = services.BuildServiceProvider();
+
+        // Act
+        var rebuild = () => withFailures.GetRequiredService<ISchedulerRuntime>()
+            .Restart(QuartzRegistration.SchedulerName, SchedulerRestartOptions.WithoutStarting).AsTask();
+
+        // Assert
+        await rebuild.Should().ThrowAsync<InvalidOperationException>().WithMessage("*would drop the failing dialect*");
+    }
+
     // The dialect the module registers for its scheduler, and the one a node gets once the failing one replaces it.
     private static RegisteredDelegates RegisteredFailingDelegate(TestDatabaseProvider provider)
     {

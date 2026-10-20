@@ -1,4 +1,5 @@
 using Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.SetTest;
@@ -11,12 +12,16 @@ namespace Endatix.Api.Tests.Endpoints.Submissions;
 
 public sealed class SetTestTests
 {
+    private const long TenantId = 7;
+
     private readonly IMediator _mediator = Substitute.For<IMediator>();
     private readonly SetTest _endpoint;
 
     public SetTestTests()
     {
-        _endpoint = Factory.Create<SetTest>(_mediator);
+        var tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TenantId);
+        _endpoint = Factory.Create<SetTest>(_mediator, tenantContext);
     }
 
     private static SubmissionDto Dto(bool isTest) =>
@@ -37,7 +42,7 @@ public sealed class SetTestTests
         var ok = response.Result.Should().BeOfType<Ok<SubmissionModel>>().Subject;
         ok.Value!.IsTestSubmission.Should().BeTrue();
         await _mediator.Received(1).Send(
-            Arg.Is<SetSubmissionTestCommand>(c => c.FormId == 1 && c.SubmissionId == 2 && c.IsTest),
+            Arg.Is<SetSubmissionTestCommand>(c => c.TenantId == TenantId && c.FormId == 1 && c.SubmissionId == 2 && c.IsTest),
             Arg.Any<CancellationToken>());
     }
 
