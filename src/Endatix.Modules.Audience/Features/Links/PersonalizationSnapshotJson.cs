@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Modules.Audience.Contracts;
 
 namespace Endatix.Modules.Audience.Features.Links;
@@ -16,7 +17,7 @@ internal readonly record struct SnapshotHeader(
     long? AudienceLinkId,
     string Identifier,
     DateTime CapturedAt,
-    string Source = "link",
+    string Source = PersonalizationSources.Link,
     long? MemberId = null);
 
 /// <summary>

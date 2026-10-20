@@ -39,7 +39,7 @@ public partial class SubmissionFlatteningProcessorTests
         // Assert — the row is removed as the deletion's own sync would have removed it.
         await _rows.Received(1).TryMarkProcessedAsync(Arg.Any<FlattenedRevision>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public partial class SubmissionFlatteningProcessorTests
 
         // Assert
         await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
+        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, Arg.Any<CancellationToken>());
         await _submissions.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 

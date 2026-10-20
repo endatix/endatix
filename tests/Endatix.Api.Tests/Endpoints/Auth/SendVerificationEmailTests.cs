@@ -30,7 +30,7 @@ public class SendVerificationEmailTests
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResponse = response!.Result as Ok<string>;
@@ -51,7 +51,7 @@ public class SendVerificationEmailTests
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResponse = response!.Result as Ok<string>;
@@ -72,7 +72,7 @@ public class SendVerificationEmailTests
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResponse = response!.Result as Ok<string>;
@@ -93,7 +93,7 @@ public class SendVerificationEmailTests
             .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;

@@ -37,7 +37,7 @@ public class FormSchemaProviderTests
 
         // Assert
         result.Should().BeSameAs(schema);
-        await _schemaProcessor.DidNotReceiveWithAnyArgs().IncludeDefinitionAsync(default, default, default, default);
+        await _schemaProcessor.DidNotReceiveWithAnyArgs().IncludeDefinitionAsync(default, default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class FormSchemaProviderTests
 
         // Assert
         result.Should().BeSameAs(schema);
-        await _schemaProcessor.DidNotReceiveWithAnyArgs().IncludeDefinitionAsync(default, default, default, default);
+        await _schemaProcessor.DidNotReceiveWithAnyArgs().IncludeDefinitionAsync(default, default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]

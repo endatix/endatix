@@ -182,14 +182,32 @@ the shared store. `Endatix:BackgroundJobs:RunInProcess` decides what it does wit
 That is what allows API and worker roles to be deployed separately from the same image.
 
 **Starting without a database.** A node whose database is away (unreachable, failing over, timing
-out while connecting) starts without its scheduler, logs that it could not reach its database, and
+out while connecting) starts without its scheduler, logs that it could not reach its database, with
+the driver's failure (which never includes the password), on the first try and every 12th after, and
 starts the scheduler once it can; a database that refuses, such as a login it does not accept, fails
-the start. A database that cannot be opened (SQL Server 4060, PostgreSQL 3D000) is retried too, with an
+the start. So does a PostgreSQL role that may not take Quartz's lock (it needs SELECT, UPDATE and
+INSERT on `jobs.qrtz_locks`): PostgreSQL's refusal reaches the start only as the 25P02 Quartz reports
+after it, so the scheduler asks for the role's privileges when it meets one, and a failed
+transaction inside the lock that the role and the database do not explain is retried as a lost race. A database that cannot be opened (SQL Server 4060, PostgreSQL 3D000) is retried too, with an
 error naming it ("cannot open database …: it is missing, offline or being restored, or not created
 yet"): SQL Server reports a missing database exactly as it reports one that is offline or being
-restored, and PostgreSQL's may still be being created. A deadlock, or a statement that times out once
+restored, and PostgreSQL's may still be being created. A read-only database (SQL Server 3906,
+PostgreSQL 25006, or a standby) is waited out the same way, with an error saying it is read-only,
+as during a failover, or set read-only on purpose. A deadlock, or a statement that times out once
 the node has connected, is a lost race rather than an outage, and is retried as one, with its own
-warning. Meanwhile the host's readiness probe reports the database as down.
+warning. An outage that fails building the scheduler, whether the start or an enqueue asked for it,
+is waited out the same way. The dashboard and its HTTP API never build it: until it is built, the
+dashboard lists it as a registration with no status yet, and calls for it answer not found, so a poll
+during an outage neither fails nor starts a build. Quartz never hands out a scheduler whose build failed, so
+the next try rebuilds it from the module's Quartz registration, with the same thread pool, batch
+size, store and listeners as a first build; it is started by the waiting start, as a first build is,
+and only on a node that runs jobs. A node stopping while it waits stops waiting at once. Meanwhile
+the host's readiness probe reports the database as down. It only checks that it can connect,
+though, so a read-only database (SQL Server `READ_ONLY`, a PostgreSQL standby) reports Ready while
+the node runs no jobs; the error that the database is read-only is what says so. A rebuild replays only what was configured
+inside the module's Quartz registration: anything a host registers for the scheduler next to
+`AddJobsScheduler` instead, such as a keyed `IDriverDelegate`, a plugin or a history store, is
+lost on a rebuild, and the rebuilt scheduler runs without it.
 
 **Each job type is its own Quartz execution group**, capped per node at
 `JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
@@ -328,9 +346,14 @@ one class per step:
    earlier version stored carries no outcome and is re-claimed, as is one whose outcome cannot be
    read, with a warning saying why. While the database is away, the outcome is carried for as long
    as it takes. Away means the write timed out, lost a deadlock, met a failover, a lost connection,
-   a server shutting down, or an Azure SQL database that is busy or paused (`DatabaseFailures` lists
+   a server shutting down, a read-only database (SQL Server 3906, PostgreSQL 25006), or an Azure SQL
+   database that is busy or paused (`DatabaseFailures` lists
    the PostgreSQL SQLSTATEs and SQL Server error numbers), the driver marked the failure transient,
-   this host is stopping, or the job's row cannot be read either. A write the database refuses while
+   this host is stopping, or the job's row cannot be read either. A read-only database is an outage
+   because the error cannot tell a failover's secondary from a database set read-only on purpose, and
+   dropping an outcome during a failover would run finished work again; one read-only on purpose
+   keeps the outcome retrying, and a warning, at most once a minute, says the database is read-only.
+   A write the database refuses while
    up, because of a constraint or a trigger, say, does not clear by trying again: such refusals are
    counted on the outcome, and after 3 the outcome is dropped, with an error logged, and the row is
    re-claimed. A node without the job type's handler declines such a re-fire, and the outcome stays
@@ -463,7 +486,7 @@ from; a value from code is named by the `JobTypes` key that replaces it.
 | `CancellationPollSeconds` | `10` | How often a running job notices it was cancelled |
 | `MisfireThresholdSeconds` | `60` | How long a due job may wait for a slot before the backlog warning |
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
-| `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits. Read from configuration once, at registration: a `Configure` or `PostConfigure` in code does not change it |
+| `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits. Read from configuration once, at registration: a `Configure` or `PostConfigure` in code does not change it, and a node whose options say otherwise logs a warning at startup |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
 | `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); read when an attempt ends, so a change also applies to jobs already waiting |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |

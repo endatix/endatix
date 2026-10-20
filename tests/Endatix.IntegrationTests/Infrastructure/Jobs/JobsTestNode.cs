@@ -139,4 +139,10 @@ internal sealed class JobsTestNode : IAsyncDisposable
 }
 
 /// <summary>The provider and connection string a <see cref="JobsTestNode"/> runs against.</summary>
-internal sealed record JobsTestNodeDatabase(TestDatabaseProvider Provider, string ConnectionString);
+/// <remarks>A class, not a record, so no assertion message or log prints the connection string.</remarks>
+internal sealed class JobsTestNodeDatabase(TestDatabaseProvider provider, string connectionString)
+{
+    public TestDatabaseProvider Provider { get; } = provider;
+
+    public string ConnectionString { get; } = connectionString;
+}

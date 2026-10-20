@@ -73,12 +73,12 @@ public static class EmailHelper
         return result;
     }
 
-    private static object GetValue(JsonElement element)
+    private static object? GetValue(JsonElement element)
     {
         switch (element.ValueKind)
         {
             case JsonValueKind.Object:
-                var nestedDict = new Dictionary<string, object>();
+                var nestedDict = new Dictionary<string, object?>();
                 foreach (JsonProperty subProperty in element.EnumerateObject())
                 {
                     nestedDict[subProperty.Name] = GetValue(subProperty.Value);
@@ -86,7 +86,7 @@ public static class EmailHelper
                 return nestedDict;
 
             case JsonValueKind.Array:
-                var list = new List<object>();
+                var list = new List<object?>();
                 foreach (JsonElement item in element.EnumerateArray())
                 {
                     list.Add(GetValue(item));
@@ -117,24 +117,19 @@ public static class EmailHelper
         }
     }
 
-    private static string GetStringValue(object value)
+    private static string GetStringValue(object? value)
     {
-        if (IsGenericCollection(value))
+        if (IsGenericCollection(value) && value is IEnumerable enumerable)
         {
-            Type objType = value.GetType();
-            Type elementType = objType.GetGenericArguments().First();
-
-            if (value is IEnumerable enumerable)
-            {
-                var elements = enumerable.Cast<object>().Select(e => e.ToString());
-                return string.Join(", ", elements);
-            }
+            var elements = enumerable.Cast<object>().Select(e => e?.ToString());
+            return string.Join(", ", elements);
         }
 
-        return value.ToString() ?? string.Empty;
+        // A JSON null property maps to an empty value.
+        return value?.ToString() ?? string.Empty;
     }
 
-    private static bool IsGenericCollection(object obj)
+    private static bool IsGenericCollection(object? obj)
     {
         if (obj == null)
         {

@@ -135,6 +135,41 @@ public sealed class BackgroundJobEnqueueTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task EnqueueManyAsync_RealDeadlockWhileStoringTriggers_RetriesOnceAndStoresEachJobOnce()
+    {
+        // Arrange — the third trigger store deadlocks with a transaction of the test's own, after two triggers were
+        // written, and the database picks the enqueue as the victim: SQL Server has rolled its transaction back by
+        // the time the enqueue hears of it, PostgreSQL has aborted it.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
+        await using var deadlock = await ArrangedDeadlock.PrepareAsync(database, cancellationToken);
+        var failures = TriggerStoreFailures.DeadlockedByTheDatabase(after: 2, deadlock.DeadlockAsync);
+        await using var node = JobsTestNode.Create(
+            database,
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" },
+            services => FailingTriggerStoreDelegate.Register(services, database.Provider, failures));
+        await node.StartAsync(cancellationToken);
+        var requests = Enumerable.Range(0, 3)
+            .Select(key => BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5, dedupKey: $"real-deadlock:{key}"))
+            .ToList();
+
+        // Act
+        var jobIds = await node.EnqueueManyAsync(requests, cancellationToken);
+
+        // Assert — the database itself chose the enqueue, and the retry stored each job, and only its own, once.
+        deadlock.Victim.Should().NotBeNull();
+        DatabaseFailures.IsLostRace(deadlock.Victim).Should().BeTrue();
+        var rows = await database.QueryAsync(
+            """SELECT "Id" FROM jobs."BackgroundJobs" """, reader => reader.GetInt64(0), cancellationToken);
+        var triggerNames = await database.QueryAsync(
+            "SELECT TRIGGER_NAME FROM jobs.qrtz_TRIGGERS WHERE TRIGGER_GROUP <> 'endatix-maintenance'",
+            reader => reader.GetString(0),
+            cancellationToken);
+        rows.Should().BeEquivalentTo(jobIds);
+        triggerNames.Should().BeEquivalentTo(jobIds.Select(id => id.ToString()));
+    }
+
+    [Fact]
     public async Task Enqueue_stores_a_durable_job_again_when_it_was_deleted_after_an_earlier_enqueue()
     {
         // Arrange — the first enqueue stores the job type's durable job and the node remembers it; then it is deleted

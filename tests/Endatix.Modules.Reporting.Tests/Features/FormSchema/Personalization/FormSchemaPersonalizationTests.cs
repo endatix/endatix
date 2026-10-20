@@ -35,7 +35,7 @@ public sealed class FormSchemaPersonalizationTests
 
         // Assert
         result.Columns.Select(column => column.Key).Should().Equal("city");
-        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
+        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class FormSchemaPersonalizationTests
 
         // Assert
         result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
-        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
+        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class FormSchemaPersonalizationTests
         await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class FormSchemaPersonalizationTests
         await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -145,8 +145,8 @@ public sealed class FormSchemaPersonalizationTests
 
         // Assert
         result.Columns.Select(column => column.Key).Should().Equal("city");
-        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
-        await _forms.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), default);
+        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
+        await _forms.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class FormSchemaPersonalizationTests
         // Assert
         result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
         await _schemas.Received(1).LockAndGetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>());
-        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
     }
 
     private FormSchemaPersonalization Personalization(FormSchemaCompiler? compiler = null) =>

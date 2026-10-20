@@ -79,7 +79,7 @@ public class SendGridEmailSender(
                     .SendEmailAsync(msg, cancellationToken)
                     .ConfigureAwait(false);
 
-        var responseBody = await response.Body.ReadAsStringAsync();
+        var responseBody = await response.Body.ReadAsStringAsync(cancellationToken);
         _logger.LogInformation("Sending SendGrid message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 
@@ -116,7 +116,7 @@ public class SendGridEmailSender(
             .SendEmailAsync(msg, cancellationToken)
             .ConfigureAwait(false);
 
-        var responseBody = await response.Body.ReadAsStringAsync();
+        var responseBody = await response.Body.ReadAsStringAsync(cancellationToken);
         _logger.LogInformation("Sending SendGrid template message with status code {statusCode} and response: {response}", response.StatusCode, responseBody);
     }
 }
