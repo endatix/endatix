@@ -1,4 +1,5 @@
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Submissions.DeleteTests;
 using FastEndpoints;
@@ -12,15 +13,14 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Deletes all of a form's test submissions, typically before the form goes live.
 /// </summary>
-public class DeleteTests(IMediator mediator)
+public class DeleteTests(IMediator mediator, ITenantContext tenantContext)
     : Endpoint<DeleteTestSubmissionsRequest, Results<Ok<DeleteTestSubmissionsResponse>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
     public override void Configure()
     {
         Post("forms/{formId}/submissions/test/delete");
-        // The handler also requires submissions.delete: Permissions(...) passes on any one listed permission.
-        Permissions(Actions.Forms.Test);
+        PermissionsAll(Actions.Forms.Test, Actions.Submissions.Delete);
         Summary(s =>
         {
             s.Summary = "Delete a form's test submissions";
@@ -31,7 +31,7 @@ public class DeleteTests(IMediator mediator)
             s.ResponseExamples[200] = new DeleteTestSubmissionsResponse(12);
             s.Responses[200] = "The test submissions were deleted; deletedCount says how many.";
             s.Responses[400] = "Invalid input data.";
-            s.Responses[403] = "The caller cannot delete submissions.";
+            s.Responses[403] = "The caller lacks forms.test or submissions.delete.";
             s.Responses[404] = "Form not found.";
         });
         Description(builder => builder
@@ -46,7 +46,7 @@ public class DeleteTests(IMediator mediator)
         DeleteTestSubmissionsRequest request,
         CancellationToken ct)
     {
-        var result = await mediator.Send(new DeleteTestSubmissionsCommand(request.FormId), ct);
+        var result = await mediator.Send(new DeleteTestSubmissionsCommand(tenantContext.TenantId, request.FormId), ct);
 
         return TypedResultsBuilder
             .MapResult(result, deleted => new DeleteTestSubmissionsResponse(deleted.Count))

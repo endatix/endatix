@@ -41,8 +41,11 @@ internal static class AudienceOutboxJobs
 
         Subscribe(services, DeleteFormAudienceOutboxHandler.HandledEventTypes,
             message => new AudienceDeleteFormAudiencePayload(message.Id));
-        Subscribe(services, ReleaseLinkOnTestMarkOutboxHandler.HandledEventTypes,
-            message => new AudienceReleaseLinkOnTestMarkPayload(message.Id));
+        foreach (var eventType in ReleaseLinkOnTestMarkOutboxHandler.HandledEventTypes)
+        {
+            services.AddOutboxJobSubscription<AudienceReleaseLinkOnTestMarkPayload, ReleaseLinkOnTestMarkExpander>(eventType);
+        }
+
         return services;
     }
 
@@ -63,6 +66,43 @@ internal static class AudienceOutboxJobs
         foreach (var eventType in eventTypes)
         {
             services.AddOutboxJobSubscription(eventType, createPayload);
+        }
+    }
+}
+
+/// <summary>
+/// Enqueues the link release only for a test mark: every other <c>submission.updated</c> (answers, metadata, a new
+/// submitter) has nothing to free, and would only add a job that does nothing.
+/// </summary>
+/// <remarks>
+/// A payload that cannot be read is enqueued anyway, so its job fails visibly (<c>MessageUnreadable</c>) instead of
+/// the relay dropping it.
+/// </remarks>
+internal sealed class ReleaseLinkOnTestMarkExpander : IOutboxSubscriberExpander<AudienceReleaseLinkOnTestMarkPayload>
+{
+    public Task<IReadOnlyList<OutboxSubscriber<AudienceReleaseLinkOnTestMarkPayload>>> ExpandAsync(
+        IOutboxMessage message,
+        long tenantId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<OutboxSubscriber<AudienceReleaseLinkOnTestMarkPayload>>>(
+            MayBeATestMark(message)
+                ?
+                [
+                    new OutboxSubscriber<AudienceReleaseLinkOnTestMarkPayload>(
+                        AudienceReleaseLinkOnTestMarkPayload.JobType,
+                        new AudienceReleaseLinkOnTestMarkPayload(message.Id)),
+                ]
+                : []);
+
+    private static bool MayBeATestMark(IOutboxMessage message)
+    {
+        try
+        {
+            return ReleaseLinkOnTestMarkOutboxHandler.Parse(message) is not null;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.Text.Json.JsonException)
+        {
+            return true;
         }
     }
 }

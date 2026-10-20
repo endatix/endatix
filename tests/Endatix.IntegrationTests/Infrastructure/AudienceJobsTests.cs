@@ -17,11 +17,11 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
 {
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
-    [Theory]
-    [InlineData(910, "test")]
-    [InlineData(911, "answers")]
-    public async Task A_submission_update_runs_the_link_release_as_its_own_job(long messageId, string changeKind)
+    [Fact]
+    public async Task A_test_mark_runs_the_link_release_as_its_own_job()
     {
+        const long messageId = 910;
+        const string changeKind = "test";
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(

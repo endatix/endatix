@@ -8,12 +8,17 @@ namespace Endatix.Core.UseCases.Submissions.DeleteTests;
 public sealed record DeleteTestSubmissionsCommand : ICommand<Result<DeletedTestSubmissions>>
 {
     /// <summary>Deletes the test submissions of <paramref name="formId"/>.</summary>
+    /// <param name="tenantId">The caller's tenant. The handler refuses a value of 0 or less.</param>
     /// <param name="formId">The form.</param>
-    public DeleteTestSubmissionsCommand(long formId)
+    public DeleteTestSubmissionsCommand(long tenantId, long formId)
     {
         Guard.Against.NegativeOrZero(formId);
+        TenantId = tenantId;
         FormId = formId;
     }
+
+    /// <summary>The caller's tenant.</summary>
+    public long TenantId { get; }
 
     /// <summary>The form whose test submissions are deleted.</summary>
     public long FormId { get; }

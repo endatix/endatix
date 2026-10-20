@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -9,9 +8,9 @@ using Endatix.Core.Specifications;
 namespace Endatix.Core.UseCases.Submissions.DeleteTests;
 
 /// <summary>
-/// The endpoint requires <c>forms.test</c>; deleting also needs <see cref="Actions.Submissions.Delete"/>, checked here
-/// because an endpoint's permissions pass on any one of them. Each submission is deleted through the aggregate, so
-/// every one raises <c>submission.deleted</c> and Reporting drops its flattened row.
+/// The endpoint requires <c>forms.test</c> and <c>submissions.delete</c>. Form and submissions are read for the caller's
+/// tenant, not through the ambient filter. Each submission is deleted through the aggregate, so every one raises
+/// <c>submission.deleted</c> and Reporting drops its flattened row.
 /// </summary>
 /// <remarks>
 /// Each page commits on its own: a failure part way leaves the earlier pages deleted, and a retry carries on, since
@@ -22,8 +21,7 @@ namespace Endatix.Core.UseCases.Submissions.DeleteTests;
 public sealed class DeleteTestSubmissionsHandler(
     IRepository<Submission> submissions,
     IRepository<Form> forms,
-    IUnitOfWork unitOfWork,
-    ICurrentUserAuthorizationService authorization) : ICommandHandler<DeleteTestSubmissionsCommand, Result<DeletedTestSubmissions>>
+    IUnitOfWork unitOfWork) : ICommandHandler<DeleteTestSubmissionsCommand, Result<DeletedTestSubmissions>>
 {
     /// <summary>Submissions loaded and saved per round trip, which bounds each query and each save.</summary>
     internal const int PAGE_SIZE = 500;
@@ -31,27 +29,26 @@ public sealed class DeleteTestSubmissionsHandler(
     /// <inheritdoc />
     public async Task<Result<DeletedTestSubmissions>> Handle(DeleteTestSubmissionsCommand request, CancellationToken cancellationToken)
     {
-        var access = await authorization.ValidateAccessAsync(Actions.Submissions.Delete, cancellationToken);
-        if (!access.IsSuccess)
+        if (request.TenantId <= 0)
         {
-            return access;
+            return Result.Unauthorized("Tenant context is required.");
         }
 
-        if (await forms.GetByIdAsync(request.FormId, cancellationToken) is null)
+        if (await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdForTenant(request.FormId, request.TenantId), cancellationToken) is null)
         {
             return Result.NotFound("Form not found");
         }
 
-        return Result.Success(new DeletedTestSubmissions(await DeleteAllAsync(request.FormId, cancellationToken)));
+        return Result.Success(new DeletedTestSubmissions(await DeleteAllAsync(request.TenantId, request.FormId, cancellationToken)));
     }
 
-    private async Task<int> DeleteAllAsync(long formId, CancellationToken cancellationToken)
+    private async Task<int> DeleteAllAsync(long tenantId, long formId, CancellationToken cancellationToken)
     {
         var deleted = 0;
         long afterId = 0;
         while (true)
         {
-            var page = await submissions.ListAsync(new TestSubmissionsByFormIdPageSpec(formId, afterId, PAGE_SIZE), cancellationToken);
+            var page = await submissions.ListAsync(new TestSubmissionsByFormIdPageSpec(tenantId, formId, afterId, PAGE_SIZE), cancellationToken);
             if (page.Count == 0)
             {
                 return deleted;

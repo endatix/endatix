@@ -1,4 +1,5 @@
 using Ardalis.Specification;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
@@ -11,7 +12,8 @@ namespace Endatix.Core.UseCases.Submissions.SetTest;
 /// <summary>
 /// Marking as test lifts the one-per-person limit (the Audience module then frees the person's link). Marking as
 /// real restores it, and is refused when the person already has a real submission on the form: by Submitter on a
-/// one-response form, and through the personalised link that opened this one on any form.
+/// one-response form, and through the personalised link that opened this one on any form. A test opened as a person
+/// never becomes real. Form and submission are read for the caller's tenant, not through the ambient filter.
 /// </summary>
 /// <remarks>
 /// Saves the tracked submission, so only the columns the mark changes are written: the test flag, the one-per-person
@@ -27,14 +29,21 @@ public sealed class SetSubmissionTestHandler(
     /// <inheritdoc />
     public async Task<Result<SubmissionDto>> Handle(SetSubmissionTestCommand request, CancellationToken cancellationToken)
     {
-        var form = await forms.GetByIdAsync(request.FormId, cancellationToken);
+        if (request.TenantId <= 0)
+        {
+            return Result.Unauthorized("Tenant context is required.");
+        }
+
+        var form = await forms.FirstOrDefaultAsync(
+            new FormSpecifications.ByIdForTenant(request.FormId, request.TenantId), cancellationToken);
         if (form is null)
         {
             return Result.NotFound("Form not found");
         }
 
-        var submission = await submissions.GetByIdAsync(request.SubmissionId, cancellationToken);
-        if (submission is null || submission.FormId != request.FormId)
+        var submission = await submissions.FirstOrDefaultAsync(
+            new SubmissionByIdForTenantSpec(request.TenantId, request.FormId, request.SubmissionId), cancellationToken);
+        if (submission is null)
         {
             return Result.NotFound("Submission not found");
         }
@@ -44,10 +53,24 @@ public sealed class SetSubmissionTestHandler(
             return Result.Success(SubmissionDto.FromSubmission(submission));
         }
 
+        if (!request.IsTest && IsOpenedAsAPerson(submission))
+        {
+            return Result.Invalid(new ValidationError(
+                "A test submission opened as a person stays a test: its answers are a survey builder's, not the person's."));
+        }
+
         return request.IsTest
             ? await MarkAsTestAsync(submission, cancellationToken)
             : await MarkAsRealAsync(submission, form.LimitOnePerUser && submission.SubmitterId is not null, cancellationToken);
     }
+
+    /// <summary>
+    /// Test as this person: a builder's answers on the person's values, with no Submitter and no link, so as a real
+    /// response it would pass every one-per-person check and stand in for the person.
+    /// </summary>
+    private static bool IsOpenedAsAPerson(Submission submission) =>
+        PersonalizationReader.Read(submission.PersonalizationSnapshot, includeValues: false)?.Source
+            == PersonalizationSources.Test;
 
     private async Task<Result<SubmissionDto>> MarkAsTestAsync(Submission submission, CancellationToken cancellationToken)
     {

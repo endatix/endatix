@@ -1,4 +1,5 @@
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.Submissions.SetTest;
 using FastEndpoints;
@@ -12,7 +13,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Marks a submission as test or as real.
 /// </summary>
-public class SetTest(IMediator mediator) : Endpoint<SetSubmissionTestRequest, Results<Ok<SubmissionModel>, ProblemHttpResult>>
+public class SetTest(IMediator mediator, ITenantContext tenantContext) : Endpoint<SetSubmissionTestRequest, Results<Ok<SubmissionModel>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
     public override void Configure()
@@ -30,7 +31,7 @@ public class SetTest(IMediator mediator) : Endpoint<SetSubmissionTestRequest, Re
                 "submissions.edit.";
             s.ExampleRequest = new SetSubmissionTestRequest { FormId = 1, SubmissionId = 2, IsTest = true };
             s.Responses[200] = "The submission was marked.";
-            s.Responses[400] = "Invalid input data.";
+            s.Responses[400] = "Invalid input data, or marking real a test submission opened as a person.";
             s.Responses[403] = "The caller lacks forms.test or submissions.edit.";
             s.Responses[404] = "Form or submission not found.";
             s.Responses[409] =
@@ -51,7 +52,7 @@ public class SetTest(IMediator mediator) : Endpoint<SetSubmissionTestRequest, Re
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new SetSubmissionTestCommand(request.FormId, request.SubmissionId, request.IsTest!.Value),
+            new SetSubmissionTestCommand(tenantContext.TenantId, request.FormId, request.SubmissionId, request.IsTest!.Value),
             ct);
 
         return TypedResultsBuilder

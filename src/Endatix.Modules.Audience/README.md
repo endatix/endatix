@@ -104,10 +104,12 @@ and redeem, which is anonymous.
 - **Marked as test.** The `submission.updated` outbox handler (`changeKind` `test`) frees the link of a submission
   still marked as test, deleted or not, keeping the token. Redeem frees such a link itself too, so the handler only
   tidies the link early. Marking a submission real is a 409 naming the other one when its link has since opened a
-  real submission.
+  real submission, and a 400 for a test opened as a person (Test as this person): its answers are a builder's, and
+  as a real response it would pass every one-per-person check.
 - **Outbox delivery.** Both outbox handlers also run as background jobs (`AudienceDeleteFormAudience`,
-  `AudienceReleaseLinkOnTestMark`), subscribed in `AudienceOutboxJobs`, so the host starts with
-  `Endatix:Outbox:DeliverToJobQueue` on.
+  `AudienceReleaseLinkOnTestMark`), subscribed in `AudienceOutboxJobs`. Without the subscriptions a host with
+  `Endatix:Outbox:DeliverToJobQueue` on refuses to start. The release job is enqueued only for a test mark, not for
+  every `submission.updated`.
 - **On behalf.** `POST forms/{formId}/submissions/onbehalf` (`Submissions.CreateOnBehalf`, not this module's routes) freezes a snapshot when `Submitter.ExternalSubjectId` matches a member on a form that has properties. Unknown id, no properties, or no submitter leaves the create unchanged. The snapshot is `source: on_behalf` plus `memberId` and `values[]` beside `variables`. Binding `Member.SubmitterId` is one update that matches only while it is null.
 - **Test submissions.** `TestSubmissionOpener` is the one way to build one: a started submission on the form's active
   definition, `IsTestSubmission`, no Submitter and no single-response gate, labelled with the person's identifier,

@@ -10,6 +10,7 @@ namespace Endatix.Core.Tests.UseCases.Submissions.SetTest;
 
 public class SetSubmissionTestHandlerTests
 {
+    private const long TenantId = SampleData.TENANT_ID;
     private const long FormId = 10;
     private const long SubmissionId = 20;
     private const long SubmitterId = 30;
@@ -41,9 +42,16 @@ public class SetSubmissionTestHandlerTests
 
     private void Given(Submission? submission, Form? form = null)
     {
-        _submissions.GetByIdAsync(SubmissionId, Arg.Any<CancellationToken>()).Returns(submission);
-        _forms.GetByIdAsync(FormId, Arg.Any<CancellationToken>()).Returns(form ?? LimitedForm());
+        _submissions.FirstOrDefaultAsync(Arg.Any<SubmissionByIdForTenantSpec>(), Arg.Any<CancellationToken>())
+            .Returns(call => submission is not null && call.Arg<SubmissionByIdForTenantSpec>().IsSatisfiedBy(submission)
+                ? submission
+                : null);
+        GivenForm(form ?? LimitedForm());
     }
+
+    private void GivenForm(Form? form) =>
+        _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns(call => form is not null && call.Arg<FormSpecifications.ByIdForTenant>().IsSatisfiedBy(form) ? form : null);
 
     [Fact]
     public async Task Handle_SubmissionMissing_ReturnsNotFound()
@@ -52,7 +60,7 @@ public class SetSubmissionTestHandlerTests
         Given(null);
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, true), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, true), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
@@ -66,10 +74,38 @@ public class SetSubmissionTestHandlerTests
         Given(NewSubmission(isTest: false));
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId + 1, SubmissionId, true), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId + 1, SubmissionId, true), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
+    public async Task Handle_NoTenant_IsUnauthorizedAndReadsNothing()
+    {
+        // Arrange
+        Given(NewSubmission(isTest: false));
+
+        // Act
+        var result = await _handler.Handle(new SetSubmissionTestCommand(0, FormId, SubmissionId, true), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+        await _submissions.DidNotReceive().FirstOrDefaultAsync(Arg.Any<ISpecification<Submission>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_SubmissionOfAnotherTenant_ReturnsNotFound()
+    {
+        // Arrange
+        Given(NewSubmission(isTest: false));
+
+        // Act
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId + 1, FormId, SubmissionId, true), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        await _submissions.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -77,10 +113,10 @@ public class SetSubmissionTestHandlerTests
     {
         // Arrange
         Given(NewSubmission(isTest: false));
-        _forms.GetByIdAsync(FormId, Arg.Any<CancellationToken>()).Returns((Form?)null);
+        GivenForm(null);
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, true), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, true), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
@@ -93,7 +129,7 @@ public class SetSubmissionTestHandlerTests
         Given(NewSubmission(isTest: true));
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, true), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, true), CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -109,7 +145,7 @@ public class SetSubmissionTestHandlerTests
         Given(submission);
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, true), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, true), CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -126,7 +162,7 @@ public class SetSubmissionTestHandlerTests
         Given(submission);
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, false), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, false), CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -143,7 +179,7 @@ public class SetSubmissionTestHandlerTests
             .Returns(NewSubmission(isTest: false, ExistingSubmissionId));
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, false), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, false), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -160,7 +196,7 @@ public class SetSubmissionTestHandlerTests
             .Returns(NewSubmission(isTest: false, ExistingSubmissionId));
 
         // Act
-        await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, false), CancellationToken.None);
+        await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, false), CancellationToken.None);
 
         // Assert
         await _submissions.Received(1).FirstOrDefaultAsync(
@@ -177,12 +213,12 @@ public class SetSubmissionTestHandlerTests
         submission.FreezePersonalization(LinkId, """{"source":"link"}""");
         Given(submission, form);
         _submissions.FirstOrDefaultAsync(
-                Arg.Is<ISpecification<Submission>>(spec => !(spec is SubmissionByFormIdAndSubmitterIdSpec)),
+                Arg.Is<ISpecification<Submission>>(spec => !(spec is SubmissionByFormIdAndSubmitterIdSpec) && !(spec is SubmissionByIdForTenantSpec)),
                 Arg.Any<CancellationToken>())
             .Returns(NewSubmission(isTest: false, ExistingSubmissionId));
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, false), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, false), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -203,7 +239,7 @@ public class SetSubmissionTestHandlerTests
             .Returns((Submission?)null, NewSubmission(isTest: false, ExistingSubmissionId));
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, false), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, false), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -219,12 +255,29 @@ public class SetSubmissionTestHandlerTests
         Given(submission, form);
 
         // Act
-        var result = await _handler.Handle(new SetSubmissionTestCommand(FormId, SubmissionId, false), CancellationToken.None);
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, false), CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         submission.RestrictionKey.Should().BeNull();
         await _submissions.DidNotReceive().FirstOrDefaultAsync(
             Arg.Any<SubmissionByFormIdAndSubmitterIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_MarkAsRealOnATestOpenedAsAPerson_IsInvalidAndKeepsItATest()
+    {
+        // Arrange
+        var submission = NewSubmission(isTest: true);
+        submission.FreezeForTest("""{"source":"test","memberId":7,"identifier":"panel-42","variables":{}}""");
+        Given(submission);
+
+        // Act
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, false), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        submission.IsTestSubmission.Should().BeTrue();
+        await _submissions.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

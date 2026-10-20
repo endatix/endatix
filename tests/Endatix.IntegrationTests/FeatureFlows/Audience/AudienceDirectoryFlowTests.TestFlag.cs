@@ -242,6 +242,23 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Contains("back-for-real", csv);
     }
 
+    [Fact]
+    public async Task A_test_opened_as_a_person_cannot_be_marked_real()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var person = await LinkForPersonWithCityAsync(admin, "Quito", limitOnePerUser: true);
+        var opened = await OpenTestSubmissionAsync(admin, person.FormId, MembershipIdOf(person));
+        var testId = IdOf(opened, "submissionId");
+
+        // Act
+        using var marked = await SetTestAsync(admin, person.FormId, testId, isTest: false);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, marked.StatusCode);
+        Assert.True((await ReadSubmissionAsync(admin, person.FormId, testId)).GetProperty("isTestSubmission").GetBoolean());
+    }
+
     private static Task<HttpResponseMessage> SetTestAsync(AudienceApi admin, long formId, long submissionId, bool isTest) =>
         admin.Client.PatchAsJsonAsync(
             $"/api/forms/{formId}/submissions/{submissionId}/test", new { isTest }, admin.CancellationToken);
