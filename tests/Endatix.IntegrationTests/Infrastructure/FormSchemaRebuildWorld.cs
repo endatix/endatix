@@ -21,6 +21,7 @@ using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.IntegrationTests;
 
@@ -288,15 +289,17 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
             new FormSchemaCompiler(),
             NullLogger<FormSchemaPersonalization>.Instance);
 
-    public FlattenSubmissionJobHandler FlattenJob(ITransactionLock transactionLock, OutboxMessage message)
+    public IBackgroundJobHandler FlattenJob(ITransactionLock transactionLock, OutboxMessage message)
     {
         var outboxMessages = Substitute.For<IRepository<OutboxMessage>>();
         outboxMessages.FirstOrDefaultAsync(Arg.Any<OutboxMessageByIdForTenantSpec>(), Arg.Any<CancellationToken>())
             .Returns(message);
-        return new(
-            outboxMessages,
+        var settings = Substitute.For<IOptionsMonitor<OutboxWorkSettings>>();
+        settings.Get(Arg.Any<string>()).Returns(new OutboxWorkSettings());
+        return new OutboxJobHandler<ReportingFlattenSubmissionPayload, FlattenSubmissionOutboxHandler>(
+            new OutboxJobMessages(outboxMessages, settings),
             new FlattenSubmissionOutboxHandler(Flattening(transactionLock), NullLogger<FlattenSubmissionOutboxHandler>.Instance),
-            NullLogger<FlattenSubmissionJobHandler>.Instance);
+            NullLogger<OutboxJobHandler<ReportingFlattenSubmissionPayload, FlattenSubmissionOutboxHandler>>.Instance);
     }
 
     public SubmissionBackfillProcessor Backfill(ITransactionLock transactionLock) =>

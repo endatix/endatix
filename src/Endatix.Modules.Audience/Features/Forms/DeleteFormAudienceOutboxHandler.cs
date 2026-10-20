@@ -14,7 +14,7 @@ namespace Endatix.Modules.Audience.Features.Forms;
 /// members stay, as when a person is removed from one form. Without this, the people on a deleted
 /// form would keep the match key locked with no route left to remove them.
 /// </summary>
-internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : IOutboxIntegrationEventHandler
+internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : IOutboxWork
 {
     /// <summary>The event types this handler, and its job, run on.</summary>
     public static IReadOnlyCollection<string> HandledEventTypes { get; } = [FormDeletedEvent.EventTypeName];
@@ -24,7 +24,14 @@ internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : I
 
     /// <inheritdoc />
     public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), cancellationToken);
+        Read(message).RunAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public OutboxWork Read(IOutboxMessage message)
+    {
+        var input = Parse(message);
+        return OutboxWork.For(cancellationToken => ProcessAsync(input, cancellationToken));
+    }
 
     /// <exception cref="InvalidOperationException">The message lacks its tenant or form id.</exception>
     /// <exception cref="JsonException">The payload is not JSON.</exception>

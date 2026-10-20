@@ -18,9 +18,6 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
 {
-    private const string DefinitionJson =
-        """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1","title":"Question 1"}]}]}""";
-
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
     private static readonly Dictionary<string, string?> QuickFlattenRetries = new()
@@ -36,7 +33,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
-        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-flatten", ct);
+        var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
 
         // Act
@@ -64,7 +61,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
             ["Endatix:BackgroundJobs:JobTypes:WebHookDelivery:BackoffBaseSeconds"] = "1",
             ["Endatix:BackgroundJobs:JobTypes:WebHookDelivery:BackoffCapSeconds"] = "1",
         });
-        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-failing-webhook", ct);
+        var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-failing-webhook", ct);
         await ConfigureTenantWebHookAsync(
             host, new TenantWebHook(tenantId, receiver.UrlFor("down", HttpStatusCode.ServiceUnavailable)), ct);
         await WaitForSeedingJobsAsync(host, ct);
@@ -98,7 +95,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         await using var host = await StartHostAsync(reporting: true, ct);
 
         // Act — the tenant is created without seeding anything itself, so only the job can seed its formats.
-        var tenantId = await CreateTenantAsync(host, "reporting-new-tenant", ct);
+        var tenantId = await host.SeedTenantAsync("reporting-new-tenant", ct);
         var completed = await JobsTestWait.UntilAsync(
             async () => await host.Database.CountAsync(
                 $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "JobType" = 'ReportingSeedDefaultExportFormats' AND "TenantId" = {tenantId} AND "Status" = 3""",
@@ -136,7 +133,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         // Arrange — the submission was flattened once, then deleted without its own cleanup having run yet.
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
-        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-before-flatten", ct);
+        var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-deleted-before-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
         await host.Database.ExecuteAsync(
             $"""UPDATE "Submissions" SET "IsDeleted" = 'true', "DeletedAt" = @deletedAt WHERE "Id" = {submissionId}""",
@@ -161,7 +158,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         // Arrange — the form is deleted as the API deletes it, and its Reporting cleanup has run.
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
-        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-form", ct);
+        var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-deleted-form", ct);
         await WaitForSeedingJobsAsync(host, ct);
         await DeleteFormAsync(host, formId, ct);
         await WaitForSeedingJobsAsync(host, ct);
@@ -186,7 +183,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         // apart, so a flatten that fails gives up quickly.
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct, QuickFlattenRetries);
-        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-deleted-form-live-submission", ct);
+        var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-deleted-form-live-submission", ct);
         await WaitForSeedingJobsAsync(host, ct);
         await SoftDeleteFormRowsAsync(host, formId, ct);
         await host.InsertMessageAsync(new OutboxRow(913, "form.deleted", tenantId, FormPayload(tenantId, formId)), ct);
@@ -210,7 +207,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         // Arrange — two attempts, a second apart, so the job gives up quickly.
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct, QuickFlattenRetries);
-        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-missing-flatten", ct);
+        var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-missing-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
         var neverExisted = submissionId + 1_000_000;
 
@@ -232,7 +229,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         // Arrange — the processor is driven directly with the submission at revision 5, then at revision 3.
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
-        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-stale-flatten", ct);
+        var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-stale-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
         await SetSubmissionAsync(host, new SubmissionAnswer(submissionId, Revision: 5, Answer: "newer"), ct);
         await FlattenAsync(host, new SeededSubmission(tenantId, formId, submissionId), ct);
@@ -258,7 +255,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(reporting: true, ct);
-        var (tenantId, formId, submissionId) = await SeedSubmissionAsync(host, "reporting-newer-flatten", ct);
+        var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-newer-flatten", ct);
         await WaitForSeedingJobsAsync(host, ct);
         await SetSubmissionAsync(host, new SubmissionAnswer(submissionId, Revision: 3, Answer: "older"), ct);
         await FlattenAsync(host, new SeededSubmission(tenantId, formId, submissionId), ct);
@@ -324,42 +321,6 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
             fixture, new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = all }, ct);
     }
 
-    private static async Task<long> CreateTenantAsync(FanOutHost host, string name, CancellationToken ct)
-    {
-        using var scope = host.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(name));
-        var shortUrl = new string([.. hash.Take(Endatix.Core.Common.ShortUrl.StandardLength)
-            .Select(value => Endatix.Core.Common.ShortUrl.Alphabet[value % Endatix.Core.Common.ShortUrl.Alphabet.Length])]);
-        var tenant = new Tenant(name, shortUrl);
-        tenant.RaiseCreated();
-        db.Set<Tenant>().Add(tenant);
-        await db.SaveChangesAsync(ct);
-        return tenant.Id;
-    }
-
-    private static async Task<SeededSubmission> SeedSubmissionAsync(
-        FanOutHost host,
-        string tenantName,
-        CancellationToken ct)
-    {
-        var tenantId = await CreateTenantAsync(host, tenantName, ct);
-        using var scope = host.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "reporting form"));
-        db.Forms.Add(form);
-        await db.SaveChangesAsync(ct);
-        var definition = new FormDefinition(tenantId, isDraft: false, jsonData: DefinitionJson);
-        form.AddFormDefinition(definition, isActive: false);
-        await db.SaveChangesAsync(ct);
-        form.SetActiveFormDefinition(definition);
-        await db.SaveChangesAsync(ct);
-        var submission = new Submission(tenantId, """{"q1":"hello"}""", form.Id, definition.Id, isComplete: true);
-        db.Submissions.Add(submission);
-        await db.SaveChangesAsync(ct);
-        return new SeededSubmission(tenantId, form.Id, submission.Id);
-    }
-
     private static async Task ConfigureTenantWebHookAsync(FanOutHost host, TenantWebHook webHook, CancellationToken ct)
     {
         using var scope = host.Services.CreateScope();
@@ -417,7 +378,6 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         return rows.Count == 0 ? null : rows[0];
     }
 
-    private sealed record SeededSubmission(long TenantId, long FormId, long SubmissionId);
 
     /// <summary>The answer and revision a test writes straight to a submission's row.</summary>
     private sealed record SubmissionAnswer(long SubmissionId, long Revision, string Answer);

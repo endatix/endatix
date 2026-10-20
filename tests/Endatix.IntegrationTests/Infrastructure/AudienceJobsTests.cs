@@ -21,9 +21,6 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
 {
-    private const string DefinitionJson =
-        """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1","title":"Question 1"}]}]}""";
-
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
     [Fact]
@@ -32,7 +29,7 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
-        var seeded = await SeedSubmissionAsync(host, "audience-form-deletion", ct);
+        var seeded = await host.SeedSubmissionAsync("audience-form-deletion", ct);
         var membershipId = await SeedPersonAsync(host, seeded, ct);
 
         // Act
@@ -50,7 +47,7 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
-        var seeded = await SeedSubmissionAsync(host, "audience-test-mark", ct);
+        var seeded = await host.SeedSubmissionAsync("audience-test-mark", ct);
         var membershipId = await SeedPersonAsync(host, seeded, ct);
         var linkId = await SeedOpenedLinkAsync(host, new OpenedLink(seeded, membershipId), ct);
 
@@ -70,7 +67,7 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         // that has updated the submission's row but not committed.
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
-        var seeded = await SeedSubmissionAsync(host, "audience-release-race", ct);
+        var seeded = await host.SeedSubmissionAsync("audience-release-race", ct);
         var membershipId = await SeedPersonAsync(host, seeded, ct);
         await MarkAsTestAsync(host, seeded.SubmissionId, ct);
         (await WaitForFinishedJobAsync(host, new ExpectedJob("AudienceReleaseLinkOnTestMark", seeded.TenantId), ct))
@@ -99,35 +96,7 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
     // The modules' inline handlers stay registered, so the host only starts when each has its job subscription.
     private Task<FanOutHost> StartHostAsync(CancellationToken ct) =>
         FanOutHost.StartAsync(
-            fixture, new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { KeepsInlineHandlers = true }, ct);
-
-    private static async Task<SeededSubmission> SeedSubmissionAsync(FanOutHost host, string tenantName, CancellationToken ct)
-    {
-        using var scope = host.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var tenant = new Tenant(tenantName, ShortUrlFor(tenantName));
-        db.Set<Tenant>().Add(tenant);
-        await db.SaveChangesAsync(ct);
-        var form = Form.Create(new FormCreateArgs(TenantId: tenant.Id, Name: "audience form"));
-        db.Forms.Add(form);
-        await db.SaveChangesAsync(ct);
-        var definition = new FormDefinition(tenant.Id, isDraft: false, jsonData: DefinitionJson);
-        form.AddFormDefinition(definition, isActive: false);
-        await db.SaveChangesAsync(ct);
-        form.SetActiveFormDefinition(definition);
-        await db.SaveChangesAsync(ct);
-        var submission = Submission.Create(new SubmissionCreateArgs(tenant.Id, form.Id, definition.Id, """{"q1":"hello"}"""));
-        db.Submissions.Add(submission);
-        await db.SaveChangesAsync(ct);
-        return new SeededSubmission(tenant.Id, form.Id, submission.Id);
-    }
-
-    private static string ShortUrlFor(string name)
-    {
-        var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(name));
-        return new string([.. hash.Take(Endatix.Core.Common.ShortUrl.StandardLength)
-            .Select(value => Endatix.Core.Common.ShortUrl.Alphabet[value % Endatix.Core.Common.ShortUrl.Alphabet.Length])]);
-    }
+            fixture, new FanOutHostSetup(DeliverToJobQueue: true, _ => { }), ct);
 
     /// <summary>A person on the form, with one property; returns the membership.</summary>
     private static async Task<long> SeedPersonAsync(FanOutHost host, SeededSubmission seeded, CancellationToken ct)
@@ -226,7 +195,6 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
         return rows.Count == 0 ? null : rows[0];
     }
 
-    private sealed record SeededSubmission(long TenantId, long FormId, long SubmissionId);
 
     private sealed record OpenedLink(SeededSubmission Submission, long MembershipId);
 

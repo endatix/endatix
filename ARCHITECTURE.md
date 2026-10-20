@@ -401,6 +401,8 @@ Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsB
 | Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP                              | `form.updated`, `submission.completed`                                                                |
 | Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler                | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
 
+A module registers each subscriber with `services.AddOutboxWork<TWork, TPayload>(defaults)` (`Endatix.Infrastructure.Features.Outbox`): the handler implements `IOutboxWork`, and the one call registers it inline, as a background job (`OutboxJobHandler`) and as the job's subscription to every event in `HandledEventTypes`, so `Endatix:Outbox:DeliverToJobQueue` can move it to the job queue. The job fails for good, without retry, when the outbox row is gone or unreadable; anything the work throws is retried. `OutboxWorkCoverageTests` boots every module with the switch on and fails on any inline handler without its job.
+
 Plain `DomainEventBase` events that are **not** `IIntegrationEvent` are ignored by the outbox dispatcher and stay in-process.
 
 ### Aggregate orchestration (recommended)

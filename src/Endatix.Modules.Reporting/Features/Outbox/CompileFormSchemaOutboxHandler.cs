@@ -10,19 +10,25 @@ namespace Endatix.Modules.Reporting.Features.Outbox;
 /// Handles the form definition updated event by compiling the persisted form schema.
 /// </summary>
 /// <remarks>
-/// The same work runs inline in the relay or as a background job; both read the message with
-/// <see cref="Parse"/> and do the work with <see cref="ProcessAsync"/>.
+/// The same work runs inline in the relay or as a background job; both run the work <see cref="Read"/> returns.
 /// </remarks>
 internal sealed class CompileFormSchemaOutboxHandler(
-    IFormSchemaProcessor schemaProcessor) : IOutboxIntegrationEventHandler
+    IFormSchemaProcessor schemaProcessor) : IOutboxWork
 {
-    public static readonly IReadOnlyCollection<string> HandledEventTypes = [FormDefinitionUpdatedEvent.EventTypeName];
+    public static IReadOnlyCollection<string> HandledEventTypes { get; } = [FormDefinitionUpdatedEvent.EventTypeName];
 
     public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
 
     /// <inheritdoc />
     public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), cancellationToken);
+        Read(message).RunAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public OutboxWork Read(IOutboxMessage message)
+    {
+        var input = Parse(message);
+        return OutboxWork.For(cancellationToken => ProcessAsync(input, cancellationToken));
+    }
 
     /// <summary>Reads the work from the message; throws <see cref="InvalidOperationException"/> when it cannot.</summary>
     public static Input Parse(IOutboxMessage message)

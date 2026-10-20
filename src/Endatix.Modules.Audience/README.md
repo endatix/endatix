@@ -108,8 +108,9 @@ and redeem, which is anonymous.
   real submission, and a 400 for a test opened as a person (Test as this person): its answers are a builder's, and
   as a real response it would pass every one-per-person check.
 - **Outbox delivery.** Both outbox handlers also run as background jobs (`AudienceDeleteFormAudience`,
-  `AudienceReleaseLinkOnTestMark`), subscribed in `AudienceOutboxJobs`. Without the subscriptions a host with
-  `Endatix:Outbox:DeliverToJobQueue` on refuses to start. The release job is enqueued only for a test mark, not for
+  `AudienceReleaseLinkOnTestMark`), each registered with its job and subscription by one `AddOutboxWork` call in
+  `AudienceOutboxJobs`. A handler registered inline only stops a host with `Endatix:Outbox:DeliverToJobQueue` on
+  from starting. The release job is enqueued only for a test mark, not for
   every `submission.updated`.
 - **On behalf.** `POST forms/{formId}/submissions/onbehalf` (`Submissions.CreateOnBehalf`, not this module's routes) freezes a snapshot when `Submitter.ExternalSubjectId` matches a member on a form that has properties. Unknown id, no properties, or no submitter leaves the create unchanged. The snapshot is `source: on_behalf` plus `memberId` and `values[]` beside `variables`. Binding `Member.SubmitterId` is one update that matches only while it is null.
 - **Test submissions.** `TestSubmissionOpener` is the one way to build one: a started submission on the form's active
