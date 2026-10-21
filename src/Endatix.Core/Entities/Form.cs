@@ -66,6 +66,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     /// <paramref name="submissionTokenExpiryHours"/> is last so existing positional/named
     /// call sites for metadata / webhooks / folder stay binary-compatible.
     /// </summary>
+#pragma warning disable S1133, S107 // Public API kept, with its positional parameters, until callers move to Create(FormCreateArgs).
     [Obsolete("Use Form.Create(FormCreateArgs).")]
     public Form(
         long tenantId,
@@ -91,6 +92,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
             SubmissionTokenExpiryHours: submissionTokenExpiryHours))
     {
     }
+#pragma warning restore S1133, S107
 
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
@@ -115,7 +117,9 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     /// </summary>
     public long Revision { get; private set; } = 1;
 
+#pragma warning disable S1144 // EF Core sets the foreign key when it loads the form; no code does.
     public long? ActiveDefinitionId { get; private set; }
+#pragma warning restore S1144
     public FormDefinition? ActiveDefinition { get; private set; }
 
     public long? ThemeId { get; private set; }
@@ -152,7 +156,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     /// </summary>
     public void SetActiveFormDefinition(FormDefinition formDefinition)
     {
-        Guard.Against.Null(formDefinition, nameof(formDefinition));
+        Guard.Against.Null(formDefinition);
 
         if (!_formDefinitions.Contains(formDefinition))
         {
@@ -252,7 +256,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         string? metadata,
         int? submissionTokenExpiryHours = null)
     {
-        Guard.Against.NullOrEmpty(name, null, "Form name cannot be null.");
+        Guard.Against.NullOrEmpty(name, message: "Form name cannot be null.");
         SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(submissionTokenExpiryHours);
 
         Name = name;
@@ -308,11 +312,16 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
                new WebHookConfiguration();
     }
 
+    /// <summary>
+    /// Soft-deletes the form, and the definitions and submissions loaded with it, and raises
+    /// <see cref="FormDeletedEvent"/>. It reaches only what is loaded: <c>DeleteFormHandler</c> deletes all of a form's
+    /// submissions by form, through <c>IFormsRepository.DeleteSubmissionsAsync</c>.
+    /// </summary>
     public override void Delete()
     {
         if (!IsDeleted)
         {
-            // Delete all related form definitions
+            // Only the definitions loaded with the form.
             foreach (var definition in _formDefinitions)
             {
                 definition.Delete();

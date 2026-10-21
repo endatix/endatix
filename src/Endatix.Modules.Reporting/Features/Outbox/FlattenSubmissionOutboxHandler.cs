@@ -12,14 +12,15 @@ namespace Endatix.Modules.Reporting.Features.Outbox;
 /// Handles the submission completed and updated events by flattening the submission into the reporting flattened read model.
 /// </summary>
 /// <remarks>
-/// The same work runs inline in the relay or as a background job; both read the message with
-/// <see cref="Parse"/> and do the work with <see cref="ProcessAsync"/>.
+/// The same work runs inline in the relay or as a background job; both run the work <see cref="Read"/> returns.
 /// </remarks>
 internal sealed class FlattenSubmissionOutboxHandler(
     ISubmissionFlatteningProcessor flatteningProcessor,
-    ILogger<FlattenSubmissionOutboxHandler> logger) : IOutboxIntegrationEventHandler
+    ILogger<FlattenSubmissionOutboxHandler> logger) : IOutboxWork<FlattenSubmissionOutboxHandler>
 {
-    public static readonly IReadOnlyCollection<string> HandledEventTypes =
+    public static string JobType => "ReportingFlattenSubmission";
+
+    public static IReadOnlyCollection<string> HandledEventTypes { get; } =
         [SubmissionCompletedEvent.EventTypeName, SubmissionUpdatedEvent.EventTypeName];
 
     // A flattened row holds the submission's data and its submitter profile fields, so a submitter change flattens it
@@ -29,16 +30,9 @@ internal sealed class FlattenSubmissionOutboxHandler(
     private const SubmissionChangeKinds FlattenedChanges =
         SubmissionChangeKindsMasks.SubmissionData | SubmissionChangeKinds.Submitter | SubmissionChangeKinds.Test;
 
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
     /// <inheritdoc />
-    public async Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
-    {
-        if (Parse(message, logger) is { } input)
-        {
-            await ProcessAsync(input, cancellationToken);
-        }
-    }
+    public OutboxWork Read(IOutboxMessage message) =>
+        OutboxWork.If(Parse(message, logger), ProcessAsync);
 
     /// <summary>
     /// Reads the work from the message, or <see langword="null"/> when the change it reports does not affect the

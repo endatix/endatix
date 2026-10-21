@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Utils;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.TestSubmissions;
 
@@ -15,22 +16,22 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 /// Redeem frees such a link itself when it gets there first, so this handler only tidies the link early.
 /// </summary>
 /// <remarks>
-/// The submission is re-read rather than trusting the payload: a later mark as real wins over a late message. A test
+/// The submission is re-read rather than trusting the payload: a later mark as real wins over a late message. The
+/// re-read locks the submission's row until the link is cleared, so a mark as real cannot commit in between. A test
 /// submission deleted before the message is handled (a go-live clean-up) still frees the link. The update matches
 /// nothing on a repeat, so a retry is harmless.
 /// </remarks>
 internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, AppDbContext app)
-    : IOutboxIntegrationEventHandler
+    : IOutboxWork<ReleaseLinkOnTestMarkOutboxHandler>
 {
+    public static string JobType => "AudienceReleaseLinkOnTestMark";
+
     /// <summary>The event types this handler, and its job, run on.</summary>
     public static IReadOnlyCollection<string> HandledEventTypes { get; } = [SubmissionUpdatedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), cancellationToken);
+    public OutboxWork Read(IOutboxMessage message) =>
+        OutboxWork.If(Parse(message), ProcessAsync);
 
     /// <summary>The submission the message is about, or <see langword="null"/> when its test flag did not change.</summary>
     /// <exception cref="InvalidOperationException">The message lacks its tenant or submission id.</exception>
@@ -45,11 +46,29 @@ internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, 
             : null;
     }
 
-    public async Task ProcessAsync(MarkedSubmission? marked, CancellationToken cancellationToken)
+    /// <summary>Frees the submission's link when the submission is still marked as test.</summary>
+    /// <remarks>
+    /// <see cref="AppDbContext"/> joins the audience connection and transaction, as in a link open, so the
+    /// submission's row lock and the link update commit together.
+    /// </remarks>
+    public async Task ProcessAsync(MarkedSubmission marked, CancellationToken cancellationToken)
     {
-        if (marked is not null && await IsTestAsync(marked, cancellationToken))
+        var audience = ((DbContext)db).Database;
+        await using var transaction = await audience.BeginTransactionAsync(cancellationToken);
+        app.Database.SetDbConnection(audience.GetDbConnection());
+        await app.Database.UseTransactionAsync(transaction.GetDbTransaction(), cancellationToken);
+        try
         {
-            await ReleaseLinkAsync(marked, cancellationToken);
+            if (await LockIfStillTestAsync(marked, cancellationToken))
+            {
+                await ReleaseLinkAsync(marked, cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        finally
+        {
+            await app.Database.UseTransactionAsync(null, CancellationToken.None);
         }
     }
 
@@ -63,17 +82,18 @@ internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, 
                 cancellationToken);
 
     /// <summary>
-    /// Deleted or not, so a clean-up that beat the message still frees the link. The tenant predicate stands in for
-    /// the tenant filter; every other filter stays on.
+    /// Rewrites the flag with the value it has, which takes the row's write lock: a mark as real waits for this
+    /// transaction, and one that committed first leaves no row to match. Deleted or not, so a clean-up that beat the
+    /// message still frees the link. The tenant predicate stands in for the tenant filter; every other filter stays on.
     /// </summary>
-    private Task<bool> IsTestAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
-        app.Submissions
+    private async Task<bool> LockIfStillTestAsync(MarkedSubmission marked, CancellationToken cancellationToken) =>
+        await app.Submissions
             .IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete, EndatixQueryFilterNames.Tenant])
-            .AnyAsync(
-                submission => submission.Id == marked.SubmissionId
-                    && submission.TenantId == marked.TenantId
-                    && submission.IsTestSubmission,
-                cancellationToken);
+            .Where(submission => submission.Id == marked.SubmissionId
+                && submission.TenantId == marked.TenantId
+                && submission.IsTestSubmission)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(submission => submission.IsTestSubmission, true),
+                cancellationToken) > 0;
 
     internal sealed record MarkedSubmission(long TenantId, long SubmissionId);
 }

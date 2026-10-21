@@ -266,6 +266,7 @@ public sealed class SubmissionStartedAtFlowTests
                            long.Parse(formId),
                            sqlFunctionName: "export_form_submissions",
                            pageSize: 100,
+                           includeTestSubmissions: false,
                            cancellationToken))
         {
             rows.Add(row);

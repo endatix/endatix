@@ -14,4 +14,7 @@ public static class TransactionLockScopes
 
     /// <summary>The first open of one personalised link, so that parallel opens start one submission.</summary>
     public const int AudienceLinkOpen = 1118;
+
+    /// <summary>One form's submissions: writes that add one share it, the form's deletion takes it exclusively.</summary>
+    public const int FormSubmissions = 1119;
 }

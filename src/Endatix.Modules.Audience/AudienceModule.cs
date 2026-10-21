@@ -11,6 +11,7 @@ using Endatix.Modules.Audience.Features.BackgroundJobs;
 using Endatix.Modules.Audience.Features.Import;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Features.OnBehalf;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Features.Properties;
 using Endatix.Modules.Audience.Features.TestSubmissions;
 using Endatix.Modules.Audience.Persistence;
@@ -44,8 +45,10 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         builder.Services.AddScoped<IAudiencePropertyCatalog, AudiencePropertyCatalog>();
         builder.Services.AddScoped<LinkOpenLock>();
         builder.Services.AddScoped<LinkOpenGates>();
+        builder.Services.AddScoped<LinkStatuses>();
         builder.Services.AddScoped<TestSubjects>();
         builder.Services.AddScoped<TestSubmissionOpener>();
+        builder.Services.AddScoped<TestSubmissionWriter>();
     }
 
     private static void AddPersistence(EndatixModuleBuilder builder)

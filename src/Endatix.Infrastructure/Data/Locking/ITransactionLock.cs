@@ -10,7 +10,9 @@ namespace Endatix.Infrastructure.Data.Locking;
 /// <para>One implementation per database provider, registered by that provider's persistence builder.</para>
 /// <para>
 /// Take at most one lock per transaction, as its first statement. Two transactions that each hold a lock, or rows,
-/// and wait for the other's can deadlock; one that takes a single lock before it touches anything cannot.
+/// and wait for the other's can deadlock; one that takes a single lock before it touches anything cannot. A section
+/// that needs two takes both before it touches anything, always in one order that no other section reverses: the
+/// first open of a personalised link takes its link's lock, then its form's <see cref="TransactionLockScopes.FormSubmissions"/>.
 /// </para>
 /// <para>
 /// Run the whole locked section on the connection that holds the lock: another context joins it with

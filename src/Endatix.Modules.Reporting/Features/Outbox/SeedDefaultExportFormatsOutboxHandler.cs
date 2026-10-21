@@ -12,18 +12,18 @@ namespace Endatix.Modules.Reporting.Features.Outbox;
 /// (<c>TenantId = 0</c>); the real id is only in the payload.
 /// </summary>
 /// <remarks>
-/// The same work runs inline in the relay or as a background job; both read the message with
-/// <see cref="Parse"/> and do the work with <see cref="ProcessAsync"/>.
+/// The same work runs inline in the relay or as a background job; both run the work <see cref="Read"/> returns.
 /// </remarks>
-internal sealed class SeedDefaultExportFormatsOutboxHandler(
-    IDefaultExportFormatsSeeder seeder) : IOutboxIntegrationEventHandler
+internal sealed class SeedDefaultExportFormatsOutboxHandler(IDefaultExportFormatsSeeder seeder)
+    : IOutboxWork<SeedDefaultExportFormatsOutboxHandler>
 {
-    public static readonly IReadOnlyCollection<string> HandledEventTypes = [TenantCreatedEvent.EventTypeName];
+    public static string JobType => "ReportingSeedDefaultExportFormats";
 
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
+    public static IReadOnlyCollection<string> HandledEventTypes { get; } = [TenantCreatedEvent.EventTypeName];
 
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), cancellationToken);
+    /// <inheritdoc />
+    public OutboxWork Read(IOutboxMessage message) =>
+        OutboxWork.For(Parse(message), ProcessAsync);
 
     /// <summary>
     /// The tenant being created, which owns the seeding. Throws <see cref="InvalidOperationException"/> when the

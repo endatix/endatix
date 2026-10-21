@@ -280,4 +280,34 @@ public class SetSubmissionTestHandlerTests
         submission.IsTestSubmission.Should().BeTrue();
         await _submissions.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_MarkAsTestOfASubmissionDeletedMeanwhile_ReturnsNotFound()
+    {
+        // Arrange
+        Given(NewSubmission(isTest: false));
+        _submissions.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<Task<int>>(_ => throw new SubmissionDeletedException("The submission was deleted while it was being saved."));
+
+        // Act
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, true), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
+    public async Task Handle_MarkAsRealLosesADeadlock_ReturnsUnavailable()
+    {
+        // Arrange
+        Given(NewSubmission(isTest: true));
+        _submissions.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<Task<int>>(_ => throw new DeadlockVictimException("deadlock"));
+
+        // Act
+        var result = await _handler.Handle(new SetSubmissionTestCommand(TenantId, FormId, SubmissionId, false), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unavailable);
+    }
 }

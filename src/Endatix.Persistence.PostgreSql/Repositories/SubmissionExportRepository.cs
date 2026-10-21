@@ -23,7 +23,8 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         _options = options.Value;
     }
 
-    public async IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, int? pageSize, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
+    /// <inheritdoc />
+    public async IAsyncEnumerable<T> GetExportRowsAsync<T>(long formId, string? sqlFunctionName, int? pageSize, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         var timeoutSeconds = _options.ExportCommandTimeout ?? DefaultExportCommandTimeoutSeconds;
         _dbContext.Database.SetCommandTimeout(TimeSpan.FromSeconds(timeoutSeconds));
@@ -32,8 +33,8 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         var effectivePageSize = pageSize ?? _options.ExportPageSize ?? DefaultExportPageSize;
         var usePaging = effectivePageSize != 0 && typeof(T) == typeof(SubmissionExportRow);
         var rowsStream = usePaging
-            ? StreamPagedAsync<T>(formId, functionName, effectivePageSize, cancellationToken)
-            : StreamAllAsync<T>(formId, functionName, cancellationToken);
+            ? StreamPagedAsync<T>(formId, functionName, effectivePageSize, includeTestSubmissions, cancellationToken)
+            : StreamAllAsync<T>(formId, functionName, includeTestSubmissions, cancellationToken);
 
         await foreach (var row in rowsStream)
         {
@@ -41,9 +42,10 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         }
     }
 
-    private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string functionName, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
+    private async IAsyncEnumerable<T> StreamAllAsync<T>(long formId, string functionName, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
-        var sql = SelectFromFunction(functionName, "{0}");
+        // Custom functions do not take the flag; the endpoint rejects it for them.
+        var sql = SelectFromFunction(functionName, "{0}" + IncludeTestSubmissionsArgument(includeTestSubmissions));
         await foreach (var row in _dbContext.Set<T>()
             .FromSqlRaw(sql, formId)
             .AsNoTracking()
@@ -54,10 +56,10 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
         }
     }
 
-    private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string functionName, int pageSize, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
+    private async IAsyncEnumerable<T> StreamPagedAsync<T>(long formId, string functionName, int pageSize, bool includeTestSubmissions, [EnumeratorCancellation] CancellationToken cancellationToken) where T : class, IExportItem
     {
         long? afterId = null;
-        var sql = SelectFromFunction(functionName, "{0}, {1}, {2}");
+        var sql = SelectFromFunction(functionName, "{0}, {1}, {2}" + IncludeTestSubmissionsArgument(includeTestSubmissions));
 
         while (true)
         {
@@ -87,4 +89,7 @@ public sealed class SubmissionExportRepository : ISubmissionExportRepository
 
     private static string SelectFromFunction(string functionName, string arguments) =>
         $"SELECT * FROM {SqlIdentifier.EnsureValid(functionName)}({arguments})";
+
+    private static string IncludeTestSubmissionsArgument(bool includeTestSubmissions) =>
+        includeTestSubmissions ? ", include_test_submissions => true" : string.Empty;
 }

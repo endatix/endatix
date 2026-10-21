@@ -199,9 +199,9 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
     {
         BackgroundJobContext job = new(
             JobId: 1,
-            ReportingFlattenSubmissionPayload.JobType,
+            FlattenSubmissionOutboxHandler.JobType,
             TenantId,
-            BackgroundJobPayloadSerializer.Serialize(new ReportingFlattenSubmissionPayload(message.Id)),
+            BackgroundJobPayloadSerializer.Serialize(new OutboxMessageJob<FlattenSubmissionOutboxHandler>(message.Id)),
             AttemptCount: 1);
         await using var scope = OpenScope();
         return await scope.FlattenJob(transactionLock, message).ExecuteAsync(job, Cancellation);
@@ -315,15 +315,16 @@ internal sealed class RebuildScope(
             Compiler(),
             NullLogger<FormSchemaPersonalization>.Instance);
 
-    public FlattenSubmissionJobHandler FlattenJob(ITransactionLock transactionLock, OutboxMessage message)
+    public IBackgroundJobHandler FlattenJob(ITransactionLock transactionLock, OutboxMessage message)
     {
         var outboxMessages = Substitute.For<IRepository<OutboxMessage>>();
         outboxMessages.FirstOrDefaultAsync(Arg.Any<OutboxMessageByIdForTenantSpec>(), Arg.Any<CancellationToken>())
             .Returns(message);
-        return new(
-            outboxMessages,
+        return new OutboxJobHandler<FlattenSubmissionOutboxHandler>(
+            new OutboxJobMessages(outboxMessages),
             new FlattenSubmissionOutboxHandler(Flattening(transactionLock), NullLogger<FlattenSubmissionOutboxHandler>.Instance),
-            NullLogger<FlattenSubmissionJobHandler>.Instance);
+            new OutboxWorkRegistration<FlattenSubmissionOutboxHandler>(readTenant: null, onlyWhen: null),
+            NullLogger<OutboxJobHandler<FlattenSubmissionOutboxHandler>>.Instance);
     }
 
     public SubmissionBackfillProcessor Backfill(ITransactionLock transactionLock) =>

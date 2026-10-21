@@ -11,7 +11,8 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 
 /// <summary>
 /// Finds the person a test submission is opened for: an enabled form with an active definition, and the person
-/// still on it. A disabled form takes no submissions, test or real.
+/// still on it. A disabled form takes no submissions, test or real. The form is checked here before any lock, so a
+/// refused open waits for nothing, and again by <see cref="TestSubmissionWriter"/> under the form's lock.
 /// </summary>
 /// <remarks>
 /// The person comes from <see cref="LinkOpenGates.PersonAsync(IQueryable{Membership}, CancellationToken)"/>, the query
@@ -34,21 +35,28 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
         CancellationToken cancellationToken)
     {
         var form = await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdReadOnly(key.FormId), cancellationToken);
-        if (form is not { IsEnabled: true, ActiveDefinitionId: long definitionId } || form.TenantId != key.TenantId)
+        if (form is not { IsEnabled: true, ActiveDefinitionId: not null } || form.TenantId != key.TenantId)
         {
             return Result.NotFound("Form not found.");
         }
 
-        var memberships = db.Memberships
-            .Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId)
-            .Where(which);
-        var person = await gates.PersonAsync(memberships, cancellationToken);
+        var person = await PersonAsync(key, which, cancellationToken);
         return person is null
             ? Result.NotFound("Person not found on this form.")
             : Result.Success(new TestOpening(
-                new TestSubject(person.TenantId, key.FormId, definitionId, person.MembershipId, person.MemberId, person.Identifier),
+                new TestSubject(person.TenantId, key.FormId, person.MembershipId, person.MemberId, person.Identifier),
                 form));
     }
+
+    private Task<LinkPerson?> PersonAsync(
+        TestSubjectKey key,
+        Expression<Func<Membership, bool>> which,
+        CancellationToken cancellationToken) =>
+        gates.PersonAsync(
+            db.Memberships
+                .Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId)
+                .Where(which),
+            cancellationToken);
 }
 
 /// <summary>The tenant and form a test submission is opened on. Both are stated in every read.</summary>

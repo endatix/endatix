@@ -536,7 +536,7 @@ database that rebuilds the persisted column, which rewrites `qrtz_TRIGGERS` unde
 acquisition pauses for the length of the migration, briefly unless the trigger backlog is large. It needs **SQL Server 2025 or
 later, or Azure SQL Database**, for the native `json` column type. Trigger acquisition reads its free
 groups with `OPENJSON`, which needs database compatibility level 130 or later; that is already a
-requirement of the product, whose export procedures (`export_form_submissions_v1`–`v5`) use `OPENJSON` too,
+requirement of the product, whose export procedures (`export_form_submissions_v1`–`v6`) use `OPENJSON` too,
 and a startup check for it is tracked in [#1217](https://github.com/endatix/endatix/issues/1217).
 
 Run the commands from the repository root, with `Endatix.WebHost` as the startup project. Each

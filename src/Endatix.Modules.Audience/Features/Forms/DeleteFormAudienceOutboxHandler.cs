@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Core.Events;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
@@ -13,23 +14,23 @@ namespace Endatix.Modules.Audience.Features.Forms;
 /// members stay, as when a person is removed from one form. Without this, the people on a deleted
 /// form would keep the match key locked with no route left to remove them.
 /// </summary>
-internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : IOutboxIntegrationEventHandler
+internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db)
+    : IOutboxWork<DeleteFormAudienceOutboxHandler>
 {
+    public static string JobType => "AudienceDeleteFormAudience";
+
     /// <summary>The event types this handler, and its job, run on.</summary>
     public static IReadOnlyCollection<string> HandledEventTypes { get; } = [FormDeletedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), cancellationToken);
+    public OutboxWork Read(IOutboxMessage message) =>
+        OutboxWork.For(Parse(message), ProcessAsync);
 
     /// <exception cref="InvalidOperationException">The message lacks its tenant or form id.</exception>
     /// <exception cref="JsonException">The payload is not JSON.</exception>
     public static DeletedForm Parse(IOutboxMessage message)
     {
-        using JsonDocument document = JsonDocument.Parse(message.Payload);
+        using var document = JsonDocument.Parse(message.Payload);
         return new DeletedForm(
             message.GetRequiredTenantId(document.RootElement),
             message.GetRequiredIdProp(document.RootElement, "formId"));

@@ -21,7 +21,7 @@ public sealed class CompileFormSchemaOutboxHandlerTests
     [Fact]
     public void EventTypes_IncludesFormDefinitionUpdated()
     {
-        CreateSut().EventTypes.Should().Contain(FormDefinitionUpdatedEvent.EventTypeName);
+        CompileFormSchemaOutboxHandler.HandledEventTypes.Should().Contain(FormDefinitionUpdatedEvent.EventTypeName);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class CompileFormSchemaOutboxHandlerTests
             Payload: payload,
             TenantId: TenantId);
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _schemaProcessor.Received(1).ProcessAsync(
             TenantId,
@@ -56,7 +56,7 @@ public sealed class CompileFormSchemaOutboxHandlerTests
             Payload: """{"tenantId":"42","formDefinitionId":"200"}""",
             TenantId: TenantId);
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()
@@ -78,7 +78,7 @@ public sealed class CompileFormSchemaOutboxHandlerTests
             Payload: """{"tenantId":"99","formId":"100","formDefinitionId":"200"}""",
             TenantId: TenantId);
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()
@@ -113,7 +113,7 @@ public sealed class CompileFormSchemaOutboxHandlerTests
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("compile failed")));
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("compile failed");
     }

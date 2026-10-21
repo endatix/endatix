@@ -1,5 +1,6 @@
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;

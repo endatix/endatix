@@ -8,6 +8,7 @@ using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Exporting;
 using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
@@ -60,6 +61,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IValueNormalizer, ValueNormalizer>();
         Services.AddSingleton<IUniqueConstraintViolationChecker, UniqueConstraintViolationChecker>();
         Services.AddScoped<IFormsRepository, FormsRepository>();
+        Services.AddScoped<IFormSubmissionsLock, FormSubmissionsLock>();
         Services.AddScoped<IDataListDependencyChecker, DataListDependencyChecker>();
         Services.AddScoped<IDataListRepository, DataListRepository>();
         Services.AddSingleton<DataSeeder>();

@@ -8,12 +8,15 @@ using Npgsql;
 namespace Endatix.Persistence.PostgreSql.Locking;
 
 /// <summary>
-/// A transaction-scoped advisory lock, <c>pg_advisory_xact_lock(scope, hashtext(key))</c>.
+/// A transaction-scoped advisory lock, <c>pg_advisory_xact_lock(scope, hashtext(key))</c>, or
+/// <c>pg_advisory_xact_lock(id)</c> for a request with a 64-bit <see cref="TransactionLockRequest.Id"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The two-key form keeps every scope apart from every other, and from the one-key advisory locks other code may
-/// take. <c>hashtext</c> is 32 bits, so two keys of one scope can share a lock; they then only wait for each other.
+/// The two-key form keeps every scope apart from every other. <c>hashtext</c> is 32 bits, so two keys of one scope
+/// can share a lock; they then only wait for each other, which is harmless where waits are long. A scope whose waits
+/// are near zero cannot afford that, so it keys by its 64-bit id in the one-key form, which the two-key form never
+/// shares (<see cref="TransactionLockScopes.FormSubmissions"/>).
 /// </para>
 /// <para>
 /// A timeout is a <c>lock_timeout</c> for this wait alone: it is set just before the lock and back to the default
@@ -49,15 +52,15 @@ public sealed class PostgreSqlTransactionLock : ITransactionLock
         var lockFunction = request.Mode == TransactionLockMode.Shared
             ? "pg_advisory_xact_lock_shared"
             : "pg_advisory_xact_lock";
-        var takeLock = $"SELECT {lockFunction}({{0}}, hashtext({{1}}))";
+        var (takeLock, keys) = request.Id is { } id
+            ? ($"SELECT {lockFunction}({{0}})", new object[] { id })
+            : ($"SELECT {lockFunction}({{0}}, hashtext({{1}}))", new object[] { request.Scope, request.Key });
 
         return request.Timeout is { } timeout
             ? FormattableStringFactory.Create(
-                $"SELECT set_config('lock_timeout', {{2}}, true); {takeLock}; SET LOCAL lock_timeout TO DEFAULT",
-                request.Scope,
-                request.Key,
-                LockTimeoutSetting(timeout))
-            : FormattableStringFactory.Create(takeLock, request.Scope, request.Key);
+                $"SELECT set_config('lock_timeout', {{{keys.Length}}}, true); {takeLock}; SET LOCAL lock_timeout TO DEFAULT",
+                [.. keys, LockTimeoutSetting(timeout)])
+            : FormattableStringFactory.Create(takeLock, keys);
     }
 
     // Rounded up to whole milliseconds, as a value under one would read as 0, which turns the timeout off.

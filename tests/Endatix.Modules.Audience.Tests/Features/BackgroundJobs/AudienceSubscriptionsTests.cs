@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Audience.Features.BackgroundJobs;
 using Endatix.Modules.Audience.Features.Forms;
@@ -29,21 +30,56 @@ public sealed class AudienceSubscriptionsTests
     }
 
     [Fact]
-    public void AddAudienceOutboxWork_Default_SubscribesEachHandlersEventsToItsJob()
+    public void AddAudienceOutboxWork_Default_SubscribesExactlyEachInlineHandlersEventsToItsJob()
     {
         // Arrange
         var services = new ServiceCollection();
+        var inline = new (IReadOnlyCollection<string> EventTypes, string JobType)[]
+        {
+            (DeleteFormAudienceOutboxHandler.HandledEventTypes, DeleteFormAudienceOutboxHandler.JobType),
+            (ReleaseLinkOnTestMarkOutboxHandler.HandledEventTypes, ReleaseLinkOnTestMarkOutboxHandler.JobType),
+        };
 
         // Act
         services.AddAudienceOutboxWork();
         var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
 
-        // Assert
-        DeleteFormAudienceOutboxHandler.HandledEventTypes.Should().AllSatisfy(eventType =>
-            subscriptions.For(eventType).Select(subscription => subscription.JobType)
-                .Should().Contain(AudienceDeleteFormAudiencePayload.JobType));
-        ReleaseLinkOnTestMarkOutboxHandler.HandledEventTypes.Should().AllSatisfy(eventType =>
-            subscriptions.For(eventType).Select(subscription => subscription.JobType)
-                .Should().Contain(AudienceReleaseLinkOnTestMarkPayload.JobType));
+        // Assert — every event an inline handler handles is subscribed by its job type, and by nothing else here.
+        foreach (var (eventTypes, jobType) in inline)
+        {
+            eventTypes.Should().AllSatisfy(eventType =>
+                subscriptions.For(eventType).Select(subscription => subscription.JobType).Should().Contain(jobType));
+        }
+
+        inline.SelectMany(handler => handler.EventTypes).Distinct().SelectMany(subscriptions.For)
+            .Select(subscription => subscription.JobType)
+            .Should().BeEquivalentTo(inline.Select(handler => handler.JobType));
+    }
+
+    [Fact]
+    public void AddAudienceOutboxWork_Default_DeclaresTheTunedSettingsForEveryAudienceJobType()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var tuned = new BackgroundJobTypeDefaults
+        {
+            MaxAttempts = 5,
+            MaxRuntimeMinutes = 10,
+            BackoffBaseSeconds = 10,
+            BackoffCapSeconds = 600,
+            RetentionDays = 3,
+            MaxConcurrency = 2,
+        };
+
+        // Act
+        services.AddAudienceOutboxWork();
+        using var provider = services.BuildServiceProvider();
+
+        // Assert — every host gets these, whatever its configuration holds.
+        var declared = provider.GetServices<BackgroundJobTypeDefaults>().ToList();
+        declared.Select(defaults => defaults.JobType).Should().BeEquivalentTo(
+            DeleteFormAudienceOutboxHandler.JobType, ReleaseLinkOnTestMarkOutboxHandler.JobType);
+        declared.Should().AllSatisfy(defaults =>
+            defaults.Should().BeEquivalentTo(tuned, options => options.Excluding(value => value.JobType)));
     }
 }
