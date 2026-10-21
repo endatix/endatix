@@ -7,7 +7,7 @@ using Endatix.Core.UseCases.Submissions;
 namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
-/// Reads one participant on a form by their member id, with their submissions on that form.
+/// Reads one participant on a form by audience member id, with their submissions on that form.
 /// </summary>
 public sealed record GetParticipantQuery(long TenantId, long FormId, long MemberId) : IQuery<Result<ParticipantDto>>;
 
@@ -16,7 +16,7 @@ public sealed record GetParticipantQuery(long TenantId, long FormId, long Member
 /// how many they have in all.
 /// </summary>
 public sealed record ParticipantDto(
-    PersonDto Person,
+    PersonDto Participant,
     IReadOnlyList<ParticipantSubmissionDto> Submissions,
     int SubmissionTotal);
 
@@ -36,7 +36,7 @@ public sealed record ParticipantSubmissionDto(
 internal sealed class GetParticipantHandler(
     IRepository<Form> forms,
     IRepository<Submission> submissions,
-    PersonReader personReader)
+    ParticipantReader participantReader)
     : IQueryHandler<GetParticipantQuery, Result<ParticipantDto>>
 {
     public async Task<Result<ParticipantDto>> Handle(GetParticipantQuery request, CancellationToken cancellationToken)
@@ -48,7 +48,7 @@ internal sealed class GetParticipantHandler(
             return gate.ToErrorResult<ParticipantDto>();
         }
 
-        FoundParticipant? found = await personReader.FindOnFormAsync(
+        FoundParticipant? found = await participantReader.FindOnFormAsync(
             new ParticipantKey(request.TenantId, request.FormId, request.MemberId),
             cancellationToken);
         return found is null
@@ -62,12 +62,12 @@ internal sealed class GetParticipantHandler(
         FoundParticipant found,
         CancellationToken cancellationToken)
     {
-        PersonDto person = found.Person;
+        PersonDto participant = found.Participant;
         ParticipantSubmissionsSpec spec = new(new ParticipantSubmissionsKey(
-            formId, person.MemberId, person.Link.SubmissionId, found.SubmitterId));
+            formId, participant.MemberId, participant.Link.SubmissionId, found.SubmitterId));
         List<ParticipantSubmissionRow> newest = await submissions.ListAsync(spec, cancellationToken);
         int total = await submissions.CountAsync(spec, cancellationToken);
-        return new ParticipantDto(person, newest.Select(ToDto).ToList(), total);
+        return new ParticipantDto(participant, newest.Select(ToDto).ToList(), total);
     }
 
     private static ParticipantSubmissionDto ToDto(ParticipantSubmissionRow row) => new(

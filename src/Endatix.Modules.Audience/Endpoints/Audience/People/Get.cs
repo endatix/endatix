@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace Endatix.Modules.Audience.Endpoints.Audience.People;
 
 /// <summary>
-/// Reads one participant on this form, by member id, with their submissions on it.
+/// Reads one participant on this form, by audience member id, with their submissions on it.
 /// </summary>
 public sealed class Get(
     IMediator mediator,
@@ -27,7 +27,7 @@ public sealed class Get(
         {
             summary.Summary = "Get audience participant";
             summary.Description =
-                "Reads one participant on this form by member id: values, Link status, and the newest 50 of their " +
+                "Reads one participant on this form by audience member id: values, Link status, and the newest 50 of their " +
                 "submissions on the form with the total.";
             summary.Responses[200] = "The participant.";
             summary.Responses[404] = "Form not found, or the participant is not on this form.";
@@ -74,6 +74,6 @@ public sealed class GetAudienceParticipantRequest
     /// <summary>The form.</summary>
     public long FormId { get; init; }
 
-    /// <summary>The participant's member id (<c>audienceMemberId</c> on the list), not the membership id.</summary>
+    /// <summary>The audience member id (<c>audienceMemberId</c> on the list), not the membership id.</summary>
     public long MemberId { get; init; }
 }

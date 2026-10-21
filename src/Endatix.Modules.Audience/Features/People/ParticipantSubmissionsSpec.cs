@@ -19,8 +19,9 @@ internal sealed record ParticipantSubmissionRow(
 internal sealed record ParticipantSubmissionsKey(long FormId, long MemberId, long? LinkSubmissionId, long? SubmitterId);
 
 /// <summary>
-/// A participant's submissions on one form, newest first: the one their link opened, their Submitter's, and test
-/// submissions whose Snapshot names them (test submissions have neither a link nor a Submitter). One WHERE that
+/// A participant's submissions on one form, newest first: the one their link opened, their Submitter's, and
+/// submissions whose Snapshot names them and are either a test submission or an on-behalf create (the bind after an
+/// on-behalf save is best effort, so the Snapshot is the only join until it succeeds). One WHERE that
 /// <c>IX_Submissions_FormId</c> narrows; deleted submissions drop by the query filter. A count of the same spec
 /// ignores <see cref="Limit"/>.
 /// </summary>
@@ -47,8 +48,10 @@ internal sealed class ParticipantSubmissionsSpec : Specification<Submission, Par
     }
 
     /// <summary>
-    /// On the form, and the link's submission, the Submitter's, or a test submission whose Snapshot names the member.
-    /// The match from <see cref="PersonalizationSnapshotJson.NamesMember"/> is bound to the Snapshot column here.
+    /// On the form, and the link's submission, the Submitter's, or a Snapshot that names the participant and is a
+    /// test submission or an on-behalf create. The matches from
+    /// <see cref="PersonalizationSnapshotJson.NamesParticipant"/> and
+    /// <see cref="PersonalizationSnapshotJson.IsOnBehalf"/> are bound to the Snapshot column here.
     /// </summary>
     private static Expression<Func<Submission, bool>> Theirs(ParticipantSubmissionsKey key)
     {
@@ -57,7 +60,8 @@ internal sealed class ParticipantSubmissionsSpec : Specification<Submission, Par
             submission.Id == key.LinkSubmissionId
             || (key.SubmitterId != null && submission.SubmitterId == key.SubmitterId);
         Expression<Func<Submission, bool>> isTest = submission => submission.IsTestSubmission;
-        Expression<Func<string?, bool>> namesMember = PersonalizationSnapshotJson.NamesMember(key.MemberId);
+        Expression<Func<string?, bool>> isOnBehalf = PersonalizationSnapshotJson.IsOnBehalf();
+        Expression<Func<string?, bool>> namesParticipant = PersonalizationSnapshotJson.NamesParticipant(key.MemberId);
 
         ParameterExpression submission = Expression.Parameter(typeof(Submission), "submission");
         Expression snapshot = Expression.Property(submission, nameof(Submission.PersonalizationSnapshot));
@@ -65,7 +69,9 @@ internal sealed class ParticipantSubmissionsSpec : Specification<Submission, Par
             BodyOf(onForm, submission),
             Expression.OrElse(
                 BodyOf(linkOrSubmitter, submission),
-                Expression.AndAlso(BodyOf(isTest, submission), BodyOf(namesMember, snapshot))));
+                Expression.AndAlso(
+                    Expression.OrElse(BodyOf(isTest, submission), BodyOf(isOnBehalf, snapshot)),
+                    BodyOf(namesParticipant, snapshot))));
         return Expression.Lambda<Func<Submission, bool>>(body, submission);
     }
 

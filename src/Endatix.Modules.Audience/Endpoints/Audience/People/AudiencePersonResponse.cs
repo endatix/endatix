@@ -13,7 +13,7 @@ public class AudiencePersonResponse
     {
     }
 
-    /// <summary>The person's fields, for this response and the ones that extend it.</summary>
+    /// <summary>The participant's fields, for this response and the ones that extend it.</summary>
     protected AudiencePersonResponse(PersonDto dto)
     {
         MembershipId = dto.MembershipId;

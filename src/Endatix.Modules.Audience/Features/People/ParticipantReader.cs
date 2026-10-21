@@ -5,15 +5,15 @@ using Microsoft.EntityFrameworkCore;
 namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
-/// One person on a form as <see cref="PersonDto"/>: their active cells, read as the list reads them, and their Link
-/// status. The list reads a whole page at once instead.
+/// One participant on a form as <see cref="PersonDto"/>: their active cells, read as the list reads them, and their
+/// Link status. The list reads a whole page at once instead.
 /// </summary>
-internal sealed class PersonReader(IAudienceDbContext db, LinkStatuses linkStatuses)
+internal sealed class ParticipantReader(IAudienceDbContext db, LinkStatuses linkStatuses)
 {
     /// <summary>
-    /// The member's live membership on the form, or <see langword="null"/> when they are not on it, were removed, or
-    /// belong to another tenant. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first index,
-    /// as the list does.
+    /// The participant's live membership on the form, or <see langword="null"/> when they are not on it, were removed,
+    /// or belong to another tenant. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first
+    /// index, as the list does.
     /// </summary>
     public async Task<FoundParticipant?> FindOnFormAsync(ParticipantKey key, CancellationToken cancellationToken)
     {
@@ -43,8 +43,8 @@ internal sealed class PersonReader(IAudienceDbContext db, LinkStatuses linkStatu
     }
 }
 
-/// <summary>A member on one form of one tenant.</summary>
+/// <summary>One participant on one form of one tenant, keyed by audience member id.</summary>
 internal sealed record ParticipantKey(long TenantId, long FormId, long MemberId);
 
-/// <summary>A participant found on a form, with the Submitter bound to their member, if any.</summary>
-internal sealed record FoundParticipant(PersonDto Person, long? SubmitterId);
+/// <summary>A participant found on a form, with the Submitter bound to them, if any.</summary>
+internal sealed record FoundParticipant(PersonDto Participant, long? SubmitterId);

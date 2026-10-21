@@ -22,7 +22,7 @@ internal sealed class UpdatePersonHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
     IUniqueConstraintViolationChecker violations,
-    PersonReader personReader)
+    ParticipantReader participantReader)
     : ICommandHandler<UpdatePersonCommand, Result<PersonDto>>
 {
     public async Task<Result<PersonDto>> Handle(
@@ -115,6 +115,6 @@ internal sealed class UpdatePersonHandler(
             return Result.NotFound("Audience member not found.");
         }
 
-        return await personReader.ReadAsync(membership, member.Identifier, cancellationToken);
+        return await participantReader.ReadAsync(membership, member.Identifier, cancellationToken);
     }
 }

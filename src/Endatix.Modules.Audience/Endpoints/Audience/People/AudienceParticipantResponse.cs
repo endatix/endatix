@@ -4,19 +4,19 @@ using Endatix.Modules.Audience.Features.People;
 namespace Endatix.Modules.Audience.Endpoints.Audience.People;
 
 /// <summary>
-/// Wire model for one participant: the person's fields, plus the newest 50 of their submissions on the form and how
-/// many they have in all.
+/// Wire model for one participant: the list item's fields, plus the newest 50 of their submissions on the form and
+/// how many they have in all.
 /// </summary>
 public sealed class AudienceParticipantResponse : AudiencePersonResponse
 {
     private AudienceParticipantResponse(ParticipantDto dto)
-        : base(dto.Person)
+        : base(dto.Participant)
     {
         Submissions = dto.Submissions.Select(AudienceParticipantSubmissionResponse.From).ToList();
         SubmissionTotal = dto.SubmissionTotal;
     }
 
-    /// <summary>Newest first: the submission the link opened, the Submitter's, and test submissions opened as them.</summary>
+    /// <summary>Newest first: the submission the link opened, the Submitter's, and Snapshots that name them (test or on-behalf).</summary>
     public IReadOnlyList<AudienceParticipantSubmissionResponse> Submissions { get; init; }
 
     /// <summary>How many submissions the participant has on the form; <see cref="Submissions"/> holds at most 50.</summary>
