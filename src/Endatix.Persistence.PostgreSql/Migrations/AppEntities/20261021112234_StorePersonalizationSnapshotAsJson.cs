@@ -20,12 +20,18 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 """);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// <c>jsonb::text</c> inserts a space after <c>:</c>. The API this rolls back to matches
+        /// <c>"memberId":N</c> and <c>"source":"on_behalf"</c> with no space, the form <c>Write</c> emits.
+        /// </summary>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("""
                 ALTER TABLE "Submissions"
-                ALTER COLUMN "PersonalizationSnapshot" TYPE text USING "PersonalizationSnapshot"::text;
+                ALTER COLUMN "PersonalizationSnapshot" TYPE text
+                USING replace(
+                    replace("PersonalizationSnapshot"::text, '"memberId": ', '"memberId":'),
+                    '"source": "', '"source":"');
                 """);
         }
     }

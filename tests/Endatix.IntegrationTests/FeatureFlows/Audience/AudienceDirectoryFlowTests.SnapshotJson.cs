@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -28,18 +29,33 @@ public sealed partial class AudienceDirectoryFlowTests
         var tester = await AddTestParticipantAsync(admin, formId, "tester@example.com");
         var testId = IdOf(await OpenTestSubmissionAsync(admin, formId, tester.MembershipId), "submissionId");
         var readBefore = await PersonalizationOfAsync(admin, formId, testId);
-        await MigrateToBeforeSnapshotJsonAsync(world.Services);
-        var legacy = JsonNode.Parse(await StoredSnapshotAsync(world.Services, testId))!.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-        await StoreSnapshotTextAsync(world.Services, testId, legacy);
+        try
+        {
+            await MigrateToBeforeSnapshotJsonAsync(world.Services);
+            var legacy = JsonNode.Parse(await StoredSnapshotAsync(world.Services, testId))!.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            await StoreSnapshotTextAsync(world.Services, testId, legacy);
 
-        // Act
-        await MigrateToLatestAsync(world.Services);
+            // Act
+            await MigrateToLatestAsync(world.Services);
 
-        // Assert
-        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(legacy), JsonNode.Parse(await StoredSnapshotAsync(world.Services, testId))));
-        Assert.Equal(readBefore, await PersonalizationOfAsync(admin, formId, testId));
-        var participant = await GetParticipantAsync(admin, formId, tester.MemberId);
-        Assert.Equal([(testId, "test", true)], SubmissionRows(participant));
+            // Assert
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(legacy), JsonNode.Parse(await StoredSnapshotAsync(world.Services, testId))));
+            Assert.Equal(readBefore, await PersonalizationOfAsync(admin, formId, testId));
+            var participant = await GetParticipantAsync(admin, formId, tester.MemberId);
+            Assert.Equal([(testId, "test", true)], SubmissionRows(participant));
+
+            // Down must keep the unspaced keys the previous text match reads.
+            await MigrateToBeforeSnapshotJsonAsync(world.Services);
+            var rolledBack = await StoredSnapshotAsync(world.Services, testId);
+            var memberId = tester.MemberId.ToString(CultureInfo.InvariantCulture);
+            Assert.Contains($"\"memberId\":{memberId}", rolledBack);
+            Assert.DoesNotContain($"\"memberId\": {memberId}", rolledBack);
+            Assert.Contains("\"source\":\"test\"", rolledBack);
+        }
+        finally
+        {
+            await MigrateToLatestAsync(world.Services);
+        }
     }
 
     /// <summary>The submission's Snapshot read as the API returns it.</summary>
