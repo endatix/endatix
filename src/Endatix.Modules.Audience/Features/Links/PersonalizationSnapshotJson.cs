@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq.Expressions;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Submissions;
@@ -29,6 +30,31 @@ internal static class PersonalizationSnapshotJson
 {
     public static string Write(SnapshotHeader header, IReadOnlyCollection<SnapshotCell> cells) =>
         Root(header, TypedVariables(cells), TypedValues(cells)).ToJsonString();
+
+    /// <summary>
+    /// Whether a stored snapshot names the participant whose audience member id is <paramref name="memberId"/>: a
+    /// text match on <c>"memberId":N</c> followed by <c>,</c> or <c>}</c>, the form <see cref="Write"/> emits with no
+    /// spaces, so <c>4</c> never matches <c>42</c>. The only place the match lives; it becomes a JSON key lookup once
+    /// the column is JSON (endatix#1340).
+    /// </summary>
+    public static Expression<Func<string?, bool>> NamesParticipant(long memberId)
+    {
+        string key = $"\"memberId\":{memberId.ToString(CultureInfo.InvariantCulture)}";
+        string beforeNext = key + ",";
+        string beforeEnd = key + "}";
+        return snapshot => snapshot != null && (snapshot.Contains(beforeNext) || snapshot.Contains(beforeEnd));
+    }
+
+    /// <summary>
+    /// Whether a stored snapshot is from an on-behalf create: a text match on <c>"source":"on_behalf"</c>, the form
+    /// <see cref="Write"/> emits with no spaces. Used with <see cref="NamesParticipant"/> so an on-behalf submission
+    /// still shows on the participant when the best-effort Submitter bind did not run.
+    /// </summary>
+    public static Expression<Func<string?, bool>> IsOnBehalf()
+    {
+        string marker = $"\"source\":\"{PersonalizationSources.OnBehalf}\"";
+        return snapshot => snapshot != null && snapshot.Contains(marker);
+    }
 
     private static JsonObject Root(SnapshotHeader header, JsonObject variables, JsonArray values)
     {

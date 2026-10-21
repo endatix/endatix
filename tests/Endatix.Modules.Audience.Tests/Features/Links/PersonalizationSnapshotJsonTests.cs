@@ -105,6 +105,67 @@ public sealed class PersonalizationSnapshotJsonTests
         value.GetProperty("value").GetDouble().Should().Be(65);
     }
 
+    [Theory]
+    [InlineData(PersonalizationSources.Test, null)]
+    [InlineData(PersonalizationSources.Link, 7L)]
+    public void NamesParticipant_MatchesTheParticipantAWrittenSnapshotNames(string source, long? audienceLinkId)
+    {
+        // Arrange
+        var json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(audienceLinkId, "ada@example.com", DateTime.UnixEpoch, source, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+
+        // Act
+        var names = PersonalizationSnapshotJson.NamesParticipant(42).Compile();
+        var namesOther = PersonalizationSnapshotJson.NamesParticipant(4).Compile();
+        var namesLonger = PersonalizationSnapshotJson.NamesParticipant(420).Compile();
+
+        // Assert
+        names(json).Should().BeTrue();
+        namesOther(json).Should().BeFalse();
+        namesLonger(json).Should().BeFalse();
+    }
+
+    [Fact]
+    public void NamesParticipant_DoesNotMatchASnapshotWithoutOne()
+    {
+        // Arrange
+        var json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(42, "ada@example.com", DateTime.UnixEpoch),
+            [Cell("age", AudienceDataTypeCodes.Number, "42")]);
+
+        // Act
+        var names = PersonalizationSnapshotJson.NamesParticipant(42).Compile();
+
+        // Assert
+        names(json).Should().BeFalse();
+        names(null).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsOnBehalf_MatchesOnlyAnOnBehalfWrittenSnapshot()
+    {
+        // Arrange
+        var onBehalf = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(null, "ada@example.com", DateTime.UnixEpoch, PersonalizationSources.OnBehalf, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+        var link = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(7, "ada@example.com", DateTime.UnixEpoch, PersonalizationSources.Link, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+        var test = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(null, "ada@example.com", DateTime.UnixEpoch, PersonalizationSources.Test, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+
+        // Act
+        var isOnBehalf = PersonalizationSnapshotJson.IsOnBehalf().Compile();
+
+        // Assert
+        isOnBehalf(onBehalf).Should().BeTrue();
+        isOnBehalf(link).Should().BeFalse();
+        isOnBehalf(test).Should().BeFalse();
+        isOnBehalf(null).Should().BeFalse();
+    }
+
     /// <summary>A cell whose property is named after its variable ("age" → "Age"), with a stable id.</summary>
     private static SnapshotCell Cell(string variableName, string dataType, string value) =>
         new(PropertyIdOf(variableName), variableName, char.ToUpperInvariant(variableName[0]) + variableName[1..], dataType, value);
