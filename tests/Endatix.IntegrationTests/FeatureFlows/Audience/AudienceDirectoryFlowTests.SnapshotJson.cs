@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
@@ -28,7 +29,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var testId = IdOf(await OpenTestSubmissionAsync(admin, formId, tester.MembershipId), "submissionId");
         var readBefore = await PersonalizationOfAsync(admin, formId, testId);
         await MigrateToBeforeSnapshotJsonAsync(world.Services);
-        var legacy = JsonNode.Parse(await StoredSnapshotAsync(world.Services, testId))!.ToJsonString(Indented);
+        var legacy = JsonNode.Parse(await StoredSnapshotAsync(world.Services, testId))!.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         await StoreSnapshotTextAsync(world.Services, testId, legacy);
 
         // Act
@@ -40,8 +41,6 @@ public sealed partial class AudienceDirectoryFlowTests
         var participant = await GetParticipantAsync(admin, formId, tester.MemberId);
         Assert.Equal([(testId, "test", true)], SubmissionRows(participant));
     }
-
-    private static readonly System.Text.Json.JsonSerializerOptions Indented = new() { WriteIndented = true };
 
     /// <summary>The submission's Snapshot read as the API returns it.</summary>
     private static async Task<string> PersonalizationOfAsync(AudienceApi admin, long formId, long submissionId)
