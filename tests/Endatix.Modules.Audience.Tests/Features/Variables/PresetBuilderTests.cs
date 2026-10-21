@@ -49,6 +49,21 @@ public sealed class PresetBuilderTests
     }
 
     [Fact]
+    public void Assemble_IdentifiersThatDifferOnlyInCase_AreOrderedByCase()
+    {
+        // Act
+        AudienceVariablesDto variables = PresetBuilder.Assemble(new FormAudience(
+            [City],
+            [
+                new PresetSource("aB-1", new Dictionary<long, string>()),
+                new PresetSource("Ab-1", new Dictionary<long, string>()),
+            ]));
+
+        // Assert
+        variables.VariablePresets!.Presets.Select(preset => preset.Name).Should().Equal("Ab-1", "aB-1");
+    }
+
+    [Fact]
     public void Build_TypesEachLiveCellAsTheRespondentReadsIt()
     {
         // Act
@@ -73,13 +88,13 @@ public sealed class PresetBuilderTests
     }
 
     [Fact]
-    public void Build_LeavesOutEmptyCellsAndCellsOfOtherProperties()
+    public void Build_LeavesOutCellsOfOtherProperties()
     {
         // Act
         VariablePresetDto preset = PresetBuilder.Build(
             new PresetSource(
                 "maria@acme.test",
-                new Dictionary<long, string> { [City.Id] = "", [Seats.Id] = "3", [99] = "orphan" }),
+                new Dictionary<long, string> { [Seats.Id] = "3", [99] = "orphan" }),
             [City, Seats]);
 
         // Assert

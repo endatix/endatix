@@ -32,12 +32,16 @@ internal static class PresetBuilder
         return new VariablePresetDto(source.Identifier, variables);
     }
 
-    /// <summary>Presets by identifier, ignoring case, so the selector reads in the same order on both providers.</summary>
+    /// <summary>
+    /// Presets by identifier, ignoring case and then by case (an external id match key is case-sensitive), so the
+    /// selector reads in the same order on both providers.
+    /// </summary>
     private static VariablePresetsDto VariablePresets(FormAudience audience) =>
         new(
             VariableDefinition.Build(audience.Properties),
             audience.TestParticipants
                 .OrderBy(source => source.Identifier, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(source => source.Identifier, StringComparer.Ordinal)
                 .Select(source => Build(source, audience.Properties))
                 .ToList());
 }

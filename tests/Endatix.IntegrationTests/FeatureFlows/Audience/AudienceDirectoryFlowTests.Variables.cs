@@ -95,6 +95,37 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task Variables_leave_out_a_removed_test_participant_and_a_deleted_property()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await admin.CreateFormAsync();
+        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        var seats = await admin.CreatePropertyAsync(formId, new { name = "Seats", dataType = "number" });
+        await AddPersonWithValuesAsync(
+            admin, formId, new("kept@example.com", IsTest: true, new() { [city] = "Sofia", [seats] = "3" }));
+        var removed = await AddPersonWithValuesAsync(
+            admin, formId, new("removed@example.com", IsTest: true, new() { [city] = "Varna" }));
+        using var removal = await admin.Client.DeleteAsync(
+            $"/api/forms/{formId}/audience/people/{removed.MembershipId}", admin.CancellationToken);
+        using var deletion = await admin.Client.DeleteAsync(
+            $"/api/forms/{formId}/audience/properties/{seats}", admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, removal.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, deletion.StatusCode);
+
+        // Act
+        var variables = await GetVariablesAsync(admin, formId);
+
+        // Assert
+        AssertJson(
+            """
+            {"definition":{"elements":[{"type":"text","name":"city","title":"City"}]},
+             "presets":[{"name":"kept@example.com","variables":{"city":"Sofia"}}]}
+            """,
+            variables.GetProperty("variablePresets"));
+    }
+
+    [Fact]
     public async Task Choices_that_allow_other_accept_free_text_in_the_definition()
     {
         // Arrange

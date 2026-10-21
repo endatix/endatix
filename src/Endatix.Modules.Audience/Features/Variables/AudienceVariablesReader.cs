@@ -31,7 +31,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
                 && membership.FormId == key.FormId
                 && membership.IsTest)
             .Join(
-                db.Members,
+                db.Members.Where(member => member.TenantId == key.TenantId),
                 membership => membership.MemberId,
                 member => member.Id,
                 (membership, member) => new { MembershipId = membership.Id, member.Identifier })

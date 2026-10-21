@@ -69,6 +69,7 @@ public sealed class AudienceValueJsonTests
     [InlineData(AudienceDataTypeCodes.Number, "1.50", "1.5")]
     [InlineData(AudienceDataTypeCodes.Number, "1e2", "100")]
     [InlineData(AudienceDataTypeCodes.MultipleChoice, """[ "a", "b" ]""", """["a","b"]""")]
+    [InlineData(AudienceDataTypeCodes.MultipleChoice, """["😀"]""", """["\uD83D\uDE00"]""")]
     public void Untyped_OfTyped_NonCanonicalValue_TypesTheSame(string dataType, string value, string canonical)
     {
         // Act
