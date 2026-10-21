@@ -40,7 +40,7 @@ internal sealed class GetParticipantHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
     IRepository<Submission> submissions,
-    LinkStatuses linkStatuses)
+    PersonReader personReader)
     : IQueryHandler<GetParticipantQuery, Result<ParticipantDto>>
 {
     public async Task<Result<ParticipantDto>> Handle(GetParticipantQuery request, CancellationToken cancellationToken)
@@ -58,7 +58,7 @@ internal sealed class GetParticipantHandler(
             return Result.NotFound("Participant not found on this form.");
         }
 
-        PersonDto person = await PersonAsync(row, cancellationToken);
+        PersonDto person = await personReader.ReadAsync(row.Membership, row.Identifier, cancellationToken);
         ParticipantSubmissionsSpec spec = new(new ParticipantSubmissionsKey(
             request.FormId, row.Membership.MemberId, person.Link.SubmissionId, row.SubmitterId));
         List<ParticipantSubmissionRow> newest = await submissions.ListAsync(spec, cancellationToken);
@@ -81,17 +81,6 @@ internal sealed class GetParticipantHandler(
                 member => member.Id,
                 (membership, member) => new ParticipantRow(membership, member.Identifier, member.SubmitterId))
             .FirstOrDefaultAsync(cancellationToken);
-
-    private async Task<PersonDto> PersonAsync(ParticipantRow row, CancellationToken cancellationToken)
-    {
-        Membership membership = row.Membership;
-        Dictionary<long, string> values = await PropertyValuesWriter
-            .ActiveCells(db, membership.TenantId, [membership.Id])
-            .ToDictionaryAsync(value => value.PropertyId, value => value.Value, cancellationToken);
-        IReadOnlyDictionary<long, LinkStatusDto> links = await linkStatuses.ForAsync([membership.Id], cancellationToken);
-        return new PersonDto(
-            membership.Id, membership.MemberId, row.Identifier, values, membership.IsTest, links[membership.Id]);
-    }
 
     private static ParticipantSubmissionDto ToDto(ParticipantSubmissionRow row) => new(
         row.Id,
