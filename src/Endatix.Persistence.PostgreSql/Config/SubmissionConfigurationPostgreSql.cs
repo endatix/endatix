@@ -11,19 +11,7 @@ namespace Endatix.Persistence.PostgreSql.Config
     {
         public void Configure(EntityTypeBuilder<Submission> builder)
         {
-            // Configure JsonData as JSONB for PostgreSQL
-            builder.Property(s => s.JsonData)
-                .HasColumnType("jsonb");
-
-            // Configure Metadata as JSONB for PostgreSQL
-            builder.Property(s => s.Metadata)
-                .HasColumnType("jsonb");
-
-            builder.Property(s => s.SubmitterProfileSnapshot)
-                .HasColumnType("jsonb");
-
-            builder.Property(s => s.PersonalizationSnapshot)
-                .HasColumnType("jsonb");
+            ConfigureJsonColumns(builder);
 
             builder.HasIndex(s => s.SubmitterProfileSnapshot)
                 .HasDatabaseName("IX_Submissions_SubmitterProfileSnapshot_GIN")
@@ -43,6 +31,18 @@ namespace Endatix.Persistence.PostgreSql.Config
             builder.HasIndex(s => s.ModifiedAt)
                 .HasDatabaseName("IX_Submissions_InProgress_ModifiedAt")
                 .HasFilter("\"CollectionStatus\" = 'in_progress' AND \"IsDeleted\" = false");
+        }
+
+        private static void ConfigureJsonColumns(EntityTypeBuilder<Submission> builder)
+        {
+            builder.Property(s => s.JsonData)
+                .HasColumnType("jsonb");
+            builder.Property(s => s.Metadata)
+                .HasColumnType("jsonb");
+            builder.Property(s => s.SubmitterProfileSnapshot)
+                .HasColumnType("jsonb");
+            builder.Property(s => s.PersonalizationSnapshot)
+                .HasColumnType("jsonb");
         }
     }
 }
