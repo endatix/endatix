@@ -117,6 +117,8 @@ public sealed class ScreenOutHandler : IOutboxIntegrationEventHandler
 }
 ```
 
+A host with `Endatix:Outbox:DeliverToJobQueue` on refuses to start while a handler like this has no background job. To run it either way, implement `IOutboxWork<ScreenOutHandler>` (`Endatix.Infrastructure.Features.Outbox`): a static `JobType` string that is persisted on queued jobs (never rename it), a static `HandledEventTypes`, and `Read(message)`, which only parses the message and returns `OutboxWork.For(input, ProcessAsync)`, or `OutboxWork.None` when there is nothing to do. Register it with `builder.Services.AddOutboxWork<ScreenOutHandler>()` in place of step 3's `AddScoped`, which would run the handler a second time inline. Pass `onlyWhen` when a frequent event rarely needs the work, and `appLevelTenant` when the outbox row has no tenant and the job's tenant is in the payload. The job runs only where the Jobs module is on.
+
 A system outside the API process uses the [webhook](/docs/guides/webhooks) `SubmissionCollectionStatusChanged` instead of this handler.
 
 ## In-Process Relay (Default)

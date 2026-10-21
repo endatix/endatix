@@ -43,7 +43,7 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
             return existing.Id;
         }
 
-        Tenant tenant = new(tenantName, CreateStableShortUrl(tenantName), description);
+        Tenant tenant = new(tenantName, StableShortUrl(tenantName), description);
         db.Set<Tenant>().Add(tenant);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -56,7 +56,7 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
     /// Derives a deterministic, valid short URL identifier from the tenant name so re-seeding the
     /// same tenant keeps the same value while distinct names stay distinct.
     /// </summary>
-    private static string CreateStableShortUrl(string tenantName)
+    public static string StableShortUrl(string tenantName)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(tenantName));
         var shortUrl = new char[ShortUrl.StandardLength];

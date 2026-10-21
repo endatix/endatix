@@ -134,7 +134,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
                     SubscribeS1AndS2(services);
                     services.AddOutboxJobSubscription("submission.completed", message => new SubscriberS1Payload(message.Id));
                     services.AddSingleton<IOutboxIntegrationEventHandler>(inline);
-                }),
+                }) { StripsInlineHandlers = true },
             ct);
 
         // Act

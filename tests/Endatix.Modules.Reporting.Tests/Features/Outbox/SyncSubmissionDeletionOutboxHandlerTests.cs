@@ -23,7 +23,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerTests
     [Fact]
     public void EventTypes_IncludesSubmissionDeleted()
     {
-        CreateSut().EventTypes.Should().Contain(SubmissionDeletedEvent.EventTypeName);
+        SyncSubmissionDeletionOutboxHandler.HandledEventTypes.Should().Contain(SubmissionDeletedEvent.EventTypeName);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerTests
             .Returns(1);
         ReportingOutboxTestHelpers.FakeOutboxMessage message = CreateMessage();
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         Received.InOrder(() =>
         {
@@ -53,7 +53,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerTests
             .Returns(0);
         ReportingOutboxTestHelpers.FakeOutboxMessage message = CreateMessage();
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().RollbackTransactionAsync(Arg.Any<CancellationToken>());
@@ -67,7 +67,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerTests
             .Returns(Task.FromException<int>(new InvalidOperationException("delete failed")));
         ReportingOutboxTestHelpers.FakeOutboxMessage message = CreateMessage();
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("delete failed");
         await _unitOfWork.Received(1).RollbackTransactionAsync(Arg.Any<CancellationToken>());
@@ -83,7 +83,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerTests
             Payload: """{"tenantId":"42","formId":"100"}""",
             TenantId: TenantId);
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()
@@ -104,7 +104,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerTests
             Payload: """{"tenantId":"99","submissionId":"500","formId":"100"}""",
             TenantId: TenantId);
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()
