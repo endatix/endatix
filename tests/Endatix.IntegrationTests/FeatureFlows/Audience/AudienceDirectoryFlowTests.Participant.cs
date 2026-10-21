@@ -50,8 +50,8 @@ public sealed partial class AudienceDirectoryFlowTests
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var formId = await FormWithCityAsync(admin);
-        var tester = await AddParticipantAsync(admin, formId, "tester@example.com", isTest: true);
-        var otherTester = await AddParticipantAsync(admin, formId, "other-tester@example.com", isTest: true);
+        var tester = await AddTestParticipantAsync(admin, formId, "tester@example.com");
+        var otherTester = await AddTestParticipantAsync(admin, formId, "other-tester@example.com");
         var first = IdOf(await OpenTestSubmissionAsync(admin, formId, tester.MembershipId), "submissionId");
         var deleted = IdOf(await OpenTestSubmissionAsync(admin, formId, tester.MembershipId), "submissionId");
         var last = IdOf(await OpenTestSubmissionAsync(admin, formId, tester.MembershipId), "submissionId");
@@ -95,7 +95,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Arrange
         var admin = await AdminAsync();
         var formId = await FormWithCityAsync(admin);
-        var tester = await AddParticipantAsync(admin, formId, "tester@example.com", isTest: true);
+        var tester = await AddTestParticipantAsync(admin, formId, "tester@example.com");
         var opened = new List<long>();
         for (var i = 0; i < 51; i++)
         {
@@ -218,13 +218,20 @@ public sealed partial class AudienceDirectoryFlowTests
 
     private sealed record Participant(long MembershipId, long MemberId, string Identifier);
 
-    private static async Task<Participant> AddParticipantAsync(
-        AudienceApi admin,
-        long formId,
-        string identifier,
-        bool isTest = false)
+    private static async Task<Participant> AddParticipantAsync(AudienceApi admin, long formId, string identifier)
     {
-        using var added = await admin.PostAsync($"/api/forms/{formId}/audience/people", new { identifier, isTest });
+        using var added = await admin.AddPersonAsync(formId, identifier);
+        return await ParticipantOfAsync(admin, added, identifier);
+    }
+
+    private static async Task<Participant> AddTestParticipantAsync(AudienceApi admin, long formId, string identifier)
+    {
+        using var added = await AddTestPersonAsync(admin, formId, identifier);
+        return await ParticipantOfAsync(admin, added, identifier);
+    }
+
+    private static async Task<Participant> ParticipantOfAsync(AudienceApi admin, HttpResponseMessage added, string identifier)
+    {
         Assert.Equal(HttpStatusCode.Created, added.StatusCode);
         var person = await admin.ReadAsync(added);
         return new Participant(IdOf(person, "membershipId"), IdOf(person, "audienceMemberId"), identifier);

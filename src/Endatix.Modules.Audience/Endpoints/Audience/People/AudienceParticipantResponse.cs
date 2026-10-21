@@ -28,17 +28,22 @@ public sealed class AudienceParticipantResponse : AudiencePersonResponse
 /// <summary>Wire model for one of a participant's submissions.</summary>
 public sealed class AudienceParticipantSubmissionResponse
 {
+    /// <summary>The submission id.</summary>
     public long Id { get; init; }
 
+    /// <summary>When the submission was created.</summary>
     public DateTime CreatedAt { get; init; }
 
+    /// <summary>When it was completed; <see langword="null"/> while in progress.</summary>
     public DateTime? CompletedAt { get; init; }
 
+    /// <summary>Whether the submission is complete.</summary>
     public bool IsComplete { get; init; }
 
     /// <summary>The submission status code, such as <c>new</c>.</summary>
     public string Status { get; init; } = string.Empty;
 
+    /// <summary>Whether it is a test submission.</summary>
     public bool IsTest { get; init; }
 
     /// <summary><c>link</c>, <c>on_behalf</c> or <c>test</c>; left out when the submission has no Snapshot.</summary>

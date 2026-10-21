@@ -3,9 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions;
-using Endatix.Modules.Audience.Domain;
-using Endatix.Modules.Audience.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Features.People;
 
@@ -37,7 +34,6 @@ public sealed record ParticipantSubmissionDto(
     string? SnapshotSource);
 
 internal sealed class GetParticipantHandler(
-    IAudienceDbContext db,
     IRepository<Form> forms,
     IRepository<Submission> submissions,
     PersonReader personReader)
@@ -52,35 +48,27 @@ internal sealed class GetParticipantHandler(
             return gate.ToErrorResult<ParticipantDto>();
         }
 
-        ParticipantRow? row = await FindAsync(request, cancellationToken);
-        if (row is null)
-        {
-            return Result.NotFound("Participant not found on this form.");
-        }
-
-        PersonDto person = await personReader.ReadAsync(row.Membership, row.Identifier, cancellationToken);
-        ParticipantSubmissionsSpec spec = new(new ParticipantSubmissionsKey(
-            request.FormId, row.Membership.MemberId, person.Link.SubmissionId, row.SubmitterId));
-        List<ParticipantSubmissionRow> newest = await submissions.ListAsync(spec, cancellationToken);
-        int total = await submissions.CountAsync(spec, cancellationToken);
-        return Result.Success(new ParticipantDto(person, newest.Select(ToDto).ToList(), total));
+        FoundParticipant? found = await personReader.FindOnFormAsync(
+            new ParticipantKey(request.TenantId, request.FormId, request.MemberId),
+            cancellationToken);
+        return found is null
+            ? Result.NotFound("Participant not found on this form.")
+            : Result.Success(await WithSubmissionsAsync(request.FormId, found, cancellationToken));
     }
 
-    /// <summary>
-    /// The live membership on this form joined to its member. The tenant is stated as well as filtered, so SQL
-    /// Server seeks the tenant-first index, as the list does.
-    /// </summary>
-    private Task<ParticipantRow?> FindAsync(GetParticipantQuery request, CancellationToken cancellationToken) =>
-        db.Memberships.AsNoTracking()
-            .Where(membership => membership.TenantId == request.TenantId
-                && membership.FormId == request.FormId
-                && membership.MemberId == request.MemberId)
-            .Join(
-                db.Members,
-                membership => membership.MemberId,
-                member => member.Id,
-                (membership, member) => new ParticipantRow(membership, member.Identifier, member.SubmitterId))
-            .FirstOrDefaultAsync(cancellationToken);
+    /// <summary>The newest submissions and the total, in two statements on the same spec.</summary>
+    private async Task<ParticipantDto> WithSubmissionsAsync(
+        long formId,
+        FoundParticipant found,
+        CancellationToken cancellationToken)
+    {
+        PersonDto person = found.Person;
+        ParticipantSubmissionsSpec spec = new(new ParticipantSubmissionsKey(
+            formId, person.MemberId, person.Link.SubmissionId, found.SubmitterId));
+        List<ParticipantSubmissionRow> newest = await submissions.ListAsync(spec, cancellationToken);
+        int total = await submissions.CountAsync(spec, cancellationToken);
+        return new ParticipantDto(person, newest.Select(ToDto).ToList(), total);
+    }
 
     private static ParticipantSubmissionDto ToDto(ParticipantSubmissionRow row) => new(
         row.Id,
@@ -90,6 +78,4 @@ internal sealed class GetParticipantHandler(
         row.Status,
         row.IsTest,
         PersonalizationReader.Read(row.Snapshot, includeValues: false)?.Source);
-
-    private sealed record ParticipantRow(Membership Membership, string Identifier, long? SubmitterId);
 }

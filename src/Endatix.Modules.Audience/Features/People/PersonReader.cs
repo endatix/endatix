@@ -10,6 +10,28 @@ namespace Endatix.Modules.Audience.Features.People;
 /// </summary>
 internal sealed class PersonReader(IAudienceDbContext db, LinkStatuses linkStatuses)
 {
+    /// <summary>
+    /// The member's live membership on the form, or <see langword="null"/> when they are not on it, were removed, or
+    /// belong to another tenant. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first index,
+    /// as the list does.
+    /// </summary>
+    public async Task<FoundParticipant?> FindOnFormAsync(ParticipantKey key, CancellationToken cancellationToken)
+    {
+        var row = await db.Memberships.AsNoTracking()
+            .Where(membership => membership.TenantId == key.TenantId
+                && membership.FormId == key.FormId
+                && membership.MemberId == key.MemberId)
+            .Join(
+                db.Members,
+                membership => membership.MemberId,
+                member => member.Id,
+                (membership, member) => new { Membership = membership, member.Identifier, member.SubmitterId })
+            .FirstOrDefaultAsync(cancellationToken);
+        return row is null
+            ? null
+            : new FoundParticipant(await ReadAsync(row.Membership, row.Identifier, cancellationToken), row.SubmitterId);
+    }
+
     public async Task<PersonDto> ReadAsync(Membership membership, string identifier, CancellationToken cancellationToken)
     {
         Dictionary<long, string> values = await PropertyValuesWriter
@@ -20,3 +42,9 @@ internal sealed class PersonReader(IAudienceDbContext db, LinkStatuses linkStatu
             membership.Id, membership.MemberId, identifier, values, membership.IsTest, links[membership.Id]);
     }
 }
+
+/// <summary>A member on one form of one tenant.</summary>
+internal sealed record ParticipantKey(long TenantId, long FormId, long MemberId);
+
+/// <summary>A participant found on a form, with the Submitter bound to their member, if any.</summary>
+internal sealed record FoundParticipant(PersonDto Person, long? SubmitterId);

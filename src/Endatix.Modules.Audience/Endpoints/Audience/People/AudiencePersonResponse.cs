@@ -8,6 +8,7 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.People;
 /// </summary>
 public class AudiencePersonResponse
 {
+    /// <summary>An empty response, filled by its initializers.</summary>
     public AudiencePersonResponse()
     {
     }

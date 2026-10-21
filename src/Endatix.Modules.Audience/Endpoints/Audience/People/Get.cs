@@ -18,6 +18,7 @@ public sealed class Get(
     ITenantContext tenantContext)
     : Endpoint<GetAudienceParticipantRequest, Results<Ok<AudienceParticipantResponse>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Get("forms/{formId}/audience/people/{memberId}");
@@ -37,6 +38,7 @@ public sealed class Get(
             .ProducesProblem(404));
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Ok<AudienceParticipantResponse>, ProblemHttpResult>> ExecuteAsync(
         GetAudienceParticipantRequest request,
         CancellationToken ct)
@@ -56,6 +58,7 @@ public sealed class Get(
 /// </summary>
 public sealed class GetAudienceParticipantValidator : Validator<GetAudienceParticipantRequest>
 {
+    /// <summary>Both ids are positive.</summary>
     public GetAudienceParticipantValidator()
     {
         RuleFor(request => request.FormId).GreaterThan(0);
@@ -68,7 +71,9 @@ public sealed class GetAudienceParticipantValidator : Validator<GetAudienceParti
 /// </summary>
 public sealed class GetAudienceParticipantRequest
 {
+    /// <summary>The form.</summary>
     public long FormId { get; init; }
 
+    /// <summary>The participant's member id (<c>audienceMemberId</c> on the list), not the membership id.</summary>
     public long MemberId { get; init; }
 }
