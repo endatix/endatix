@@ -37,8 +37,8 @@ internal sealed record LinkClaim(DateTime? OpenedAt, long? SubmissionId);
 internal sealed record ClaimedSubmission(long Id, bool IsDeleted, bool IsTest);
 
 /// <summary>
-/// The only Link status rule. A page of memberships costs two statements whatever its size: one read of their
-/// links, then one primary-key read of the submissions those links name.
+/// The only Link status rule. A page of memberships costs at most two statements whatever its size: one read of
+/// their links, then one primary-key read of the submissions those links name.
 /// </summary>
 internal sealed class LinkStatuses(IAudienceDbContext db, AppDbContext app)
 {
@@ -56,12 +56,11 @@ internal sealed class LinkStatuses(IAudienceDbContext db, AppDbContext app)
         Dictionary<long, ClaimedSubmission> submissions = await ClaimedSubmissionsAsync(links.Values, cancellationToken);
         return membershipIds.Distinct().ToDictionary(
             membershipId => membershipId,
-            membershipId => Of(
-                links.GetValueOrDefault(membershipId),
-                links.GetValueOrDefault(membershipId)?.SubmissionId is long submissionId
-                    ? submissions.GetValueOrDefault(submissionId)
-                    : null));
+            membershipId => Of(links.GetValueOrDefault(membershipId), submissions));
     }
+
+    private static LinkStatusDto Of(LinkClaim? link, Dictionary<long, ClaimedSubmission> submissions) =>
+        Of(link, link?.SubmissionId is long submissionId ? submissions.GetValueOrDefault(submissionId) : null);
 
     /// <summary>
     /// A claim on a submission marked as test, deleted or not, is stale: redeem clears it and opens afresh, so the
