@@ -37,18 +37,20 @@ public enum PeopleTestFilter
 }
 
 /// <summary>
-/// One person on a form's audience, with property values keyed by property id.
+/// One person on a form's audience, with property values keyed by property id and their Link status.
 /// </summary>
 public sealed record PersonDto(
     long MembershipId,
     long MemberId,
     string Identifier,
     IReadOnlyDictionary<long, string> Values,
-    bool IsTest);
+    bool IsTest,
+    LinkStatusDto Link);
 
 internal sealed class ListPeopleHandler(
     IAudienceDbContext db,
-    IRepository<Form> forms)
+    IRepository<Form> forms,
+    LinkStatuses linkStatuses)
     : IQueryHandler<ListPeopleQuery, Result<Paged<PersonDto>>>
 {
     public async Task<Result<Paged<PersonDto>>> Handle(
@@ -124,10 +126,12 @@ internal sealed class ListPeopleHandler(
             return [];
         }
 
-        Dictionary<long, string> identifiers = await LoadIdentifiersAsync(rows, cancellationToken);
-        Dictionary<long, Dictionary<long, string>> values =
-            await LoadValuesAsync(tenantId, rows.Select(row => row.Id).ToHashSet(), cancellationToken);
-        return BuildDtos(rows, identifiers, values);
+        HashSet<long> membershipIds = rows.Select(row => row.Id).ToHashSet();
+        PageDetails details = new(
+            await LoadIdentifiersAsync(rows, cancellationToken),
+            await LoadValuesAsync(tenantId, membershipIds, cancellationToken),
+            await linkStatuses.ForAsync(membershipIds, cancellationToken));
+        return BuildDtos(rows, details);
     }
 
     private async Task<Dictionary<long, string>> LoadIdentifiersAsync(
@@ -158,18 +162,22 @@ internal sealed class ListPeopleHandler(
                 group => group.ToDictionary(row => row.PropertyId, row => row.Value));
     }
 
-    private static List<PersonDto> BuildDtos(
-        List<Membership> rows,
-        Dictionary<long, string> identifiers,
-        Dictionary<long, Dictionary<long, string>> valuesByMembership) =>
+    private static List<PersonDto> BuildDtos(List<Membership> rows, PageDetails details) =>
         rows
-            .Where(membership => identifiers.ContainsKey(membership.MemberId))
+            .Where(membership => details.Identifiers.ContainsKey(membership.MemberId))
             .Select(membership => new PersonDto(
                 membership.Id,
                 membership.MemberId,
-                identifiers[membership.MemberId],
-                valuesByMembership.GetValueOrDefault(membership.Id)
+                details.Identifiers[membership.MemberId],
+                details.Values.GetValueOrDefault(membership.Id)
                     ?? (IReadOnlyDictionary<long, string>)new Dictionary<long, string>(),
-                membership.IsTest))
+                membership.IsTest,
+                details.Links[membership.Id]))
             .ToList();
+
+    /// <summary>What a page's rows are joined to, each read once for the whole page.</summary>
+    private sealed record PageDetails(
+        Dictionary<long, string> Identifiers,
+        Dictionary<long, Dictionary<long, string>> Values,
+        IReadOnlyDictionary<long, LinkStatusDto> Links);
 }
