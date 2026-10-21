@@ -22,6 +22,9 @@ namespace Endatix.Persistence.PostgreSql.Config
             builder.Property(s => s.SubmitterProfileSnapshot)
                 .HasColumnType("jsonb");
 
+            builder.Property(s => s.PersonalizationSnapshot)
+                .HasColumnType("jsonb");
+
             builder.HasIndex(s => s.SubmitterProfileSnapshot)
                 .HasDatabaseName("IX_Submissions_SubmitterProfileSnapshot_GIN")
                 .HasMethod("gin")
