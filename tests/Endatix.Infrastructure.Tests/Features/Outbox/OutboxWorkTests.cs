@@ -36,7 +36,7 @@ public sealed class OutboxWorkTests
     }
 
     [Fact]
-    public void AddOutboxWork_OneCall_RegistersInlineHandlerJobHandlerDefaultsAndSubscriptions()
+    public async Task AddOutboxWork_OneCall_RegistersInlineHandlerJobHandlerDefaultsAndSubscriptions()
     {
         // Arrange
         using var provider = Build();
@@ -44,16 +44,21 @@ public sealed class OutboxWorkTests
 
         // Act
         var inline = scope.ServiceProvider.GetServices<IOutboxIntegrationEventHandler>().ToList();
-        var jobHandler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(WorkPayload.JobType);
+        var jobHandler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(WorkStub.JobType);
         var defaults = provider.GetServices<BackgroundJobTypeDefaults>().ToList();
         var subscriptions = provider.GetRequiredService<OutboxSubscriptions>();
+        var work = scope.ServiceProvider.GetRequiredService<WorkStub>();
 
-        // Assert — the inline handler is the very instance the job reuses within a scope.
-        inline.Should().ContainSingle().Which.Should().BeSameAs(scope.ServiceProvider.GetRequiredService<WorkStub>());
-        jobHandler.JobType.Should().Be(WorkPayload.JobType);
-        defaults.Should().ContainSingle().Which.Should().BeEquivalentTo(Defaults with { JobType = WorkPayload.JobType });
+        // Assert — the inline handler is the very instance the job reuses within a scope, and its HandleAsync is Read.
+        inline.Should().ContainSingle().Which.Should().BeSameAs(work);
+        await inline[0].HandleAsync(
+            new OutboxMessageStub(MessageId, "x.happened", $$"""{"tenantId":"{{TenantA}}","work":"run"}""", TenantA),
+            TestContext.Current.CancellationToken);
+        work.Ran.Should().BeTrue();
+        jobHandler.JobType.Should().Be(WorkStub.JobType);
+        defaults.Should().ContainSingle().Which.Should().BeEquivalentTo(Defaults with { JobType = WorkStub.JobType });
         WorkStub.HandledEventTypes.Should().AllSatisfy(eventType =>
-            subscriptions.For(eventType).Should().ContainSingle().Which.JobType.Should().Be(WorkPayload.JobType));
+            subscriptions.For(eventType).Should().ContainSingle().Which.JobType.Should().Be(WorkStub.JobType));
         var validate = () => subscriptions.Validate(inline);
         validate.Should().NotThrow();
     }
@@ -157,7 +162,7 @@ public sealed class OutboxWorkTests
     {
         // Arrange — the row is app-level; the job belongs to the tenant the payload names.
         Seed($$"""{"newTenantId":"{{TenantA}}","work":"run"}""", 0);
-        using var provider = Build(options => options.AppLevel(WorkStub.ReadNewTenant));
+        using var provider = Build(appLevelTenant: WorkStub.ReadNewTenant);
 
         // Act
         var (result, work) = await RunJobAsync(provider, TenantA);
@@ -172,7 +177,7 @@ public sealed class OutboxWorkTests
     {
         // Arrange — an app-level row is readable by any job; only its payload says whose it is.
         Seed("""{"newTenantId":"12","work":"run"}""", 0);
-        using var provider = Build(options => options.AppLevel(WorkStub.ReadNewTenant));
+        using var provider = Build(appLevelTenant: WorkStub.ReadNewTenant);
 
         // Act
         var (result, work) = await RunJobAsync(provider, TenantA);
@@ -188,7 +193,7 @@ public sealed class OutboxWorkTests
     {
         // Arrange — the tenant reader cannot read the payload, whatever the work's own Read would make of it.
         Seed("""{"work":"run"}""", 0);
-        using var provider = Build(options => options.AppLevel(WorkStub.ReadNewTenant));
+        using var provider = Build(appLevelTenant: WorkStub.ReadNewTenant);
 
         // Act
         var (result, work) = await RunJobAsync(provider, TenantA);
@@ -218,8 +223,8 @@ public sealed class OutboxWorkTests
     {
         // Arrange — the app-level setting is the other work's alone.
         Seed($$"""{"tenantId":"{{TenantA}}","work":"run"}""", TenantA);
-        using var provider = Build(services => services.AddOutboxWork<AppLevelWorkStub, AppLevelWorkPayload>(
-            Defaults, options => options.AppLevel(WorkStub.ReadNewTenant)));
+        using var provider = Build(services => services.AddOutboxWork<AppLevelWorkStub>(
+            Defaults, appLevelTenant: WorkStub.ReadNewTenant));
 
         // Act
         var (result, work) = await RunJobAsync(provider, TenantA);
@@ -241,7 +246,7 @@ public sealed class OutboxWorkTests
         // Assert — the wire shape and dedup key of jobs queued before this registration existed.
         var request = _enqueued.Should().ContainSingle().Subject;
         (request.JobType, request.TenantId, request.DedupKey)
-            .Should().Be((WorkPayload.JobType, TenantA, $"{MessageId}:{WorkPayload.JobType}"));
+            .Should().Be((WorkStub.JobType, TenantA, $"{MessageId}:{WorkStub.JobType}"));
         request.PayloadJson.Should().Be($$"""{"outboxMessageId":{{MessageId}}}""");
     }
 
@@ -249,7 +254,7 @@ public sealed class OutboxWorkTests
     public async Task PublishAsync_AppLevel_EnqueuesTheJobForTheTenantThePayloadNames()
     {
         // Arrange
-        using var provider = Build(options => options.AppLevel(WorkStub.ReadNewTenant));
+        using var provider = Build(appLevelTenant: WorkStub.ReadNewTenant);
 
         // Act
         await PublishAsync(provider, new OutboxMessageStub(MessageId, "x.happened", """{"newTenantId":"31"}""", 0));
@@ -262,7 +267,7 @@ public sealed class OutboxWorkTests
     public async Task PublishAsync_AppLevelUnreadable_ThrowsSoTheRelayRetries()
     {
         // Arrange
-        using var provider = Build(options => options.AppLevel(WorkStub.ReadNewTenant));
+        using var provider = Build(appLevelTenant: WorkStub.ReadNewTenant);
 
         // Act
         var publish = () => PublishAsync(provider, new OutboxMessageStub(MessageId, "x.happened", "not json", 0));
@@ -277,25 +282,25 @@ public sealed class OutboxWorkTests
     [InlineData("""{"tenantId":"11","work":"none"}""", 0)]
     [InlineData("not json", 1)]
     [InlineData("""{"tenantId":"11"}""", 1)]
-    public async Task PublishAsync_OnlyWhenThereIsWork_EnqueuesUnlessTheMessageNeedsNothing(string payload, int expectedJobs)
+    public async Task PublishAsync_OnlyWhen_EnqueuesUnlessTheMessageNeedsNothing(string payload, int expectedJobs)
     {
         // Arrange — a message the work cannot read, or whose read throws anything else, is still enqueued, so its
         // job fails visibly and the message's other subscribers are unaffected.
-        using var provider = Build(options => options.OnlyWhenThereIsWork());
+        using var provider = Build(onlyWhen: WorkStub.MayNeedWork);
 
         // Act
         await PublishAsync(provider, new OutboxMessageStub(MessageId, "x.happened", payload, TenantA));
 
         // Assert
         _enqueued.Select(request => request.DedupKey)
-            .Should().Equal(Enumerable.Repeat($"{MessageId}:{WorkPayload.JobType}", expectedJobs));
+            .Should().Equal(Enumerable.Repeat($"{MessageId}:{WorkStub.JobType}", expectedJobs));
     }
 
     [Fact]
-    public async Task PublishAsync_OnlyWhenThereIsWorkReadCancelled_ThrowsSoTheRelayStops()
+    public async Task PublishAsync_OnlyWhenReadCancelled_ThrowsSoTheRelayStops()
     {
         // Arrange — cancellation is the relay's own, not a bad read to enqueue past.
-        using var provider = Build(options => options.OnlyWhenThereIsWork());
+        using var provider = Build(onlyWhen: WorkStub.MayNeedWork);
 
         // Act
         var publish = () => PublishAsync(
@@ -306,9 +311,10 @@ public sealed class OutboxWorkTests
         _enqueued.Should().BeEmpty();
     }
 
-    private ServiceProvider Build(Action<OutboxWorkOptions>? configure = null) => Build(_ => { }, configure);
-
-    private ServiceProvider Build(Action<IServiceCollection> addMore, Action<OutboxWorkOptions>? configure = null)
+    private ServiceProvider Build(
+        Action<IServiceCollection>? addMore = null,
+        Func<IOutboxMessage, long>? appLevelTenant = null,
+        Func<IOutboxMessage, bool>? onlyWhen = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -316,8 +322,8 @@ public sealed class OutboxWorkTests
         services.AddSingleton(_outbox);
         services.AddSingleton(_queue);
         services.AddScoped<JobQueueIntegrationEventPublisher>();
-        services.AddOutboxWork<WorkStub, WorkPayload>(Defaults, configure);
-        addMore(services);
+        services.AddOutboxWork<WorkStub>(Defaults, appLevelTenant, onlyWhen);
+        addMore?.Invoke(services);
         return services.BuildServiceProvider();
     }
 
@@ -329,9 +335,9 @@ public sealed class OutboxWorkTests
         long tenantId)
     {
         using var scope = provider.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(WorkPayload.JobType);
-        var job = new BackgroundJobContext(1, WorkPayload.JobType, tenantId,
-            BackgroundJobPayloadSerializer.Serialize(new WorkPayload(MessageId)), 1);
+        var handler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(WorkStub.JobType);
+        var job = new BackgroundJobContext(1, WorkStub.JobType, tenantId,
+            BackgroundJobPayloadSerializer.Serialize(new OutboxMessageJob<WorkStub>(MessageId)), 1);
         var result = await handler.ExecuteAsync(job, TestContext.Current.CancellationToken);
         return (result, scope.ServiceProvider.GetRequiredService<WorkStub>());
     }
@@ -343,41 +349,25 @@ public sealed class OutboxWorkTests
             .PublishAsync(message, TestContext.Current.CancellationToken);
     }
 
-    internal sealed record WorkPayload(long OutboxMessageId) : IOutboxJobPayload<WorkPayload>
-    {
-        public static string JobType => "TestWork";
-
-        public static WorkPayload For(long outboxMessageId) => new(outboxMessageId);
-    }
-
-    internal sealed record AppLevelWorkPayload(long OutboxMessageId) : IOutboxJobPayload<AppLevelWorkPayload>
+    /// <summary>A second work on another event, registered app-level.</summary>
+    internal sealed class AppLevelWorkStub : IOutboxWork<AppLevelWorkStub>
     {
         public static string JobType => "TestAppLevelWork";
 
-        public static AppLevelWorkPayload For(long outboxMessageId) => new(outboxMessageId);
-    }
-
-    /// <summary>A second work on another event, registered app-level.</summary>
-    internal sealed class AppLevelWorkStub : IOutboxWork
-    {
         public static IReadOnlyCollection<string> HandledEventTypes { get; } = ["y.happened"];
 
-        public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
         public OutboxWork Read(IOutboxMessage message) => OutboxWork.None;
-
-        public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     /// <summary>
     /// Reads <c>work</c>: <c>run</c> runs, <c>none</c> has nothing to do, <c>throw</c> fails as the work would on
     /// a transient problem.
     /// </summary>
-    internal sealed class WorkStub : IOutboxWork
+    internal sealed class WorkStub : IOutboxWork<WorkStub>
     {
-        public static IReadOnlyCollection<string> HandledEventTypes { get; } = ["x.happened"];
+        public static string JobType => "TestWork";
 
-        public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
+        public static IReadOnlyCollection<string> HandledEventTypes { get; } = ["x.happened"];
 
         public bool Ran { get; private set; }
 
@@ -385,6 +375,23 @@ public sealed class OutboxWorkTests
         {
             using var document = JsonDocument.Parse(message.Payload);
             return message.GetRequiredIdProp(document.RootElement, "newTenantId");
+        }
+
+        public static bool MayNeedWork(IOutboxMessage message)
+        {
+            using var document = JsonDocument.Parse(message.Payload);
+            var payload = document.RootElement;
+            if (message.TenantId != 0)
+            {
+                message.GetRequiredTenantId(payload);
+            }
+
+            return payload.GetProperty("work").GetString() switch
+            {
+                "none" => false,
+                "cancel" => throw new OperationCanceledException(),
+                _ => true,
+            };
         }
 
         public OutboxWork Read(IOutboxMessage message)
@@ -408,8 +415,5 @@ public sealed class OutboxWorkTests
                 }),
             };
         }
-
-        public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-            Read(message).RunAsync(cancellationToken);
     }
 }

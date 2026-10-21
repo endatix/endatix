@@ -16,22 +16,16 @@ namespace Endatix.Modules.Reporting.Features.Outbox;
 /// </remarks>
 internal sealed class FlattenSubmissionOutboxHandler(
     ISubmissionFlatteningProcessor flatteningProcessor,
-    ILogger<FlattenSubmissionOutboxHandler> logger) : IOutboxWork
+    ILogger<FlattenSubmissionOutboxHandler> logger) : IOutboxWork<FlattenSubmissionOutboxHandler>
 {
+    public static string JobType => "ReportingFlattenSubmission";
+
     public static IReadOnlyCollection<string> HandledEventTypes { get; } =
         [SubmissionCompletedEvent.EventTypeName, SubmissionUpdatedEvent.EventTypeName];
 
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        Read(message).RunAsync(cancellationToken);
-
     /// <inheritdoc />
     public OutboxWork Read(IOutboxMessage message) =>
-        Parse(message, logger) is { } input
-            ? OutboxWork.For(cancellationToken => ProcessAsync(input, cancellationToken))
-            : OutboxWork.None;
+        OutboxWork.If(Parse(message, logger), ProcessAsync);
 
     /// <summary>
     /// Reads the work from the message, or <see langword="null"/> when the change it reports does not affect the

@@ -36,8 +36,8 @@ public sealed class AudienceSubscriptionsTests
         var services = new ServiceCollection();
         var inline = new (IReadOnlyCollection<string> EventTypes, string JobType)[]
         {
-            (DeleteFormAudienceOutboxHandler.HandledEventTypes, AudienceDeleteFormAudiencePayload.JobType),
-            (ReleaseLinkOnTestMarkOutboxHandler.HandledEventTypes, AudienceReleaseLinkOnTestMarkPayload.JobType),
+            (DeleteFormAudienceOutboxHandler.HandledEventTypes, DeleteFormAudienceOutboxHandler.JobType),
+            (ReleaseLinkOnTestMarkOutboxHandler.HandledEventTypes, ReleaseLinkOnTestMarkOutboxHandler.JobType),
         };
 
         // Act
@@ -78,7 +78,7 @@ public sealed class AudienceSubscriptionsTests
         // Assert — every host gets these, whatever its configuration holds.
         var declared = provider.GetServices<BackgroundJobTypeDefaults>().ToList();
         declared.Select(defaults => defaults.JobType).Should().BeEquivalentTo(
-            AudienceDeleteFormAudiencePayload.JobType, AudienceReleaseLinkOnTestMarkPayload.JobType);
+            DeleteFormAudienceOutboxHandler.JobType, ReleaseLinkOnTestMarkOutboxHandler.JobType);
         declared.Should().AllSatisfy(defaults =>
             defaults.Should().BeEquivalentTo(tuned, options => options.Excluding(value => value.JobType)));
     }

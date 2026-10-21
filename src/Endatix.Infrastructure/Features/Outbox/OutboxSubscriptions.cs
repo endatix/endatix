@@ -23,20 +23,24 @@ public sealed class OutboxJobSubscription
     /// <summary>The job type each of its jobs runs as.</summary>
     public string JobType { get; internal init; } = string.Empty;
 
-    /// <summary>The assembly that owns the work — the payload's.</summary>
+    /// <summary>The assembly that owns the work, or the payload's when no work owns the subscription.</summary>
     public Assembly SourceAssembly { get; internal init; } = null!;
 
-    /// <summary>The <see cref="IOutboxWork"/> whose job this is, when the work registered it; otherwise none.</summary>
+    /// <summary>The outbox work whose job this is, when the work registered it; otherwise none.</summary>
     internal Type? WorkType { get; init; }
 
     /// <summary>
-    /// Whether this subscription does <paramref name="handler"/>'s work as a job: an <see cref="IOutboxWork"/> needs its
-    /// own job, any other handler one registered from its assembly that no work owns.
+    /// Whether this subscription does <paramref name="handler"/>'s work as a job: an outbox work needs its own job,
+    /// any other handler one registered from its assembly that no work owns.
     /// </summary>
     internal bool Covers(IOutboxIntegrationEventHandler handler) =>
-        handler is IOutboxWork
+        IsOutboxWork(handler)
             ? WorkType == handler.GetType()
             : WorkType is null && SourceAssembly == handler.GetType().Assembly;
+
+    internal static bool IsOutboxWork(IOutboxIntegrationEventHandler handler) =>
+        handler.GetType().GetInterfaces().Any(candidate =>
+            candidate.IsGenericType && candidate.GetGenericTypeDefinition() == typeof(IOutboxWork<>));
 
     /// <summary>Reads the tenant from an app-level message; <see langword="null"/> takes the message's own.</summary>
     internal Func<IOutboxMessage, long>? TenantResolver { private get; init; }

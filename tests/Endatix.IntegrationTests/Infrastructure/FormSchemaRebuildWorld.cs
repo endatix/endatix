@@ -21,7 +21,6 @@ using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 
 namespace Endatix.IntegrationTests;
 
@@ -177,9 +176,9 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
             1) { Id = outboxMessageId };
         BackgroundJobContext job = new(
             JobId: 1,
-            ReportingFlattenSubmissionPayload.JobType,
+            FlattenSubmissionOutboxHandler.JobType,
             TenantId,
-            BackgroundJobPayloadSerializer.Serialize(new ReportingFlattenSubmissionPayload(outboxMessageId)),
+            BackgroundJobPayloadSerializer.Serialize(new OutboxMessageJob<FlattenSubmissionOutboxHandler>(outboxMessageId)),
             AttemptCount: 1);
         await using var scope = OpenScope();
         return await scope.FlattenJob(transactionLock, message).ExecuteAsync(job, Cancellation);
@@ -294,12 +293,11 @@ internal sealed class RebuildScope(AppDbContext appDb, ReportingDbContextBase re
         var outboxMessages = Substitute.For<IRepository<OutboxMessage>>();
         outboxMessages.FirstOrDefaultAsync(Arg.Any<OutboxMessageByIdForTenantSpec>(), Arg.Any<CancellationToken>())
             .Returns(message);
-        var settings = Substitute.For<IOptionsMonitor<OutboxWorkSettings>>();
-        settings.Get(Arg.Any<string>()).Returns(new OutboxWorkSettings());
-        return new OutboxJobHandler<ReportingFlattenSubmissionPayload, FlattenSubmissionOutboxHandler>(
-            new OutboxJobMessages(outboxMessages, settings),
+        return new OutboxJobHandler<FlattenSubmissionOutboxHandler>(
+            new OutboxJobMessages(outboxMessages),
             new FlattenSubmissionOutboxHandler(Flattening(transactionLock), NullLogger<FlattenSubmissionOutboxHandler>.Instance),
-            NullLogger<OutboxJobHandler<ReportingFlattenSubmissionPayload, FlattenSubmissionOutboxHandler>>.Instance);
+            new OutboxWorkRegistration<FlattenSubmissionOutboxHandler>(readTenant: null, onlyWhen: null),
+            NullLogger<OutboxJobHandler<FlattenSubmissionOutboxHandler>>.Instance);
     }
 
     public SubmissionBackfillProcessor Backfill(ITransactionLock transactionLock) =>

@@ -13,89 +13,76 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// </summary>
 public static class OutboxWorkServiceCollectionExtensions
 {
-    /// <summary>
-    /// Registers <typeparamref name="TWork"/> as an inline handler, its job keyed by
-    /// <typeparamref name="TPayload"/>'s job type with <paramref name="defaults"/>, and a job subscription for every
-    /// event type in <see cref="IOutboxWork.HandledEventTypes"/>.
-    /// </summary>
-    public static IServiceCollection AddOutboxWork<TWork, TPayload>(
-        this IServiceCollection services,
-        BackgroundJobTypeDefaults defaults,
-        Action<OutboxWorkOptions>? configure = null)
-        where TWork : class, IOutboxWork
-        where TPayload : IOutboxJobPayload<TPayload>
+    /// <summary>The retry policy of one short outbox update, when a call passes no <paramref name="defaults"/>.</summary>
+    public static BackgroundJobTypeDefaults DefaultJob { get; } = new()
     {
-        ArgumentNullException.ThrowIfNull(defaults);
-
-        var options = new OutboxWorkOptions();
-        configure?.Invoke(options);
-        services.AddInlineOutboxHandler<TWork>();
-        AddJob<TWork, TPayload>(services, defaults, options);
-        foreach (var eventType in TWork.HandledEventTypes)
-        {
-            Subscribe<TWork, TPayload>(services, eventType, options);
-        }
-
-        return services;
-    }
+        MaxAttempts = 5,
+        MaxRuntimeMinutes = 10,
+        BackoffBaseSeconds = 10,
+        BackoffCapSeconds = 600,
+        RetentionDays = 3,
+        MaxConcurrency = 2,
+    };
 
     /// <summary>
-    /// Registers <typeparamref name="THandler"/> inline only, as itself and as an
-    /// <see cref="IOutboxIntegrationEventHandler"/>, for a module whose work has no job yet. With
-    /// <c>Endatix:Outbox:DeliverToJobQueue</c> on, the host refuses to start while its events have no subscription;
-    /// an <see cref="IOutboxWork"/> registered this way never has one, so register it with <c>AddOutboxWork</c>.
+    /// Registers <typeparamref name="TWork"/> as an inline handler, its job keyed by <typeparamref name="TWork"/>'s
+    /// <see cref="IOutboxWork{TSelf}.JobType"/> with <paramref name="defaults"/>, and a job subscription for every
+    /// event type in <see cref="IOutboxWork{TSelf}.HandledEventTypes"/>.
     /// </summary>
-    public static IServiceCollection AddInlineOutboxHandler<THandler>(this IServiceCollection services)
-        where THandler : class, IOutboxIntegrationEventHandler
+    /// <param name="defaults">The job's retry policy. Omitted uses <see cref="DefaultJob"/>.</param>
+    /// <param name="appLevelTenant">
+    /// Reads the job's tenant from an app-level row, whose stored tenant is none. Omitted, the row carries the tenant.
+    /// </param>
+    /// <param name="onlyWhen">
+    /// Enqueues no job when this returns false, so a frequent event that rarely needs the work adds no empty jobs.
+    /// A throw other than cancellation still enqueues the job. The relay calls this static predicate and does not
+    /// resolve <typeparamref name="TWork"/>.
+    /// </param>
+    public static IServiceCollection AddOutboxWork<TWork>(
+        this IServiceCollection services,
+        BackgroundJobTypeDefaults? defaults = null,
+        Func<IOutboxMessage, long>? appLevelTenant = null,
+        Func<IOutboxMessage, bool>? onlyWhen = null)
+        where TWork : class, IOutboxWork<TWork>
     {
         ArgumentNullException.ThrowIfNull(services);
-        if (services.Any(descriptor => RegistersInline<THandler>(descriptor)))
+        if (services.Any(RegistersInline<TWork>))
         {
             throw new InvalidOperationException(
-                $"The outbox handler {typeof(THandler).FullName} is already registered; register it once, so it runs once.");
+                $"The outbox handler {typeof(TWork).FullName} is already registered; register it once, so it runs once.");
         }
 
         // Registered as itself too, so a job in the same scope reuses the very same work.
-        services.AddScoped<THandler>();
-        services.AddScoped<IOutboxIntegrationEventHandler>(provider => provider.GetRequiredService<THandler>());
+        services.AddScoped<TWork>();
+        services.AddScoped<IOutboxIntegrationEventHandler>(provider => provider.GetRequiredService<TWork>());
+        services.AddBackgroundJobHandler<OutboxJobHandler<TWork>, OutboxMessageJob<TWork>>(defaults ?? DefaultJob);
+        services.TryAddScoped<OutboxJobMessages>();
+        services.AddSingleton(new OutboxWorkRegistration<TWork>(appLevelTenant, onlyWhen));
+
+        foreach (var eventType in TWork.HandledEventTypes)
+        {
+            var source = new OutboxSubscriptionServiceCollectionExtensions.SubscriptionSource(
+                eventType,
+                appLevelTenant is { } readTenant ? TenantOrNone(readTenant) : null,
+                typeof(TWork));
+            if (onlyWhen is null)
+            {
+                services.AddJobSubscription(source, message => new OutboxMessageJob<TWork>(message.Id));
+            }
+            else
+            {
+                services.AddExpandingJobSubscription<OutboxMessageJob<TWork>, OutboxWorkExpander<TWork>>(source);
+            }
+        }
+
         return services;
     }
 
-    private static void AddJob<TWork, TPayload>(
-        IServiceCollection services,
-        BackgroundJobTypeDefaults defaults,
-        OutboxWorkOptions options)
-        where TWork : class, IOutboxWork
-        where TPayload : IOutboxJobPayload<TPayload>
-    {
-        services.AddBackgroundJobHandler<OutboxJobHandler<TPayload, TWork>, TPayload>(defaults);
-        services.TryAddScoped<OutboxJobMessages>();
-        services.Configure<OutboxWorkSettings>(TPayload.JobType, settings => settings.ReadTenant = options.ReadsTenant);
-    }
-
-    private static bool RegistersInline<THandler>(ServiceDescriptor descriptor) =>
-        descriptor.ServiceType == typeof(THandler)
+    private static bool RegistersInline<TWork>(ServiceDescriptor descriptor) =>
+        descriptor.ServiceType == typeof(TWork)
         || (descriptor.ServiceType == typeof(IOutboxIntegrationEventHandler)
             && !descriptor.IsKeyedService
-            && descriptor.ImplementationType == typeof(THandler));
-
-    private static void Subscribe<TWork, TPayload>(IServiceCollection services, string eventType, OutboxWorkOptions options)
-        where TWork : class, IOutboxWork
-        where TPayload : IOutboxJobPayload<TPayload>
-    {
-        var source = new OutboxSubscriptionServiceCollectionExtensions.SubscriptionSource(
-            eventType,
-            options.ReadsTenant is { } readTenant ? TenantOrNone(readTenant) : null,
-            typeof(TWork));
-        if (options.SkipsMessagesWithoutWork)
-        {
-            services.AddExpandingJobSubscription<TPayload, OutboxWorkExpander<TPayload, TWork>>(source);
-        }
-        else
-        {
-            services.AddJobSubscription(source, message => TPayload.For(message.Id));
-        }
-    }
+            && descriptor.ImplementationType == typeof(TWork));
 
     // An unreadable tenant resolves to none, which fails the publish, so the relay retries and then fails the message
     // rather than writing a job without a tenant.
@@ -112,75 +99,58 @@ public static class OutboxWorkServiceCollectionExtensions
     };
 }
 
-/// <summary>How <see cref="OutboxWorkServiceCollectionExtensions.AddOutboxWork{TWork, TPayload}"/> registers one work.</summary>
-public sealed class OutboxWorkOptions
+/// <summary>The input of an outbox work's job: the outbox message whose event it processes.</summary>
+internal sealed record OutboxMessageJob<TWork>(long OutboxMessageId) : IBackgroundJobPayload
+    where TWork : class, IOutboxWork<TWork>
 {
-    internal Func<IOutboxMessage, long>? ReadsTenant { get; private set; }
-
-    internal bool SkipsMessagesWithoutWork { get; private set; }
-
-    /// <summary>
-    /// The work's messages are app-level (their row carries no tenant), and each job belongs to the tenant
-    /// <paramref name="readTenantId"/> reads from the payload.
-    /// </summary>
-    public OutboxWorkOptions AppLevel(Func<IOutboxMessage, long> readTenantId)
-    {
-        ArgumentNullException.ThrowIfNull(readTenantId);
-        ReadsTenant = readTenantId;
-        return this;
-    }
-
-    /// <summary>
-    /// Enqueues no job for a message the work reads as <see cref="OutboxWork.None"/>, so a frequent event that rarely
-    /// needs the work adds no empty jobs. A message the work cannot read, or whose read throws anything else, is
-    /// enqueued anyway, so its job fails visibly and the message's other subscribers are unaffected.
-    /// The work is resolved and read in the relay's scope.
-    /// </summary>
-    public OutboxWorkOptions OnlyWhenThereIsWork()
-    {
-        SkipsMessagesWithoutWork = true;
-        return this;
-    }
+    public static string JobType => TWork.JobType;
 }
 
-/// <summary>What an outbox work's job needs to know of its registration, named by the job type.</summary>
-internal sealed class OutboxWorkSettings
+/// <summary>What one work's registration told its job and its relay filter.</summary>
+internal sealed class OutboxWorkRegistration<TWork>(
+    Func<IOutboxMessage, long>? readTenant,
+    Func<IOutboxMessage, bool>? onlyWhen)
+    where TWork : class, IOutboxWork<TWork>
 {
-    /// <summary>
-    /// Reads the job's tenant from an app-level row's payload; <see langword="null"/> when the rows carry their tenant.
-    /// See <see cref="OutboxWorkOptions.AppLevel"/>.
-    /// </summary>
-    public Func<IOutboxMessage, long>? ReadTenant { get; set; }
+    public Func<IOutboxMessage, long>? ReadTenant { get; } = readTenant;
+
+    public Func<IOutboxMessage, bool>? OnlyWhen { get; } = onlyWhen;
+
+    public string JobType => TWork.JobType;
 }
 
 /// <summary>Subscribes the job of <typeparamref name="TWork"/> only for a message that may need its work.</summary>
-internal sealed partial class OutboxWorkExpander<TPayload, TWork>(
-    TWork work,
-    ILogger<OutboxWorkExpander<TPayload, TWork>> logger) : IOutboxSubscriberExpander<TPayload>
-    where TPayload : IOutboxJobPayload<TPayload>
-    where TWork : class, IOutboxWork
+internal sealed partial class OutboxWorkExpander<TWork>(
+    OutboxWorkRegistration<TWork> registration,
+    ILogger<OutboxWorkExpander<TWork>> logger) : IOutboxSubscriberExpander<OutboxMessageJob<TWork>>
+    where TWork : class, IOutboxWork<TWork>
 {
-    public Task<IReadOnlyList<OutboxSubscriber<TPayload>>> ExpandAsync(
+    public Task<IReadOnlyList<OutboxSubscriber<OutboxMessageJob<TWork>>>> ExpandAsync(
         IOutboxMessage message,
         long tenantId,
         CancellationToken cancellationToken)
     {
-        return Task.FromResult<IReadOnlyList<OutboxSubscriber<TPayload>>>(MayNeedWork(message)
-            ? [new OutboxSubscriber<TPayload>(TPayload.JobType, TPayload.For(message.Id))]
+        return Task.FromResult<IReadOnlyList<OutboxSubscriber<OutboxMessageJob<TWork>>>>(MayNeedWork(message)
+            ? [new OutboxSubscriber<OutboxMessageJob<TWork>>(registration.JobType, new OutboxMessageJob<TWork>(message.Id))]
             : []);
     }
 
-    // Whatever Read throws, the job is enqueued and fails on its own, so one work's bad read never blocks the
-    // message's other subscribers.
+    // Whatever the predicate throws, the job is enqueued and fails on its own, so one work's bad read never blocks
+    // the message's other subscribers.
     private bool MayNeedWork(IOutboxMessage message)
     {
+        if (registration.OnlyWhen is not { } onlyWhen)
+        {
+            return true;
+        }
+
         try
         {
-            return !work.Read(message).IsNone;
+            return onlyWhen(message);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            LogReadFailed(logger, typeof(TWork).Name, message.Id, TPayload.JobType, exception);
+            LogReadFailed(logger, typeof(TWork).Name, message.Id, registration.JobType, exception);
             return true;
         }
     }

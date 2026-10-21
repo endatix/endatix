@@ -14,16 +14,11 @@ internal sealed class SyncFormDeletionOutboxHandler(
     IFormSchemaRepository formSchemaRepository,
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
     IReportingUnitOfWork unitOfWork,
-    ILogger<SyncFormDeletionOutboxHandler> logger) : IOutboxWork
+    ILogger<SyncFormDeletionOutboxHandler> logger) : IOutboxWork<SyncFormDeletionOutboxHandler>
 {
+    public static string JobType => "ReportingSyncFormDeletion";
+
     public static IReadOnlyCollection<string> HandledEventTypes { get; } = [FormDeletedEvent.EventTypeName];
-
-    /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        Read(message).RunAsync(cancellationToken);
 
     /// <inheritdoc />
     public OutboxWork Read(IOutboxMessage message)

@@ -12,23 +12,16 @@ namespace Endatix.Modules.Reporting.Features.Outbox;
 /// <remarks>
 /// The same work runs inline in the relay or as a background job; both run the work <see cref="Read"/> returns.
 /// </remarks>
-internal sealed class CompileFormSchemaOutboxHandler(
-    IFormSchemaProcessor schemaProcessor) : IOutboxWork
+internal sealed class CompileFormSchemaOutboxHandler(IFormSchemaProcessor schemaProcessor)
+    : IOutboxWork<CompileFormSchemaOutboxHandler>
 {
+    public static string JobType => "ReportingCompileFormSchema";
+
     public static IReadOnlyCollection<string> HandledEventTypes { get; } = [FormDefinitionUpdatedEvent.EventTypeName];
 
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
     /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        Read(message).RunAsync(cancellationToken);
-
-    /// <inheritdoc />
-    public OutboxWork Read(IOutboxMessage message)
-    {
-        var input = Parse(message);
-        return OutboxWork.For(cancellationToken => ProcessAsync(input, cancellationToken));
-    }
+    public OutboxWork Read(IOutboxMessage message) =>
+        OutboxWork.For(Parse(message), ProcessAsync);
 
     /// <summary>Reads the work from the message; throws <see cref="InvalidOperationException"/> when it cannot.</summary>
     public static Input Parse(IOutboxMessage message)

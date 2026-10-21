@@ -108,7 +108,7 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         {
             EventType = source.EventType,
             JobType = TPayload.JobType,
-            SourceAssembly = typeof(TPayload).Assembly,
+            SourceAssembly = source.WorkType?.Assembly ?? typeof(TPayload).Assembly,
             WorkType = source.WorkType,
             TenantResolver = source.ResolveTenantId,
             Requests = requests,

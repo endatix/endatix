@@ -23,7 +23,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [Fact]
     public void EventTypes_IncludesSubmissionCompletedAndUpdated()
     {
-        IReadOnlyCollection<string> eventTypes = CreateSut().EventTypes;
+        IReadOnlyCollection<string> eventTypes = FlattenSubmissionOutboxHandler.HandledEventTypes;
 
         eventTypes.Should().Contain(SubmissionCompletedEvent.EventTypeName);
         eventTypes.Should().Contain(SubmissionUpdatedEvent.EventTypeName);
@@ -40,7 +40,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: payload,
             TenantId: TenantId);
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _flatteningProcessor.Received(1).ProcessAsync(
             TenantId,
@@ -65,7 +65,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: payload,
             TenantId: TenantId);
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _flatteningProcessor.Received(1).ProcessAsync(
             TenantId,
@@ -92,7 +92,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: payload,
             TenantId: TenantId);
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _flatteningProcessor.DidNotReceive().ProcessAsync(
             Arg.Any<long>(),
@@ -110,7 +110,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: """{"tenantId":"42","formId":"100"}""",
             TenantId: TenantId);
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()

@@ -6,6 +6,7 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.BackgroundJobs;
+using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
@@ -51,7 +52,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         Seed("submission.updated", $$"""{"tenantId":"{{TenantA}}","formId":"1","submissionId":"2","changeKind":"metadata"}""", TenantA);
 
         // Act
-        var result = await RunAsync(new ReportingFlattenSubmissionPayload(MessageId), TenantA);
+        var result = await RunAsync(FlattenSubmissionOutboxHandler.JobType, TenantA);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -65,7 +66,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         Seed("submission.completed", $$"""{"tenantId":"{{TenantA}}","formId":"1","submissionId":"2"}""", TenantA);
 
         // Act
-        var result = await RunAsync(new ReportingFlattenSubmissionPayload(MessageId), TenantA);
+        var result = await RunAsync(FlattenSubmissionOutboxHandler.JobType, TenantA);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -79,11 +80,11 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         Seed("submission.completed", """{"tenantId":"12","formId":"1","submissionId":"2"}""", TenantA);
 
         // Act
-        var result = await RunAsync(new ReportingFlattenSubmissionPayload(MessageId), TenantA);
+        var result = await RunAsync(FlattenSubmissionOutboxHandler.JobType, TenantA);
 
         // Assert — a failure result, not a throw, so the job is not retried.
         result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Be(OutboxJobFailures.MessageUnreadable);
+            .Which.ErrorMessage.Should().Be("The outbox message could not be read.");
         await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, Arg.Any<CancellationToken>());
     }
 
@@ -94,11 +95,11 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         Seed("submission.completed", """{"tenantId":"12","formId":"1","submissionId":"2"}""", 12);
 
         // Act
-        var result = await RunAsync(new ReportingFlattenSubmissionPayload(MessageId), TenantA);
+        var result = await RunAsync(FlattenSubmissionOutboxHandler.JobType, TenantA);
 
         // Assert
         result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Be(OutboxJobFailures.MessageGone);
+            .Which.ErrorMessage.Should().Be("The outbox message no longer exists.");
     }
 
     [Fact]
@@ -108,7 +109,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         Seed("tenant.created", $$"""{"tenantId":"{{TenantA}}"}""", 0);
 
         // Act
-        var result = await RunAsync(new ReportingSeedDefaultExportFormatsPayload(MessageId), TenantA);
+        var result = await RunAsync(SeedDefaultExportFormatsOutboxHandler.JobType, TenantA);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -134,7 +135,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         // Assert — the input was read (not "could not be read") and the job looked the row up.
         handler.JobType.Should().Be(jobType);
         result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Be(OutboxJobFailures.MessageGone);
+            .Which.ErrorMessage.Should().Be("The outbox message no longer exists.");
     }
 
     public void Dispose() => _provider.Dispose();
@@ -142,12 +143,11 @@ public sealed class ReportingOutboxJobsTests : IDisposable
     private void Seed(string eventType, string payload, long tenantId) =>
         _messages.Add(new OutboxMessage(eventType, payload, tenantId, DateTime.UtcNow, 1) { Id = MessageId });
 
-    private async Task<Result> RunAsync<TPayload>(TPayload payload, long tenantId)
-        where TPayload : IBackgroundJobPayload
+    private async Task<Result> RunAsync(string jobType, long tenantId)
     {
         using var scope = _provider.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(TPayload.JobType);
-        var job = new BackgroundJobContext(1, TPayload.JobType, tenantId, BackgroundJobPayloadSerializer.Serialize(payload), 1);
+        var handler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(jobType);
+        var job = new BackgroundJobContext(1, jobType, tenantId, $$"""{"outboxMessageId":{{MessageId}}}""", 1);
         return await handler.ExecuteAsync(job, TestContext.Current.CancellationToken);
     }
 }

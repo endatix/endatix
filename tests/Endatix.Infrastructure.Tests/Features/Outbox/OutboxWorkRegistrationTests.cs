@@ -13,10 +13,10 @@ public sealed class OutboxWorkRegistrationTests
     {
         // Arrange — a second registration would run the work twice inline and subscribe its job twice.
         var services = new ServiceCollection();
-        services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
+        services.AddOutboxWork<WorkStub>(Defaults);
 
         // Act
-        var registerAgain = () => services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
+        var registerAgain = () => services.AddOutboxWork<WorkStub>(Defaults);
 
         // Assert
         registerAgain.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain(typeof(WorkStub).FullName!);
@@ -30,7 +30,7 @@ public sealed class OutboxWorkRegistrationTests
         services.AddScoped<IOutboxIntegrationEventHandler, WorkStub>();
 
         // Act
-        var register = () => services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
+        var register = () => services.AddOutboxWork<WorkStub>(Defaults);
 
         // Assert
         register.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain(typeof(WorkStub).FullName!);
@@ -41,7 +41,7 @@ public sealed class OutboxWorkRegistrationTests
     {
         // Arrange — a plain registration added after AddOutboxWork, which registration cannot see.
         var services = new ServiceCollection();
-        services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
+        services.AddOutboxWork<WorkStub>(Defaults);
         var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
 
         // Act
@@ -56,7 +56,7 @@ public sealed class OutboxWorkRegistrationTests
     {
         // Arrange — the job subscribes HandledEventTypes, but the inline handler lists fewer events.
         var services = new ServiceCollection();
-        services.AddOutboxWork<DriftingWorkStub, DriftingWorkPayload>(Defaults);
+        services.AddOutboxWork<DriftingWorkStub>(Defaults);
         var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
 
         // Act
@@ -71,7 +71,7 @@ public sealed class OutboxWorkRegistrationTests
     {
         // Arrange — a plain inline handler of this assembly on the work's event; only the work has a job.
         var services = new ServiceCollection();
-        services.AddOutboxWork<WorkStub, WorkPayload>(Defaults);
+        services.AddOutboxWork<WorkStub>(Defaults);
         var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
         var plain = new InlineHandlerStub(["x.happened"]);
 
@@ -87,7 +87,6 @@ public sealed class OutboxWorkRegistrationTests
     {
         // Arrange — another job of this assembly subscribes x.happened, but none is this work's.
         var services = new ServiceCollection();
-        services.AddInlineOutboxHandler<WorkStub>();
         services.AddOutboxJobSubscription(
             "x.happened", message => new JobQueueIntegrationEventPublisherTests.FirstPayload(message.Id));
         var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
@@ -99,22 +98,15 @@ public sealed class OutboxWorkRegistrationTests
         validate.Should().Throw<InvalidOperationException>().Which.Message.Should().Contain(typeof(WorkStub).FullName!);
     }
 
-    internal sealed record DriftingWorkPayload(long OutboxMessageId) : IOutboxJobPayload<DriftingWorkPayload>
+    /// <summary>A work whose inline EventTypes list fewer events than its job subscribes.</summary>
+    internal sealed class DriftingWorkStub : IOutboxWork<DriftingWorkStub>
     {
         public static string JobType => "TestDriftingWork";
 
-        public static DriftingWorkPayload For(long outboxMessageId) => new(outboxMessageId);
-    }
-
-    /// <summary>A work whose inline EventTypes list fewer events than its job subscribes.</summary>
-    internal sealed class DriftingWorkStub : IOutboxWork
-    {
         public static IReadOnlyCollection<string> HandledEventTypes { get; } = ["x.happened", "z.happened"];
 
         public IReadOnlyCollection<string> EventTypes { get; } = ["x.happened"];
 
         public OutboxWork Read(IOutboxMessage message) => OutboxWork.None;
-
-        public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

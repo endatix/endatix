@@ -18,11 +18,11 @@ public sealed class ReportingSubscriptionsTests
         var subscriptions = services.BuildServiceProvider().GetRequiredService<OutboxSubscriptions>();
         var inline = new (IReadOnlyCollection<string> EventTypes, string JobType)[]
         {
-            (CompileFormSchemaOutboxHandler.HandledEventTypes, ReportingCompileFormSchemaPayload.JobType),
-            (FlattenSubmissionOutboxHandler.HandledEventTypes, ReportingFlattenSubmissionPayload.JobType),
-            (SeedDefaultExportFormatsOutboxHandler.HandledEventTypes, ReportingSeedDefaultExportFormatsPayload.JobType),
-            (SyncFormDeletionOutboxHandler.HandledEventTypes, ReportingSyncFormDeletionPayload.JobType),
-            (SyncSubmissionDeletionOutboxHandler.HandledEventTypes, ReportingSyncSubmissionDeletionPayload.JobType),
+            (CompileFormSchemaOutboxHandler.HandledEventTypes, CompileFormSchemaOutboxHandler.JobType),
+            (FlattenSubmissionOutboxHandler.HandledEventTypes, FlattenSubmissionOutboxHandler.JobType),
+            (SeedDefaultExportFormatsOutboxHandler.HandledEventTypes, SeedDefaultExportFormatsOutboxHandler.JobType),
+            (SyncFormDeletionOutboxHandler.HandledEventTypes, SyncFormDeletionOutboxHandler.JobType),
+            (SyncSubmissionDeletionOutboxHandler.HandledEventTypes, SyncSubmissionDeletionOutboxHandler.JobType),
         };
 
         // Act
@@ -64,11 +64,11 @@ public sealed class ReportingSubscriptionsTests
         // Assert — every host gets these, whatever its configuration holds.
         var declared = provider.GetServices<BackgroundJobTypeDefaults>().ToList();
         declared.Select(defaults => defaults.JobType).Should().BeEquivalentTo(
-            ReportingCompileFormSchemaPayload.JobType,
-            ReportingFlattenSubmissionPayload.JobType,
-            ReportingSeedDefaultExportFormatsPayload.JobType,
-            ReportingSyncFormDeletionPayload.JobType,
-            ReportingSyncSubmissionDeletionPayload.JobType);
+            CompileFormSchemaOutboxHandler.JobType,
+            FlattenSubmissionOutboxHandler.JobType,
+            SeedDefaultExportFormatsOutboxHandler.JobType,
+            SyncFormDeletionOutboxHandler.JobType,
+            SyncSubmissionDeletionOutboxHandler.JobType);
         declared.Should().AllSatisfy(defaults =>
             defaults.Should().BeEquivalentTo(tuned, options => options.Excluding(value => value.JobType)));
     }

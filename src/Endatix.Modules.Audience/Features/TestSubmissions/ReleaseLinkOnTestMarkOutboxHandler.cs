@@ -22,23 +22,16 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 /// nothing on a repeat, so a retry is harmless.
 /// </remarks>
 internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, AppDbContext app)
-    : IOutboxWork
+    : IOutboxWork<ReleaseLinkOnTestMarkOutboxHandler>
 {
+    public static string JobType => "AudienceReleaseLinkOnTestMark";
+
     /// <summary>The event types this handler, and its job, run on.</summary>
     public static IReadOnlyCollection<string> HandledEventTypes { get; } = [SubmissionUpdatedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        Read(message).RunAsync(cancellationToken);
-
-    /// <inheritdoc />
     public OutboxWork Read(IOutboxMessage message) =>
-        Parse(message) is { } marked
-            ? OutboxWork.For(cancellationToken => ProcessAsync(marked, cancellationToken))
-            : OutboxWork.None;
+        OutboxWork.If(Parse(message), ProcessAsync);
 
     /// <summary>The submission the message is about, or <see langword="null"/> when its test flag did not change.</summary>
     /// <exception cref="InvalidOperationException">The message lacks its tenant or submission id.</exception>
