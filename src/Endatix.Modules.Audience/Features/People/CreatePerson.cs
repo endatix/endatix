@@ -165,7 +165,8 @@ internal sealed class CreatePersonHandler(
         PropertyValuesWriter.AddAll(new PropertyValueWrite(db, request.TenantId, membership.Id, values));
         await db.SaveChangesAsync(cancellationToken);
         return new PersonDto(
-            membership.Id, member.Id, member.Identifier, PropertyValuesWriter.Stored(values), membership.IsTest);
+            membership.Id, member.Id, member.Identifier, PropertyValuesWriter.Stored(values), membership.IsTest,
+            LinkStatusDto.None);
     }
 
     private async Task<Member> FindOrAddMemberAsync(

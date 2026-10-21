@@ -21,7 +21,8 @@ public sealed record UpdatePersonCommand(
 internal sealed class UpdatePersonHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    IUniqueConstraintViolationChecker violations)
+    IUniqueConstraintViolationChecker violations,
+    LinkStatuses linkStatuses)
     : ICommandHandler<UpdatePersonCommand, Result<PersonDto>>
 {
     public async Task<Result<PersonDto>> Handle(
@@ -117,6 +118,8 @@ internal sealed class UpdatePersonHandler(
         Dictionary<long, string> allValues = await PropertyValuesWriter
             .ActiveCells(db, membership.TenantId, [membership.Id])
             .ToDictionaryAsync(value => value.PropertyId, value => value.Value, cancellationToken);
-        return new PersonDto(membership.Id, member.Id, member.Identifier, allValues, membership.IsTest);
+        IReadOnlyDictionary<long, LinkStatusDto> links = await linkStatuses.ForAsync([membership.Id], cancellationToken);
+        return new PersonDto(
+            membership.Id, member.Id, member.Identifier, allValues, membership.IsTest, links[membership.Id]);
     }
 }
