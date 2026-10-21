@@ -6,8 +6,23 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.People;
 /// <summary>
 /// Wire model for a person on a form's audience.
 /// </summary>
-public sealed class AudiencePersonResponse
+public class AudiencePersonResponse
 {
+    public AudiencePersonResponse()
+    {
+    }
+
+    /// <summary>The person's fields, for this response and the ones that extend it.</summary>
+    protected AudiencePersonResponse(PersonDto dto)
+    {
+        MembershipId = dto.MembershipId;
+        AudienceMemberId = dto.MemberId;
+        Identifier = dto.Identifier;
+        Values = dto.Values;
+        IsTest = dto.IsTest;
+        Link = AudienceLinkStatusResponse.From(dto.Link);
+    }
+
     public long MembershipId { get; init; }
 
     public long AudienceMemberId { get; init; }
@@ -23,15 +38,7 @@ public sealed class AudiencePersonResponse
     /// <summary>Whether the person's personalised link was issued and opened.</summary>
     public AudienceLinkStatusResponse Link { get; init; } = AudienceLinkStatusResponse.From(LinkStatusDto.None);
 
-    internal static AudiencePersonResponse FromDto(PersonDto dto) => new()
-    {
-        MembershipId = dto.MembershipId,
-        AudienceMemberId = dto.MemberId,
-        Identifier = dto.Identifier,
-        Values = dto.Values,
-        IsTest = dto.IsTest,
-        Link = AudienceLinkStatusResponse.From(dto.Link),
-    };
+    internal static AudiencePersonResponse FromDto(PersonDto dto) => new(dto);
 }
 
 /// <summary>

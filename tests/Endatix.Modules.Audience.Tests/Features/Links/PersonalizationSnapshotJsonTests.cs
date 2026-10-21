@@ -105,6 +105,43 @@ public sealed class PersonalizationSnapshotJsonTests
         value.GetProperty("value").GetDouble().Should().Be(65);
     }
 
+    [Theory]
+    [InlineData(PersonalizationSources.Test, null)]
+    [InlineData(PersonalizationSources.Link, 7L)]
+    public void NamesMember_MatchesTheMemberAWrittenSnapshotNames(string source, long? audienceLinkId)
+    {
+        // Arrange
+        var json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(audienceLinkId, "ada@example.com", DateTime.UnixEpoch, source, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+
+        // Act
+        var names = PersonalizationSnapshotJson.NamesMember(42).Compile();
+        var namesOther = PersonalizationSnapshotJson.NamesMember(4).Compile();
+        var namesLonger = PersonalizationSnapshotJson.NamesMember(420).Compile();
+
+        // Assert
+        names(json).Should().BeTrue();
+        namesOther(json).Should().BeFalse();
+        namesLonger(json).Should().BeFalse();
+    }
+
+    [Fact]
+    public void NamesMember_DoesNotMatchASnapshotWithoutAMember()
+    {
+        // Arrange
+        var json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(42, "ada@example.com", DateTime.UnixEpoch),
+            [Cell("age", AudienceDataTypeCodes.Number, "42")]);
+
+        // Act
+        var names = PersonalizationSnapshotJson.NamesMember(42).Compile();
+
+        // Assert
+        names(json).Should().BeFalse();
+        names(null).Should().BeFalse();
+    }
+
     /// <summary>A cell whose property is named after its variable ("age" → "Age"), with a stable id.</summary>
     private static SnapshotCell Cell(string variableName, string dataType, string value) =>
         new(PropertyIdOf(variableName), variableName, char.ToUpperInvariant(variableName[0]) + variableName[1..], dataType, value);
