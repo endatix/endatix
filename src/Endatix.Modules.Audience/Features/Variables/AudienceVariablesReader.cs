@@ -99,7 +99,10 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
     /// cell per participant, and time out at 5,000 × 50 when its statistics were off (CI). Now the first reads one index
     /// range per Property and the second reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
     /// The first filters by the live Property ids just read, which is what <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, long, IQueryable{long})"/>
-    /// tests with an EXISTS. The statements share no snapshot, so a person added or removed between them could push a
+    /// tests with an EXISTS. The second has no Property predicate at all, on purpose: one (the ids, or ActiveCells'
+    /// EXISTS) gives PostgreSQL <c>IX_PropertyValues_Property</c> as a way in, and it timed out in CI scanning every cell
+    /// with a membership check per row. A deleted Property's cells it counts are dropped here, since only the live ids
+    /// are read back. The statements share no snapshot, so a person added or removed between them could push a
     /// count past the participants or below zero; each count is clamped to <c>0..participants</c>.
     /// </summary>
     private async Task<IReadOnlyDictionary<(long PropertyId, bool IsTest), int>> CountFilledAsync(
@@ -112,12 +115,12 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
         Dictionary<long, int> all = await CountByPropertyAsync(
             db.PropertyValues.Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId)),
             cancellationToken);
+        IQueryable<long> testMemberships = TestMemberships(key).Select(membership => membership.Id);
         Dictionary<long, int> test = participants.Test == 0
             ? []
             : await CountByPropertyAsync(
-                PropertyValuesWriter
-                    .ActiveCells(db, key.TenantId, TestMemberships(key).Select(membership => membership.Id))
-                    .Where(cell => propertyIds.Contains(cell.PropertyId)),
+                db.PropertyValues.Where(cell =>
+                    cell.TenantId == key.TenantId && testMemberships.Contains(cell.MembershipId)),
                 cancellationToken);
         return propertyIds
             .SelectMany(id =>
