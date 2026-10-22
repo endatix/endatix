@@ -1,6 +1,8 @@
 using System.Text.Json.Nodes;
 using Endatix.Modules.Audience.Contracts;
+using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features;
+using Endatix.Modules.Audience.Tests.Domain;
 
 namespace Endatix.Modules.Audience.Tests.Features;
 
@@ -73,11 +75,35 @@ public sealed class AudienceValueJsonTests
     public void Untyped_OfTyped_NonCanonicalValue_TypesTheSame(string dataType, string value, string canonical)
     {
         // Act
-        string untyped = AudienceValueJson.Untyped(AudienceValueJson.Typed(dataType, value));
+        var untyped = AudienceValueJson.Untyped(AudienceValueJson.Typed(dataType, value));
 
         // Assert
         untyped.Should().Be(canonical);
         JsonNode.DeepEquals(AudienceValueJson.Typed(dataType, untyped), AudienceValueJson.Typed(dataType, value))
+            .Should().BeTrue();
+    }
+
+    /// <summary>
+    /// An integer past 2^53 that <c>PropertyValueRules</c> accepts comes back as the double's spelling, and typing
+    /// that spelling again equals typing the original.
+    /// </summary>
+    [Fact]
+    public void Untyped_IntegerPast53Bits_IsTheDoublesSpelling()
+    {
+        // Arrange
+        const string stored = "12345678901234567";
+        Property property = PropertyTests.PropertyOf(AudienceDataTypeCodes.Number);
+
+        // Act
+        var spelling = AudienceValueJson.Untyped(
+            AudienceValueJson.Typed(AudienceDataTypeCodes.Number, stored));
+
+        // Assert
+        property.ValueError(stored).Should().BeNull();
+        spelling.Should().Be("12345678901234568");
+        JsonNode.DeepEquals(
+                AudienceValueJson.Typed(AudienceDataTypeCodes.Number, spelling),
+                AudienceValueJson.Typed(AudienceDataTypeCodes.Number, stored))
             .Should().BeTrue();
     }
 }

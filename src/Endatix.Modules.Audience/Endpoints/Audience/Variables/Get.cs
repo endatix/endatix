@@ -31,6 +31,7 @@ public sealed class Get(
                 "identifier with values typed as the respondent's personalization, coverage and the preset editing " +
                 "policy. variablePresets is null when the form has no Properties.";
             summary.Responses[200] = "The form's variables.";
+            summary.Responses[400] = "Invalid form id.";
             summary.Responses[404] = "Form not found.";
         });
         Description(builder => builder

@@ -27,7 +27,7 @@ internal static class AudienceValueJson
         }
 
         if (dataType == AudienceDataTypeCodes.Number
-            && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double number))
+            && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
         {
             return JsonValue.Create(number);
         }
@@ -51,6 +51,7 @@ internal static class AudienceValueJson
     /// <c>Typed(t, v)</c> for every value <c>Property.ValueError</c> accepts, and <c>Untyped(Typed(t, v))</c> is
     /// <c>v</c> itself when <c>v</c> is written canonically (<c>1.5</c>, not <c>1.50</c>; <c>["a","b"]</c>). A list
     /// key outside the Basic Multilingual Plane (an emoji) comes back JSON-escaped, which types to the same value.
+    /// An integer past 2^53 is not lossless: the double's spelling can be a different integer.
     /// </summary>
     public static string Untyped(JsonNode? value) =>
         value switch
