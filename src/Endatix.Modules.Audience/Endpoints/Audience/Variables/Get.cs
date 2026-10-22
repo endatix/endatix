@@ -29,7 +29,8 @@ public sealed class Get(
             summary.Description =
                 "Reads the form's Properties as a SurveyJS variable definition, one preset per test participant named by " +
                 "identifier with values typed as the respondent's personalization, coverage and the preset editing " +
-                "policy. variablePresets is null when the form has no Properties.";
+                "policy. Presets cover the first 20 test participants added; totalPresets counts them all. " +
+                "variablePresets is null when the form has no Properties.";
             summary.Responses[200] = "The form's variables.";
             summary.Responses[400] = "Invalid form id.";
             summary.Responses[404] = "Form not found.";

@@ -22,9 +22,13 @@ public sealed record AudienceVariablesDto(
 
 /// <summary>
 /// SurveyJS <c>ISurveyVariablePresets</c>. <see cref="Definition"/> is survey JSON, opaque to every caller but
-/// survey-core.
+/// survey-core. <see cref="Presets"/> holds at most <see cref="AudienceVariablesReader.PresetLimit"/>;
+/// <see cref="TotalPresets"/> counts every Test participant.
 /// </summary>
-public sealed record VariablePresetsDto(JsonObject Definition, IReadOnlyList<VariablePresetDto> Presets);
+public sealed record VariablePresetsDto(
+    JsonObject Definition,
+    IReadOnlyList<VariablePresetDto> Presets,
+    int TotalPresets);
 
 /// <summary>A Test participant's values. <see cref="Name"/> is their identifier, unique on the form.</summary>
 public sealed record VariablePresetDto(string Name, JsonObject Variables);

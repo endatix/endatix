@@ -120,9 +120,31 @@ public sealed partial class AudienceDirectoryFlowTests
         AssertJson(
             """
             {"definition":{"elements":[{"type":"text","name":"city","title":"City"}]},
-             "presets":[{"name":"kept@example.com","variables":{"city":"Sofia"}}]}
+             "presets":[{"name":"kept@example.com","variables":{"city":"Sofia"}}],
+             "totalPresets":1}
             """,
             variables.GetProperty("variablePresets"));
+    }
+
+    [Fact]
+    public async Task Variables_preset_the_first_twenty_test_participants_added_and_count_them_all()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await FormWithCityAsync(admin);
+        for (var number = 21; number >= 1; number--)
+        {
+            await AddTestParticipantAsync(admin, formId, $"tester{number:D2}@example.com");
+        }
+
+        // Act
+        var presets = (await GetVariablesAsync(admin, formId)).GetProperty("variablePresets");
+
+        // Assert: tester01, added last, is left out; the twenty shown read by identifier
+        Assert.Equal(21, presets.GetProperty("totalPresets").GetInt32());
+        Assert.Equal(
+            Enumerable.Range(2, 20).Select(number => $"tester{number:D2}@example.com"),
+            presets.GetProperty("presets").EnumerateArray().Select(preset => preset.GetProperty("name").GetString()));
     }
 
     [Fact]

@@ -43,11 +43,17 @@ internal static class PresetBuilder
                 .OrderBy(source => source.Identifier, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(source => source.Identifier, StringComparer.Ordinal)
                 .Select(source => Build(source, audience.Properties))
-                .ToList());
+                .ToList(),
+            audience.TotalTestParticipants);
 }
 
-/// <summary>A form's Properties in tab order and its Test participants' live cells.</summary>
-internal sealed record FormAudience(IReadOnlyList<Property> Properties, IReadOnlyList<PresetSource> TestParticipants);
+/// <summary>
+/// A form's Properties in tab order, the live cells of its first Test participants, and how many it has in all.
+/// </summary>
+internal sealed record FormAudience(
+    IReadOnlyList<Property> Properties,
+    IReadOnlyList<PresetSource> TestParticipants,
+    int TotalTestParticipants);
 
 /// <summary>A participant's identifier and live cells, keyed by property id.</summary>
 internal sealed record PresetSource(string Identifier, IReadOnlyDictionary<long, string> Cells);

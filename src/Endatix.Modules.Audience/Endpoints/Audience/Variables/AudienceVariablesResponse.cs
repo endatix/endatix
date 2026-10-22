@@ -30,11 +30,19 @@ public sealed class AudienceVariablesResponse
 
 /// <summary>SurveyJS <c>ISurveyVariablePresets</c>.</summary>
 /// <param name="Definition">Survey JSON whose top-level questions are the variables.</param>
-/// <param name="Presets">One per Test participant, ordered by identifier.</param>
-public sealed record AudienceVariablePresetsResponse(JsonObject Definition, IReadOnlyList<AudienceVariablePresetResponse> Presets)
+/// <param name="Presets">The first 20 Test participants by when they were added, ordered by identifier.</param>
+/// <param name="TotalPresets">How many Test participants the form has; more than <paramref name="Presets"/> holds when
+/// it has over 20.</param>
+public sealed record AudienceVariablePresetsResponse(
+    JsonObject Definition,
+    IReadOnlyList<AudienceVariablePresetResponse> Presets,
+    int TotalPresets)
 {
     internal static AudienceVariablePresetsResponse From(VariablePresetsDto dto) =>
-        new(dto.Definition, dto.Presets.Select(preset => new AudienceVariablePresetResponse(preset.Name, preset.Variables)).ToList());
+        new(
+            dto.Definition,
+            dto.Presets.Select(preset => new AudienceVariablePresetResponse(preset.Name, preset.Variables)).ToList(),
+            dto.TotalPresets);
 }
 
 /// <summary>One Test participant's values.</summary>

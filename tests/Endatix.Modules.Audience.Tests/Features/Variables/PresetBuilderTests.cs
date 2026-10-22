@@ -18,7 +18,7 @@ public sealed class PresetBuilderTests
     {
         // Act
         AudienceVariablesDto variables = PresetBuilder.Assemble(
-            new FormAudience([], [new PresetSource("maria@acme.test", new Dictionary<long, string>())]));
+            new FormAudience([], [new PresetSource("maria@acme.test", new Dictionary<long, string>())], 1));
 
         // Assert
         variables.VariablePresets.Should().BeNull();
@@ -37,7 +37,8 @@ public sealed class PresetBuilderTests
                 new PresetSource("zed@acme.test", new Dictionary<long, string> { [City.Id] = "Sofia" }),
                 new PresetSource("Maria@acme.test", new Dictionary<long, string> { [Seats.Id] = "12" }),
                 new PresetSource("ada@acme.test", new Dictionary<long, string>()),
-            ]));
+            ],
+            TotalTestParticipants: 42));
 
         // Assert
         VariablePresetsDto presets = variables.VariablePresets!;
@@ -46,6 +47,7 @@ public sealed class PresetBuilderTests
         presets.Presets.Select(preset => preset.Name)
             .Should().Equal("ada@acme.test", "Maria@acme.test", "zed@acme.test");
         presets.Presets[0].Variables.Should().BeEmpty();
+        presets.TotalPresets.Should().Be(42);
     }
 
     [Fact]
@@ -57,7 +59,8 @@ public sealed class PresetBuilderTests
             [
                 new PresetSource("aB-1", new Dictionary<long, string>()),
                 new PresetSource("Ab-1", new Dictionary<long, string>()),
-            ]));
+            ],
+            TotalTestParticipants: 2));
 
         // Assert
         variables.VariablePresets!.Presets.Select(preset => preset.Name).Should().Equal("Ab-1", "aB-1");
