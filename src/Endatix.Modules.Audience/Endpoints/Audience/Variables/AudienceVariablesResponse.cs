@@ -41,14 +41,17 @@ public sealed record AudienceVariablePresetsResponse(
     internal static AudienceVariablePresetsResponse From(VariablePresetsDto dto) =>
         new(
             dto.Definition,
-            dto.Presets.Select(preset => new AudienceVariablePresetResponse(preset.Name, preset.Variables)).ToList(),
+            dto.Presets.Select(AudienceVariablePresetResponse.From).ToList(),
             dto.TotalPresets);
 }
 
-/// <summary>One Test participant's values.</summary>
+/// <summary>One participant's values.</summary>
 /// <param name="Name">The participant's identifier.</param>
 /// <param name="Variables">Variable name → value, typed as the respondent's <c>personalization</c>.</param>
-public sealed record AudienceVariablePresetResponse(string Name, JsonObject Variables);
+public sealed record AudienceVariablePresetResponse(string Name, JsonObject Variables)
+{
+    internal static AudienceVariablePresetResponse From(VariablePresetDto dto) => new(dto.Name, dto.Variables);
+}
 
 /// <summary>How many participants have a value for each Property.</summary>
 /// <param name="Participants">Test and real participants on the form.</param>
