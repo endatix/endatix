@@ -50,6 +50,6 @@ internal static partial class IdentitySeedLoggerExtensions
     [LoggerMessage(
         EventId = EndatixEventIds.IdentitySeed.PasswordNotConfigured,
         Level = LogLevel.Error,
-        Message = "❌ The initial admin user was not created because Endatix:Data:InitialUser:Password is not configured. Set it (for example with the Endatix__Data__InitialUser__Password environment variable) and restart to seed the initial admin. For more info check https://docs.endatix.com/docs/configuration/settings/data-settings")]
+        Message = "❌ The database has no users, but the initial admin was not created because Endatix:Data:InitialUser:Password is not configured. Set it (for example with the Endatix__Data__InitialUser__Password environment variable) and restart. It is read only while the database has no users. For more info check https://docs.endatix.com/docs/configuration/settings/data-settings")]
     public static partial void LogInitialUserPasswordNotConfigured(this ILogger logger);
 }
