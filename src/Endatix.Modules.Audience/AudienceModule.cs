@@ -14,6 +14,7 @@ using Endatix.Modules.Audience.Features.OnBehalf;
 using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Features.Properties;
 using Endatix.Modules.Audience.Features.TestSubmissions;
+using Endatix.Modules.Audience.Features.Variables;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -50,6 +51,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         builder.Services.AddScoped<TestSubjects>();
         builder.Services.AddScoped<TestSubmissionOpener>();
         builder.Services.AddScoped<TestSubmissionWriter>();
+        builder.Services.AddScoped<AudienceVariablesReader>();
     }
 
     private static void AddPersistence(EndatixModuleBuilder builder)
