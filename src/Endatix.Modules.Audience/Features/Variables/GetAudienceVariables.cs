@@ -30,7 +30,7 @@ public sealed record VariablePresetsDto(
     IReadOnlyList<VariablePresetDto> Presets,
     int TotalPresets);
 
-/// <summary>A Test participant's values. <see cref="Name"/> is their identifier, unique on the form.</summary>
+/// <summary>A participant's values. <see cref="Name"/> is their identifier, unique on the form.</summary>
 public sealed record VariablePresetDto(string Name, JsonObject Variables);
 
 /// <summary>How many participants have a value for each Property. Empty until endatix#1346.</summary>

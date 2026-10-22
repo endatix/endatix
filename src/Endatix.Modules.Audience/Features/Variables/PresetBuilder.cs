@@ -55,5 +55,8 @@ internal sealed record FormAudience(
     IReadOnlyList<PresetSource> TestParticipants,
     int TotalTestParticipants);
 
+/// <summary>A form's Properties in tab order and one participant on it, real or test.</summary>
+internal sealed record ParticipantAudience(IReadOnlyList<Property> Properties, PresetSource Participant);
+
 /// <summary>A participant's identifier and live cells, keyed by property id.</summary>
 internal sealed record PresetSource(string Identifier, IReadOnlyDictionary<long, string> Cells);
