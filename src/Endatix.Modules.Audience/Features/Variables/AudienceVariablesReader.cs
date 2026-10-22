@@ -35,7 +35,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
         }
 
         IReadOnlyDictionary<(long PropertyId, bool IsTest), int> filled =
-            await CountFilledAsync(key, properties, cancellationToken);
+            await CountFilledAsync(key, properties, participants.Test > 0, cancellationToken);
         IQueryable<Membership> firstTestMemberships = Memberships(key)
             .Where(membership => membership.IsTest)
             .OrderBy(membership => membership.Id)
@@ -69,9 +69,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             .ToListAsync(cancellationToken);
 
     /// <summary>
-    /// The form's live memberships. No member test: the module never deletes a Member, and an EXISTS on Members made
-    /// PostgreSQL plan the coverage join as a nested loop over every cell while a fresh import's statistics were stale
-    /// (30 s at 5,000 × 50 instead of 50 ms).
+    /// The form's live memberships. No member test: the module never deletes a Member, and the EXISTS on Members the
+    /// people list keeps would only give the planner another join to get wrong.
     /// </summary>
     private IQueryable<Membership> Memberships(FormKey key) =>
         db.Memberships.AsNoTracking()
@@ -87,28 +86,49 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
     }
 
     /// <summary>
-    /// One GROUP BY over the live cells of the form's live Properties, joined to its live memberships for the test
-    /// flag. A cell exists only while it holds a value. PostgreSQL drives it from <c>IX_Memberships_Form</c> into
-    /// <c>IX_PropertyValues_Cell</c>: about 200 ms at 5,000 × 50.
+    /// Filled cells per live Property: every cell, then the Test participants' cells, in two GROUP BYs with no join
+    /// between cells and memberships. A live cell of a live Property always belongs to a live membership (removing a
+    /// person or a Property deletes its cells), so real = all − test. The join this replaced let PostgreSQL loop the
+    /// form's memberships over <c>IX_PropertyValues_Property</c>, a scan of every cell per participant, and time out at
+    /// 5,000 × 50 when its statistics were off (CI). Now the first reads one index range per Property and the second
+    /// reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
     /// </summary>
     private async Task<IReadOnlyDictionary<(long PropertyId, bool IsTest), int>> CountFilledAsync(
         FormKey key,
         List<Property> properties,
+        bool anyTest,
         CancellationToken cancellationToken)
     {
         List<long> propertyIds = properties.ConvertAll(property => property.Id);
-        var rows = await db.PropertyValues.AsNoTracking()
-            .Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId))
-            .Join(
-                Memberships(key),
-                cell => cell.MembershipId,
-                membership => membership.Id,
-                (cell, membership) => new { cell.PropertyId, membership.IsTest })
-            .GroupBy(cell => new { cell.PropertyId, cell.IsTest })
-            .Select(group => new { group.Key.PropertyId, group.Key.IsTest, Count = group.Count() })
-            .ToListAsync(cancellationToken);
-        return rows.ToDictionary(row => (row.PropertyId, row.IsTest), row => row.Count);
+        Dictionary<long, int> all = await CountByPropertyAsync(
+            db.PropertyValues.Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId)),
+            cancellationToken);
+        IQueryable<long> testMemberships = Memberships(key)
+            .Where(membership => membership.IsTest)
+            .Select(membership => membership.Id);
+        Dictionary<long, int> test = anyTest
+            ? await CountByPropertyAsync(
+                db.PropertyValues.Where(cell =>
+                    cell.TenantId == key.TenantId && testMemberships.Contains(cell.MembershipId)),
+                cancellationToken)
+            : [];
+        return propertyIds
+            .SelectMany(id => new[]
+            {
+                ((id, true), test.GetValueOrDefault(id)),
+                ((id, false), all.GetValueOrDefault(id) - test.GetValueOrDefault(id)),
+            })
+            .ToDictionary(entry => entry.Item1, entry => entry.Item2);
     }
+
+    /// <summary>Cells per property id; a cell of a deleted Property is dropped by the caller's ids.</summary>
+    private static Task<Dictionary<long, int>> CountByPropertyAsync(
+        IQueryable<PropertyValue> cells,
+        CancellationToken cancellationToken) =>
+        cells.AsNoTracking()
+            .GroupBy(cell => cell.PropertyId)
+            .Select(group => new { PropertyId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.PropertyId, group => group.Count, cancellationToken);
 
     private async Task<List<PresetSource>> ParticipantsAsync(
         FormKey key,
