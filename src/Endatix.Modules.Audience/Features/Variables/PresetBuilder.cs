@@ -13,8 +13,19 @@ internal static class PresetBuilder
     public static AudienceVariablesDto Assemble(FormAudience audience) =>
         new(
             audience.Properties.Count == 0 ? null : VariablePresets(audience),
-            CoverageDto.Empty,
+            Coverage(audience),
             PresetEditing.None);
+
+    /// <summary>One entry per Property in tab order; a Property nobody filled in counts zero.</summary>
+    private static CoverageDto Coverage(FormAudience audience) =>
+        new(
+            audience.Participants,
+            audience.Properties
+                .Select(property => new PropertyCoverage(
+                    property.VariableName,
+                    audience.Filled.GetValueOrDefault((property.Id, true)),
+                    audience.Filled.GetValueOrDefault((property.Id, false))))
+                .ToList());
 
     /// <summary>Named by identifier; one variable per live cell, typed as the respondent's Snapshot types it.</summary>
     public static VariablePresetDto Build(PresetSource source, IReadOnlyList<Property> properties)
@@ -44,16 +55,18 @@ internal static class PresetBuilder
                 .ThenBy(source => source.Identifier, StringComparer.Ordinal)
                 .Select(source => Build(source, audience.Properties))
                 .ToList(),
-            audience.TotalTestParticipants);
+            audience.Participants.Test);
 }
 
 /// <summary>
-/// A form's Properties in tab order, the live cells of its first Test participants, and how many it has in all.
+/// A form's Properties in tab order, the live cells of its first Test participants, how many test and real participants
+/// it has, and how many of each have a live cell per Property (absent when none).
 /// </summary>
 internal sealed record FormAudience(
     IReadOnlyList<Property> Properties,
     IReadOnlyList<PresetSource> TestParticipants,
-    int TotalTestParticipants);
+    ParticipantCounts Participants,
+    IReadOnlyDictionary<(long PropertyId, bool IsTest), int> Filled);
 
 /// <summary>A form's Properties in tab order and one participant on it, real or test.</summary>
 internal sealed record ParticipantAudience(IReadOnlyList<Property> Properties, PresetSource Participant);

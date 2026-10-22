@@ -22,6 +22,7 @@ public class AudiencePersonResponse
         Values = dto.Values;
         IsTest = dto.IsTest;
         Link = AudienceLinkStatusResponse.From(dto.Link);
+        NotFilledIn = dto.NotFilledIn;
     }
 
     public long MembershipId { get; init; }
@@ -38,6 +39,12 @@ public class AudiencePersonResponse
 
     /// <summary>Whether the person's personalised link was issued and opened.</summary>
     public AudienceLinkStatusResponse Link { get; init; } = AudienceLinkStatusResponse.From(LinkStatusDto.None);
+
+    /// <summary>
+    /// How many of the form's Properties the person has no value for. On the people list only; left out elsewhere.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? NotFilledIn { get; init; }
 
     internal static AudiencePersonResponse FromDto(PersonDto dto) => new(dto);
 }

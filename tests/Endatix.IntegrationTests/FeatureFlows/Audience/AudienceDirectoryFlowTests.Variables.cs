@@ -24,7 +24,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(JsonValueKind.Null, variables.GetProperty("variablePresets").ValueKind);
-        AssertJson("""{"test":0,"real":0}""", variables.GetProperty("coverage").GetProperty("participants"));
+        AssertJson("""{"test":1,"real":0}""", variables.GetProperty("coverage").GetProperty("participants"));
         Assert.Empty(variables.GetProperty("coverage").GetProperty("properties").EnumerateArray());
         AssertJson("""{"allowAdd":false,"allowEdit":false,"allowDelete":false}""", variables.GetProperty("editing"));
     }
