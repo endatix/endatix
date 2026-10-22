@@ -119,6 +119,8 @@ public static class EndatixEventIds
         public const int RoleAssignmentFailed = 1107;
         public const int UserCreated = 1108;
         public const int PasswordInConfig = 1109;
+        /// <summary>No initial user password is configured, so the initial admin is not seeded.</summary>
+        public const int PasswordNotConfigured = 1110;
 
         public const int RangeStart = Ranges.IdentitySeedStart;
         public const int RangeEnd = Ranges.SeedingEnd;
@@ -129,7 +131,8 @@ public static class EndatixEventIds
             RegistrationFailed,
             RoleAssignmentFailed,
             UserCreated,
-            PasswordInConfig
+            PasswordInConfig,
+            PasswordNotConfigured
         ];
     }
 
