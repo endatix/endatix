@@ -38,6 +38,7 @@ public enum PeopleTestFilter
 
 /// <summary>
 /// One person on a form's audience, with property values keyed by property id and their Link status.
+/// <see cref="NotFilledIn"/> counts the form's Properties they have no value for; only the list sets it.
 /// </summary>
 public sealed record PersonDto(
     long MembershipId,
@@ -45,7 +46,8 @@ public sealed record PersonDto(
     string Identifier,
     IReadOnlyDictionary<long, string> Values,
     bool IsTest,
-    LinkStatusDto Link);
+    LinkStatusDto Link,
+    int? NotFilledIn = null);
 
 internal sealed class ListPeopleHandler(
     IAudienceDbContext db,
@@ -89,7 +91,7 @@ internal sealed class ListPeopleHandler(
             .Take(resolved.PageSize)
             .ToListAsync(cancellationToken);
 
-        return resolved.ToPaged(await MapPeopleAsync(request.TenantId, rows, cancellationToken));
+        return resolved.ToPaged(await MapPeopleAsync(request, rows, cancellationToken));
     }
 
     // The tenant is stated as well as filtered, so SQL Server can seek the tenant-first index: the tenant query
@@ -117,7 +119,7 @@ internal sealed class ListPeopleHandler(
             : AudiencePaging.DefaultPageSize;
 
     private async Task<List<PersonDto>> MapPeopleAsync(
-        long tenantId,
+        ListPeopleQuery request,
         List<Membership> rows,
         CancellationToken cancellationToken)
     {
@@ -127,10 +129,17 @@ internal sealed class ListPeopleHandler(
         }
 
         HashSet<long> membershipIds = rows.Select(row => row.Id).ToHashSet();
+        // The Properties before the values: a Property deleted between the two reads is then counted as not filled in,
+        // never as a value beyond the count.
+        List<long> propertyIds = await db.Properties
+            .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
+            .Select(property => property.Id)
+            .ToListAsync(cancellationToken);
         PageDetails details = new(
             await LoadIdentifiersAsync(rows, cancellationToken),
-            await LoadValuesAsync(tenantId, membershipIds, cancellationToken),
-            await linkStatuses.ForAsync(membershipIds, cancellationToken));
+            await LoadValuesAsync(request.TenantId, membershipIds, cancellationToken),
+            await linkStatuses.ForAsync(membershipIds, cancellationToken),
+            propertyIds);
         return BuildDtos(rows, details);
     }
 
@@ -162,22 +171,28 @@ internal sealed class ListPeopleHandler(
                 group => group.ToDictionary(row => row.PropertyId, row => row.Value));
     }
 
+    /// <summary>A person lacks a value for each of the form's Properties they have no live cell for.</summary>
     private static List<PersonDto> BuildDtos(List<Membership> rows, PageDetails details) =>
         rows
             .Where(membership => details.Identifiers.ContainsKey(membership.MemberId))
-            .Select(membership => new PersonDto(
-                membership.Id,
-                membership.MemberId,
-                details.Identifiers[membership.MemberId],
-                details.Values.GetValueOrDefault(membership.Id)
-                    ?? (IReadOnlyDictionary<long, string>)new Dictionary<long, string>(),
-                membership.IsTest,
-                details.Links[membership.Id]))
+            .Select(membership =>
+            {
+                Dictionary<long, string> values = details.Values.GetValueOrDefault(membership.Id) ?? [];
+                return new PersonDto(
+                    membership.Id,
+                    membership.MemberId,
+                    details.Identifiers[membership.MemberId],
+                    values,
+                    membership.IsTest,
+                    details.Links[membership.Id],
+                    details.PropertyIds.Count(propertyId => !values.ContainsKey(propertyId)));
+            })
             .ToList();
 
     /// <summary>What a page's rows are joined to, each read once for the whole page.</summary>
     private sealed record PageDetails(
         Dictionary<long, string> Identifiers,
         Dictionary<long, Dictionary<long, string>> Values,
-        IReadOnlyDictionary<long, LinkStatusDto> Links);
+        IReadOnlyDictionary<long, LinkStatusDto> Links,
+        List<long> PropertyIds);
 }

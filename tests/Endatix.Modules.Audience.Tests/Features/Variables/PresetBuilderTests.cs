@@ -13,16 +13,23 @@ public sealed class PresetBuilderTests
     private static readonly Property Sites =
         new(new PropertyCreateArgs(1, 10, "Sites", AudienceDataTypeCodes.MultipleChoice, 4, """["a","b"]""")) { Id = 4 };
 
+    private static readonly IReadOnlyDictionary<(long PropertyId, bool IsTest), int> NothingFilled =
+        new Dictionary<(long PropertyId, bool IsTest), int>();
+
     [Fact]
-    public void Assemble_FormWithoutProperties_HasNoVariablesAndNothingEditable()
+    public void Assemble_FormWithoutProperties_HasNoVariablesButCountsItsParticipants()
     {
         // Act
         AudienceVariablesDto variables = PresetBuilder.Assemble(
-            new FormAudience([], [new PresetSource("maria@acme.test", new Dictionary<long, string>())], 1));
+            new FormAudience(
+                [],
+                [new PresetSource("maria@acme.test", new Dictionary<long, string>())],
+                new ParticipantCounts(1, 3),
+                NothingFilled));
 
         // Assert
         variables.VariablePresets.Should().BeNull();
-        variables.Coverage.Participants.Should().Be(new ParticipantCounts(0, 0));
+        variables.Coverage.Participants.Should().Be(new ParticipantCounts(1, 3));
         variables.Coverage.Properties.Should().BeEmpty();
         variables.Editing.Should().Be(new PresetEditing(false, false, false));
     }
@@ -38,7 +45,8 @@ public sealed class PresetBuilderTests
                 new PresetSource("Maria@acme.test", new Dictionary<long, string> { [Seats.Id] = "12" }),
                 new PresetSource("ada@acme.test", new Dictionary<long, string>()),
             ],
-            TotalTestParticipants: 42));
+            new ParticipantCounts(Test: 42, Real: 0),
+            NothingFilled));
 
         // Assert
         VariablePresetsDto presets = variables.VariablePresets!;
@@ -51,6 +59,29 @@ public sealed class PresetBuilderTests
     }
 
     [Fact]
+    public void Assemble_CountsFilledTestAndRealParticipantsPerPropertyInTabOrder_ZeroWhenNoneFilled()
+    {
+        // Act
+        AudienceVariablesDto variables = PresetBuilder.Assemble(new FormAudience(
+            [City, Seats, Renews],
+            [],
+            new ParticipantCounts(Test: 3, Real: 4810),
+            new Dictionary<(long PropertyId, bool IsTest), int>
+            {
+                [(City.Id, true)] = 3,
+                [(City.Id, false)] = 4790,
+                [(Seats.Id, false)] = 12,
+            }));
+
+        // Assert
+        variables.Coverage.Participants.Should().Be(new ParticipantCounts(3, 4810));
+        variables.Coverage.Properties.Should().Equal(
+            new PropertyCoverage("city", FilledTest: 3, FilledReal: 4790),
+            new PropertyCoverage("seats", FilledTest: 0, FilledReal: 12),
+            new PropertyCoverage("renews", FilledTest: 0, FilledReal: 0));
+    }
+
+    [Fact]
     public void Assemble_IdentifiersThatDifferOnlyInCase_AreOrderedByCase()
     {
         // Act
@@ -60,7 +91,8 @@ public sealed class PresetBuilderTests
                 new PresetSource("aB-1", new Dictionary<long, string>()),
                 new PresetSource("Ab-1", new Dictionary<long, string>()),
             ],
-            TotalTestParticipants: 2));
+            new ParticipantCounts(Test: 2, Real: 0),
+            NothingFilled));
 
         // Assert
         variables.VariablePresets!.Presets.Select(preset => preset.Name).Should().Equal("Ab-1", "aB-1");

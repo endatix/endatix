@@ -8,33 +8,45 @@ namespace Endatix.Modules.Audience.Features.Variables;
 
 /// <summary>
 /// The only database read behind a form's variables: the Properties in tab order, the first
-/// <see cref="PresetLimit"/> Test participants by when they were added, their live cells, and the Test participant
-/// count when that page is full; or one participant, real or test, with their live cells. Removed participants and
-/// deleted Properties are left out by the query filters. The tenant is stated as well as filtered, so SQL Server seeks
-/// the tenant-first indexes.
+/// <see cref="PresetLimit"/> Test participants by when they were added, their live cells, and the coverage counts; or
+/// one participant, real or test, with their live cells. Removed participants and deleted Properties are left out by
+/// the query filters. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first indexes.
 /// </summary>
 internal sealed class AudienceVariablesReader(IAudienceDbContext db)
 {
     /// <summary>The most presets one read returns; CSV import can add thousands of Test participants.</summary>
     public const int PresetLimit = 20;
 
+    private static readonly IReadOnlyDictionary<(long PropertyId, bool IsTest), int> NothingFilled =
+        new Dictionary<(long PropertyId, bool IsTest), int>();
+
+    /// <summary>
+    /// Up to six statements: the Properties, participants by test flag, filled cells by Property (all, then test), then
+    /// the first Test participants and their cells. Stops after the second when the form has no Properties or no
+    /// participants, and skips the test counts and presets when it has no Test participants.
+    /// </summary>
     public async Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken)
     {
         List<Property> properties = await PropertiesAsync(key, cancellationToken);
-        if (properties.Count == 0)
+        ParticipantCounts participants = await CountParticipantsAsync(key, cancellationToken);
+        if (properties.Count == 0 || participants is { Test: 0, Real: 0 })
         {
-            return new FormAudience(properties, [], 0);
+            return new FormAudience(properties, [], participants, NothingFilled);
         }
 
-        IQueryable<Membership> firstTestMemberships = TestMemberships(key)
-            .OrderBy(membership => membership.Id)
-            .Take(PresetLimit);
-        List<PresetSource> testParticipants = await ParticipantsAsync(key, firstTestMemberships, cancellationToken);
-        int total = testParticipants.Count < PresetLimit
-            ? testParticipants.Count
-            : await TestMemberships(key).CountAsync(cancellationToken);
-        return new FormAudience(properties, testParticipants, total);
+        IReadOnlyDictionary<(long PropertyId, bool IsTest), int> filled =
+            await CountFilledAsync(key, properties, participants, cancellationToken);
+        List<PresetSource> testParticipants = participants.Test == 0
+            ? []
+            : await FirstTestParticipantsAsync(key, cancellationToken);
+        return new FormAudience(properties, testParticipants, participants, filled);
     }
+
+    private Task<List<PresetSource>> FirstTestParticipantsAsync(FormKey key, CancellationToken cancellationToken) =>
+        ParticipantsAsync(
+            key,
+            TestMemberships(key).OrderBy(membership => membership.Id).Take(PresetLimit),
+            cancellationToken);
 
     /// <summary>
     /// One participant on the form by audience member id with the form's Properties, or <see langword="null"/> when
@@ -58,12 +70,73 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             .InTabOrder()
             .ToListAsync(cancellationToken);
 
+    /// <summary>
+    /// The form's live memberships. No member test: a live membership always has a live Member. The only Member delete,
+    /// <c>RetireMembersAsync</c> on an identifier-kind change, runs only while the tenant has no live memberships. The
+    /// EXISTS on Members the people list keeps would only give the planner another join to get wrong; if that guard
+    /// ever loosens, add it back here too.
+    /// </summary>
     private IQueryable<Membership> Memberships(FormKey key) =>
         db.Memberships.AsNoTracking()
             .Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId);
 
     private IQueryable<Membership> TestMemberships(FormKey key) =>
         Memberships(key).Where(membership => membership.IsTest);
+
+    private async Task<ParticipantCounts> CountParticipantsAsync(FormKey key, CancellationToken cancellationToken)
+    {
+        Dictionary<bool, int> counts = await Memberships(key)
+            .GroupBy(membership => membership.IsTest)
+            .Select(group => new { IsTest = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.IsTest, group => group.Count, cancellationToken);
+        return new ParticipantCounts(counts.GetValueOrDefault(true), counts.GetValueOrDefault(false));
+    }
+
+    /// <summary>
+    /// Filled cells per live Property: every cell, then the Test participants' cells, in two GROUP BYs with no join
+    /// between cells and memberships. Removing a person or a Property deletes its cells, so real = all − test. The join
+    /// this replaced let PostgreSQL loop the form's memberships over <c>IX_PropertyValues_Property</c>, a scan of every
+    /// cell per participant, and time out at 5,000 × 50 when its statistics were off (CI). Now the first reads one index
+    /// range per Property and the second reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
+    /// The first filters by the live Property ids just read, which is what <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, long, IQueryable{long})"/>
+    /// tests with an EXISTS. The statements share no snapshot, so a person added or removed between them could push a
+    /// count past the participants or below zero; each count is clamped to <c>0..participants</c>.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<(long PropertyId, bool IsTest), int>> CountFilledAsync(
+        FormKey key,
+        List<Property> properties,
+        ParticipantCounts participants,
+        CancellationToken cancellationToken)
+    {
+        List<long> propertyIds = properties.ConvertAll(property => property.Id);
+        Dictionary<long, int> all = await CountByPropertyAsync(
+            db.PropertyValues.Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId)),
+            cancellationToken);
+        Dictionary<long, int> test = participants.Test == 0
+            ? []
+            : await CountByPropertyAsync(
+                PropertyValuesWriter
+                    .ActiveCells(db, key.TenantId, TestMemberships(key).Select(membership => membership.Id))
+                    .Where(cell => propertyIds.Contains(cell.PropertyId)),
+                cancellationToken);
+        return propertyIds
+            .SelectMany(id =>
+            {
+                int filledTest = Math.Clamp(test.GetValueOrDefault(id), 0, participants.Test);
+                int filledReal = Math.Clamp(all.GetValueOrDefault(id) - filledTest, 0, participants.Real);
+                return new[] { ((id, true), filledTest), ((id, false), filledReal) };
+            })
+            .ToDictionary(entry => entry.Item1, entry => entry.Item2);
+    }
+
+    /// <summary>Cells per property id.</summary>
+    private static Task<Dictionary<long, int>> CountByPropertyAsync(
+        IQueryable<PropertyValue> cells,
+        CancellationToken cancellationToken) =>
+        cells.AsNoTracking()
+            .GroupBy(cell => cell.PropertyId)
+            .Select(group => new { PropertyId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.PropertyId, group => group.Count, cancellationToken);
 
     private async Task<List<PresetSource>> ParticipantsAsync(
         FormKey key,

@@ -33,12 +33,8 @@ public sealed record VariablePresetsDto(
 /// <summary>A participant's values. <see cref="Name"/> is their identifier, unique on the form.</summary>
 public sealed record VariablePresetDto(string Name, JsonObject Variables);
 
-/// <summary>How many participants have a value for each Property. Empty until endatix#1346.</summary>
-public sealed record CoverageDto(ParticipantCounts Participants, IReadOnlyList<PropertyCoverage> Properties)
-{
-    /// <summary>No participants and no Properties counted.</summary>
-    public static readonly CoverageDto Empty = new(new ParticipantCounts(0, 0), []);
-}
+/// <summary>How many participants the form has, and how many of them have a value for each Property.</summary>
+public sealed record CoverageDto(ParticipantCounts Participants, IReadOnlyList<PropertyCoverage> Properties);
 
 /// <summary>Test and real participants on the form.</summary>
 public sealed record ParticipantCounts(int Test, int Real);
