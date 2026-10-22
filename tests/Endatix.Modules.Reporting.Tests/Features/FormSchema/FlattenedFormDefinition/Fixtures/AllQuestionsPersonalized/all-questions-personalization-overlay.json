@@ -1,6 +1,5 @@
 {
-  "$comment": "Personalization on top of AllQuestions/all-questions-definition.json. Edit this file, then run the regenerate test in AllQuestionsPersonalizedTests to rewrite all-questions-personalized-definition.json and the expected files. customVariables are declared as SurveyJS custom variables (no expression); bindings set or replace properties of an existing question, found by name anywhere in the survey; addElements are appended to the first page.",
-  "customVariables": ["full_name", "age", "city", "panel_member", "joined", "last_seen", "tags"],
+  "$comment": "Personalization on top of AllQuestions/all-questions-definition.json. Edit this file, then run the regenerate test in AllQuestionsPersonalizedTests to rewrite all-questions-personalized-definition.json and the expected files. The audience variables are not declared here: Hub passes the Audience Properties to Survey Creator as variable presets, so no question or calculated value may share a Variable name; bindings set or replace properties of an existing question, found by name anywhere in the survey; addElements are appended to the first page.",
   "bindings": {
     "qText": { "defaultValueExpression": "{full_name}" },
     "qTextNumber": { "defaultValueExpression": "{age}" },
@@ -9,8 +8,8 @@
     "qDropdown": { "visibleIf": "{age} >= 18" },
     "qComment": {
       "title": {
-        "default": "Anything else about life in {city}?",
-        "es": "¿Algo más sobre la vida en {city}?"
+        "default": "Anything else about life in {hometown}?",
+        "es": "¿Algo más sobre la vida en {hometown}?"
       }
     }
   },
@@ -19,7 +18,7 @@
       "type": "text",
       "name": "city",
       "title": "Confirm the city you live in",
-      "defaultValueExpression": "{city}"
+      "defaultValueExpression": "{hometown}"
     },
     {
       "type": "text",

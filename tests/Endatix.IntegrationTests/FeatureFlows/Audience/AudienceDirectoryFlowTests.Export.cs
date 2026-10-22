@@ -20,7 +20,7 @@ public sealed partial class AudienceDirectoryFlowTests
     [
         ("Full name", "text", null),
         ("Age", "number", null),
-        ("City", "text", null),
+        ("Hometown", "text", null),
         ("Panel member", "boolean", null),
         ("Joined", "date", null),
         ("Last seen", "date_time", null),
@@ -45,7 +45,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Act
         var csvBefore = await ExportAsync(api, formId, "csv");
         await ExpectOkAsync(api.Client.PatchAsJsonAsync(
-            $"/api/forms/{formId}/audience/properties/{properties["city"]}",
+            $"/api/forms/{formId}/audience/properties/{properties["hometown"]}",
             new { name = "Home city", sortOrder = -1 },
             api.CancellationToken));
         var csvAfter = await ExportAsync(api, formId, "csv");
@@ -53,18 +53,18 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(
-            ["AudienceIdentifier", "audience_full_name", "audience_age", "audience_city", "audience_panel_member", "audience_joined", "audience_last_seen", "audience_tags"],
+            ["AudienceIdentifier", "audience_full_name", "audience_age", "audience_hometown", "audience_panel_member", "audience_joined", "audience_last_seen", "audience_tags"],
             AudienceHeaders(csvBefore));
         Assert.Contains("John Smith", csvBefore);
         Assert.Contains("AQ-000002-01", csvBefore);
         Assert.Equal(
-            ["AudienceIdentifier", "audience_city", "audience_full_name", "audience_age", "audience_panel_member", "audience_joined", "audience_last_seen", "audience_tags"],
+            ["AudienceIdentifier", "audience_hometown", "audience_full_name", "audience_age", "audience_panel_member", "audience_joined", "audience_last_seen", "audience_tags"],
             AudienceHeaders(csvAfter));
         var root = codebook.RootElement;
         Assert.Equal(
             "Home city",
-            root.GetProperty("columns").GetProperty("audience_city").GetProperty("title").GetProperty("default").GetString());
-        Assert.Equal("city", root.GetProperty("personalization").GetProperty("variables").EnumerateObject().First().Name);
+            root.GetProperty("columns").GetProperty("audience_hometown").GetProperty("title").GetProperty("default").GetString());
+        Assert.Equal("hometown", root.GetProperty("personalization").GetProperty("variables").EnumerateObject().First().Name);
     }
 
     private static string PersonalizedDefinition() =>
