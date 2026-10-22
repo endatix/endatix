@@ -34,12 +34,24 @@ To configure the data settings, add the following snippet to your `appsettings.j
 
 ### InitialUser Options
 
-When `SeedSampleData` is enabled, you can configure the initial user with these properties:
+When `SeedSampleData` is enabled and the database has no users, the API creates the initial admin from these properties:
 
 | Property | Description | Required |
 |----------|-------------|----------|
-| `Email` | Email address for the initial user | Yes |
-| `Password` | Password for the initial user | Yes |
+| `Email` | Email address for the initial user. Defaults to `admin@endatix.com` | No |
+| `Password` | Password for the initial user. There is no default | Yes |
+
+Without `Password`, the API starts but creates no admin. It logs this error (event id `1110`):
+
+```text
+❌ The initial admin user was not created because Endatix:Data:InitialUser:Password is not configured.
+```
+
+Set the password and restart. Outside your machine, pass it as the `Endatix__Data__InitialUser__Password` environment variable or a secret, not in a committed `appsettings.json`. After the first sign-in, change the password and remove `InitialUser` from the configuration.
+
+:::info[Changed in 0.8.1]
+Earlier versions fell back to `admin@endatix.com` / `P@ssw0rd` when `InitialUser` was missing, and the API's `appsettings.json` shipped that password. Both are gone. Only `appsettings.Development.json` still carries a development password.
+:::
 
 ## Programmatic Configuration
 

@@ -15,16 +15,16 @@ namespace Endatix.Infrastructure.Identity.Seed
     public static class IdentitySeed
     {
         private const string DEFAULT_ADMIN_EMAIL = "admin@endatix.com";
-        private const string DEFAULT_ADMIN_PASSWORD = "P@ssw0rd";
 
         /// <summary>
         /// Seeds an initial admin user into the system if no users exist.
-        /// Uses custom credentials from dataOptions if provided, otherwise falls back to default values.
+        /// The password must come from configuration (Endatix:Data:InitialUser:Password); without it seeding is skipped and an error is logged.
+        /// The email falls back to admin@endatix.com when not configured.
         /// </summary>
         /// <param name="userManager">ASP.NET Identity user manager</param>
         /// <param name="userRegistrationService">Service handling user registration logic</param>
         /// <param name="roleManagementService">Service handling assigning roles to the seeded user</param>
-        /// <param name="dataOptions">Configuration options containing optional custom initial user credentials</param>
+        /// <param name="dataOptions">Configuration options containing the initial user credentials</param>
         /// <param name="logger">Logger instance</param>
         public static async Task SeedInitialUser(
             UserManager<AppUser> userManager,
@@ -49,17 +49,15 @@ namespace Endatix.Infrastructure.Identity.Seed
                 return;
             }
 
-            string email, password;
-            if (initialUserIsConfigured)
+            var password = dataOptions?.InitialUser?.Password;
+            if (string.IsNullOrWhiteSpace(password))
             {
-                email = dataOptions!.InitialUser!.Email;
-                password = dataOptions!.InitialUser!.Password;
+                logger.LogInitialUserPasswordNotConfigured();
+                return;
             }
-            else
-            {
-                email = DEFAULT_ADMIN_EMAIL;
-                password = DEFAULT_ADMIN_PASSWORD;
-            }
+
+            var configuredEmail = dataOptions!.InitialUser!.Email;
+            var email = string.IsNullOrWhiteSpace(configuredEmail) ? DEFAULT_ADMIN_EMAIL : configuredEmail;
 
             var registerUserResult = await userRegistrationService.RegisterUserAsync(
                 email,

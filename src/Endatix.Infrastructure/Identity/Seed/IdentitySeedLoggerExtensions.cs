@@ -44,6 +44,12 @@ internal static partial class IdentitySeedLoggerExtensions
     [LoggerMessage(
         EventId = EndatixEventIds.IdentitySeed.PasswordInConfig,
         Level = LogLevel.Warning,
-        Message = "🔐 The default password can be found in the configuration file under Endatix:Data:InitialUser. Please change the password after logging in and delete the InitialUser section from the configuration file.")]
+        Message = "🔐 The initial user password is set in the configuration under Endatix:Data:InitialUser. Please change the password after logging in and delete the InitialUser section from the configuration file.")]
     public static partial void LogInitialUserPasswordInConfig(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.IdentitySeed.PasswordNotConfigured,
+        Level = LogLevel.Error,
+        Message = "❌ The initial admin user was not created because Endatix:Data:InitialUser:Password is not configured. Set it (for example with the Endatix__Data__InitialUser__Password environment variable) and restart to seed the initial admin. For more info check https://docs.endatix.com/docs/configuration/settings/data-settings")]
+    public static partial void LogInitialUserPasswordNotConfigured(this ILogger logger);
 }
