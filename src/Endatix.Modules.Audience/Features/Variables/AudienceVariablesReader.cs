@@ -21,9 +21,9 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
         new Dictionary<(long PropertyId, bool IsTest), int>();
 
     /// <summary>
-    /// Up to five statements: the Properties, participants by test flag, filled cells by Property and test flag, then
+    /// Up to six statements: the Properties, participants by test flag, filled cells by Property (all, then test), then
     /// the first Test participants and their cells. Stops after the second when the form has no Properties or no
-    /// participants.
+    /// participants, and skips the test counts and presets when it has no Test participants.
     /// </summary>
     public async Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken)
     {
