@@ -68,12 +68,14 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             .InTabOrder()
             .ToListAsync(cancellationToken);
 
-    /// <summary>The form's memberships whose member is live, as the people list keeps them.</summary>
+    /// <summary>
+    /// The form's live memberships. No member test: the module never deletes a Member, and an EXISTS on Members made
+    /// PostgreSQL plan the coverage join as a nested loop over every cell while a fresh import's statistics were stale
+    /// (30 s at 5,000 × 50 instead of 50 ms).
+    /// </summary>
     private IQueryable<Membership> Memberships(FormKey key) =>
         db.Memberships.AsNoTracking()
-            .Where(membership => membership.TenantId == key.TenantId
-                && membership.FormId == key.FormId
-                && db.Members.Any(member => member.Id == membership.MemberId));
+            .Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId);
 
     private async Task<ParticipantCounts> CountParticipantsAsync(FormKey key, CancellationToken cancellationToken)
     {
@@ -85,8 +87,9 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
     }
 
     /// <summary>
-    /// One GROUP BY over the cells of the form's live Properties, which seeks <c>IX_PropertyValues_Property</c>
-    /// (tenant, property), joined to the live memberships for the test flag. A cell exists only when it holds a value.
+    /// One GROUP BY over the live cells of the form's live Properties, joined to its live memberships for the test
+    /// flag. A cell exists only while it holds a value. PostgreSQL drives it from <c>IX_Memberships_Form</c> into
+    /// <c>IX_PropertyValues_Cell</c>: about 200 ms at 5,000 × 50.
     /// </summary>
     private async Task<IReadOnlyDictionary<(long PropertyId, bool IsTest), int>> CountFilledAsync(
         FormKey key,
