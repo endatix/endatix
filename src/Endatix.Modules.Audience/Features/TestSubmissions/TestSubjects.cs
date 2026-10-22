@@ -1,10 +1,10 @@
-using System.Linq.Expressions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Links;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 
 namespace Endatix.Modules.Audience.Features.TestSubmissions;
@@ -24,14 +24,18 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
         TestSubjectKey key,
         long membershipId,
         CancellationToken cancellationToken) =>
-        FindAsync(key, membership => membership.Id == membershipId, cancellationToken);
+        FindAsync(key, OnForm(key).Where(membership => membership.Id == membershipId), cancellationToken);
 
+    /// <summary>By audience member id, through <see cref="FormParticipants.ByMember"/>, as the participant panel finds them.</summary>
     public Task<Result<TestOpening>> ByMemberAsync(TestSubjectKey key, long memberId, CancellationToken cancellationToken) =>
-        FindAsync(key, membership => membership.MemberId == memberId, cancellationToken);
+        FindAsync(
+            key,
+            FormParticipants.ByMember(db, new ParticipantKey(key.TenantId, key.FormId, memberId)),
+            cancellationToken);
 
     private async Task<Result<TestOpening>> FindAsync(
         TestSubjectKey key,
-        Expression<Func<Membership, bool>> which,
+        IQueryable<Membership> membership,
         CancellationToken cancellationToken)
     {
         var form = await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdReadOnly(key.FormId), cancellationToken);
@@ -40,7 +44,7 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
             return Result.NotFound("Form not found.");
         }
 
-        var person = await PersonAsync(key, which, cancellationToken);
+        var person = await gates.PersonAsync(membership, cancellationToken);
         return person is null
             ? Result.NotFound("Person not found on this form.")
             : Result.Success(new TestOpening(
@@ -48,15 +52,8 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
                 form));
     }
 
-    private Task<LinkPerson?> PersonAsync(
-        TestSubjectKey key,
-        Expression<Func<Membership, bool>> which,
-        CancellationToken cancellationToken) =>
-        gates.PersonAsync(
-            db.Memberships
-                .Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId)
-                .Where(which),
-            cancellationToken);
+    private IQueryable<Membership> OnForm(TestSubjectKey key) =>
+        db.Memberships.Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId);
 }
 
 /// <summary>The tenant and form a test submission is opened on. Both are stated in every read.</summary>

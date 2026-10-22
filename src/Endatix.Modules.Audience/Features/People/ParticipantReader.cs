@@ -11,21 +11,18 @@ namespace Endatix.Modules.Audience.Features.People;
 internal sealed class ParticipantReader(IAudienceDbContext db, LinkStatuses linkStatuses)
 {
     /// <summary>
-    /// The participant's live membership on the form, or <see langword="null"/> when they are not on it, were removed,
-    /// or belong to another tenant. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first
-    /// index, as the list does.
+    /// The participant on the form (<see cref="FormParticipants"/>), or <see langword="null"/> when they are not on it,
+    /// were removed, or belong to another tenant.
     /// </summary>
     public async Task<FoundParticipant?> FindOnFormAsync(ParticipantKey key, CancellationToken cancellationToken)
     {
-        var row = await db.Memberships.AsNoTracking()
-            .Where(membership => membership.TenantId == key.TenantId
-                && membership.FormId == key.FormId
-                && membership.MemberId == key.MemberId)
-            .Join(
-                db.Members,
-                membership => membership.MemberId,
-                member => member.Id,
-                (membership, member) => new { Membership = membership, member.Identifier, member.SubmitterId })
+        var row = await FormParticipants.Of(db, FormParticipants.ByMember(db, key))
+            .Select(participant => new
+            {
+                participant.Membership,
+                participant.Member.Identifier,
+                participant.Member.SubmitterId,
+            })
             .FirstOrDefaultAsync(cancellationToken);
         return row is null
             ? null
@@ -34,9 +31,7 @@ internal sealed class ParticipantReader(IAudienceDbContext db, LinkStatuses link
 
     public async Task<PersonDto> ReadAsync(Membership membership, string identifier, CancellationToken cancellationToken)
     {
-        Dictionary<long, string> values = await PropertyValuesWriter
-            .ActiveCells(db, membership.TenantId, [membership.Id])
-            .ToDictionaryAsync(value => value.PropertyId, value => value.Value, cancellationToken);
+        Dictionary<long, string> values = await ParticipantValues.ReadOneAsync(db, membership, cancellationToken);
         IReadOnlyDictionary<long, LinkStatusDto> links = await linkStatuses.ForAsync([membership.Id], cancellationToken);
         return new PersonDto(
             membership.Id, membership.MemberId, identifier, values, membership.IsTest, links[membership.Id]);

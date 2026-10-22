@@ -92,7 +92,9 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         CancellationToken cancellationToken)
     {
         List<PresetSource> participant = await ParticipantsAsync(
-            key, Memberships(key).Where(membership => membership.MemberId == memberId), cancellationToken);
+            key,
+            FormParticipants.ByMember(db, new ParticipantKey(key.TenantId, key.FormId, memberId)),
+            cancellationToken);
         return participant.Count == 0
             ? null
             : new ParticipantAudience(await PropertiesAsync(key, cancellationToken), participant[0]);
@@ -130,15 +132,15 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         CancellationToken cancellationToken)
     {
         List<KeyedMembership> matched = await Keyed(key, Memberships(key), keys).ToListAsync(cancellationToken);
-        ILookup<long, CellRow> cells = matched.Count == 0
-            ? Enumerable.Empty<CellRow>().ToLookup(cell => cell.MembershipId)
+        Dictionary<long, Dictionary<long, string>> values = matched.Count == 0
+            ? []
             : await CellsAsync(key, matched.ConvertAll(participant => participant.MembershipId), cancellationToken);
         return matched.ToDictionary(
             participant => participant.Key,
             participant => new OnForm(
                 participant.MembershipId,
                 participant.IsTest,
-                cells[participant.MembershipId].ToDictionary(cell => cell.PropertyId, cell => cell.Value)));
+                values.GetValueOrDefault(participant.MembershipId) ?? []));
     }
 
     private Task<List<Property>> PropertiesAsync(FormKey key, CancellationToken cancellationToken) =>
@@ -234,26 +236,23 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         IQueryable<Membership> memberships,
         CancellationToken cancellationToken)
     {
-        List<NamedMembership> participants = await Named(key, memberships).ToListAsync(cancellationToken);
+        List<NamedMembership> participants = await Named(memberships).ToListAsync(cancellationToken);
         if (participants.Count == 0)
         {
             return [];
         }
 
-        ILookup<long, CellRow> cells = await CellsAsync(
+        Dictionary<long, Dictionary<long, string>> values = await CellsAsync(
             key, participants.ConvertAll(participant => participant.MembershipId), cancellationToken);
         return participants.ConvertAll(participant => new PresetSource(
             participant.Identifier,
-            cells[participant.MembershipId].ToDictionary(cell => cell.PropertyId, cell => cell.Value),
+            values.GetValueOrDefault(participant.MembershipId) ?? [],
             participant.IsTest));
     }
 
-    private IQueryable<NamedMembership> Named(FormKey key, IQueryable<Membership> memberships) =>
-        memberships.Join(
-            db.Members.Where(member => member.TenantId == key.TenantId),
-            membership => membership.MemberId,
-            member => member.Id,
-            (membership, member) => new NamedMembership(membership.Id, member.Identifier, membership.IsTest));
+    private IQueryable<NamedMembership> Named(IQueryable<Membership> memberships) =>
+        FormParticipants.Of(db, memberships).Select(participant => new NamedMembership(
+            participant.Membership.Id, participant.Member.Identifier, participant.Membership.IsTest));
 
     /// <summary>The memberships whose member's normalized identifier is one of <paramref name="keys"/>.</summary>
     private IQueryable<KeyedMembership> Keyed(
@@ -267,25 +266,19 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
             (membership, member) => new KeyedMembership(membership.Id, membership.IsTest, member.NormalizedIdentifier));
 
     /// <summary>
-    /// The live cells of the memberships just read, by membership id. By id, not by the membership query again: a
-    /// participant removed between the two statements keeps the values they were read with, never an empty preset.
-    /// At most <see cref="PresetLimit"/> ids, plus those a write-back saved.
+    /// The values of the memberships just read, read as the participant panel reads them (<see cref="ParticipantValues"/>).
+    /// By id, not by the membership query again: a participant removed between the two statements keeps the values they
+    /// were read with, never an empty preset. At most <see cref="PresetLimit"/> ids, plus those a write-back saved.
     /// </summary>
-    private async Task<ILookup<long, CellRow>> CellsAsync(
+    private Task<Dictionary<long, Dictionary<long, string>>> CellsAsync(
         FormKey key,
         IReadOnlyCollection<long> membershipIds,
         CancellationToken cancellationToken) =>
-        (await PropertyValuesWriter
-            .ActiveCells(db, key.TenantId, membershipIds)
-            .Select(cell => new CellRow(cell.MembershipId, cell.PropertyId, cell.Value))
-            .ToListAsync(cancellationToken))
-        .ToLookup(cell => cell.MembershipId);
+        ParticipantValues.ReadAsync(db, new ParticipantCells(key.TenantId, membershipIds), cancellationToken);
 
     private sealed record NamedMembership(long MembershipId, string Identifier, bool IsTest);
 
     private sealed record KeyedMembership(long MembershipId, bool IsTest, string Key);
-
-    private sealed record CellRow(long MembershipId, long PropertyId, string Value);
 }
 
 /// <summary>One form of one tenant.</summary>

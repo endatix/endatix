@@ -166,6 +166,30 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task The_participant_panel_and_preview_as_read_the_same_values()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await admin.CreateFormAsync();
+        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        var seats = await admin.CreatePropertyAsync(formId, new { name = "Seats", dataType = "number" });
+        var gone = await admin.CreatePropertyAsync(formId, new { name = "Gone", dataType = "text" });
+        var ada = await AddPersonWithValuesAsync(
+            admin, formId, new("ada@example.com", IsTest: false, new() { [city] = "Sofia", [seats] = "3", [gone] = "x" }));
+        using var deletion = await admin.Client.DeleteAsync(
+            $"/api/forms/{formId}/audience/properties/{gone}", admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, deletion.StatusCode);
+
+        // Act
+        var panel = await GetParticipantAsync(admin, formId, ada.MemberId);
+        var preset = await GetParticipantPresetAsync(admin, formId, ada.MemberId);
+
+        // Assert: the same live cells, by property id in the panel and by variable name in the preset
+        AssertJson($$"""{"{{city}}":"Sofia","{{seats}}":"3"}""", panel.GetProperty("values"));
+        AssertJson("""{"city":"Sofia","seats":3}""", preset.GetProperty("variables"));
+    }
+
     private static Task<HttpResponseMessage> GetParticipantPresetResponseAsync(
         AudienceApi api, long formId, long memberId) =>
         api.Client.GetAsync(
