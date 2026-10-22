@@ -14,38 +14,45 @@ internal static class PresetReconciler
     /// <summary>
     /// A new identifier becomes a Test participant with its filled values. A Test participant gets the values that
     /// differ from their cells, compared as the variables read types them, a value left out of the preset clearing its
-    /// cell; the rest are not rewritten, so a replay writes nothing. A real participant, a written value its Property
-    /// refuses, or an identifier given twice refuses the whole request.
+    /// cell; the rest are not rewritten, so a replay writes nothing. A real participant whose values are unchanged is
+    /// left alone, because the designer sends its whole list. A change to a real participant, a written value its
+    /// Property refuses, or an identifier given twice refuses the whole request.
     /// </summary>
     public static Result<IReadOnlyList<PresetWrite>> Plan(
         IReadOnlyList<Property> properties,
         IReadOnlyDictionary<string, OnForm> onForm,
         IReadOnlyList<PresetEdit> presets)
     {
-        if (Refusal(onForm, presets) is { } refusal)
+        if (presets.GroupBy(preset => preset.Key).FirstOrDefault(group => group.Count() > 1) is { } twice)
         {
-            return Refused(refusal);
+            return Refused($"Each test participant can appear once: '{twice.Skip(1).First().Name}'.");
         }
 
         List<PresetWrite> writes = presets
             .Select(preset => WriteFor(properties, preset, onForm.GetValueOrDefault(preset.Key)))
             .OfType<PresetWrite>()
             .ToList();
-        return writes.Select(write => ValueError(properties, write)).FirstOrDefault(error => error is not null) is { } error
-            ? Refused(error)
+        return Refusal(properties, onForm, writes) is { } refusal
+            ? Refused(refusal)
             : Result.Success<IReadOnlyList<PresetWrite>>(writes);
     }
 
-    private static string? Refusal(IReadOnlyDictionary<string, OnForm> onForm, IReadOnlyList<PresetEdit> presets)
+    /// <summary>
+    /// A write to a real participant, then a value its Property refuses. A real participant's preset that comes back
+    /// unchanged is no write, because the designer sends its whole list, read-only presets included.
+    /// </summary>
+    private static string? Refusal(
+        IReadOnlyList<Property> properties,
+        IReadOnlyDictionary<string, OnForm> onForm,
+        List<PresetWrite> writes)
     {
-        if (presets.GroupBy(preset => preset.Key).FirstOrDefault(group => group.Count() > 1) is { } twice)
-        {
-            return $"Each test participant can appear once: '{twice.Skip(1).First().Name}'.";
-        }
-
-        return presets.Any(preset => onForm.GetValueOrDefault(preset.Key) is { IsTest: false })
+        HashSet<long> real = onForm.Values
+            .Where(participant => !participant.IsTest)
+            .Select(participant => participant.MembershipId)
+            .ToHashSet();
+        return writes.Any(write => write.MembershipId is long id && real.Contains(id))
             ? "Real participants are read-only."
-            : null;
+            : writes.Select(write => ValueError(properties, write)).FirstOrDefault(error => error is not null);
     }
 
     private static Result<IReadOnlyList<PresetWrite>> Refused(string message) =>

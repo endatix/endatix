@@ -20,19 +20,27 @@ public sealed class AudienceVariablesResponse
     /// <summary>What the designer's preset editor may change (nothing for now).</summary>
     public required AudiencePresetEditingResponse Editing { get; init; }
 
+    /// <summary>
+    /// The names of the presets that are real participants. The designer locks them: they cannot be edited or
+    /// deleted, and a save that changes one is refused. Empty when the form has no Properties.
+    /// </summary>
+    public required IReadOnlyList<string> ReadOnlyPresets { get; init; }
+
     internal static AudienceVariablesResponse FromDto(AudienceVariablesDto dto) => new()
     {
         VariablePresets = dto.VariablePresets is { } presets ? AudienceVariablePresetsResponse.From(presets) : null,
         Coverage = AudienceVariableCoverageResponse.From(dto.Coverage),
         Editing = AudiencePresetEditingResponse.From(dto.Editing),
+        ReadOnlyPresets = dto.ReadOnlyPresets,
     };
 }
 
 /// <summary>SurveyJS <c>ISurveyVariablePresets</c>.</summary>
 /// <param name="Definition">Survey JSON whose top-level questions are the variables.</param>
-/// <param name="Presets">The first 20 Test participants by when they were added, ordered by identifier.</param>
-/// <param name="TotalPresets">How many Test participants the form has; more than <paramref name="Presets"/> holds when
-/// it has over 20.</param>
+/// <param name="Presets">Up to 20 participants: Test participants first, then real ones, each group taken by when they
+/// were added and listed by identifier.</param>
+/// <param name="TotalPresets">How many participants, test and real, the form has; more than <paramref name="Presets"/>
+/// holds when it has over 20.</param>
 public sealed record AudienceVariablePresetsResponse(
     JsonObject Definition,
     IReadOnlyList<AudienceVariablePresetResponse> Presets,
@@ -47,10 +55,12 @@ public sealed record AudienceVariablePresetsResponse(
 
 /// <summary>One participant's values.</summary>
 /// <param name="Name">The participant's identifier.</param>
+/// <param name="Description"><c>Test participant</c> or <c>Participant</c> (a real one), shown by the designer.</param>
 /// <param name="Variables">Variable name → value, typed as the respondent's <c>personalization</c>.</param>
-public sealed record AudienceVariablePresetResponse(string Name, JsonObject Variables)
+public sealed record AudienceVariablePresetResponse(string Name, string? Description, JsonObject Variables)
 {
-    internal static AudienceVariablePresetResponse From(VariablePresetDto dto) => new(dto.Name, dto.Variables);
+    internal static AudienceVariablePresetResponse From(VariablePresetDto dto) =>
+        new(dto.Name, dto.Description, dto.Variables);
 }
 
 /// <summary>How many participants have a value for each Property.</summary>

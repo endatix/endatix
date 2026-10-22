@@ -99,6 +99,24 @@ public sealed class PresetReconcilerTests
     }
 
     [Fact]
+    public void Plan_RealParticipantEchoedUnchanged_WritesNothing()
+    {
+        // Arrange: the Creator sends its whole list, real participants' read-only presets included
+        Dictionary<string, OnForm> onForm = new()
+        {
+            ["real@acme.test"] = new OnForm(8, IsTest: false, Cells(("City", "Ruse"))),
+        };
+
+        // Act
+        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+            Properties, onForm, [Preset("real@acme.test", """{"city":"Ruse"}""")]);
+
+        // Assert
+        plan.IsSuccess.Should().BeTrue();
+        plan.Value.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Plan_RealParticipant_IsRefusedAndNothingIsWritten()
     {
         // Arrange

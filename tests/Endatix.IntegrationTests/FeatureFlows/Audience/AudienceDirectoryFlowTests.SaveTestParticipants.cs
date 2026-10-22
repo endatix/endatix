@@ -40,9 +40,9 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert: Maria's seats is cleared, the absent one is untouched
         AssertJson(
             """
-            [{"name":"absent@example.com","variables":{"city":"Ruse"}},
-             {"name":"maria@example.com","variables":{"city":"Varna"}},
-             {"name":"new@example.com","variables":{"city":"Burgas","seats":12.5}}]
+            [{"name":"absent@example.com","description":"Test participant","variables":{"city":"Ruse"}},
+             {"name":"maria@example.com","description":"Test participant","variables":{"city":"Varna"}},
+             {"name":"new@example.com","description":"Test participant","variables":{"city":"Burgas","seats":12.5}}]
             """,
             saved.GetProperty("variablePresets").GetProperty("presets"));
         AssertJson("""{"allowAdd":true,"allowEdit":true,"allowDelete":false}""", saved.GetProperty("editing"));
@@ -79,6 +79,29 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(before, await StoredRowsAsync(world.Services, formId));
         AssertJson(read.GetRawText(), first);
         AssertJson(read.GetRawText(), second);
+    }
+
+    [Fact]
+    public async Task Saving_the_read_presets_with_a_real_participant_unchanged_writes_nothing()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        await AddPersonWithValuesAsync(admin, formId, new("tester@example.com", IsTest: true, new() { [city] = "Sofia" }));
+        await AddPersonWithValuesAsync(admin, formId, new("real@example.com", IsTest: false, new() { [city] = "Ruse" }));
+        var read = await GetVariablesAsync(admin, formId);
+        var before = await StoredRowsAsync(world.Services, formId);
+
+        // Act
+        var saved = await SaveTestParticipantsAsync(
+            admin, formId, read.GetProperty("variablePresets").GetProperty("presets").GetRawText());
+
+        // Assert
+        Assert.Equal(before, await StoredRowsAsync(world.Services, formId));
+        AssertJson(read.GetRawText(), saved);
+        AssertJson("""["real@example.com"]""", saved.GetProperty("readOnlyPresets"));
     }
 
     [Fact]

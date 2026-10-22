@@ -24,13 +24,14 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(JsonValueKind.Null, variables.GetProperty("variablePresets").ValueKind);
+        Assert.Empty(variables.GetProperty("readOnlyPresets").EnumerateArray());
         AssertJson("""{"test":1,"real":0}""", variables.GetProperty("coverage").GetProperty("participants"));
         Assert.Empty(variables.GetProperty("coverage").GetProperty("properties").EnumerateArray());
         AssertJson("""{"allowAdd":false,"allowEdit":false,"allowDelete":false}""", variables.GetProperty("editing"));
     }
 
     [Fact]
-    public async Task Variables_define_each_property_and_preset_each_test_participant_by_identifier()
+    public async Task Variables_define_each_property_and_preset_test_participants_then_real_ones_by_identifier()
     {
         // Arrange
         var admin = await AdminAsync();
@@ -59,11 +60,14 @@ public sealed partial class AudienceDirectoryFlowTests
         AssertJson(
             """
             [
-              {"name":"ada@example.com","variables":{"renews_at":"2026-10-21T23:30-05:00"}},
-              {"name":"zed@example.com","variables":{"plan_tier":"basic"}}
+              {"name":"ada@example.com","description":"Test participant","variables":{"renews_at":"2026-10-21T23:30-05:00"}},
+              {"name":"zed@example.com","description":"Test participant","variables":{"plan_tier":"basic"}},
+              {"name":"real@example.com","description":"Participant","variables":{"plan_tier":"pro"}}
             ]
             """,
             presets.GetProperty("presets"));
+        Assert.Equal(3, presets.GetProperty("totalPresets").GetInt32());
+        AssertJson("""["real@example.com"]""", variables.GetProperty("readOnlyPresets"));
     }
 
     [Fact]
@@ -120,7 +124,7 @@ public sealed partial class AudienceDirectoryFlowTests
         AssertJson(
             """
             {"definition":{"elements":[{"type":"text","name":"city","title":"City"}]},
-             "presets":[{"name":"kept@example.com","variables":{"city":"Sofia"}}],
+             "presets":[{"name":"kept@example.com","description":"Test participant","variables":{"city":"Sofia"}}],
              "totalPresets":1}
             """,
             variables.GetProperty("variablePresets"));
@@ -145,6 +149,60 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(
             Enumerable.Range(2, 20).Select(number => $"tester{number:D2}@example.com"),
             presets.GetProperty("presets").EnumerateArray().Select(preset => preset.GetProperty("name").GetString()));
+    }
+
+    [Fact]
+    public async Task A_form_with_only_real_participants_presets_the_first_twenty_added_all_read_only()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await FormWithCityAsync(admin);
+        for (var number = 21; number >= 1; number--)
+        {
+            await AddParticipantAsync(admin, formId, $"person{number:D2}@example.com");
+        }
+
+        // Act
+        var variables = await GetVariablesAsync(admin, formId);
+
+        // Assert: person01, added last, is left out
+        var presets = variables.GetProperty("variablePresets");
+        var expected = Enumerable.Range(2, 20).Select(number => $"person{number:D2}@example.com").ToList();
+        Assert.Equal(21, presets.GetProperty("totalPresets").GetInt32());
+        Assert.Equal(
+            expected,
+            presets.GetProperty("presets").EnumerateArray().Select(preset => preset.GetProperty("name").GetString()));
+        Assert.All(
+            presets.GetProperty("presets").EnumerateArray(),
+            preset => Assert.Equal("Participant", preset.GetProperty("description").GetString()));
+        Assert.Equal(expected, variables.GetProperty("readOnlyPresets").EnumerateArray().Select(name => name.GetString()));
+    }
+
+    [Fact]
+    public async Task Test_participants_fill_the_presets_before_real_ones()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await FormWithCityAsync(admin);
+        await AddParticipantAsync(admin, formId, "added-first@example.com");
+        for (var number = 1; number <= 19; number++)
+        {
+            await AddTestParticipantAsync(admin, formId, $"tester{number:D2}@example.com");
+        }
+
+        await AddParticipantAsync(admin, formId, "added-last@example.com");
+
+        // Act
+        var variables = await GetVariablesAsync(admin, formId);
+
+        // Assert: nineteen test participants, then the first real participant added fills the twentieth slot
+        var names = variables.GetProperty("variablePresets").GetProperty("presets").EnumerateArray()
+            .Select(preset => preset.GetProperty("name").GetString()).ToList();
+        Assert.Equal(20, names.Count);
+        Assert.Equal(Enumerable.Range(1, 19).Select(number => $"tester{number:D2}@example.com"), names.Take(19));
+        Assert.Equal("added-first@example.com", names[19]);
+        Assert.Equal(21, variables.GetProperty("variablePresets").GetProperty("totalPresets").GetInt32());
+        AssertJson("""["added-first@example.com"]""", variables.GetProperty("readOnlyPresets"));
     }
 
     [Fact]
