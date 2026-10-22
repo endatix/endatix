@@ -89,8 +89,12 @@ and redeem, which is anonymous.
 - **Concurrency.** Person creates and imports take a shared tenant lock; a match-key change takes it
   exclusively. The lock is `ITransactionLock` (scope `AudienceMatchKey`, key the tenant id), held until the
   transaction ends. The unique indexes settle create races (a second pass reuses the member; a duplicate
-  on one form is a 409). The identifier is checked against the key read under the lock. Two
-  updates adding the same cell: the second pass overwrites. Cells are written in property-id order. The people
+  on one form is a 409). The identifier is checked against the key read under the lock. An edit of a person's
+  values and their removal both take the person's lock (`MembershipLock`: scope `AudienceMembership`, key the
+  membership id, exclusive, 5 s wait, then 503) as their transaction's first statement and read the membership again
+  under it: an edit that waited for a removal is a 404, and a removal that waited for an edit soft-deletes the cells it
+  wrote, so a removed person never keeps a live value (endatix#1361). The CSV import writes values of people already on
+  the form without that lock; an edit that loses a cell race to it takes a second locked pass, which overwrites. Cells are written in property-id order. The people
   list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
   person added in between makes the page longer than the count, the total is raised to cover the rows shown.
 - **Test persons.** A test person is on one form only for testing: never issued a personalised link, and shown with

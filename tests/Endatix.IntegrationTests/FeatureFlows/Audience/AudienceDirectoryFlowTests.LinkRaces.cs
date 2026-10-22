@@ -338,7 +338,10 @@ public sealed partial class AudienceDirectoryFlowTests
         private readonly List<Task> _companions = [];
     }
 
-    /// <summary>Holds the first matching command on <c>Submissions</c> until the test releases it.</summary>
+    /// <summary>
+    /// Holds the first matching command until the test releases it: on <c>Submissions</c>, or on a participant's cells
+    /// and membership for the edit and removal races.
+    /// </summary>
     private sealed partial class SubmissionCommandGate(Regex statement) : DbCommandInterceptor
     {
         /// <summary>The open's insert of its new submission.</summary>
@@ -348,6 +351,12 @@ public sealed partial class AudienceDirectoryFlowTests
         /// The open's first read of a submission: under the lock, after <see cref="LinkOpenGates"/>, which reads none.
         /// </summary>
         public static SubmissionCommandGate AtFirstRead() => new(SubmissionRead());
+
+        /// <summary>An edit's insert of a participant's value cell.</summary>
+        public static SubmissionCommandGate AtCellInsert() => new(CellInsert());
+
+        /// <summary>A removal's soft delete of the participant's membership.</summary>
+        public static SubmissionCommandGate AtMembershipRemoval() => new(MembershipUpdate());
 
         private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -382,6 +391,13 @@ public sealed partial class AudienceDirectoryFlowTests
 
         [GeneratedRegex("""FROM ["\[]Submissions["\]]""")]
         private static partial Regex SubmissionRead();
+
+        /// <summary>The audience schema qualifies these: <c>audience."PropertyValues"</c>, <c>[audience].[PropertyValues]</c>.</summary>
+        [GeneratedRegex("""INSERT INTO \S*["\[]PropertyValues["\]]""")]
+        private static partial Regex CellInsert();
+
+        [GeneratedRegex("""UPDATE \S*["\[]Memberships["\]]""")]
+        private static partial Regex MembershipUpdate();
 
         private async Task HoldAsync(DbCommand command, CancellationToken cancellationToken)
         {
