@@ -1,6 +1,9 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Features.Properties;
+using Endatix.Modules.Audience.Features.Settings;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +15,7 @@ namespace Endatix.Modules.Audience.Features.Variables;
 /// one participant, real or test, with their live cells. Removed participants and deleted Properties are left out by
 /// the query filters. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first indexes.
 /// </summary>
-internal sealed class AudienceVariablesReader(IAudienceDbContext db)
+internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNormalizer normalizer)
 {
     /// <summary>The most presets one read returns; CSV import can add thousands of Test participants.</summary>
     public const int PresetLimit = 20;
@@ -63,6 +66,51 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
         return participant.Count == 0
             ? null
             : new ParticipantAudience(await PropertiesAsync(key, cancellationToken), participant[0]);
+    }
+
+    /// <summary>
+    /// The form's Properties and the participants on it, real or test, named by <paramref name="identifiers"/>, matched
+    /// as the tenant's match key matches (an email ignores case). Invalid when the match key refuses an identifier.
+    /// </summary>
+    public async Task<Result<KeyedAudience>> ReadByIdentifiersAsync(
+        FormKey key,
+        IReadOnlyCollection<string> identifiers,
+        CancellationToken cancellationToken)
+    {
+        string identifierKind = await IdentifierKindReader.GetAsync(db, key.TenantId, cancellationToken);
+        if (identifiers.Select(identifier => Member.IdentifierError(identifier, identifierKind))
+                .FirstOrDefault(error => error is not null) is { } identifierError)
+        {
+            return Result.Invalid(new ValidationError(identifierError));
+        }
+
+        Dictionary<string, string> keys = identifiers.Distinct().ToDictionary(
+            identifier => identifier,
+            identifier => Member.Normalize(identifier, identifierKind, normalizer));
+        return new KeyedAudience(
+            await PropertiesAsync(key, cancellationToken),
+            await OnFormAsync(key, keys.Values.ToHashSet(), cancellationToken),
+            keys);
+    }
+
+    /// <summary>Two statements; one when none match.</summary>
+    private async Task<Dictionary<string, OnForm>> OnFormAsync(
+        FormKey key,
+        HashSet<string> keys,
+        CancellationToken cancellationToken)
+    {
+        IQueryable<Membership> memberships = Memberships(key).Where(membership => db.Members.Any(member =>
+            member.Id == membership.MemberId && keys.Contains(member.NormalizedIdentifier)));
+        List<KeyedMembership> matched = await Keyed(key, memberships).ToListAsync(cancellationToken);
+        ILookup<long, CellRow> cells = matched.Count == 0
+            ? Enumerable.Empty<CellRow>().ToLookup(cell => cell.MembershipId)
+            : await CellsAsync(key, matched.ConvertAll(participant => participant.MembershipId), cancellationToken);
+        return matched.ToDictionary(
+            participant => participant.Key,
+            participant => new OnForm(
+                participant.MembershipId,
+                participant.IsTest,
+                cells[participant.MembershipId].ToDictionary(cell => cell.PropertyId, cell => cell.Value)));
     }
 
     private Task<List<Property>> PropertiesAsync(FormKey key, CancellationToken cancellationToken) =>
@@ -178,6 +226,13 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             member => member.Id,
             (membership, member) => new NamedMembership(membership.Id, member.Identifier));
 
+    private IQueryable<KeyedMembership> Keyed(FormKey key, IQueryable<Membership> memberships) =>
+        memberships.Join(
+            db.Members.Where(member => member.TenantId == key.TenantId),
+            membership => membership.MemberId,
+            member => member.Id,
+            (membership, member) => new KeyedMembership(membership.Id, membership.IsTest, member.NormalizedIdentifier));
+
     /// <summary>
     /// The live cells of the memberships just read, by membership id. By id, not by the membership query again: a
     /// participant removed between the two statements keeps the values they were read with, never an empty preset.
@@ -195,8 +250,19 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
 
     private sealed record NamedMembership(long MembershipId, string Identifier);
 
+    private sealed record KeyedMembership(long MembershipId, bool IsTest, string Key);
+
     private sealed record CellRow(long MembershipId, long PropertyId, string Value);
 }
 
 /// <summary>One form of one tenant.</summary>
 internal readonly record struct FormKey(long TenantId, long FormId);
+
+/// <summary>
+/// A form's Properties in tab order, the participants on it a write names by normalized identifier, and each named
+/// identifier's normalized form.
+/// </summary>
+internal sealed record KeyedAudience(
+    IReadOnlyList<Property> Properties,
+    IReadOnlyDictionary<string, OnForm> OnForm,
+    IReadOnlyDictionary<string, string> Keys);

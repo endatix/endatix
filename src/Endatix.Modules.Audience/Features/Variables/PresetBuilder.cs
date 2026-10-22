@@ -14,7 +14,7 @@ internal static class PresetBuilder
         new(
             audience.Properties.Count == 0 ? null : VariablePresets(audience),
             Coverage(audience),
-            PresetEditing.None);
+            audience.Properties.Count == 0 ? PresetEditing.None : PresetEditing.TestParticipantsOnly);
 
     /// <summary>One entry per Property in tab order; a Property nobody filled in counts zero.</summary>
     private static CoverageDto Coverage(FormAudience audience) =>
