@@ -12,14 +12,16 @@ namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
 /// Lists people on a form with paging up to <see cref="AudiencePaging.MaxPageSize"/>. The total counts only the
-/// people <see cref="Test"/> keeps.
+/// people <see cref="Test"/> and <see cref="Search"/> keep. <see cref="Search"/> keeps people whose identifier contains
+/// it, ignoring case; a blank one keeps everyone.
 /// </summary>
 public sealed record ListPeopleQuery(
     long TenantId,
     long FormId,
     int? Page,
     int? PageSize,
-    PeopleTestFilter Test = PeopleTestFilter.All) : IQuery<Result<Paged<PersonDto>>>;
+    PeopleTestFilter Test = PeopleTestFilter.All,
+    string? Search = null) : IQuery<Result<Paged<PersonDto>>>;
 
 /// <summary>
 /// Which people the list keeps: everyone, only real people, or only test persons.
@@ -79,7 +81,7 @@ internal sealed class ListPeopleHandler(
         CancellationToken cancellationToken)
     {
         IQueryable<Membership> query = WithTestFilter(
-            MembershipsOnForm(request.TenantId, request.FormId),
+            MembershipsOnForm(request.TenantId, request.FormId, SearchTerm(request.Search)),
             request.Test);
         ResolvedPage resolved = ResolvedPage.For(
             request.Page ?? 1,
@@ -96,11 +98,34 @@ internal sealed class ListPeopleHandler(
 
     // The tenant is stated as well as filtered, so SQL Server can seek the tenant-first index: the tenant query
     // filter's bypass parameter keeps it from seeking on the filter alone.
-    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId) =>
+    // The search lowers both sides, so it ignores case on both providers whatever the column's collation.
+    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId, string? pattern) =>
         db.Memberships.AsNoTracking().Where(membership =>
             membership.TenantId == tenantId
             && membership.FormId == formId
-            && db.Members.Any(member => member.Id == membership.MemberId));
+            && db.Members.Any(member => member.Id == membership.MemberId
+                && (pattern == null || EF.Functions.Like(member.Identifier.ToLower(), pattern, LikeEscape))));
+
+    private const string LikeEscape = "\\";
+
+    /// <summary>
+    /// A LIKE pattern that contains the trimmed, lowercased term, its wildcards escaped (<c>[</c> for SQL Server), or
+    /// <see langword="null"/> when blank.
+    /// </summary>
+    private static string? SearchTerm(string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return null;
+        }
+
+        string escaped = search.Trim().ToLowerInvariant()
+            .Replace(LikeEscape, LikeEscape + LikeEscape, StringComparison.Ordinal)
+            .Replace("%", LikeEscape + "%", StringComparison.Ordinal)
+            .Replace("_", LikeEscape + "_", StringComparison.Ordinal)
+            .Replace("[", LikeEscape + "[", StringComparison.Ordinal);
+        return $"%{escaped}%";
+    }
 
     private static IQueryable<Membership> WithTestFilter(IQueryable<Membership> query, PeopleTestFilter filter) =>
         filter switch
