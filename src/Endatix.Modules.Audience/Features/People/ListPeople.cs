@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Modules.Audience.Shared;
@@ -98,13 +99,20 @@ internal sealed class ListPeopleHandler(
 
     // The tenant is stated as well as filtered, so SQL Server can seek the tenant-first index: the tenant query
     // filter's bypass parameter keeps it from seeking on the filter alone.
-    // The search lowers both sides, so it ignores case on both providers whatever the column's collation.
-    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId, string? pattern) =>
-        db.Memberships.AsNoTracking().Where(membership =>
+    // The search lowers both sides, so it ignores case on both providers whatever the column's collation. The member
+    // test drops the tenant filter by name: the membership is the tenant's, and so is its member. With it, PostgreSQL
+    // can plan the EXISTS as a scan of the tenant's members (IX_Members_Identifier) per membership instead of a key
+    // lookup, which took 9 s for a search and 2 s for the count of 5,000 people right after an import.
+    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId, string? pattern)
+    {
+        IQueryable<Member> members = db.Members.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant]);
+        return db.Memberships.AsNoTracking().Where(membership =>
             membership.TenantId == tenantId
             && membership.FormId == formId
-            && db.Members.Any(member => member.Id == membership.MemberId
+            && members.Any(member =>
+                member.Id == membership.MemberId
                 && (pattern == null || EF.Functions.Like(member.Identifier.ToLower(), pattern, LikeEscape))));
+    }
 
     private const string LikeEscape = "\\";
 
