@@ -4,12 +4,13 @@
 /**
  * Splits a gate's red conditions into blocking and advisory ones.
  * @param {{ status: string, conditions?: Array<{ metricKey: string, status: string }> }} projectStatus
- * @param {string[]} advisoryMetrics metric keys that warn instead of failing
+ * @param {string[]} advisoryMetrics metric keys that warn instead of failing; '*' makes every one warn
  */
 export function evaluateGate(projectStatus, advisoryMetrics) {
   const red = (projectStatus.conditions ?? []).filter((c) => c.status === 'ERROR');
-  const advisory = red.filter((c) => advisoryMetrics.includes(c.metricKey));
-  const blocking = red.filter((c) => !advisoryMetrics.includes(c.metricKey));
+  const warnsOnly = (c) => advisoryMetrics.includes('*') || advisoryMetrics.includes(c.metricKey);
+  const advisory = red.filter(warnsOnly);
+  const blocking = red.filter((c) => !warnsOnly(c));
   // A red gate with no red condition is a state we do not understand: fail rather than wave it through.
   const unexplained = projectStatus.status !== 'OK' && red.length === 0;
   return { passed: blocking.length === 0 && !unexplained, blocking, advisory };

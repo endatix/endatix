@@ -258,7 +258,10 @@ jobs:
               exit 1
             fi
           done
-          dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" \
+          # New code on main runs from the last stable release ("Previous version" in
+          # SonarCloud); without /v: every analysis is "not provided" and it never resets.
+          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' 2>/dev/null || echo v0.0.0)
+          dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" /v:"${tag#v}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.xml" \
@@ -271,13 +274,14 @@ jobs:
           dotnet build
           dotnet-sonarscanner end /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN"
       - name: 🚦 Quality gate
-        # SonarCloud Free can't edit "Sonar way", so we read its verdict ourselves:
-        # every red condition fails the job except the metrics in
-        # SONAR_ADVISORY_METRICS (duplication), which only warn. See AGENTS.md → Sonar gate.
+        # SonarCloud Free can't edit "Sonar way", so we read its verdict ourselves.
+        # PRs: every red condition fails the job except the metrics in
+        # SONAR_ADVISORY_METRICS (duplication), which only warn. Pushes (main, hotfix):
+        # report only (`*`); the code is already merged. See AGENTS.md → Sonar gate.
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         env:
           SONAR_TOKEN: ${{ env.ENDATIX_API_REPO_SONAR_TOKEN }}
-          SONAR_ADVISORY_METRICS: new_duplicated_lines_density
+          SONAR_ADVISORY_METRICS: ${{ github.event_name == 'pull_request' && 'new_duplicated_lines_density' || '*' }}
         run: node scripts/sonar-gate.mjs
 
   # Build validation on PRs; canary release on main — publishes only after ALL
