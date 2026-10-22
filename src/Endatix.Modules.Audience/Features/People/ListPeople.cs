@@ -129,13 +129,17 @@ internal sealed class ListPeopleHandler(
         }
 
         HashSet<long> membershipIds = rows.Select(row => row.Id).ToHashSet();
+        // The Properties before the values: a Property deleted between the two reads is then counted as not filled in,
+        // never as a value beyond the count.
+        List<long> propertyIds = await db.Properties
+            .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
+            .Select(property => property.Id)
+            .ToListAsync(cancellationToken);
         PageDetails details = new(
             await LoadIdentifiersAsync(rows, cancellationToken),
             await LoadValuesAsync(request.TenantId, membershipIds, cancellationToken),
             await linkStatuses.ForAsync(membershipIds, cancellationToken),
-            await db.Properties.CountAsync(
-                property => property.TenantId == request.TenantId && property.FormId == request.FormId,
-                cancellationToken));
+            propertyIds);
         return BuildDtos(rows, details);
     }
 
@@ -167,7 +171,7 @@ internal sealed class ListPeopleHandler(
                 group => group.ToDictionary(row => row.PropertyId, row => row.Value));
     }
 
-    /// <summary>Live cells are those of current Properties, so a person lacks a value for each Property beyond them.</summary>
+    /// <summary>A person lacks a value for each of the form's Properties they have no live cell for.</summary>
     private static List<PersonDto> BuildDtos(List<Membership> rows, PageDetails details) =>
         rows
             .Where(membership => details.Identifiers.ContainsKey(membership.MemberId))
@@ -181,7 +185,7 @@ internal sealed class ListPeopleHandler(
                     values,
                     membership.IsTest,
                     details.Links[membership.Id],
-                    details.PropertyCount - values.Count);
+                    details.PropertyIds.Count(propertyId => !values.ContainsKey(propertyId)));
             })
             .ToList();
 
@@ -190,5 +194,5 @@ internal sealed class ListPeopleHandler(
         Dictionary<long, string> Identifiers,
         Dictionary<long, Dictionary<long, string>> Values,
         IReadOnlyDictionary<long, LinkStatusDto> Links,
-        int PropertyCount);
+        List<long> PropertyIds);
 }

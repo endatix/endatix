@@ -35,16 +35,18 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
         }
 
         IReadOnlyDictionary<(long PropertyId, bool IsTest), int> filled =
-            await CountFilledAsync(key, properties, participants.Test > 0, cancellationToken);
-        IQueryable<Membership> firstTestMemberships = Memberships(key)
-            .Where(membership => membership.IsTest)
-            .OrderBy(membership => membership.Id)
-            .Take(PresetLimit);
+            await CountFilledAsync(key, properties, participants, cancellationToken);
         List<PresetSource> testParticipants = participants.Test == 0
             ? []
-            : await ParticipantsAsync(key, firstTestMemberships, cancellationToken);
+            : await FirstTestParticipantsAsync(key, cancellationToken);
         return new FormAudience(properties, testParticipants, participants, filled);
     }
+
+    private Task<List<PresetSource>> FirstTestParticipantsAsync(FormKey key, CancellationToken cancellationToken) =>
+        ParticipantsAsync(
+            key,
+            TestMemberships(key).OrderBy(membership => membership.Id).Take(PresetLimit),
+            cancellationToken);
 
     /// <summary>
     /// One participant on the form by audience member id with the form's Properties, or <see langword="null"/> when
@@ -69,12 +71,17 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             .ToListAsync(cancellationToken);
 
     /// <summary>
-    /// The form's live memberships. No member test: the module never deletes a Member, and the EXISTS on Members the
-    /// people list keeps would only give the planner another join to get wrong.
+    /// The form's live memberships. No member test: a live membership always has a live Member. The only Member delete,
+    /// <c>RetireMembersAsync</c> on an identifier-kind change, runs only while the tenant has no live memberships. The
+    /// EXISTS on Members the people list keeps would only give the planner another join to get wrong; if that guard
+    /// ever loosens, add it back here too.
     /// </summary>
     private IQueryable<Membership> Memberships(FormKey key) =>
         db.Memberships.AsNoTracking()
             .Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId);
+
+    private IQueryable<Membership> TestMemberships(FormKey key) =>
+        Memberships(key).Where(membership => membership.IsTest);
 
     private async Task<ParticipantCounts> CountParticipantsAsync(FormKey key, CancellationToken cancellationToken)
     {
@@ -87,41 +94,42 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
 
     /// <summary>
     /// Filled cells per live Property: every cell, then the Test participants' cells, in two GROUP BYs with no join
-    /// between cells and memberships. A live cell of a live Property always belongs to a live membership (removing a
-    /// person or a Property deletes its cells), so real = all − test. The join this replaced let PostgreSQL loop the
-    /// form's memberships over <c>IX_PropertyValues_Property</c>, a scan of every cell per participant, and time out at
-    /// 5,000 × 50 when its statistics were off (CI). Now the first reads one index range per Property and the second
-    /// reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
+    /// between cells and memberships. Removing a person or a Property deletes its cells, so real = all − test. The join
+    /// this replaced let PostgreSQL loop the form's memberships over <c>IX_PropertyValues_Property</c>, a scan of every
+    /// cell per participant, and time out at 5,000 × 50 when its statistics were off (CI). Now the first reads one index
+    /// range per Property and the second reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
+    /// The first filters by the live Property ids just read, which is what <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, long, IQueryable{long})"/>
+    /// tests with an EXISTS. The statements share no snapshot, so a person added or removed between them could push a
+    /// count past the participants or below zero; each count is clamped to <c>0..participants</c>.
     /// </summary>
     private async Task<IReadOnlyDictionary<(long PropertyId, bool IsTest), int>> CountFilledAsync(
         FormKey key,
         List<Property> properties,
-        bool anyTest,
+        ParticipantCounts participants,
         CancellationToken cancellationToken)
     {
         List<long> propertyIds = properties.ConvertAll(property => property.Id);
         Dictionary<long, int> all = await CountByPropertyAsync(
             db.PropertyValues.Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId)),
             cancellationToken);
-        IQueryable<long> testMemberships = Memberships(key)
-            .Where(membership => membership.IsTest)
-            .Select(membership => membership.Id);
-        Dictionary<long, int> test = anyTest
-            ? await CountByPropertyAsync(
-                db.PropertyValues.Where(cell =>
-                    cell.TenantId == key.TenantId && testMemberships.Contains(cell.MembershipId)),
-                cancellationToken)
-            : [];
+        Dictionary<long, int> test = participants.Test == 0
+            ? []
+            : await CountByPropertyAsync(
+                PropertyValuesWriter
+                    .ActiveCells(db, key.TenantId, TestMemberships(key).Select(membership => membership.Id))
+                    .Where(cell => propertyIds.Contains(cell.PropertyId)),
+                cancellationToken);
         return propertyIds
-            .SelectMany(id => new[]
+            .SelectMany(id =>
             {
-                ((id, true), test.GetValueOrDefault(id)),
-                ((id, false), all.GetValueOrDefault(id) - test.GetValueOrDefault(id)),
+                int filledTest = Math.Clamp(test.GetValueOrDefault(id), 0, participants.Test);
+                int filledReal = Math.Clamp(all.GetValueOrDefault(id) - filledTest, 0, participants.Real);
+                return new[] { ((id, true), filledTest), ((id, false), filledReal) };
             })
             .ToDictionary(entry => entry.Item1, entry => entry.Item2);
     }
 
-    /// <summary>Cells per property id; a cell of a deleted Property is dropped by the caller's ids.</summary>
+    /// <summary>Cells per property id.</summary>
     private static Task<Dictionary<long, int>> CountByPropertyAsync(
         IQueryable<PropertyValue> cells,
         CancellationToken cancellationToken) =>
