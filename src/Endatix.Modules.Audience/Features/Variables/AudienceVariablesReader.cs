@@ -22,8 +22,9 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
 
     /// <summary>
     /// Up to seven statements: the Properties, participants by test flag, filled cells by Property (all, then the Test
-    /// participants' ids and their cells), then the first Test participants and their cells. Stops after the second when the form has no Properties or no
-    /// participants, and skips the test counts and presets when it has no Test participants.
+    /// participants' ids and their cells), then the first Test participants and their cells. Stops after the second
+    /// when the form has no Properties or no participants, and skips the test counts and presets when it has no Test
+    /// participants.
     /// </summary>
     public async Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken)
     {
