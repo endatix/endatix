@@ -2,9 +2,11 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.People;
 
@@ -16,7 +18,8 @@ public sealed record DeletePersonCommand(long TenantId, long FormId, long Member
 
 internal sealed class DeletePersonHandler(
     IAudienceDbContext db,
-    IRepository<Form> forms)
+    IRepository<Form> forms,
+    MembershipLock membershipLock)
     : ICommandHandler<DeletePersonCommand, Result<string>>
 {
     public async Task<Result<string>> Handle(
@@ -30,6 +33,27 @@ internal sealed class DeletePersonHandler(
             return gate.ToErrorResult<string>();
         }
 
+        try
+        {
+            return await DeleteLockedAsync(request, cancellationToken);
+        }
+        catch (TransactionLockTimeoutException)
+        {
+            return Result.Unavailable(UpdatePersonHandler.Busy);
+        }
+    }
+
+    /// <summary>
+    /// Under the participant's <see cref="MembershipLock"/>, which an edit of their values takes too: the membership
+    /// and its cells are read after the lock, so an edit that finished first has its cells deleted too, and one that
+    /// waits finds the membership gone.
+    /// </summary>
+    private async Task<Result<string>> DeleteLockedAsync(
+        DeletePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction =
+            await membershipLock.BeginAsync(db, request.MembershipId, cancellationToken);
         Result<Membership> loaded = await LoadAsync(request, cancellationToken);
         if (!loaded.IsSuccess)
         {
@@ -37,6 +61,7 @@ internal sealed class DeletePersonHandler(
         }
 
         await SoftDeleteAsync(loaded.Value, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Result.Success(loaded.Value.Id.ToString());
     }
 

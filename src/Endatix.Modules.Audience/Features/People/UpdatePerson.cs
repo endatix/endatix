@@ -1,8 +1,8 @@
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -21,10 +21,16 @@ public sealed record UpdatePersonCommand(
 internal sealed class UpdatePersonHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    IUniqueConstraintViolationChecker violations,
+    LockedValuesWriter valuesWriter,
     ParticipantReader participantReader)
     : ICommandHandler<UpdatePersonCommand, Result<PersonDto>>
 {
+    internal const string Busy = "This participant is being changed. Try again.";
+
+    /// <summary>
+    /// The form, the membership and the values are checked before the lock; the write re-reads the membership under
+    /// it, so an edit racing the participant's removal is not found instead of leaving a live value behind.
+    /// </summary>
     public async Task<Result<PersonDto>> Handle(
         UpdatePersonCommand request,
         CancellationToken cancellationToken)
@@ -36,44 +42,31 @@ internal sealed class UpdatePersonHandler(
         }
 
         ParticipantOnForm participant = loaded.Value;
-        await UpsertWithRetryAsync(
+        Result written = await WriteAsync(
             request with { Values = MatchKeyProperty.Stored(request.Values, participant.MatchKey) },
             participant.Membership,
             cancellationToken);
-        return await participantReader.ReadAsync(participant, cancellationToken);
+        return written.IsSuccess
+            ? await participantReader.ReadAsync(participant, cancellationToken)
+            : written.ToErrorResult<PersonDto>();
     }
 
-    /// <summary>
-    /// A parallel update can add the same cell first. It is committed by the time the index
-    /// refuses this one, so a second pass finds it and overwrites it instead of inserting.
-    /// </summary>
-    private async Task UpsertWithRetryAsync(
+    private async Task<Result> WriteAsync(
         UpdatePersonCommand request,
         Membership membership,
         CancellationToken cancellationToken)
     {
         try
         {
-            await UpsertAsync(request, membership, cancellationToken);
+            bool written = await valuesWriter.WriteAsync(
+                new PropertyValueWrite(db, request.TenantId, membership.Id, request.Values),
+                cancellationToken);
+            return written ? Result.Success() : Result.NotFound("Audience membership not found.");
         }
-        catch (DbUpdateException ex) when (violations.IsViolationOf(
-            ex,
-            PropertyValue.UniqueConstraints.CellPerMembership))
+        catch (TransactionLockTimeoutException)
         {
-            ((DbContext)db).ChangeTracker.Clear();
-            await UpsertAsync(request, membership, cancellationToken);
+            return Result.Unavailable(Busy);
         }
-    }
-
-    private async Task UpsertAsync(
-        UpdatePersonCommand request,
-        Membership membership,
-        CancellationToken cancellationToken)
-    {
-        await PropertyValuesWriter.UpsertAsync(
-            new PropertyValueWrite(db, request.TenantId, membership.Id, request.Values),
-            cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
