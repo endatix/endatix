@@ -21,8 +21,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
         new Dictionary<(long PropertyId, bool IsTest), int>();
 
     /// <summary>
-    /// Up to six statements: the Properties, participants by test flag, filled cells by Property (all, then test), then
-    /// the first Test participants and their cells. Stops after the second when the form has no Properties or no
+    /// Up to seven statements: the Properties, participants by test flag, filled cells by Property (all, then the Test
+    /// participants' ids and their cells), then the first Test participants and their cells. Stops after the second when the form has no Properties or no
     /// participants, and skips the test counts and presets when it has no Test participants.
     /// </summary>
     public async Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken)
@@ -99,10 +99,9 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
     /// cell per participant, and time out at 5,000 × 50 when its statistics were off (CI). Now the first reads one index
     /// range per Property and the second reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
     /// The first filters by the live Property ids just read, which is what <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, long, IQueryable{long})"/>
-    /// tests with an EXISTS. The second has no Property predicate at all, on purpose: one (the ids, or ActiveCells'
-    /// EXISTS) gives PostgreSQL <c>IX_PropertyValues_Property</c> as a way in, and it timed out in CI scanning every cell
-    /// with a membership check per row. A deleted Property's cells it counts are dropped here, since only the live ids
-    /// are read back. The statements share no snapshot, so a person added or removed between them could push a
+    /// tests with an EXISTS. The second reads the Test participants' cells by their ids, with no Property predicate
+    /// (<see cref="CountTestCellsAsync"/>); a deleted Property's cells it counts are dropped here, since only the live
+    /// ids are read back. The statements share no snapshot, so a person added or removed between them could push a
     /// count past the participants or below zero; each count is clamped to <c>0..participants</c>.
     /// </summary>
     private async Task<IReadOnlyDictionary<(long PropertyId, bool IsTest), int>> CountFilledAsync(
@@ -115,13 +114,9 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
         Dictionary<long, int> all = await CountByPropertyAsync(
             db.PropertyValues.Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId)),
             cancellationToken);
-        IQueryable<long> testMemberships = TestMemberships(key).Select(membership => membership.Id);
         Dictionary<long, int> test = participants.Test == 0
             ? []
-            : await CountByPropertyAsync(
-                db.PropertyValues.Where(cell =>
-                    cell.TenantId == key.TenantId && testMemberships.Contains(cell.MembershipId)),
-                cancellationToken);
+            : await CountTestCellsAsync(key, cancellationToken);
         return propertyIds
             .SelectMany(id =>
             {
@@ -130,6 +125,22 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
                 return new[] { ((id, true), filledTest), ((id, false), filledReal) };
             })
             .ToDictionary(entry => entry.Item1, entry => entry.Item2);
+    }
+
+    /// <summary>
+    /// The Test participants' ids first, then their cells by those ids: two statements and no join, so no plan can loop
+    /// one side over the other. A subquery here (with or without a Property predicate) let PostgreSQL scan the tenant's
+    /// cells and run the membership subquery per cell, and CI timed out at 30 s.
+    /// </summary>
+    private async Task<Dictionary<long, int>> CountTestCellsAsync(FormKey key, CancellationToken cancellationToken)
+    {
+        List<long> testMemberships = await TestMemberships(key)
+            .Select(membership => membership.Id)
+            .ToListAsync(cancellationToken);
+        return await CountByPropertyAsync(
+            db.PropertyValues.Where(cell =>
+                cell.TenantId == key.TenantId && testMemberships.Contains(cell.MembershipId)),
+            cancellationToken);
     }
 
     /// <summary>Cells per property id.</summary>
