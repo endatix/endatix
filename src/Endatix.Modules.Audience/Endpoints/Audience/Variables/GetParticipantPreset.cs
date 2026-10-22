@@ -13,7 +13,7 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.Variables;
 /// <summary>
 /// Reads one participant's values as a preset, for Preview as.
 /// </summary>
-public sealed class GetParticipant(
+public sealed class GetParticipantPreset(
     IMediator mediator,
     ITenantContext tenantContext)
     : Endpoint<GetParticipantPresetRequest, Results<Ok<AudienceVariablePresetResponse>, ProblemHttpResult>>

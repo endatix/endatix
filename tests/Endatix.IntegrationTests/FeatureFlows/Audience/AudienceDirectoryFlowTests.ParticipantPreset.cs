@@ -73,26 +73,54 @@ public sealed partial class AudienceDirectoryFlowTests
         AssertJson("""{"name":"ada@example.com","variables":{"city":"Sofia"}}""", preset);
     }
 
+    // The variables read is null without Properties; one participant is still found, with no values.
     [Fact]
-    public async Task Reading_the_preset_of_a_participant_not_on_the_form_is_not_found()
+    public async Task Reading_the_preset_of_a_participant_on_a_form_without_properties_returns_no_values()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await admin.CreateFormAsync();
+        var solo = await AddParticipantAsync(admin, formId, "solo@example.com");
+
+        // Act
+        var preset = await GetParticipantPresetAsync(admin, formId, solo.MemberId);
+
+        // Assert
+        AssertJson("""{"name":"solo@example.com","variables":{}}""", preset);
+    }
+
+    [Fact]
+    public async Task Reading_the_preset_of_a_participant_on_another_form_is_not_found()
     {
         // Arrange
         var admin = await AdminAsync();
         var formId = await FormWithCityAsync(admin);
         var otherFormId = await FormWithCityAsync(admin);
         var elsewhere = await AddParticipantAsync(admin, otherFormId, "elsewhere@example.com");
+
+        // Act
+        using var response = await GetParticipantPresetResponseAsync(admin, formId, elsewhere.MemberId);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reading_the_preset_of_a_removed_participant_is_not_found()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await FormWithCityAsync(admin);
         var removed = await AddParticipantAsync(admin, formId, "removed@example.com");
         using var removal = await admin.Client.DeleteAsync(
             $"/api/forms/{formId}/audience/people/{removed.MembershipId}", admin.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, removal.StatusCode);
 
         // Act
-        using var notOnForm = await GetParticipantPresetResponseAsync(admin, formId, elsewhere.MemberId);
-        using var wasRemoved = await GetParticipantPresetResponseAsync(admin, formId, removed.MemberId);
+        using var response = await GetParticipantPresetResponseAsync(admin, formId, removed.MemberId);
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, notOnForm.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, wasRemoved.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

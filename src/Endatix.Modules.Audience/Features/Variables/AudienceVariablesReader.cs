@@ -76,7 +76,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             return [];
         }
 
-        ILookup<long, CellRow> cells = await CellsAsync(key, memberships, cancellationToken);
+        ILookup<long, CellRow> cells = await CellsAsync(
+            key, participants.ConvertAll(participant => participant.MembershipId), cancellationToken);
         return participants.ConvertAll(participant => new PresetSource(
             participant.Identifier,
             cells[participant.MembershipId].ToDictionary(cell => cell.PropertyId, cell => cell.Value)));
@@ -89,13 +90,17 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             member => member.Id,
             (membership, member) => new NamedMembership(membership.Id, member.Identifier));
 
-    /// <summary>The memberships' live cells by membership id; a subquery, so no ids travel back.</summary>
+    /// <summary>
+    /// The live cells of the memberships just read, by membership id. By id, not by the membership query again: a
+    /// participant removed between the two statements keeps the values they were read with, never an empty preset.
+    /// At most <see cref="PresetLimit"/> ids.
+    /// </summary>
     private async Task<ILookup<long, CellRow>> CellsAsync(
         FormKey key,
-        IQueryable<Membership> memberships,
+        IReadOnlyCollection<long> membershipIds,
         CancellationToken cancellationToken) =>
         (await PropertyValuesWriter
-            .ActiveCells(db, key.TenantId, memberships.Select(membership => membership.Id))
+            .ActiveCells(db, key.TenantId, membershipIds)
             .Select(cell => new CellRow(cell.MembershipId, cell.PropertyId, cell.Value))
             .ToListAsync(cancellationToken))
         .ToLookup(cell => cell.MembershipId);
