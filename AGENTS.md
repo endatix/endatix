@@ -211,12 +211,12 @@ Single-context. `GLOSSARY.md` at the root is created lazily by `domain-modeling`
 - Test: `dotnet test Endatix.slnx --filter "FullyQualifiedName!~Endatix.IntegrationTests"`; integration: `dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj` (needs Docker, see `tests/README.md`)
 - Lint: `dotnet format Endatix.slnx --verify-no-changes --include <changed files>`. CI has no lint step and the whole solution does not pass yet, so check only the files you touched
 - Run: `dotnet run --project src/Endatix.WebHost` (API on https://localhost:5001)
-- Measure: no measurement script in this repo; skip the step
-- PR title scope: `#[0-9]+`
+- PR title scope: `e[0-9]+|deps|deps-dev` (the full title and branch rules are in [CONTRIBUTING.md](CONTRIBUTING.md))
+- Branch name: `<type>/e<issue>-<slug>`
 
 ### Verification
 
-No verify skill in this repo. Run the API as above and prove the change with an integration test.
+No verify skill in this repo. Run the API as above and prove the change with an integration test. When this repo is the `oss/` submodule of endatix-saas, that workspace's `verify-endatix` (launch with `--api oss --oss <this checkout>`) and `clean-code` skills also cover the API; use them from there.
 
 ### Shared folders
 
