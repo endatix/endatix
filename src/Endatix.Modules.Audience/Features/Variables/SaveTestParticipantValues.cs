@@ -60,7 +60,7 @@ internal sealed class SaveTestParticipantValuesHandler(
 
         KeyedAudience audience = read.Value;
         Result<IReadOnlyList<PresetWrite>> writes =
-            PresetReconciler.Plan(audience.Properties, audience.OnForm, Edits(presets, audience.Keys));
+            PresetReconciler.Plan(audience, Edits(presets, audience.Keys));
         return writes.IsSuccess
             ? Result.Success(new SavePlan(writes.Value, audience.Keys.Values.ToHashSet()))
             : writes.ToErrorResult<SavePlan>();

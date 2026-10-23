@@ -37,7 +37,9 @@ internal static class FormParticipants
             (membership, member) => new FormParticipant { Membership = membership, Member = member });
 }
 
-/// <summary>A membership and its member. Built by object initializer, so queries can project from its members.</summary>
+/// <summary>
+/// A membership and its member. Built by object initializer, so queries can project from its members.
+/// </summary>
 internal sealed class FormParticipant
 {
     public required Membership Membership { get; init; }

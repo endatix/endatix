@@ -61,15 +61,15 @@ internal sealed class OnBehalfPersonalizer(
     {
         var subjectId = submitter.ExternalSubjectId;
         var member = await FindMemberAsync(request.TenantId, subjectId, cancellationToken);
-        var membershipId = member is null
+        var membership = member is null
             ? null
-            : await MembershipIdAsync(member, request.FormId, cancellationToken);
-        if (member is null || membershipId is null)
+            : await MembershipAsync(member, request.FormId, cancellationToken);
+        if (member is null || membership is null)
         {
             return Unknown(subjectId, request.FormId);
         }
 
-        var snapshot = await SnapshotAsync(member, membershipId.Value, cancellationToken);
+        var snapshot = await SnapshotAsync(member, membership.Value, cancellationToken);
         return new PersonalizationFreeze(member.Id, snapshot);
     }
 
@@ -105,23 +105,26 @@ internal sealed class OnBehalfPersonalizer(
             cancellationToken);
     }
 
-    private Task<long?> MembershipIdAsync(
+    /// <summary>The member's membership on the form, as the Snapshot reads it, or <see langword="null"/>.</summary>
+    private async Task<SnapshotMembership?> MembershipAsync(
         Member member,
         long formId,
-        CancellationToken cancellationToken) =>
-        FormParticipants.ByMember(db, new ParticipantKey(member.TenantId, formId, member.Id))
+        CancellationToken cancellationToken)
+    {
+        var membershipId = await FormParticipants.ByMember(db, new ParticipantKey(member.TenantId, formId, member.Id))
             .Select(membership => (long?)membership.Id)
             .FirstOrDefaultAsync(cancellationToken);
+        return membershipId is long id
+            ? new SnapshotMembership(member.TenantId, id, formId, member.Identifier)
+            : null;
+    }
 
     private async Task<string> SnapshotAsync(
         Member member,
-        long membershipId,
+        SnapshotMembership membership,
         CancellationToken cancellationToken)
     {
-        var cells = await SnapshotCells.LoadAsync(
-            db,
-            new SnapshotMembership(member.TenantId, membershipId),
-            cancellationToken);
+        var cells = await SnapshotCells.LoadAsync(db, membership, cancellationToken);
         return PersonalizationSnapshotJson.Write(
             new SnapshotHeader(null, member.Identifier, DateTime.UtcNow, PersonalizationSources.OnBehalf, member.Id),
             cells);

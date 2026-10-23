@@ -172,7 +172,7 @@ internal sealed class RedeemLinkHandler(
             ?? await PersonsResponseAsync(opening, cancellationToken);
         var started = existing is null
             ? await StartAsync(opening, cancellationToken)
-            : await TakeOverAsync(link, existing, cancellationToken);
+            : await TakeOverAsync(opening, existing, cancellationToken);
         if (!started.IsSuccess)
         {
             return Refused(started);
@@ -199,11 +199,11 @@ internal sealed class RedeemLinkHandler(
     /// deadlock. Either way the open rolls back with the lock.
     /// </summary>
     private async Task<Result<Submission>> TakeOverAsync(
-        AudienceLink link,
+        LinkOpening opening,
         Submission submission,
         CancellationToken cancellationToken)
     {
-        var snapshot = await SnapshotAsync(link, cancellationToken);
+        var snapshot = await SnapshotAsync(opening, cancellationToken);
         if (snapshot is null)
         {
             return Result.NotFound(LinkNotFound);
@@ -211,7 +211,7 @@ internal sealed class RedeemLinkHandler(
 
         if (submission.PersonalizationSnapshot is null)
         {
-            submission.FreezePersonalization(link.Id, snapshot);
+            submission.FreezePersonalization(opening.Link.Id, snapshot);
         }
 
         submission.EnsureStarted();
@@ -289,7 +289,7 @@ internal sealed class RedeemLinkHandler(
     /// <summary>Not found when the person was removed meanwhile.</summary>
     private async Task<Result<Submission>> StartAsync(LinkOpening opening, CancellationToken cancellationToken)
     {
-        var snapshot = await SnapshotAsync(opening.Link, cancellationToken);
+        var snapshot = await SnapshotAsync(opening, cancellationToken);
         if (snapshot is null)
         {
             return Result.NotFound(LinkNotFound);
@@ -324,13 +324,15 @@ internal sealed class RedeemLinkHandler(
 
     /// <summary>
     /// The live audience values, or <see langword="null"/> when the person was removed. The cells are read before
-    /// the person: a removal deletes both in one save, so a person still there means the cells predate it.
+    /// the person: a removal deletes both in one save, so a person still there means the cells predate it. The
+    /// identifier the match-key Property holds is the open's (<see cref="LinkOpening.Identifier"/>): it never changes.
     /// </summary>
-    private async Task<string?> SnapshotAsync(AudienceLink link, CancellationToken cancellationToken)
+    private async Task<string?> SnapshotAsync(LinkOpening opening, CancellationToken cancellationToken)
     {
+        var link = opening.Link;
         var cells = await SnapshotCells.LoadAsync(
             db,
-            new SnapshotMembership(link.TenantId, link.MembershipId),
+            new SnapshotMembership(link.TenantId, link.MembershipId, link.FormId, opening.Identifier),
             cancellationToken);
         var person = await gates.PersonAsync(link.MembershipId, cancellationToken);
         return person is null

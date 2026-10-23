@@ -15,60 +15,77 @@ internal static class PresetReconciler
     /// A new identifier becomes a Test participant with its filled values. A Test participant gets the values that
     /// differ from their cells, compared as the variables read types them, a value left out of the preset clearing its
     /// cell; the rest are not rewritten, so a replay writes nothing. A real participant whose values are unchanged is
-    /// left alone, because the designer sends its whole list. A change to a real participant, a written value its
-    /// Property refuses, or an identifier given twice refuses the whole request.
+    /// left alone, because the designer sends its whole list. The form's match-key Property shows the identifier and
+    /// is never written: the identifier or no value there is left out, any other value is refused
+    /// (<see cref="MatchKeyProperty.WriteError"/>). A change to a real participant, a written value its Property
+    /// refuses, or an identifier given twice refuses the whole request.
     /// </summary>
-    public static Result<IReadOnlyList<PresetWrite>> Plan(
-        IReadOnlyList<Property> properties,
-        IReadOnlyDictionary<string, OnForm> onForm,
-        IReadOnlyList<PresetEdit> presets)
+    public static Result<IReadOnlyList<PresetWrite>> Plan(KeyedAudience audience, IReadOnlyList<PresetEdit> presets)
     {
-        if (presets.GroupBy(preset => preset.Key).FirstOrDefault(group => group.Count() > 1) is { } twice)
+        if (EditError(audience, presets) is { } editError)
         {
-            return Refused($"Each participant can appear once: '{twice.Skip(1).First().Name}'.");
+            return Refused(editError);
         }
 
         List<PresetWrite> writes = presets
-            .Select(preset => WriteFor(properties, preset, onForm.GetValueOrDefault(preset.Key)))
+            .Select(preset => WriteFor(audience, preset))
             .OfType<PresetWrite>()
             .ToList();
-        return Refusal(properties, onForm, writes) is { } refusal
+        return Refusal(audience, writes) is { } refusal
             ? Refused(refusal)
             : Result.Success<IReadOnlyList<PresetWrite>>(writes);
     }
+
+    /// <summary>An identifier given twice, then a changed match-key value; both found before any write is planned.</summary>
+    private static string? EditError(KeyedAudience audience, IReadOnlyList<PresetEdit> presets) =>
+        presets.GroupBy(preset => preset.Key).FirstOrDefault(group => group.Count() > 1) is { } twice
+            ? $"Each participant can appear once: '{twice.Skip(1).First().Name}'."
+            : presets.Select(preset => MatchKeyError(audience, preset)).FirstOrDefault(error => error is not null);
 
     /// <summary>
     /// A write to a real participant, then a value its Property refuses. A real participant's preset that comes back
     /// unchanged is no write, because the designer sends its whole list, read-only presets included.
     /// </summary>
-    private static string? Refusal(
-        IReadOnlyList<Property> properties,
-        IReadOnlyDictionary<string, OnForm> onForm,
-        List<PresetWrite> writes)
+    private static string? Refusal(KeyedAudience audience, List<PresetWrite> writes)
     {
-        HashSet<long> real = onForm.Values
+        HashSet<long> real = audience.OnForm.Values
             .Where(participant => !participant.IsTest)
             .Select(participant => participant.MembershipId)
             .ToHashSet();
         return writes.Any(write => write.MembershipId is long id && real.Contains(id))
             ? "Real participants are read-only."
-            : writes.Select(write => ValueError(properties, write)).FirstOrDefault(error => error is not null);
+            : writes.Select(write => ValueError(audience.Properties, write)).FirstOrDefault(error => error is not null);
     }
 
     private static Result<IReadOnlyList<PresetWrite>> Refused(string message) =>
         Result.Invalid(new ValidationError(message));
 
-    /// <summary>Null when the participant is on the form with these values already.</summary>
-    private static PresetWrite? WriteFor(IReadOnlyList<Property> properties, PresetEdit preset, OnForm? existing)
+    /// <summary>
+    /// The match-key value compared with the identifier as the variables read shows it: a participant's cells hold it
+    /// there, and a new identifier is the preset's name.
+    /// </summary>
+    private static string? MatchKeyError(KeyedAudience audience, PresetEdit preset)
     {
-        Dictionary<long, string> values = ValuesOf(properties, preset.Variables);
-        if (existing is null)
+        string identifier = audience.MatchKey is { } matchKey
+            ? audience.OnForm.GetValueOrDefault(preset.Key)?.Cells.GetValueOrDefault(matchKey.PropertyId) ?? preset.Name
+            : preset.Name;
+        string? error = MatchKeyProperty.WriteError(
+            ValuesOf(audience.Properties, preset.Variables), audience.MatchKey, identifier);
+        return error is null ? null : $"{preset.Name}: {error}";
+    }
+
+    /// <summary>Null when the participant is on the form with these values already.</summary>
+    private static PresetWrite? WriteFor(KeyedAudience audience, PresetEdit preset)
+    {
+        IReadOnlyDictionary<long, string> values =
+            MatchKeyProperty.Stored(ValuesOf(audience.Properties, preset.Variables), audience.MatchKey);
+        if (audience.OnForm.GetValueOrDefault(preset.Key) is not { } existing)
         {
             return new PresetWrite(preset.Name, null, PropertyValuesWriter.Stored(values));
         }
 
-        Dictionary<long, string> changed = properties
-            .Where(property => values[property.Id] != AsRead(property, existing.Cells))
+        Dictionary<long, string> changed = audience.Properties
+            .Where(property => values.ContainsKey(property.Id) && values[property.Id] != AsRead(property, existing.Cells))
             .ToDictionary(property => property.Id, property => values[property.Id]);
         return changed.Count == 0 ? null : new PresetWrite(preset.Name, existing.MembershipId, changed);
     }
