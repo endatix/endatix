@@ -176,7 +176,7 @@ public sealed class PresetReconcilerTests
         // Assert
         plan.Status.Should().Be(ResultStatus.Invalid);
         plan.ValidationErrors.Select(error => error.ErrorMessage)
-            .Should().Equal("Each test participant can appear once: 'MARIA@acme.test'.");
+            .Should().Equal("Each participant can appear once: 'MARIA@acme.test'.");
     }
 
     private static readonly IReadOnlyDictionary<string, OnForm> NoneOnForm = new Dictionary<string, OnForm>();

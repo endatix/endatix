@@ -25,7 +25,7 @@ internal static class PresetReconciler
     {
         if (presets.GroupBy(preset => preset.Key).FirstOrDefault(group => group.Count() > 1) is { } twice)
         {
-            return Refused($"Each test participant can appear once: '{twice.Skip(1).First().Name}'.");
+            return Refused($"Each participant can appear once: '{twice.Skip(1).First().Name}'.");
         }
 
         List<PresetWrite> writes = presets

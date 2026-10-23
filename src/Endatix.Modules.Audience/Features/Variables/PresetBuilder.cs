@@ -9,25 +9,23 @@ namespace Endatix.Modules.Audience.Features.Variables;
 /// </summary>
 internal static class PresetBuilder
 {
-    /// <summary><see cref="AudienceVariablesDto.VariablePresets"/> is null when the form has no Properties.</summary>
+    /// <summary>
+    /// <see cref="AudienceVariablesDto.VariablePresets"/> is null and <see cref="AudienceVariablesDto.ReadOnlyPresets"/>
+    /// empty when the form has no Properties.
+    /// </summary>
     public static AudienceVariablesDto Assemble(FormAudience audience)
     {
-        VariablePresetsDto? presets = audience.Properties.Count == 0 ? null : VariablePresets(audience);
-        return new AudienceVariablesDto(
-            presets,
-            Coverage(audience),
-            presets is null ? PresetEditing.None : PresetEditing.TestParticipantsOnly,
-            ReadOnly(audience, presets));
-    }
+        if (audience.Properties.Count == 0)
+        {
+            return new AudienceVariablesDto(null, Coverage(audience), PresetEditing.None, []);
+        }
 
-    /// <summary>The real participants among the presets, in list order: the Creator locks their presets.</summary>
-    private static List<string> ReadOnly(FormAudience audience, VariablePresetsDto? presets)
-    {
-        HashSet<string> real = audience.Presets
-            .Where(source => !source.IsTest)
-            .Select(source => source.Identifier)
-            .ToHashSet(StringComparer.Ordinal);
-        return presets?.Presets.Select(preset => preset.Name).Where(real.Contains).ToList() ?? [];
+        List<PresetSource> listed = Listed(audience.Presets);
+        return new AudienceVariablesDto(
+            VariablePresets(audience, listed),
+            Coverage(audience),
+            PresetEditing.TestParticipantsOnly,
+            listed.Where(source => !source.IsTest).Select(source => source.Identifier).ToList());
     }
 
     /// <summary>One entry per Property in tab order; a Property nobody filled in counts zero.</summary>
@@ -62,18 +60,20 @@ internal static class PresetBuilder
 
     /// <summary>
     /// Test participants, then real ones, each by identifier, ignoring case and then by case (an external id match key
-    /// is case-sensitive), so the selector reads in the same order on both providers. <see
-    /// cref="VariablePresetsDto.TotalPresets"/> counts every participant on the form.
+    /// is case-sensitive), so the selector reads in the same order on both providers.
     /// </summary>
-    private static VariablePresetsDto VariablePresets(FormAudience audience) =>
+    private static List<PresetSource> Listed(IReadOnlyList<PresetSource> sources) =>
+        sources
+            .OrderByDescending(source => source.IsTest)
+            .ThenBy(source => source.Identifier, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(source => source.Identifier, StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary><see cref="VariablePresetsDto.TotalPresets"/> counts every participant on the form.</summary>
+    private static VariablePresetsDto VariablePresets(FormAudience audience, List<PresetSource> listed) =>
         new(
             VariableDefinition.Build(audience.Properties),
-            audience.Presets
-                .OrderByDescending(source => source.IsTest)
-                .ThenBy(source => source.Identifier, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(source => source.Identifier, StringComparer.Ordinal)
-                .Select(source => Build(source, audience.Properties))
-                .ToList(),
+            listed.ConvertAll(source => Build(source, audience.Properties)),
             audience.Participants.Test + audience.Participants.Real);
 
     private const string TestParticipantDescription = "Test participant";

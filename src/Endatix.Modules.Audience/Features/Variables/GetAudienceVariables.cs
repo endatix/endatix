@@ -8,7 +8,7 @@ namespace Endatix.Modules.Audience.Features.Variables;
 
 /// <summary>
 /// Reads a form's Audience variables for the designer: its Properties as a SurveyJS variable definition, and one
-/// preset per Test participant.
+/// preset per participant, Test participants first.
 /// </summary>
 public sealed record GetAudienceVariablesQuery(long TenantId, long FormId) : IQuery<Result<AudienceVariablesDto>>;
 
