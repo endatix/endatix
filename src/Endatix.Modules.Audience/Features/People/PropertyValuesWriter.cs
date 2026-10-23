@@ -68,15 +68,6 @@ internal static class PropertyValuesWriter
         IReadOnlyCollection<long> membershipIds) =>
         ActiveCells(db, tenantId).Where(value => membershipIds.Contains(value.MembershipId));
 
-    /// <summary>
-    /// Cells of the memberships the subquery selects, read in one statement without sending their ids back.
-    /// </summary>
-    public static IQueryable<PropertyValue> ActiveCells(
-        IAudienceDbContext db,
-        long tenantId,
-        IQueryable<long> membershipIds) =>
-        ActiveCells(db, tenantId).Where(value => membershipIds.Contains(value.MembershipId));
-
     private static IQueryable<PropertyValue> ActiveCells(IAudienceDbContext db, long tenantId) =>
         db.PropertyValues.AsNoTracking().Where(value =>
             value.TenantId == tenantId
