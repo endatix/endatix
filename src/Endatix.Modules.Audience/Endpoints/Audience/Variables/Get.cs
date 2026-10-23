@@ -27,9 +27,9 @@ public sealed class Get(
         {
             summary.Summary = "Get audience variables";
             summary.Description =
-                "Reads the form's Properties as a SurveyJS variable definition, one preset per test participant named by " +
+                "Reads the form's Properties as a SurveyJS variable definition, one preset per participant named by " +
                 "identifier with values typed as the respondent's personalization, coverage and the preset editing " +
-                "policy. Presets cover the first 20 test participants added; totalPresets counts them all. " +
+                "policy. Presets cover the first 20 participants added, Test participants first; totalPresets counts every participant. " +
                 "variablePresets is null when the form has no Properties.";
             summary.Responses[200] = "The form's variables.";
             summary.Responses[400] = "Invalid form id.";

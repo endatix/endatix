@@ -23,7 +23,7 @@ public sealed class PresetBuilderTests
         AudienceVariablesDto variables = PresetBuilder.Assemble(
             new FormAudience(
                 [],
-                [new PresetSource("maria@acme.test", new Dictionary<long, string>())],
+                [new PresetSource("maria@acme.test", new Dictionary<long, string>(), IsTest: true)],
                 new ParticipantCounts(1, 3),
                 NothingFilled));
 
@@ -41,9 +41,9 @@ public sealed class PresetBuilderTests
         AudienceVariablesDto variables = PresetBuilder.Assemble(new FormAudience(
             [City, Seats],
             [
-                new PresetSource("zed@acme.test", new Dictionary<long, string> { [City.Id] = "Sofia" }),
-                new PresetSource("Maria@acme.test", new Dictionary<long, string> { [Seats.Id] = "12" }),
-                new PresetSource("ada@acme.test", new Dictionary<long, string>()),
+                new PresetSource("zed@acme.test", new Dictionary<long, string> { [City.Id] = "Sofia" }, IsTest: true),
+                new PresetSource("Maria@acme.test", new Dictionary<long, string> { [Seats.Id] = "12" }, IsTest: true),
+                new PresetSource("ada@acme.test", new Dictionary<long, string>(), IsTest: true),
             ],
             new ParticipantCounts(Test: 42, Real: 0),
             NothingFilled));
@@ -56,6 +56,32 @@ public sealed class PresetBuilderTests
             .Should().Equal("ada@acme.test", "Maria@acme.test", "zed@acme.test");
         presets.Presets[0].Variables.Should().BeEmpty();
         presets.TotalPresets.Should().Be(42);
+        variables.ReadOnlyPresets.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Assemble_ListsTestParticipantsThenRealOnesEachByIdentifier_AndNamesTheRealOnesReadOnly()
+    {
+        // Act
+        AudienceVariablesDto variables = PresetBuilder.Assemble(new FormAudience(
+            [City],
+            [
+                new PresetSource("bob@acme.test", new Dictionary<long, string>(), IsTest: false),
+                new PresetSource("zed@acme.test", new Dictionary<long, string>(), IsTest: true),
+                new PresetSource("ada@acme.test", new Dictionary<long, string>(), IsTest: false),
+                new PresetSource("maria@acme.test", new Dictionary<long, string>(), IsTest: true),
+            ],
+            new ParticipantCounts(Test: 2, Real: 30),
+            NothingFilled));
+
+        // Assert
+        variables.VariablePresets!.Presets.Select(preset => (preset.Name, preset.Description)).Should().Equal(
+            ("maria@acme.test", "Test participant"),
+            ("zed@acme.test", "Test participant"),
+            ("ada@acme.test", "Participant"),
+            ("bob@acme.test", "Participant"));
+        variables.VariablePresets.TotalPresets.Should().Be(32);
+        variables.ReadOnlyPresets.Should().Equal("ada@acme.test", "bob@acme.test");
     }
 
     [Fact]
@@ -88,8 +114,8 @@ public sealed class PresetBuilderTests
         AudienceVariablesDto variables = PresetBuilder.Assemble(new FormAudience(
             [City],
             [
-                new PresetSource("aB-1", new Dictionary<long, string>()),
-                new PresetSource("Ab-1", new Dictionary<long, string>()),
+                new PresetSource("aB-1", new Dictionary<long, string>(), IsTest: true),
+                new PresetSource("Ab-1", new Dictionary<long, string>(), IsTest: true),
             ],
             new ParticipantCounts(Test: 2, Real: 0),
             NothingFilled));
@@ -111,7 +137,7 @@ public sealed class PresetBuilderTests
                     [Seats.Id] = "12",
                     [Renews.Id] = "2026-10-21T09:30:00+03:00",
                     [Sites.Id] = """["a","b"]""",
-                }),
+                }, IsTest: true),
             [City, Seats, Renews, Sites]);
 
         // Assert
@@ -129,7 +155,7 @@ public sealed class PresetBuilderTests
         VariablePresetDto preset = PresetBuilder.Build(
             new PresetSource(
                 "maria@acme.test",
-                new Dictionary<long, string> { [Seats.Id] = "3", [99] = "orphan" }),
+                new Dictionary<long, string> { [Seats.Id] = "3", [99] = "orphan" }, IsTest: true),
             [City, Seats]);
 
         // Assert

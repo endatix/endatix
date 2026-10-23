@@ -28,9 +28,9 @@ public sealed class SaveTestParticipants(
         {
             summary.Summary = "Save test participant values";
             summary.Description = "Saves the designer's edited presets as test participants, matched by identifier; " +
-                "a replay writes nothing, a real participant refuses it, nothing is deleted. Returns the variables read.";
+                "a replay writes nothing, a change to a real participant refuses it, nothing is deleted. Returns the variables read.";
             summary.Responses[200] = "The form's variables after the save.";
-            summary.Responses[400] = "Invalid request, identifier or value, a repeated or real participant.";
+            summary.Responses[400] = "Invalid request, identifier or value, a repeated participant or a changed real one.";
             summary.Responses[404] = "Form not found.";
             summary.Responses[409] = "A parallel request added the same participant first.";
         });

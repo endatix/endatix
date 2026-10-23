@@ -8,30 +8,35 @@ namespace Endatix.Modules.Audience.Features.Variables;
 
 /// <summary>
 /// Reads a form's Audience variables for the designer: its Properties as a SurveyJS variable definition, and one
-/// preset per Test participant.
+/// preset per participant, Test participants first.
 /// </summary>
 public sealed record GetAudienceVariablesQuery(long TenantId, long FormId) : IQuery<Result<AudienceVariablesDto>>;
 
 /// <summary>
 /// A form's variables. <see cref="VariablePresets"/> is null when the form has no Properties.
+/// <see cref="ReadOnlyPresets"/> names the presets of real participants, which the designer may not edit.
 /// </summary>
 public sealed record AudienceVariablesDto(
     VariablePresetsDto? VariablePresets,
     CoverageDto Coverage,
-    PresetEditing Editing);
+    PresetEditing Editing,
+    IReadOnlyList<string> ReadOnlyPresets);
 
 /// <summary>
 /// SurveyJS <c>ISurveyVariablePresets</c>. <see cref="Definition"/> is survey JSON, opaque to every caller but
 /// survey-core. <see cref="Presets"/> holds at most <see cref="AudienceVariablesReader.PresetLimit"/>;
-/// <see cref="TotalPresets"/> counts every Test participant.
+/// <see cref="TotalPresets"/> counts every participant on the form.
 /// </summary>
 public sealed record VariablePresetsDto(
     JsonObject Definition,
     IReadOnlyList<VariablePresetDto> Presets,
     int TotalPresets);
 
-/// <summary>A participant's values. <see cref="Name"/> is their identifier, unique on the form.</summary>
-public sealed record VariablePresetDto(string Name, JsonObject Variables);
+/// <summary>
+/// A participant's values. <see cref="Name"/> is their identifier, unique on the form; <see cref="Description"/> says
+/// which kind of participant they are, and is ignored on a save.
+/// </summary>
+public sealed record VariablePresetDto(string Name, JsonObject Variables, string? Description = null);
 
 /// <summary>How many participants the form has, and how many of them have a value for each Property.</summary>
 public sealed record CoverageDto(ParticipantCounts Participants, IReadOnlyList<PropertyCoverage> Properties);
@@ -49,8 +54,7 @@ public sealed record PresetEditing(bool AllowAdd, bool AllowEdit, bool AllowDele
     public static readonly PresetEditing None = new(false, false, false);
 
     /// <summary>
-    /// The editor adds and edits Test participants and deletes none; real participants are read-only and are not
-    /// presets.
+    /// The editor adds and edits Test participants and deletes none; real participants in the list are read-only.
     /// </summary>
     public static readonly PresetEditing TestParticipantsOnly = new(true, true, false);
 }

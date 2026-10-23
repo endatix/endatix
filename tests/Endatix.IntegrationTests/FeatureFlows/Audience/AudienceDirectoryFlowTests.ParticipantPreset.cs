@@ -26,7 +26,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         AssertJson(
             """
-            {"name":"real@example.com","variables":{"city":"Sofia","seats":12.5,"consent":true,"joined":"2026-10-21",
+            {"name":"real@example.com","description":"Participant","variables":{"city":"Sofia","seats":12.5,"consent":true,"joined":"2026-10-21",
              "renews":"2026-10-21T09:30:00+03:00","tier":"enterprise","sites":["b","lab"]}}
             """,
             preset);
@@ -70,7 +70,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var preset = await GetParticipantPresetAsync(admin, formId, ada.MemberId);
 
         // Assert
-        AssertJson("""{"name":"ada@example.com","variables":{"city":"Sofia"}}""", preset);
+        AssertJson("""{"name":"ada@example.com","description":"Participant","variables":{"city":"Sofia"}}""", preset);
     }
 
     // The variables read is null without Properties; one participant is still found, with no values.
@@ -86,7 +86,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var preset = await GetParticipantPresetAsync(admin, formId, solo.MemberId);
 
         // Assert
-        AssertJson("""{"name":"solo@example.com","variables":{}}""", preset);
+        AssertJson("""{"name":"solo@example.com","description":"Participant","variables":{}}""", preset);
     }
 
     [Fact]
