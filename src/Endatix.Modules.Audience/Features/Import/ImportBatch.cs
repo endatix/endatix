@@ -11,6 +11,11 @@ namespace Endatix.Modules.Audience.Features.Import;
 /// </summary>
 internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, ExistingAudience existing)
 {
+    /// <summary>Few enough row locks per statement that SQL Server does not escalate to a table lock.</summary>
+    private const int ClaimBatchSize = 1_000;
+
+    private readonly HashSet<long> _updatedMembershipIds = [];
+
     public ImportTally Tally { get; } = new();
 
     /// <summary>
@@ -28,12 +33,35 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 
         if (!target.IsTest && UpdateIfChanged(membership, row.Values))
         {
+            _updatedMembershipIds.Add(membership.Id);
             Tally.Updated++;
         }
         else
         {
             Tally.Skipped++;
         }
+    }
+
+    /// <summary>
+    /// Locks the rows of the memberships this batch updates, in id order, with a write that matches only a membership
+    /// still on the form. <see langword="false"/> when one was removed after it was loaded, so its staged cells must
+    /// not be saved. A removal that comes after the claim waits for this transaction: it soft-deletes the membership
+    /// before it reads the cells, so it removes the ones this import writes.
+    /// </summary>
+    public async Task<bool> ClaimUpdatedAsync(CancellationToken cancellationToken)
+    {
+        DateTime claimedAt = DateTime.UtcNow;
+        int claimed = 0;
+        foreach (long[] ids in _updatedMembershipIds.Order().Chunk(ClaimBatchSize))
+        {
+            claimed += await db.Memberships
+                .Where(membership => membership.TenantId == target.TenantId && ids.Contains(membership.Id))
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(membership => membership.ModifiedAt, claimedAt),
+                    cancellationToken);
+        }
+
+        return claimed == _updatedMembershipIds.Count;
     }
 
     /// <summary>

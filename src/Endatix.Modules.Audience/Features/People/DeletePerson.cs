@@ -77,8 +77,15 @@ internal sealed class DeletePersonHandler(
             : Result.Success(membership);
     }
 
+    /// <summary>
+    /// The membership row is written first: a CSV import that claimed it (<c>ImportBatch.ClaimUpdatedAsync</c>) is
+    /// waited for, so the cells read next include the ones it wrote, and an import that claims it later finds it gone.
+    /// </summary>
     private async Task SoftDeleteAsync(Membership membership, CancellationToken cancellationToken)
     {
+        membership.Delete();
+        await db.SaveChangesAsync(cancellationToken);
+
         List<PropertyValue> values = await db.PropertyValues
             .Where(value => value.TenantId == membership.TenantId && value.MembershipId == membership.Id)
             .ToListAsync(cancellationToken);
@@ -88,7 +95,6 @@ internal sealed class DeletePersonHandler(
             value.Delete();
         }
 
-        membership.Delete();
         await db.SaveChangesAsync(cancellationToken);
     }
 }

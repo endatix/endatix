@@ -69,8 +69,9 @@ internal sealed class ImportCsvHandler(
     }
 
     /// <summary>
-    /// A parallel add or import can win a unique index first. Its rows are committed by then, so
-    /// a second pass reloads them and matches instead of inserting. A second loss is a conflict.
+    /// A parallel add or import can win a unique index first, or a removal can take a person this import updates. Its
+    /// rows are committed by then, so a second pass reloads them: it matches instead of inserting, and adds a removed
+    /// person again. A second loss is a conflict.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportWithRetryAsync(
         ImportCsvCommand request,
@@ -89,7 +90,8 @@ internal sealed class ImportCsvHandler(
     }
 
     /// <summary>
-    /// The import's result, or <see langword="null"/> when a parallel write won a unique index.
+    /// The import's result, or <see langword="null"/> when a parallel write won a unique index or removed a person
+    /// this import updates.
     /// </summary>
     private async Task<Result<ImportResultDto>?> ImportUnlessRaceAsync(
         ImportCsvCommand request,
@@ -177,26 +179,35 @@ internal sealed class ImportCsvHandler(
 
     /// <summary>
     /// Stages every row and the import summary, then saves once: a database failure leaves no
-    /// half-imported audience and no summary that disagrees with the rows written.
+    /// half-imported audience and no summary that disagrees with the rows written. <see langword="null"/>, with
+    /// nothing saved, when a person it updates was removed after it read them.
     /// </summary>
-    private async Task<Result<ImportResultDto>> ImportAsync(
+    private async Task<Result<ImportResultDto>?> ImportAsync(
         ImportCsvCommand request,
         ImportInput input,
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction =
             await matchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
-        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        ImportTarget target = new(
-            request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer), request.IsTest);
+        ImportTarget target = await TargetAsync(request, cancellationToken);
         ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.MatchKey);
-        ImportTally tally = await StageAsync(new AudienceQuery(db, target, cancellationToken), rows.Accepted);
+        if (await StageAsync(new AudienceQuery(db, target, cancellationToken), rows.Accepted) is not { } tally)
+        {
+            return null;
+        }
 
-        AudienceImport summary = new(ToCreateArgs(request, tally, rows.Rejected.Count));
-        db.AudienceImports.Add(summary);
+        AudienceImport summary = db.AudienceImports.Add(new(ToCreateArgs(request, tally, rows.Rejected.Count))).Entity;
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return ToDto(summary, rows.Rejected);
+    }
+
+    /// <summary>Read under the match-key lock, so a key change cannot land between the read and the save.</summary>
+    private async Task<ImportTarget> TargetAsync(ImportCsvCommand request, CancellationToken cancellationToken)
+    {
+        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
+        return new ImportTarget(
+            request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer), request.IsTest);
     }
 
     private Task<List<Property>> LoadPropertiesAsync(ImportCsvCommand request, CancellationToken cancellationToken) =>
@@ -204,7 +215,11 @@ internal sealed class ImportCsvHandler(
             .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
             .ToListAsync(cancellationToken);
 
-    private static async Task<ImportTally> StageAsync(AudienceQuery query, IReadOnlyList<ImportRow> rows)
+    /// <summary>
+    /// Stages every row, then claims the memberships it updates. <see langword="null"/> when a person it updates was
+    /// removed after it read them.
+    /// </summary>
+    private static async Task<ImportTally?> StageAsync(AudienceQuery query, IReadOnlyList<ImportRow> rows)
     {
         ExistingAudience existing = await ExistingAudience.LoadAsync(query, rows);
         ImportBatch batch = new(query.Db, query.Target, existing);
@@ -213,7 +228,7 @@ internal sealed class ImportCsvHandler(
             batch.Stage(row);
         }
 
-        return batch.Tally;
+        return await batch.ClaimUpdatedAsync(query.CancellationToken) ? batch.Tally : null;
     }
 
     private static AudienceImportCreateArgs ToCreateArgs(

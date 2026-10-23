@@ -358,6 +358,9 @@ public sealed partial class AudienceDirectoryFlowTests
         /// <summary>A removal's soft delete of the participant's membership.</summary>
         public static SubmissionCommandGate AtMembershipRemoval() => new(MembershipUpdate());
 
+        /// <summary>An import's read of the matched participants' cells, after it read their memberships.</summary>
+        public static SubmissionCommandGate AtCellRead() => new(CellRead());
+
         private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -398,6 +401,9 @@ public sealed partial class AudienceDirectoryFlowTests
 
         [GeneratedRegex("""UPDATE \S*["\[]Memberships["\]]""")]
         private static partial Regex MembershipUpdate();
+
+        [GeneratedRegex("""FROM \S*["\[]PropertyValues["\]]""")]
+        private static partial Regex CellRead();
 
         private async Task HoldAsync(DbCommand command, CancellationToken cancellationToken)
         {

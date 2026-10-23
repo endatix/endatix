@@ -94,7 +94,12 @@ and redeem, which is anonymous.
   membership id, exclusive, 5 s wait, then 503) as their transaction's first statement and read the membership again
   under it: an edit that waited for a removal is a 404, and a removal that waited for an edit soft-deletes the cells it
   wrote, so a removed person never keeps a live value (endatix#1361). The CSV import writes values of people already on
-  the form without that lock; an edit that loses a cell race to it takes a second locked pass, which overwrites. Cells are written in property-id order. The people
+  the form without that lock, since one import may touch 5,000 people. Before its save it claims the memberships it
+  updates instead: an `UPDATE` of those rows that matches only live ones, in id order and in batches of 1,000. A
+  short count means a removal won; the import rolls back, and its second pass adds the person again. The removal
+  soft-deletes the membership row before it reads the cells, so it waits for an import that claimed the row first and
+  then removes the cells that import wrote (endatix#1373). An edit that loses a cell race to the import takes a second
+  locked pass, which overwrites. Cells are written in property-id order. The people
   list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
   person added in between makes the page longer than the count, the total is raised to cover the rows shown.
 - **Test persons.** A test person is on one form only for testing: never issued a personalised link, and shown with
