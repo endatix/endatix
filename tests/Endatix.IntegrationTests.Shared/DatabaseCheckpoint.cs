@@ -107,16 +107,26 @@ public sealed class DatabaseCheckpoint
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
 
+        var tables = await ReadRowsAsync(connection, sql, reader => reader.GetString(0), cancellationToken);
+        return string.Join(',', tables);
+    }
+
+    private static async Task<List<T>> ReadRowsAsync<T>(
+        DbConnection connection,
+        string sql,
+        Func<DbDataReader, T> readRow,
+        CancellationToken cancellationToken)
+    {
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
-        var tables = new List<string>();
+        var rows = new List<T>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            tables.Add(reader.GetString(0));
+            rows.Add(readRow(reader));
         }
 
-        return string.Join(',', tables);
+        return rows;
     }
 
     private static string QuotedSchemas(string[] schemas) => string.Join(", ", schemas.Select(s => $"'{s}'"));
@@ -139,8 +149,7 @@ public sealed class DatabaseCheckpoint
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)
     {
-        await using var command = connection.CreateCommand();
-        command.CommandText = provider switch
+        var sql = provider switch
         {
             TestDatabaseProvider.PostgreSql => """
                 SELECT table_schema, table_name
@@ -156,13 +165,11 @@ public sealed class DatabaseCheckpoint
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
 
-        var tables = new List<Table>();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            tables.Add(new Table(reader.GetString(0), reader.GetString(1)));
-        }
-
+        var tables = await ReadRowsAsync(
+            connection,
+            sql,
+            reader => new Table(reader.GetString(0), reader.GetString(1)),
+            cancellationToken);
         return [.. tables];
     }
 
