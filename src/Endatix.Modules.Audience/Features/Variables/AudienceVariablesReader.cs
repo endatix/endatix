@@ -1,6 +1,9 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Features.Properties;
+using Endatix.Modules.Audience.Features.Settings;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +15,7 @@ namespace Endatix.Modules.Audience.Features.Variables;
 /// one participant, real or test, with their live cells. Removed participants and deleted Properties are left out by
 /// the query filters. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first indexes.
 /// </summary>
-internal sealed class AudienceVariablesReader(IAudienceDbContext db)
+internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNormalizer normalizer)
 {
     /// <summary>The most presets one read returns; CSV import can add thousands of Test participants.</summary>
     public const int PresetLimit = 20;
@@ -26,7 +29,18 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
     /// when the form has no Properties or no participants, and skips the test counts and presets when it has no Test
     /// participants.
     /// </summary>
-    public async Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken)
+    public Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken) =>
+        ReadAsync(key, [], cancellationToken);
+
+    /// <summary>
+    /// As <see cref="ReadAsync(FormKey, CancellationToken)"/>, with the Test participants named by
+    /// <paramref name="savedKeys"/> (normalized identifiers) among the presets too, so a write-back reply holds every
+    /// preset it saved, also past the first <see cref="PresetLimit"/>. One statement more when any are named.
+    /// </summary>
+    public async Task<FormAudience> ReadAsync(
+        FormKey key,
+        IReadOnlyCollection<string> savedKeys,
+        CancellationToken cancellationToken)
     {
         List<Property> properties = await PropertiesAsync(key, cancellationToken);
         ParticipantCounts participants = await CountParticipantsAsync(key, cancellationToken);
@@ -39,15 +53,30 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             await CountFilledAsync(key, properties, participants, cancellationToken);
         List<PresetSource> testParticipants = participants.Test == 0
             ? []
-            : await FirstTestParticipantsAsync(key, cancellationToken);
+            : await TestParticipantsAsync(key, savedKeys, cancellationToken);
         return new FormAudience(properties, testParticipants, participants, filled);
     }
 
-    private Task<List<PresetSource>> FirstTestParticipantsAsync(FormKey key, CancellationToken cancellationToken) =>
-        ParticipantsAsync(
-            key,
-            TestMemberships(key).OrderBy(membership => membership.Id).Take(PresetLimit),
-            cancellationToken);
+    /// <summary>The first Test participants by when they were added, and those named by <paramref name="savedKeys"/>.</summary>
+    private async Task<List<PresetSource>> TestParticipantsAsync(
+        FormKey key,
+        IReadOnlyCollection<string> savedKeys,
+        CancellationToken cancellationToken)
+    {
+        IQueryable<Membership> first = TestMemberships(key).OrderBy(membership => membership.Id).Take(PresetLimit);
+        if (savedKeys.Count == 0)
+        {
+            return await ParticipantsAsync(key, first, cancellationToken);
+        }
+
+        List<long> ids = await first.Select(membership => membership.Id).ToListAsync(cancellationToken);
+        ids.AddRange(await Keyed(key, TestMemberships(key), savedKeys)
+            .Select(membership => membership.MembershipId)
+            .ToListAsync(cancellationToken));
+        HashSet<long> presetIds = ids.ToHashSet();
+        return await ParticipantsAsync(
+            key, Memberships(key).Where(membership => presetIds.Contains(membership.Id)), cancellationToken);
+    }
 
     /// <summary>
     /// One participant on the form by audience member id with the form's Properties, or <see langword="null"/> when
@@ -63,6 +92,49 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
         return participant.Count == 0
             ? null
             : new ParticipantAudience(await PropertiesAsync(key, cancellationToken), participant[0]);
+    }
+
+    /// <summary>
+    /// The form's Properties and the participants on it, real or test, named by <paramref name="identifiers"/>, matched
+    /// as the tenant's match key matches (an email ignores case). Invalid when the match key refuses an identifier.
+    /// </summary>
+    public async Task<Result<KeyedAudience>> ReadByIdentifiersAsync(
+        FormKey key,
+        IReadOnlyCollection<string> identifiers,
+        CancellationToken cancellationToken)
+    {
+        string identifierKind = await IdentifierKindReader.GetAsync(db, key.TenantId, cancellationToken);
+        if (identifiers.Select(identifier => Member.IdentifierError(identifier, identifierKind))
+                .FirstOrDefault(error => error is not null) is { } identifierError)
+        {
+            return Result.Invalid(new ValidationError(identifierError));
+        }
+
+        Dictionary<string, string> keys = identifiers.Distinct().ToDictionary(
+            identifier => identifier,
+            identifier => Member.Normalize(identifier, identifierKind, normalizer));
+        return new KeyedAudience(
+            await PropertiesAsync(key, cancellationToken),
+            await OnFormAsync(key, keys.Values.ToHashSet(), cancellationToken),
+            keys);
+    }
+
+    /// <summary>Two statements; one when none match.</summary>
+    private async Task<Dictionary<string, OnForm>> OnFormAsync(
+        FormKey key,
+        HashSet<string> keys,
+        CancellationToken cancellationToken)
+    {
+        List<KeyedMembership> matched = await Keyed(key, Memberships(key), keys).ToListAsync(cancellationToken);
+        ILookup<long, CellRow> cells = matched.Count == 0
+            ? Enumerable.Empty<CellRow>().ToLookup(cell => cell.MembershipId)
+            : await CellsAsync(key, matched.ConvertAll(participant => participant.MembershipId), cancellationToken);
+        return matched.ToDictionary(
+            participant => participant.Key,
+            participant => new OnForm(
+                participant.MembershipId,
+                participant.IsTest,
+                cells[participant.MembershipId].ToDictionary(cell => cell.PropertyId, cell => cell.Value)));
     }
 
     private Task<List<Property>> PropertiesAsync(FormKey key, CancellationToken cancellationToken) =>
@@ -178,10 +250,21 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
             member => member.Id,
             (membership, member) => new NamedMembership(membership.Id, member.Identifier));
 
+    /// <summary>The memberships whose member's normalized identifier is one of <paramref name="keys"/>.</summary>
+    private IQueryable<KeyedMembership> Keyed(
+        FormKey key,
+        IQueryable<Membership> memberships,
+        IReadOnlyCollection<string> keys) =>
+        memberships.Join(
+            db.Members.Where(member => member.TenantId == key.TenantId && keys.Contains(member.NormalizedIdentifier)),
+            membership => membership.MemberId,
+            member => member.Id,
+            (membership, member) => new KeyedMembership(membership.Id, membership.IsTest, member.NormalizedIdentifier));
+
     /// <summary>
     /// The live cells of the memberships just read, by membership id. By id, not by the membership query again: a
     /// participant removed between the two statements keeps the values they were read with, never an empty preset.
-    /// At most <see cref="PresetLimit"/> ids.
+    /// At most <see cref="PresetLimit"/> ids, plus those a write-back saved.
     /// </summary>
     private async Task<ILookup<long, CellRow>> CellsAsync(
         FormKey key,
@@ -195,8 +278,19 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
 
     private sealed record NamedMembership(long MembershipId, string Identifier);
 
+    private sealed record KeyedMembership(long MembershipId, bool IsTest, string Key);
+
     private sealed record CellRow(long MembershipId, long PropertyId, string Value);
 }
 
 /// <summary>One form of one tenant.</summary>
 internal readonly record struct FormKey(long TenantId, long FormId);
+
+/// <summary>
+/// A form's Properties in tab order, the participants on it a write names by normalized identifier, and each named
+/// identifier's normalized form.
+/// </summary>
+internal sealed record KeyedAudience(
+    IReadOnlyList<Property> Properties,
+    IReadOnlyDictionary<string, OnForm> OnForm,
+    IReadOnlyDictionary<string, string> Keys);

@@ -42,11 +42,17 @@ public sealed record ParticipantCounts(int Test, int Real);
 /// <summary>How many test and real participants have a value for one Property.</summary>
 public sealed record PropertyCoverage(string VariableName, int FilledTest, int FilledReal);
 
-/// <summary>What the designer's preset editor may change. Nothing until endatix#1348.</summary>
+/// <summary>What the designer's preset editor may change.</summary>
 public sealed record PresetEditing(bool AllowAdd, bool AllowEdit, bool AllowDelete)
 {
-    /// <summary>The editor adds, edits and deletes nothing.</summary>
+    /// <summary>The editor adds, edits and deletes nothing: the form has no Properties.</summary>
     public static readonly PresetEditing None = new(false, false, false);
+
+    /// <summary>
+    /// The editor adds and edits Test participants and deletes none; real participants are read-only and are not
+    /// presets.
+    /// </summary>
+    public static readonly PresetEditing TestParticipantsOnly = new(true, true, false);
 }
 
 internal sealed class GetAudienceVariablesHandler(IRepository<Form> forms, AudienceVariablesReader reader)
