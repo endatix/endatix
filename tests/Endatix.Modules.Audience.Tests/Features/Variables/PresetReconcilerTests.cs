@@ -114,6 +114,21 @@ public sealed class PresetReconcilerTests
     }
 
     [Fact]
+    public void Plan_ValueLongerThanACell_IsRefusedBeforeAnyWrite()
+    {
+        // Act
+        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+            Properties,
+            NoneOnForm,
+            [Preset("maria@acme.test", $$"""{"city":"{{new string('a', PropertyValue.VALUE_MAX_LENGTH + 1)}}"}""")]);
+
+        // Assert
+        plan.Status.Should().Be(ResultStatus.Invalid);
+        plan.ValidationErrors.Select(error => error.ErrorMessage)
+            .Should().Equal($"maria@acme.test: Value must be at most {PropertyValue.VALUE_MAX_LENGTH} characters.");
+    }
+
+    [Fact]
     public void Plan_SameParticipantTwice_IsRefused()
     {
         // Act

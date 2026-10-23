@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.People;
 
 namespace Endatix.Modules.Audience.Features.Variables;
 
@@ -69,7 +70,7 @@ internal static class PresetReconciler
     /// </summary>
     private static string? ValueError(IReadOnlyList<Property> properties, PresetWrite write) =>
         properties
-            .Select(property => PropertyValueRules.ValueError(property, write.Values.GetValueOrDefault(property.Id, "")))
+            .Select(property => PropertyValuesWriter.ValueError(property, write.Values.GetValueOrDefault(property.Id, "")))
             .FirstOrDefault(error => error is not null) is { } error
             ? $"{write.Identifier}: {error}"
             : null;

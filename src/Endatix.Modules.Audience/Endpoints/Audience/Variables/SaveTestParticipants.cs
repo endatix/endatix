@@ -73,6 +73,7 @@ public sealed class SaveTestParticipantsValidator : Validator<SaveTestParticipan
         RuleFor(request => request.FormId).GreaterThan(0);
         RuleFor(request => request.Presets).NotNull();
         RuleFor(request => request.Presets!.Count).LessThanOrEqualTo(MaxPresets).When(request => request.Presets is not null);
+        RuleForEach(request => request.Presets).NotNull();
         RuleForEach(request => request.Presets).ChildRules(preset =>
         {
             preset.RuleFor(item => item.Name).NotEmpty();
