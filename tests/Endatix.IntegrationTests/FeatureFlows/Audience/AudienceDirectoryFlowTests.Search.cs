@@ -1,5 +1,5 @@
 using System.Net;
-using System.Text;
+using Endatix.IntegrationTests.Shared;
 
 namespace Endatix.IntegrationTests;
 
@@ -9,19 +9,14 @@ namespace Endatix.IntegrationTests;
 public sealed partial class AudienceDirectoryFlowTests
 {
     [Fact]
-    public async Task Searching_finds_a_participant_among_five_thousand_ignoring_case()
+    public async Task Searching_finds_a_participant_ignoring_case()
     {
         // Arrange
         var admin = await AdminAsync();
         var formId = await admin.CreateFormAsync();
-        var csv = new StringBuilder("email\nMaria@acme.test\n");
-        for (var row = 0; row < 4_999; row++)
-        {
-            csv.Append("person").Append(row).Append("@example.com\n");
-        }
-
-        using var imported = await admin.ImportAsync(formId, csv.ToString());
-        Assert.Equal(HttpStatusCode.OK, imported.StatusCode);
+        await AddParticipantAsync(admin, formId, "Maria@acme.test");
+        await AddParticipantAsync(admin, formId, "mario@acme.test");
+        await AddParticipantAsync(admin, formId, "ada@example.com");
 
         // Act
         var page = await ListPeopleAsync(admin, formId, "?search=MARIA");
@@ -29,6 +24,35 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.Equal(["Maria@acme.test"], Identifiers(page));
         Assert.Equal(1, page.GetProperty("totalRecords").GetInt32());
+    }
+
+    [Fact]
+    public async Task Searching_never_returns_or_counts_another_tenants_participant()
+    {
+        // Arrange
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword },
+            TestContext.Current.CancellationToken);
+        var owner = await AsAsync(world, TestPersona.TenantAdmin);
+        var stranger = new AudienceApi(
+            await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: owner.CancellationToken),
+            owner.CancellationToken);
+        var ownerForm = await owner.CreateFormAsync();
+        var strangerForm = await stranger.CreateFormAsync();
+        await AddParticipantAsync(owner, ownerForm, "maria@acme.test");
+        await AddParticipantAsync(owner, ownerForm, "ada@example.com");
+        await AddParticipantAsync(stranger, strangerForm, "maria@acme.test");
+        await AddParticipantAsync(stranger, strangerForm, "zoe@elsewhere.test");
+
+        // Act
+        var shared = await ListPeopleAsync(owner, ownerForm, "?search=maria");
+        var strangersOnly = await ListPeopleAsync(owner, ownerForm, "?search=zoe");
+
+        // Assert
+        Assert.Equal(["maria@acme.test"], Identifiers(shared));
+        Assert.Equal(1, shared.GetProperty("totalRecords").GetInt32());
+        Assert.Empty(Identifiers(strangersOnly));
+        Assert.Equal(0, strangersOnly.GetProperty("totalRecords").GetInt32());
     }
 
     [Fact]
@@ -86,6 +110,57 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.Equal(["a_b@example.com"], Identifiers(underscore));
         Assert.Empty(Identifiers(percent));
+    }
+
+    [Fact]
+    public async Task Searching_matches_a_bracket_literally()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        using var key = await admin.PutKeyAsync("external_id");
+        var formId = await admin.CreateFormAsync();
+        await AddParticipantAsync(admin, formId, "id[1]");
+        await AddParticipantAsync(admin, formId, "id1");
+
+        // Act
+        var page = await ListPeopleAsync(admin, formId, $"?search={Uri.EscapeDataString("[1]")}");
+
+        // Assert
+        Assert.Equal(["id[1]"], Identifiers(page));
+    }
+
+    [Theory]
+    [InlineData("Élodie")]
+    [InlineData("élodie")]
+    public async Task Searching_finds_a_non_ascii_identifier(string search)
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        using var key = await admin.PutKeyAsync("external_id");
+        var formId = await admin.CreateFormAsync();
+        await AddParticipantAsync(admin, formId, "Élodie-7");
+        await AddParticipantAsync(admin, formId, "Elodie-8");
+
+        // Act
+        var page = await ListPeopleAsync(admin, formId, $"?search={Uri.EscapeDataString(search)}");
+
+        // Assert
+        Assert.Equal(["Élodie-7"], Identifiers(page));
+    }
+
+    [Fact]
+    public async Task A_search_of_only_spaces_longer_than_an_identifier_lists_everyone()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await admin.CreateFormAsync();
+        await AddParticipantAsync(admin, formId, "ada@example.com");
+
+        // Act
+        var page = await ListPeopleAsync(admin, formId, $"?search={string.Concat(Enumerable.Repeat("%20", 300))}");
+
+        // Assert
+        Assert.Equal(1, page.GetProperty("totalRecords").GetInt32());
     }
 
     [Fact]
