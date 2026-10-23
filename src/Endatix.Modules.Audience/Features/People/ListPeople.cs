@@ -137,7 +137,7 @@ internal sealed class ListPeopleHandler(
             .ToListAsync(cancellationToken);
         PageDetails details = new(
             await LoadIdentifiersAsync(rows, cancellationToken),
-            await LoadValuesAsync(request.TenantId, membershipIds, cancellationToken),
+            await ParticipantValues.ReadAsync(db, new(request.TenantId, membershipIds), cancellationToken),
             await linkStatuses.ForAsync(membershipIds, cancellationToken),
             propertyIds);
         return BuildDtos(rows, details);
@@ -152,23 +152,6 @@ internal sealed class ListPeopleHandler(
             .AsNoTracking()
             .Where(member => memberIds.Contains(member.Id))
             .ToDictionaryAsync(member => member.Id, member => member.Identifier, cancellationToken);
-    }
-
-    private async Task<Dictionary<long, Dictionary<long, string>>> LoadValuesAsync(
-        long tenantId,
-        HashSet<long> membershipIds,
-        CancellationToken cancellationToken)
-    {
-        var valueRows = await PropertyValuesWriter
-            .ActiveCells(db, tenantId, membershipIds)
-            .Select(value => new { value.MembershipId, value.PropertyId, value.Value })
-            .ToListAsync(cancellationToken);
-
-        return valueRows
-            .GroupBy(row => row.MembershipId)
-            .ToDictionary(
-                group => group.Key,
-                group => group.ToDictionary(row => row.PropertyId, row => row.Value));
     }
 
     /// <summary>A person lacks a value for each of the form's Properties they have no live cell for.</summary>

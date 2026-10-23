@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -69,11 +70,14 @@ internal sealed class LinkOpenGates(
     /// from the form. Test submissions open through it too, so "still on the form" means one thing.
     /// </summary>
     public Task<LinkPerson?> PersonAsync(IQueryable<Membership> memberships, CancellationToken cancellationToken) =>
-        (
-            from membership in memberships
-            join member in db.Members on membership.MemberId equals member.Id
-            select new LinkPerson(membership.TenantId, membership.Id, member.Identifier, member.Id, member.SubmitterId))
-        .FirstOrDefaultAsync(cancellationToken);
+        FormParticipants.Of(db, memberships)
+            .Select(participant => new LinkPerson(
+                participant.Membership.TenantId,
+                participant.Membership.Id,
+                participant.Member.Identifier,
+                participant.Member.Id,
+                participant.Member.SubmitterId))
+            .FirstOrDefaultAsync(cancellationToken);
 
     /// <summary>
     /// The Submitter bound to the person, else the one an on-behalf create resolves for their identifier
