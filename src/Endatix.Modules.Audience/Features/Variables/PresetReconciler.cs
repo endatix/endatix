@@ -12,9 +12,9 @@ namespace Endatix.Modules.Audience.Features.Variables;
 internal static class PresetReconciler
 {
     /// <summary>
-    /// A new identifier becomes a Test participant with its filled values. A Test participant whose values differ gets
-    /// every Property, a value left out of the preset clearing its cell; one whose values are equal, compared as the
-    /// variables read types them, is left alone, so a replay writes nothing. A real participant, a value its Property
+    /// A new identifier becomes a Test participant with its filled values. A Test participant gets the values that
+    /// differ from their cells, compared as the variables read types them, a value left out of the preset clearing its
+    /// cell; the rest are not rewritten, so a replay writes nothing. A real participant, a written value its Property
     /// refuses, or an identifier given twice refuses the whole request.
     /// </summary>
     public static Result<IReadOnlyList<PresetWrite>> Plan(
@@ -57,20 +57,22 @@ internal static class PresetReconciler
         Dictionary<long, string> values = ValuesOf(properties, preset.Variables);
         if (existing is null)
         {
-            return new PresetWrite(preset.Name, null, Filled(values));
+            return new PresetWrite(preset.Name, null, PropertyValuesWriter.Stored(values));
         }
 
-        return IsUnchanged(properties, existing.Cells, values)
-            ? null
-            : new PresetWrite(preset.Name, existing.MembershipId, values);
+        Dictionary<long, string> changed = properties
+            .Where(property => values[property.Id] != AsRead(property, existing.Cells))
+            .ToDictionary(property => property.Id, property => values[property.Id]);
+        return changed.Count == 0 ? null : new PresetWrite(preset.Name, existing.MembershipId, changed);
     }
 
     /// <summary>
-    /// Checked only for a preset that will be written, so an unchanged value stored before a rule changed is kept.
+    /// Checked only for the values that will be written, so a value stored before a rule changed is kept.
     /// </summary>
     private static string? ValueError(IReadOnlyList<Property> properties, PresetWrite write) =>
         properties
-            .Select(property => PropertyValuesWriter.ValueError(property, write.Values.GetValueOrDefault(property.Id, "")))
+            .Where(property => write.Values.ContainsKey(property.Id))
+            .Select(property => PropertyValuesWriter.ValueError(property, write.Values[property.Id]))
             .FirstOrDefault(error => error is not null) is { } error
             ? $"{write.Identifier}: {error}"
             : null;
@@ -81,18 +83,11 @@ internal static class PresetReconciler
             property => property.Id,
             property => AudienceValueJson.Untyped(property.DataType, variables[property.VariableName]));
 
-    private static Dictionary<long, string> Filled(Dictionary<long, string> values) =>
-        values.Where(cell => cell.Value.Length > 0).ToDictionary(cell => cell.Key, cell => cell.Value);
-
-    private static bool IsUnchanged(
-        IReadOnlyList<Property> properties,
-        IReadOnlyDictionary<long, string> cells,
-        Dictionary<long, string> values) =>
-        properties.All(property =>
-            AudienceValueJson.Untyped(
-                property.DataType,
-                AudienceValueJson.Typed(property.DataType, cells.GetValueOrDefault(property.Id, ""))) ==
-            values[property.Id]);
+    /// <summary>A stored cell as the designer sends it back: typed as the variables read types it, then untyped.</summary>
+    private static string AsRead(Property property, IReadOnlyDictionary<long, string> cells) =>
+        AudienceValueJson.Untyped(
+            property.DataType,
+            AudienceValueJson.Typed(property.DataType, cells.GetValueOrDefault(property.Id, "")));
 }
 
 /// <summary>
@@ -106,6 +101,6 @@ internal sealed record OnForm(long MembershipId, bool IsTest, IReadOnlyDictionar
 
 /// <summary>
 /// Add <see cref="Identifier"/> as a Test participant when <see cref="MembershipId"/> is null, else set that
-/// participant's <see cref="Values"/> (an empty value clears the cell).
+/// participant's changed <see cref="Values"/> (an empty value clears the cell).
 /// </summary>
 internal sealed record PresetWrite(string Identifier, long? MembershipId, IReadOnlyDictionary<long, string> Values);

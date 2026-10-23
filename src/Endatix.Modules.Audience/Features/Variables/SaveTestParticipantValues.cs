@@ -38,14 +38,15 @@ internal sealed class SaveTestParticipantValuesHandler(
         }
 
         FormKey key = new(request.TenantId, request.FormId);
-        Result<IReadOnlyList<PresetWrite>> plan = await PlanAsync(key, request.Presets, cancellationToken);
-        IResult? failure = plan.IsSuccess ? await WriteAsync(key, plan.Value, cancellationToken) : plan;
+        Result<SavePlan> plan = await PlanAsync(key, request.Presets, cancellationToken);
+        IResult? failure = plan.IsSuccess ? await WriteAsync(key, plan.Value.Writes, cancellationToken) : plan;
         return failure is null
-            ? Result.Success(PresetBuilder.Assemble(await reader.ReadAsync(key, cancellationToken)))
+            ? Result.Success(PresetBuilder.Assemble(await reader.ReadAsync(key, plan.Value.Keys, cancellationToken)))
             : failure.ToErrorResult<AudienceVariablesDto>();
     }
 
-    private async Task<Result<IReadOnlyList<PresetWrite>>> PlanAsync(
+    /// <summary>The writes, and the normalized identifiers of every preset saved, so the reply holds them all.</summary>
+    private async Task<Result<SavePlan>> PlanAsync(
         FormKey key,
         IReadOnlyList<VariablePresetDto> presets,
         CancellationToken cancellationToken)
@@ -54,15 +55,21 @@ internal sealed class SaveTestParticipantValuesHandler(
             key, presets.Select(preset => preset.Name).ToList(), cancellationToken);
         if (!read.IsSuccess)
         {
-            return read.ToErrorResult<IReadOnlyList<PresetWrite>>();
+            return read.ToErrorResult<SavePlan>();
         }
 
         KeyedAudience audience = read.Value;
-        List<PresetEdit> edits = presets
-            .Select(preset => new PresetEdit(preset.Name, audience.Keys[preset.Name], preset.Variables))
-            .ToList();
-        return PresetReconciler.Plan(audience.Properties, audience.OnForm, edits);
+        Result<IReadOnlyList<PresetWrite>> writes =
+            PresetReconciler.Plan(audience.Properties, audience.OnForm, Edits(presets, audience.Keys));
+        return writes.IsSuccess
+            ? Result.Success(new SavePlan(writes.Value, audience.Keys.Values.ToHashSet()))
+            : writes.ToErrorResult<SavePlan>();
     }
+
+    private static List<PresetEdit> Edits(
+        IReadOnlyList<VariablePresetDto> presets,
+        IReadOnlyDictionary<string, string> keys) =>
+        presets.Select(preset => new PresetEdit(preset.Name, keys[preset.Name], preset.Variables)).ToList();
 
     /// <summary>
     /// The first write that fails, or null. The writes before it stay, and a replay finishes the rest.
@@ -92,4 +99,6 @@ internal sealed class SaveTestParticipantValuesHandler(
             : mediator.Send(
                 new CreatePersonCommand(key.TenantId, key.FormId, write.Identifier, write.Values, IsTest: true),
                 cancellationToken);
+
+    private sealed record SavePlan(IReadOnlyList<PresetWrite> Writes, IReadOnlyCollection<string> Keys);
 }

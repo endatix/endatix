@@ -27,7 +27,7 @@ public sealed class PresetReconcilerTests
     }
 
     [Fact]
-    public void Plan_ChangedTestParticipant_UpdatesEveryProperty_ClearingOnesLeftOut()
+    public void Plan_ChangedTestParticipant_UpdatesTheChangedValues_ClearingOnesLeftOut()
     {
         // Arrange
         Dictionary<string, OnForm> onForm = new()
@@ -43,6 +43,24 @@ public sealed class PresetReconcilerTests
         PresetWrite write = plan.Value.Should().ContainSingle().Subject;
         write.MembershipId.Should().Be(7);
         write.Values.Should().Equal(new Dictionary<long, string> { [City.Id] = "Varna", [Seats.Id] = "" });
+    }
+
+    [Fact]
+    public void Plan_ChangedTestParticipant_LeavesTheOtherValuesAsStored_EvenOnesTheirPropertyNoLongerAllows()
+    {
+        // Arrange
+        Dictionary<string, OnForm> onForm = new()
+        {
+            ["maria@acme.test"] = new OnForm(7, IsTest: true, Cells(("City", "Sofia"), ("Seats", "many"))),
+        };
+
+        // Act
+        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+            Properties, onForm, [Preset("maria@acme.test", """{"city":"Varna","seats":"many"}""")]);
+
+        // Assert
+        PresetWrite write = plan.Value.Should().ContainSingle().Subject;
+        write.Values.Should().Equal(new Dictionary<long, string> { [City.Id] = "Varna" });
     }
 
     [Fact]

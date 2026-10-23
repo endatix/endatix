@@ -78,7 +78,26 @@ public sealed class SaveTestParticipantsValidator : Validator<SaveTestParticipan
         {
             preset.RuleFor(item => item.Name).NotEmpty();
             preset.RuleFor(item => item.Variables).NotNull();
+            preset.RuleFor(item => item.Variables)
+                .Must(HaveDistinctNames)
+                .WithMessage("Each variable can appear once in a preset.");
         });
+    }
+
+    /// <summary>
+    /// A <see cref="JsonObject"/> bound from a body that repeats a name throws when first read, so it is read here, where
+    /// the repeat is a 400.
+    /// </summary>
+    private static bool HaveDistinctNames(JsonObject? variables)
+    {
+        try
+        {
+            return variables is null || variables.Count >= 0;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 }
 

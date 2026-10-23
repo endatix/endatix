@@ -29,7 +29,18 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     /// when the form has no Properties or no participants, and skips the test counts and presets when it has no Test
     /// participants.
     /// </summary>
-    public async Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken)
+    public Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken) =>
+        ReadAsync(key, [], cancellationToken);
+
+    /// <summary>
+    /// As <see cref="ReadAsync(FormKey, CancellationToken)"/>, with the Test participants named by
+    /// <paramref name="savedKeys"/> (normalized identifiers) among the presets too, so a write-back reply holds every
+    /// preset it saved, also past the first <see cref="PresetLimit"/>. One statement more when any are named.
+    /// </summary>
+    public async Task<FormAudience> ReadAsync(
+        FormKey key,
+        IReadOnlyCollection<string> savedKeys,
+        CancellationToken cancellationToken)
     {
         List<Property> properties = await PropertiesAsync(key, cancellationToken);
         ParticipantCounts participants = await CountParticipantsAsync(key, cancellationToken);
@@ -42,15 +53,30 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
             await CountFilledAsync(key, properties, participants, cancellationToken);
         List<PresetSource> testParticipants = participants.Test == 0
             ? []
-            : await FirstTestParticipantsAsync(key, cancellationToken);
+            : await TestParticipantsAsync(key, savedKeys, cancellationToken);
         return new FormAudience(properties, testParticipants, participants, filled);
     }
 
-    private Task<List<PresetSource>> FirstTestParticipantsAsync(FormKey key, CancellationToken cancellationToken) =>
-        ParticipantsAsync(
-            key,
-            TestMemberships(key).OrderBy(membership => membership.Id).Take(PresetLimit),
-            cancellationToken);
+    /// <summary>The first Test participants by when they were added, and those named by <paramref name="savedKeys"/>.</summary>
+    private async Task<List<PresetSource>> TestParticipantsAsync(
+        FormKey key,
+        IReadOnlyCollection<string> savedKeys,
+        CancellationToken cancellationToken)
+    {
+        IQueryable<Membership> first = TestMemberships(key).OrderBy(membership => membership.Id).Take(PresetLimit);
+        if (savedKeys.Count == 0)
+        {
+            return await ParticipantsAsync(key, first, cancellationToken);
+        }
+
+        List<long> ids = await first.Select(membership => membership.Id).ToListAsync(cancellationToken);
+        ids.AddRange(await Keyed(key, TestMemberships(key), savedKeys)
+            .Select(membership => membership.MembershipId)
+            .ToListAsync(cancellationToken));
+        HashSet<long> presetIds = ids.ToHashSet();
+        return await ParticipantsAsync(
+            key, Memberships(key).Where(membership => presetIds.Contains(membership.Id)), cancellationToken);
+    }
 
     /// <summary>
     /// One participant on the form by audience member id with the form's Properties, or <see langword="null"/> when
@@ -99,9 +125,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         HashSet<string> keys,
         CancellationToken cancellationToken)
     {
-        IQueryable<Membership> memberships = Memberships(key).Where(membership => db.Members.Any(member =>
-            member.Id == membership.MemberId && keys.Contains(member.NormalizedIdentifier)));
-        List<KeyedMembership> matched = await Keyed(key, memberships).ToListAsync(cancellationToken);
+        List<KeyedMembership> matched = await Keyed(key, Memberships(key), keys).ToListAsync(cancellationToken);
         ILookup<long, CellRow> cells = matched.Count == 0
             ? Enumerable.Empty<CellRow>().ToLookup(cell => cell.MembershipId)
             : await CellsAsync(key, matched.ConvertAll(participant => participant.MembershipId), cancellationToken);
@@ -226,9 +250,13 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
             member => member.Id,
             (membership, member) => new NamedMembership(membership.Id, member.Identifier));
 
-    private IQueryable<KeyedMembership> Keyed(FormKey key, IQueryable<Membership> memberships) =>
+    /// <summary>The memberships whose member's normalized identifier is one of <paramref name="keys"/>.</summary>
+    private IQueryable<KeyedMembership> Keyed(
+        FormKey key,
+        IQueryable<Membership> memberships,
+        IReadOnlyCollection<string> keys) =>
         memberships.Join(
-            db.Members.Where(member => member.TenantId == key.TenantId),
+            db.Members.Where(member => member.TenantId == key.TenantId && keys.Contains(member.NormalizedIdentifier)),
             membership => membership.MemberId,
             member => member.Id,
             (membership, member) => new KeyedMembership(membership.Id, membership.IsTest, member.NormalizedIdentifier));
@@ -236,7 +264,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     /// <summary>
     /// The live cells of the memberships just read, by membership id. By id, not by the membership query again: a
     /// participant removed between the two statements keeps the values they were read with, never an empty preset.
-    /// At most <see cref="PresetLimit"/> ids.
+    /// At most <see cref="PresetLimit"/> ids, plus those a write-back saved.
     /// </summary>
     private async Task<ILookup<long, CellRow>> CellsAsync(
         FormKey key,
