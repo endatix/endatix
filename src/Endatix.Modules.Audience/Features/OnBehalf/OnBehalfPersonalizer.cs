@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Abstractions.Submitters;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Links;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Features.Settings;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -108,10 +109,7 @@ internal sealed class OnBehalfPersonalizer(
         Member member,
         long formId,
         CancellationToken cancellationToken) =>
-        db.Memberships.AsNoTracking()
-            .Where(membership => membership.TenantId == member.TenantId
-                && membership.FormId == formId
-                && membership.MemberId == member.Id)
+        FormParticipants.ByMember(db, new ParticipantKey(member.TenantId, formId, member.Id))
             .Select(membership => (long?)membership.Id)
             .FirstOrDefaultAsync(cancellationToken);
 

@@ -14,7 +14,8 @@ namespace Endatix.Modules.Audience.Features.Variables;
 /// participants (Test participants first, each group by when they were added), their live cells, and the coverage
 /// counts; or
 /// one participant, real or test, with their live cells. Removed participants and deleted Properties are left out by
-/// the query filters. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first indexes.
+/// the query filters. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first indexes; the
+/// member join by key drops it (<see cref="FormParticipants.Of"/>).
 /// </summary>
 internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNormalizer normalizer)
 {
@@ -155,9 +156,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     /// EXISTS on Members the people list keeps would only give the planner another join to get wrong; if that guard
     /// ever loosens, add it back here too.
     /// </summary>
-    private IQueryable<Membership> Memberships(FormKey key) =>
-        db.Memberships.AsNoTracking()
-            .Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId);
+    private IQueryable<Membership> Memberships(FormKey key) => FormParticipants.OnForm(db, key.TenantId, key.FormId);
 
     private IQueryable<Membership> TestMemberships(FormKey key) =>
         Memberships(key).Where(membership => membership.IsTest);

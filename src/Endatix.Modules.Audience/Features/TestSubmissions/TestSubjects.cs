@@ -24,7 +24,10 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
         TestSubjectKey key,
         long membershipId,
         CancellationToken cancellationToken) =>
-        FindAsync(key, OnForm(key).Where(membership => membership.Id == membershipId), cancellationToken);
+        FindAsync(
+            key,
+            FormParticipants.OnForm(db, key.TenantId, key.FormId).Where(membership => membership.Id == membershipId),
+            cancellationToken);
 
     /// <summary>By audience member id, through <see cref="FormParticipants.ByMember"/>, as the participant panel finds them.</summary>
     public Task<Result<TestOpening>> ByMemberAsync(TestSubjectKey key, long memberId, CancellationToken cancellationToken) =>
@@ -51,9 +54,6 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
                 new TestSubject(person.TenantId, key.FormId, person.MembershipId, person.MemberId, person.Identifier),
                 form));
     }
-
-    private IQueryable<Membership> OnForm(TestSubjectKey key) =>
-        db.Memberships.Where(membership => membership.TenantId == key.TenantId && membership.FormId == key.FormId);
 }
 
 /// <summary>The tenant and form a test submission is opened on. Both are stated in every read.</summary>

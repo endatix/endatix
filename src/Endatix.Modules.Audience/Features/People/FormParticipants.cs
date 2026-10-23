@@ -13,15 +13,16 @@ namespace Endatix.Modules.Audience.Features.People;
 internal static class FormParticipants
 {
     /// <summary>
-    /// A member's live membership on the form: at most one (<c>IX_Memberships_Member</c>). A removed participant is left
-    /// out by the soft-delete filter. The tenant is stated as well as filtered, so SQL Server seeks the tenant-first
-    /// index.
+    /// The live memberships of the tenant's form. A removed participant is left out by the soft-delete filter. The
+    /// tenant is stated as well as filtered, so SQL Server seeks the tenant-first index.
     /// </summary>
-    public static IQueryable<Membership> ByMember(IAudienceDbContext db, ParticipantKey key) =>
+    public static IQueryable<Membership> OnForm(IAudienceDbContext db, long tenantId, long formId) =>
         db.Memberships.AsNoTracking()
-            .Where(membership => membership.TenantId == key.TenantId
-                && membership.FormId == key.FormId
-                && membership.MemberId == key.MemberId);
+            .Where(membership => membership.TenantId == tenantId && membership.FormId == formId);
+
+    /// <summary>A member's live membership on the form: at most one (<c>IX_Memberships_Member</c>).</summary>
+    public static IQueryable<Membership> ByMember(IAudienceDbContext db, ParticipantKey key) =>
+        OnForm(db, key.TenantId, key.FormId).Where(membership => membership.MemberId == key.MemberId);
 
     /// <summary>
     /// The memberships with their members, looked up by key. The member drops the tenant filter by name: the membership
