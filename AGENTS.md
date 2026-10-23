@@ -211,7 +211,7 @@ Single-context. `GLOSSARY.md` at the root is created lazily by `domain-modeling`
 - Test: `dotnet test Endatix.slnx --filter "FullyQualifiedName!~Endatix.IntegrationTests"`; integration: `dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj` (needs Docker, see `tests/README.md`)
 - Lint: `dotnet format Endatix.slnx --verify-no-changes --include <changed files>`. CI has no lint step and the whole solution does not pass yet, so check only the files you touched
 - Run: `dotnet run --project src/Endatix.WebHost` (API on https://localhost:5001)
-- PR title scope: `e[0-9]+|deps|deps-dev`
+- PR title scope: `e[0-9]+|deps|deps-dev` (the full title and branch rules are in [CONTRIBUTING.md](CONTRIBUTING.md))
 - Branch name: `<type>/e<issue>-<slug>`
 
 ### Verification

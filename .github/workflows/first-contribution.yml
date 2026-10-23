@@ -27,7 +27,7 @@ jobs:
             A core team member will review your pull request shortly.
             Please feel welcome to join us for discussion on [Discord](https://discord.gg/VPqzMJgS). We’d love to chat with you!
 
-            If you haven't already, please take a moment to review our [contribution guide](https://docs.endatix.com/docs/intro). This guide provides helpful information to ensure your contribution aligns with our standards.
+            If you haven't already, please take a moment to review our [contribution guide](https://github.com/endatix/endatix/blob/main/CONTRIBUTING.md). This guide provides helpful information to ensure your contribution aligns with our standards.
           issue_message: |
             Thank you for submitting your first issue, this is just awesome! 🚀 🖖 😻
             We will review it and get back to you as soon as possible.
