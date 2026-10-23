@@ -191,3 +191,37 @@ HTTPS playground + HTTP Hub = mixed content: **builder UI** (200, no script), in
 
 - Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)
 - Public docs writing rules (voice, cards, when a table is allowed): [`docs/endatix-docs/AGENTS.md`](docs/endatix-docs/AGENTS.md)
+
+## Agent skills
+
+Paths and commands below are relative to this repo's root, whether it is a standalone clone or a submodule of another repo. A parent repo's `## Agent skills` section describes that repo, not this one.
+
+### Issue tracker
+
+Endatix GitHub issues on the Overlord project, filed and tracked through the `track-work` skill. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context. `GLOSSARY.md` at the root is created lazily by `domain-modeling`; decisions are recorded in the `ARCHITECTURE.md` decision log. See `docs/agents/domain.md`.
+
+### Commands
+
+- Prerequisites: .NET SDK from `global.json`; Docker for the integration tests
+- Build: `dotnet build Endatix.slnx`
+- Test: `dotnet test Endatix.slnx --filter "FullyQualifiedName!~Endatix.IntegrationTests"`; integration: `dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj` (needs Docker, see `tests/README.md`)
+- Lint: `dotnet format Endatix.slnx --verify-no-changes --include <changed files>`. CI has no lint step and the whole solution does not pass yet, so check only the files you touched
+- Run: `dotnet run --project src/Endatix.WebHost` (API on https://localhost:5001)
+- Measure: no measurement script in this repo; skip the step
+- PR title scope: `#[0-9]+`
+
+### Verification
+
+No verify skill in this repo. Run the API as above and prove the change with an integration test.
+
+### Shared folders
+
+- Always in the main checkout, also from a worktree: `common=$(git rev-parse --path-format=absolute --git-common-dir)`, then `dirname "$common"` when its name is `.git`, else `git --git-dir="$common" rev-parse --show-toplevel` (a submodule). Removing a worktree deletes its gitignored files.
+- Work files (plans, review reports, handoffs): `.agents/work/<YYYY-MM-DD>-<slug>/`
+- Evidence (screenshots, videos, logs): `.agents/evidence/<YYYY-MM-DD>-<slug>/`
+- A skill ends its report with the absolute path of every file it wrote there.
+- Model roles: `.agents/endatix-models.local.yaml`, one section per harness. Gitignored and per checkout: each worktree has its own copy, lost when the worktree is removed.
