@@ -211,7 +211,7 @@ jobs:
         if: >-
           github.actor != 'dependabot[bot]' &&
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: Infisical/secrets-action@03d3fa38607956c493f53c6633f94006a13c47ae # v1.0.7
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         with:
           method: "oidc"
           env-slug: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
