@@ -99,7 +99,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db)
     /// this replaced let PostgreSQL loop the form's memberships over <c>IX_PropertyValues_Property</c>, a scan of every
     /// cell per participant, and time out at 5,000 × 50 when its statistics were off (CI). Now the first reads one index
     /// range per Property and the second reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
-    /// The first filters by the live Property ids just read, which is what <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, long, IQueryable{long})"/>
+    /// The first filters by the live Property ids just read, which is what <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, long, IReadOnlyCollection{long})"/>
     /// tests with an EXISTS. The second reads the Test participants' cells by their ids, with no Property predicate
     /// (<see cref="CountTestCellsAsync"/>); a deleted Property's cells it counts are dropped here, since only the live
     /// ids are read back. The statements share no snapshot, so a person added or removed between them could push a
