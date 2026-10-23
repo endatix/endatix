@@ -2,7 +2,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -25,8 +24,6 @@ internal sealed class UpdatePersonHandler(
     ParticipantReader participantReader)
     : ICommandHandler<UpdatePersonCommand, Result<PersonDto>>
 {
-    internal const string Busy = "This participant is being changed. Try again.";
-
     /// <summary>
     /// The form, the membership and the values are checked before the lock; the write re-reads the membership under
     /// it, so an edit racing the participant's removal is not found instead of leaving a live value behind.
@@ -42,31 +39,12 @@ internal sealed class UpdatePersonHandler(
         }
 
         ParticipantOnForm participant = loaded.Value;
-        Result written = await WriteAsync(
-            request with { Values = MatchKeyProperty.Stored(request.Values, participant.MatchKey) },
-            participant.Membership,
-            cancellationToken);
-        return written.IsSuccess
+        ValuesEdit edit = new(
+            request.TenantId, participant.Membership.Id, MatchKeyProperty.Stored(request.Values, participant.MatchKey));
+        IResult? failure = await valuesWriter.WriteAsync(edit, cancellationToken);
+        return failure is null
             ? await participantReader.ReadAsync(participant, cancellationToken)
-            : written.ToErrorResult<PersonDto>();
-    }
-
-    private async Task<Result> WriteAsync(
-        UpdatePersonCommand request,
-        Membership membership,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            bool written = await valuesWriter.WriteAsync(
-                new PropertyValueWrite(db, request.TenantId, membership.Id, request.Values),
-                cancellationToken);
-            return written ? Result.Success() : Result.NotFound("Audience membership not found.");
-        }
-        catch (TransactionLockTimeoutException)
-        {
-            return Result.Unavailable(Busy);
-        }
+            : failure.ToErrorResult<PersonDto>();
     }
 
     /// <summary>

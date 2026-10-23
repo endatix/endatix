@@ -2,7 +2,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -28,32 +27,33 @@ internal sealed class DeletePersonHandler(
     {
         Result gate = await TenantFormGate.EnsureAsync(
             new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
-        if (!gate.IsSuccess)
-        {
-            return gate.ToErrorResult<string>();
-        }
-
-        try
-        {
-            return await DeleteLockedAsync(request, cancellationToken);
-        }
-        catch (TransactionLockTimeoutException)
-        {
-            return Result.Unavailable(UpdatePersonHandler.Busy);
-        }
+        return gate.IsSuccess
+            ? await DeleteLockedAsync(request, cancellationToken)
+            : gate.ToErrorResult<string>();
     }
 
     /// <summary>
-    /// Under the participant's <see cref="MembershipLock"/>, which an edit of their values takes too: the membership
-    /// and its cells are read after the lock, so an edit that finished first has its cells deleted too, and one that
-    /// waits finds the membership gone.
+    /// Under the form's shared lock and the participant's <see cref="MembershipLock"/>, which an edit of their values
+    /// takes too and a CSV import of the form excludes: the membership and its cells are read after the locks, so an
+    /// edit or an import that finished first has its cells deleted too, and an edit that waits finds the membership gone.
     /// </summary>
     private async Task<Result<string>> DeleteLockedAsync(
         DeletePersonCommand request,
         CancellationToken cancellationToken)
     {
-        await using IDbContextTransaction transaction =
-            await membershipLock.BeginAsync(db, request.MembershipId, cancellationToken);
+        Result<IDbContextTransaction> locked = await membershipLock.BeginRemovalAsync(
+            db, new(request.FormId, request.MembershipId), cancellationToken);
+        return locked.IsSuccess
+            ? await DeleteInAsync(locked.Value, request, cancellationToken)
+            : locked.ToErrorResult<string>();
+    }
+
+    private async Task<Result<string>> DeleteInAsync(
+        IDbContextTransaction locked,
+        DeletePersonCommand request,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction = locked;
         Result<Membership> loaded = await LoadAsync(request, cancellationToken);
         if (!loaded.IsSuccess)
         {

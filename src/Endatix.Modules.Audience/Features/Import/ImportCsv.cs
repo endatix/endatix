@@ -177,7 +177,9 @@ internal sealed class ImportCsvHandler(
 
     /// <summary>
     /// Stages every row and the import summary, then saves once: a database failure leaves no
-    /// half-imported audience and no summary that disagrees with the rows written.
+    /// half-imported audience and no summary that disagrees with the rows written. The form's people
+    /// are read after its <see cref="MembershipLock"/>, which their removals share, so a person removed
+    /// meanwhile is added again instead of keeping a live value on the removed membership.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportAsync(
         ImportCsvCommand request,
@@ -186,6 +188,21 @@ internal sealed class ImportCsvHandler(
     {
         await using IDbContextTransaction transaction =
             await matchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
+        if (await support.FormLock.AcquireImportAsync(db, request.FormId, cancellationToken) is { } busy)
+        {
+            return busy.ToErrorResult<ImportResultDto>();
+        }
+
+        ImportResultDto imported = await StageAndSaveAsync(request, input, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return imported;
+    }
+
+    private async Task<ImportResultDto> StageAndSaveAsync(
+        ImportCsvCommand request,
+        ImportInput input,
+        CancellationToken cancellationToken)
+    {
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
         ImportTarget target = new(
             request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer), request.IsTest);
@@ -195,7 +212,6 @@ internal sealed class ImportCsvHandler(
         AudienceImport summary = new(ToCreateArgs(request, tally, rows.Rejected.Count));
         db.AudienceImports.Add(summary);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         return ToDto(summary, rows.Rejected);
     }
 
@@ -246,13 +262,17 @@ internal sealed class ImportCsvHandler(
 internal sealed record ImportInput(IReadOnlyList<CsvDataRow> Rows, CsvColumnMap Map);
 
 /// <summary>
-/// Identity normalizer and unique-index detection for one import.
+/// Identity normalizer, unique-index detection and the form's people lock for one import.
 /// </summary>
 internal sealed class ImportWriteSupport(
     IValueNormalizer normalizer,
-    IUniqueConstraintViolationChecker violations)
+    IUniqueConstraintViolationChecker violations,
+    MembershipLock formLock)
 {
     public IValueNormalizer Normalizer { get; } = normalizer;
 
     public IUniqueConstraintViolationChecker Violations { get; } = violations;
+
+    /// <summary>Taken exclusively for the form, after the tenant's match-key lock (<see cref="MembershipLock.AcquireImportAsync"/>).</summary>
+    public MembershipLock FormLock { get; } = formLock;
 }
