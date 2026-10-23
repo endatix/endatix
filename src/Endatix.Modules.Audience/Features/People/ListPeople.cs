@@ -3,6 +3,8 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Querying;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Modules.Audience.Shared;
@@ -12,14 +14,16 @@ namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
 /// Lists people on a form with paging up to <see cref="AudiencePaging.MaxPageSize"/>. The total counts only the
-/// people <see cref="Test"/> keeps.
+/// people <see cref="Test"/> and <see cref="Search"/> keep. <see cref="Search"/> keeps people whose identifier contains
+/// it (ILIKE on PostgreSQL, the column's collation on SQL Server); a blank one keeps everyone.
 /// </summary>
 public sealed record ListPeopleQuery(
     long TenantId,
     long FormId,
     int? Page,
     int? PageSize,
-    PeopleTestFilter Test = PeopleTestFilter.All) : IQuery<Result<Paged<PersonDto>>>;
+    PeopleTestFilter Test = PeopleTestFilter.All,
+    string? Search = null) : IQuery<Result<Paged<PersonDto>>>;
 
 /// <summary>
 /// Which people the list keeps: everyone, only real people, or only test persons.
@@ -52,7 +56,8 @@ public sealed record PersonDto(
 internal sealed class ListPeopleHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    LinkStatuses linkStatuses)
+    LinkStatuses linkStatuses,
+    IRelationalSubstringLikeFilter substringLikeFilter)
     : IQueryHandler<ListPeopleQuery, Result<Paged<PersonDto>>>
 {
     public async Task<Result<Paged<PersonDto>>> Handle(
@@ -79,7 +84,7 @@ internal sealed class ListPeopleHandler(
         CancellationToken cancellationToken)
     {
         IQueryable<Membership> query = WithTestFilter(
-            MembershipsOnForm(request.TenantId, request.FormId),
+            MembershipsOnForm(request.TenantId, request.FormId, request.Search),
             request.Test);
         ResolvedPage resolved = ResolvedPage.For(
             request.Page ?? 1,
@@ -94,13 +99,22 @@ internal sealed class ListPeopleHandler(
         return resolved.ToPaged(await MapPeopleAsync(request, rows, cancellationToken));
     }
 
-    // The tenant is stated as well as filtered, so SQL Server can seek the tenant-first index: the tenant query
-    // filter's bypass parameter keeps it from seeking on the filter alone.
-    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId) =>
-        db.Memberships.AsNoTracking().Where(membership =>
-            membership.TenantId == tenantId
-            && membership.FormId == formId
-            && db.Members.Any(member => member.Id == membership.MemberId));
+    // The search is the provider's substring match (ILIKE on PostgreSQL, LIKE under the column's collation on SQL
+    // Server), with wildcards matched literally. The member test drops the tenant filter by name: the membership is the
+    // tenant's, and so is its member. With it, PostgreSQL can plan the EXISTS as a scan of the tenant's members
+    // (IX_Members_Identifier) per membership instead of a key lookup, seconds for 5,000 people right after an import.
+    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId, string? search)
+    {
+        IQueryable<Member> members = db.Members.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant]);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            members = substringLikeFilter.WherePropertyMatchesLikeSubstring(
+                members, nameof(Member.Identifier), search.Trim());
+        }
+
+        return FormParticipants.OnForm(db, tenantId, formId)
+            .Where(membership => members.Any(member => member.Id == membership.MemberId));
+    }
 
     private static IQueryable<Membership> WithTestFilter(IQueryable<Membership> query, PeopleTestFilter filter) =>
         filter switch
