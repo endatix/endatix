@@ -133,7 +133,7 @@ internal sealed class ListPeopleHandler(
         Dictionary<long, string> identifiers = await LoadIdentifiersAsync(rows, cancellationToken);
         PageDetails details = new(
             identifiers,
-            await ParticipantValues.ReadAsync(db, CellsOf(request, rows, identifiers), cancellationToken),
+            await ValuesAsync(request, IdentifiersByMembership(rows, identifiers), cancellationToken),
             await linkStatuses.ForAsync(membershipIds, cancellationToken),
             propertyIds);
         return BuildDtos(rows, details);
@@ -149,16 +149,24 @@ internal sealed class ListPeopleHandler(
             .Select(property => property.Id)
             .ToListAsync(cancellationToken);
 
-    /// <summary>The page's participants by membership id, with the identifiers the match-key Property shows.</summary>
-    private static ParticipantCells CellsOf(
+    /// <summary>The page's values: the form's match-key Property, then the cells (<see cref="ParticipantValues"/>).</summary>
+    private async Task<Dictionary<long, Dictionary<long, string>>> ValuesAsync(
         ListPeopleQuery request,
+        Dictionary<long, string> identifiersByMembership,
+        CancellationToken cancellationToken)
+    {
+        MatchKey? matchKey = await MatchKeyProperty.FindAsync(
+            db, new(request.TenantId, request.FormId), cancellationToken);
+        return await ParticipantValues.ReadAsync(
+            db, new ParticipantCells(request.TenantId, matchKey, identifiersByMembership), cancellationToken);
+    }
+
+    /// <summary>The page's participants by membership id, with the identifiers the match-key Property shows.</summary>
+    private static Dictionary<long, string> IdentifiersByMembership(
         List<Membership> rows,
         Dictionary<long, string> identifiers) =>
-        new(
-            request.TenantId,
-            request.FormId,
-            rows.Where(row => identifiers.ContainsKey(row.MemberId))
-                .ToDictionary(row => row.Id, row => identifiers[row.MemberId]));
+        rows.Where(row => identifiers.ContainsKey(row.MemberId))
+            .ToDictionary(row => row.Id, row => identifiers[row.MemberId]);
 
     private async Task<Dictionary<long, string>> LoadIdentifiersAsync(
         List<Membership> rows,

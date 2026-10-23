@@ -26,10 +26,10 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         new Dictionary<(long PropertyId, bool IsTest), int>();
 
     /// <summary>
-    /// Up to nine statements: the Properties, participants by test flag, filled cells by Property (all, then the Test
-    /// participants' ids and their cells), the match-key Property, then the first participants, their cells and the
-    /// match-key Property again (<see cref="ParticipantValues"/>). Stops after the second when the form has no
-    /// Properties or no participants, and skips the test counts when it has no Test participants.
+    /// Up to eight statements: the Properties, participants by test flag, filled cells by Property (all, then the Test
+    /// participants' ids and their cells), the match-key Property, then the first participants and their cells
+    /// (<see cref="ParticipantValues"/>). Stops after the second when the form has no Properties or no participants,
+    /// and skips the test counts when it has no Test participants.
     /// </summary>
     public Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken) =>
         ReadAsync(key, [], cancellationToken);
@@ -53,10 +53,10 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
 
         IReadOnlyDictionary<(long PropertyId, bool IsTest), int> filled =
             await CountFilledAsync(key, properties, participants, cancellationToken);
-        long? matchKey = await MatchKeyProperty.IdAsync(db, new(key.TenantId, key.FormId), cancellationToken);
+        MatchKey? matchKey = await MatchKeyProperty.FindAsync(db, new(key.TenantId, key.FormId), cancellationToken);
         return new FormAudience(
             properties,
-            await FirstParticipantsAsync(key, savedKeys, cancellationToken),
+            await FirstParticipantsAsync(new ValuesScope(key, matchKey), savedKeys, cancellationToken),
             participants,
             MatchKeyProperty.Filled(filled, matchKey, (participants.Test, participants.Real)));
     }
@@ -66,44 +66,49 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     /// named by <paramref name="savedKeys"/>.
     /// </summary>
     private async Task<List<PresetSource>> FirstParticipantsAsync(
-        FormKey key,
+        ValuesScope scope,
         IReadOnlyCollection<string> savedKeys,
         CancellationToken cancellationToken)
     {
-        IQueryable<Membership> first = Memberships(key)
+        IQueryable<Membership> first = Memberships(scope.Key)
             .OrderByDescending(membership => membership.IsTest)
             .ThenBy(membership => membership.Id)
             .Take(PresetLimit);
         if (savedKeys.Count == 0)
         {
-            return await ParticipantsAsync(key, first, cancellationToken);
+            return await ParticipantsAsync(scope, first, cancellationToken);
         }
 
         List<long> ids = await first.Select(membership => membership.Id).ToListAsync(cancellationToken);
-        ids.AddRange(await Keyed(key, Memberships(key), savedKeys)
+        ids.AddRange(await Keyed(scope.Key, Memberships(scope.Key), savedKeys)
             .Select(membership => membership.MembershipId)
             .ToListAsync(cancellationToken));
         HashSet<long> presetIds = ids.ToHashSet();
         return await ParticipantsAsync(
-            key, Memberships(key).Where(membership => presetIds.Contains(membership.Id)), cancellationToken);
+            scope, Memberships(scope.Key).Where(membership => presetIds.Contains(membership.Id)), cancellationToken);
     }
 
     /// <summary>
     /// One participant on the form by audience member id with the form's Properties, or <see langword="null"/> when
-    /// they are not on it or were removed. Three statements: the participant, their cells, the Properties.
+    /// they are not on it or were removed. Four statements: the participant, the match-key Property, their cells, the
+    /// Properties; one when they are not on the form.
     /// </summary>
     public async Task<ParticipantAudience?> ReadOneAsync(
         FormKey key,
         long memberId,
         CancellationToken cancellationToken)
     {
-        List<PresetSource> participant = await ParticipantsAsync(
-            key,
-            FormParticipants.ByMember(db, new ParticipantKey(key.TenantId, key.FormId, memberId)),
-            cancellationToken);
-        return participant.Count == 0
-            ? null
-            : new ParticipantAudience(await PropertiesAsync(key, cancellationToken), participant[0]);
+        List<NamedMembership> named = await Named(
+                FormParticipants.ByMember(db, new ParticipantKey(key.TenantId, key.FormId, memberId)))
+            .ToListAsync(cancellationToken);
+        if (named.Count == 0)
+        {
+            return null;
+        }
+
+        MatchKey? matchKey = await MatchKeyProperty.FindAsync(db, new(key.TenantId, key.FormId), cancellationToken);
+        List<PresetSource> participant = await PresetsAsync(new ValuesScope(key, matchKey), named, cancellationToken);
+        return new ParticipantAudience(await PropertiesAsync(key, cancellationToken), participant[0]);
     }
 
     /// <summary>
@@ -122,25 +127,30 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
             return Result.Invalid(new ValidationError(identifierError));
         }
 
-        Dictionary<string, string> keys = identifiers.Distinct().ToDictionary(
+        Dictionary<string, string> keys = KeysOf(identifiers, identifierKind);
+        List<Property> properties = await PropertiesAsync(key, cancellationToken);
+        ValuesScope scope = new(key, MatchKeyProperty.In(properties, identifierKind));
+        return new KeyedAudience(
+            properties, await OnFormAsync(scope, keys.Values.ToHashSet(), cancellationToken), keys, scope.MatchKey);
+    }
+
+    /// <summary>Each identifier and its normalized form under the tenant's match key.</summary>
+    private Dictionary<string, string> KeysOf(IReadOnlyCollection<string> identifiers, string identifierKind) =>
+        identifiers.Distinct().ToDictionary(
             identifier => identifier,
             identifier => Member.Normalize(identifier, identifierKind, normalizer));
-        return new KeyedAudience(
-            await PropertiesAsync(key, cancellationToken),
-            await OnFormAsync(key, keys.Values.ToHashSet(), cancellationToken),
-            keys);
-    }
 
     /// <summary>Two statements; one when none match.</summary>
     private async Task<Dictionary<string, OnForm>> OnFormAsync(
-        FormKey key,
+        ValuesScope scope,
         HashSet<string> keys,
         CancellationToken cancellationToken)
     {
-        List<KeyedMembership> matched = await Keyed(key, Memberships(key), keys).ToListAsync(cancellationToken);
+        List<KeyedMembership> matched =
+            await Keyed(scope.Key, Memberships(scope.Key), keys).ToListAsync(cancellationToken);
         Dictionary<long, Dictionary<long, string>> values = matched.Count == 0
             ? []
-            : await CellsAsync(key, matched.Select(row => (row.MembershipId, row.Identifier)), cancellationToken);
+            : await CellsAsync(scope, matched.Select(row => (row.MembershipId, row.Identifier)), cancellationToken);
         return matched.ToDictionary(
             participant => participant.Key,
             participant => new OnForm(
@@ -236,18 +246,23 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
             .ToDictionaryAsync(group => group.PropertyId, group => group.Count, cancellationToken);
 
     private async Task<List<PresetSource>> ParticipantsAsync(
-        FormKey key,
+        ValuesScope scope,
         IQueryable<Membership> memberships,
+        CancellationToken cancellationToken) =>
+        await PresetsAsync(scope, await Named(memberships).ToListAsync(cancellationToken), cancellationToken);
+
+    private async Task<List<PresetSource>> PresetsAsync(
+        ValuesScope scope,
+        List<NamedMembership> participants,
         CancellationToken cancellationToken)
     {
-        List<NamedMembership> participants = await Named(memberships).ToListAsync(cancellationToken);
         if (participants.Count == 0)
         {
             return [];
         }
 
         Dictionary<long, Dictionary<long, string>> values = await CellsAsync(
-            key, participants.Select(row => (row.MembershipId, row.Identifier)), cancellationToken);
+            scope, participants.Select(row => (row.MembershipId, row.Identifier)), cancellationToken);
         return participants.ConvertAll(participant => new PresetSource(
             participant.Identifier,
             values.GetValueOrDefault(participant.MembershipId) ?? [],
@@ -276,18 +291,21 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     /// were read with, never an empty preset. At most <see cref="PresetLimit"/> ids, plus those a write-back saved.
     /// </summary>
     private Task<Dictionary<long, Dictionary<long, string>>> CellsAsync(
-        FormKey key,
+        ValuesScope scope,
         IEnumerable<(long MembershipId, string Identifier)> participants,
         CancellationToken cancellationToken) =>
         ParticipantValues.ReadAsync(
             db,
             new ParticipantCells(
-                key.TenantId,
-                key.FormId,
+                scope.Key.TenantId,
+                scope.MatchKey,
                 participants.ToDictionary(participant => participant.MembershipId, participant => participant.Identifier)),
             cancellationToken);
 
     private sealed record NamedMembership(long MembershipId, string Identifier, bool IsTest);
+
+    /// <summary>The form whose values are read, and its match-key Property, which they show the identifier in.</summary>
+    private sealed record ValuesScope(FormKey Key, MatchKey? MatchKey);
 
     private sealed record KeyedMembership(long MembershipId, bool IsTest, string Key, string Identifier);
 }
@@ -296,10 +314,11 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
 internal readonly record struct FormKey(long TenantId, long FormId);
 
 /// <summary>
-/// A form's Properties in tab order, the participants on it a write names by normalized identifier, and each named
-/// identifier's normalized form.
+/// A form's Properties in tab order, the participants on it a write names by normalized identifier, each named
+/// identifier's normalized form, and the form's match-key Property.
 /// </summary>
 internal sealed record KeyedAudience(
     IReadOnlyList<Property> Properties,
     IReadOnlyDictionary<string, OnForm> OnForm,
-    IReadOnlyDictionary<string, string> Keys);
+    IReadOnlyDictionary<string, string> Keys,
+    MatchKey? MatchKey);

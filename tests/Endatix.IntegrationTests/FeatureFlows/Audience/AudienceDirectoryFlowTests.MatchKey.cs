@@ -1,6 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
@@ -55,12 +60,13 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task The_identifier_wins_over_a_value_stored_for_the_match_key_property()
     {
-        // Arrange
-        var admin = await AdminAsync();
+        // Arrange: the API refuses this value now, so the cell is one stored before the rule
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var formId = await admin.CreateFormAsync();
         var email = await admin.CreatePropertyAsync(formId, new { name = "Email", dataType = "text" });
-        var tester = await AddPersonWithValuesAsync(
-            admin, formId, new("tester@example.com", IsTest: true, new() { [email] = "old@example.com" }));
+        var tester = await AddTestParticipantAsync(admin, formId, "tester@example.com");
+        await StoreCellAsync(world.Services, new(tester.MembershipId, email, "old@example.com"));
 
         // Act
         var preset = await GetParticipantPresetAsync(admin, formId, tester.MemberId);
@@ -108,4 +114,20 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(JsonValueKind.Object, people.GetProperty("items")[0].GetProperty("values").ValueKind);
         Assert.Equal(1, people.GetProperty("items")[0].GetProperty("notFilledIn").GetInt32());
     }
+
+    /// <summary>Stores a cell past the API, as a value saved before a rule existed would be.</summary>
+    private static async Task StoreCellAsync(IServiceProvider services, StoredCell cell)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var tenantId = await db.Memberships.IgnoreQueryFilters()
+            .Where(membership => membership.Id == cell.MembershipId)
+            .Select(membership => membership.TenantId)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        db.PropertyValues.Add(
+            new PropertyValue(new PropertyValueCreateArgs(tenantId, cell.MembershipId, cell.PropertyId, cell.Value)));
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed record StoredCell(long MembershipId, long PropertyId, string Value);
 }

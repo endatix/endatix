@@ -13,7 +13,12 @@ namespace Endatix.Modules.Audience.Features.Links;
 /// What a first open locks with: the definition it pins, on a one-response form the person's Submitter, and the
 /// label its response shows.
 /// </summary>
-internal sealed record LinkOpening(AudienceLink Link, long DefinitionId, long? SubmitterId, string SubmitterLabel);
+internal sealed record LinkOpening(
+    AudienceLink Link,
+    long DefinitionId,
+    long? SubmitterId,
+    string SubmitterLabel,
+    string Identifier);
 
 /// <summary>The person behind a membership.</summary>
 internal sealed record LinkPerson(long TenantId, long MembershipId, string Identifier, long MemberId, long? SubmitterId);
@@ -48,7 +53,7 @@ internal sealed class LinkOpenGates(
             ? await SubmitterIdAsync(link.TenantId, person, cancellationToken)
             : null;
         var label = await LabelAsync(submitterId ?? person.SubmitterId, person.Identifier, cancellationToken);
-        return new LinkOpening(link, definitionId, submitterId, label);
+        return new LinkOpening(link, definitionId, submitterId, label, person.Identifier);
     }
 
     /// <summary>

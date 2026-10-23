@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Features.Variables;
 
 namespace Endatix.Modules.Audience.Tests.Features.Variables;
@@ -16,7 +17,7 @@ public sealed class PresetReconcilerTests
     public void Plan_NewIdentifier_CreatesATestParticipantWithItsFilledValues()
     {
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties, NoneOnForm, [Preset("maria@acme.test", """{"city":"Sofia","unknown":1}""")]);
 
         // Assert
@@ -36,7 +37,7 @@ public sealed class PresetReconcilerTests
         };
 
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties, onForm, [Preset("Maria@acme.test", """{"city":"Varna"}""")]);
 
         // Assert
@@ -55,7 +56,7 @@ public sealed class PresetReconcilerTests
         };
 
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties, onForm, [Preset("maria@acme.test", """{"city":"Varna","seats":"many"}""")]);
 
         // Assert
@@ -73,7 +74,7 @@ public sealed class PresetReconcilerTests
         };
 
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties, onForm, [Preset("maria@acme.test", """{"city":"Sofia","seats":12.5}""")]);
 
         // Assert
@@ -90,7 +91,7 @@ public sealed class PresetReconcilerTests
         };
 
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties, onForm, [Preset("maria@acme.test", """{"seats":"many"}""")]);
 
         // Assert
@@ -108,7 +109,7 @@ public sealed class PresetReconcilerTests
         };
 
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties, onForm, [Preset("real@acme.test", """{"city":"Ruse"}""")]);
 
         // Assert
@@ -126,7 +127,7 @@ public sealed class PresetReconcilerTests
         };
 
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties,
             onForm,
             [Preset("new@acme.test", """{"city":"Sofia"}"""), Preset("real@acme.test", """{"city":"Ruse"}""")]);
@@ -140,7 +141,7 @@ public sealed class PresetReconcilerTests
     public void Plan_ValueOfTheWrongType_IsRefusedNamingTheParticipant()
     {
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties, NoneOnForm, [Preset("maria@acme.test", """{"seats":"many"}""")]);
 
         // Assert
@@ -153,7 +154,7 @@ public sealed class PresetReconcilerTests
     public void Plan_ValueLongerThanACell_IsRefusedBeforeAnyWrite()
     {
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties,
             NoneOnForm,
             [Preset("maria@acme.test", $$"""{"city":"{{new string('a', PropertyValue.VALUE_MAX_LENGTH + 1)}}"}""")]);
@@ -168,7 +169,7 @@ public sealed class PresetReconcilerTests
     public void Plan_SameParticipantTwice_IsRefused()
     {
         // Act
-        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+        Result<IReadOnlyList<PresetWrite>> plan = Plan(
             Properties,
             NoneOnForm,
             [Preset("maria@acme.test", "{}"), Preset("MARIA@acme.test", "{}")]);
@@ -178,6 +179,61 @@ public sealed class PresetReconcilerTests
         plan.ValidationErrors.Select(error => error.ErrorMessage)
             .Should().Equal("Each participant can appear once: 'MARIA@acme.test'.");
     }
+
+    [Fact]
+    public void Plan_MatchKeyPropertyChanged_RefusesTheRequestNamingTheProperty()
+    {
+        // Arrange
+        Dictionary<string, OnForm> onForm = new()
+        {
+            ["maria@acme.test"] = new OnForm(7, IsTest: true, new Dictionary<long, string> { [Email.Id] = "maria@acme.test" }),
+        };
+
+        // Act
+        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+            WithEmail(onForm), [Preset("maria@acme.test", """{"email":"other@acme.test"}""")]);
+
+        // Assert
+        plan.Status.Should().Be(ResultStatus.Invalid);
+        plan.ValidationErrors.Select(error => error.ErrorMessage)
+            .Should().Equal("maria@acme.test: Email is the participant identifier and cannot be changed.");
+    }
+
+    [Fact]
+    public void Plan_MatchKeyPropertyHoldingTheIdentifierOrNothing_IsNeverWritten()
+    {
+        // Arrange
+        Dictionary<string, OnForm> onForm = new()
+        {
+            ["maria@acme.test"] = new OnForm(7, IsTest: true, new Dictionary<long, string> { [Email.Id] = "maria@acme.test" }),
+        };
+
+        // Act
+        Result<IReadOnlyList<PresetWrite>> plan = PresetReconciler.Plan(
+            WithEmail(onForm),
+            [
+                Preset("maria@acme.test", """{"email":"maria@acme.test","city":"Ruse"}"""),
+                Preset("new@acme.test", """{"email":"new@acme.test"}"""),
+                Preset("blank@acme.test", """{"city":"Varna"}"""),
+            ]);
+
+        // Assert
+        plan.Value.Select(write => (write.Identifier, write.Values.Keys.ToList())).Should().BeEquivalentTo(
+            [("maria@acme.test", new List<long> { City.Id }), ("new@acme.test", []), ("blank@acme.test", new List<long> { City.Id })]);
+    }
+
+    private static readonly Property Email = PropertyOf(3, "Email", AudienceDataTypeCodes.Text);
+
+    /// <summary>City, Seats and Email, the form's match-key Property.</summary>
+    private static KeyedAudience WithEmail(IReadOnlyDictionary<string, OnForm> onForm) =>
+        new([City, Seats, Email], onForm, new Dictionary<string, string>(), new MatchKey(Email.Id, Email.Name));
+
+    /// <summary>A form with no match-key Property.</summary>
+    private static Result<IReadOnlyList<PresetWrite>> Plan(
+        IReadOnlyList<Property> properties,
+        IReadOnlyDictionary<string, OnForm> onForm,
+        IReadOnlyList<PresetEdit> presets) =>
+        PresetReconciler.Plan(new KeyedAudience(properties, onForm, new Dictionary<string, string>(), null), presets);
 
     private static readonly IReadOnlyDictionary<string, OnForm> NoneOnForm = new Dictionary<string, OnForm>();
 

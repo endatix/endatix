@@ -44,31 +44,23 @@ internal static class SnapshotCells
             .ToList();
     }
 
-    /// <summary>
-    /// Two indexed reads: the membership's form and identifier, then the Property. A participant removed meanwhile gets
-    /// none here; the open finds them gone anyway.
-    /// </summary>
+    /// <summary>One indexed read: the Property; the caller already holds the participant's form and identifier.</summary>
     private static async Task<SnapshotCell?> MatchKeyCellAsync(
         IAudienceDbContext db,
         SnapshotMembership membership,
         CancellationToken cancellationToken)
     {
-        var participant = await FormParticipants
-            .Of(db, db.Memberships.AsNoTracking().Where(row =>
-                row.TenantId == membership.TenantId && row.Id == membership.MembershipId))
-            .Select(row => new { row.Membership.FormId, row.Member.Identifier })
+        var property = await MatchKeyProperty.Of(db, membership.TenantId, membership.FormId)
+            .Select(property => new { property.Id, property.VariableName, property.Name, property.DataType })
             .FirstOrDefaultAsync(cancellationToken);
-        var property = participant is null
-            ? null
-            : await MatchKeyProperty.Of(db, membership.TenantId, participant.FormId)
-                .Select(property => new { property.Id, property.VariableName, property.Name, property.DataType })
-                .FirstOrDefaultAsync(cancellationToken);
         return property is null
             ? null
-            : new SnapshotCell(
-                property.Id, property.VariableName, property.Name, property.DataType, participant!.Identifier);
+            : new SnapshotCell(property.Id, property.VariableName, property.Name, property.DataType, membership.Identifier);
     }
 }
 
-/// <summary>The membership whose cells a snapshot reads, with the tenant that owns it.</summary>
-internal readonly record struct SnapshotMembership(long TenantId, long MembershipId);
+/// <summary>
+/// The membership whose cells a snapshot reads, with the tenant that owns it, its form, and the participant's
+/// identifier, which the match-key Property holds.
+/// </summary>
+internal readonly record struct SnapshotMembership(long TenantId, long MembershipId, long FormId, string Identifier);

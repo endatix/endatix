@@ -92,7 +92,11 @@ internal sealed class TestSubmissionOpener(
     {
         var cells = await SnapshotCells.LoadAsync(
             db,
-            new SnapshotMembership(opening.Subject.TenantId, opening.Subject.MembershipId),
+            new SnapshotMembership(
+                opening.Subject.TenantId,
+                opening.Subject.MembershipId,
+                opening.Subject.FormId,
+                opening.Subject.Identifier),
             cancellationToken);
         return await PrepareAsync(opening, cells, cancellationToken);
     }

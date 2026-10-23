@@ -7,7 +7,7 @@ namespace Endatix.Modules.Audience.Features.People;
 /// <summary>
 /// Participants' values, read one way for the people list, the participant panel and Preview as: their live cells
 /// (current Properties only) by property id, with the <see cref="MatchKeyProperty"/> filled from their identifier.
-/// Two statements: the cells, then the match-key Property.
+/// One statement: the caller names the match-key Property, which it reads with what it reads anyway.
 /// </summary>
 internal static class ParticipantValues
 {
@@ -18,13 +18,12 @@ internal static class ParticipantValues
         CancellationToken cancellationToken)
     {
         Dictionary<long, Dictionary<long, string>> values = await CellsAsync(db, which, cancellationToken);
-        long? matchKey = await MatchKeyProperty.IdAsync(db, new(which.TenantId, which.FormId), cancellationToken);
-        if (matchKey is long propertyId)
+        if (which.MatchKey is not null)
         {
             foreach ((long membershipId, string identifier) in which.Identifiers)
             {
-                values.TryAdd(membershipId, []);
-                values[membershipId][propertyId] = identifier;
+                values[membershipId] = MatchKeyProperty.Shown(
+                    values.GetValueOrDefault(membershipId) ?? [], which.MatchKey, identifier);
             }
         }
 
@@ -55,10 +54,13 @@ internal static class ParticipantValues
     }
 }
 
-/// <summary>The participants of one form whose values to read, by membership id, with their identifiers.</summary>
-internal sealed record ParticipantCells(long TenantId, long FormId, IReadOnlyDictionary<long, string> Identifiers)
+/// <summary>
+/// The participants of one form whose values to read, by membership id, with their identifiers, and the form's
+/// match-key Property (<see langword="null"/> when it has none).
+/// </summary>
+internal sealed record ParticipantCells(long TenantId, MatchKey? MatchKey, IReadOnlyDictionary<long, string> Identifiers)
 {
     /// <summary>One participant.</summary>
-    public static ParticipantCells Of(Membership membership, string identifier) =>
-        new(membership.TenantId, membership.FormId, new Dictionary<long, string> { [membership.Id] = identifier });
+    public static ParticipantCells Of(Membership membership, MatchKey? matchKey, string identifier) =>
+        new(membership.TenantId, matchKey, new Dictionary<long, string> { [membership.Id] = identifier });
 }
