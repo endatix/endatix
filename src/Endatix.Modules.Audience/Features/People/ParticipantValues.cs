@@ -43,7 +43,7 @@ internal static class ParticipantValues
         CancellationToken cancellationToken)
     {
         var cells = await PropertyValuesWriter
-            .ActiveCells(db, which.TenantId, which.Identifiers.Keys.ToList())
+            .ActiveCells(db, new(which.TenantId, which.Identifiers.Keys.ToList(), which.PropertyIds))
             .Select(cell => new { cell.MembershipId, cell.PropertyId, cell.Value })
             .ToListAsync(cancellationToken);
         return cells
@@ -55,12 +55,30 @@ internal static class ParticipantValues
 }
 
 /// <summary>
-/// The participants of one form whose values to read, by membership id, with their identifiers, and the form's
-/// match-key Property (<see langword="null"/> when it has none).
+/// The participants of one form whose values to read, by membership id, with their identifiers; the form's match-key
+/// Property (<see langword="null"/> when it has none) and its live Properties' ids, both read by the caller.
 /// </summary>
-internal sealed record ParticipantCells(long TenantId, MatchKey? MatchKey, IReadOnlyDictionary<long, string> Identifiers)
+internal sealed record ParticipantCells(
+    long TenantId,
+    MatchKey? MatchKey,
+    IReadOnlyDictionary<long, string> Identifiers,
+    IReadOnlyCollection<long> PropertyIds)
 {
     /// <summary>One participant.</summary>
-    public static ParticipantCells Of(Membership membership, MatchKey? matchKey, string identifier) =>
-        new(membership.TenantId, matchKey, new Dictionary<long, string> { [membership.Id] = identifier });
+    public static ParticipantCells Of(ParticipantOnForm participant, IReadOnlyCollection<long> propertyIds) =>
+        new(
+            participant.Membership.TenantId,
+            participant.MatchKey,
+            new Dictionary<long, string> { [participant.Membership.Id] = participant.Identifier },
+            propertyIds);
+
+    /// <summary>The live Properties' ids of a form. One statement.</summary>
+    public static Task<List<long>> PropertyIdsAsync(
+        IAudienceDbContext db,
+        MatchKeyForm form,
+        CancellationToken cancellationToken) =>
+        db.Properties
+            .Where(property => property.TenantId == form.TenantId && property.FormId == form.FormId)
+            .Select(property => property.Id)
+            .ToListAsync(cancellationToken);
 }

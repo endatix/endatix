@@ -42,8 +42,10 @@ internal sealed class ParticipantReader(IAudienceDbContext db, LinkStatuses link
     public async Task<PersonDto> ReadAsync(ParticipantOnForm participant, CancellationToken cancellationToken)
     {
         Membership membership = participant.Membership;
+        List<long> propertyIds = await ParticipantCells.PropertyIdsAsync(
+            db, new(membership.TenantId, membership.FormId), cancellationToken);
         Dictionary<long, string> values = await ParticipantValues.ReadOneAsync(
-            db, ParticipantCells.Of(membership, participant.MatchKey, participant.Identifier), cancellationToken);
+            db, ParticipantCells.Of(participant, propertyIds), cancellationToken);
         IReadOnlyDictionary<long, LinkStatusDto> links = await linkStatuses.ForAsync([membership.Id], cancellationToken);
         return new PersonDto(
             membership.Id, membership.MemberId, participant.Identifier, values, membership.IsTest, links[membership.Id]);

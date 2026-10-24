@@ -56,7 +56,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         MatchKey? matchKey = await MatchKeyProperty.FindAsync(db, new(key.TenantId, key.FormId), cancellationToken);
         return new FormAudience(
             properties,
-            await FirstParticipantsAsync(new ValuesScope(key, matchKey), savedKeys, cancellationToken),
+            await FirstParticipantsAsync(
+                new ValuesScope(key, matchKey, IdsOf(properties)), savedKeys, cancellationToken),
             participants,
             MatchKeyProperty.Filled(filled, matchKey, (participants.Test, participants.Real)));
     }
@@ -90,8 +91,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
 
     /// <summary>
     /// One participant on the form by audience member id with the form's Properties, or <see langword="null"/> when
-    /// they are not on it or were removed. Four statements: the participant, the match-key Property, their cells, the
-    /// Properties; one when they are not on the form.
+    /// they are not on it or were removed. Four statements: the participant, the match-key Property, the Properties,
+    /// their cells; one when they are not on the form.
     /// </summary>
     public async Task<ParticipantAudience?> ReadOneAsync(
         FormKey key,
@@ -107,8 +108,10 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         }
 
         MatchKey? matchKey = await MatchKeyProperty.FindAsync(db, new(key.TenantId, key.FormId), cancellationToken);
-        List<PresetSource> participant = await PresetsAsync(new ValuesScope(key, matchKey), named, cancellationToken);
-        return new ParticipantAudience(await PropertiesAsync(key, cancellationToken), participant[0]);
+        List<Property> properties = await PropertiesAsync(key, cancellationToken);
+        List<PresetSource> participant = await PresetsAsync(
+            new ValuesScope(key, matchKey, IdsOf(properties)), named, cancellationToken);
+        return new ParticipantAudience(properties, participant[0]);
     }
 
     /// <summary>
@@ -129,7 +132,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
 
         Dictionary<string, string> keys = KeysOf(identifiers, identifierKind);
         List<Property> properties = await PropertiesAsync(key, cancellationToken);
-        ValuesScope scope = new(key, MatchKeyProperty.In(properties, identifierKind));
+        ValuesScope scope = new(key, MatchKeyProperty.In(properties, identifierKind), IdsOf(properties));
         return new KeyedAudience(
             properties, await OnFormAsync(scope, keys.Values.ToHashSet(), cancellationToken), keys, scope.MatchKey);
     }
@@ -158,6 +161,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
                 participant.IsTest,
                 values.GetValueOrDefault(participant.MembershipId) ?? []));
     }
+
+    private static List<long> IdsOf(List<Property> properties) => properties.ConvertAll(property => property.Id);
 
     private Task<List<Property>> PropertiesAsync(FormKey key, CancellationToken cancellationToken) =>
         db.Properties.AsNoTracking()
@@ -191,8 +196,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     /// this replaced let PostgreSQL loop the form's memberships over <c>IX_PropertyValues_Property</c>, a scan of every
     /// cell per participant, and time out at 5,000 × 50 when its statistics were off (CI). Now the first reads one index
     /// range per Property and the second reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
-    /// The first filters by the live Property ids just read, which is what <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, long, IReadOnlyCollection{long})"/>
-    /// tests with an EXISTS. The second reads the Test participants' cells by their ids, with no Property predicate
+    /// The first filters by the live Property ids just read, as
+    /// <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, ActiveCellsKey)"/> does. The second reads the Test participants' cells by their ids, with no Property predicate
     /// (<see cref="CountTestCellsAsync"/>); a deleted Property's cells it counts are dropped here, since only the live
     /// ids are read back. The statements share no snapshot, so a person added or removed between them could push a
     /// count past the participants or below zero; each count is clamped to <c>0..participants</c>.
@@ -203,7 +208,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         ParticipantCounts participants,
         CancellationToken cancellationToken)
     {
-        List<long> propertyIds = properties.ConvertAll(property => property.Id);
+        List<long> propertyIds = IdsOf(properties);
         Dictionary<long, int> all = await CountByPropertyAsync(
             db.PropertyValues.Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId)),
             cancellationToken);
@@ -299,13 +304,17 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
             new ParticipantCells(
                 scope.Key.TenantId,
                 scope.MatchKey,
-                participants.ToDictionary(participant => participant.MembershipId, participant => participant.Identifier)),
+                participants.ToDictionary(participant => participant.MembershipId, participant => participant.Identifier),
+                scope.PropertyIds),
             cancellationToken);
 
     private sealed record NamedMembership(long MembershipId, string Identifier, bool IsTest);
 
-    /// <summary>The form whose values are read, and its match-key Property, which they show the identifier in.</summary>
-    private sealed record ValuesScope(FormKey Key, MatchKey? MatchKey);
+    /// <summary>
+    /// The form whose values are read, its match-key Property, which they show the identifier in, and its live
+    /// Properties' ids, which the cells are read for.
+    /// </summary>
+    private sealed record ValuesScope(FormKey Key, MatchKey? MatchKey, IReadOnlyCollection<long> PropertyIds);
 
     private sealed record KeyedMembership(long MembershipId, bool IsTest, string Key, string Identifier);
 }

@@ -58,20 +58,16 @@ internal static class PropertyValuesWriter
         PropertyValue.ValueError(value) ?? property.ValueError(value);
 
     /// <summary>
-    /// Cells of the given memberships whose property is still active. A cell written while its
-    /// property was being deleted stays out of every read. The tenant is stated so SQL Server can
-    /// seek the tenant-first cell index.
+    /// Cells of the given memberships for the given live Properties, which the caller has read: a cell written while
+    /// its property was being deleted stays out of every read. One table and both keys of <c>IX_PropertyValues_Cell</c>,
+    /// so the only plan is a seek per membership. An <c>EXISTS</c> on Properties here let both providers drive from the
+    /// Properties and scan every cell of the tenant, or the whole table on SQL Server, for 20 participants (#1376).
     /// </summary>
-    public static IQueryable<PropertyValue> ActiveCells(
-        IAudienceDbContext db,
-        long tenantId,
-        IReadOnlyCollection<long> membershipIds) =>
-        ActiveCells(db, tenantId).Where(value => membershipIds.Contains(value.MembershipId));
-
-    private static IQueryable<PropertyValue> ActiveCells(IAudienceDbContext db, long tenantId) =>
+    public static IQueryable<PropertyValue> ActiveCells(IAudienceDbContext db, ActiveCellsKey key) =>
         db.PropertyValues.AsNoTracking().Where(value =>
-            value.TenantId == tenantId
-            && db.Properties.Any(property => property.Id == value.PropertyId));
+            value.TenantId == key.TenantId
+            && key.MembershipIds.Contains(value.MembershipId)
+            && key.PropertyIds.Contains(value.PropertyId));
 
     /// <summary>
     /// Stages value cells for a membership that has none yet. Empty values add nothing. Does not save.
@@ -144,6 +140,12 @@ internal static class PropertyValuesWriter
         }
     }
 }
+
+/// <summary>The memberships whose cells to read, and the form's live Properties to read them for.</summary>
+internal sealed record ActiveCellsKey(
+    long TenantId,
+    IReadOnlyCollection<long> MembershipIds,
+    IReadOnlyCollection<long> PropertyIds);
 
 /// <summary>
 /// Inputs for validating property values against a form's properties.
