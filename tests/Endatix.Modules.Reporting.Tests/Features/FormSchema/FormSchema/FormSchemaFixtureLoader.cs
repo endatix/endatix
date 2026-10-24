@@ -16,6 +16,9 @@ internal static class FormSchemaFixtureLoader
     internal static string SourcePersonalizationFixturesRoot =>
         Path.Combine(SourceFixturesRoot, "Personalization");
 
+    internal static string SourceSubmitterProfileFixturesRoot =>
+        Path.Combine(SourceFixturesRoot, "SubmitterProfile");
+
     internal static JsonElement LoadPersonalization(string fixtureName) =>
         LoadJson(Path.Combine("Personalization", fixtureName));
 

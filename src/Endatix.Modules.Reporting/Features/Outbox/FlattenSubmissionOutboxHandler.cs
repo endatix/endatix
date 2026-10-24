@@ -23,6 +23,13 @@ internal sealed class FlattenSubmissionOutboxHandler(
     public static IReadOnlyCollection<string> HandledEventTypes { get; } =
         [SubmissionCompletedEvent.EventTypeName, SubmissionUpdatedEvent.EventTypeName];
 
+    // A flattened row holds the submission's data and its submitter profile fields, so a submitter change flattens it
+    // again too. Core's data mask leaves the submitter out on purpose: its name describes the answers. A mark as real
+    // must bring back the row a schema replace may have cleared while the submission was a test; flattening is
+    // idempotent, so a mark as test flattens too.
+    private const SubmissionChangeKinds FlattenedChanges =
+        SubmissionChangeKindsMasks.SubmissionData | SubmissionChangeKinds.Submitter | SubmissionChangeKinds.Test;
+
     /// <inheritdoc />
     public OutboxWork Read(IOutboxMessage message) =>
         OutboxWork.If(Parse(message, logger), ProcessAsync);
@@ -61,15 +68,13 @@ internal sealed class FlattenSubmissionOutboxHandler(
         var changeKindWireValue = JsonElementReader.TryGetString(payload, "changeKind");
         var changeKind = SubmissionChangeKindsExtensions.ParseWireValue(changeKindWireValue);
 
-        // A mark as real must bring back the row a schema replace may have cleared while the submission was a test.
-        // Flattening is idempotent, so a mark as test flattens too.
-        if (changeKind.AffectsSubmissionData() || changeKind.HasFlag(SubmissionChangeKinds.Test))
+        if ((changeKind & FlattenedChanges) != SubmissionChangeKinds.None)
         {
             return false;
         }
 
         logger.LogDebug(
-            "Skipping submission flatten for outbox message {OutboxMessageId}: changeKind '{ChangeKind}' does not affect submission data",
+            "Skipping submission flatten for outbox message {OutboxMessageId}: changeKind '{ChangeKind}' does not affect flattened data",
             message.Id,
             changeKindWireValue ?? string.Empty);
 
