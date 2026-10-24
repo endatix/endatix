@@ -267,7 +267,7 @@ public sealed partial class AudienceDirectoryFlowTests
         await using var scope = world.Services.CreateAsyncScope();
         var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
         var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
-            .BeginEditAsync(holder, ada.MembershipId, admin.CancellationToken);
+            .BeginEditAsync(holder, new(formId, ada.MembershipId), admin.CancellationToken);
         Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
         await using var heldTransaction = held.Value;
         await using var second = world.Services.CreateAsyncScope();
@@ -278,7 +278,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
-        Assert.Equal([MembershipLock.Busy], removed.Errors); // the stripe is free, so the participant's lock refuses
+        Assert.Equal([MembershipLock.FormBusy], removed.Errors); // the edit holds the person's stripe, which refuses first
     }
 
     [Theory]
