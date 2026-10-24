@@ -48,6 +48,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         builder.Services.AddScoped<LinkOpenGates>();
         builder.Services.AddScoped<LinkStatuses>();
         builder.Services.AddScoped<ParticipantReader>();
+        builder.Services.AddScoped<LockedValuesWriter>();
         builder.Services.AddScoped<TestSubjects>();
         builder.Services.AddScoped<TestSubmissionOpener>();
         builder.Services.AddScoped<TestSubmissionWriter>();
@@ -69,6 +70,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         // provider; the base registration is the one line that names it.
         builder.Services.AddScoped<IAudienceDbContext>(sp => sp.GetRequiredService<AudienceDbContextBase>());
         builder.Services.AddSingleton<MatchKeyLock>();
+        builder.Services.AddSingleton<MembershipLock>();
     }
 
     private static void AddContext<TContext>(EndatixModuleBuilder builder)

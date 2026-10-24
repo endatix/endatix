@@ -22,6 +22,10 @@ public sealed class ImportCsv(
 {
     private const string DefaultFileName = "audience.csv";
 
+    private const string ImportDescription = "Imports up to 5,000 people synchronously, with column mapping and " +
+        "variable__choice multi-choice columns; partial success returns counts. With isTest, people new to " +
+        "this form are added as test persons, and people already on it get no writes and count as skipped.";
+
     public override void Configure()
     {
         Post("forms/{formId}/audience/import");
@@ -29,17 +33,17 @@ public sealed class ImportCsv(
         Summary(summary =>
         {
             summary.Summary = "Import audience CSV";
-            summary.Description = "Imports up to 5,000 people synchronously, with column mapping and " +
-                "variable__choice multi-choice columns; partial success returns counts. With isTest, people new to " +
-                "this form are added as test persons, and people already on it get no writes and count as skipped.";
+            summary.Description = ImportDescription;
             summary.Responses[200] = "Import finished (may include rejections).";
             summary.Responses[400] = "Invalid CSV or mapping.";
             summary.Responses[404] = "Form not found.";
+            summary.Responses[503] = "The form's people are being imported or changed; try again shortly.";
         });
         Description(builder => builder
             .Produces<AudienceImportResponse>(200, "application/json")
             .ProducesProblem(400)
-            .ProducesProblem(404));
+            .ProducesProblem(404)
+            .ProducesProblem(503));
     }
 
     public override async Task<Results<Ok<AudienceImportResponse>, ProblemHttpResult>> ExecuteAsync(

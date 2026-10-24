@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -21,10 +20,14 @@ public sealed record UpdatePersonCommand(
 internal sealed class UpdatePersonHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    IUniqueConstraintViolationChecker violations,
+    LockedValuesWriter valuesWriter,
     ParticipantReader participantReader)
     : ICommandHandler<UpdatePersonCommand, Result<PersonDto>>
 {
+    /// <summary>
+    /// The form, the membership and the values are checked before the lock; the write re-reads the membership under
+    /// it, so an edit racing the participant's removal is not found instead of leaving a live value behind.
+    /// </summary>
     public async Task<Result<PersonDto>> Handle(
         UpdatePersonCommand request,
         CancellationToken cancellationToken)
@@ -36,44 +39,13 @@ internal sealed class UpdatePersonHandler(
         }
 
         ParticipantOnForm participant = loaded.Value;
-        await UpsertWithRetryAsync(
-            request with { Values = MatchKeyProperty.Stored(request.Values, participant.MatchKey) },
-            participant.Membership,
-            cancellationToken);
-        return await participantReader.ReadAsync(participant, cancellationToken);
-    }
-
-    /// <summary>
-    /// A parallel update can add the same cell first. It is committed by the time the index
-    /// refuses this one, so a second pass finds it and overwrites it instead of inserting.
-    /// </summary>
-    private async Task UpsertWithRetryAsync(
-        UpdatePersonCommand request,
-        Membership membership,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await UpsertAsync(request, membership, cancellationToken);
-        }
-        catch (DbUpdateException ex) when (violations.IsViolationOf(
-            ex,
-            PropertyValue.UniqueConstraints.CellPerMembership))
-        {
-            ((DbContext)db).ChangeTracker.Clear();
-            await UpsertAsync(request, membership, cancellationToken);
-        }
-    }
-
-    private async Task UpsertAsync(
-        UpdatePersonCommand request,
-        Membership membership,
-        CancellationToken cancellationToken)
-    {
-        await PropertyValuesWriter.UpsertAsync(
-            new PropertyValueWrite(db, request.TenantId, membership.Id, request.Values),
-            cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
+        ValuesEdit edit = new(
+            request.TenantId, request.FormId, participant.Membership.Id,
+            MatchKeyProperty.Stored(request.Values, participant.MatchKey));
+        IResult? failure = await valuesWriter.WriteAsync(edit, cancellationToken);
+        return failure is null
+            ? await participantReader.ReadAsync(participant, cancellationToken)
+            : failure.ToErrorResult<PersonDto>();
     }
 
     /// <summary>

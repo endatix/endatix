@@ -90,8 +90,19 @@ and redeem, which is anonymous.
 - **Concurrency.** Person creates and imports take a shared tenant lock; a match-key change takes it
   exclusively. The lock is `ITransactionLock` (scope `AudienceMatchKey`, key the tenant id), held until the
   transaction ends. The unique indexes settle create races (a second pass reuses the member; a duplicate
-  on one form is a 409). The identifier is checked against the key read under the lock. Two
-  updates adding the same cell: the second pass overwrites. Cells are written in property-id order. The people
+  on one form is a 409). The identifier is checked against the key read under the lock. An edit of a person's
+  values and their removal both take the person's lock (`MembershipLock`: scope `AudienceMembership`, key the
+  membership id, exclusive) as their transaction's first statement and read the membership again under it: an edit
+  that waited for a removal is a 404, and a removal that waited for an edit soft-deletes the cells it wrote, so a
+  removed person never keeps a live value (endatix#1361). The CSV import writes values of people already on the form
+  in one transaction, so it takes the form's lock instead (scope `AudienceFormPeople`, key the form id) exclusively,
+  after the tenant lock and before it reads the form's people; a removal shares it, before the person's lock. A
+  removal that waited for an import soft-deletes the cells it wrote, and an import that waited for a removal adds the
+  person again. An edit takes no form lock, so it runs during an import; an edit that loses a cell race to the import
+  takes a second locked pass, which overwrites. Every wait is 5 s, then 503, with the message of the lock that
+  waited: "This participant is being changed." for the person's, "People on this form are being imported or changed."
+  for the form's (a removal behind an import, or an import behind a removal or another import). On PostgreSQL two keys of one scope can
+  share a `hashtext` lock, so unrelated people or forms then wait for each other, within that bound. Cells are written in property-id order. The people
   list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
   person added in between makes the page longer than the count, the total is raised to cover the rows shown.
 - **Test persons.** A test person is on one form only for testing: never issued a personalised link, and shown with
@@ -101,7 +112,9 @@ and redeem, which is anonymous.
   the form (neither its flag nor its values), so real people's data stays as it was. A test person locks the match key
   like any other person. Removing a test person removes only that membership.
 - **Deletes.** Removing a person deletes the membership and its cells; the member stays. Deleting a
-  property soft-deletes its cells in one statement. Reads skip cells of deleted properties.
+  property soft-deletes its cells in one statement. Reads skip cells of deleted properties. These take no participant lock: an
+  edit in flight can still write a cell after them, and it stays out of every read with its Property (a form's
+  deletion deletes its Properties too).
 - **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships
   and properties; tenant members stay. Until it runs, the form's people still count toward the
   match-key lock.
