@@ -143,8 +143,10 @@ public sealed partial class AudienceDirectoryFlowTests
     {
         await using var scope = world.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var membership = await db.Memberships.IgnoreQueryFilters()
+            .SingleAsync(row => row.Id == membershipId, TestContext.Current.CancellationToken);
         db.PropertyValues.AddRange(values.Select(cell => new PropertyValue(
-            new PropertyValueCreateArgs(world.Tenants[0].Id, membershipId, cell.Key, cell.Value))));
+            PropertyValueCreateArgs.For(membership, cell.Key, cell.Value))));
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 }
