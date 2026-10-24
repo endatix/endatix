@@ -34,7 +34,7 @@ namespace Endatix.Modules.Audience.Persistence;
 /// </remarks>
 internal sealed class MembershipLock(ITransactionLock transactionLock)
 {
-    /// <summary>What an edit or a removal answers when another writer of the participant held their lock too long.</summary>
+    /// <summary>What a waiter answers when the participant lock stayed held and its stripe was already free.</summary>
     internal const string Busy = "This participant is being changed. Try again.";
 
     /// <summary>
@@ -76,8 +76,8 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
 
     /// <summary>
     /// A transaction holding the participant's stripe of the form's people lock and then the participant's lock, for
-    /// their removal; 503 when an import of the form, another removal on the stripe or another writer of the
-    /// participant holds it, with the message of the lock that waited.
+    /// their removal. A same-version edit or removal waits on the stripe, so the 503 is <see cref="FormBusy"/>: an
+    /// import of the form, or another edit or removal on that stripe.
     /// </summary>
     public Task<Result<IDbContextTransaction>> BeginRemovalAsync(
         IAudienceDbContext db,
@@ -87,7 +87,7 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
 
     /// <summary>
     /// Every stripe of the form's people lock shared, in the import's transaction, after its
-    /// <see cref="MatchKeyLock"/>: the failure (503 while a removal on the form holds a stripe past
+    /// <see cref="MatchKeyLock"/>: the failure (503 while an edit or a removal on the form holds a stripe past
     /// <see cref="Wait"/>), or <see langword="null"/> once all are held. Other imports of the form hold them too.
     /// </summary>
     public async Task<IResult?> AcquireImportAsync(

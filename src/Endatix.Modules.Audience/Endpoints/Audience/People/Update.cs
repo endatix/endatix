@@ -28,7 +28,7 @@ public sealed class Update(
             summary.Description = "Updates property values for a person on this form.";
             summary.Responses[200] = "Person updated.";
             summary.Responses[404] = "Form or membership not found.";
-            summary.Responses[503] = "The person is being changed by another request; try again shortly.";
+            summary.Responses[503] = "People on this form are being imported or changed, or this person is being changed; try again shortly.";
         });
         Description(builder => builder
             .Produces<AudiencePersonResponse>(200, "application/json")

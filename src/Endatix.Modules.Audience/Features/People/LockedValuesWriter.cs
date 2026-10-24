@@ -20,10 +20,10 @@ internal sealed class LockedValuesWriter(
 {
     /// <summary>
     /// The failure, or <see langword="null"/> once the values are written: 404 when the participant was removed before
-    /// the locks were taken, 503 when one stayed held (<see cref="MembershipLock.FormBusy"/> behind an import of the
-    /// form, <see cref="MembershipLock.Busy"/> behind another writer of the participant). A writer that skips the locks
-    /// can add the same cell first; it is committed by the time the index refuses this one, so a second locked pass
-    /// finds it and overwrites it, in a new transaction.
+    /// the locks were taken, 503 when one stayed held. A same-version edit or removal times out on the form's stripe
+    /// (<see cref="MembershipLock.FormBusy"/>). <see cref="MembershipLock.Busy"/> is the participant lock, reached only
+    /// when that stripe is already free. A writer that skips the locks can add the same cell first; it is committed by
+    /// the time the index refuses this one, so a second locked pass finds it and overwrites it, in a new transaction.
     /// </summary>
     public async Task<IResult?> WriteAsync(ValuesEdit edit, CancellationToken cancellationToken)
     {
