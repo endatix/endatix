@@ -24,10 +24,10 @@ namespace Endatix.IntegrationTests;
 public sealed partial class AudienceDirectoryFlowTests
 {
     /// <summary>
-    /// How soon a request that finds its lock held answers, the host's <see cref="MembershipLock.DefaultWait"/> with room
-    /// for a slow run; well under the 30 s command timeout that bounds a wait on a row or an index.
+    /// How soon a request that finds its lock held answers: three times the host's <see cref="MembershipLock.DefaultWait"/>,
+    /// room for a slow run. The limit separates "the lock wait answered" from "hung until the 30 s command timeout".
     /// </summary>
-    private static readonly TimeSpan BusyAnswer = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan BusyAnswer = MembershipLock.DefaultWait * 3;
 
     [Fact]
     public async Task Editing_a_participant_while_an_import_holds_their_uncommitted_value_answers_503_with_the_form_busy_detail_within_the_wait()
