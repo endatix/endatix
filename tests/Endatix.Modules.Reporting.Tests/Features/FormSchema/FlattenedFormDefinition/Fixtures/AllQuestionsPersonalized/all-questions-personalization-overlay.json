@@ -1,13 +1,13 @@
 {
-  "$comment": "Personalization on top of AllQuestions/all-questions-definition.json. Edit this file, then run the regenerate test in AllQuestionsPersonalizedTests to rewrite all-questions-personalized-definition.json, all-questions-personalized-variable-presets.json and the expected files. variablePresets declares the audience variables the way Hub passes the Audience Properties to Survey Creator, in the shape the Audience variables read returns: definition has one question per variable, typed by its Property's data type, and presets holds placeholder Test participants. Load all-questions-personalized-variable-presets.json as the designer's variablePresets. Every {variable} the bindings and addElements read must be declared there, and no question or calculated value may share a variable's name; AllQuestionsPersonalizedTests checks both. bindings set or replace properties of an existing question, found by name anywhere in the survey; addElements are appended to the first page.",
+  "$comment": "Personalization on top of AllQuestions/all-questions-definition.json. Edit this file, then run the regenerate test in AllQuestionsPersonalizedTests to rewrite all-questions-personalized-definition.json, all-questions-personalized-variable-presets.json and the expected files. variablePresets declares the audience variables the overlay reads as Survey Creator variable presets ({definition, presets}), typed as the Audience variables read types them (Endatix.Modules.Audience VariableDefinition and PresetBuilder) and in the audience's Property order: definition has one question per variable, and presets holds placeholder Test participants. It stays out of the composed definition; load all-questions-personalized-variable-presets.json as the designer's variablePresets. Every {name} the bindings and addElements read must be a question or a declared variable, no question or calculated value may share a variable's name, and every preset value must fit its variable; AllQuestionsPersonalizedTests checks all three. bindings set or replace properties of an existing question, found by name anywhere in the survey; addElements are appended to the first page.",
   "variablePresets": {
     "definition": {
       "elements": [
         { "type": "text", "name": "full_name", "title": "Full name" },
         { "type": "text", "name": "age", "title": "Age", "inputType": "number" },
-        { "type": "text", "name": "joined", "title": "Joined", "inputType": "date" },
-        { "type": "boolean", "name": "panel_member", "title": "Panel member" },
         { "type": "text", "name": "hometown", "title": "Hometown" },
+        { "type": "boolean", "name": "panel_member", "title": "Panel member" },
+        { "type": "text", "name": "joined", "title": "Joined", "inputType": "date" },
         { "type": "text", "name": "last_seen", "title": "Last seen" }
       ]
     },
@@ -17,9 +17,9 @@
         "variables": {
           "full_name": "ACME Tester One",
           "age": 42,
-          "joined": "2024-01-15",
-          "panel_member": true,
           "hometown": "ACME City",
+          "panel_member": true,
+          "joined": "2024-01-15",
           "last_seen": "2026-10-01T09:30:00Z"
         },
         "description": "Test participant"
@@ -28,8 +28,8 @@
         "name": "ACME-TEST-02",
         "variables": {
           "age": 17,
-          "panel_member": false,
-          "hometown": "ACME Town"
+          "hometown": "ACME Town",
+          "panel_member": false
         },
         "description": "Test participant"
       }

@@ -14,9 +14,8 @@
       },
       {
         "type": "text",
-        "name": "joined",
-        "title": "Joined",
-        "inputType": "date"
+        "name": "hometown",
+        "title": "Hometown"
       },
       {
         "type": "boolean",
@@ -25,8 +24,9 @@
       },
       {
         "type": "text",
-        "name": "hometown",
-        "title": "Hometown"
+        "name": "joined",
+        "title": "Joined",
+        "inputType": "date"
       },
       {
         "type": "text",
@@ -41,9 +41,9 @@
       "variables": {
         "full_name": "ACME Tester One",
         "age": 42,
-        "joined": "2024-01-15",
-        "panel_member": true,
         "hometown": "ACME City",
+        "panel_member": true,
+        "joined": "2024-01-15",
         "last_seen": "2026-10-01T09:30:00Z"
       },
       "description": "Test participant"
@@ -52,8 +52,8 @@
       "name": "ACME-TEST-02",
       "variables": {
         "age": 17,
-        "panel_member": false,
-        "hometown": "ACME Town"
+        "hometown": "ACME Town",
+        "panel_member": false
       },
       "description": "Test participant"
     }

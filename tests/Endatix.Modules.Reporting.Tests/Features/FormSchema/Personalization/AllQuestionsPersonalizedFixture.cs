@@ -47,28 +47,46 @@ internal static partial class AllQuestionsPersonalizedFixture
     /// <summary>The overlay's <c>variablePresets</c>: the variables it reads, as Survey Creator takes them.</summary>
     public static JsonObject VariablePresets() => Overlay()["variablePresets"]!.AsObject();
 
-    /// <summary>The variables <see cref="VariablePresets"/> declares, ignoring case as SurveyJS does.</summary>
-    public static HashSet<string> VariableNames() =>
+    /// <summary>
+    /// The variables <see cref="VariablePresets"/> declares, ignoring case as SurveyJS does, each with the JSON kind its
+    /// preset values take: a number question holds numbers, a boolean question booleans, any other question text.
+    /// </summary>
+    public static Dictionary<string, JsonValueKind> VariableKinds() =>
         VariablePresets()["definition"]!["elements"]!.AsArray()
-            .Select(element => element!["name"]!.GetValue<string>())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .Select(node => node!.AsObject())
+            .ToDictionary(
+                element => element["name"]!.GetValue<string>(),
+                element => (element["type"]!.GetValue<string>(), element["inputType"]?.GetValue<string>()) switch
+                {
+                    ("boolean", _) => JsonValueKind.True,
+                    (_, "number") => JsonValueKind.Number,
+                    _ => JsonValueKind.String,
+                },
+                StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Every <c>{name}</c> the overlay's bindings and added questions read.</summary>
+    /// <summary>
+    /// The name every <c>{name}</c> the overlay's bindings and added questions read starts with: <c>{ age }</c> reads
+    /// <c>age</c>, <c>{qMatrix.row1}</c> reads <c>qMatrix</c>.
+    /// </summary>
     public static IEnumerable<string> References()
     {
         var overlay = Overlay();
         return Strings(overlay["bindings"]).Concat(Strings(overlay["addElements"]))
             .SelectMany(text => Reference().Matches(text))
-            .Select(match => match.Groups[1].Value)
+            .Select(match => match.Groups[1].Value.Trim().Split('.', '[')[0])
             .Distinct();
     }
 
-    /// <summary>Every question in <paramref name="definition"/>, nested ones included, and every calculated value.</summary>
+    /// <summary>
+    /// The name each question in <paramref name="definition"/> stores its value under (its <c>valueName</c>, else its
+    /// name), nested ones included, and every calculated value. Panels and dynamic panel templates count too, which is
+    /// stricter than SurveyJS needs.
+    /// </summary>
     public static IEnumerable<string> ElementNames(JsonObject definition) =>
         definition["pages"]!.AsArray()
             .SelectMany(page => Descendants(page!["elements"]?.AsArray()))
             .Concat(definition["calculatedValues"]?.AsArray().Select(node => node!.AsObject()) ?? [])
-            .Select(element => element["name"]!.GetValue<string>());
+            .Select(element => (element["valueName"] ?? element["name"])!.GetValue<string>());
 
     private static JsonObject Overlay() =>
         JsonNode.Parse(FormSchemaFixtureLoader.LoadText(Path(OverlayFile)))!.AsObject();

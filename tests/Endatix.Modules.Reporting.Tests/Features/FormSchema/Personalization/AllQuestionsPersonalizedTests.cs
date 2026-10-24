@@ -43,26 +43,45 @@ public sealed class AllQuestionsPersonalizedTests
     }
 
     [Fact]
+    public void VariablePresets_EveryPresetValue_FitsADeclaredVariable()
+    {
+        // Arrange
+        var kinds = VariableKinds();
+        var presets = VariablePresets()["presets"]!.AsArray();
+
+        // Act
+        var misfits = presets
+            .SelectMany(preset => preset!["variables"]!.AsObject())
+            .Where(variable => !kinds.TryGetValue(variable.Key, out var kind) || KindOf(variable.Value!) != kind)
+            .Select(variable => variable.Key);
+
+        // Assert: the read types a Number as a JSON number and a Boolean as a JSON boolean.
+        misfits.Should().BeEmpty("every preset value must be a declared variable's, typed as its question");
+        VariablePresets()["totalPresets"]!.GetValue<int>().Should().Be(presets.Count);
+    }
+
+    [Fact]
     public void Overlay_EveryVariableItReads_IsDeclared()
     {
         // Arrange
-        var declared = VariableNames();
+        var variables = VariableKinds();
+        var questions = ElementNames(Compose()).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // Act
-        var undeclared = References().Where(name => !declared.Contains(name));
+        var undeclared = References().Where(name => !variables.ContainsKey(name) && !questions.Contains(name));
 
         // Assert
-        undeclared.Should().BeEmpty("every {variable} the overlay reads must be in variablePresets.definition");
+        undeclared.Should().BeEmpty("every {name} the overlay reads must be a question or in variablePresets.definition");
     }
 
     [Fact]
     public void Composed_NoQuestionOrCalculatedValue_SharesAVariableName()
     {
         // Arrange
-        var variables = VariableNames();
+        var variables = VariableKinds();
 
         // Act
-        var shared = ElementNames(Compose()).Where(variables.Contains);
+        var shared = ElementNames(Compose()).Where(variables.ContainsKey);
 
         // Assert
         shared.Should().BeEmpty("a question or calculated value of a variable's name hides the variable");
@@ -153,6 +172,9 @@ public sealed class AllQuestionsPersonalizedTests
         File.WriteAllText(
             SourcePath(fileName),
             JsonSerializer.Serialize(JsonDocument.Parse(json).RootElement, Indented) + Environment.NewLine);
+
+    private static JsonValueKind KindOf(JsonNode value) =>
+        value.GetValueKind() is JsonValueKind.False ? JsonValueKind.True : value.GetValueKind();
 
     private static string NormalizeLineEndings(string text) => text.Replace("\r\n", "\n");
 }
