@@ -1,3 +1,4 @@
+using System.Net;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
@@ -11,6 +12,7 @@ using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -319,10 +321,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var formId = await admin.CreateFormAsync();
         var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
         await using var scope = world.Services.CreateAsyncScope();
-        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-        await using var heldTransaction = await ((DbContext)holder).Database.BeginTransactionAsync(admin.CancellationToken);
-        Assert.Null(await scope.ServiceProvider.GetRequiredService<MembershipLock>()
-            .AcquireImportAsync(holder, formId, admin.CancellationToken));
+        await using var heldTransaction = await HoldFormLikeAnImportAsync(scope, formId, admin.CancellationToken);
         await using var second = world.Services.CreateAsyncScope();
 
         // Act
@@ -332,6 +331,30 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal([MembershipLock.FormBusy], removed.Errors);
+        Assert.True(await IsLiveAsync(world.Services, ada.MembershipId));
+    }
+
+    [Fact]
+    public async Task Removing_a_participant_over_http_while_an_import_holds_the_form_answers_503_with_the_form_busy_detail()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var heldTransaction = await HoldFormLikeAnImportAsync(scope, formId, admin.CancellationToken);
+
+        // Act - the host's lock waits its default, then gives up.
+        using var response = await admin.Client.DeleteAsync(
+            $"/api/forms/{formId}/audience/people/{ada.MembershipId}",
+            admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        var problem = await admin.ReadAsync(response);
+        Assert.Equal(MembershipLock.FormBusy, problem.GetProperty("detail").GetString());
+        Assert.True(await IsLiveAsync(world.Services, ada.MembershipId));
     }
 
     /// <summary>
@@ -365,6 +388,17 @@ public sealed partial class AudienceDirectoryFlowTests
         }
 
         throw new InvalidOperationException($"None of {attempts} participants landed on the wanted stripe.");
+    }
+
+    /// <summary>Takes <paramref name="formId"/>'s people lock as an import does, held until the returned transaction ends.</summary>
+    private static async Task<IDbContextTransaction> HoldFormLikeAnImportAsync(
+        AsyncServiceScope scope, long formId, CancellationToken cancellationToken)
+    {
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var transaction = await ((DbContext)holder).Database.BeginTransactionAsync(cancellationToken);
+        Assert.Null(await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .AcquireImportAsync(holder, formId, cancellationToken));
+        return transaction;
     }
 
     private static Dictionary<long, string> Values(long propertyId, string value) => new() { [propertyId] = value };
@@ -434,6 +468,14 @@ public sealed partial class AudienceDirectoryFlowTests
     private static DbContextOptions<T> Gated<T>(DbContextOptions<T> options, IInterceptor gate)
         where T : DbContext =>
         new DbContextOptionsBuilder<T>(options).AddInterceptors(gate).Options;
+
+    /// <summary>Whether the membership is not soft-deleted.</summary>
+    private static async Task<bool> IsLiveAsync(IServiceProvider services, long membershipId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IAudienceDbContext>().Memberships
+            .AnyAsync(membership => membership.Id == membershipId, TestContext.Current.CancellationToken);
+    }
 
     /// <summary>Value cells of the membership that are not soft-deleted.</summary>
     private static async Task<int> LiveCellCountAsync(IServiceProvider services, long membershipId)

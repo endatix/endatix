@@ -104,25 +104,25 @@ and redeem, which is anonymous.
   transaction ends. The unique indexes settle create races (a second pass reuses the member; a duplicate
   on one form is a 409). Two imports of one form that add the same new people in different orders can deadlock on
   those indexes; the victim takes the same second pass. The identifier is checked against the key read under the
-  lock. An edit of a person's
-  values and their removal both take that person's stripe of the form's people lock exclusively, then the person's
+  lock. An edit of a participant's
+  values and their removal both take that participant's stripe of the form's people lock exclusively, then the participant's
   lock (`MembershipLock`: scope `AudienceMembership`, key the membership id), and read the membership again under
   them: an edit that waited for a removal is a 404, and a removal that waited for an edit soft-deletes the cells it
-  wrote, so a removed person never keeps a live value (endatix#1361). The CSV import writes values of people already
+  wrote, so a removed participant never keeps a live value (endatix#1361). The CSV import writes values of people already
   on the form in one transaction, so it takes every stripe of the form's lock shared (scope `AudienceFormPeople`),
   after the tenant lock and before it reads the form's people. The form's lock is 16 stripes, keyed
-  `{formId}:{stripe}`: an edit and a removal hold their person's stripe (from a hash of the membership id)
+  `{formId}:{stripe}`: an edit and a removal hold their participant's stripe (from a hash of the membership id)
   exclusively, an import holds all 16 shared, in ascending order within one 5 s wait. So imports of one form run
   together (endatix#1383), every import excludes every edit and every removal on the form, and edits and removals
   run together unless they share a stripe, when one waits for the other for the length of that section. Lock queues
   are first come, first served, so an import that asks for the stripe of an edit or a removal queued behind another
   import waits until that writer gets it or gives up. A removal that waited for an import soft-deletes the cells it
-  wrote, and an import that waited for a removal adds the person again. An edit waits for an import on its stripe
+  wrote, and an import that waited for a removal adds the participant again. An edit waits for an import on its stripe
   (endatix#1384): without that stripe, the edit's insert waited on the import's uncommitted cell for the 30 s command
-  timeout while holding the person's lock, and then failed with a 500. An edit that loses a cell race to a writer
-  that skips the locks takes a second locked pass, which overwrites. Every wait is 5 s, then 503, with the
-  message of the lock that waited: "This participant is being changed." for the person's, "People on this form are
-  being imported or changed." for the form's (an edit or a removal behind an import or another edit or removal on its
+  timeout while holding the participant's lock, and then failed with a 500. An edit that loses a cell race to a writer
+  that skips the locks takes a second locked pass, which overwrites. Every wait is 5 s, then 503 whose `detail` is the
+  message of the lock that waited: "This participant is being changed. Try again." for the participant's, "People on this form are
+  being imported or changed. Try again." for the form's (an edit or a removal behind an import or another edit or removal on its
   stripe, or an import behind an edit or a removal). On PostgreSQL two keys of one scope can
   share a `hashtext` lock, so unrelated people or forms then wait for each other, within that bound. Cells are written in property-id order. The people
   list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
