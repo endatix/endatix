@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Settings;
 using Endatix.Modules.Audience.Persistence;
@@ -70,7 +71,9 @@ internal sealed class ImportCsvHandler(
 
     /// <summary>
     /// A parallel add or import can win a unique index first. Its rows are committed by then, so
-    /// a second pass reloads them and matches instead of inserting. A second loss is a conflict.
+    /// a second pass reloads them and matches instead of inserting. Two imports of one form that
+    /// add the same people in another order can instead deadlock, and the victim takes the second
+    /// pass too. A second loss is a conflict.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportWithRetryAsync(
         ImportCsvCommand request,
@@ -89,7 +92,8 @@ internal sealed class ImportCsvHandler(
     }
 
     /// <summary>
-    /// The import's result, or <see langword="null"/> when a parallel write won a unique index.
+    /// The import's result, or <see langword="null"/> when a parallel write won a unique index or the database
+    /// rolled the import back to end a deadlock.
     /// </summary>
     private async Task<Result<ImportResultDto>?> ImportUnlessRaceAsync(
         ImportCsvCommand request,
@@ -109,7 +113,8 @@ internal sealed class ImportCsvHandler(
     private bool IsAudienceRace(DbUpdateException ex) =>
         support.Violations.IsViolationOf(ex, Member.UniqueConstraints.IdentifierPerTenant)
         || support.Violations.IsViolationOf(ex, Membership.UniqueConstraints.MemberPerForm)
-        || support.Violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership);
+        || support.Violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership)
+        || DatabaseDeadlocks.IsVictim(ex);
 
     private async Task<Result> ValidateRequestAsync(
         ImportCsvCommand request,

@@ -5,7 +5,7 @@ using Npgsql;
 namespace Endatix.Infrastructure.Data;
 
 /// <summary>Tells, from what the driver reports, that the database rolled a transaction back to end a deadlock.</summary>
-internal static class DatabaseDeadlocks
+public static class DatabaseDeadlocks
 {
     private const int SqlServerDeadlockVictim = 1205;
 

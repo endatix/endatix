@@ -156,6 +156,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.True(other.IsSuccess, string.Join("; ", other.Errors));
         Assert.Equal(1, other.Value.CreatedCount);
+        Assert.True(first.IsSuccess, string.Join("; ", first.Errors));
         Assert.Equal(1, first.Value.UpdatedCount);
     }
 
@@ -172,6 +173,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
         var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
             .BeginRemovalAsync(holder, new(formId, ada.MembershipId), admin.CancellationToken);
+        Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
         await using var heldTransaction = held.Value;
         await using var second = world.Services.CreateAsyncScope();
 
@@ -286,6 +288,31 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal([MembershipLock.FormBusy], imported.Errors);
     }
 
+    [Fact]
+    public async Task Removing_a_participant_while_an_edit_of_them_holds_their_lock_is_unavailable()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
+        await using var scope = world.Services.CreateAsyncScope();
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .BeginEditAsync(holder, ada.MembershipId, admin.CancellationToken);
+        Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
+        await using var heldTransaction = held.Value;
+        await using var second = world.Services.CreateAsyncScope();
+
+        // Act
+        var removed = await DeleteHandlerWith(second.ServiceProvider, Waiting(world, TimeSpan.FromMilliseconds(50)))
+            .Handle(Removal(world, formId, ada), admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unavailable, removed.Status);
+        Assert.Equal([MembershipLock.Busy], removed.Errors); // the stripe is free, so the participant's lock refuses
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(MembershipLock.FormStripes - 1)]
@@ -301,6 +328,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
         var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
             .BeginRemovalAsync(holder, new(formId, removed.MembershipId), admin.CancellationToken);
+        Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
         await using var heldTransaction = held.Value;
         await using var second = world.Services.CreateAsyncScope();
         var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
