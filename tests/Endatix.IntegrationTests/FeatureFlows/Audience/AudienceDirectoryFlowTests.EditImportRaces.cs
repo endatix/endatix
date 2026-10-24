@@ -1,3 +1,4 @@
+using System.Net;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
@@ -22,17 +23,14 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
-    /// <summary>The wait of a request that should find its lock held and answer 503.</summary>
-    private static readonly TimeSpan BusyWait = TimeSpan.FromSeconds(1);
-
     /// <summary>
-    /// How soon a request with <see cref="BusyWait"/> answers, with room for a slow run; well under the 30 s command
-    /// timeout that bounds a wait on a row or an index.
+    /// How soon a request that finds its lock held answers, the host's <see cref="MembershipLock.DefaultWait"/> with room
+    /// for a slow run; well under the 30 s command timeout that bounds a wait on a row or an index.
     /// </summary>
     private static readonly TimeSpan BusyAnswer = TimeSpan.FromSeconds(10);
 
     [Fact]
-    public async Task Editing_a_participant_while_an_import_holds_their_uncommitted_value_is_unavailable_within_the_wait()
+    public async Task Editing_a_participant_while_an_import_holds_their_uncommitted_value_answers_503_with_the_form_busy_detail_within_the_wait()
     {
         // Arrange
         var world = await WorldAsync();
@@ -48,21 +46,18 @@ public sealed partial class AudienceDirectoryFlowTests
             ImportHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait))
                 .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
         await paused.ReachedGateAsync();
-        await using var second = world.Services.CreateAsyncScope();
-        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
 
-        // Act
-        var edit = paused.Alongside(UpdateHandlerWith(second.ServiceProvider, secondDb, Waiting(world, BusyWait)).Handle(
-            new UpdatePersonCommand(world.Tenants[0].Id, formId, ada.MembershipId, Values(city, "Plovdiv")),
-            admin.CancellationToken));
+        // Act - over HTTP, so the host's lock waits its default.
+        var edit = paused.Alongside(admin.PutValueAsync(
+            $"/api/forms/{formId}/audience/people/{ada.MembershipId}", city, "Plovdiv"));
         var answeredInTime = await Task.WhenAny(edit, Task.Delay(BusyAnswer, admin.CancellationToken)) == edit;
         var imported = await paused.ReleaseAsync();
-        var edited = await edit.WaitAsync(_gateTimeout, admin.CancellationToken);
+        using var edited = await edit.WaitAsync(_gateTimeout, admin.CancellationToken);
 
         // Assert
         Assert.True(answeredInTime, "The edit waited on the import's uncommitted value past its lock wait.");
-        Assert.Equal(ResultStatus.Unavailable, edited.Status);
-        Assert.Equal([MembershipLock.FormBusy], edited.Errors);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, edited.StatusCode);
+        Assert.Equal(MembershipLock.FormBusy, (await admin.ReadAsync(edited)).GetProperty("detail").GetString());
         Assert.Equal(1, imported.Value.UpdatedCount);
         Assert.Equal(new Dictionary<long, string> { [city] = "Sofia" }, await LiveCellsAsync(world.Services, formId));
     }
