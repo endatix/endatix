@@ -41,8 +41,13 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
     /// </summary>
     internal const string FormBusy = "People on this form are being imported or changed. Try again.";
 
-    /// <summary>How many locks a form's people lock is split into: one is a removal's, all of them an import's.</summary>
-    internal const int FormStripes = 16;
+    /// <summary>How many locks a form's people lock is split into: one is a removal's, all an import's.</summary>
+    internal const int FormStripes = 1 << StripeBits;
+
+    private const int StripeBits = 4;
+
+    // 2^64 / golden ratio: multiplying by it spreads every bit of an id into the top bits (Fibonacci hashing).
+    private const ulong StripeMixer = 0x9E3779B97F4A7C15UL;
 
     /// <summary>Longer than an edit or a removal takes; a waiter past it gets a retryable 503, not a held connection.</summary>
     internal static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(5);
@@ -76,9 +81,9 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
         UnlessBusyAsync(() => BeginBothAsync(Database(db), participant, cancellationToken));
 
     /// <summary>
-    /// Every stripe of the form's people lock shared, in the import's transaction, after its <see cref="MatchKeyLock"/>:
-    /// the failure (503 while a removal on the form holds a stripe past <see cref="Wait"/>), or <see langword="null"/>
-    /// once all are held. Other imports of the form hold them too.
+    /// Every stripe of the form's people lock shared, in the import's transaction, after its
+    /// <see cref="MatchKeyLock"/>: the failure (503 while a removal on the form holds a stripe past
+    /// <see cref="Wait"/>), or <see langword="null"/> once all are held. Other imports of the form hold them too.
     /// </summary>
     public async Task<IResult?> AcquireImportAsync(
         IAudienceDbContext db,
@@ -107,8 +112,13 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
         }
     }
 
-    /// <summary>The participant's stripe of their form's people lock.</summary>
-    internal static int FormStripe(long membershipId) => (int)((ulong)membershipId % FormStripes);
+    /// <summary>
+    /// The participant's stripe of their form's people lock, from the top bits of their mixed membership id. Not the id
+    /// modulo <see cref="FormStripes"/>: an id's low bits are its snowflake's per-millisecond sequence, 0 or 1 for a
+    /// participant added on their own, so nearly every such participant would share one stripe.
+    /// </summary>
+    internal static int FormStripe(long membershipId) =>
+        (int)(unchecked((ulong)membershipId * StripeMixer) >> (64 - StripeBits));
 
     // In one order, so imports never wait in a cycle; each stripe waits for what is left of one Wait.
     private async Task AcquireEveryStripeAsync(

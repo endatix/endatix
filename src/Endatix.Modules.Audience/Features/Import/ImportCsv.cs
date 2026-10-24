@@ -275,8 +275,9 @@ internal sealed class ImportWriteSupport(
     public IUniqueConstraintViolationChecker Violations { get; } = violations;
 
     /// <summary>
-    /// Takes the form's people lock (scope <c>AudienceFormPeople</c>) for an import, after the tenant's match-key lock;
-    /// <see cref="MembershipLock"/> owns it with the participant lock, so their order lives in one place.
+    /// Takes every stripe of the form's people lock (scope <c>AudienceFormPeople</c>) shared, after the tenant's
+    /// match-key lock; <see cref="MembershipLock"/> owns it with the participant lock, so their order lives in one
+    /// place.
     /// </summary>
     public MembershipLock FormPeopleLock { get; } = formPeopleLock;
 }

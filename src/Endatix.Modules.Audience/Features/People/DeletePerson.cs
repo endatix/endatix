@@ -33,9 +33,10 @@ internal sealed class DeletePersonHandler(
     }
 
     /// <summary>
-    /// Under the form's shared lock and the participant's <see cref="MembershipLock"/>, which an edit of their values
-    /// takes too and a CSV import of the form excludes: the membership and its cells are read after the locks, so an
-    /// edit or an import that finished first has its cells deleted too, and an edit that waits finds the membership gone.
+    /// Under the participant's stripe of the form's people lock and their <see cref="MembershipLock"/>, which an edit
+    /// of their values takes too and a CSV import of the form excludes: the membership and its cells are read after the
+    /// locks, so an edit or an import that finished first has its cells deleted too, and an edit that waits finds the
+    /// membership gone.
     /// </summary>
     private async Task<Result<string>> DeleteLockedAsync(
         DeletePersonCommand request,

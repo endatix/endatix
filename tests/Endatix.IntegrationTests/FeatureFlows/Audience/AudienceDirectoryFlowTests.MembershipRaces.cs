@@ -282,7 +282,35 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal(ResultStatus.Unavailable, imported.Status);
         Assert.Equal([MembershipLock.Busy], edited.Errors);
-        Assert.Equal([MembershipLock.FormBusy], removed.Errors); // the held removal's stripe of the form, first
+        Assert.Equal([MembershipLock.FormBusy], removed.Errors); // same participant, so the stripe refuses first
+        Assert.Equal([MembershipLock.FormBusy], imported.Errors);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(MembershipLock.FormStripes - 1)]
+    public async Task Importing_into_a_form_while_a_removal_on_any_stripe_holds_it_is_unavailable(int stripe)
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        var removed = await AddParticipantWhereAsync(admin, formId, candidate => candidate == stripe);
+        await using var scope = world.Services.CreateAsyncScope();
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .BeginRemovalAsync(holder, new(formId, removed.MembershipId), admin.CancellationToken);
+        await using var heldTransaction = held.Value;
+        await using var second = world.Services.CreateAsyncScope();
+        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+
+        // Act
+        var imported = await ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, TimeSpan.FromMilliseconds(50)))
+            .Handle(CityImport(world, formId, "bob@example.com"), admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unavailable, imported.Status);
         Assert.Equal([MembershipLock.FormBusy], imported.Errors);
     }
 
@@ -314,19 +342,33 @@ public sealed partial class AudienceDirectoryFlowTests
     /// A participant whose removal takes another stripe of the form's people lock than <paramref name="other"/>'s, as
     /// two removals on one stripe wait for each other by design.
     /// </summary>
-    private static async Task<Participant> AddParticipantOnAnotherStripeAsync(
+    private static Task<Participant> AddParticipantOnAnotherStripeAsync(
         AudienceApi admin,
         long formId,
-        Participant other)
+        Participant other) =>
+        AddParticipantWhereAsync(
+            admin,
+            formId,
+            stripe => stripe != MembershipLock.FormStripe(other.MembershipId));
+
+    /// <summary>A participant whose stripe of the form's people lock satisfies <paramref name="wanted"/>.</summary>
+    private static async Task<Participant> AddParticipantWhereAsync(
+        AudienceApi admin,
+        long formId,
+        Func<int, bool> wanted)
     {
-        for (var attempt = 0; ; attempt++)
+        // A stripe a participant has 1 in 16 odds of landing on is missed by 200 of them about once in 400,000 runs.
+        const int attempts = 200;
+        for (var attempt = 0; attempt < attempts; attempt++)
         {
-            var participant = await AddParticipantAsync(admin, formId, $"bob{attempt}@example.com");
-            if (MembershipLock.FormStripe(participant.MembershipId) != MembershipLock.FormStripe(other.MembershipId))
+            var participant = await AddParticipantAsync(admin, formId, $"striped{attempt}@example.com");
+            if (wanted(MembershipLock.FormStripe(participant.MembershipId)))
             {
                 return participant;
             }
         }
+
+        throw new InvalidOperationException($"None of {attempts} participants landed on the wanted stripe.");
     }
 
     private static Dictionary<long, string> Values(long propertyId, string value) => new() { [propertyId] = value };
