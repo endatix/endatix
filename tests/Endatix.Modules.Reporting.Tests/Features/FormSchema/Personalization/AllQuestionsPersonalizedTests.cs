@@ -30,6 +30,45 @@ public sealed class AllQuestionsPersonalizedTests
     }
 
     [Fact]
+    public void VariablePresets_IsTheOverlaysSection()
+    {
+        // Arrange
+        var committed = JsonNode.Parse(FormSchemaFixtureLoader.LoadText(Path(VariablePresetsFile)));
+
+        // Act
+        var variablePresets = VariablePresets();
+
+        // Assert: edit the overlay, then run the regenerate test below.
+        JsonNode.DeepEquals(variablePresets, committed).Should().BeTrue("the committed variable presets must match the overlay");
+    }
+
+    [Fact]
+    public void Overlay_EveryVariableItReads_IsDeclared()
+    {
+        // Arrange
+        var declared = VariableNames();
+
+        // Act
+        var undeclared = References().Where(name => !declared.Contains(name));
+
+        // Assert
+        undeclared.Should().BeEmpty("every {variable} the overlay reads must be in variablePresets.definition");
+    }
+
+    [Fact]
+    public void Composed_NoQuestionOrCalculatedValue_SharesAVariableName()
+    {
+        // Arrange
+        var variables = VariableNames();
+
+        // Act
+        var shared = ElementNames(Compose()).Where(variables.Contains);
+
+        // Assert
+        shared.Should().BeEmpty("a question or calculated value of a variable's name hides the variable");
+    }
+
+    [Fact]
     public async Task CrunchImport_PersonalizedForm_EveryCellFitsItsShojiVariable()
     {
         // Arrange
@@ -89,6 +128,7 @@ public sealed class AllQuestionsPersonalizedTests
     public async Task AllQuestionsPersonalizedFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles()
     {
         File.WriteAllText(SourcePath(DefinitionFile), Compose().ToJsonString(Indented) + Environment.NewLine);
+        File.WriteAllText(SourcePath(VariablePresetsFile), VariablePresets().ToJsonString(Indented) + Environment.NewLine);
 
         var (pipeline, responses) = Flattened(Compose().ToJsonString());
         var schema = pipeline.Entity();

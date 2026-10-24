@@ -1,0 +1,62 @@
+{
+  "definition": {
+    "elements": [
+      {
+        "type": "text",
+        "name": "full_name",
+        "title": "Full name"
+      },
+      {
+        "type": "text",
+        "name": "age",
+        "title": "Age",
+        "inputType": "number"
+      },
+      {
+        "type": "text",
+        "name": "joined",
+        "title": "Joined",
+        "inputType": "date"
+      },
+      {
+        "type": "boolean",
+        "name": "panel_member",
+        "title": "Panel member"
+      },
+      {
+        "type": "text",
+        "name": "hometown",
+        "title": "Hometown"
+      },
+      {
+        "type": "text",
+        "name": "last_seen",
+        "title": "Last seen"
+      }
+    ]
+  },
+  "presets": [
+    {
+      "name": "ACME-TEST-01",
+      "variables": {
+        "full_name": "ACME Tester One",
+        "age": 42,
+        "joined": "2024-01-15",
+        "panel_member": true,
+        "hometown": "ACME City",
+        "last_seen": "2026-10-01T09:30:00Z"
+      },
+      "description": "Test participant"
+    },
+    {
+      "name": "ACME-TEST-02",
+      "variables": {
+        "age": 17,
+        "panel_member": false,
+        "hometown": "ACME Town"
+      },
+      "description": "Test participant"
+    }
+  ],
+  "totalPresets": 2
+}
