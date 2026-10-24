@@ -29,29 +29,33 @@ internal sealed class ParticipantReader(IAudienceDbContext db, LinkStatuses link
             : new FoundParticipant(await ReadAsync(row.Membership, row.Identifier, cancellationToken), row.SubmitterId);
     }
 
-    /// <summary>As the panel reads them: the match-key Property, the cells, the Link status.</summary>
+    /// <summary>As the panel reads them: the form's Properties, the cells, the Link status.</summary>
     private async Task<PersonDto> ReadAsync(Membership membership, string identifier, CancellationToken cancellationToken) =>
         await ReadAsync(
             new ParticipantOnForm(
                 membership,
                 identifier,
-                await MatchKeyProperty.FindAsync(db, new(membership.TenantId, membership.FormId), cancellationToken)),
+                await FormProperties.ReadAsync(db, new(membership.TenantId, membership.FormId), cancellationToken)),
             cancellationToken);
 
-    /// <summary>After a write that has read the form's match-key Property already.</summary>
+    /// <summary>After a write that has read the form's Properties already: the cells, the Link status.</summary>
     public async Task<PersonDto> ReadAsync(ParticipantOnForm participant, CancellationToken cancellationToken)
     {
         Membership membership = participant.Membership;
         Dictionary<long, string> values = await ParticipantValues.ReadOneAsync(
-            db, ParticipantCells.Of(membership, participant.MatchKey, participant.Identifier), cancellationToken);
+            db, ParticipantCells.Of(participant), cancellationToken);
         IReadOnlyDictionary<long, LinkStatusDto> links = await linkStatuses.ForAsync([membership.Id], cancellationToken);
         return new PersonDto(
             membership.Id, membership.MemberId, participant.Identifier, values, membership.IsTest, links[membership.Id]);
     }
 }
 
-/// <summary>A participant's membership on a form, their identifier, and the form's match-key Property.</summary>
-internal sealed record ParticipantOnForm(Membership Membership, string Identifier, MatchKey? MatchKey);
+/// <summary>A participant's membership on a form, their identifier, and the form's Properties.</summary>
+internal sealed record ParticipantOnForm(Membership Membership, string Identifier, FormProperties Properties)
+{
+    /// <summary>The form's match-key Property, <see langword="null"/> when it has none.</summary>
+    public MatchKey? MatchKey => Properties.MatchKey;
+}
 
 /// <summary>One participant on one form of one tenant, keyed by audience member id.</summary>
 internal sealed record ParticipantKey(long TenantId, long FormId, long MemberId);

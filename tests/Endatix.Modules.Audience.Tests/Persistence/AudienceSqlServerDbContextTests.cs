@@ -66,12 +66,33 @@ public class AudienceSqlServerDbContextTests
             new IndexShape("IX_Memberships_Member", "TenantId,FormId,MemberId", true),
             new IndexShape("IX_Properties_Form", "TenantId,FormId", false),
             new IndexShape("IX_Properties_VariableName", "TenantId,FormId,VariableName", true),
-            new IndexShape("IX_PropertyValues_Cell", "TenantId,MembershipId,PropertyId", true),
-            new IndexShape("IX_PropertyValues_Property", "TenantId,PropertyId", false),
+            new IndexShape("IX_PropertyValues_Cell", "TenantId,MembershipId,IsTest,PropertyId", true),
+            new IndexShape("IX_PropertyValues_Property", "TenantId,PropertyId,IsTest", false),
             new IndexShape("IX_Settings_Tenant", "TenantId", true),
         ]);
         model.FindEntityType(typeof(Property))!.FindProperty(nameof(Property.ChoicesJson))!
             .GetColumnType().Should().Be("json");
+    }
+
+    [Fact]
+    public void OnModelCreating_SqlServerContext_TiesACellsTenantAndTestFlagToItsMembership()
+    {
+        // Arrange
+        using var context = CreateContext();
+
+        // Act
+        var foreignKey = context.GetService<IDesignTimeModel>().Model
+            .FindEntityType(typeof(PropertyValue))!
+            .GetForeignKeys()
+            .Single();
+
+        // Assert
+        foreignKey.GetConstraintName().Should().Be("FK_PropertyValues_Membership");
+        foreignKey.Properties.Select(property => property.Name).Should()
+            .Equal(nameof(PropertyValue.TenantId), nameof(PropertyValue.MembershipId), nameof(PropertyValue.IsTest));
+        foreignKey.PrincipalKey.Properties.Select(property => property.Name).Should()
+            .Equal(nameof(Membership.TenantId), nameof(Membership.Id), nameof(Membership.IsTest));
+        foreignKey.DeleteBehavior.Should().Be(DeleteBehavior.NoAction);
     }
 
     [Fact]

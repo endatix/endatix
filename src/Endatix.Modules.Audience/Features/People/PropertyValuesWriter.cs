@@ -58,20 +58,20 @@ internal static class PropertyValuesWriter
         PropertyValue.ValueError(value) ?? property.ValueError(value);
 
     /// <summary>
-    /// Cells of the given memberships whose property is still active. A cell written while its
-    /// property was being deleted stays out of every read. The tenant is stated so SQL Server can
-    /// seek the tenant-first cell index.
+    /// Cells of the given memberships for the given Properties, which the caller has read as live: a cell written while
+    /// its property was being deleted stays out of every read that starts after the delete. One table and a seek per
+    /// membership on <c>IX_PropertyValues_Cell</c>, the Property ids checked in the index. An <c>EXISTS</c> on
+    /// Properties here let both drive from the Properties instead, reading every cell of the tenant (PostgreSQL) or the
+    /// whole table (SQL Server) for 20 participants (#1376).
     /// </summary>
-    public static IQueryable<PropertyValue> ActiveCells(
-        IAudienceDbContext db,
-        long tenantId,
-        IReadOnlyCollection<long> membershipIds) =>
-        ActiveCells(db, tenantId).Where(value => membershipIds.Contains(value.MembershipId));
-
-    private static IQueryable<PropertyValue> ActiveCells(IAudienceDbContext db, long tenantId) =>
-        db.PropertyValues.AsNoTracking().Where(value =>
-            value.TenantId == tenantId
-            && db.Properties.Any(property => property.Id == value.PropertyId));
+    public static IQueryable<PropertyValue> ActiveCells(IAudienceDbContext db, ParticipantCells which)
+    {
+        List<long> membershipIds = [.. which.Identifiers.Keys];
+        return db.PropertyValues.AsNoTracking().Where(value =>
+            value.TenantId == which.TenantId
+            && membershipIds.Contains(value.MembershipId)
+            && which.PropertyIds.Contains(value.PropertyId));
+    }
 
     /// <summary>
     /// Stages value cells for a membership that has none yet. Empty values add nothing. Does not save.
@@ -129,8 +129,8 @@ internal static class PropertyValuesWriter
     {
         HashSet<long> propertyIds = write.Values.Keys.ToHashSet();
         return write.Db.PropertyValues
-            .Where(value => value.TenantId == write.TenantId
-                && value.MembershipId == write.MembershipId
+            .Where(value => value.TenantId == write.Membership.TenantId
+                && value.MembershipId == write.Membership.Id
                 && propertyIds.Contains(value.PropertyId))
             .ToDictionaryAsync(value => value.PropertyId, cancellationToken);
     }
@@ -139,8 +139,8 @@ internal static class PropertyValuesWriter
     {
         if (value.Length > 0)
         {
-            write.Db.PropertyValues.Add(new PropertyValue(new PropertyValueCreateArgs(
-                write.TenantId, write.MembershipId, propertyId, value)));
+            write.Db.PropertyValues.Add(
+                new PropertyValue(PropertyValueCreateArgs.For(write.Membership, propertyId, value)));
         }
     }
 }
@@ -158,6 +158,5 @@ internal sealed record PropertyValuesCheck(
 /// </summary>
 internal sealed record PropertyValueWrite(
     IAudienceDbContext Db,
-    long TenantId,
-    long MembershipId,
+    Membership Membership,
     IReadOnlyDictionary<long, string> Values);
