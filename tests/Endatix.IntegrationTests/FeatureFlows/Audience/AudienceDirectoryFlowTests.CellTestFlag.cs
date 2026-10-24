@@ -64,16 +64,8 @@ public sealed partial class AudienceDirectoryFlowTests
             admin, formId, new("tester@example.com", IsTest: true, new() { [city] = "Varna" }));
         foreach (var (identifier, isTest) in new[] { ("imported-tester@example.com", true), ("bob@example.com", false) })
         {
-            using var imported = await admin.PostAsync(
-                $"/api/forms/{formId}/audience/import",
-                new
-                {
-                    csvText = $"email,city\n{identifier},Ruse\n",
-                    identifierColumn = "email",
-                    fileName = "people.csv",
-                    propertyColumns = new Dictionary<string, string> { ["city"] = "city" },
-                    isTest,
-                });
+            using var imported = await admin.ImportAsync(
+                formId, new ImportedCsv($"email,city\n{identifier},Ruse\n", new() { ["city"] = "city" }, isTest));
             Assert.Equal(HttpStatusCode.OK, imported.StatusCode);
         }
 

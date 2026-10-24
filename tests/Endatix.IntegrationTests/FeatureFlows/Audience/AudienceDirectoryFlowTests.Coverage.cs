@@ -227,16 +227,8 @@ public sealed partial class AudienceDirectoryFlowTests
                 .Append(',').AppendJoin(',', names.Skip(1).Select(_ => "v")).Append('\n');
         }
 
-        using var imported = await admin.PostAsync(
-            $"/api/forms/{formId}/audience/import",
-            new
-            {
-                csvText = csv.ToString(),
-                identifierColumn = "email",
-                fileName = "people.csv",
-                propertyColumns = names.ToDictionary(name => name),
-                isTest = shape.IsTest,
-            });
+        using var imported = await admin.ImportAsync(
+            formId, new ImportedCsv(csv.ToString(), names.ToDictionary(name => name), shape.IsTest));
         Assert.Equal(HttpStatusCode.OK, imported.StatusCode);
         Assert.Equal(shape.People, (await admin.ReadAsync(imported)).GetProperty("createdCount").GetInt32());
         return formId;
