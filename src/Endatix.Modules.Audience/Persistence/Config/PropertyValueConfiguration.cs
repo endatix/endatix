@@ -31,8 +31,9 @@ internal sealed class PropertyValueConfiguration(AudienceSqlDialect dialect) : I
 
     private void HasIndexes(EntityTypeBuilder<PropertyValue> builder)
     {
-        // IsTest follows MembershipId, so the cell stays unique per membership and Property; leading with the foreign
-        // key's columns makes this index serve FK_PropertyValues_Membership too.
+        // IsTest follows MembershipId, so the cell stays unique per membership and Property, and EF takes this index as
+        // the foreign key's and adds none. Filtered, it cannot serve FK_PropertyValues_Membership's checks, which also see
+        // soft-deleted cells; nothing hard-deletes a membership (Audience README -> Migrations).
         builder.HasIndex(value => new { value.TenantId, value.MembershipId, value.IsTest, value.PropertyId })
             .IsUnique()
             .HasDatabaseName(PropertyValue.UniqueConstraints.CellPerMembership)
