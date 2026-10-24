@@ -48,7 +48,8 @@ public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
     public long PropertyId { get; private set; }
 
     /// <summary>
-    /// The membership's <see cref="Membership.IsTest"/>, copied when the cell is written; it never changes on either.
+    /// The membership's <see cref="Membership.IsTest"/>, copied when the cell is written; it never changes on either,
+    /// and <c>FK_PropertyValues_Membership</c> refuses a cell that disagrees.
     /// Coverage counts test and real cells per Property from one index (<c>IX_PropertyValues_Property</c>) with it.
     /// </summary>
     public bool IsTest { get; private set; }

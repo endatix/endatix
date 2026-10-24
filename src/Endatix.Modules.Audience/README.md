@@ -41,11 +41,14 @@ dotnet ef migrations add <MigrationName> \
 
 A model change needs a migration in both chains.
 
-`AddPropertyValueIsTest` (endatix#1376) copies each membership's test flag onto its cells once. Deploy it with no
-older API version still writing Audience values: an older version writes `IsTest = false` on a Test participant's new
-cells, which coverage would then count as real. If one did, run the migration's `UPDATE` again; it is idempotent. The
-column add is metadata-only on PostgreSQL 11+ and SQL Server Enterprise/Azure SQL, and a table rewrite on SQL Server
-Standard; the index rebuild blocks writes to `PropertyValues` while it runs.
+`AddPropertyValueIsTest` (endatix#1376) copies each membership's test flag onto its cells, then adds
+`FK_PropertyValues_Membership` (`TenantId`, `MembershipId`, `IsTest` → `AK_Memberships_TestFlag` on Memberships), which
+validates every existing cell. From then on the database refuses a cell whose tenant or test flag differs from its
+membership's. An older API version still running during a deploy writes `IsTest = false` on a Test participant's new
+cell, so that write fails with the foreign key (a 500) instead of counting as real. The column add is metadata-only on
+PostgreSQL 11+ and SQL Server Enterprise/Azure SQL, and a table rewrite on SQL Server Standard; the index rebuilds
+block writes to `PropertyValues` while they run. This is the module's only foreign key; nothing hard-deletes a
+membership, and a future purge must delete its cells first.
 
 ## Schema
 
@@ -57,7 +60,7 @@ Database schema: `audience`
 | `Properties` | Property definitions per form (`VariableName` immutable). Choice types need `ChoicesJson`, a JSON array of distinct keys; other types take no choices |
 | `Members` | One person per tenant + match key. `Identifier` keeps the value as entered; `NormalizedIdentifier` is the unique match key. Emails must be one valid address and use the same normalizer as app users; external ids keep their case. On SQL Server the match key uses the binary collation `Latin1_General_100_BIN2`, so it compares case-sensitively as on PostgreSQL |
 | `Memberships` | Person on one form. `IsTest` marks a test person; it is set when the person is added and never changed |
-| `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). A stored value is never empty: saving `""` clears (soft-deletes) the cell. `IsTest` is the membership's test flag, copied when the cell is written (it never changes on either), so coverage counts test and real cells from `IX_PropertyValues_Property` (tenant, Property, test flag) with no join |
+| `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). A stored value is never empty: saving `""` clears (soft-deletes) the cell. `IsTest` is the membership's test flag, copied when the cell is written (it never changes on either), so coverage counts test and real cells from `IX_PropertyValues_Property` (tenant, Property, test flag) with no join. `FK_PropertyValues_Membership` ties the cell's tenant and test flag to its membership; cells are built only through `PropertyValueCreateArgs.For(membership, …)` |
 | `Imports` | One row per confirmed CSV import: counts, file name, who ran it |
 | `Links` | One hashed token per membership (`IX_Links_Membership`). `SubmissionId` is set once, on first open |
 

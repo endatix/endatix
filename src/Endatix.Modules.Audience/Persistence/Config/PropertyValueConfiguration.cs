@@ -22,11 +22,18 @@ internal sealed class PropertyValueConfiguration(AudienceSqlDialect dialect) : I
             .HasMaxLength(PropertyValue.VALUE_MAX_LENGTH)
             .IsRequired();
         HasIndexes(builder);
+        builder.HasOne<Membership>().WithMany()
+            .HasForeignKey(value => new { value.TenantId, value.MembershipId, value.IsTest })
+            .HasPrincipalKey(membership => new { membership.TenantId, membership.Id, membership.IsTest })
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasConstraintName("FK_PropertyValues_Membership");
     }
 
     private void HasIndexes(EntityTypeBuilder<PropertyValue> builder)
     {
-        builder.HasIndex(value => new { value.TenantId, value.MembershipId, value.PropertyId })
+        // IsTest follows MembershipId, so the cell stays unique per membership and Property; leading with the foreign
+        // key's columns makes this index serve FK_PropertyValues_Membership too.
+        builder.HasIndex(value => new { value.TenantId, value.MembershipId, value.IsTest, value.PropertyId })
             .IsUnique()
             .HasDatabaseName(PropertyValue.UniqueConstraints.CellPerMembership)
             .HasFilter(dialect.ActiveRowsFilter);

@@ -269,6 +269,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
 
                     b.HasKey("Id");
 
+                    b.HasAlternateKey("TenantId", "Id", "IsTest")
+                        .HasName("AK_Memberships_TestFlag");
+
                     b.HasIndex("TenantId", "FormId")
                         .HasDatabaseName("IX_Memberships_Form")
                         .HasFilter("[IsDeleted] = 0");
@@ -391,19 +394,30 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "MembershipId", "PropertyId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_PropertyValues_Cell")
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId", "PropertyId", "IsTest")
                         .HasDatabaseName("IX_PropertyValues_Property")
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("TenantId", "MembershipId", "IsTest", "PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PropertyValues_Cell")
                         .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("PropertyValues", "audience", t =>
                         {
                             t.HasCheckConstraint("CK_PropertyValues_TenantId", "[TenantId] > 0");
                         });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.PropertyValue", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.Membership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "MembershipId", "IsTest")
+                        .HasPrincipalKey("TenantId", "Id", "IsTest")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PropertyValues_Membership");
                 });
 #pragma warning restore 612, 618
         }

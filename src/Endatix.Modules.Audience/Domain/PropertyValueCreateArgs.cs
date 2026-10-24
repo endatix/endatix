@@ -1,17 +1,37 @@
 namespace Endatix.Modules.Audience.Domain;
 
 /// <summary>
-/// Create args for <see cref="PropertyValue"/>. <see cref="IsTest"/> is the membership's, which never changes; build
-/// the args with <see cref="For"/> so the cell cannot disagree with it.
+/// Create args for <see cref="PropertyValue"/>, built only from the cell's membership (<see cref="For"/>), so a cell
+/// carries its participant's tenant and test flag. The database refuses a cell that disagrees with its membership
+/// (<c>FK_PropertyValues_Membership</c>).
 /// </summary>
-public sealed record PropertyValueCreateArgs(
-    long TenantId,
-    long MembershipId,
-    long PropertyId,
-    string Value,
-    bool IsTest)
+public sealed record PropertyValueCreateArgs
 {
-    /// <summary>A cell of <paramref name="membership"/>, which carries its tenant, id and test flag.</summary>
+    private PropertyValueCreateArgs(Membership membership, long propertyId, string value)
+    {
+        TenantId = membership.TenantId;
+        MembershipId = membership.Id;
+        PropertyId = propertyId;
+        Value = value;
+        IsTest = membership.IsTest;
+    }
+
+    /// <summary>The membership's tenant.</summary>
+    public long TenantId { get; }
+
+    /// <summary>The membership the cell belongs to.</summary>
+    public long MembershipId { get; }
+
+    /// <summary>The Property the cell holds a value for.</summary>
+    public long PropertyId { get; }
+
+    /// <summary>The canonical value; <see cref="PropertyValue"/> refuses an empty one.</summary>
+    public string Value { get; }
+
+    /// <summary>The membership's <see cref="Membership.IsTest"/>, which never changes.</summary>
+    public bool IsTest { get; }
+
+    /// <summary>A cell of <paramref name="membership"/> for one Property.</summary>
     public static PropertyValueCreateArgs For(Membership membership, long propertyId, string value) =>
-        new(membership.TenantId, membership.Id, propertyId, value, membership.IsTest);
+        new(membership, propertyId, value);
 }

@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Net;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Persistence;
@@ -9,8 +10,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Each cell carries its membership's test flag (endatix#1376): every write path sets it, and the migration that
-/// copies it onto cells written before it runs down and up on the active provider.
+/// Each cell carries its membership's test flag (endatix#1376): every write path sets it, the database refuses a cell
+/// that disagrees, and the migration that copies it onto cells written before it runs down and up on the active
+/// provider.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
@@ -85,6 +87,30 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(5, cells.Count);
         Assert.Equal(3, cells.Count(cell => cell.MembershipIsTest));
         Assert.All(cells, cell => Assert.Equal(cell.MembershipIsTest, cell.CellIsTest));
+    }
+
+    [Fact]
+    public async Task The_database_refuses_a_cell_whose_test_flag_differs_from_its_participants()
+    {
+        // Arrange: a writer past the domain, as an older API version or a bulk load would be
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        var tester = await AddPersonWithValuesAsync(
+            admin, formId, new("tester@example.com", IsTest: true, new() { [city] = "Varna" }));
+        await using var scope = world.Services.CreateAsyncScope();
+        var db = ((DbContext)scope.ServiceProvider.GetRequiredService<IAudienceDbContext>()).Database;
+
+        // Act
+        var refused = await Record.ExceptionAsync(() => db.ExecuteSqlInterpolatedAsync(
+            $"""UPDATE audience."PropertyValues" SET "IsTest" = {false} WHERE "MembershipId" = {tester.MembershipId}""",
+            TestContext.Current.CancellationToken));
+
+        // Assert: FK_PropertyValues_Membership, and the cell still counts as test
+        var violation = Assert.IsType<DbException>(refused, exactMatch: false);
+        Assert.Contains("FK_PropertyValues_Membership", violation.Message, StringComparison.Ordinal);
+        Assert.All(await CellFlagsAsync(world.Services, formId), cell => Assert.True(cell.CellIsTest));
     }
 
     private sealed record CellFlag(bool CellIsTest, bool MembershipIsTest);

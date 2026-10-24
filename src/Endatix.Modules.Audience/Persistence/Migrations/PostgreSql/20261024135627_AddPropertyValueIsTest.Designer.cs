@@ -3,16 +3,16 @@ using System;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
+namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 {
-    [DbContext(typeof(AudienceSqlServerDbContext))]
-    [Migration("20261024101753_AddPropertyValueIsTest")]
+    [DbContext(typeof(AudiencePostgreSqlDbContext))]
+    [Migration("20261024135627_AddPropertyValueIsTest")]
     partial class AddPropertyValueIsTest
     {
         /// <inheritdoc />
@@ -22,66 +22,66 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
             modelBuilder
                 .HasDefaultSchema("audience")
                 .HasAnnotation("ProductVersion", "10.0.0")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImport", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
                     b.Property<DateTime>("CompletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("CreatedCount")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long?>("PerformedById")
                         .HasColumnType("bigint");
 
                     b.Property<int>("RejectedCount")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("RejectedRowsBlobKey")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<int>("SkippedCount")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
                     b.Property<int>("UpdatedCount")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -89,7 +89,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
 
                     b.ToTable("Imports", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_Imports_TenantId", "[TenantId] > 0");
+                            t.HasCheckConstraint("CK_Imports_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
@@ -98,28 +98,28 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("OpenedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long?>("SubmissionId")
                         .HasColumnType("bigint");
@@ -130,23 +130,23 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasColumnType("character varying(64)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("TokenHash")
                         .IsUnique()
                         .HasDatabaseName("IX_Links_TokenHash")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "FormId", "MembershipId")
                         .IsUnique()
                         .HasDatabaseName("IX_Links_Membership")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Links", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_Links_TenantId", "[TenantId] > 0");
+                            t.HasCheckConstraint("CK_Links_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
@@ -155,24 +155,24 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("IdentifierKind")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
@@ -182,11 +182,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.HasIndex("TenantId")
                         .IsUnique()
                         .HasDatabaseName("IX_Settings_Tenant")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Settings", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_Settings_TenantId", "[TenantId] > 0");
+                            t.HasCheckConstraint("CK_Settings_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
@@ -195,30 +195,29 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Identifier")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("character varying(256)");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("NormalizedIdentifier")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
-                        .UseCollation("Latin1_General_100_BIN2");
+                        .HasColumnType("character varying(256)");
 
                     b.Property<long?>("SubmitterId")
                         .HasColumnType("bigint");
@@ -231,11 +230,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.HasIndex("TenantId", "NormalizedIdentifier")
                         .IsUnique()
                         .HasDatabaseName("IX_Members_Identifier")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Members", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_Members_TenantId", "[TenantId] > 0");
+                            t.HasCheckConstraint("CK_Members_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
@@ -244,46 +243,49 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsTest")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<long>("MemberId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
+                    b.HasAlternateKey("TenantId", "Id", "IsTest")
+                        .HasName("AK_Memberships_TestFlag");
+
                     b.HasIndex("TenantId", "FormId")
                         .HasDatabaseName("IX_Memberships_Form")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "FormId", "MemberId")
                         .IsUnique()
                         .HasDatabaseName("IX_Memberships_Member")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Memberships", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_Memberships_TenantId", "[TenantId] > 0");
+                            t.HasCheckConstraint("CK_Memberships_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
@@ -292,16 +294,16 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
                     b.Property<bool>("AllowsOther")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("ChoicesJson")
-                        .HasColumnType("json");
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long?>("DataListId")
                         .HasColumnType("bigint");
@@ -309,27 +311,27 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<string>("DataType")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<int>("SortOrder")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
@@ -337,22 +339,22 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<string>("VariableName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId")
                         .HasDatabaseName("IX_Properties_Form")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("TenantId", "FormId", "VariableName")
                         .IsUnique()
                         .HasDatabaseName("IX_Properties_VariableName")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Properties", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_Properties_TenantId", "[TenantId] > 0");
+                            t.HasCheckConstraint("CK_Properties_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
@@ -361,25 +363,25 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsTest")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("PropertyId")
                         .HasColumnType("bigint");
@@ -390,23 +392,34 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<string>("Value")
                         .IsRequired()
                         .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasColumnType("character varying(4000)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "MembershipId", "PropertyId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_PropertyValues_Cell")
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId", "PropertyId", "IsTest")
                         .HasDatabaseName("IX_PropertyValues_Property")
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.HasIndex("TenantId", "MembershipId", "IsTest", "PropertyId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PropertyValues_Cell")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("PropertyValues", "audience", t =>
                         {
-                            t.HasCheckConstraint("CK_PropertyValues_TenantId", "[TenantId] > 0");
+                            t.HasCheckConstraint("CK_PropertyValues_TenantId", "\"TenantId\" > 0");
                         });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.PropertyValue", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.Membership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "MembershipId", "IsTest")
+                        .HasPrincipalKey("TenantId", "Id", "IsTest")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PropertyValues_Membership");
                 });
 #pragma warning restore 612, 618
         }
