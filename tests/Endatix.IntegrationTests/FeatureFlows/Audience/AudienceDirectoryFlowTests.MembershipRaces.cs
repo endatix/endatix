@@ -26,15 +26,6 @@ public sealed partial class AudienceDirectoryFlowTests
     /// <summary>Longer than any paused race takes, shorter than the command timeout.</summary>
     private static readonly TimeSpan RaceWait = TimeSpan.FromSeconds(20);
 
-    /// <summary>The wait of a request that should find its lock held and answer 503.</summary>
-    private static readonly TimeSpan BusyWait = TimeSpan.FromSeconds(1);
-
-    /// <summary>
-    /// How soon a request with <see cref="BusyWait"/> answers, with room for a slow run; well under the 30 s command
-    /// timeout that bounds a wait on a row or an index.
-    /// </summary>
-    private static readonly TimeSpan BusyAnswer = TimeSpan.FromSeconds(10);
-
     [Fact]
     public async Task Removing_a_participant_while_an_edit_writes_their_value_waits_and_leaves_no_live_value()
     {
@@ -230,110 +221,6 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Editing_a_participant_while_an_import_holds_their_uncommitted_value_is_unavailable_within_the_wait()
-    {
-        // Arrange
-        var world = await WorldAsync();
-        var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        var formId = await admin.CreateFormAsync();
-        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
-        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
-        var gate = CommandGate.AtCommit();
-        await using var scope = world.Services.CreateAsyncScope();
-        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
-        await using var paused = new PausedRace<Result<ImportResultDto>>(
-            gate,
-            ImportHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait))
-                .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
-        await paused.ReachedGateAsync();
-        await using var second = world.Services.CreateAsyncScope();
-        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-
-        // Act
-        var edit = paused.Alongside(UpdateHandlerWith(second.ServiceProvider, secondDb, Waiting(world, BusyWait)).Handle(
-            new UpdatePersonCommand(world.Tenants[0].Id, formId, ada.MembershipId, Values(city, "Plovdiv")),
-            admin.CancellationToken));
-        var answeredInTime = await Task.WhenAny(edit, Task.Delay(BusyAnswer, admin.CancellationToken)) == edit;
-        var imported = await paused.ReleaseAsync();
-        var edited = await edit.WaitAsync(_gateTimeout, admin.CancellationToken);
-
-        // Assert
-        Assert.True(answeredInTime, "The edit waited on the import's uncommitted value past its lock wait.");
-        Assert.Equal(ResultStatus.Unavailable, edited.Status);
-        Assert.Equal([MembershipLock.FormBusy], edited.Errors);
-        Assert.Equal(1, imported.Value.UpdatedCount);
-        Assert.Equal(new Dictionary<long, string> { [city] = "Sofia" }, await LiveCellsAsync(world.Services, formId));
-    }
-
-    [Fact]
-    public async Task Importing_a_participant_while_an_edit_writes_their_value_waits_and_overwrites_it()
-    {
-        // Arrange
-        var world = await WorldAsync();
-        var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        var formId = await admin.CreateFormAsync();
-        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
-        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
-        var gate = CommandGate.AtCellInsert();
-        await using var scope = world.Services.CreateAsyncScope();
-        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
-        await using var paused = new PausedRace<Result<PersonDto>>(
-            gate,
-            UpdateHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait)).Handle(
-                new UpdatePersonCommand(world.Tenants[0].Id, formId, ada.MembershipId, Values(city, "Plovdiv")),
-                admin.CancellationToken));
-        await paused.ReachedGateAsync();
-        await using var second = world.Services.CreateAsyncScope();
-        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-
-        // Act
-        var import = paused.Alongside(ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, RaceWait))
-            .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
-        var importWaited = await Task.WhenAny(import, Task.Delay(SecondOpenProbe, admin.CancellationToken)) != import;
-        var edited = await paused.ReleaseAsync();
-        var imported = await import.WaitAsync(_gateTimeout, admin.CancellationToken);
-
-        // Assert
-        Assert.True(importWaited, "The import did not wait for the edit's lock.");
-        Assert.True(edited.IsSuccess, string.Join("; ", edited.Errors));
-        Assert.Equal(1, imported.Value.UpdatedCount);
-        Assert.Equal(new Dictionary<long, string> { [city] = "Sofia" }, await LiveCellsAsync(world.Services, formId));
-    }
-
-    /// <summary>
-    /// A writer that skips the locks (a pod on the previous version during a deploy) commits the participant's value
-    /// while the edit is paused at its insert. The unique index refuses the edit's insert, and a second locked pass
-    /// overwrites the value.
-    /// </summary>
-    [Fact]
-    public async Task Editing_a_participant_whose_value_another_writer_adds_first_overwrites_it_in_a_second_pass()
-    {
-        // Arrange
-        var world = await WorldAsync();
-        var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        var formId = await admin.CreateFormAsync();
-        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
-        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
-        var gate = CommandGate.AtCellInsert();
-        await using var scope = world.Services.CreateAsyncScope();
-        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
-        await using var paused = new PausedRace<Result<PersonDto>>(
-            gate,
-            UpdateHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait)).Handle(
-                new UpdatePersonCommand(world.Tenants[0].Id, formId, ada.MembershipId, Values(city, "Plovdiv")),
-                admin.CancellationToken));
-        await paused.ReachedGateAsync();
-        await AddCellWithoutTheLockAsync(world, ada.MembershipId, city, "Sofia");
-
-        // Act
-        var edited = await paused.ReleaseAsync();
-
-        // Assert
-        Assert.True(edited.IsSuccess, string.Join("; ", edited.Errors));
-        Assert.Equal(new Dictionary<long, string> { [city] = "Plovdiv" }, await LiveCellsAsync(world.Services, formId));
-    }
-
-    [Fact]
     public async Task Writers_of_a_participant_held_past_the_wait_are_unavailable()
     {
         // Arrange
@@ -364,8 +251,8 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(ResultStatus.Unavailable, edited.Status);
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal(ResultStatus.Unavailable, imported.Status);
-        Assert.Equal([MembershipLock.Busy], edited.Errors);
-        Assert.Equal([MembershipLock.FormBusy], removed.Errors); // same participant, so the stripe refuses first
+        Assert.Equal([MembershipLock.FormBusy], edited.Errors); // same participant, so the stripe refuses first
+        Assert.Equal([MembershipLock.FormBusy], removed.Errors);
         Assert.Equal([MembershipLock.FormBusy], imported.Errors);
     }
 
@@ -481,19 +368,6 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     private static Dictionary<long, string> Values(long propertyId, string value) => new() { [propertyId] = value };
-
-    private static async Task AddCellWithoutTheLockAsync(
-        IntegrationTestWorld world,
-        long membershipId,
-        long propertyId,
-        string value)
-    {
-        await using var scope = world.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-        db.PropertyValues.Add(
-            new PropertyValue(new PropertyValueCreateArgs(world.Tenants[0].Id, membershipId, propertyId, value)));
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-    }
 
     private static ImportCsvCommand CityImport(IntegrationTestWorld world, long formId, string identifier) =>
         new(

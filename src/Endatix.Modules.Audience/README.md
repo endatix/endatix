@@ -105,11 +105,14 @@ and redeem, which is anonymous.
   waits for the other: for the length of a removal, plus its wait for the person's lock. Lock queues are first come,
   first served, so an import that asks for the stripe of a removal queued behind another import waits until that
   removal gets it or gives up. A removal that waited for an import soft-deletes the cells it wrote, and an import that
-  waited for a removal adds the person again. An edit takes no form lock, so it runs during an import; an edit that
-  loses a cell race to the import takes a second locked pass, which overwrites. Every wait is 5 s, then 503, with the
+  waited for a removal adds the person again. An edit takes its person's stripe exclusively too, before the person's lock, so it
+  waits for an import (endatix#1384): without it, the edit's insert waited on the import's uncommitted cell for the
+  30 s command timeout while holding the person's lock, and then failed with a 500. Two edits, or an edit and a
+  removal, on one stripe wait for each other for the length of an edit. An edit that loses a cell race to a writer that
+  skips the locks takes a second locked pass, which overwrites. Every wait is 5 s, then 503, with the
   message of the lock that waited: "This participant is being changed." for the person's, "People on this form are
-  being imported or changed." for the form's (a removal behind an import or another removal on its stripe, the same
-  person's included, or an import behind a removal). On PostgreSQL two keys of one scope can
+  being imported or changed." for the form's (an edit or a removal behind an import or another edit or removal on its
+  stripe, the same person's included, or an import behind an edit or a removal). On PostgreSQL two keys of one scope can
   share a `hashtext` lock, so unrelated people or forms then wait for each other, within that bound. Cells are written in property-id order. The people
   list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
   person added in between makes the page longer than the count, the total is raised to cover the rows shown.

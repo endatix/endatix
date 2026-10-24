@@ -8,10 +8,10 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
-/// Writes one participant's values under their <see cref="MembershipLock"/>, which their removal takes too: the
-/// membership is read again under the lock, so values are written only while the participant is on the form, and a
+/// Writes one participant's values under the locks their removal takes too (<see cref="MembershipLock"/>): the
+/// membership is read again under them, so values are written only while the participant is on the form, and a
 /// removal that waited for the edit soft-deletes what it wrote. Every read and write runs on this writer's context, the
-/// one that holds the lock.
+/// one that holds the locks.
 /// </summary>
 internal sealed class LockedValuesWriter(
     IAudienceDbContext db,
@@ -20,7 +20,8 @@ internal sealed class LockedValuesWriter(
 {
     /// <summary>
     /// The failure, or <see langword="null"/> once the values are written: 404 when the participant was removed before
-    /// the lock was taken, 503 (<see cref="MembershipLock.Busy"/>) when the lock stayed held. A CSV import of the form
+    /// the locks were taken, 503 when one stayed held (<see cref="MembershipLock.FormBusy"/> behind an import of the
+    /// form, <see cref="MembershipLock.Busy"/> behind another writer of the participant). A writer that skips the locks
     /// can add the same cell first; it is committed by the time the index refuses this one, so a second locked pass
     /// finds it and overwrites it, in a new transaction.
     /// </summary>
@@ -42,7 +43,7 @@ internal sealed class LockedValuesWriter(
     private async Task<IResult?> WriteLockedAsync(ValuesEdit edit, CancellationToken cancellationToken)
     {
         Result<IDbContextTransaction> locked =
-            await membershipLock.BeginEditAsync(db, edit.MembershipId, cancellationToken);
+            await membershipLock.BeginEditAsync(db, new(edit.FormId, edit.MembershipId), cancellationToken);
         return locked.IsSuccess ? await WriteInAsync(locked.Value, edit, cancellationToken) : locked;
     }
 
