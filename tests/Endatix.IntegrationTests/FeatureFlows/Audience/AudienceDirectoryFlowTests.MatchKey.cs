@@ -120,12 +120,10 @@ public sealed partial class AudienceDirectoryFlowTests
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-        var tenantId = await db.Memberships.IgnoreQueryFilters()
-            .Where(membership => membership.Id == cell.MembershipId)
-            .Select(membership => membership.TenantId)
-            .SingleAsync(TestContext.Current.CancellationToken);
-        db.PropertyValues.Add(
-            new PropertyValue(new PropertyValueCreateArgs(tenantId, cell.MembershipId, cell.PropertyId, cell.Value)));
+        var membership = await db.Memberships.IgnoreQueryFilters()
+            .SingleAsync(membership => membership.Id == cell.MembershipId, TestContext.Current.CancellationToken);
+        db.PropertyValues.Add(new PropertyValue(new PropertyValueCreateArgs(
+            membership.TenantId, cell.MembershipId, cell.PropertyId, cell.Value, membership.IsTest)));
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 

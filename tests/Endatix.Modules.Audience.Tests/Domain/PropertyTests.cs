@@ -143,7 +143,7 @@ public class PropertyValueTests
     public void Constructor_EmptyValue_ThrowsDomainValidationException()
     {
         // Act
-        Action act = () => new PropertyValue(new PropertyValueCreateArgs(1, 2, 3, ""));
+        Action act = () => new PropertyValue(new PropertyValueCreateArgs(1, 2, 3, "", IsTest: false));
 
         // Assert
         act.Should().Throw<DomainValidationException>();
@@ -153,7 +153,7 @@ public class PropertyValueTests
     public void SetValue_EmptyValue_ThrowsDomainValidationException()
     {
         // Arrange
-        PropertyValue cell = new(new PropertyValueCreateArgs(1, 2, 3, "Sofia"));
+        PropertyValue cell = new(new PropertyValueCreateArgs(1, 2, 3, "Sofia", IsTest: false));
 
         // Act
         Action act = () => cell.SetValue("");

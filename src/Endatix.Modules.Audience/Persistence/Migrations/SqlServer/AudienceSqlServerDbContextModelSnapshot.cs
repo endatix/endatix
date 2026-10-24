@@ -369,6 +369,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
 
@@ -388,13 +393,13 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "PropertyId")
-                        .HasDatabaseName("IX_PropertyValues_Property")
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId", "MembershipId", "PropertyId")
                         .IsUnique()
                         .HasDatabaseName("IX_PropertyValues_Cell")
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("TenantId", "PropertyId", "IsTest")
+                        .HasDatabaseName("IX_PropertyValues_Property")
                         .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("PropertyValues", "audience", t =>

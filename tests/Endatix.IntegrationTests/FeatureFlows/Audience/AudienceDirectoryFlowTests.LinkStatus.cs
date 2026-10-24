@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
@@ -178,12 +179,12 @@ public sealed partial class AudienceDirectoryFlowTests
             page.Items.Select(person => person.Link.Status).Distinct().ToArray());
     }
 
-    /// <summary>Counts the commands EF Core runs on the given contexts, from EF's diagnostic events.</summary>
+    /// <summary>Counts and keeps the commands EF Core runs on the given contexts, from EF's diagnostic events.</summary>
     private sealed class StatementCounter : IObserver<DiagnosticListener>, IObserver<KeyValuePair<string, object?>>, IDisposable
     {
         private readonly HashSet<DbContext> _contexts;
         private readonly List<IDisposable> _subscriptions = [];
-        private int _count;
+        private readonly ConcurrentQueue<string> _commands = new();
 
         public StatementCounter(IEnumerable<DbContext> contexts)
         {
@@ -191,7 +192,10 @@ public sealed partial class AudienceDirectoryFlowTests
             _subscriptions.Add(DiagnosticListener.AllListeners.Subscribe(this));
         }
 
-        public int Count => Volatile.Read(ref _count);
+        public int Count => _commands.Count;
+
+        /// <summary>The SQL of every command, in the order they ran.</summary>
+        public IReadOnlyList<string> Commands => [.. _commands];
 
         public void OnNext(DiagnosticListener listener)
         {
@@ -207,10 +211,10 @@ public sealed partial class AudienceDirectoryFlowTests
         public void OnNext(KeyValuePair<string, object?> value)
         {
             if (value.Key == RelationalEventId.CommandExecuted.Name
-                && value.Value is CommandExecutedEventData { Context: { } context }
+                && value.Value is CommandExecutedEventData { Context: { } context } executed
                 && _contexts.Contains(context))
             {
-                Interlocked.Increment(ref _count);
+                _commands.Enqueue(executed.Command.CommandText);
             }
         }
 

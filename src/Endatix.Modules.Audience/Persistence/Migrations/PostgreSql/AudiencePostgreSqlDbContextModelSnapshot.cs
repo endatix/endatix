@@ -368,6 +368,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
 
@@ -387,13 +392,13 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "PropertyId")
-                        .HasDatabaseName("IX_PropertyValues_Property")
-                        .HasFilter("\"IsDeleted\" = false");
-
                     b.HasIndex("TenantId", "MembershipId", "PropertyId")
                         .IsUnique()
                         .HasDatabaseName("IX_PropertyValues_Cell")
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.HasIndex("TenantId", "PropertyId", "IsTest")
+                        .HasDatabaseName("IX_PropertyValues_Property")
                         .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("PropertyValues", "audience", t =>

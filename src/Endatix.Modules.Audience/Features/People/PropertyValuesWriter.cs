@@ -125,8 +125,8 @@ internal static class PropertyValuesWriter
     {
         HashSet<long> propertyIds = write.Values.Keys.ToHashSet();
         return write.Db.PropertyValues
-            .Where(value => value.TenantId == write.TenantId
-                && value.MembershipId == write.MembershipId
+            .Where(value => value.TenantId == write.Membership.TenantId
+                && value.MembershipId == write.Membership.Id
                 && propertyIds.Contains(value.PropertyId))
             .ToDictionaryAsync(value => value.PropertyId, cancellationToken);
     }
@@ -136,7 +136,7 @@ internal static class PropertyValuesWriter
         if (value.Length > 0)
         {
             write.Db.PropertyValues.Add(new PropertyValue(new PropertyValueCreateArgs(
-                write.TenantId, write.MembershipId, propertyId, value)));
+                write.Membership.TenantId, write.Membership.Id, propertyId, value, write.Membership.IsTest)));
         }
     }
 }
@@ -160,6 +160,5 @@ internal sealed record PropertyValuesCheck(
 /// </summary>
 internal sealed record PropertyValueWrite(
     IAudienceDbContext Db,
-    long TenantId,
-    long MembershipId,
+    Membership Membership,
     IReadOnlyDictionary<long, string> Values);

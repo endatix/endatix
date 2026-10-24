@@ -17,6 +17,7 @@ internal sealed class PropertyValueConfiguration(AudienceSqlDialect dialect) : I
         builder.Property(value => value.TenantId).IsRequired();
         builder.Property(value => value.MembershipId).IsRequired();
         builder.Property(value => value.PropertyId).IsRequired();
+        builder.Property(value => value.IsTest).IsRequired().HasDefaultValue(false);
         builder.Property(value => value.Value)
             .HasMaxLength(PropertyValue.VALUE_MAX_LENGTH)
             .IsRequired();
@@ -30,7 +31,7 @@ internal sealed class PropertyValueConfiguration(AudienceSqlDialect dialect) : I
             .HasDatabaseName(PropertyValue.UniqueConstraints.CellPerMembership)
             .HasFilter(dialect.ActiveRowsFilter);
 
-        builder.HasIndex(value => new { value.TenantId, value.PropertyId })
+        builder.HasIndex(value => new { value.TenantId, value.PropertyId, value.IsTest })
             .HasDatabaseName("IX_PropertyValues_Property")
             .HasFilter(dialect.ActiveRowsFilter);
     }

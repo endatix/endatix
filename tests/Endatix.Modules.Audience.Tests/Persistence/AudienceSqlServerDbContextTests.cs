@@ -67,7 +67,7 @@ public class AudienceSqlServerDbContextTests
             new IndexShape("IX_Properties_Form", "TenantId,FormId", false),
             new IndexShape("IX_Properties_VariableName", "TenantId,FormId,VariableName", true),
             new IndexShape("IX_PropertyValues_Cell", "TenantId,MembershipId,PropertyId", true),
-            new IndexShape("IX_PropertyValues_Property", "TenantId,PropertyId", false),
+            new IndexShape("IX_PropertyValues_Property", "TenantId,PropertyId,IsTest", false),
             new IndexShape("IX_Settings_Tenant", "TenantId", true),
         ]);
         model.FindEntityType(typeof(Property))!.FindProperty(nameof(Property.ChoicesJson))!

@@ -186,7 +186,7 @@ internal sealed class CreatePersonHandler(
         db.Memberships.Add(membership);
 
         IReadOnlyDictionary<long, string> values = request.Values ?? new Dictionary<long, string>();
-        PropertyValuesWriter.AddAll(new PropertyValueWrite(db, request.TenantId, membership.Id, values));
+        PropertyValuesWriter.AddAll(new PropertyValueWrite(db, membership, values));
         await db.SaveChangesAsync(cancellationToken);
         return new PersonDto(
             membership.Id, member.Id, member.Identifier, PropertyValuesWriter.Stored(values), membership.IsTest,
