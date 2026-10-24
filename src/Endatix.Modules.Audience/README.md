@@ -90,7 +90,9 @@ and redeem, which is anonymous.
 - **Concurrency.** Person creates and imports take a shared tenant lock; a match-key change takes it
   exclusively. The lock is `ITransactionLock` (scope `AudienceMatchKey`, key the tenant id), held until the
   transaction ends. The unique indexes settle create races (a second pass reuses the member; a duplicate
-  on one form is a 409). The identifier is checked against the key read under the lock. An edit of a person's
+  on one form is a 409). Two imports of one form that add the same new people in different orders can deadlock on
+  those indexes; the victim takes the same second pass. The identifier is checked against the key read under the
+  lock. An edit of a person's
   values and their removal both take the person's lock (`MembershipLock`: scope `AudienceMembership`, key the
   membership id, exclusive) as their transaction's first statement and read the membership again under it: an edit
   that waited for a removal is a 404, and a removal that waited for an edit soft-deletes the cells it wrote, so a
