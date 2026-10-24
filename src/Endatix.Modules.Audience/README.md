@@ -121,8 +121,8 @@ and redeem, which is anonymous.
   (endatix#1384): without that stripe, the edit's insert waited on the import's uncommitted cell for the 30 s command
   timeout while holding the participant's lock, and then failed with a 500. An edit that loses a cell race to a writer
   that skips the locks takes a second locked pass, which overwrites. Every wait is 5 s, then 503 whose `detail` is the
-  message of the lock that waited: "This participant is being changed." for the participant's, "People on this form are
-  being imported or changed." for the form's (an edit or a removal behind an import or another edit or removal on its
+  message of the lock that waited: "This participant is being changed. Try again." for the participant's, "People on this form are
+  being imported or changed. Try again." for the form's (an edit or a removal behind an import or another edit or removal on its
   stripe, or an import behind an edit or a removal). On PostgreSQL two keys of one scope can
   share a `hashtext` lock, so unrelated people or forms then wait for each other, within that bound. Cells are written in property-id order. The people
   list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a

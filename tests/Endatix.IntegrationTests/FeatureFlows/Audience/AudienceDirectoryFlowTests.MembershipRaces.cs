@@ -331,6 +331,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal([MembershipLock.FormBusy], removed.Errors);
+        Assert.True(await IsLiveAsync(world.Services, ada.MembershipId));
     }
 
     [Fact]
@@ -353,6 +354,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         var problem = await admin.ReadAsync(response);
         Assert.Equal(MembershipLock.FormBusy, problem.GetProperty("detail").GetString());
+        Assert.True(await IsLiveAsync(world.Services, ada.MembershipId));
     }
 
     /// <summary>
@@ -466,6 +468,14 @@ public sealed partial class AudienceDirectoryFlowTests
     private static DbContextOptions<T> Gated<T>(DbContextOptions<T> options, IInterceptor gate)
         where T : DbContext =>
         new DbContextOptionsBuilder<T>(options).AddInterceptors(gate).Options;
+
+    /// <summary>Whether the membership is not soft-deleted.</summary>
+    private static async Task<bool> IsLiveAsync(IServiceProvider services, long membershipId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IAudienceDbContext>().Memberships
+            .AnyAsync(membership => membership.Id == membershipId, TestContext.Current.CancellationToken);
+    }
 
     /// <summary>Value cells of the membership that are not soft-deleted.</summary>
     private static async Task<int> LiveCellCountAsync(IServiceProvider services, long membershipId)
