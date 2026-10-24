@@ -99,7 +99,9 @@ and redeem, which is anonymous.
   after the tenant lock and before it reads the form's people; a removal shares it, before the person's lock. A
   removal that waited for an import soft-deletes the cells it wrote, and an import that waited for a removal adds the
   person again. An edit takes no form lock, so it runs during an import; an edit that loses a cell race to the import
-  takes a second locked pass, which overwrites. Every wait is 5 s, then 503. On PostgreSQL two keys of one scope can
+  takes a second locked pass, which overwrites. Every wait is 5 s, then 503, with the message of the lock that
+  waited: "This participant is being changed." for the person's, "People on this form are being imported or changed."
+  for the form's (a removal behind an import, or an import behind a removal or another import). On PostgreSQL two keys of one scope can
   share a `hashtext` lock, so unrelated people or forms then wait for each other, within that bound. Cells are written in property-id order. The people
   list counts and then reads the page without a transaction, so it takes no locks that wait behind writers; when a
   person added in between makes the page longer than the count, the total is raised to cover the rows shown.

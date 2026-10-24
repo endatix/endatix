@@ -178,8 +178,8 @@ internal sealed class ImportCsvHandler(
     /// <summary>
     /// Stages every row and the import summary, then saves once: a database failure leaves no
     /// half-imported audience and no summary that disagrees with the rows written. The form's people
-    /// are read after its <see cref="MembershipLock"/>, which their removals share, so a person removed
-    /// meanwhile is added again instead of keeping a live value on the removed membership.
+    /// are read after the form's people lock (<see cref="MembershipLock.AcquireImportAsync"/>), which their removals
+    /// share, so a person removed meanwhile is added again instead of keeping a live value on the removed membership.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportAsync(
         ImportCsvCommand request,
@@ -188,7 +188,7 @@ internal sealed class ImportCsvHandler(
     {
         await using IDbContextTransaction transaction =
             await matchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
-        if (await support.FormLock.AcquireImportAsync(db, request.FormId, cancellationToken) is { } busy)
+        if (await support.FormPeopleLock.AcquireImportAsync(db, request.FormId, cancellationToken) is { } busy)
         {
             return busy.ToErrorResult<ImportResultDto>();
         }
@@ -267,12 +267,15 @@ internal sealed record ImportInput(IReadOnlyList<CsvDataRow> Rows, CsvColumnMap 
 internal sealed class ImportWriteSupport(
     IValueNormalizer normalizer,
     IUniqueConstraintViolationChecker violations,
-    MembershipLock formLock)
+    MembershipLock formPeopleLock)
 {
     public IValueNormalizer Normalizer { get; } = normalizer;
 
     public IUniqueConstraintViolationChecker Violations { get; } = violations;
 
-    /// <summary>Taken exclusively for the form, after the tenant's match-key lock (<see cref="MembershipLock.AcquireImportAsync"/>).</summary>
-    public MembershipLock FormLock { get; } = formLock;
+    /// <summary>
+    /// Takes the form's people lock (scope <c>AudienceFormPeople</c>) exclusively, after the tenant's match-key lock;
+    /// <see cref="MembershipLock"/> owns it with the participant lock, so their order lives in one place.
+    /// </summary>
+    public MembershipLock FormPeopleLock { get; } = formPeopleLock;
 }

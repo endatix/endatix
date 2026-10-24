@@ -162,6 +162,39 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task Editing_a_participant_whose_value_an_import_adds_first_overwrites_it_in_a_second_pass()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
+        var gate = CommandGate.AtCellInsert();
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
+        await using var paused = new PausedRace<Result<PersonDto>>(
+            gate,
+            UpdateHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait)).Handle(
+                new UpdatePersonCommand(world.Tenants[0].Id, formId, ada.MembershipId, Values(city, "Plovdiv")),
+                admin.CancellationToken));
+        await paused.ReachedGateAsync();
+        await using var second = world.Services.CreateAsyncScope();
+        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+
+        // Act
+        var imported = await paused.Alongside(ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, RaceWait))
+            .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken))
+            .WaitAsync(_gateTimeout, admin.CancellationToken);
+        var edited = await paused.ReleaseAsync();
+
+        // Assert
+        Assert.Equal(1, imported.Value.UpdatedCount);
+        Assert.True(edited.IsSuccess, string.Join("; ", edited.Errors));
+        Assert.Equal(new Dictionary<long, string> { [city] = "Plovdiv" }, await LiveCellsAsync(world.Services, formId));
+    }
+
+    [Fact]
     public async Task Writers_of_a_participant_held_past_the_wait_are_unavailable()
     {
         // Arrange
@@ -192,6 +225,33 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(ResultStatus.Unavailable, edited.Status);
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal(ResultStatus.Unavailable, imported.Status);
+        Assert.Equal([MembershipLock.Busy], edited.Errors);
+        Assert.Equal([MembershipLock.Busy], removed.Errors);
+        Assert.Equal([MembershipLock.FormBusy], imported.Errors);
+    }
+
+    [Fact]
+    public async Task Removing_a_participant_while_an_import_holds_the_form_past_the_wait_says_the_form_is_busy()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
+        await using var scope = world.Services.CreateAsyncScope();
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        await using var heldTransaction = await ((DbContext)holder).Database.BeginTransactionAsync(admin.CancellationToken);
+        Assert.Null(await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .AcquireImportAsync(holder, formId, admin.CancellationToken));
+        await using var second = world.Services.CreateAsyncScope();
+
+        // Act
+        var removed = await DeleteHandlerWith(second.ServiceProvider, Waiting(world, TimeSpan.FromMilliseconds(50)))
+            .Handle(Removal(world, formId, ada), admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unavailable, removed.Status);
+        Assert.Equal([MembershipLock.FormBusy], removed.Errors);
     }
 
     private static Dictionary<long, string> Values(long propertyId, string value) => new() { [propertyId] = value };

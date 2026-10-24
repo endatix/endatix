@@ -21,11 +21,14 @@ namespace Endatix.Modules.Audience.Persistence;
 /// </remarks>
 internal sealed class MembershipLock(ITransactionLock transactionLock)
 {
-    /// <summary>What an edit or a removal answers when the participant, or an import of their form, held it too long.</summary>
+    /// <summary>What an edit or a removal answers when another writer of the participant held their lock too long.</summary>
     internal const string Busy = "This participant is being changed. Try again.";
 
-    /// <summary>What an import answers when a removal on its form held the form too long.</summary>
-    internal const string FormBusy = "People on this form are being changed. Try again.";
+    /// <summary>
+    /// What a removal or an import answers when the form's people lock stayed held: by an import of the form, which
+    /// takes it exclusively, or, for an import, by a removal on the form.
+    /// </summary>
+    internal const string FormBusy = "People on this form are being imported or changed. Try again.";
 
     /// <summary>Longer than an edit or a removal takes; a waiter past it gets a retryable 503, not a held connection.</summary>
     internal static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(5);
@@ -34,59 +37,52 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
     internal TimeSpan Wait { get; init; } = DefaultWait;
 
     /// <summary>A transaction holding the participant's lock, for an edit of their values; 503 when it stays held.</summary>
-    public async Task<Result<IDbContextTransaction>> BeginEditAsync(
+    public Task<Result<IDbContextTransaction>> BeginEditAsync(
         IAudienceDbContext db,
         long membershipId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return Result<IDbContextTransaction>.Success(
-                await transactionLock.BeginLockedTransactionAsync(Database(db), Participant(membershipId), cancellationToken));
-        }
-        catch (TransactionLockTimeoutException)
-        {
-            return Result<IDbContextTransaction>.Unavailable(Busy);
-        }
-    }
+        CancellationToken cancellationToken) =>
+        UnlessBusyAsync(() =>
+            transactionLock.BeginLockedTransactionAsync(Database(db), Participant(membershipId), cancellationToken));
 
     /// <summary>
-    /// A transaction holding the form's lock shared and then the participant's, for their removal; 503 when an import
-    /// of the form or another writer of the participant holds it.
+    /// A transaction holding the form's people lock shared and then the participant's, for their removal; 503 when an
+    /// import of the form or another writer of the participant holds it, with the message of the lock that waited.
     /// </summary>
-    public async Task<Result<IDbContextTransaction>> BeginRemovalAsync(
+    public Task<Result<IDbContextTransaction>> BeginRemovalAsync(
         IAudienceDbContext db,
         RemovalKey participant,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return Result<IDbContextTransaction>.Success(
-                await BeginBothAsync(Database(db), participant, cancellationToken));
-        }
-        catch (TransactionLockTimeoutException)
-        {
-            return Result<IDbContextTransaction>.Unavailable(Busy);
-        }
-    }
+        CancellationToken cancellationToken) =>
+        UnlessBusyAsync(() => BeginBothAsync(Database(db), participant, cancellationToken));
 
     /// <summary>
-    /// The form's lock exclusively, in the import's transaction, after its <see cref="MatchKeyLock"/>: the failure (503
-    /// while a removal on the form holds it), or <see langword="null"/> once it is held.
+    /// The form's people lock exclusively, in the import's transaction, after its <see cref="MatchKeyLock"/>: the
+    /// failure (503 while a removal on the form or another import of it holds it), or <see langword="null"/> once it
+    /// is held.
     /// </summary>
     public async Task<IResult?> AcquireImportAsync(
         IAudienceDbContext db,
         long formId,
         CancellationToken cancellationToken)
     {
-        try
+        Result<bool> held = await UnlessBusyAsync(async () =>
         {
             await transactionLock.AcquireAsync(Database(db), FormPeople(formId), cancellationToken);
-            return null;
-        }
-        catch (TransactionLockTimeoutException)
+            return true;
+        });
+        return held.IsSuccess ? null : held;
+    }
+
+    /// <summary>The lock's result, or 503 with the busy message of the lock whose wait ran out.</summary>
+    private static async Task<Result<T>> UnlessBusyAsync<T>(Func<Task<T>> take)
+    {
+        try
         {
-            return Result.Unavailable(FormBusy);
+            return Result<T>.Success(await take());
+        }
+        catch (TransactionLockTimeoutException timeout)
+        {
+            return Result<T>.Unavailable(
+                timeout.Request.Scope == TransactionLockScopes.AudienceFormPeople ? FormBusy : Busy);
         }
     }
 

@@ -356,7 +356,7 @@ public sealed partial class AudienceDirectoryFlowTests
         /// </summary>
         public static CommandGate AtFirstRead() => new(SubmissionRead());
 
-        /// <summary>An edit's insert of a participant's value cell.</summary>
+        /// <summary>An edit's or an import's insert of a participant's value cell.</summary>
         public static CommandGate AtCellInsert() => new(CellInsert());
 
         /// <summary>A removal's soft delete of the participant's membership.</summary>

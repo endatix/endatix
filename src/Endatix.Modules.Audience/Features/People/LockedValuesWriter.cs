@@ -67,9 +67,15 @@ internal sealed class LockedValuesWriter(
 
     private Task<bool> IsOnFormAsync(ValuesEdit edit, CancellationToken cancellationToken) =>
         db.Memberships.AsNoTracking().AnyAsync(
-            membership => membership.TenantId == edit.TenantId && membership.Id == edit.MembershipId,
+            membership => membership.TenantId == edit.TenantId
+                && membership.FormId == edit.FormId
+                && membership.Id == edit.MembershipId,
             cancellationToken);
 }
 
-/// <summary>The values to write on one participant: property id to value, an empty value clearing its cell.</summary>
-internal sealed record ValuesEdit(long TenantId, long MembershipId, IReadOnlyDictionary<long, string> Values);
+/// <summary>The values to write on one participant of a form: property id to value, an empty value clearing its cell.</summary>
+internal sealed record ValuesEdit(
+    long TenantId,
+    long FormId,
+    long MembershipId,
+    IReadOnlyDictionary<long, string> Values);

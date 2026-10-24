@@ -40,7 +40,8 @@ internal sealed class UpdatePersonHandler(
 
         ParticipantOnForm participant = loaded.Value;
         ValuesEdit edit = new(
-            request.TenantId, participant.Membership.Id, MatchKeyProperty.Stored(request.Values, participant.MatchKey));
+            request.TenantId, request.FormId, participant.Membership.Id,
+            MatchKeyProperty.Stored(request.Values, participant.MatchKey));
         IResult? failure = await valuesWriter.WriteAsync(edit, cancellationToken);
         return failure is null
             ? await participantReader.ReadAsync(participant, cancellationToken)
