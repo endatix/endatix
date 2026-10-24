@@ -53,21 +53,19 @@ internal sealed class LockedValuesWriter(
         CancellationToken cancellationToken)
     {
         await using IDbContextTransaction transaction = locked;
-        if (!await IsOnFormAsync(edit, cancellationToken))
+        if (await OnFormAsync(edit, cancellationToken) is not { } membership)
         {
             return Result.NotFound("Audience membership not found.");
         }
 
-        await PropertyValuesWriter.UpsertAsync(
-            new PropertyValueWrite(db, edit.TenantId, edit.MembershipId, edit.Values),
-            cancellationToken);
+        await PropertyValuesWriter.UpsertAsync(new PropertyValueWrite(db, membership, edit.Values), cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return null;
     }
 
-    private Task<bool> IsOnFormAsync(ValuesEdit edit, CancellationToken cancellationToken) =>
-        db.Memberships.AsNoTracking().AnyAsync(
+    private Task<Membership?> OnFormAsync(ValuesEdit edit, CancellationToken cancellationToken) =>
+        db.Memberships.AsNoTracking().FirstOrDefaultAsync(
             membership => membership.TenantId == edit.TenantId
                 && membership.FormId == edit.FormId
                 && membership.Id == edit.MembershipId,

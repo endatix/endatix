@@ -49,7 +49,7 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
             return false;
         }
 
-        PropertyValuesWriter.Upsert(new PropertyValueWrite(db, target.TenantId, membership.Id, values), cells);
+        PropertyValuesWriter.Upsert(new PropertyValueWrite(db, membership, values), cells);
         return true;
     }
 
@@ -70,7 +70,7 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
     {
         Membership membership = new(new MembershipCreateArgs(target.TenantId, target.FormId, member.Id, target.IsTest));
         db.Memberships.Add(membership);
-        PropertyValuesWriter.AddAll(new PropertyValueWrite(db, target.TenantId, membership.Id, values));
+        PropertyValuesWriter.AddAll(new PropertyValueWrite(db, membership, values));
     }
 }
 

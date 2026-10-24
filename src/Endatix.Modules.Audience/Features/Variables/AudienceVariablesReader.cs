@@ -26,10 +26,9 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         new Dictionary<(long PropertyId, bool IsTest), int>();
 
     /// <summary>
-    /// Up to eight statements: the Properties, participants by test flag, filled cells by Property (all, then the Test
-    /// participants' ids and their cells), the match-key Property, then the first participants and their cells
-    /// (<see cref="ParticipantValues"/>). Stops after the second when the form has no Properties or no participants,
-    /// and skips the test counts when it has no Test participants.
+    /// Up to six statements: the Properties, participants by test flag, filled cells by Property and test flag, the
+    /// match-key Property, then the first participants and their cells (<see cref="ParticipantValues"/>). Stops after
+    /// the second when the form has no Properties or no participants.
     /// </summary>
     public Task<FormAudience> ReadAsync(FormKey key, CancellationToken cancellationToken) =>
         ReadAsync(key, [], cancellationToken);
@@ -56,7 +55,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         MatchKey? matchKey = await MatchKeyProperty.FindAsync(db, new(key.TenantId, key.FormId), cancellationToken);
         return new FormAudience(
             properties,
-            await FirstParticipantsAsync(new ValuesScope(key, matchKey), savedKeys, cancellationToken),
+            await FirstParticipantsAsync(ValuesScope.Of(key, matchKey, properties), savedKeys, cancellationToken),
             participants,
             MatchKeyProperty.Filled(filled, matchKey, (participants.Test, participants.Real)));
     }
@@ -90,8 +89,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
 
     /// <summary>
     /// One participant on the form by audience member id with the form's Properties, or <see langword="null"/> when
-    /// they are not on it or were removed. Four statements: the participant, the match-key Property, their cells, the
-    /// Properties; one when they are not on the form.
+    /// they are not on it or were removed. Four statements: the participant, the match-key Property, the Properties,
+    /// their cells; one when they are not on the form.
     /// </summary>
     public async Task<ParticipantAudience?> ReadOneAsync(
         FormKey key,
@@ -107,8 +106,10 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         }
 
         MatchKey? matchKey = await MatchKeyProperty.FindAsync(db, new(key.TenantId, key.FormId), cancellationToken);
-        List<PresetSource> participant = await PresetsAsync(new ValuesScope(key, matchKey), named, cancellationToken);
-        return new ParticipantAudience(await PropertiesAsync(key, cancellationToken), participant[0]);
+        List<Property> properties = await PropertiesAsync(key, cancellationToken);
+        List<PresetSource> participant =
+            await PresetsAsync(ValuesScope.Of(key, matchKey, properties), named, cancellationToken);
+        return new ParticipantAudience(properties, participant[0]);
     }
 
     /// <summary>
@@ -129,7 +130,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
 
         Dictionary<string, string> keys = KeysOf(identifiers, identifierKind);
         List<Property> properties = await PropertiesAsync(key, cancellationToken);
-        ValuesScope scope = new(key, MatchKeyProperty.In(properties, identifierKind));
+        ValuesScope scope = ValuesScope.Of(key, MatchKeyProperty.In(properties, identifierKind), properties);
         return new KeyedAudience(
             properties, await OnFormAsync(scope, keys.Values.ToHashSet(), cancellationToken), keys, scope.MatchKey);
     }
@@ -159,6 +160,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
                 values.GetValueOrDefault(participant.MembershipId) ?? []));
     }
 
+    private static List<long> IdsOf(List<Property> properties) => properties.ConvertAll(property => property.Id);
+
     private Task<List<Property>> PropertiesAsync(FormKey key, CancellationToken cancellationToken) =>
         db.Properties.AsNoTracking()
             .Where(property => property.TenantId == key.TenantId && property.FormId == key.FormId)
@@ -173,9 +176,6 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     /// </summary>
     private IQueryable<Membership> Memberships(FormKey key) => FormParticipants.OnForm(db, key.TenantId, key.FormId);
 
-    private IQueryable<Membership> TestMemberships(FormKey key) =>
-        Memberships(key).Where(membership => membership.IsTest);
-
     private async Task<ParticipantCounts> CountParticipantsAsync(FormKey key, CancellationToken cancellationToken)
     {
         Dictionary<bool, int> counts = await Memberships(key)
@@ -186,16 +186,14 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     }
 
     /// <summary>
-    /// Filled cells per live Property: every cell, then the Test participants' cells, in two GROUP BYs with no join
-    /// between cells and memberships. Removing a person or a Property deletes its cells, so real = all − test. The join
-    /// this replaced let PostgreSQL loop the form's memberships over <c>IX_PropertyValues_Property</c>, a scan of every
-    /// cell per participant, and time out at 5,000 × 50 when its statistics were off (CI). Now the first reads one index
-    /// range per Property and the second reaches cells only through the test memberships (<c>IX_PropertyValues_Cell</c>).
-    /// The first filters by the live Property ids just read, which is what <see cref="PropertyValuesWriter.ActiveCells(IAudienceDbContext, long, IReadOnlyCollection{long})"/>
-    /// tests with an EXISTS. The second reads the Test participants' cells by their ids, with no Property predicate
-    /// (<see cref="CountTestCellsAsync"/>); a deleted Property's cells it counts are dropped here, since only the live
-    /// ids are read back. The statements share no snapshot, so a person added or removed between them could push a
-    /// count past the participants or below zero; each count is clamped to <c>0..participants</c>.
+    /// Filled cells per live Property and test flag, in one GROUP BY over <c>IX_PropertyValues_Property</c> (tenant,
+    /// Property, test flag): one index range per Property, with no join, no membership read and no id list. Each cell
+    /// carries its membership's test flag (<see cref="PropertyValue.IsTest"/>), so nothing ties the two tables at read
+    /// time. Two counts this replaced, all cells and then the Test participants' cells by their ids, read every cell
+    /// twice; the join before them let PostgreSQL loop memberships over cells and time out at 30 s (#1363, #1376).
+    /// Filtering by the live Property ids just read drops a deleted Property's cells. The statements share no
+    /// snapshot, so a person added or removed between them could push a count past the participants; each count is
+    /// clamped to <c>0..participants</c>.
     /// </summary>
     private async Task<IReadOnlyDictionary<(long PropertyId, bool IsTest), int>> CountFilledAsync(
         FormKey key,
@@ -203,47 +201,20 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         ParticipantCounts participants,
         CancellationToken cancellationToken)
     {
-        List<long> propertyIds = properties.ConvertAll(property => property.Id);
-        Dictionary<long, int> all = await CountByPropertyAsync(
-            db.PropertyValues.Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId)),
-            cancellationToken);
-        Dictionary<long, int> test = participants.Test == 0
-            ? []
-            : await CountTestCellsAsync(key, cancellationToken);
+        List<long> propertyIds = IdsOf(properties);
+        Dictionary<(long PropertyId, bool IsTest), int> cells = await db.PropertyValues.AsNoTracking()
+            .Where(cell => cell.TenantId == key.TenantId && propertyIds.Contains(cell.PropertyId))
+            .GroupBy(cell => new { cell.PropertyId, cell.IsTest })
+            .Select(group => new { group.Key.PropertyId, group.Key.IsTest, Count = group.Count() })
+            .ToDictionaryAsync(group => (group.PropertyId, group.IsTest), group => group.Count, cancellationToken);
         return propertyIds
-            .SelectMany(id =>
+            .SelectMany(id => new[]
             {
-                int filledTest = Math.Clamp(test.GetValueOrDefault(id), 0, participants.Test);
-                int filledReal = Math.Clamp(all.GetValueOrDefault(id) - filledTest, 0, participants.Real);
-                return new[] { ((id, true), filledTest), ((id, false), filledReal) };
+                ((id, true), Math.Clamp(cells.GetValueOrDefault((id, true)), 0, participants.Test)),
+                ((id, false), Math.Clamp(cells.GetValueOrDefault((id, false)), 0, participants.Real)),
             })
             .ToDictionary(entry => entry.Item1, entry => entry.Item2);
     }
-
-    /// <summary>
-    /// The Test participants' ids first, then their cells by those ids: two statements and no join, so no plan can loop
-    /// one side over the other. A subquery here (with or without a Property predicate) let PostgreSQL scan the tenant's
-    /// cells and run the membership subquery per cell, and CI timed out at 30 s.
-    /// </summary>
-    private async Task<Dictionary<long, int>> CountTestCellsAsync(FormKey key, CancellationToken cancellationToken)
-    {
-        List<long> testMemberships = await TestMemberships(key)
-            .Select(membership => membership.Id)
-            .ToListAsync(cancellationToken);
-        return await CountByPropertyAsync(
-            db.PropertyValues.Where(cell =>
-                cell.TenantId == key.TenantId && testMemberships.Contains(cell.MembershipId)),
-            cancellationToken);
-    }
-
-    /// <summary>Cells per property id.</summary>
-    private static Task<Dictionary<long, int>> CountByPropertyAsync(
-        IQueryable<PropertyValue> cells,
-        CancellationToken cancellationToken) =>
-        cells.AsNoTracking()
-            .GroupBy(cell => cell.PropertyId)
-            .Select(group => new { PropertyId = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(group => group.PropertyId, group => group.Count, cancellationToken);
 
     private async Task<List<PresetSource>> ParticipantsAsync(
         ValuesScope scope,
@@ -299,13 +270,21 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
             new ParticipantCells(
                 scope.Key.TenantId,
                 scope.MatchKey,
-                participants.ToDictionary(participant => participant.MembershipId, participant => participant.Identifier)),
+                participants.ToDictionary(participant => participant.MembershipId, participant => participant.Identifier),
+                scope.PropertyIds),
             cancellationToken);
 
     private sealed record NamedMembership(long MembershipId, string Identifier, bool IsTest);
 
-    /// <summary>The form whose values are read, and its match-key Property, which they show the identifier in.</summary>
-    private sealed record ValuesScope(FormKey Key, MatchKey? MatchKey);
+    /// <summary>
+    /// The form whose values are read, its match-key Property, which they show the identifier in, and its live
+    /// Properties' ids, which the cells are read for.
+    /// </summary>
+    private sealed record ValuesScope(FormKey Key, MatchKey? MatchKey, IReadOnlyCollection<long> PropertyIds)
+    {
+        public static ValuesScope Of(FormKey key, MatchKey? matchKey, List<Property> properties) =>
+            new(key, matchKey, IdsOf(properties));
+    }
 
     private sealed record KeyedMembership(long MembershipId, bool IsTest, string Key, string Identifier);
 }

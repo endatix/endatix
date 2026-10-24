@@ -49,7 +49,7 @@ internal sealed class UpdatePersonHandler(
     }
 
     /// <summary>
-    /// The participant and the form's match-key Property, then the values: a value for that Property other than the
+    /// The participant and the form's Properties, with its match-key Property, then the values: a value for that Property other than the
     /// identifier is refused (<see cref="MatchKeyProperty.WriteError"/>).
     /// </summary>
     private async Task<Result<ParticipantOnForm>> LoadAsync(
@@ -81,7 +81,7 @@ internal sealed class UpdatePersonHandler(
             : new ParticipantOnForm(
                 row.Membership,
                 row.Identifier,
-                await MatchKeyProperty.FindAsync(db, new(request.TenantId, request.FormId), cancellationToken));
+                await FormProperties.ReadAsync(db, new(request.TenantId, request.FormId), cancellationToken));
     }
 
     private async Task<Result<ParticipantOnForm>> ValidateValuesAsync(

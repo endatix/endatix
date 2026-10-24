@@ -43,7 +43,7 @@ internal static class ParticipantValues
         CancellationToken cancellationToken)
     {
         var cells = await PropertyValuesWriter
-            .ActiveCells(db, which.TenantId, which.Identifiers.Keys.ToList())
+            .ActiveCells(db, which)
             .Select(cell => new { cell.MembershipId, cell.PropertyId, cell.Value })
             .ToListAsync(cancellationToken);
         return cells
@@ -55,12 +55,23 @@ internal static class ParticipantValues
 }
 
 /// <summary>
-/// The participants of one form whose values to read, by membership id, with their identifiers, and the form's
-/// match-key Property (<see langword="null"/> when it has none).
+/// The participants of one form whose values to read, by membership id, with their identifiers; the form's match-key
+/// Property (<see langword="null"/> when it has none) and its live Properties' ids, both read by the caller.
 /// </summary>
-internal sealed record ParticipantCells(long TenantId, MatchKey? MatchKey, IReadOnlyDictionary<long, string> Identifiers)
+internal sealed record ParticipantCells(
+    long TenantId,
+    MatchKey? MatchKey,
+    IReadOnlyDictionary<long, string> Identifiers,
+    IReadOnlyCollection<long> PropertyIds)
 {
+    /// <summary>The participants of a form whose Properties the caller has read.</summary>
+    public static ParticipantCells Of(long tenantId, FormProperties form, IReadOnlyDictionary<long, string> identifiers) =>
+        new(tenantId, form.MatchKey, identifiers, form.Ids);
+
     /// <summary>One participant.</summary>
-    public static ParticipantCells Of(Membership membership, MatchKey? matchKey, string identifier) =>
-        new(membership.TenantId, matchKey, new Dictionary<long, string> { [membership.Id] = identifier });
+    public static ParticipantCells Of(ParticipantOnForm participant) =>
+        Of(
+            participant.Membership.TenantId,
+            participant.Properties,
+            new Dictionary<long, string> { [participant.Membership.Id] = participant.Identifier });
 }
