@@ -142,40 +142,23 @@ internal sealed class ListPeopleHandler(
             return [];
         }
 
-        HashSet<long> membershipIds = rows.Select(row => row.Id).ToHashSet();
-        List<long> propertyIds = await PropertyIdsAsync(request, cancellationToken);
+        FormProperties form = await PropertiesAsync(request, cancellationToken);
         Dictionary<long, string> identifiers = await LoadIdentifiersAsync(rows, cancellationToken);
+        ParticipantCells cells = ParticipantCells.Of(request.TenantId, form, IdentifiersByMembership(rows, identifiers));
         PageDetails details = new(
             identifiers,
-            await ValuesAsync(request, new(IdentifiersByMembership(rows, identifiers), propertyIds), cancellationToken),
-            await linkStatuses.ForAsync(membershipIds, cancellationToken),
-            propertyIds);
+            await ParticipantValues.ReadAsync(db, cells, cancellationToken),
+            await linkStatuses.ForAsync(rows.Select(row => row.Id).ToHashSet(), cancellationToken),
+            form.Ids);
         return BuildDtos(rows, details);
     }
 
     /// <summary>
-    /// Read before the values: a Property deleted between the two reads is then counted as not filled in, never as a
-    /// value beyond the count.
+    /// The form's live Property ids and match-key Property (<see cref="FormProperties"/>). Read before the values: a
+    /// Property deleted between the two reads is then counted as not filled in, never as a value beyond the count.
     /// </summary>
-    private Task<List<long>> PropertyIdsAsync(ListPeopleQuery request, CancellationToken cancellationToken) =>
-        ParticipantCells.PropertyIdsAsync(db, new(request.TenantId, request.FormId), cancellationToken);
-
-    /// <summary>The page's values: the form's match-key Property, then the cells (<see cref="ParticipantValues"/>).</summary>
-    private async Task<Dictionary<long, Dictionary<long, string>>> ValuesAsync(
-        ListPeopleQuery request,
-        PageCells page,
-        CancellationToken cancellationToken)
-    {
-        MatchKey? matchKey = await MatchKeyProperty.FindAsync(
-            db, new(request.TenantId, request.FormId), cancellationToken);
-        return await ParticipantValues.ReadAsync(
-            db,
-            new ParticipantCells(request.TenantId, matchKey, page.Identifiers, page.PropertyIds),
-            cancellationToken);
-    }
-
-    /// <summary>The page's participants with their identifiers, and the form's live Properties' ids.</summary>
-    private sealed record PageCells(Dictionary<long, string> Identifiers, List<long> PropertyIds);
+    private Task<FormProperties> PropertiesAsync(ListPeopleQuery request, CancellationToken cancellationToken) =>
+        FormProperties.ReadAsync(db, new(request.TenantId, request.FormId), cancellationToken);
 
     /// <summary>The page's participants by membership id, with the identifiers the match-key Property shows.</summary>
     private static Dictionary<long, string> IdentifiersByMembership(
@@ -218,5 +201,5 @@ internal sealed class ListPeopleHandler(
         Dictionary<long, string> Identifiers,
         Dictionary<long, Dictionary<long, string>> Values,
         IReadOnlyDictionary<long, LinkStatusDto> Links,
-        List<long> PropertyIds);
+        IReadOnlyCollection<long> PropertyIds);
 }

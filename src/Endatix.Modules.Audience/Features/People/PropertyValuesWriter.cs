@@ -59,16 +59,19 @@ internal static class PropertyValuesWriter
 
     /// <summary>
     /// Cells of the given memberships for the given Properties, which the caller has read as live: a cell written while
-    /// its property was being deleted stays out of every read that starts after the delete. One table and both keys of
-    /// <c>IX_PropertyValues_Cell</c>, which both providers seek per membership. An <c>EXISTS</c> on Properties here let
-    /// both drive from the Properties instead, reading every cell of the tenant (PostgreSQL) or the whole table (SQL
-    /// Server) for 20 participants (#1376).
+    /// its property was being deleted stays out of every read that starts after the delete. One table and a seek per
+    /// membership on <c>IX_PropertyValues_Cell</c>, the Property ids checked in the index. An <c>EXISTS</c> on
+    /// Properties here let both drive from the Properties instead, reading every cell of the tenant (PostgreSQL) or the
+    /// whole table (SQL Server) for 20 participants (#1376).
     /// </summary>
-    public static IQueryable<PropertyValue> ActiveCells(IAudienceDbContext db, ActiveCellsKey key) =>
-        db.PropertyValues.AsNoTracking().Where(value =>
-            value.TenantId == key.TenantId
-            && key.MembershipIds.Contains(value.MembershipId)
-            && key.PropertyIds.Contains(value.PropertyId));
+    public static IQueryable<PropertyValue> ActiveCells(IAudienceDbContext db, ParticipantCells which)
+    {
+        List<long> membershipIds = [.. which.Identifiers.Keys];
+        return db.PropertyValues.AsNoTracking().Where(value =>
+            value.TenantId == which.TenantId
+            && membershipIds.Contains(value.MembershipId)
+            && which.PropertyIds.Contains(value.PropertyId));
+    }
 
     /// <summary>
     /// Stages value cells for a membership that has none yet. Empty values add nothing. Does not save.
@@ -141,12 +144,6 @@ internal static class PropertyValuesWriter
         }
     }
 }
-
-/// <summary>The memberships whose cells to read, and the form's live Properties to read them for.</summary>
-internal sealed record ActiveCellsKey(
-    long TenantId,
-    IReadOnlyCollection<long> MembershipIds,
-    IReadOnlyCollection<long> PropertyIds);
 
 /// <summary>
 /// Inputs for validating property values against a form's properties.

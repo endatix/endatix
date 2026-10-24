@@ -43,7 +43,7 @@ internal static class ParticipantValues
         CancellationToken cancellationToken)
     {
         var cells = await PropertyValuesWriter
-            .ActiveCells(db, new(which.TenantId, which.Identifiers.Keys.ToList(), which.PropertyIds))
+            .ActiveCells(db, which)
             .Select(cell => new { cell.MembershipId, cell.PropertyId, cell.Value })
             .ToListAsync(cancellationToken);
         return cells
@@ -64,21 +64,14 @@ internal sealed record ParticipantCells(
     IReadOnlyDictionary<long, string> Identifiers,
     IReadOnlyCollection<long> PropertyIds)
 {
-    /// <summary>One participant.</summary>
-    public static ParticipantCells Of(ParticipantOnForm participant, IReadOnlyCollection<long> propertyIds) =>
-        new(
-            participant.Membership.TenantId,
-            participant.MatchKey,
-            new Dictionary<long, string> { [participant.Membership.Id] = participant.Identifier },
-            propertyIds);
+    /// <summary>The participants of a form whose Properties the caller has read.</summary>
+    public static ParticipantCells Of(long tenantId, FormProperties form, IReadOnlyDictionary<long, string> identifiers) =>
+        new(tenantId, form.MatchKey, identifiers, form.Ids);
 
-    /// <summary>The live Properties' ids of a form. One statement.</summary>
-    public static Task<List<long>> PropertyIdsAsync(
-        IAudienceDbContext db,
-        MatchKeyForm form,
-        CancellationToken cancellationToken) =>
-        db.Properties
-            .Where(property => property.TenantId == form.TenantId && property.FormId == form.FormId)
-            .Select(property => property.Id)
-            .ToListAsync(cancellationToken);
+    /// <summary>One participant.</summary>
+    public static ParticipantCells Of(ParticipantOnForm participant) =>
+        Of(
+            participant.Membership.TenantId,
+            participant.Properties,
+            new Dictionary<long, string> { [participant.Membership.Id] = participant.Identifier });
 }
