@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data.Locking;
@@ -10,14 +11,24 @@ namespace Endatix.Modules.Audience.Persistence;
 /// <summary>
 /// Keeps the writers of one participant's values apart from their removal. An edit and a removal take the
 /// participant's lock (scope <see cref="TransactionLockScopes.AudienceMembership"/>, key the membership id); a removal
-/// first shares its form's lock (<see cref="TransactionLockScopes.AudienceFormPeople"/>, key the form id), which a CSV
-/// import takes exclusively. Each section then reads the membership again, so no writer adds a live value to a
+/// first takes its form's people lock (<see cref="TransactionLockScopes.AudienceFormPeople"/>), which a CSV import of
+/// the form takes as well. Each section then reads the membership again, so no writer adds a live value to a
 /// participant removed while it waited, and a removal that waited soft-deletes what the writer before it stored.
 /// </summary>
 /// <remarks>
-/// Order: the form's lock before the participant's, and an import's <see cref="MatchKeyLock"/> before the form's; no
-/// section reverses either, so they never wait in a cycle. On PostgreSQL two keys of one scope can share a
-/// <c>hashtext</c> lock, so unrelated participants or forms then wait for each other, within <see cref="Wait"/>.
+/// <para>
+/// The form's people lock is <see cref="FormStripes"/> locks, keyed <c>{formId}:{stripe}</c>. A removal holds its
+/// participant's stripe exclusively; an import holds every stripe shared. So imports of one form run together,
+/// removals on different stripes run together, and an import and a removal on the form always exclude each other.
+/// One shared/exclusive lock can't say that: imports would exclude each other, or removals would. Two removals on one
+/// stripe wait for each other for the length of a removal.
+/// </para>
+/// <para>
+/// Order: the form's stripes before the participant's lock, an import's stripes in ascending order after its
+/// <see cref="MatchKeyLock"/>; no section reverses either, so they never wait in a cycle. On PostgreSQL two keys of
+/// one scope can share a <c>hashtext</c> lock, so unrelated participants or forms then wait for each other, within
+/// <see cref="Wait"/>.
+/// </para>
 /// </remarks>
 internal sealed class MembershipLock(ITransactionLock transactionLock)
 {
@@ -25,15 +36,24 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
     internal const string Busy = "This participant is being changed. Try again.";
 
     /// <summary>
-    /// What a removal or an import answers when the form's people lock stayed held: by an import of the form, which
-    /// takes it exclusively, or, for an import, by a removal on the form.
+    /// What a removal or an import answers when the form's people lock stayed held: for a removal, by an import of the
+    /// form or another removal on its stripe; for an import, by a removal on the form.
     /// </summary>
     internal const string FormBusy = "People on this form are being imported or changed. Try again.";
+
+    /// <summary>How many locks a form's people lock is split into: one is a removal's, all of them an import's.</summary>
+    internal const int FormStripes = 16;
 
     /// <summary>Longer than an edit or a removal takes; a waiter past it gets a retryable 503, not a held connection.</summary>
     internal static readonly TimeSpan DefaultWait = TimeSpan.FromSeconds(5);
 
-    /// <summary>How long a section waits for each lock; tests shorten or lengthen it.</summary>
+    // A lock timeout must be positive; a stripe whose share of Wait is spent still tries once.
+    private static readonly TimeSpan ShortestWait = TimeSpan.FromMilliseconds(1);
+
+    /// <summary>
+    /// How long a section waits for each lock, and an import for all the form's stripes together; tests shorten or
+    /// lengthen it.
+    /// </summary>
     internal TimeSpan Wait { get; init; } = DefaultWait;
 
     /// <summary>A transaction holding the participant's lock, for an edit of their values; 503 when it stays held.</summary>
@@ -45,8 +65,9 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
             transactionLock.BeginLockedTransactionAsync(Database(db), Participant(membershipId), cancellationToken));
 
     /// <summary>
-    /// A transaction holding the form's people lock shared and then the participant's, for their removal; 503 when an
-    /// import of the form or another writer of the participant holds it, with the message of the lock that waited.
+    /// A transaction holding the participant's stripe of the form's people lock and then the participant's lock, for
+    /// their removal; 503 when an import of the form, another removal on the stripe or another writer of the
+    /// participant holds it, with the message of the lock that waited.
     /// </summary>
     public Task<Result<IDbContextTransaction>> BeginRemovalAsync(
         IAudienceDbContext db,
@@ -55,9 +76,9 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
         UnlessBusyAsync(() => BeginBothAsync(Database(db), participant, cancellationToken));
 
     /// <summary>
-    /// The form's people lock exclusively, in the import's transaction, after its <see cref="MatchKeyLock"/>: the
-    /// failure (503 while a removal on the form or another import of it holds it), or <see langword="null"/> once it
-    /// is held.
+    /// Every stripe of the form's people lock shared, in the import's transaction, after its <see cref="MatchKeyLock"/>:
+    /// the failure (503 while a removal on the form holds a stripe past <see cref="Wait"/>), or <see langword="null"/>
+    /// once all are held. Other imports of the form hold them too.
     /// </summary>
     public async Task<IResult?> AcquireImportAsync(
         IAudienceDbContext db,
@@ -66,7 +87,7 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
     {
         Result<bool> held = await UnlessBusyAsync(async () =>
         {
-            await transactionLock.AcquireAsync(Database(db), FormPeople(formId), cancellationToken);
+            await AcquireEveryStripeAsync(Database(db), formId, cancellationToken);
             return true;
         });
         return held.IsSuccess ? null : held;
@@ -86,6 +107,30 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
         }
     }
 
+    /// <summary>The participant's stripe of their form's people lock.</summary>
+    internal static int FormStripe(long membershipId) => (int)((ulong)membershipId % FormStripes);
+
+    // In one order, so imports never wait in a cycle; each stripe waits for what is left of one Wait.
+    private async Task AcquireEveryStripeAsync(
+        DatabaseFacade database,
+        long formId,
+        CancellationToken cancellationToken)
+    {
+        var waited = Stopwatch.StartNew();
+        for (var stripe = 0; stripe < FormStripes; stripe++)
+        {
+            var left = Wait - waited.Elapsed;
+            await transactionLock.AcquireAsync(
+                database,
+                FormPeople(formId, stripe) with
+                {
+                    Mode = TransactionLockMode.Shared,
+                    Timeout = left > ShortestWait ? left : ShortestWait,
+                },
+                cancellationToken);
+        }
+    }
+
     private async Task<IDbContextTransaction> BeginBothAsync(
         DatabaseFacade database,
         RemovalKey keys,
@@ -93,7 +138,7 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
     {
         IDbContextTransaction transaction = await transactionLock.BeginLockedTransactionAsync(
             database,
-            FormPeople(keys.FormId) with { Mode = TransactionLockMode.Shared },
+            FormPeople(keys.FormId, FormStripe(keys.MembershipId)),
             cancellationToken);
         try
         {
@@ -113,8 +158,8 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
             Timeout = Wait,
         };
 
-    private TransactionLockRequest FormPeople(long formId) =>
-        new(TransactionLockScopes.AudienceFormPeople, formId.ToString(CultureInfo.InvariantCulture))
+    private TransactionLockRequest FormPeople(long formId, int stripe) =>
+        new(TransactionLockScopes.AudienceFormPeople, string.Create(CultureInfo.InvariantCulture, $"{formId}:{stripe}"))
         {
             Timeout = Wait,
         };
@@ -122,5 +167,5 @@ internal sealed class MembershipLock(ITransactionLock transactionLock)
     private static DatabaseFacade Database(IAudienceDbContext db) => ((DbContext)db).Database;
 }
 
-/// <summary>A participant by their form and membership, the two keys of their removal's locks.</summary>
+/// <summary>A participant by their form and membership, the keys of their removal's locks.</summary>
 internal sealed record RemovalKey(long FormId, long MembershipId);

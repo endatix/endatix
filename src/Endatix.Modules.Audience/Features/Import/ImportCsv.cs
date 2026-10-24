@@ -178,8 +178,9 @@ internal sealed class ImportCsvHandler(
     /// <summary>
     /// Stages every row and the import summary, then saves once: a database failure leaves no
     /// half-imported audience and no summary that disagrees with the rows written. The form's people
-    /// are read after the form's people lock (<see cref="MembershipLock.AcquireImportAsync"/>), which their removals
-    /// share, so a person removed meanwhile is added again instead of keeping a live value on the removed membership.
+    /// are read after the form's people lock (<see cref="MembershipLock.AcquireImportAsync"/>), which excludes their
+    /// removals but not other imports of the form, so a person removed meanwhile is added again instead of keeping a
+    /// live value on the removed membership.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportAsync(
         ImportCsvCommand request,
@@ -274,7 +275,7 @@ internal sealed class ImportWriteSupport(
     public IUniqueConstraintViolationChecker Violations { get; } = violations;
 
     /// <summary>
-    /// Takes the form's people lock (scope <c>AudienceFormPeople</c>) exclusively, after the tenant's match-key lock;
+    /// Takes the form's people lock (scope <c>AudienceFormPeople</c>) for an import, after the tenant's match-key lock;
     /// <see cref="MembershipLock"/> owns it with the participant lock, so their order lives in one place.
     /// </summary>
     public MembershipLock FormPeopleLock { get; } = formPeopleLock;
