@@ -73,12 +73,15 @@ public static partial class ResultExtensions
         // so a result carrying no errors falls back to the title.
         var detail = string.Join('\n', messages.Where(message => !string.IsNullOrWhiteSpace(message)));
 
+        // A 503's detail is the retry message its handler wrote ("... Try again."); other 5xx stay generic.
         var problem = EndatixProblemDetails.Create(
             statusCode: status,
             title: resolvedTitle,
             detail: detail,
+            httpContext: null,
             errorCode: errorCode,
-            fields: fields);
+            fields: fields,
+            keepServerDetail: result.IsUnavailable());
         AddExisting(problem, result.Existing);
 
         return TypedResults.Problem(problem);

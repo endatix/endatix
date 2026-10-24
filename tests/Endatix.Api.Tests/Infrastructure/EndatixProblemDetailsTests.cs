@@ -195,6 +195,7 @@ public class EndatixProblemDetailsTests
     /// </summary>
     [Theory]
     [InlineData(ResultStatus.Error, StatusCodes.Status500InternalServerError)]
+    [InlineData(ResultStatus.CriticalError, StatusCodes.Status500InternalServerError)]
     public void ToProblem_ServerError_DoesNotEchoHandlerSuppliedDetail(ResultStatus status, int expectedStatusCode)
     {
         // Arrange
@@ -268,6 +269,20 @@ public class EndatixProblemDetailsTests
         // Assert
         problem.Detail.Should().Be("Export failed");
         problem.Detail.Should().NotContain("Object reference");
+    }
+
+    [Fact]
+    public void Create_ServiceUnavailable_SuppressesDetailForDirectCallers()
+    {
+        // Act
+        var problem = EndatixProblemDetails.Create(
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: null,
+            detail: "Npgsql: connection refused to db-primary:5432",
+            httpContext: CreateHttpContext("/api/forms/1/submissions/export", "trace-export-503"));
+
+        // Assert
+        problem.Detail.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
     }
 
     [Fact]

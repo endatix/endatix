@@ -12,6 +12,7 @@ using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -320,10 +321,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var formId = await admin.CreateFormAsync();
         var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
         await using var scope = world.Services.CreateAsyncScope();
-        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-        await using var heldTransaction = await ((DbContext)holder).Database.BeginTransactionAsync(admin.CancellationToken);
-        Assert.Null(await scope.ServiceProvider.GetRequiredService<MembershipLock>()
-            .AcquireImportAsync(holder, formId, admin.CancellationToken));
+        await using var heldTransaction = await HoldFormLikeAnImportAsync(scope, formId, admin.CancellationToken);
         await using var second = world.Services.CreateAsyncScope();
 
         // Act
@@ -344,10 +342,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var formId = await admin.CreateFormAsync();
         var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
         await using var scope = world.Services.CreateAsyncScope();
-        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-        await using var heldTransaction = await ((DbContext)holder).Database.BeginTransactionAsync(admin.CancellationToken);
-        Assert.Null(await scope.ServiceProvider.GetRequiredService<MembershipLock>()
-            .AcquireImportAsync(holder, formId, admin.CancellationToken));
+        await using var heldTransaction = await HoldFormLikeAnImportAsync(scope, formId, admin.CancellationToken);
 
         // Act - the host's lock waits its default, then gives up.
         using var response = await admin.Client.DeleteAsync(
@@ -391,6 +386,17 @@ public sealed partial class AudienceDirectoryFlowTests
         }
 
         throw new InvalidOperationException($"None of {attempts} participants landed on the wanted stripe.");
+    }
+
+    /// <summary>Takes <paramref name="formId"/>'s people lock as an import does, held until the returned transaction ends.</summary>
+    private static async Task<IDbContextTransaction> HoldFormLikeAnImportAsync(
+        AsyncServiceScope scope, long formId, CancellationToken cancellationToken)
+    {
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var transaction = await ((DbContext)holder).Database.BeginTransactionAsync(cancellationToken);
+        Assert.Null(await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .AcquireImportAsync(holder, formId, cancellationToken));
+        return transaction;
     }
 
     private static Dictionary<long, string> Values(long propertyId, string value) => new() { [propertyId] = value };

@@ -98,7 +98,22 @@ public static class EndatixProblemDetails
         string? detail,
         HttpContext? httpContext = null,
         string? errorCode = null,
-        IReadOnlyDictionary<string, string[]>? fields = null)
+        IReadOnlyDictionary<string, string[]>? fields = null) =>
+        Create(statusCode, title, detail, httpContext, errorCode, fields, keepServerDetail: false);
+
+    /// <summary>
+    /// As <see cref="Create(int, string?, string?, HttpContext?, string?, IReadOnlyDictionary{string, string[]}?)"/>;
+    /// <paramref name="keepServerDetail"/> keeps a 5xx detail. Only <c>ToProblem</c> sets it, for a
+    /// <c>Result.Unavailable</c> retry message, whose text ResultFactoryMustNotInterpolateExceptionMessageTests polices.
+    /// </summary>
+    internal static ProblemDetails Create(
+        int statusCode,
+        string? title,
+        string? detail,
+        HttpContext? httpContext,
+        string? errorCode,
+        IReadOnlyDictionary<string, string[]>? fields,
+        bool keepServerDetail)
     {
         var resolvedContext = httpContext ?? _httpContextAccessor?.HttpContext;
         var resolvedTitle = title ?? TitleForStatus(statusCode);
@@ -107,11 +122,9 @@ public static class EndatixProblemDetails
         // A 5xx body must never carry handler- or exception-derived text. Handlers routinely
         // wrap `ex.Message` into Result.Error(...) (DB/EF text, file paths, provider errors),
         // which ToProblem would otherwise echo to the caller. The generic title goes to the
-        // client; the real text is logged so operators keep the diagnostics. A 503 is kept: its
-        // detail is the retry message a handler wrote (Result.Unavailable("... Try again.")), and
-        // ResultFactoryMustNotInterpolateExceptionMessageTests keeps exception text out of it as for 4xx.
-        if (statusCode >= StatusCodes.Status500InternalServerError
-            && statusCode != StatusCodes.Status503ServiceUnavailable
+        // client; the real text is logged so operators keep the diagnostics.
+        if (!keepServerDetail
+            && statusCode >= StatusCodes.Status500InternalServerError
             && !string.Equals(resolvedDetail, resolvedTitle, StringComparison.Ordinal))
         {
             LogSuppressedDetail(resolvedContext, statusCode, resolvedDetail);
