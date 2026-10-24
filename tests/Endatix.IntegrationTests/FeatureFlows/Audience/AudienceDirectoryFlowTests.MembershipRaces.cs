@@ -1,3 +1,4 @@
+using System.Net;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
@@ -332,6 +333,31 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal([MembershipLock.FormBusy], removed.Errors);
+    }
+
+    [Fact]
+    public async Task Removing_a_participant_over_http_while_an_import_holds_the_form_answers_503_with_the_form_busy_detail()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
+        await using var scope = world.Services.CreateAsyncScope();
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        await using var heldTransaction = await ((DbContext)holder).Database.BeginTransactionAsync(admin.CancellationToken);
+        Assert.Null(await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .AcquireImportAsync(holder, formId, admin.CancellationToken));
+
+        // Act - the host's lock waits its default, then gives up.
+        using var response = await admin.Client.DeleteAsync(
+            $"/api/forms/{formId}/audience/people/{ada.MembershipId}",
+            admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        var problem = await admin.ReadAsync(response);
+        Assert.Equal(MembershipLock.FormBusy, problem.GetProperty("detail").GetString());
     }
 
     /// <summary>

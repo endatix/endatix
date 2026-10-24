@@ -107,8 +107,11 @@ public static class EndatixProblemDetails
         // A 5xx body must never carry handler- or exception-derived text. Handlers routinely
         // wrap `ex.Message` into Result.Error(...) (DB/EF text, file paths, provider errors),
         // which ToProblem would otherwise echo to the caller. The generic title goes to the
-        // client; the real text is logged so operators keep the diagnostics.
+        // client; the real text is logged so operators keep the diagnostics. A 503 is kept: its
+        // detail is the retry message a handler wrote (Result.Unavailable("... Try again.")), and
+        // ResultFactoryMustNotInterpolateExceptionMessageTests keeps exception text out of it as for 4xx.
         if (statusCode >= StatusCodes.Status500InternalServerError
+            && statusCode != StatusCodes.Status503ServiceUnavailable
             && !string.Equals(resolvedDetail, resolvedTitle, StringComparison.Ordinal))
         {
             LogSuppressedDetail(resolvedContext, statusCode, resolvedDetail);
