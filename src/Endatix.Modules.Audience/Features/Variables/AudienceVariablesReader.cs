@@ -55,8 +55,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
         MatchKey? matchKey = await MatchKeyProperty.FindAsync(db, new(key.TenantId, key.FormId), cancellationToken);
         return new FormAudience(
             properties,
-            await FirstParticipantsAsync(
-                new ValuesScope(key, matchKey, IdsOf(properties)), savedKeys, cancellationToken),
+            await FirstParticipantsAsync(ValuesScope.Of(key, matchKey, properties), savedKeys, cancellationToken),
             participants,
             MatchKeyProperty.Filled(filled, matchKey, (participants.Test, participants.Real)));
     }
@@ -108,8 +107,8 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
 
         MatchKey? matchKey = await MatchKeyProperty.FindAsync(db, new(key.TenantId, key.FormId), cancellationToken);
         List<Property> properties = await PropertiesAsync(key, cancellationToken);
-        List<PresetSource> participant = await PresetsAsync(
-            new ValuesScope(key, matchKey, IdsOf(properties)), named, cancellationToken);
+        List<PresetSource> participant =
+            await PresetsAsync(ValuesScope.Of(key, matchKey, properties), named, cancellationToken);
         return new ParticipantAudience(properties, participant[0]);
     }
 
@@ -131,7 +130,7 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
 
         Dictionary<string, string> keys = KeysOf(identifiers, identifierKind);
         List<Property> properties = await PropertiesAsync(key, cancellationToken);
-        ValuesScope scope = new(key, MatchKeyProperty.In(properties, identifierKind), IdsOf(properties));
+        ValuesScope scope = ValuesScope.Of(key, MatchKeyProperty.In(properties, identifierKind), properties);
         return new KeyedAudience(
             properties, await OnFormAsync(scope, keys.Values.ToHashSet(), cancellationToken), keys, scope.MatchKey);
     }
@@ -281,7 +280,11 @@ internal sealed class AudienceVariablesReader(IAudienceDbContext db, IValueNorma
     /// The form whose values are read, its match-key Property, which they show the identifier in, and its live
     /// Properties' ids, which the cells are read for.
     /// </summary>
-    private sealed record ValuesScope(FormKey Key, MatchKey? MatchKey, IReadOnlyCollection<long> PropertyIds);
+    private sealed record ValuesScope(FormKey Key, MatchKey? MatchKey, IReadOnlyCollection<long> PropertyIds)
+    {
+        public static ValuesScope Of(FormKey key, MatchKey? matchKey, List<Property> properties) =>
+            new(key, matchKey, IdsOf(properties));
+    }
 
     private sealed record KeyedMembership(long MembershipId, bool IsTest, string Key, string Identifier);
 }

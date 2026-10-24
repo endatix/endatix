@@ -7,6 +7,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
     /// <inheritdoc />
     public partial class AddPropertyValueIsTest : Migration
     {
+        private static readonly string[] PropertyIndexColumns = ["TenantId", "PropertyId", "IsTest"];
+        private static readonly string[] PreviousPropertyIndexColumns = ["TenantId", "PropertyId"];
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -31,7 +34,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                 name: "IX_PropertyValues_Property",
                 schema: "audience",
                 table: "PropertyValues",
-                columns: new[] { "TenantId", "PropertyId", "IsTest" },
+                columns: PropertyIndexColumns,
                 filter: "[IsDeleted] = 0");
         }
 
@@ -52,7 +55,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                 name: "IX_PropertyValues_Property",
                 schema: "audience",
                 table: "PropertyValues",
-                columns: new[] { "TenantId", "PropertyId" },
+                columns: PreviousPropertyIndexColumns,
                 filter: "[IsDeleted] = 0");
         }
     }

@@ -143,7 +143,7 @@ public class PropertyValueTests
     public void Constructor_EmptyValue_ThrowsDomainValidationException()
     {
         // Act
-        Action act = () => new PropertyValue(new PropertyValueCreateArgs(1, 2, 3, "", IsTest: false));
+        Action act = () => _ = new PropertyValue(new PropertyValueCreateArgs(1, 2, 3, "", IsTest: false));
 
         // Assert
         act.Should().Throw<DomainValidationException>();

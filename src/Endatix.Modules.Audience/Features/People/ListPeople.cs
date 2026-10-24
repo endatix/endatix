@@ -143,17 +143,22 @@ internal sealed class ListPeopleHandler(
         }
 
         HashSet<long> membershipIds = rows.Select(row => row.Id).ToHashSet();
-        List<long> propertyIds = await ParticipantCells.PropertyIdsAsync(
-            db, new(request.TenantId, request.FormId), cancellationToken);
+        List<long> propertyIds = await PropertyIdsAsync(request, cancellationToken);
         Dictionary<long, string> identifiers = await LoadIdentifiersAsync(rows, cancellationToken);
         PageDetails details = new(
             identifiers,
-            await ValuesAsync(
-                request, new PageCells(IdentifiersByMembership(rows, identifiers), propertyIds), cancellationToken),
+            await ValuesAsync(request, new(IdentifiersByMembership(rows, identifiers), propertyIds), cancellationToken),
             await linkStatuses.ForAsync(membershipIds, cancellationToken),
             propertyIds);
         return BuildDtos(rows, details);
     }
+
+    /// <summary>
+    /// Read before the values: a Property deleted between the two reads is then counted as not filled in, never as a
+    /// value beyond the count.
+    /// </summary>
+    private Task<List<long>> PropertyIdsAsync(ListPeopleQuery request, CancellationToken cancellationToken) =>
+        ParticipantCells.PropertyIdsAsync(db, new(request.TenantId, request.FormId), cancellationToken);
 
     /// <summary>The page's values: the form's match-key Property, then the cells (<see cref="ParticipantValues"/>).</summary>
     private async Task<Dictionary<long, Dictionary<long, string>>> ValuesAsync(
@@ -165,15 +170,12 @@ internal sealed class ListPeopleHandler(
             db, new(request.TenantId, request.FormId), cancellationToken);
         return await ParticipantValues.ReadAsync(
             db,
-            new ParticipantCells(request.TenantId, matchKey, page.IdentifiersByMembership, page.PropertyIds),
+            new ParticipantCells(request.TenantId, matchKey, page.Identifiers, page.PropertyIds),
             cancellationToken);
     }
 
-    /// <summary>
-    /// The page's participants with their identifiers, and the form's live Properties, read before the values: a
-    /// Property deleted between the two reads is then counted as not filled in, never as a value beyond the count.
-    /// </summary>
-    private sealed record PageCells(Dictionary<long, string> IdentifiersByMembership, List<long> PropertyIds);
+    /// <summary>The page's participants with their identifiers, and the form's live Properties' ids.</summary>
+    private sealed record PageCells(Dictionary<long, string> Identifiers, List<long> PropertyIds);
 
     /// <summary>The page's participants by membership id, with the identifiers the match-key Property shows.</summary>
     private static Dictionary<long, string> IdentifiersByMembership(
