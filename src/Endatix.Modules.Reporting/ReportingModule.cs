@@ -53,11 +53,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
         AddPersistence(builder);
-
-        builder.Services.AddScoped<IReportingUnitOfWork, ReportingUnitOfWork>();
-        builder.Services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
-        builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
-        builder.Services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
+        AddRepositories(builder.Services);
         AddExports(builder.Services);
         builder.Services.AddSingleton<FormSchemaCompiler>();
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
@@ -68,6 +64,15 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
         builder.Services.AddReportingOutboxWork();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
+    }
+
+    private static void AddRepositories(IServiceCollection services)
+    {
+        services.AddScoped<IReportingUnitOfWork, ReportingUnitOfWork>();
+        services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
+        services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
+        services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
+        services.AddScoped<ISubmissionViewRepository, SubmissionViewRepository>();
     }
 
     private static void AddExports(IServiceCollection services)
