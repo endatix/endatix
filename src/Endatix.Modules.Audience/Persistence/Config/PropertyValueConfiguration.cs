@@ -17,7 +17,7 @@ internal sealed class PropertyValueConfiguration(AudienceSqlDialect dialect) : I
         builder.Property(value => value.TenantId).IsRequired();
         builder.Property(value => value.MembershipId).IsRequired();
         builder.Property(value => value.PropertyId).IsRequired();
-        builder.Property(value => value.IsTest).IsRequired().HasDefaultValue(false);
+        builder.Property(value => value.IsTest).IsRequired();
         builder.Property(value => value.Value)
             .HasMaxLength(PropertyValue.VALUE_MAX_LENGTH)
             .IsRequired();

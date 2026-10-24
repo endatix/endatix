@@ -58,10 +58,11 @@ internal static class PropertyValuesWriter
         PropertyValue.ValueError(value) ?? property.ValueError(value);
 
     /// <summary>
-    /// Cells of the given memberships for the given live Properties, which the caller has read: a cell written while
-    /// its property was being deleted stays out of every read. One table and both keys of <c>IX_PropertyValues_Cell</c>,
-    /// so the only plan is a seek per membership. An <c>EXISTS</c> on Properties here let both providers drive from the
-    /// Properties and scan every cell of the tenant, or the whole table on SQL Server, for 20 participants (#1376).
+    /// Cells of the given memberships for the given Properties, which the caller has read as live: a cell written while
+    /// its property was being deleted stays out of every read that starts after the delete. One table and both keys of
+    /// <c>IX_PropertyValues_Cell</c>, which both providers seek per membership. An <c>EXISTS</c> on Properties here let
+    /// both drive from the Properties instead, reading every cell of the tenant (PostgreSQL) or the whole table (SQL
+    /// Server) for 20 participants (#1376).
     /// </summary>
     public static IQueryable<PropertyValue> ActiveCells(IAudienceDbContext db, ActiveCellsKey key) =>
         db.PropertyValues.AsNoTracking().Where(value =>
@@ -135,8 +136,8 @@ internal static class PropertyValuesWriter
     {
         if (value.Length > 0)
         {
-            write.Db.PropertyValues.Add(new PropertyValue(new PropertyValueCreateArgs(
-                write.Membership.TenantId, write.Membership.Id, propertyId, value, write.Membership.IsTest)));
+            write.Db.PropertyValues.Add(
+                new PropertyValue(PropertyValueCreateArgs.For(write.Membership, propertyId, value)));
         }
     }
 }

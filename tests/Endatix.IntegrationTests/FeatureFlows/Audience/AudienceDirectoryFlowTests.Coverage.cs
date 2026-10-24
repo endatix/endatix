@@ -119,9 +119,60 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Single(largeRead.Commands, CountsCells);
         Assert.DoesNotContain(largeRead.Commands, FiltersTestMemberships);
         Assert.DoesNotContain(largeRead.Commands, JoinsCellsToMemberships);
+        Assert.DoesNotContain(largeRead.Commands, ReadsCellsWithProperties);
         TestContext.Current.TestOutputHelper?.WriteLine(
             $"variables read at 5,000 test x 50: {largeRead.Elapsed.TotalMilliseconds:F0} ms, " +
             $"{largeRead.Statements} statements");
+    }
+
+    [Fact]
+    public async Task A_value_saved_later_on_a_test_participant_counts_as_test()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await admin.CreateFormAsync();
+        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        var tester = await AddPersonWithValuesAsync(admin, formId, new("tester@example.com", IsTest: true, new()));
+
+        // Act
+        using var saved = await admin.PutValueAsync(
+            $"/api/forms/{formId}/audience/people/{tester.MembershipId}", city, "Sofia");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        AssertJson(
+            """
+            {"participants":{"test":1,"real":0},
+             "properties":[{"variableName":"city","filledTest":1,"filledReal":0}]}
+            """,
+            (await GetVariablesAsync(admin, formId)).GetProperty("coverage"));
+    }
+
+    [Fact]
+    public async Task A_live_cell_of_a_deleted_property_stays_out_of_the_people_list_and_the_presets()
+    {
+        // Arrange: a cell left live on a Property deleted since, as a write racing the delete leaves it
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        var gone = await admin.CreatePropertyAsync(formId, new { name = "Gone", dataType = "text" });
+        var tester = await AddPersonWithValuesAsync(
+            admin, formId, new("tester@example.com", IsTest: true, new() { [city] = "Sofia" }));
+        using var deletion = await admin.Client.DeleteAsync(
+            $"/api/forms/{formId}/audience/properties/{gone}", admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, deletion.StatusCode);
+        await StoreCellAsync(world.Services, new StoredCell(tester.MembershipId, gone, "x"));
+
+        // Act
+        var person = (await ListPeopleAsync(admin, formId, "")).GetProperty("items")[0];
+        var preset = (await GetVariablesAsync(admin, formId))
+            .GetProperty("variablePresets").GetProperty("presets")[0].GetProperty("variables");
+
+        // Assert
+        Assert.Equal([$"{city}"], person.GetProperty("values").EnumerateObject().Select(value => value.Name));
+        Assert.Equal(0, person.GetProperty("notFilledIn").GetInt32());
+        AssertJson("""{"city":"Sofia"}""", preset);
     }
 
     private sealed record CoverageForm(long FormId);
@@ -201,6 +252,15 @@ public sealed partial class AudienceDirectoryFlowTests
     /// </summary>
     private static bool FiltersTestMemberships(string sql) =>
         sql.Contains("Memberships", StringComparison.Ordinal) && TestFilter().IsMatch(sql);
+
+    /// <summary>
+    /// A statement that reads cells with the Properties table: the <c>EXISTS</c> on live Properties that let both
+    /// providers scan the tenant's cells for 20 participants (#1376). Cells are read for the Property ids already read.
+    /// </summary>
+    private static bool ReadsCellsWithProperties(string sql) =>
+        sql.Contains("PropertyValues", StringComparison.Ordinal)
+        && (sql.Contains("\"Properties\"", StringComparison.Ordinal)
+            || sql.Contains("[Properties]", StringComparison.Ordinal));
 
     /// <summary>A statement that reads cells and memberships together: the join or subquery #1363 removed.</summary>
     private static bool JoinsCellsToMemberships(string sql) =>

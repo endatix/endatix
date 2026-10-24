@@ -85,6 +85,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(6, smallPage.People);
         Assert.Equal(5_000, largePage.People);
         Assert.Equal(smallPage.Statements, largePage.Statements);
+        Assert.DoesNotContain(largePage.Commands, ReadsCellsWithProperties);
         Assert.Equal(
             [LinkStatusKind.None, LinkStatusKind.Issued, LinkStatusKind.Opened],
             largePage.Kinds.Order().ToArray());
@@ -153,7 +154,11 @@ public sealed partial class AudienceDirectoryFlowTests
 
     private static string? StatusOf(JsonElement link) => link.GetProperty("status").GetString();
 
-    private sealed record CountedPage(int People, int Statements, LinkStatusKind[] Kinds);
+    private sealed record CountedPage(
+        int People,
+        int Statements,
+        IReadOnlyList<string> Commands,
+        LinkStatusKind[] Kinds);
 
     /// <summary>
     /// The list query run in its own scope, counting the commands that scope's contexts send. Background work on the
@@ -176,6 +181,7 @@ public sealed partial class AudienceDirectoryFlowTests
         return new CountedPage(
             page.Items.Count,
             statements.Count,
+            statements.Commands,
             page.Items.Select(person => person.Link.Status).Distinct().ToArray());
     }
 

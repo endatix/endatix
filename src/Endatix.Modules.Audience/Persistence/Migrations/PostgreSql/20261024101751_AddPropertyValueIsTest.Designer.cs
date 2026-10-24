@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 {
     [DbContext(typeof(AudiencePostgreSqlDbContext))]
-    [Migration("20261024090811_AddPropertyValueIsTest")]
+    [Migration("20261024101751_AddPropertyValueIsTest")]
     partial class AddPropertyValueIsTest
     {
         /// <inheritdoc />
@@ -372,9 +372,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsTest")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");

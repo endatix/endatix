@@ -369,9 +369,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsTest")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");

@@ -13,11 +13,6 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_PropertyValues_Property",
-                schema: "audience",
-                table: "PropertyValues");
-
             migrationBuilder.AddColumn<bool>(
                 name: "IsTest",
                 schema: "audience",
@@ -27,8 +22,14 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                 defaultValue: false);
 
             // A cell carries its membership's test flag, which never changes; copy it onto the cells already written.
+            // Before the index rebuild, so the coverage reads keep the old index for as long as possible.
             migrationBuilder.Sql(
                 """UPDATE v SET v.[IsTest] = 1 FROM audience.[PropertyValues] AS v INNER JOIN audience.[Memberships] AS m ON m.[Id] = v.[MembershipId] WHERE m.[IsTest] = 1;""");
+
+            migrationBuilder.DropIndex(
+                name: "IX_PropertyValues_Property",
+                schema: "audience",
+                table: "PropertyValues");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PropertyValues_Property",

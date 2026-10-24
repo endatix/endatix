@@ -370,9 +370,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsTest")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
+                        .HasColumnType("bit");
 
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");

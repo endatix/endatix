@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
 {
     [DbContext(typeof(AudienceSqlServerDbContext))]
-    [Migration("20261024090820_AddPropertyValueIsTest")]
+    [Migration("20261024101753_AddPropertyValueIsTest")]
     partial class AddPropertyValueIsTest
     {
         /// <inheritdoc />
@@ -373,9 +373,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsTest")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
+                        .HasColumnType("bit");
 
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
