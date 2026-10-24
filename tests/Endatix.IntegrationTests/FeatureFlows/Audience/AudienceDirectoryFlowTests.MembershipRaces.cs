@@ -128,6 +128,64 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task Importing_into_a_form_while_another_import_of_it_writes_runs_alongside()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        await AddParticipantAsync(admin, formId, "ada@example.com");
+        var gate = CommandGate.AtCellInsert();
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
+        await using var paused = new PausedRace<Result<ImportResultDto>>(
+            gate,
+            ImportHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait))
+                .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
+        await paused.ReachedGateAsync();
+        await using var second = world.Services.CreateAsyncScope();
+        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+
+        // Act
+        var other = await paused.Alongside(ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, TimeSpan.FromMilliseconds(50)))
+            .Handle(CityImport(world, formId, "bob@example.com"), admin.CancellationToken))
+            .WaitAsync(_gateTimeout, admin.CancellationToken);
+        var first = await paused.ReleaseAsync();
+
+        // Assert
+        Assert.True(other.IsSuccess, string.Join("; ", other.Errors));
+        Assert.Equal(1, other.Value.CreatedCount);
+        Assert.True(first.IsSuccess, string.Join("; ", first.Errors));
+        Assert.Equal(1, first.Value.UpdatedCount);
+    }
+
+    [Fact]
+    public async Task Removing_participants_of_one_form_runs_alongside()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
+        var bob = await AddParticipantOnAnotherStripeAsync(admin, formId, ada);
+        await using var scope = world.Services.CreateAsyncScope();
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .BeginRemovalAsync(holder, new(formId, ada.MembershipId), admin.CancellationToken);
+        Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
+        await using var heldTransaction = held.Value;
+        await using var second = world.Services.CreateAsyncScope();
+
+        // Act
+        var removed = await DeleteHandlerWith(second.ServiceProvider, Waiting(world, TimeSpan.FromMilliseconds(50)))
+            .Handle(Removal(world, formId, bob), admin.CancellationToken);
+
+        // Assert
+        Assert.True(removed.IsSuccess, string.Join("; ", removed.Errors));
+    }
+
+    [Fact]
     public async Task Importing_a_participant_while_they_are_removed_waits_and_adds_them_again()
     {
         // Arrange
@@ -226,7 +284,61 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal(ResultStatus.Unavailable, imported.Status);
         Assert.Equal([MembershipLock.Busy], edited.Errors);
-        Assert.Equal([MembershipLock.Busy], removed.Errors);
+        Assert.Equal([MembershipLock.FormBusy], removed.Errors); // same participant, so the stripe refuses first
+        Assert.Equal([MembershipLock.FormBusy], imported.Errors);
+    }
+
+    [Fact]
+    public async Task Removing_a_participant_while_an_edit_of_them_holds_their_lock_is_unavailable()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
+        await using var scope = world.Services.CreateAsyncScope();
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .BeginEditAsync(holder, ada.MembershipId, admin.CancellationToken);
+        Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
+        await using var heldTransaction = held.Value;
+        await using var second = world.Services.CreateAsyncScope();
+
+        // Act
+        var removed = await DeleteHandlerWith(second.ServiceProvider, Waiting(world, TimeSpan.FromMilliseconds(50)))
+            .Handle(Removal(world, formId, ada), admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unavailable, removed.Status);
+        Assert.Equal([MembershipLock.Busy], removed.Errors); // the stripe is free, so the participant's lock refuses
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(MembershipLock.FormStripes - 1)]
+    public async Task Importing_into_a_form_while_a_removal_on_any_stripe_holds_it_is_unavailable(int stripe)
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        var removed = await AddParticipantWhereAsync(admin, formId, candidate => candidate == stripe);
+        await using var scope = world.Services.CreateAsyncScope();
+        var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .BeginRemovalAsync(holder, new(formId, removed.MembershipId), admin.CancellationToken);
+        Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
+        await using var heldTransaction = held.Value;
+        await using var second = world.Services.CreateAsyncScope();
+        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+
+        // Act
+        var imported = await ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, TimeSpan.FromMilliseconds(50)))
+            .Handle(CityImport(world, formId, "bob@example.com"), admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unavailable, imported.Status);
         Assert.Equal([MembershipLock.FormBusy], imported.Errors);
     }
 
@@ -252,6 +364,39 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal([MembershipLock.FormBusy], removed.Errors);
+    }
+
+    /// <summary>
+    /// A participant whose removal takes another stripe of the form's people lock than <paramref name="other"/>'s, as
+    /// two removals on one stripe wait for each other by design.
+    /// </summary>
+    private static Task<Participant> AddParticipantOnAnotherStripeAsync(
+        AudienceApi admin,
+        long formId,
+        Participant other) =>
+        AddParticipantWhereAsync(
+            admin,
+            formId,
+            stripe => stripe != MembershipLock.FormStripe(other.MembershipId));
+
+    /// <summary>A participant whose stripe of the form's people lock satisfies <paramref name="wanted"/>.</summary>
+    private static async Task<Participant> AddParticipantWhereAsync(
+        AudienceApi admin,
+        long formId,
+        Func<int, bool> wanted)
+    {
+        // A stripe a participant has 1 in 16 odds of landing on is missed by 200 of them about once in 400,000 runs.
+        const int attempts = 200;
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            var participant = await AddParticipantAsync(admin, formId, $"striped{attempt}@example.com");
+            if (wanted(MembershipLock.FormStripe(participant.MembershipId)))
+            {
+                return participant;
+            }
+        }
+
+        throw new InvalidOperationException($"None of {attempts} participants landed on the wanted stripe.");
     }
 
     private static Dictionary<long, string> Values(long propertyId, string value) => new() { [propertyId] = value };

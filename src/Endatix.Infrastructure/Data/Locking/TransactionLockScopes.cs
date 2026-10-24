@@ -21,6 +21,9 @@ public static class TransactionLockScopes
     /// <summary>One participant on a form: an edit of their values and their removal, so neither interleaves the other.</summary>
     public const int AudienceMembership = 1120;
 
-    /// <summary>One form's participants: their removals share it, a CSV import takes it exclusively.</summary>
+    /// <summary>
+    /// One form's participants, in stripes keyed <c>{formId}:{stripe}</c>: a removal holds its participant's stripe
+    /// exclusively, a CSV import holds every stripe shared, so imports run together and exclude every removal.
+    /// </summary>
     public const int AudienceFormPeople = 1121;
 }

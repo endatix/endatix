@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Settings;
 using Endatix.Modules.Audience.Persistence;
@@ -70,7 +71,9 @@ internal sealed class ImportCsvHandler(
 
     /// <summary>
     /// A parallel add or import can win a unique index first. Its rows are committed by then, so
-    /// a second pass reloads them and matches instead of inserting. A second loss is a conflict.
+    /// a second pass reloads them and matches instead of inserting. Two imports of one form that
+    /// add the same people in another order can instead deadlock, and the victim takes the second
+    /// pass too. A second loss is a conflict.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportWithRetryAsync(
         ImportCsvCommand request,
@@ -89,7 +92,8 @@ internal sealed class ImportCsvHandler(
     }
 
     /// <summary>
-    /// The import's result, or <see langword="null"/> when a parallel write won a unique index.
+    /// The import's result, or <see langword="null"/> when a parallel write won a unique index or the database
+    /// rolled the import back to end a deadlock.
     /// </summary>
     private async Task<Result<ImportResultDto>?> ImportUnlessRaceAsync(
         ImportCsvCommand request,
@@ -109,7 +113,8 @@ internal sealed class ImportCsvHandler(
     private bool IsAudienceRace(DbUpdateException ex) =>
         support.Violations.IsViolationOf(ex, Member.UniqueConstraints.IdentifierPerTenant)
         || support.Violations.IsViolationOf(ex, Membership.UniqueConstraints.MemberPerForm)
-        || support.Violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership);
+        || support.Violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership)
+        || DatabaseDeadlocks.IsVictim(ex);
 
     private async Task<Result> ValidateRequestAsync(
         ImportCsvCommand request,
@@ -178,8 +183,9 @@ internal sealed class ImportCsvHandler(
     /// <summary>
     /// Stages every row and the import summary, then saves once: a database failure leaves no
     /// half-imported audience and no summary that disagrees with the rows written. The form's people
-    /// are read after the form's people lock (<see cref="MembershipLock.AcquireImportAsync"/>), which their removals
-    /// share, so a person removed meanwhile is added again instead of keeping a live value on the removed membership.
+    /// are read after the form's people lock (<see cref="MembershipLock.AcquireImportAsync"/>), which excludes their
+    /// removals but not other imports of the form, so a person removed meanwhile is added again instead of keeping a
+    /// live value on the removed membership.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportAsync(
         ImportCsvCommand request,
@@ -274,8 +280,9 @@ internal sealed class ImportWriteSupport(
     public IUniqueConstraintViolationChecker Violations { get; } = violations;
 
     /// <summary>
-    /// Takes the form's people lock (scope <c>AudienceFormPeople</c>) exclusively, after the tenant's match-key lock;
-    /// <see cref="MembershipLock"/> owns it with the participant lock, so their order lives in one place.
+    /// Takes every stripe of the form's people lock (scope <c>AudienceFormPeople</c>) shared, after the tenant's
+    /// match-key lock; <see cref="MembershipLock"/> owns it with the participant lock, so their order lives in one
+    /// place.
     /// </summary>
     public MembershipLock FormPeopleLock { get; } = formPeopleLock;
 }
