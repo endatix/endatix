@@ -1,5 +1,39 @@
 {
-  "$comment": "Personalization on top of AllQuestions/all-questions-definition.json. Edit this file, then run the regenerate test in AllQuestionsPersonalizedTests to rewrite all-questions-personalized-definition.json and the expected files. The audience variables are not declared here: Hub passes the Audience Properties to Survey Creator as variable presets, so no question or calculated value may share a Variable name; bindings set or replace properties of an existing question, found by name anywhere in the survey; addElements are appended to the first page.",
+  "$comment": "Personalization on top of AllQuestions/all-questions-definition.json. Edit this file, then run the regenerate test in AllQuestionsPersonalizedTests to rewrite all-questions-personalized-definition.json, all-questions-personalized-variable-presets.json and the expected files. variablePresets declares the audience variables the overlay reads as Survey Creator variable presets ({definition, presets, totalPresets}), typed as the Audience variables read types them (Endatix.Modules.Audience VariableDefinition and PresetBuilder) and in the audience's Property order: definition has one question per variable, and presets holds placeholder Test participants. It stays out of the composed definition; load all-questions-personalized-variable-presets.json as the designer's variablePresets. Every {name} the bindings and addElements read must be a question or a declared variable, no question or calculated value may share a variable's name, and every preset value must fit its variable; AllQuestionsPersonalizedTests checks all three. bindings set or replace properties of an existing question, found by name anywhere in the survey; addElements are appended to the first page.",
+  "variablePresets": {
+    "definition": {
+      "elements": [
+        { "type": "text", "name": "full_name", "title": "Full name" },
+        { "type": "text", "name": "age", "title": "Age", "inputType": "number" },
+        { "type": "text", "name": "hometown", "title": "Hometown" },
+        { "type": "boolean", "name": "panel_member", "title": "Panel member" },
+        { "type": "text", "name": "joined", "title": "Joined", "inputType": "date" },
+        { "type": "text", "name": "last_seen", "title": "Last seen" }
+      ]
+    },
+    "presets": [
+      {
+        "name": "ACME-TEST-01",
+        "variables": {
+          "full_name": "ACME Tester One",
+          "age": 42,
+          "hometown": "ACME City",
+          "panel_member": true,
+          "joined": "2024-01-15",
+          "last_seen": "2026-10-01T09:30:00Z"
+        }
+      },
+      {
+        "name": "ACME-TEST-02",
+        "variables": {
+          "age": 17,
+          "hometown": "ACME Town",
+          "panel_member": false
+        }
+      }
+    ],
+    "totalPresets": 2
+  },
   "bindings": {
     "qText": { "defaultValueExpression": "{full_name}" },
     "qTextNumber": { "defaultValueExpression": "{age}" },
