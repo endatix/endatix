@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Import;
 using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
@@ -220,39 +221,6 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Editing_a_participant_whose_value_an_import_adds_first_overwrites_it_in_a_second_pass()
-    {
-        // Arrange
-        var world = await WorldAsync();
-        var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        var formId = await admin.CreateFormAsync();
-        var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
-        var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
-        var gate = CommandGate.AtCellInsert();
-        await using var scope = world.Services.CreateAsyncScope();
-        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
-        await using var paused = new PausedRace<Result<PersonDto>>(
-            gate,
-            UpdateHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait)).Handle(
-                new UpdatePersonCommand(world.Tenants[0].Id, formId, ada.MembershipId, Values(city, "Plovdiv")),
-                admin.CancellationToken));
-        await paused.ReachedGateAsync();
-        await using var second = world.Services.CreateAsyncScope();
-        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-
-        // Act
-        var imported = await paused.Alongside(ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, RaceWait))
-            .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken))
-            .WaitAsync(_gateTimeout, admin.CancellationToken);
-        var edited = await paused.ReleaseAsync();
-
-        // Assert
-        Assert.Equal(1, imported.Value.UpdatedCount);
-        Assert.True(edited.IsSuccess, string.Join("; ", edited.Errors));
-        Assert.Equal(new Dictionary<long, string> { [city] = "Plovdiv" }, await LiveCellsAsync(world.Services, formId));
-    }
-
-    [Fact]
     public async Task Writers_of_a_participant_held_past_the_wait_are_unavailable()
     {
         // Arrange
@@ -283,8 +251,8 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(ResultStatus.Unavailable, edited.Status);
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
         Assert.Equal(ResultStatus.Unavailable, imported.Status);
-        Assert.Equal([MembershipLock.Busy], edited.Errors);
-        Assert.Equal([MembershipLock.FormBusy], removed.Errors); // same participant, so the stripe refuses first
+        Assert.Equal([MembershipLock.FormBusy], edited.Errors); // same participant, so the stripe refuses first
+        Assert.Equal([MembershipLock.FormBusy], removed.Errors);
         Assert.Equal([MembershipLock.FormBusy], imported.Errors);
     }
 
@@ -299,7 +267,7 @@ public sealed partial class AudienceDirectoryFlowTests
         await using var scope = world.Services.CreateAsyncScope();
         var holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
         var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
-            .BeginEditAsync(holder, ada.MembershipId, admin.CancellationToken);
+            .BeginEditAsync(holder, new(formId, ada.MembershipId), admin.CancellationToken);
         Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
         await using var heldTransaction = held.Value;
         await using var second = world.Services.CreateAsyncScope();
@@ -310,7 +278,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(ResultStatus.Unavailable, removed.Status);
-        Assert.Equal([MembershipLock.Busy], removed.Errors); // the stripe is free, so the participant's lock refuses
+        Assert.Equal([MembershipLock.FormBusy], removed.Errors); // the edit holds the person's stripe, which refuses first
     }
 
     [Theory]
