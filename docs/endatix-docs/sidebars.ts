@@ -163,6 +163,12 @@ const sidebars: SidebarsConfig = {
     "end-users/index",
     {
       type: "category",
+      label: "Guides",
+      collapsed: false,
+      items: ["end-users/guides/run-a-personalized-survey"],
+    },
+    {
+      type: "category",
       label: "Forms",
       collapsed: false,
       link: {
