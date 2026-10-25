@@ -21,6 +21,15 @@ internal sealed class AudienceImportConfiguration(AudienceSqlDialect dialect)
         builder.Property(import => import.FileName)
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH)
             .IsRequired();
+        HasConcurrencyTokens(builder);
+        builder.Property(import => import.RejectedRowsBlobKey)
+            .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH);
+        HasStagedImportColumns(builder);
+        HasIndexes(builder);
+    }
+
+    private static void HasConcurrencyTokens(EntityTypeBuilder<AudienceImport> builder)
+    {
         // Every transition is a compare-and-set on the status: a cancel and a finishing Check cannot both win.
         builder.Property(import => import.Status)
             .HasMaxLength(32)
@@ -29,10 +38,6 @@ internal sealed class AudienceImportConfiguration(AudienceSqlDialect dialect)
         // A resumed write is a new run: a batch of an earlier run that wakes after the resume cannot save over it, even
         // though the status is writing again. Model only: no column or constraint changes.
         builder.Property(import => import.WriteRun).IsConcurrencyToken();
-        builder.Property(import => import.RejectedRowsBlobKey)
-            .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH);
-        HasStagedImportColumns(builder);
-        HasIndexes(builder);
     }
 
     /// <summary>What a staged import is fixed to when it starts, and the members that are read, not stored.</summary>

@@ -80,29 +80,36 @@ internal sealed class ImportCsvHandler(
         CancellationToken cancellationToken)
     {
         Result<ImportViewDto> started = await mediator.Send(StartOf(request, file), cancellationToken);
-        if (!started.IsSuccess)
-        {
-            return started.ToErrorResult<ImportResultDto>();
-        }
+        return started.IsSuccess
+            ? await RunToEndAsync(new ImportRef(request.TenantId, request.FormId, started.Value.ImportId), file, cancellationToken)
+            : started.ToErrorResult<ImportResultDto>();
+    }
 
-        ImportRef import = new(request.TenantId, request.FormId, started.Value.ImportId);
+    /// <summary>Stages, checks and writes the started import; abandons it on any failure, so its form is free.</summary>
+    private async Task<Result<ImportResultDto>> RunToEndAsync(
+        ImportRef import,
+        CsvFileParseResult file,
+        CancellationToken cancellationToken)
+    {
+        Result ran;
         try
         {
             await StageAsync(import, file, cancellationToken);
-            Result ran = await RunAsync(import, cancellationToken);
-            if (ran.IsSuccess)
-            {
-                return await ResultOfAsync(import, cancellationToken);
-            }
-
-            await AbandonAsync(import);
-            return ran.ToErrorResult<ImportResultDto>();
+            ran = await RunAsync(import, cancellationToken);
         }
         catch
         {
             await AbandonAsync(import);
             throw;
         }
+
+        return ran.IsSuccess ? await ResultOfAsync(import, cancellationToken) : await AbandonedAsync(import, ran);
+    }
+
+    private async Task<Result<ImportResultDto>> AbandonedAsync(ImportRef import, Result ran)
+    {
+        await AbandonAsync(import);
+        return ran.ToErrorResult<ImportResultDto>();
     }
 
     /// <summary>Checks the form and the request, then parses the file. Writes nothing.</summary>
@@ -225,15 +232,7 @@ internal sealed class ImportCsvHandler(
             return;
         }
 
-        if (import.Status == AudienceImportStatusCodes.Writing)
-        {
-            import.Fail(Interrupted);
-        }
-        else
-        {
-            import.Cancel();
-        }
-
+        Abandon(import);
         try
         {
             await db.SaveChangesAsync(CancellationToken.None);
@@ -241,6 +240,18 @@ internal sealed class ImportCsvHandler(
         catch (DbUpdateConcurrencyException)
         {
             // The run ended the import first.
+        }
+    }
+
+    private static void Abandon(AudienceImport import)
+    {
+        if (import.Status == AudienceImportStatusCodes.Writing)
+        {
+            import.Fail(Interrupted);
+        }
+        else
+        {
+            import.Cancel();
         }
     }
 

@@ -19,6 +19,8 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
+    private static readonly TimeSpan StallAge = TimeSpan.FromHours(7);
+
     [Fact]
     public async Task An_upload_or_a_checked_import_left_for_a_day_expires_and_frees_its_form_for_a_new_import()
     {
@@ -107,18 +109,11 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task A_write_stalled_for_six_hours_fails_resumable_and_resuming_it_writes_each_participant_once()
     {
-        // Arrange — two write batches commit, then the third is held after it loaded the import, the way a write whose
-        // job dead-lettered or hung leaves the import, and the import is aged.
+        // Arrange — two write batches commit, then the third is held after it loaded the import.
         IntegrationTestWorld world = await WorldAsync();
         AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
-        long formId = await api.CreateFormAsync();
-        List<string[]> rows = [.. Enumerable.Range(1, 1_500).Select(n => new[] { $"p{n}@example.com" })];
-        BulkImport import = await api.StageImportAsync(formId, ["email"], rows);
-        await api.WaitForImportAsync(import, "checked");
-        using CommandPause stalled = world.Services.GetRequiredService<AppCommandGate>().PauseAt(WriteRowsRead(), skip: 2);
-        using HttpResponseMessage confirmed = await api.MoveImportAsync(import, "writing");
-        await stalled.Reached.WaitAsync(ImportWait, api.CancellationToken);
-        await AgeImportAsync(world.Services, import, TimeSpan.FromHours(7));
+        (BulkImport import, CommandPause held) = await StallWriteAsync(world, api, batch: 2);
+        using CommandPause stalled = held;
 
         // Act — the resumed run writes the last rows and is held before it completes; then the stalled batch wakes
         // and writes those rows again for the run it belonged to.
@@ -138,11 +133,8 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(1_000, failed.GetProperty("written").GetProperty("writtenRowCount").GetInt32());
         Assert.Equal(HttpStatusCode.OK, resumed.StatusCode);
         Assert.Equal("completed", finished.GetProperty("status").GetString());
-        Assert.Equal(1_500, finished.GetProperty("written").GetProperty("writtenRowCount").GetInt32());
-        Assert.Equal(1_500, finished.GetProperty("written").GetProperty("createdCount").GetInt32());
-        Assert.Equal(0, finished.GetProperty("written").GetProperty("skippedCount").GetInt32());
-        Assert.Equal(0, finished.GetProperty("written").GetProperty("updatedCount").GetInt32());
-        List<string> identifiers = await api.IdentifiersAsync(formId);
+        Assert.Equal((1_500, 1_500, 0, 0), WrittenOf(finished));
+        List<string> identifiers = await api.IdentifiersAsync(import.FormId);
         Assert.Equal(1_500, identifiers.Count);
         Assert.Equal(1_500, identifiers.Distinct(StringComparer.Ordinal).Count());
     }
@@ -172,16 +164,11 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task A_stopped_write_nobody_resumes_for_a_week_expires_and_its_staged_rows_go()
     {
-        // Arrange — the write is held before its first batch reads its rows, failed as stalled, then left a week.
+        // Arrange — the first write batch is held, the import failed as stalled, then left a week.
         IntegrationTestWorld world = await WorldAsync();
         AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
-        List<string[]> rows = [.. Enumerable.Range(1, 1_200).Select(n => new[] { $"p{n}@example.com" })];
-        BulkImport import = await api.StageImportAsync(await api.CreateFormAsync(), ["email"], rows);
-        await api.WaitForImportAsync(import, "checked");
-        using CommandPause stalled = world.Services.GetRequiredService<AppCommandGate>().PauseAt(WriteRowsRead());
-        using HttpResponseMessage confirmed = await api.MoveImportAsync(import, "writing");
-        await stalled.Reached.WaitAsync(ImportWait, api.CancellationToken);
-        await AgeImportAsync(world.Services, import, TimeSpan.FromHours(7));
+        (BulkImport import, CommandPause held) = await StallWriteAsync(world, api, batch: 0);
+        using CommandPause stalled = held;
         await SweepAllTenantsAsync(world.Services);
         JsonElement failed = await api.GetImportAsync(import);
         stalled.Release();
@@ -294,6 +281,36 @@ public sealed partial class AudienceDirectoryFlowTests
     /// <summary>The read of the staged rows each write batch starts with.</summary>
     [GeneratedRegex("""SELECT\s+MAX\(.*["\[]ChunkIndex["\]].*FROM\s+["\[]?audience["\]]?\.["\[]ImportChunks["\]]""", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
     private static partial Regex WriteRowsRead();
+
+    /// <summary>
+    /// Stages and confirms an import of 1,500 people whose write batch <paramref name="batch"/> (from 0) is held after it loaded the
+    /// import, the way a write whose job dead-lettered or hung leaves it, then ages it past the stall limit.
+    /// </summary>
+    private static async Task<(BulkImport Import, CommandPause Stalled)> StallWriteAsync(
+        IntegrationTestWorld world,
+        AudienceApi api,
+        int batch)
+    {
+        List<string[]> cells = [.. Enumerable.Range(1, 1_500).Select(n => new[] { $"p{n}@example.com" })];
+        BulkImport import = await api.StageImportAsync(await api.CreateFormAsync(), ["email"], cells);
+        await api.WaitForImportAsync(import, "checked");
+        CommandPause stalled = world.Services.GetRequiredService<AppCommandGate>().PauseAt(WriteRowsRead(), skip: batch);
+        using HttpResponseMessage confirmed = await api.MoveImportAsync(import, "writing");
+        await stalled.Reached.WaitAsync(ImportWait, api.CancellationToken);
+        await AgeImportAsync(world.Services, import, StallAge);
+        return (import, stalled);
+    }
+
+    /// <summary>Written, created, updated and skipped rows of an import's view.</summary>
+    private static (int, int, int, int) WrittenOf(JsonElement view)
+    {
+        JsonElement written = view.GetProperty("written");
+        return (
+            written.GetProperty("writtenRowCount").GetInt32(),
+            written.GetProperty("createdCount").GetInt32(),
+            written.GetProperty("updatedCount").GetInt32(),
+            written.GetProperty("skippedCount").GetInt32());
+    }
 
     /// <summary>The daily service's sweep; returns how many imports it ended.</summary>
     private static async Task<int> SweepAllTenantsAsync(IServiceProvider services)
