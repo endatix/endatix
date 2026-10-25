@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Endatix.Modules.Jobs.Runtime;
+using Microsoft.Extensions.Configuration;
 
 namespace Endatix.Modules.Jobs.Tests;
 
@@ -42,10 +43,10 @@ public sealed partial class DocsTests
     public void Docs_StateTheDefaultTheCodeSetsForEveryBackgroundJobsOption()
     {
         // Arrange
-        var documented = SettingDefaults().Matches(ReadConfigurationPage())
-            .ToDictionary(setting => setting.Groups["key"].Value, setting => setting.Groups["default"].Value);
+        var documented = DocumentedDefaults();
 
-        // Act — an option with no value in code (the generated instance id) has nothing to compare.
+        // Act — an option with no value in code has nothing to compare here: the generated instance id, and the
+        // trigger lock, whose default depends on the provider and is checked on its own.
         var defaults = Options(new BackgroundJobsOptions(), Section)
             .Where(option => option.Default is not null)
             .ToList();
@@ -57,6 +58,37 @@ public sealed partial class DocsTests
             documented.Should().Contain(key, AsDocumented(value!), "the page must state the default the code sets for {0}", key);
         }
     }
+
+    [Theory]
+    [InlineData("postgresql", "PostgreSQL")]
+    [InlineData("sqlserver", "SQL Server")]
+    public void Docs_StateTheTriggerLockDefaultTheStoreSetsForEachProvider(string provider, string providerName)
+    {
+        // Arrange
+        var documented = DocumentedDefaults();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Server=unused",
+                ["ConnectionStrings:DefaultConnection_DbProvider"] = provider,
+            })
+            .Build();
+
+        // Act
+        var locksOnInsert = JobStoreDatabase.From(configuration, new BackgroundJobsOptions()).LocksOnInsert;
+
+        // Assert
+        var key = $"{Section}:{nameof(BackgroundJobsOptions.LockOnInsert)}";
+        documented.Should().ContainKey(key);
+        documented[key].Should().Contain(
+            $"{AsDocumented(locksOnInsert)} on {providerName}",
+            "the page must state the trigger lock default the store sets on {0}",
+            providerName);
+    }
+
+    private static Dictionary<string, string> DocumentedDefaults() =>
+        SettingDefaults().Matches(ReadConfigurationPage())
+            .ToDictionary(setting => setting.Groups["key"].Value, setting => setting.Groups["default"].Value);
 
     // Each key with the value a host that sets nothing runs with. A global left unset in code, so that a job type's
     // own default can win, falls back to its Default constant. Per-job-type overrides are listed with their global

@@ -439,16 +439,16 @@ in the Background Processing docs (`docs/endatix-docs/docs/configuration/backgro
 ## Outbox delivery to jobs
 
 With `Endatix:Outbox:DeliverToJobQueue` on (default `false`), the outbox relay delivers each message
-by enqueuing one job per subscriber — one `WebHookDelivery` job per distinct enabled endpoint URL,
-one job per Reporting handler — with the dedup key `{outboxMessageId}:{subscriber}`, and marks it
-sent. Modules register their subscriptions with `AddOutboxJobSubscription` next to their job
-handlers.
+by enqueuing one job per subscriber, one `WebHookDelivery` job per distinct enabled endpoint URL and
+one job per Reporting or Audience handler, with the dedup key `{outboxMessageId}:{subscriber}`, and
+marks it sent. A module registers each handler with `AddOutboxWork`, which registers it inline, as a
+job and as that job's subscriptions in one call; see
+[Domain and integration events](../../ARCHITECTURE.md#domain-and-integration-events).
 
 - Every host that runs the outbox relay must register every module that subscribes to outbox
   events, with the same module feature flags.
 - With the switch on and this module off, the relay pauses rather than lose messages.
-- Startup fails while an inline outbox handler's event has no job subscription from its module.
-- The switch needs PostgreSQL: on SQL Server it stays `false`.
+- With the switch on, startup fails while an inline outbox handler has no job for one of its events.
 
 Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
 
@@ -489,13 +489,13 @@ Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=10
 The options validator checks the values each job type runs with, and names the key each one came
 from; a value from code is named by the `JobTypes` key that replaces it.
 A global backoff value is checked against each job type's values from code, so a global
-`BackoffBaseSeconds` of `700` fails startup for the Reporting types (cap `600`); set the job
-type's own key instead.
+`BackoffBaseSeconds` of `700` fails startup for the Reporting and Audience types (cap `600`); set
+the job type's own key instead.
 
 | Job type | MaxAttempts | MaxRuntimeMinutes | BackoffBaseSeconds / BackoffCapSeconds | RetentionDays | MaxConcurrency | Declared in |
 |----------|-------------|-------------------|----------------------------------------|---------------|----------------|-------------|
 | `WebHookDelivery` | 8 | 5 | 10 / 3600 | 3 | 4 | `Endatix.Infrastructure` |
-| `ReportingCompileFormSchema`, `ReportingFlattenSubmission`, `ReportingSeedDefaultExportFormats`, `ReportingSyncFormDeletion`, `ReportingSyncSubmissionDeletion` | 5 | 10 | 10 / 600 | 3 | 2 | `Endatix.Modules.Reporting` |
+| `ReportingCompileFormSchema`, `ReportingFlattenSubmission`, `ReportingSeedDefaultExportFormats`, `ReportingSyncFormDeletion`, `ReportingSyncSubmissionDeletion`, `AudienceDeleteFormAudience`, `AudienceReleaseLinkOnTestMark` | 5 | 10 | 10 / 600 | 3 | 2 | `Endatix.Infrastructure` (`OutboxWorkServiceCollectionExtensions.DefaultJob`, which `AddOutboxWork` uses unless given others) |
 | any other | global | global | global | global | 1 | — |
 
 | Key | Default | Purpose |

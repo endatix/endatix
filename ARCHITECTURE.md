@@ -238,7 +238,7 @@ Commercial waitlist (`Endatix.SaaS.Management`) is **not** registered by OSS `Us
 **Module options.** `Endatix.Modules.Jobs` is the pattern for a module's configuration surface:
 
 - One section per module, named by the options type itself — `BackgroundJobsOptions.SectionName` (`Endatix:BackgroundJobs`). The type carries the defaults.
-- The module registers `AddOptions<T>().BindConfiguration(SectionName).ValidateOnStart()` together with an `IValidateOptions<T>` — Jobs adds both when the runner and sweeper are registered — so a value the module cannot run with fails the host at startup rather than at the first tick.
+- The module registers `AddOptions<T>().BindConfiguration(SectionName).ValidateOnStart()` together with an `IValidateOptions<T>` — Jobs adds both in `ConfigureServices` — so a value the module cannot run with fails the host at startup rather than at the first tick.
 - Validation messages name the **full configuration key** (`Endatix:BackgroundJobs:JobTypes:SubmissionExport:BackoffCapSeconds`): that is what an operator searches for in `appsettings.json` or an environment variable.
 - Per-item overrides are a `Dictionary<string, TOverrides>` of nullable properties. Keys match regardless of case, and each unset property falls back, one value at a time, to the global value of the same name when the host set it, then to the default the item declared in code, then to the global default. Anything set in configuration wins over code.
 - Overridable values are read only through the resolver (`JobTypePolicies.For(jobType)` at runtime; it and the options validator both resolve through `JobTypeSettings.Resolve`). Reading the global property directly ignores every override, so the runtime never reads those properties itself.
@@ -496,10 +496,9 @@ Rules:
 ## Background Jobs
 
 `Endatix.Modules.Jobs` runs work that outlives a request: webhook delivery, Reporting's read-model
-updates, and later exports. It is gated by `Endatix:FeatureFlags:JobsModule` and runs on PostgreSQL
-only: with the flag on and another provider configured, the host fails at startup. Its SQL Server
-context and migrations exist, so a SQL Server database can be migrated, but the module does not run
-there yet.
+updates, Audience's outbox work, and later exports. It is gated by `Endatix:FeatureFlags:JobsModule`
+and runs on PostgreSQL and on SQL Server, each with its own context and migrations; the provider rules,
+including SQL Server's trigger lock on enqueue, are under [Module registration](#module-registration-oss).
 
 ### The row and the queue
 
@@ -510,7 +509,7 @@ recovery trigger of Quartz's own before it gets a job-id trigger back for any re
 
 - The **row is the record**: tenant, status, attempts, progress, error, trace and retention. It is
   what `GET jobs/{jobId}` reads, and the only place a job's state lives.
-- **Quartz.NET 4.2 is the queue**: a clustered store in the same schema decides when and on which
+- **Quartz.NET 4.2.2, pinned exactly, is the queue**: a clustered store in the same schema decides when and on which
   node a job runs, and re-runs a dead node's jobs on a survivor. A retry is a trigger the job wrapper
   stores itself. The trigger carries the job id and, on a re-fire, what it is for: taking the row
   over, or writing the outcome of an attempt that finished but could not save it.
@@ -571,9 +570,10 @@ the row is unfinished, the job is taken over. No exception text reaches `ErrorMe
 Each job type is its own Quartz **execution group**, capped per node at
 `JobTypes:{JobType}:MaxConcurrency`; groups this node has no handler for are capped at `0`, and the
 thread pool holds every cap at once. Acquisition is narrowed to groups with a free slot, by the
-module's own PostgreSQL driver delegate (`ExecutionGroupFilteringPostgreSqlDelegate`), so a
-webhook storm never takes an export's or Reporting's thread, and a node never takes a job type it
-cannot run — the job waits for a node that can.
+module's own driver delegate for each provider (`ExecutionGroupFilteringPostgreSqlDelegate`,
+`ExecutionGroupFilteringSqlServerDelegate`), so a webhook storm never takes an export's or
+Reporting's thread, and a node never takes a job type it cannot run — the job waits for a node that
+can.
 
 ### The handler contract
 
@@ -587,9 +587,10 @@ transient one; scope every query to the job's `TenantId`; honour the token; neve
 With `Endatix:Outbox:DeliverToJobQueue` on, the outbox relay's publisher is
 `JobQueueIntegrationEventPublisher`: it enqueues **one job per subscriber** and returns, so the relay
 does no subscriber work and one failing subscriber can no longer block, re-send or dead-letter
-another. Modules register subscriptions (`AddOutboxJobSubscription`) next to their job handlers;
-webhooks expand to one job per distinct enabled endpoint URL. The relay pauses rather than claim when the switch is on and
-no job queue is registered, and startup fails when an inline handler's event has no subscription.
+another. Reporting and Audience register each handler through `AddOutboxWork`, and the startup checks
+that guard the switch are listed with it under [Domain and integration events](#domain-and-integration-events);
+webhooks expand to one job per distinct enabled endpoint URL. The relay pauses rather than claim when
+the switch is on and no job queue is registered.
 
 ### Three idempotency guards
 
