@@ -282,6 +282,7 @@ const sidebars: SidebarsConfig = {
       },
       items: [
         "end-users/submissions/viewing-submissions",
+        "end-users/submissions/testing-submissions",
         "end-users/submissions/submission-details",
         "end-users/submissions/sharing-submissions",
         "end-users/submissions/exporting-submissions",
