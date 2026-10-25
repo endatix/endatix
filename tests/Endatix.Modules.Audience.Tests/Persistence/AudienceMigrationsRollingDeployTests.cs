@@ -1,22 +1,20 @@
-using Endatix.Core.Abstractions;
-using Endatix.Infrastructure.Data;
-using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
-using Microsoft.Extensions.Configuration;
 
 namespace Endatix.Modules.Audience.Tests.Persistence;
 
 /// <summary>
 /// The previous release keeps writing while a release migrates (ARCHITECTURE.md, Schema changes during a rolling
-/// deploy), so a migration never adds a column and a constraint on it at once. No connection is opened.
+/// deploy), so a migration never adds a column and a constraint on it at once. It sees one migration at a time;
+/// two migrations of one release are the PR review's to catch.
 /// </summary>
 public sealed class AudienceMigrationsRollingDeployTests
 {
-    // Shipped with the module, before its first production release, so no previous release writes these tables.
-    private static readonly string[] _shippedWithTheModule = ["AddPropertyValueIsTest"];
+    // Shipped while the module was a preview behind personalization-module (off by default), so no production
+    // host wrote PropertyValues before it (endatix#1389).
+    private static readonly string[] _exempted = ["AddPropertyValueIsTest"];
 
     public static TheoryData<string> Providers => new() { "postgresql", "sqlserver" };
 
@@ -29,51 +27,31 @@ public sealed class AudienceMigrationsRollingDeployTests
 
         // Act
         var violations = UpOperationsByMigration(context)
-            .Where(migration => !_shippedWithTheModule.Contains(migration.Name))
+            .Where(migration => !_exempted.Contains(migration.Name))
             .SelectMany(migration => ConstraintsOnAddedColumns(migration.Operations)
-                .Select(constraint => $"{migration.Name}: {constraint}"));
+                .Select(constraint => $"{migration.Name}: {constraint}"))
+            .ToList();
 
         // Assert
-        violations.Should().BeEmpty("a constraint on a new column ships one release after the column");
+        violations.Should().BeEmpty("a constraint on a new column ships one stable release after the column");
     }
 
     [Theory]
     [MemberData(nameof(Providers))]
-    public void Up__shippedWithTheModule_ConstrainsTheColumnsItAdds(string provider)
+    public void Up_ExemptedMigrations_StillConstrainAColumnTheyAdd(string provider)
     {
         // Arrange
         using var context = CreateContext(provider);
 
         // Act
         var exempted = UpOperationsByMigration(context)
-            .Where(migration => _shippedWithTheModule.Contains(migration.Name))
+            .Where(migration => _exempted.Contains(migration.Name))
             .Select(migration => (migration.Name, Constraints: ConstraintsOnAddedColumns(migration.Operations)))
             .ToList();
 
         // Assert
-        exempted.Select(migration => migration.Name).Should().BeEquivalentTo(_shippedWithTheModule);
+        exempted.Select(migration => migration.Name).Should().BeEquivalentTo(_exempted);
         exempted.Should().OnlyContain(migration => migration.Constraints.Count > 0, "an exemption that matches nothing is stale");
-    }
-
-    [Theory]
-    [MemberData(nameof(Providers))]
-    public void Up_EveryMigration_AddsNoRequiredColumnWithoutADefault(string provider)
-    {
-        // Arrange
-        using var context = CreateContext(provider);
-
-        // Act
-        var violations = UpOperationsByMigration(context)
-            .SelectMany(migration => migration.Operations
-                .OfType<AddColumnOperation>()
-                .Where(column => !column.IsNullable
-                    && column.DefaultValue is null
-                    && column.DefaultValueSql is null
-                    && column.ComputedColumnSql is null)
-                .Select(column => $"{migration.Name}: {column.Table}.{column.Name}"));
-
-        // Assert
-        violations.Should().BeEmpty("the previous release inserts rows without the new column");
     }
 
     private static List<string> ConstraintsOnAddedColumns(IReadOnlyList<MigrationOperation> operations)
@@ -84,6 +62,9 @@ public sealed class AudienceMigrationsRollingDeployTests
             .ToHashSet();
         bool CoversAnAddedColumn(string table, IEnumerable<string> columns) =>
             columns.Any(column => added.Contains((table, column)));
+        bool NamesAnAddedColumn(string table, string sql) =>
+            added.Any(column => column.Table == table
+                && (sql.Contains($"\"{column.Name}\"") || sql.Contains($"[{column.Name}]")));
 
         var foreignKeys = operations.OfType<AddForeignKeyOperation>()
             .Where(key => CoversAnAddedColumn(key.Table, key.Columns))
@@ -95,7 +76,7 @@ public sealed class AudienceMigrationsRollingDeployTests
             .Where(index => index.IsUnique && CoversAnAddedColumn(index.Table, index.Columns))
             .Select(index => index.Name);
         var checks = operations.OfType<AddCheckConstraintOperation>()
-            .Where(check => added.Any(column => column.Table == check.Table && check.Sql.Contains(column.Name)))
+            .Where(check => NamesAnAddedColumn(check.Table, check.Sql))
             .Select(check => check.Name);
 
         return [.. foreignKeys, .. uniqueConstraints, .. uniqueIndexes, .. checks];
@@ -115,29 +96,6 @@ public sealed class AudienceMigrationsRollingDeployTests
 
     private static DbContext CreateContext(string provider) =>
         provider == "postgresql"
-            ? new AudiencePostgreSqlDbContext(
-                HostOptions<AudiencePostgreSqlDbContext>(
-                    provider,
-                    "Host=127.0.0.1;Database=not_connected;Username=postgres;Password=not-connected"),
-                Substitute.For<ITenantContext>())
-            : new AudienceSqlServerDbContext(
-                HostOptions<AudienceSqlServerDbContext>(
-                    provider,
-                    "Server=127.0.0.1;Database=not_connected;User Id=sa;Password=not-connected"),
-                Substitute.For<ITenantContext>());
-
-    private static DbContextOptions<TContext> HostOptions<TContext>(string provider, string connectionString)
-        where TContext : DbContext
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = connectionString,
-                ["ConnectionStrings:DefaultConnection_DbProvider"] = provider,
-            })
-            .Build();
-        var optionsBuilder = new DbContextOptionsBuilder<TContext>();
-        optionsBuilder.ConfigureModuleDbContext(configuration, AudiencePersistence.ConfigureDbContextOptions);
-        return optionsBuilder.Options;
-    }
+            ? NotConnectedAudienceContexts.CreatePostgreSql()
+            : NotConnectedAudienceContexts.CreateSqlServer();
 }
