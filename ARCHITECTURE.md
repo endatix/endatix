@@ -600,7 +600,7 @@ The example is `AddPropertyValueIsTest` (endatix#1376, #1389). It adds `Property
 
 A new table, and constraints on it, need no second release: the previous release never writes it. A foreign key from the new table onto a table the previous release deletes from or rekeys is the exception: it constrains those writes, so it waits for the contract.
 
-**A failed migration does not stop the pod.** `DatabaseMigrationService` logs the failure and lets the host start, so a contract whose validation fails on a row leaves the pod serving on the expanded schema, with the later migrations unapplied; only the startup log shows it. Check that the contract migration applied after the deploy (`__EFMigrationsHistory` in the module's schema), and fix the rows, not the schema.
+**A failed migration does not stop the pod.** `DatabaseMigrationService` logs the failure and lets the host start, so a contract whose validation fails on a row leaves the pod serving on the expanded schema, with the later migrations unapplied; only the startup log shows it (endatix#1403 tracks failing the readiness check instead). Check that the contract migration applied after the deploy (`__EFMigrationsHistory` in the module's schema), and fix the rows, not the schema.
 
 **Why not migrate in a pre-deploy job.** A Helm pre-upgrade hook still leaves the old pods serving against the new schema until the rollout ends. Only stopping every old pod before the new one starts (`strategy: Recreate`, or scaling to zero) closes the window, which takes the API down on every release that migrates. An OSS host that deploys some other way never sees the chart's job.
 
