@@ -1,6 +1,6 @@
 ---
 title: Audience
-description: Add the people a form is for and the properties kept about each one, see which values the form uses and who is missing them, open a participant's page, and use test people with Test as this participant and Start over before you send any links.
+description: Add the people a form is for and the properties kept about each one, see which values the form uses and who is missing them, preview the saved form as any participant, open a participant's page, and use test people with Test as this participant and Start over before you send any links.
 sidebar_label: Audience
 ---
 
@@ -16,18 +16,20 @@ import ImportAsTestLight from "./audience-import-as-test_light.webp";
 import ImportAsTestDark from "./audience-import-as-test_dark.webp";
 import TestFilterLight from "./audience-test-filter_light.webp";
 import TestFilterDark from "./audience-test-filter_dark.webp";
+import PreviewAsLight from "./audience-preview-as_light.webp";
+import PreviewAsDark from "./audience-preview-as_dark.webp";
 
 # Audience
 
 The **Audience** tab of a form holds the people the form is for and the facts you keep about each of them. Each person's values fill the form when they open it, so a form can greet someone by name or ask about their own company. Test people let you try that personalized form as someone, without sending a link or counting the result as a real response.
 
-To run a whole personalized survey with it, from import to export, follow [Run a personalized survey](/docs/end-users/guides/run-a-personalized-survey).
+To use the properties in the form and check it in the designer, see [Personalized Forms](/docs/end-users/forms/personalized-forms). To run a whole personalized survey, from import to export, follow [Run a personalized survey](/docs/end-users/guides/run-a-personalized-survey).
 
 To open it, open the form from the **Forms** list, click the section menu next to the form name (it shows **Overview**), and choose **Audience**. The tab appears when your Endatix deployment has personalization turned on.
 
 ## People and properties
 
-The tab has two views, **People** and **Properties**. Each shows its count in the view switch.
+The tab has two views, **People** and **Properties**. Each shows its count in the view switch. A form with properties also has a third view, [**Preview as**](#preview-as), for people who can edit the form.
 
 - A **property** is one fact kept for each person on this form, such as a first name, a company, or a plan. Each property is a column in the people table.
 - A **person** is someone in the form's audience. Endatix recognizes the same person on every form in your organization by the **match key**, for example their email. Removing someone takes them off this form only.
@@ -53,7 +55,7 @@ If you can edit the form, the **Properties** view also shows how the saved form 
   sources={{ light: PropertiesLight, dark: PropertiesDark }}
 />
 
-The counts follow the last saved version of the form. Save the form in the designer to update them.
+The counts follow the last saved version of the form. Save the form in the designer to update them. The designer's **Diagnostics** tab shows the same gaps as warnings while you edit: see [Fix the Personalization warnings](/docs/end-users/forms/personalized-forms#fix-the-personalization-warnings).
 
 ### Add people
 
@@ -72,6 +74,26 @@ Two marks help you check the list before you send links:
 
 - **Link** shows each real person's link: **Not issued**, **Issued**, or **Opened**. Click **Opened** to see the response the link started. A test person never gets a link. The column appears once anyone on the form has a link.
 - **N not filled in** next to a person means the saved form reads values they don't have. Hover over it to see which ones. Fill them in with **Edit**, or the form shows those places empty for that person. Only people who can edit the form see this mark.
+
+## Preview as
+
+**Preview as** shows the saved form the way one participant gets it, with their values filled in. Use it to check a real participant's form before you send links, without opening their link or creating a submission. It needs permission to edit the form.
+
+1. On the **Audience** tab, click **Preview as** in the view switch.
+2. Pick a participant on the left. **Test participants** are listed first. To find anyone else, real participants included, type part of their identifier in **Find any participant**.
+3. Read the form on the right. Use the arrow keys to move to the next or previous participant.
+
+<Shot
+  alt="Preview as view: Find any participant above a Test participants list with qa.tester@example.com selected; on the right, qa.tester@example.com with a Test badge, Test as this participant and Edit values buttons, the values First name Sam, Company Contoso, Tier Gold and Region empty, the note Every value is filled in, Saved form, last saved 17 seconds ago, and the form starting Welcome, Sam"
+  sources={{ light: PreviewAsLight, dark: PreviewAsDark }}
+/>
+
+Above the form, the participant's values are listed, with a dash for an empty one, and a note names the values the form reads that they don't have (**Not filled in: …**), or says **Every value is filled in**. Below that is when the form was last saved: the preview always shows the saved version, so save in the designer first. Answers you type in the preview are not saved.
+
+- **Edit values** changes the participant's values; the preview updates with them.
+- **Test as this participant** opens a test submission with the same values, as from the **People** view. It needs permission to test forms.
+
+The choice is kept in the page address, so you can share a link to one participant's preview with someone who can edit the form. To preview a draft before you save it, use [Preview as in the designer](/docs/end-users/forms/personalized-forms#preview-the-form-as-a-participant).
 
 ## Open a participant's page
 
@@ -177,6 +199,11 @@ If the person was removed from the form in the meantime, **Start over** goes awa
     to="/docs/end-users/guides/run-a-personalized-survey"
     title="Run a personalized survey"
     description="Import a panel, test as one of them, send links, and export real responses."
+  />
+  <LinkCard
+    to="/docs/end-users/forms/personalized-forms"
+    title="Personalized Forms"
+    description="Use properties in the designer, preview as a participant, and fix the Personalization warnings."
   />
   <LinkCard
     to="/docs/end-users/forms/prefilling-and-personalization"

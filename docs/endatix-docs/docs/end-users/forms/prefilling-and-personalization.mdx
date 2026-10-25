@@ -33,6 +33,10 @@ The rest of this guide covers query string variables. Beyond prefilling a questi
 
 Variables are declared in the Form Builder, not on any single question — they belong to the survey as a whole.
 
+:::tip[Values from the Audience tab need no variable]
+If the values come from the form's [Audience](/docs/end-users/forms/audience), each property is already a variable: use `{first_name}` in the form without adding it here. A custom variable is only for a value passed in the link, as on this page, or calculated in the form. See [Personalized Forms](/docs/end-users/forms/personalized-forms).
+:::
+
 1. Open your form in the Form Builder and click the **Survey settings** icon (the sliders icon above the Property Grid) to open **Survey Settings**.
 2. Select the **Conditions** category.
 3. Under **Custom variables**, click **+ Add new variable**.
@@ -164,6 +168,7 @@ When that respondent opens the link, the title renders with the value already fi
 * [Form Prefilling and Sharing](/docs/guides/form-prefilling) — pre-populate an entire submission from your backend using access tokens, instead of query string variables.
 * [Carry Forward](/docs/end-users/forms/form-builder/carry-forward) — another way to drive a question's choices from earlier answers.
 * [Embedding a Form](/docs/end-users/sharing/embedding) — pass the same variables to a form running inside your own web page.
+* [Personalized Forms](/docs/end-users/forms/personalized-forms) - use the values kept for each person on the form's Audience tab instead of the link.
 
 ## Technical Reference (JSON Schema)
 
