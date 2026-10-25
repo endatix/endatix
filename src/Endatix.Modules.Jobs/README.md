@@ -32,7 +32,8 @@ Two stores in one `jobs` schema, with one job each:
   (tables `jobs.qrtz_*`), is the **queue**: it decides when and on which node a job runs, and
   re-runs the work of a node that stopped. A retry is a trigger the job wrapper stores itself.
 
-Every job has exactly one row and one Quartz trigger, keyed by the job's id; the trigger carries
+Every job has exactly one row and, while it waits to run, one Quartz trigger, keyed by the job's id
+(a job recovered from a dead node runs on a recovery trigger of Quartz's own); the trigger carries
 that id and, on a re-fire, what the re-fire is for. The payload and anything secret stay on the row.
 One thing is in both: a re-fire that carries a failure the handler returned holds its message, the
 handler's own `Result` text (never exception text), cut to 2048 characters as the row cuts it, in
@@ -210,7 +211,8 @@ inside the module's Quartz registration: anything a host registers for the sched
 lost on a rebuild, and the rebuilt scheduler runs without it.
 
 **Each job type is its own Quartz execution group**, capped per node at
-`JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
+`JobTypes:{JobType}:MaxConcurrency` (default: the job type's own, else `1`; 4 for `WebHookDelivery`,
+2 for the Reporting and Audience types). Every group this host has no handler for is
 capped at `0`, so a node never takes a job it cannot run; the job waits for a node that can. The
 thread pool holds every registered job type's full cap at once, so it is sized as the sum of the
 caps, and there is no global concurrency setting. Trigger acquisition reads, for each group with a
@@ -230,9 +232,11 @@ deploy the module that handles it.
 
 **Dashboard.** With `Dashboard:Enabled`, the Quartz dashboard is served at `/quartz` and its HTTP
 API at `/quartz-api`, both behind the `PlatformAdmin` policy and read-only unless
-`Dashboard:AllowWrites` is set. It is an operator tool: a caller that may write can trigger, pause
-or reschedule any tenant's jobs, and it shows every tenant's triggers. Even with writes on, only
-Endatix's own job class may be named.
+`Dashboard:AllowWrites` is set. It is an operator tool: a caller that may write can trigger, pause,
+reschedule, unschedule or delete any tenant's jobs, and it shows every tenant's triggers. Even with
+writes on, only Endatix's own job class may be named, which narrows adding and scheduling only.
+Unscheduling a job's trigger, or deleting a job type's durable job (which deletes every trigger it
+has), leaves those jobs' rows unfinished with nothing to run them.
 
 Each job type the host has a handler for gets one durable Quartz job, which requests recovery,
 so a job cut off by a stopped or crashed node runs again on another. A host enqueueing a job type
@@ -507,11 +511,11 @@ the job type's own key instead.
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
 | `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits. Read from configuration once, at registration: a `Configure` or `PostConfigure` in code does not change it, and a node whose options say otherwise logs a warning at startup |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
-| `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); read when an attempt ends, so a change also applies to jobs already waiting |
+| `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); each attempt runs with the value its node was started with, not one fixed at enqueue, so once the nodes restart a change also applies to jobs already waiting |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |
 | `RetentionDays` | `7` | How long a finished job's row is kept (per type); stamped as `ExpiresAt` when it finishes |
 | `Retention:Cron` / `BatchSize` / `MaxBatchesPerRun` | `0 0/15 * * * ?` / `1000` / `50` | When the retention job runs and how much one run deletes |
-| `JobTypes:{JobType}:MaxConcurrency` | `1` | Jobs of this type one node runs at once; `0` declines the type |
+| `JobTypes:{JobType}:MaxConcurrency` | the job type's own, else `1` | Jobs of this type one node runs at once; `0` declines the type |
 | `Clustering:CheckinIntervalSeconds` / `CheckinMisfireThresholdSeconds` | `7.5` / `7.5` | A node silent for their sum is presumed dead |
 | `Dashboard:Enabled` / `Dashboard:AllowWrites` | `false` / `false` | The operator dashboard, for platform admins |
 | `Clustering:InstanceId` | generated | This node's identity; set only to a value no other running node uses |

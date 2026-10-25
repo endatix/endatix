@@ -394,12 +394,12 @@ Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsB
 
 ### Classification
 
-| Kind                  | Interface                                                            | Dispatch                                         | Example                                                                                               |
-| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                  | Internal notifications                                                                                |
-| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated`                                                     |
-| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP                              | `form.updated`, `submission.completed`                                                                |
-| Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler                | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
+| Kind                  | Interface                                                            | Dispatch                                                                            | Example                                                                                               |
+| --------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                                                     | Internal notifications                                                                                |
+| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities`                                    | `submission.completed`, `form.definition.updated`                                                     |
+| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP, or with `DeliverToJobQueue` a job per endpoint                 | `form.updated`, `submission.completed`                                                                |
+| Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler, or with `DeliverToJobQueue` a job per subscriber | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
 
 A module registers each subscriber with `services.AddOutboxWork<TWork>()` (`Endatix.Infrastructure.Features.Outbox`): the handler implements `IOutboxWork<TWork>` (`JobType`, `HandledEventTypes`, `Read`), and the one call registers it inline, as a background job (`OutboxJobHandler`) and as the job's subscription to every event in `HandledEventTypes`, so `Endatix:Outbox:DeliverToJobQueue` can move it to the job queue. The job's stored input is `{"outboxMessageId":N}` under the work's `JobType` literal. The job fails for good, without retry, when the outbox row is gone or unreadable, or when an app-level row's payload names another tenant; anything the work throws is retried. With the switch on, startup fails when an outbox work has no job of its own or lists fewer `EventTypes` than its job subscribes, when any other inline handler's events have no subscription from its assembly that no work owns, or when an inline handler is registered twice; `OutboxWorkCoverageTests` boots every module that way.
 
@@ -545,7 +545,7 @@ attempt:
 | ------- | --- | ------ |
 | returns success | `Completed` | done |
 | returns a failure `Result` | `Failed` | done, no retry |
-| returns success or a failure `Result`, but the write fails | `Processing`, then that outcome | a re-fire 5 s later carries the outcome and writes it, fenced on that attempt; the handler is not run again |
+| returns success or a failure `Result`, but the write fails | `Processing`, then that outcome | a re-fire 5 s later carries the outcome and writes it, fenced on that attempt; the handler is not run again. A stopping host carries nothing: the job is re-run on the next node to check in |
 | throws, attempts left | `Retrying` | a trigger of the job's own runs it again after the backoff |
 | throws, attempts spent | `DeadLettered` | done |
 | row set to `Canceled` | stays `Canceled` | done |
@@ -553,7 +553,8 @@ attempt:
 | node stopped during the last attempt | `DeadLettered` when recovered | done, the handler not run again |
 
 The row alone decides retry or dead-letter: its `AttemptCount` against the job type's `MaxAttempts`,
-read when the attempt ends, so a change to `MaxAttempts` applies to jobs already waiting. Enqueue
+as the node running the attempt was started with, not fixed at enqueue, so once the nodes restart a
+change to `MaxAttempts` also applies to jobs already waiting. Enqueue
 triggers carry no Quartz retry policy and the wrapper never throws to Quartz; the next attempt's
 trigger is stored before the row says `Retrying`. The retry trigger is tried once; if it cannot be
 stored, nothing is written and a re-fire that re-claims the row is stored 5 s out instead. Storing
@@ -561,9 +562,8 @@ that re-fire is retried while the scheduler runs, rather than leave the row with
 indefinitely when the database caused the failure, and 3 times when the scheduler refuses the
 trigger itself, after which the row is dead-lettered so the worker is freed (a re-fire carrying an
 outcome writes that outcome instead). A carried outcome the database keeps refusing while it
-answers is dropped after 3 re-fires and the row re-claimed; an outage is waited out. A
-trigger stored by an earlier version may still carry a retry policy; if those retries run out while
-the row is unfinished, the job is taken over. No exception text reaches `ErrorMessage`.
+answers is dropped after 3 re-fires and the row re-claimed; an outage is waited out. No exception
+text reaches `ErrorMessage`.
 
 ### Isolation per job type
 

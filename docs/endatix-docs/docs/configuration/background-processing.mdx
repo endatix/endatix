@@ -7,7 +7,7 @@ description: "Understand Endatix background processing: the transactional outbox
 
 Endatix decouples **fast API responses** from **slow or unreliable side effects** (webhook HTTP calls, future integrations). When a domain event occurs, such as a completed submission, the API persists your data and schedules background work in the same database transaction. A background relay then delivers that work reliably.
 
-This page explains the **transactional outbox pattern**, how Endatix applies it today, and how to configure the in-process relay via `Endatix:Outbox` in `appsettings.json`.
+This page explains the **transactional outbox pattern**, how Endatix applies it today, and how to configure the in-process relay via `Endatix:Outbox` in `appsettings.json`. It also covers background jobs, their `Endatix:BackgroundJobs` settings, and delivering outbox events through the job queue.
 
 ## Why Background Processing?
 
@@ -55,10 +55,10 @@ sequenceDiagram
     loop PollIntervalSeconds
         Relay->>DB: Claim batch (lease + SKIP LOCKED)
         alt DeliverToJobQueue on
-            Relay->>WH: Enqueue one job per endpoint
-            WH->>WH: POST once per job attempt
+            Relay->>DB: Enqueue one job per subscriber (each webhook endpoint, each Reporting or Audience handler)
+            Note over DB,WH: Each webhook job POSTs once per attempt
         else DeliverToJobQueue off
-            Relay->>WH: POST each endpoint inline
+            Relay->>WH: POST each endpoint inline, and run Reporting and Audience
         end
         alt Delivery succeeded
             Relay->>DB: Mark row Sent
@@ -203,7 +203,7 @@ Use `appsettings.Production.json` for production values. For example, you might 
 
 Background jobs run work that outlives a request, such as one webhook delivery or one Reporting update, each with its own retries and status. They are provided by the Jobs module, which is off unless `Endatix:FeatureFlags:JobsModule` is `true`. It runs on PostgreSQL and on SQL Server 2025 or later (or Azure SQL Database), in the same database as your data. On SQL Server, enqueueing holds the job scheduler's cluster-wide trigger lock until it commits, unless you turn off [`LockOnInsert`](#background-jobs-configuration-reference).
 
-Each job is a row in `jobs."BackgroundJobs"`, the record `GET jobs/{jobId}` reads, plus one trigger in the clustered store of [Quartz.NET](https://www.quartz-scheduler.net/) 4.2.2, in the same `jobs` schema. Enqueueing writes both in one transaction. Quartz decides when and on which node a job runs, and runs a stopped node's jobs again on another node. The job's row alone decides whether a failed attempt is retried or dead-lettered; each retry is a new trigger for the job, at the time its backoff sets. A job whose handler finished but whose result could not be saved, because the database was unavailable, records that result once the database is back; it is not run again. If its host was stopping at the time, the result is not kept, and the job runs again on another node.
+Each job is a row in `jobs."BackgroundJobs"`, the record `GET jobs/{jobId}` reads, plus one trigger in the clustered store of [Quartz.NET](https://www.quartz-scheduler.net/) 4.2.2, in the same `jobs` schema. Enqueueing writes both in one transaction. Quartz decides when and on which node a job runs, and runs a stopped node's jobs again on another node. The job's row alone decides whether a failed attempt is retried or dead-lettered; each retry is a new trigger for the job, at the time its backoff sets. A job whose handler finished but whose result could not be saved, because the database was unavailable, records that result once the database is back; it is not run again. If its host was stopping at the time, the result is not kept, and the job runs again on another node or, if that was its last attempt, is dead-lettered there.
 
 The `jobs` migrations create Quartz's tables; with automatic migrations off, apply them before you start the API, or startup fails with `Database schema validation failed under table prefix 'jobs.qrtz_'`. A node whose database cannot be reached when it starts stays up without its scheduler and starts it once the database answers; until then its readiness probe reports the database as down. A database that answers and refuses, such as a login it does not accept, fails the start.
 
@@ -277,7 +277,7 @@ How often a running job re-reads its row to notice it was cancelled.
 How long a due job may wait for a free slot before `endatix.jobs.misfired` counts it, again at every threshold while it waits. The backlog warning `Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of this type misfired since the last warning.` is logged at most once per job type per threshold.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:ShutdownWaitSeconds" default="30">
-How long a stopping host waits for running jobs. Jobs still running then are told to stop, record nothing, and run again on the next node. The host's own shutdown timeout (`HostOptions.ShutdownTimeout`, 30 seconds by default) also bounds this wait, so a longer value needs a longer host timeout.
+How long a stopping host waits for running jobs. Jobs still running then are told to stop, record nothing, and run again on the next node or, if that was their last attempt, are dead-lettered there. The host's own shutdown timeout (`HostOptions.ShutdownTimeout`, 30 seconds by default) also bounds this wait, so a longer value needs a longer host timeout.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:LockOnInsert" default="false on PostgreSQL, true on SQL Server">
 Whether enqueueing holds the scheduler's cluster-wide trigger lock until its transaction commits. On SQL Server, `false` needs `READ_COMMITTED_SNAPSHOT` on for the database, or the node refuses to start, naming both settings. Read from configuration once, at startup. Read [Persistence settings](/docs/configuration/settings/persistence-settings) before you change it.
@@ -286,13 +286,13 @@ Whether enqueueing holds the scheduler's cluster-wide trigger lock until its tra
 Ceiling on one attempt; the handler's token is cancelled when it passes. Per job type. A host that sets this key replaces every job type's built-in default, even when it sets it to `60`; a job type's own key still wins.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:MaxAttempts" default="3">
-Attempts before a job that keeps failing is dead-lettered. Per job type. A job whose node stops during its last attempt is dead-lettered when another node recovers it, rather than run again. The value is read when an attempt ends, so a change also applies to jobs already waiting to retry. A host that sets this key replaces every job type's built-in default, even when it sets it to `3`; a job type's own key still wins.
+Attempts before a job that keeps failing is dead-lettered. Per job type. A job whose node stops during its last attempt is dead-lettered when another node recovers it, rather than run again. Each attempt runs with the value the node running it was started with, not one fixed at enqueue, so once the nodes restart with a new value it also applies to jobs already waiting to retry. A host that sets this key replaces every job type's built-in default, even when it sets it to `3`; a job type's own key still wins.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:BackoffBaseSeconds" default="30">
-Wait before the first retry; each later retry waits twice as long. Per job type. A host that sets this key replaces every job type's built-in default, even when it sets it to `30`; a job type's own key still wins.
+Wait before the first retry; each later retry waits twice as long. Per job type. The wait is worked out when an attempt fails, from the value the node running it was started with, so once the nodes restart a change reaches the later retries of jobs already waiting; a retry already scheduled keeps its time. A host that sets this key replaces every job type's built-in default, even when it sets it to `30`; a job type's own key still wins.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:BackoffCapSeconds" default="900">
-Longest wait between retries. Per job type. A host that sets this key replaces every job type's built-in default, even when it sets it to `900`; a job type's own key still wins.
+Longest wait between retries. Per job type. It takes effect as `BackoffBaseSeconds` does. A host that sets this key replaces every job type's built-in default, even when it sets it to `900`; a job type's own key still wins.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:RetentionDays" default="7">
 Days a finished job's row is kept before the retention job deletes it. Per job type. A host that sets this key replaces every job type's built-in default, even when it sets it to `7`; a job type's own key still wins.
@@ -313,7 +313,7 @@ Batches one retention run deletes at most.
 Serves the Quartz dashboard at `/quartz` and its HTTP API at `/quartz-api`, to platform admins only. It shows every tenant's jobs.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Dashboard:AllowWrites" default="false">
-Lets platform admins change schedules through the dashboard. Read-only otherwise. A caller who may write can trigger, pause or reschedule any tenant's jobs.
+Lets platform admins change schedules through the dashboard. Read-only otherwise. A caller who may write can trigger, pause, reschedule, unschedule or delete any tenant's jobs. Unscheduling a job's trigger, or deleting a job type's job, leaves those jobs' rows unfinished with nothing to run them.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Clustering:CheckinIntervalSeconds" default="7.5">
 How often a node records that it is alive.
@@ -358,13 +358,19 @@ The `OutboxMessages` table is the ground truth for background delivery. Each row
 | `1` (Sent) | Delivered successfully. |
 | `2` (Failed) | Gave up after `MaxAttempts` - requires operator attention. |
 
+With `DeliverToJobQueue` on, **Sent** means the message's jobs were queued, not that they ran. A webhook's retries and dead-letter are then on its `WebHookDelivery` job, in `jobs."BackgroundJobs"`: read one job with `GET jobs/{jobId}` or on the Quartz dashboard, or count them by status, where `Status` is `0` Pending, `1` Processing, `2` Retrying, `3` Completed, `4` Failed, `5` DeadLettered and `6` Canceled:
+
+```sql
+SELECT "JobType", "Status", COUNT(*) FROM jobs."BackgroundJobs" GROUP BY "JobType", "Status";
+```
+
 A quick backlog check:
 
 ```sql
 SELECT "Status", COUNT(*) FROM "OutboxMessages" GROUP BY "Status";
 ```
 
-The relay also emits structured logs (message id, event type, attempt, next retry time) - look for the `OutboxRelayBackgroundService` log source. So if a webhook did not arrive, one query tells you whether the event was never captured (no row), is still retrying (Pending with growing `Attempts`), or was dead-lettered (Failed) - which separates a relay problem from a receiving-endpoint problem.
+The relay also emits structured logs (message id, event type, attempt, next retry time) - look for the `OutboxRelayBackgroundService` log source. With the switch off, if a webhook did not arrive, one query tells you whether the event was never captured (no row), is still retrying (Pending with growing `Attempts`), or was dead-lettered (Failed) - which separates a relay problem from a receiving-endpoint problem.
 
 ### Metrics
 
