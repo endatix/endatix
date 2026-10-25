@@ -1,6 +1,6 @@
 ---
 title: Audience
-description: Add the people a form is for and the properties kept about each one, mark test people, and use Test as this person and Start over to try a personalized form before you send any links.
+description: Add the people a form is for and the properties kept about each one, see which values the form uses and who is missing them, open a participant's page, and use test people with Test as this participant and Start over before you send any links.
 sidebar_label: Audience
 ---
 
@@ -8,6 +8,8 @@ import PeopleLight from "./audience-people_light.webp";
 import PeopleDark from "./audience-people_dark.webp";
 import PropertiesLight from "./audience-properties_light.webp";
 import PropertiesDark from "./audience-properties_dark.webp";
+import ParticipantLight from "./audience-participant_light.webp";
+import ParticipantDark from "./audience-participant_dark.webp";
 import AddTestPersonLight from "./audience-add-test-person_light.webp";
 import AddTestPersonDark from "./audience-add-test-person_dark.webp";
 import ImportAsTestLight from "./audience-import-as-test_light.webp";
@@ -35,25 +37,54 @@ The tab has two views, **People** and **Properties**. Each shows its count in th
 3. Choose a **Type**. Values are checked against the type when people are added or edited.
 4. Click **Add property**.
 
+Use the variable name in the form the same way as any other variable, in braces: a title of `Welcome, {first_name}` shows each person their own first name. See [Text Piping](/docs/end-users/forms/form-builder/text-piping) for where you can use it.
+
+### Check which values the form uses
+
+If you can edit the form, the **Properties** view also shows how the saved form uses each property:
+
+- **Used in form** is **Used** when the form reads the variable, and **Not used** when nothing in it does.
+- **Filled in (real)** counts the real people who have a value for it, for example **2 of 3 filled**. Test people are not counted. With no real people yet, it says **No real participants**.
+
 <Shot
-  alt="Properties view of the Audience tab with two text properties, First name (variable name first_name) and Company (variable name company), and the Add property button"
+  alt="Properties view of the Audience tab with First name and Company, their variable names first_name and company, the type Text, Used in form showing Used for both, and Filled in (real) showing 3 of 3 filled and 2 of 3 filled"
   sources={{ light: PropertiesLight, dark: PropertiesDark }}
 />
 
-Use the variable name in the form the same way as any other variable, in braces: a title of `Welcome, {first_name}` shows each person their own first name. See [Text Piping](/docs/end-users/forms/form-builder/text-piping) for where you can use it.
+The counts follow the last saved version of the form. Save the form in the designer to update them.
 
 ### Add people
 
 The **People** view lists everyone on the form, with one column per property.
 
 <Shot
-  alt="People view of the Audience tab: Import CSV, Personalised links and Add person buttons, the All people filter, and a table of three people with their First name and Company. qa.tester@example.com carries a Test badge, and each row has Test as this person, Edit and Remove actions"
+  alt="People view of the Audience tab: Import CSV, Personalised links and Add person buttons, the All people filter, and a table of four people. jordan.lee@example.com carries a 1 not filled in mark and qa.tester@example.com a Test badge. The Link column shows Opened for alex.kim@example.com and Issued for the other real people, and each row has Test as this participant, Edit and Remove actions"
   sources={{ light: PeopleLight, dark: PeopleDark }}
 />
 
 - **Add person** adds one person: enter their identifier (the match key, for example **Email**) and, optionally, a value for each property.
 - **Import CSV** adds many at once from a file with one person per row. Choose the column that identifies people and the property each other column fills, then review and import. Nothing is written until the last step.
-- **Personalised links** creates one link per real person and downloads them as a file to send from your own email or panel tool. Each link opens that person's own response, and resumes it on later opens.
+- **Personalised links** creates one link per real person who has none yet and downloads them as a file to send from your own email or panel tool. Each link opens that person's own response, and resumes it on later opens.
+
+Two marks help you check the list before you send links:
+
+- **Link** shows each real person's link: **Not issued**, **Issued**, or **Opened**. Click **Opened** to see the response the link started. A test person never gets a link. The column appears once anyone on the form has a link.
+- **N not filled in** next to a person means the saved form reads values they don't have. Hover over it to see which ones. Fill them in with **Edit**, or the form shows those places empty for that person. Only people who can edit the form see this mark.
+
+## Open a participant's page
+
+Click a person's identifier to open their page on this form. It needs permission to edit the form.
+
+<Shot
+  alt="Participant page for alex.kim@example.com: Test as this participant, Edit values and Remove buttons, a Values card with First name Alex and Company Fabrikam, a Link card with status Opened, when it was opened and a View response link, and a Submissions table with one In progress submission from a Personalised link"
+  sources={{ light: ParticipantLight, dark: ParticipantDark }}
+/>
+
+- **Values** lists the person's value for each property.
+- **Link** shows their personalized link's status, when it was opened, and the response it started. It appears only once a link was issued, so a test person never has it.
+- **Submissions** lists their newest submissions on this form, up to 50, with the status and where each came from: **Personalised link**, **On behalf**, or **Test as this participant**. Click **View** to open one.
+
+The page has the same actions as the row: **Test as this participant**, **Edit values**, and **Remove**. Click **Audience** at the top to go back to the list.
 
 ## Test people
 
@@ -69,7 +100,7 @@ You choose whether someone is a test person when you add them. It cannot be chan
 4. Click **Add person**.
 
 <Shot
-  alt="Add person panel with Email qa.tester@example.com, First name Sam, Company Contoso, and the Add as test person checkbox selected"
+  alt="Add person panel with Email qa.reviewer@example.com, First name Robin, Company Contoso, and the Add as test person checkbox selected"
   sources={{ light: AddTestPersonLight, dark: AddTestPersonDark }}
 />
 
@@ -98,37 +129,44 @@ Once the form has people, a filter above the table shows **All people**, **Real 
   sources={{ light: TestFilterLight, dark: TestFilterDark }}
 />
 
-## Test as this person
+## Test as this participant
 
-**Test as this person** opens the form as that person, with their current values, in a new browser tab. It is the flask icon in the row's actions, and it needs permission to test forms.
+**Test as this participant** opens the form as that person, with their current values, in a new browser tab. It is the flask icon in the row's actions and a button on the participant's page, and it needs permission to test forms.
 
 1. On the **People** view, find the person. A test person is the usual choice, but any person works.
-2. Click **Test as this person** in their row.
+2. Click **Test as this participant** in their row, or on their page.
 
-Each click creates a new [test submission](/docs/end-users/submissions/viewing-submissions#filter-by-complete-status-and-submission-type) for that person. A badge at the bottom of the form says *You are submitting a test submission*.
+Each click creates a new test submission for that person, on the latest saved version of the form.
 
 <Shot
-  src={require("./audience-test-as-this-person.webp").default}
-  alt="The form opened as the test person Sam from Contoso: the heading reads Welcome, Sam, the first question asks how easy it was to set up Endatix at Contoso, and the test badge with a Start over button sits at the bottom right"
+  src={require("./audience-test-as-this-participant.webp").default}
+  alt="The form opened as the test person Sam from Contoso: the heading reads Welcome, Sam, the first question asks how easy it was to set up Endatix at Contoso, and the round Test inspector button with its TEST tag sits at the bottom right"
 />
 
 Testing as a real person does not use up their personalized link. When they open it, they still get a new real response of their own.
 
 A test submission does not count toward [**Limit one per user**](/docs/end-users/sharing/single-submission). On the Submissions page, the **Submission Type** filter shows or hides test submissions, and an export includes them only when **Include test submissions** is on.
 
+## Test inspector
+
+The round button with a **TEST** tag at the bottom right of a test submission is the **Test inspector**. Click it to see who you are submitting as and the values the form was opened with, to open the submission or the participant in Hub, and to **Start over**.
+
+You see it when you can test forms. Anyone else who opens the same test submission sees only *You are submitting a test submission*, and real respondents see neither.
+
 ## Start over
 
-**Start over** is on the test badge of a test submission opened with **Test as this person**. It discards the current test submission and opens a new one for the same person.
+**Start over** is in the Test inspector of a test submission opened with **Test as this participant**. It discards the current test submission and opens a new one for the same person.
 
-Use it after you change the person's values or edit the form: the new test submission picks up the person's current values. To try different values, edit the person on the **People** view, then click **Start over** in the form's tab.
+Use it after you change the person's values or edit the form: the new test submission picks up the person's current values and the latest saved form. To try different values, edit the person on the **People** view, then click **Start over** in the form's tab.
 
-If the person was removed from the form in the meantime, **Start over** goes away and the badge says *This person is no longer on this form, so this test submission cannot start over.* Add a test person again and use **Test as this person**.
+If the person was removed from the form in the meantime, **Start over** goes away and the Test inspector says *This person is no longer on this form, so this test submission cannot start over.* Add a test person again and use **Test as this participant**.
 
 ## Limitations
 
 - **Test status is set once.** You cannot switch a person between test and real. Remove them and add them again.
 - **Test people get no links.** **Personalised links** skips them, and a test import never touches people already on the form.
 - **Start over needs the person.** It works only while the person is still on the form.
+- **No Test inspector in embeds.** An embedded form shows the plain test notice with **Start over**.
 
 ## Related documentation
 
