@@ -74,11 +74,19 @@ internal sealed class RedeemLinkHandler(
         }
     }
 
+    /// <summary>
+    /// A person removed after the first open is refused too: their access token would be (<see cref="LinkAccessTokenGate"/>).
+    /// </summary>
     private async Task<Result<RedeemedLinkDto>> WithAccessTokenAsync(
         AudienceLink link,
         OpenedLink opened,
         CancellationToken cancellationToken)
     {
+        if (await gates.PersonAsync(link.MembershipId, cancellationToken) is null)
+        {
+            return Result.NotFound(LinkNotFound);
+        }
+
         var issued = await tokens.IssueAccessTokenAsync(link, opened.SubmissionId, cancellationToken);
         return issued.IsSuccess
             ? Result.Success(new RedeemedLinkDto(

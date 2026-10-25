@@ -223,8 +223,8 @@ public sealed partial class AudienceDirectoryFlowTests
     private static void AssertFillsIn(IServiceProvider services, long submissionId, string accessToken)
     {
         using var scope = services.CreateScope();
-        var claims = scope.ServiceProvider.GetRequiredService<ISubmissionAccessTokenService>()
-            .ValidateAccessToken(accessToken);
+        var service = (SubmissionAccessTokenService)scope.ServiceProvider.GetRequiredService<ISubmissionAccessTokenService>();
+        var claims = service.ValidateAccessToken(accessToken);
         Assert.True(claims.IsSuccess);
         Assert.Equal(submissionId, claims.Value.SubmissionId);
         Assert.Equal([SubmissionAccessTokenPermissions.Submit.Name], claims.Value.Permissions);

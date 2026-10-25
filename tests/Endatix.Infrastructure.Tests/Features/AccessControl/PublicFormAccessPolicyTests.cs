@@ -89,7 +89,7 @@ public partial class PublicFormAccessPolicyTests
         _formRepository = Substitute.For<IRepository<Form>>();
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionTokenService>();
-        _accessTokenService = CurrentAccessTokenService();
+        _accessTokenService = Substitute.For<ISubmissionAccessTokenService>();
         _formFrameTokenService = Substitute.For<IFormAccessTokenService>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
@@ -210,12 +210,12 @@ public partial class PublicFormAccessPolicyTests
     {
         if (isValid && claims != null)
         {
-            _accessTokenService.ValidateAccessToken(token)
+            _accessTokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
                 .Returns(Result<SubmissionAccessTokenClaims>.Success(claims));
         }
         else
         {
-            _accessTokenService.ValidateAccessToken(token)
+            _accessTokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
                 .Returns(Result<SubmissionAccessTokenClaims>.Unauthorized("Invalid access token"));
         }
     }
@@ -783,7 +783,7 @@ public partial class PublicFormAccessPolicyTests
         // Assert
         result.IsSuccess.Should().BeTrue();
 
-        capturedCacheKey.Should().MatchRegex($"^ac:sub_token:form:{formId}:token_fp:[0-9A-F]{{64}}:userId:{userId}$");
+        capturedCacheKey.Should().MatchRegex($"^ac:sub_token:form:{formId}:token_fp:[0-9A-F]{{64}}:userId:{userId}$").And.NotContain(token);
         capturedOptions.Should().NotBeNull();
         capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(30));
     }
@@ -833,7 +833,7 @@ public partial class PublicFormAccessPolicyTests
         // Assert
         result.IsSuccess.Should().BeTrue();
 
-        capturedCacheKey.Should().MatchRegex($"^ac:sub_token:form:{formId}:token_fp:[0-9A-F]{{64}}:userId:{AuthorizationData.ANONYMOUS_USER_ID}$");
+        capturedCacheKey.Should().MatchRegex($"^ac:sub_token:form:{formId}:token_fp:[0-9A-F]{{64}}:userId:{AuthorizationData.ANONYMOUS_USER_ID}$").And.NotContain(token);
         capturedOptions.Should().NotBeNull();
         capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(10));
     }

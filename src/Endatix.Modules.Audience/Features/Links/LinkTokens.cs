@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -39,7 +40,8 @@ internal sealed class LinkTokens(
 /// <summary>
 /// A link's access token holds while its link still names its submission with the same stamp and the person is
 /// still on the form: a reissue or a removal refuses it within <see cref="_checkLifetime"/>. Tokens without a stamp
-/// were not issued by a link and always hold.
+/// were not issued by a link and always hold. The reads lift the tenant filter, so the cached answer is the same for
+/// every caller: a signed-in user of another tenant must not cache a refusal for the participant.
 /// </summary>
 internal sealed class LinkAccessTokenGate(IAudienceDbContext db, LinkOpenGates gates, HybridCache cache)
     : ISubmissionAccessTokenGate
@@ -55,10 +57,13 @@ internal sealed class LinkAccessTokenGate(IAudienceDbContext db, LinkOpenGates g
     public async Task<bool> IsCurrentAsync(SubmissionAccessTokenClaims claims, CancellationToken cancellationToken) =>
         claims.Stamp is not string stamp
         || await cache.GetOrCreateAsync(
-            $"audience:link_access:submission:{claims.SubmissionId}:stamp:{stamp}",
+            CacheKey(claims.SubmissionId, stamp),
             token => new ValueTask<bool>(CheckAsync(claims.SubmissionId, stamp, token)),
             _cacheOptions,
             cancellationToken: cancellationToken);
+
+    internal static string CacheKey(long submissionId, string stamp) =>
+        $"audience:link_access:submission:{submissionId}:stamp:{stamp}";
 
     private async Task<bool> CheckAsync(long submissionId, string stamp, CancellationToken cancellationToken)
     {
@@ -67,10 +72,17 @@ internal sealed class LinkAccessTokenGate(IAudienceDbContext db, LinkOpenGates g
             return false;
         }
 
-        var link = await db.Links.AsNoTracking().FirstOrDefaultAsync(
-            item => item.Id == linkId && item.SubmissionId == submissionId,
-            cancellationToken);
-        return link?.AccessStamp() == stamp
-            && await gates.PersonAsync(link.MembershipId, cancellationToken) is not null;
+        var link = await db.Links.AsNoTracking()
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .FirstOrDefaultAsync(item => item.Id == linkId && item.SubmissionId == submissionId, cancellationToken);
+        if (link?.AccessStamp() != stamp)
+        {
+            return false;
+        }
+
+        var membership = db.Memberships
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(item => item.Id == link.MembershipId && item.TenantId == link.TenantId);
+        return await gates.PersonAsync(membership, cancellationToken) is not null;
     }
 }

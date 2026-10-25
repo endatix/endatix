@@ -63,7 +63,16 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
     }
 
     /// <inheritdoc />
-    public Result<SubmissionAccessTokenClaims> ValidateAccessToken(string token)
+    public async Task<Result<SubmissionAccessTokenClaims>> ValidateAccessTokenAsync(string token, CancellationToken cancellationToken)
+    {
+        var validated = ValidateAccessToken(token);
+        return !validated.IsSuccess || await _gate.IsCurrentAsync(validated.Value, cancellationToken)
+            ? validated
+            : Result.Invalid(SubmissionAccessTokenErrors.ValidationErrors.TokenRevoked);
+    }
+
+    /// <summary>Signed and unexpired; not whether it is still current.</summary>
+    internal Result<SubmissionAccessTokenClaims> ValidateAccessToken(string token)
     {
         Guard.Against.NullOrWhiteSpace(token);
 
@@ -99,10 +108,6 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
             fields.Stamp));
     }
 
-    /// <inheritdoc />
-    public Task<bool> IsCurrentAsync(SubmissionAccessTokenClaims claims, CancellationToken cancellationToken) =>
-        _gate.IsCurrentAsync(claims, cancellationToken);
-
     private static ValidationError? Validate(SubmissionAccessTokenRequest request)
     {
         Guard.Against.NegativeOrZero(request.SubmissionId);
@@ -134,12 +139,14 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
 
     /// <summary>
     /// What a token signs, and its wire format: <c>{submissionId}.{expiry}.{permissions}.{signature}</c>, or with a
-    /// stamp <c>{submissionId}.{expiry}.{permissions}.{stamp}.{signature}</c>. A token without a stamp signs the same
-    /// string as before stamps existed.
+    /// stamp <c>{submissionId}.{expiry}.{permissions}.{stamp}~{signature}</c>. Both keep four dot-separated parts, as
+    /// clients that read the expiry and permissions expect. A token without a stamp signs the same string as before
+    /// stamps existed.
     /// </summary>
     private sealed record SignedFields(long SubmissionId, long ExpiryUnix, string PermissionsCode, string? Stamp)
     {
         private const int MaxStampLength = 64;
+        private const char StampSeparator = '~';
 
         public static bool IsValidStamp(string stamp) =>
             stamp.Length is > 0 and <= MaxStampLength && stamp.All(char.IsAsciiHexDigitLower);
@@ -149,20 +156,41 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
             var parts = token.Split('.');
             fields = null!;
             signature = parts[^1];
-            if (parts.Length is not (4 or 5)
+            if (parts.Length != 4
                 || !long.TryParse(parts[0], out var submissionId)
                 || !long.TryParse(parts[1], out var expiryUnix))
             {
                 return false;
             }
 
-            fields = new SignedFields(submissionId, expiryUnix, parts[2], parts.Length == 5 ? parts[3] : null);
-            return true;
+            fields = new SignedFields(submissionId, expiryUnix, parts[2], SplitStamp(ref signature));
+            return fields.IsWellFormed();
+        }
+
+        /// <summary>
+        /// Only known permission codes, and a stamp a token can carry. Without it a stamp folded into the
+        /// permissions (<c>s\n{stamp}</c>) would sign the same string as the stamped token and drop its stamp.
+        /// </summary>
+        private bool IsWellFormed() =>
+            PermissionsCode.All(code => SubmissionAccessTokenPermissions.GetByCode(code) is not null)
+            && (Stamp is null || IsValidStamp(Stamp));
+
+        /// <summary>The stamp before the separator, if any; <paramref name="signature"/> keeps what follows it.</summary>
+        private static string? SplitStamp(ref string signature)
+        {
+            if (signature.Split(StampSeparator) is not [var stamp, var stampedSignature])
+            {
+                return null;
+            }
+
+            signature = stampedSignature;
+            return stamp;
         }
 
         public string ToStringToSign() => string.Join('\n', Parts());
 
-        public string ToToken(string signature) => string.Join('.', [.. Parts(), signature]);
+        public string ToToken(string signature) =>
+            $"{SubmissionId}.{ExpiryUnix}.{PermissionsCode}.{(Stamp is null ? "" : Stamp + StampSeparator)}{signature}";
 
         private IEnumerable<string> Parts() => Stamp is null
             ? [SubmissionId.ToString(), ExpiryUnix.ToString(), PermissionsCode]

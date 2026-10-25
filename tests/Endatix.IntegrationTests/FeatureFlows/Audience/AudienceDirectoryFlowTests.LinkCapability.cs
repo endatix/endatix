@@ -1,11 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Features.Submissions;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -88,8 +92,8 @@ public sealed partial class AudienceDirectoryFlowTests
             ByAccessTokenUrl(link.FormId, accessToken), new { jsonData = """{"q1":"late"}""" }, admin.CancellationToken);
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, access.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, saved.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, access.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, saved.StatusCode);
     }
 
     [Fact]
@@ -107,6 +111,77 @@ public sealed partial class AudienceDirectoryFlowTests
         using var read = await anonymous.GetAsync(ByAccessTokenUrl(formId, accessToken), admin.CancellationToken);
 
         // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, read.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_removal_refuses_a_used_token_once_the_gate_check_expires_whatever_the_grant_cache_holds()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Wooster");
+        using var anonymous = world.AnonymousClient();
+        var opened = await RedeemAsync(anonymous, link.FormId, link.Token);
+        var accessToken = AccessTokenOf(opened);
+        using var before = await AccessAsync(anonymous, link.FormId, accessToken);
+        Assert.Equal(HttpStatusCode.OK, before.StatusCode);
+        using var removed = await admin.Client.DeleteAsync(link.PersonUrl, admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+        using var cached = await AccessAsync(anonymous, link.FormId, accessToken);
+
+        // Act
+        await ExpireGateCheckAsync(world.Services, IdOf(opened, "submissionId"), accessToken);
+        using var access = await AccessAsync(anonymous, link.FormId, accessToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, cached.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, access.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_redeemed_links_access_token_opens_only_its_own_submission_on_the_form()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var firstLink) = await LinkForPersonWithCityAsync(admin, "Ashland");
+        using var added = await admin.AddPersonAsync(formId, $"{Guid.NewGuid():N}@example.com");
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        var secondLink = await IssueLinkAsync(admin, formId);
+        using var anonymous = world.AnonymousClient();
+        var first = await RedeemAsync(anonymous, formId, firstLink);
+        var second = await RedeemAsync(anonymous, formId, secondLink);
+
+        // Act
+        var read = await anonymous.GetFromJsonAsync<JsonElement>(
+            ByAccessTokenUrl(formId, AccessTokenOf(first)), admin.CancellationToken);
+
+        // Assert
+        Assert.NotEqual(IdOf(first, "submissionId"), IdOf(second, "submissionId"));
+        Assert.Equal(IdOf(first, "submissionId"), IdOf(read, "id"));
+    }
+
+    [Fact]
+    public async Task A_redeemed_links_access_token_is_refused_at_once_when_the_form_is_deleted()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Bucyrus");
+        using var anonymous = world.AnonymousClient();
+        var accessToken = AccessTokenOf(await RedeemAsync(anonymous, formId, token));
+        using var before = await AccessAsync(anonymous, formId, accessToken);
+        Assert.Equal(HttpStatusCode.OK, before.StatusCode);
+        using var deleted = await admin.Client.DeleteAsync($"/api/forms/{formId}", admin.CancellationToken);
+        Assert.True(deleted.IsSuccessStatusCode);
+
+        // Act
+        using var access = await AccessAsync(anonymous, formId, accessToken);
+        using var read = await anonymous.GetAsync(ByAccessTokenUrl(formId, accessToken), admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, access.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, read.StatusCode);
     }
 
@@ -163,6 +238,16 @@ public sealed partial class AudienceDirectoryFlowTests
     {
         using var response = await admin.Client.PatchAsJsonAsync($"/api/forms/{formId}", changes, admin.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>What a minute does to the gate's cached check: the link's next use reads the link and person again.</summary>
+    private static async Task ExpireGateCheckAsync(IServiceProvider services, long submissionId, string accessToken)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var tokens = (SubmissionAccessTokenService)scope.ServiceProvider.GetRequiredService<ISubmissionAccessTokenService>();
+        var stamp = tokens.ValidateAccessToken(accessToken).Value.Stamp!;
+        await scope.ServiceProvider.GetRequiredService<HybridCache>()
+            .RemoveAsync(LinkAccessTokenGate.CacheKey(submissionId, stamp), TestContext.Current.CancellationToken);
     }
 
     /// <summary>What a reissue does to an opened link (endatix#1400): a new token hash, the same submission.</summary>

@@ -17,7 +17,7 @@ public class GetByAccessTokenHandler(
 {
     public async Task<Result<Submission>> Handle(GetByAccessTokenQuery request, CancellationToken cancellationToken)
     {
-        var tokenValidationResult = tokenService.ValidateAccessToken(request.Token);
+        var tokenValidationResult = await tokenService.ValidateAccessTokenAsync(request.Token, cancellationToken);
         if (!tokenValidationResult.IsSuccess)
         {
             return Result.Invalid(tokenValidationResult.ValidationErrors);
@@ -35,7 +35,7 @@ public class GetByAccessTokenHandler(
         var submissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, tokenClaims.SubmissionId);
         var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
 
-        if (submission == null || !await tokenService.IsCurrentAsync(tokenClaims, cancellationToken))
+        if (submission == null)
         {
             return Result.NotFound("Submission not found");
         }

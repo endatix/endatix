@@ -18,7 +18,6 @@ public class GetByAccessTokenHandlerTests
     {
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionAccessTokenService>();
-        _tokenService.IsCurrentAsync(Arg.Any<SubmissionAccessTokenClaims>(), Arg.Any<CancellationToken>()).Returns(true);
         _handler = new GetByAccessTokenHandler(_submissionRepository, _tokenService);
     }
 
@@ -53,7 +52,7 @@ public class GetByAccessTokenHandlerTests
 
         var submission = CreateSubmissionWithForm(formId, formDefinitionId, isFormEnabled: true);
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -65,7 +64,7 @@ public class GetByAccessTokenHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(submission);
 
-        _tokenService.Received(1).ValidateAccessToken(token);
+        await _tokenService.Received(1).ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>());
         await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
     }
 
@@ -77,7 +76,7 @@ public class GetByAccessTokenHandlerTests
         var token = "invalid.token";
         var query = new GetByAccessTokenQuery(formId, token);
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result<SubmissionAccessTokenClaims>.Invalid(new ValidationError { ErrorMessage = "Invalid token" }));
 
         // Act
@@ -87,7 +86,7 @@ public class GetByAccessTokenHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.Status.Should().Be(ResultStatus.Invalid);
 
-        _tokenService.Received(1).ValidateAccessToken(token);
+        await _tokenService.Received(1).ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>());
         await _submissionRepository.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
     }
 
@@ -108,7 +107,7 @@ public class GetByAccessTokenHandlerTests
 
         var submission = CreateSubmissionWithForm(formId, formDefinitionId, isFormEnabled: false);
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -121,7 +120,7 @@ public class GetByAccessTokenHandlerTests
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form not found");
 
-        _tokenService.Received(1).ValidateAccessToken(token);
+        await _tokenService.Received(1).ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>());
         await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
     }
 
@@ -139,7 +138,7 @@ public class GetByAccessTokenHandlerTests
             new[] { "edit" },  // Missing "view" permission
             DateTime.UtcNow.AddHours(1));
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
 
         // Act
@@ -150,7 +149,7 @@ public class GetByAccessTokenHandlerTests
         result.Status.Should().Be(ResultStatus.Forbidden);
         result.Errors.Should().Contain("Token does not have view permission");
 
-        _tokenService.Received(1).ValidateAccessToken(token);
+        await _tokenService.Received(1).ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>());
         await _submissionRepository.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
     }
 
@@ -168,7 +167,7 @@ public class GetByAccessTokenHandlerTests
             new[] { "view" },
             DateTime.UtcNow.AddHours(1));
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns((Submission?)null);
@@ -181,7 +180,7 @@ public class GetByAccessTokenHandlerTests
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Submission not found");
 
-        _tokenService.Received(1).ValidateAccessToken(token);
+        await _tokenService.Received(1).ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>());
         await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>());
     }
 
@@ -200,7 +199,7 @@ public class GetByAccessTokenHandlerTests
             DateTime.UtcNow.AddHours(1));
         var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -228,7 +227,7 @@ public class GetByAccessTokenHandlerTests
             DateTime.UtcNow.AddHours(1));
         var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -256,7 +255,7 @@ public class GetByAccessTokenHandlerTests
             DateTime.UtcNow.AddHours(1));
         var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -284,7 +283,7 @@ public class GetByAccessTokenHandlerTests
             DateTime.UtcNow.AddHours(1));
         var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
 
-        _tokenService.ValidateAccessToken(token)
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -298,23 +297,5 @@ public class GetByAccessTokenHandlerTests
         await _submissionRepository.Received(1).SingleOrDefaultAsync(
             Arg.Is<SubmissionWithDefinitionAndFormSpec>(spec => spec != null),
             Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_TokenTheGateNoLongerHolds_ReturnsNotFound()
-    {
-        // Arrange
-        var token = "valid.token.s.stamp.signature";
-        var tokenClaims = new SubmissionAccessTokenClaims(456L, ["submit"], DateTime.UtcNow.AddHours(1), "stamp");
-        _tokenService.ValidateAccessToken(token).Returns(Result.Success(tokenClaims));
-        _tokenService.IsCurrentAsync(tokenClaims, Arg.Any<CancellationToken>()).Returns(false);
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
-            .Returns(CreateSubmissionWithForm(123L, 1L));
-
-        // Act
-        var result = await _handler.Handle(new GetByAccessTokenQuery(123L, token), CancellationToken.None);
-
-        // Assert
-        result.Status.Should().Be(ResultStatus.NotFound);
     }
 }

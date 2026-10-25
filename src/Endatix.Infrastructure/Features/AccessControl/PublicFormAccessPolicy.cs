@@ -39,7 +39,7 @@ public sealed class PublicFormAccessPolicy(
     private static readonly TimeSpan _formMetadataTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan _immediateTtl = TimeSpan.FromSeconds(1);
 
-    /// <summary>How long a revoked access token may still open its submission.</summary>
+    /// <summary>How long a deleted submission's access token may still read as granted.</summary>
     private static readonly TimeSpan _accessTokenTtl = TimeSpan.FromMinutes(1);
 
     private const string UNAUTHORIZED_MESSAGE = "You must be authenticated to access this form";
@@ -96,7 +96,7 @@ public sealed class PublicFormAccessPolicy(
         }
         if (hasToken && context.TokenType == SubmissionTokenType.AccessToken)
         {
-            return ResolveAccessTokenRoute(context.FormId, context.Token!);
+            return await ResolveAccessTokenRouteAsync(context.FormId, context.Token!, cancellationToken);
         }
 
         var routingMetadataResult = await GetFormAccessRoutingMetadataAsync(context.FormId, cancellationToken);
@@ -179,24 +179,31 @@ public sealed class PublicFormAccessPolicy(
                 AuthData: authData)
                 );
 
-    private Result<AccessPolicyRoute> ResolveAccessTokenRoute(long formId, string token)
+    /// <summary>
+    /// The gate is asked on every request, before the cached grant, so a revoked token stops within the gate's own
+    /// cache lifetime instead of that plus the grant's.
+    /// </summary>
+    private async Task<Result<AccessPolicyRoute>> ResolveAccessTokenRouteAsync(long formId, string token, CancellationToken cancellationToken)
     {
-        var accessResult = accessTokenService.ValidateAccessToken(token);
+        var accessResult = await accessTokenService.ValidateAccessTokenAsync(token, cancellationToken);
         if (!accessResult.IsSuccess)
         {
             return accessResult.ToErrorResult<AccessPolicyRoute>();
         }
 
         var claims = accessResult.Value;
-        var tokenSafeExpirationTtl = (claims.ExpiresAt - dateTimeProvider.Now.UtcDateTime).TotalSeconds;
-        var dynamicTtl = TimeSpan.FromSeconds(
-            Math.Clamp(tokenSafeExpirationTtl, _immediateTtl.TotalSeconds, _accessTokenTtl.TotalSeconds));
-
         return Result.Success(new AccessPolicyRoute(
             $"ac:form:{formId}:access_token_fp:{Fingerprint(token)}",
-            dynamicTtl,
+            AccessTokenTtl(claims),
             RouteType.AccessToken,
             Claims: claims));
+    }
+
+    private TimeSpan AccessTokenTtl(SubmissionAccessTokenClaims claims)
+    {
+        var tokenSafeExpirationTtl = (claims.ExpiresAt - dateTimeProvider.Now.UtcDateTime).TotalSeconds;
+        return TimeSpan.FromSeconds(
+            Math.Clamp(tokenSafeExpirationTtl, _immediateTtl.TotalSeconds, _accessTokenTtl.TotalSeconds));
     }
 
     private async Task<Result<AccessPolicyRoute>> ResolveFormAccessTokenRouteAsync(
@@ -339,7 +346,7 @@ public sealed class PublicFormAccessPolicy(
         var isOpen = await submissionRepository.AnyAsync(
             new SubmissionOnOpenFormSpec(formId, claims.SubmissionId),
             cancellationToken);
-        if (!isOpen || !await accessTokenService.IsCurrentAsync(claims, cancellationToken))
+        if (!isOpen)
         {
             return Result.NotFound("Submission not found");
         }

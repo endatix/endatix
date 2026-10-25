@@ -26,17 +26,14 @@ public interface ISubmissionAccessTokenService
     Result<SubmissionAccessTokenDto> GenerateAccessToken(SubmissionAccessTokenRequest request);
 
     /// <summary>
-    /// Validates an access token and extracts its claims.
+    /// Validates an access token and extracts its claims: signed, unexpired, and still current, since what it was
+    /// issued for may have gone (<see cref="ISubmissionAccessTokenGate"/>). A revoked token is invalid, as an expired
+    /// one is.
     /// </summary>
     /// <param name="token">The token to validate</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>Token claims if valid, or error result</returns>
-    Result<SubmissionAccessTokenClaims> ValidateAccessToken(string token);
-
-    /// <summary>
-    /// Whether a valid token's claims still hold: what it was issued for may have gone since
-    /// (<see cref="ISubmissionAccessTokenGate"/>).
-    /// </summary>
-    Task<bool> IsCurrentAsync(SubmissionAccessTokenClaims claims, CancellationToken cancellationToken);
+    Task<Result<SubmissionAccessTokenClaims>> ValidateAccessTokenAsync(string token, CancellationToken cancellationToken);
 }
 
 /// <summary>A token to issue.</summary>

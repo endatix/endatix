@@ -386,7 +386,7 @@ public class SubmissionAccessTokenServiceTests
         var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
-        var result = service.ValidateAccessToken("12345.123456.rw.sig.extra.more");
+        var result = service.ValidateAccessToken("12345.123456.rw.sig.extra");
 
         // Assert
         result.IsSuccess.Should().BeFalse();

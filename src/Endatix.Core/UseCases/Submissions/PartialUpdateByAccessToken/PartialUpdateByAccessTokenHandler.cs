@@ -20,7 +20,7 @@ public class PartialUpdateByAccessTokenHandler(
 {
     public async Task<Result<Submission>> Handle(PartialUpdateByAccessTokenCommand request, CancellationToken cancellationToken)
     {
-        var tokenValidationResult = accessTokenService.ValidateAccessToken(request.AccessToken);
+        var tokenValidationResult = await accessTokenService.ValidateAccessTokenAsync(request.AccessToken, cancellationToken);
         if (!tokenValidationResult.IsSuccess)
         {
             return Result.Invalid(tokenValidationResult.ValidationErrors);
@@ -38,7 +38,7 @@ public class PartialUpdateByAccessTokenHandler(
         var submissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, tokenClaims.SubmissionId);
         var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
 
-        if (submission == null || !await accessTokenService.IsCurrentAsync(tokenClaims, cancellationToken))
+        if (submission == null)
         {
             return Result.NotFound("Submission not found");
         }

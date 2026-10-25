@@ -16,7 +16,7 @@ namespace Endatix.Infrastructure.Tests.Features.AccessControl;
 /// </summary>
 public partial class PublicFormAccessPolicyTests
 {
-    private const string RawAccessToken = "100.1893456000.s.0a1b2c3d.DO-NOT-LEAK-sig";
+    private const string RawAccessToken = "100.1893456000.s.0a1b2c3d~DO-NOT-LEAK-sig";
 
     [Fact]
     public async Task GetAccessDataAsync_AccessToken_PrivateForm_AnonymousUser_GrantsItsClaims()
@@ -52,18 +52,19 @@ public partial class PublicFormAccessPolicyTests
     }
 
     [Fact]
-    public async Task GetAccessDataAsync_AccessToken_TheGateNoLongerHolds_ReturnsNotFound()
+    public async Task GetAccessDataAsync_AccessToken_Revoked_IsRefusedEvenWithACachedGrant()
     {
         // Arrange
-        var claims = SubmitClaims();
-        var context = AccessTokenContext(claims);
-        _accessTokenService.IsCurrentAsync(claims, Arg.Any<CancellationToken>()).Returns(false);
+        var context = new PublicFormAccessContext(1L, RawAccessToken, SubmissionTokenType.AccessToken);
+        _accessTokenService.ValidateAccessTokenAsync(RawAccessToken, Arg.Any<CancellationToken>())
+            .Returns(Result<SubmissionAccessTokenClaims>.Invalid(SubmissionAccessTokenErrors.ValidationErrors.TokenRevoked));
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
 
         // Assert
-        result.Status.Should().Be(ResultStatus.NotFound);
+        result.Status.Should().Be(ResultStatus.Invalid);
+        _cache.ReceivedCalls().Should().NotContain(call => call.GetMethodInfo().Name == nameof(HybridCache.GetOrCreateAsync));
     }
 
     [Fact]
@@ -93,14 +94,6 @@ public partial class PublicFormAccessPolicyTests
         captured.Key.Should().NotContain(RawAccessToken);
         captured.Key.Should().NotContain("DO-NOT-LEAK");
         captured.Options!.Expiration.Should().Be(TimeSpan.FromMinutes(1));
-    }
-
-    /// <summary>Holds every valid token unless a test says otherwise.</summary>
-    private static ISubmissionAccessTokenService CurrentAccessTokenService()
-    {
-        var service = Substitute.For<ISubmissionAccessTokenService>();
-        service.IsCurrentAsync(Arg.Any<SubmissionAccessTokenClaims>(), Arg.Any<CancellationToken>()).Returns(true);
-        return service;
     }
 
     private static SubmissionAccessTokenClaims SubmitClaims() =>

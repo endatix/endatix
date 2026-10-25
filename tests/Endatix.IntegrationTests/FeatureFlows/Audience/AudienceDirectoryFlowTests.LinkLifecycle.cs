@@ -82,7 +82,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Opening_a_link_after_the_person_was_removed_resumes_the_submission()
+    public async Task Opening_a_link_after_the_person_was_removed_is_not_found()
     {
         // Arrange
         var world = await WorldAsync();
@@ -90,16 +90,15 @@ public sealed partial class AudienceDirectoryFlowTests
         var link = await LinkForPersonWithCityAsync(admin, "Toledo");
         (var formId, var token) = link;
         using var anonymous = world.AnonymousClient();
-        var opened = await RedeemAsync(anonymous, formId, token);
+        await RedeemAsync(anonymous, formId, token);
         using var removed = await admin.Client.DeleteAsync(link.PersonUrl, admin.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
 
         // Act
-        var again = await RedeemAsync(anonymous, formId, token);
+        using var again = await anonymous.PostAsJsonAsync(RedeemUrl(formId, token), new { }, admin.CancellationToken);
 
         // Assert
-        Assert.False(again.GetProperty("created").GetBoolean());
-        Assert.Equal(IdOf(opened, "submissionId"), IdOf(again, "submissionId"));
+        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
     }
 
     [Fact]
