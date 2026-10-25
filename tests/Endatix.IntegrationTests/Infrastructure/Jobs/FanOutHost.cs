@@ -12,7 +12,8 @@ namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
 /// <summary>
 /// A full web host on a database of its own, so its outbox relay is the only one claiming that database's
-/// messages. The inline outbox handlers are replaced by what each test registers.
+/// messages. The modules' inline outbox handlers stay registered, so the startup check sees every one of them, unless
+/// the test strips them to deliver inline to its own.
 /// </summary>
 internal sealed class FanOutHost : IAsyncDisposable
 {
@@ -55,7 +56,11 @@ internal sealed class FanOutHost : IAsyncDisposable
 
                 builder.ConfigureTestServices(services =>
                 {
-                    services.RemoveAll<IOutboxIntegrationEventHandler>();
+                    if (setup.StripsInlineHandlers)
+                    {
+                        services.RemoveAll<IOutboxIntegrationEventHandler>();
+                    }
+
                     services.AddSingleton<ILoggerProvider>(logs);
                     setup.ConfigureServices(services);
                 });
@@ -104,6 +109,12 @@ internal sealed record FanOutHostSetup(bool DeliverToJobQueue, Action<IServiceCo
 {
     /// <summary>Whether the Jobs module is on.</summary>
     public bool JobsModule { get; init; } = true;
+
+    /// <summary>
+    /// Whether the modules' inline outbox handlers are removed, for a test that delivers inline to handlers of its own.
+    /// Kept by default, so the startup check that every one of them has a job subscription sees them.
+    /// </summary>
+    public bool StripsInlineHandlers { get; init; }
 
     /// <summary>Further configuration the test sets on the host.</summary>
     public IReadOnlyDictionary<string, string?> Settings { get; init; } = new Dictionary<string, string?>();

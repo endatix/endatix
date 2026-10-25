@@ -46,6 +46,10 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         Guard.Against.Null(_settings);
         Guard.Against.NullOrEmpty(_settings.Host);
         Guard.Against.NullOrEmpty(_settings.DefaultFromAddress);
+        if (!string.IsNullOrEmpty(_settings.Username))
+        {
+            Guard.Against.NullOrEmpty(_settings.Password);
+        }
     }
 
     public static Action<IServiceCollection> InitializationDelegate => (services) =>
@@ -144,7 +148,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
 
         if (!string.IsNullOrEmpty(_settings.Username))
         {
-            await smtpClient.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
+            await smtpClient.AuthenticateAsync(_settings.Username, _settings.Password!, cancellationToken);
         }
         else if (Interlocked.Exchange(ref _blankUsernameWarningLogged, 1) == 0)
         {
@@ -197,7 +201,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         // exactly one mailbox and throws on a comma-separated list, which the old MailMessage.To.Add
         // string contract allowed.
         mimeMessage.To.AddRange(InternetAddressList.Parse(email.To));
-        mimeMessage.Subject = email.Subject;
+        mimeMessage.Subject = email.Subject!;
 
         var bodyBuilder = new BodyBuilder
         {

@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Settings;
 using Endatix.Modules.Audience.Persistence;
@@ -13,7 +14,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace Endatix.Modules.Audience.Features.Import;
 
 /// <summary>
-/// Sync-imports audience people from CSV (max 5,000 rows). Partial success is allowed.
+/// Sync-imports audience people from CSV (max 5,000 rows). Partial success is allowed. <see cref="IsTest"/> makes
+/// the people this import adds to the form test persons; people already on the form get no writes and count as
+/// skipped.
 /// </summary>
 public sealed record ImportCsvCommand(
     long TenantId,
@@ -22,7 +25,8 @@ public sealed record ImportCsvCommand(
     string IdentifierColumn,
     string FileName,
     IReadOnlyDictionary<string, string>? PropertyColumns = null,
-    long? PerformedById = null) : ICommand<Result<ImportResultDto>>;
+    long? PerformedById = null,
+    bool IsTest = false) : ICommand<Result<ImportResultDto>>;
 
 /// <summary>
 /// Import outcome counts plus the first rejected rows with their reasons.
@@ -67,7 +71,9 @@ internal sealed class ImportCsvHandler(
 
     /// <summary>
     /// A parallel add or import can win a unique index first. Its rows are committed by then, so
-    /// a second pass reloads them and matches instead of inserting. A second loss is a conflict.
+    /// a second pass reloads them and matches instead of inserting. Two imports of one form that
+    /// add the same people in another order can instead deadlock, and the victim takes the second
+    /// pass too. A second loss is a conflict.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportWithRetryAsync(
         ImportCsvCommand request,
@@ -86,7 +92,8 @@ internal sealed class ImportCsvHandler(
     }
 
     /// <summary>
-    /// The import's result, or <see langword="null"/> when a parallel write won a unique index.
+    /// The import's result, or <see langword="null"/> when a parallel write won a unique index or the database
+    /// rolled the import back to end a deadlock.
     /// </summary>
     private async Task<Result<ImportResultDto>?> ImportUnlessRaceAsync(
         ImportCsvCommand request,
@@ -106,7 +113,8 @@ internal sealed class ImportCsvHandler(
     private bool IsAudienceRace(DbUpdateException ex) =>
         support.Violations.IsViolationOf(ex, Member.UniqueConstraints.IdentifierPerTenant)
         || support.Violations.IsViolationOf(ex, Membership.UniqueConstraints.MemberPerForm)
-        || support.Violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership);
+        || support.Violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership)
+        || DatabaseDeadlocks.IsVictim(ex);
 
     private async Task<Result> ValidateRequestAsync(
         ImportCsvCommand request,
@@ -174,7 +182,10 @@ internal sealed class ImportCsvHandler(
 
     /// <summary>
     /// Stages every row and the import summary, then saves once: a database failure leaves no
-    /// half-imported audience and no summary that disagrees with the rows written.
+    /// half-imported audience and no summary that disagrees with the rows written. The form's people
+    /// are read after the form's people lock (<see cref="MembershipLock.AcquireImportAsync"/>), which excludes their
+    /// removals but not other imports of the form, so a person removed meanwhile is added again instead of keeping a
+    /// live value on the removed membership.
     /// </summary>
     private async Task<Result<ImportResultDto>> ImportAsync(
         ImportCsvCommand request,
@@ -183,15 +194,30 @@ internal sealed class ImportCsvHandler(
     {
         await using IDbContextTransaction transaction =
             await matchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
+        if (await support.FormPeopleLock.AcquireImportAsync(db, request.FormId, cancellationToken) is { } busy)
+        {
+            return busy.ToErrorResult<ImportResultDto>();
+        }
+
+        ImportResultDto imported = await StageAndSaveAsync(request, input, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return imported;
+    }
+
+    private async Task<ImportResultDto> StageAndSaveAsync(
+        ImportCsvCommand request,
+        ImportInput input,
+        CancellationToken cancellationToken)
+    {
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        ImportTarget target = new(request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer));
+        ImportTarget target = new(
+            request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer), request.IsTest);
         ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.MatchKey);
         ImportTally tally = await StageAsync(new AudienceQuery(db, target, cancellationToken), rows.Accepted);
 
         AudienceImport summary = new(ToCreateArgs(request, tally, rows.Rejected.Count));
         db.AudienceImports.Add(summary);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         return ToDto(summary, rows.Rejected);
     }
 
@@ -242,13 +268,21 @@ internal sealed class ImportCsvHandler(
 internal sealed record ImportInput(IReadOnlyList<CsvDataRow> Rows, CsvColumnMap Map);
 
 /// <summary>
-/// Identity normalizer and unique-index detection for one import.
+/// Identity normalizer, unique-index detection and the form's people lock for one import.
 /// </summary>
 internal sealed class ImportWriteSupport(
     IValueNormalizer normalizer,
-    IUniqueConstraintViolationChecker violations)
+    IUniqueConstraintViolationChecker violations,
+    MembershipLock formPeopleLock)
 {
     public IValueNormalizer Normalizer { get; } = normalizer;
 
     public IUniqueConstraintViolationChecker Violations { get; } = violations;
+
+    /// <summary>
+    /// Takes every stripe of the form's people lock (scope <c>AudienceFormPeople</c>) shared, after the tenant's
+    /// match-key lock; <see cref="MembershipLock"/> owns it with the participant lock, so their order lives in one
+    /// place.
+    /// </summary>
+    public MembershipLock FormPeopleLock { get; } = formPeopleLock;
 }

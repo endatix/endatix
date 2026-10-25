@@ -49,7 +49,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
             repository,
             unitOfWork,
             NullLogger<SyncSubmissionDeletionOutboxHandler>.Instance);
-        await handler.HandleAsync(CreateMessage(SubmissionId), cancellationToken);
+        await handler.Read(CreateMessage(SubmissionId)).RunAsync(cancellationToken);
 
         (await dbContext.FlattenedSubmissions
                 .IgnoreQueryFilters()
@@ -79,7 +79,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
             repository,
             unitOfWork,
             NullLogger<SyncSubmissionDeletionOutboxHandler>.Instance);
-        await handler.HandleAsync(CreateMessage(SubmissionId), cancellationToken);
+        await handler.Read(CreateMessage(SubmissionId)).RunAsync(cancellationToken);
 
         (await dbContext.FlattenedSubmissions
                 .IgnoreQueryFilters()
@@ -102,7 +102,7 @@ public sealed class SyncSubmissionDeletionOutboxHandlerIntegrationTests
             unitOfWork,
             NullLogger<SyncSubmissionDeletionOutboxHandler>.Instance);
 
-        Func<Task> act = () => handler.HandleAsync(CreateMessage(SubmissionId), cancellationToken);
+        Func<Task> act = () => handler.Read(CreateMessage(SubmissionId)).RunAsync(cancellationToken);
 
         await act.Should().NotThrowAsync();
         (await dbContext.FlattenedSubmissions

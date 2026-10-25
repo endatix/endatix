@@ -7,6 +7,9 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 - Primary constructors for DI. `sealed` by default; `internal` unless the type is public API or framework-discovered (endpoints, requests, validators).
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
 - Comment a decision, constraint or non-obvious invariant, not what the name already says.
+- Before committing C#, the build must add no new diagnostics of any severity on the lines you changed. SonarCloud imports every result in the build's SARIF log, including the info and suggestion ones (CA2012, CA1859, xUnit1045) that `dotnet build` never prints. To see them, run `dotnet build Endatix.slnx --no-incremental -p:ErrorLog=obj/diagnostics.sarif%2Cversion=2.1` and read each project's `obj/diagnostics.sarif` for results on your lines (the Endatix clean-code skill's `diagnostics.py` does this for you). A rule that is noise in tests gets `severity = none` in `.editorconfig`; `suggestion` still reaches Sonar.
+- Format only the changed files with `dotnet format whitespace|style --include <files>`, never the whole solution.
+- **Sonar gate.** CI reads the SonarCloud gate itself (`scripts/sonar-gate.mjs`): on PRs every red condition fails the build (reliability, security and maintainability ratings, unreviewed hotspots, coverage under 80%) except duplication, which only warns. On pushes to `main` the gate only reports; new code there starts at the last stable release (`/v:` from the latest `vX.Y.Z` tag). Ship it, and give a block a `tech-debt` issue when it is copied a third time. `**/Endpoints/**` is out of duplication: one file per operation repeats `Configure()` by design.
 
 ## Endpoints (FastEndpoints)
 
@@ -27,6 +30,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 - Generic `IRepository<T>` + Ardalis specifications. A dedicated repository (`Core.Abstractions.Repositories` → `Infrastructure.Data.Repositories`) only for multi-entity aggregates or queries a spec cannot express.
 - `IUnitOfWork` only when several entities must save atomically: begin → changes → one `SaveChangesAsync` → commit. In `catch`: roll back, log, return author-written `Result.Error` (never `ex.Message`).
 - Work that must not interleave across requests: try one conditional statement or unique index first, else `ITransactionLock` via `BeginLockedTransactionAsync`. Use a narrow key and a bounded `Timeout` (503 on HTTP). Hold one connection (a second context joins the locked transaction). Re-check untracked under the lock, keep the row-count guard, and keep the section short. See [ARCHITECTURE.md → Transaction locks](ARCHITECTURE.md#serializing-work-across-requests-transaction-locks).
+- A read whose cost grows with imported rows (5,000 people × 50 Properties): profile it per statement and read the plans on both providers first, time it with stale and fresh statistics (p50, p95), read small sets by key on one table, count each large set once with no join, change one thing at a time, and assert the statements' shape. See [ARCHITECTURE.md → Query performance](ARCHITECTURE.md#reads-that-grow-with-imported-data-query-performance).
 - Global query filters are **named** (`EndatixQueryFilterNames`); opt out by name, never blanket. Ambient tenant `0` is bypass, not isolation. See [ARCHITECTURE.md → Multi-tenancy](ARCHITECTURE.md#multi-tenancy-platform-tenants).
 
 ## Entity Ids (snowflake)
@@ -55,7 +59,7 @@ Canonical JSON for **all** API errors (handler `ToProblem`, FluentValidation, un
 - **`detail` is always a non-empty string**, falling back to the title when the result carries no errors. Consumers treat it as required (Hub's `ProblemDetailsSchema` types it non-optional) — never emit `"detail": ""`.
 - FastEndpoints FluentValidation uses `c.Errors.ResponseBuilder` → `EndatixProblemDetails` (`fields` dictionary). Do **not** use stock `UseProblemDetails()` (wrong `errors` array shape).
 - Unhandled exceptions → `EndatixExceptionHandler` (`IExceptionHandler`); 500 body never includes exception text. It is a safety net, not a status mapper — see below.
-- **No 5xx body ever echoes handler- or exception-derived text.** `EndatixProblemDetails.Create` replaces any `>= 500` detail with the generic title and logs the original (correlate via `traceId`). Never pass `ex.Message` to a `Result.*` factory — including `Result.Error`: the 5xx scrub is defense in depth, not a license (see below). Log the exception, return author-written text. If a 5xx message must reach the user, model the failure as a 4xx/503 instead.
+- **No 5xx body ever echoes handler- or exception-derived text.** `EndatixProblemDetails.Create` replaces any `>= 500` detail with the generic title and logs the original (correlate via `traceId`). The one exception is `ToProblem` for `Result.Unavailable`: a 503 keeps the handler's retry message as `detail`, so that message must be author-written. Never pass `ex.Message` to a `Result.*` factory — including `Result.Error`: the 5xx scrub is defense in depth, not a license (see below). Log the exception, return author-written text. If a 5xx message must reach the user, model the failure as a 4xx/503 instead.
 - Writing a problem body by hand? Pass `contentType: "application/problem+json"` to `WriteAsJsonAsync`; it otherwise overwrites `Response.ContentType` with `application/json`.
 - `SetErrorMessage(...)` overrides the problem **title for every status**, so set it only on the branch it describes (see `Auth/VerifyEmail.cs`) — otherwise a 404 inherits a 400-shaped message.
 - OpenAPI: `Description(b => b.Produces<T>(...).ProducesProblem(400).ProducesProblem(404))` listing exactly the statuses the endpoint's `Summary(s => s.Responses[...])` declares — every endpoint returning `ProblemHttpResult` must have one. The success status matches the typed result (`Ok` → 200, `Created` → 201). FE validators set `ProducesMetadataType = typeof(ProblemDetails)`.
@@ -188,3 +192,37 @@ HTTPS playground + HTTP Hub = mixed content: **builder UI** (200, no script), in
 
 - Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)
 - Public docs writing rules (voice, cards, when a table is allowed): [`docs/endatix-docs/AGENTS.md`](docs/endatix-docs/AGENTS.md)
+
+## Agent skills
+
+Paths and commands below are relative to this repo's root, whether it is a standalone clone or a submodule of another repo. A parent repo's `## Agent skills` section describes that repo, not this one.
+
+### Issue tracker
+
+Endatix GitHub issues on the Overlord project, filed and tracked through the `track-work` skill. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context. `GLOSSARY.md` at the root is created lazily by `domain-modeling`; decisions are recorded in the `ARCHITECTURE.md` decision log. See `docs/agents/domain.md`.
+
+### Commands
+
+- Prerequisites: .NET SDK from `global.json`; Docker for the integration tests
+- Build: `dotnet build Endatix.slnx`
+- Test: `dotnet test Endatix.slnx --filter "FullyQualifiedName!~Endatix.IntegrationTests"`; integration: `dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj` (needs Docker, see `tests/README.md`)
+- Lint: `dotnet format Endatix.slnx --verify-no-changes --include <changed files>`. CI has no lint step and the whole solution does not pass yet, so check only the files you touched
+- Run: `dotnet run --project src/Endatix.WebHost` (API on https://localhost:5001)
+- PR title scope: `e[0-9]+|deps|deps-dev` (the full title and branch rules are in [CONTRIBUTING.md](CONTRIBUTING.md))
+- Branch name: `<type>/e<issue>-<slug>`
+
+### Verification
+
+No verify skill in this repo. Run the API as above and prove the change with an integration test. When this repo is the `oss/` submodule of endatix-saas, that workspace's `verify-endatix` (launch with `--api oss --oss <this checkout>`) and `clean-code` skills also cover the API; use them from there.
+
+### Shared folders
+
+- Always in the main checkout, also from a worktree: `common=$(git rev-parse --path-format=absolute --git-common-dir)`, then `dirname "$common"` when its name is `.git`, else `git --git-dir="$common" rev-parse --show-toplevel` (a submodule). Removing a worktree deletes its gitignored files.
+- Work files (plans, review reports, handoffs): `.agents/work/<YYYY-MM-DD>-<slug>/`
+- Evidence (screenshots, videos, logs): `.agents/evidence/<YYYY-MM-DD>-<slug>/`
+- A skill ends its report with the absolute path of every file it wrote there.
+- Model roles: `.agents/endatix-models.local.yaml`, one section per harness. Gitignored and per checkout: each worktree has its own copy, lost when the worktree is removed.

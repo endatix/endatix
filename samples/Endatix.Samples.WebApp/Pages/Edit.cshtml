@@ -1,7 +1,7 @@
 @page "{id}"
 @model Endatix.Samples.WebApp.Pages.EditModel
 @{
-    ViewData["Title"] = "Edit: " + Model.Form.Name;
+    ViewData["Title"] = "Edit: " + Model.Form?.Name;
 }
 @section Head {
     <link href="https://unpkg.com/survey-jquery/defaultV2.min.css" type="text/css" rel="stylesheet">
@@ -13,7 +13,7 @@
             $("#btnUpdate").click(function () {
                 $.ajax({
                     method: "PATCH",
-                    url: "@Model.BaseUrl/api/forms/@Model.Form.Id/formDefinition",
+                    url: "@Model.BaseUrl/api/forms/@Model.Form?.Id/formDefinition",
                     contentType: "application/json",
                     data: JSON.stringify({ jsonData: $("#definitionJsonData").val() })
                 })
@@ -28,7 +28,7 @@
 
             $.ajax({
                 method: "GET",
-                url: "@Model.BaseUrl/api/forms/@Model.Form.Id/formDefinition"
+                url: "@Model.BaseUrl/api/forms/@Model.Form?.Id/formDefinition"
             })
                 .done(function (formDefinition) {
                     $("#definitionId").val(formDefinition.id);

@@ -44,8 +44,8 @@ public class SlackToken(ILogger<SlackToken> logger, IEmailSender emailSender) : 
             To = "info@endatix.com",
             From = "info@endatix.com",
             Subject = "Token",
-            HtmlBody = request.Token,
-            PlainTextBody = request.Token
+            HtmlBody = request.Token ?? string.Empty,
+            PlainTextBody = request.Token ?? string.Empty
         };
 
         await emailSender.SendEmailAsync(email, ct);

@@ -10,6 +10,9 @@ namespace Endatix.Modules.Audience.Domain;
 /// </summary>
 internal static class PropertyValueRules
 {
+    /// <summary>SurveyJS splits a choice written as <c>value|text</c>, so a key containing it never matches.</summary>
+    private const char ChoiceValueSeparator = '|';
+
     private const NumberStyles CanonicalNumber =
         NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent;
 
@@ -37,7 +40,7 @@ internal static class PropertyValueRules
         dataType is AudienceDataTypeCodes.SingleChoice or AudienceDataTypeCodes.MultipleChoice;
 
     /// <summary>
-    /// Choice types need a JSON array of distinct, non-blank keys. Other types take no choices.
+    /// Choice types need a JSON array of distinct, non-blank keys without <c>|</c>. Other types take no choices.
     /// </summary>
     public static string? ChoicesError(string dataType, string? choicesJson, bool allowsOther)
     {
@@ -94,6 +97,11 @@ internal static class PropertyValueRules
         if (keys.Any(string.IsNullOrWhiteSpace))
         {
             return "Choice keys cannot be blank.";
+        }
+
+        if (keys.Any(key => key.Contains(ChoiceValueSeparator, StringComparison.Ordinal)))
+        {
+            return $"Choice keys cannot contain '{ChoiceValueSeparator}'.";
         }
 
         return keys.Distinct(StringComparer.Ordinal).Count() == keys.Count

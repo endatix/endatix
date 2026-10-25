@@ -328,6 +328,9 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
     /// <summary>
     /// Audience API calls for one signed-in client.
     /// </summary>
+    /// <summary>A CSV to import, its Property columns by header, and whether it adds Test participants.</summary>
+    private sealed record ImportedCsv(string Text, Dictionary<string, string>? PropertyColumns = null, bool IsTest = false);
+
     private sealed class AudienceApi(HttpClient client, CancellationToken cancellationToken)
     {
         private const string FormDefinition =
@@ -389,9 +392,19 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
             long formId,
             string csv,
             Dictionary<string, string>? propertyColumns = null) =>
+            ImportAsync(formId, new ImportedCsv(csv, propertyColumns));
+
+        public Task<HttpResponseMessage> ImportAsync(long formId, ImportedCsv csv) =>
             PostAsync(
                 $"/api/forms/{formId}/audience/import",
-                new { csvText = csv, identifierColumn = "email", fileName = "people.csv", propertyColumns });
+                new
+                {
+                    csvText = csv.Text,
+                    identifierColumn = "email",
+                    fileName = "people.csv",
+                    propertyColumns = csv.PropertyColumns,
+                    isTest = csv.IsTest,
+                });
 
         public Task<HttpResponseMessage> AddPersonAsync(long formId, string identifier) =>
             PostAsync($"/api/forms/{formId}/audience/people", new { identifier });

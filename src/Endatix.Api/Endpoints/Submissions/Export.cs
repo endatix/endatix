@@ -29,7 +29,8 @@ internal sealed record ValidatedExportOperation(
     Type ItemType,
     string? SqlFunctionName,
     int? ExportPageSize = null,
-    SubmissionExportExecutionSettings? ExecutionSettings = null
+    SubmissionExportExecutionSettings? ExecutionSettings = null,
+    bool IncludeTestSubmissions = false
 );
 
 /// <summary>
@@ -146,7 +147,8 @@ public partial class Export : Endpoint<ExportRequest>
                 Options: options,
                 OutputWriter: pipeWriter,
                 SqlFunctionName: validatedExportOperation.SqlFunctionName,
-                ExportPageSize: validatedExportOperation.ExportPageSize
+                ExportPageSize: validatedExportOperation.ExportPageSize,
+                IncludeTestSubmissions: validatedExportOperation.IncludeTestSubmissions
             );
 
             var result = await _mediator.Send(exportQuery, cancellationToken);
@@ -233,6 +235,7 @@ public partial class Export : Endpoint<ExportRequest>
     /// <summary>
     /// Classic exporters without reporting execution settings (default SQL function
     /// <c>export_form_submissions</c> when <see cref="ValidatedExportOperation.SqlFunctionName"/> is null).
+    /// Test submissions stay out unless the request sets <see cref="ExportRequest.IncludeTestSubmissions"/>.
     /// </summary>
     private static Result<ValidatedExportOperation> ResolveLegacyBuiltInConfiguration(ExportRequest request)
     {
@@ -245,7 +248,8 @@ public partial class Export : Endpoint<ExportRequest>
             typeof(SubmissionExportRow),
             SqlFunctionName: null,
             ExportPageSize: null,
-            ExecutionSettings: null));
+            ExecutionSettings: null,
+            IncludeTestSubmissions: request.IncludeTestSubmissions ?? false));
     }
 
     private Result<ValidatedExportOperation> BuildValidatedExportOperation(

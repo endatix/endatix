@@ -60,7 +60,7 @@ public partial class SubmissionFlatteningProcessorTests
             write,
             Arg.Is<string>(json => json.Contains("firstName")),
             Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
+        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -110,9 +110,9 @@ public partial class SubmissionFlatteningProcessorTests
 
         // Assert — the row is removed as the deletion syncs remove it, never created or flattened.
         await _rows.Received(1).DeleteBySubmissionAsync(Key, Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().EnsureExistsAsync(default, default);
-        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
-        await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, default);
+        await _rows.DidNotReceiveWithAnyArgs().EnsureExistsAsync(default, Arg.Any<CancellationToken>());
+        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
+        await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -137,9 +137,9 @@ public partial class SubmissionFlatteningProcessorTests
 
         // Assert — the job retries and then dead-letters; the read model is left as it was.
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*was not found*");
-        await _rows.DidNotReceiveWithAnyArgs().EnsureExistsAsync(default, default);
-        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
-        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
+        await _rows.DidNotReceiveWithAnyArgs().EnsureExistsAsync(default, Arg.Any<CancellationToken>());
+        await _rows.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
+        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -154,8 +154,8 @@ public partial class SubmissionFlatteningProcessorTests
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         // Assert — the stale flatten succeeds without writing data or flipping the row back.
-        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
-        await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, default);
+        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, Arg.Any<CancellationToken>());
+        await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, Arg.Any<CancellationToken>());
         await _submissions.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 
@@ -176,7 +176,7 @@ public partial class SubmissionFlatteningProcessorTests
         // Assert
         await act.Should().NotThrowAsync();
         await _submissions.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
+        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public partial class SubmissionFlatteningProcessorTests
 
         // Assert
         await _rows.Received(1).TryMarkSkippedAsync(WriteOf(submission), Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
+        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -217,7 +217,7 @@ public partial class SubmissionFlatteningProcessorTests
             WriteOf(draft),
             Arg.Is<string>(json => json.Contains("firstName")),
             Arg.Any<CancellationToken>());
-        await _rows.DidNotReceiveWithAnyArgs().TryMarkSkippedAsync(default, default);
+        await _rows.DidNotReceiveWithAnyArgs().TryMarkSkippedAsync(default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -235,8 +235,8 @@ public partial class SubmissionFlatteningProcessorTests
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage($"*form {FormId}*definition {FormDefinitionId}*");
-        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, default);
-        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, default);
+        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, Arg.Any<CancellationToken>());
+        await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, Arg.Any<CancellationToken>());
         await _submissions.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 
@@ -257,7 +257,7 @@ public partial class SubmissionFlatteningProcessorTests
             WriteOf(submission),
             "Submission tenant or form does not match the flatten request.",
             Arg.Any<CancellationToken>());
-        await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, default);
+        await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, Arg.Any<CancellationToken>());
         await _submissions.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 

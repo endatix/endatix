@@ -79,7 +79,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
 
         // Act
-        await handler.HandleAsync(CreateMessage(), cancellationToken);
+        await handler.Read(CreateMessage()).RunAsync(cancellationToken);
 
         // Assert
         dbContext.ChangeTracker.Clear();
@@ -115,7 +115,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
             unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
 
-        Func<Task> act = () => handler.HandleAsync(CreateMessage(), cancellationToken);
+        Func<Task> act = () => handler.Read(CreateMessage()).RunAsync(cancellationToken);
 
         await act.Should().NotThrowAsync();
     }

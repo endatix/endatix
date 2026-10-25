@@ -30,7 +30,7 @@ public class RegisterTests
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResponse = response!.Result as Ok<RegisterResponse>;
@@ -52,7 +52,7 @@ public class RegisterTests
             .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -72,7 +72,7 @@ public class RegisterTests
             .Returns(Result<string>.Forbidden("Self-registration is not enabled for this tenant."));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problem = response!.Result as ProblemHttpResult;
@@ -89,7 +89,7 @@ public class RegisterTests
             .Returns(Result<string>.NotFound("Tenant not found."));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problem = response!.Result as ProblemHttpResult;
@@ -106,7 +106,7 @@ public class RegisterTests
             .Returns(Result<string>.Success(RegisterHandler.GENERAL_SUCCESS_MESSAGE));
 
         // Act
-        await _endpoint.ExecuteAsync(request, default);
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         await _mediator.Received(1).Send(

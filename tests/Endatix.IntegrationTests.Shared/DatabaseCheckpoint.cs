@@ -17,11 +17,11 @@ public sealed class DatabaseCheckpoint
     private static readonly string[] _sqlServerSchemas = ["dbo", "identity", "agents", "reporting", "jobs", "audience"];
 
     private readonly SemaphoreSlim _init = new(1, 1);
-    private readonly Dictionary<TestDatabaseProvider, (Respawner Respawner, int TableCount)> _respawners = [];
+    private readonly Dictionary<TestDatabaseProvider, (Respawner Respawner, string Tables)> _respawners = [];
 
     /// <summary>
     /// Resets all tracked tables to an empty state using Respawn.
-    /// The <see cref="Respawner"/> is built lazily and rebuilt whenever the number of tracked tables changes,
+    /// The <see cref="Respawner"/> is built lazily and rebuilt whenever the set of tracked tables changes,
     /// so a reset that ran before a migration does not freeze a graph without the migrated tables.
     /// </summary>
     public async Task ResetAsync(
@@ -49,13 +49,13 @@ public sealed class DatabaseCheckpoint
         await _init.WaitAsync(cancellationToken);
         try
         {
-            var tableCount = await CountResettableTablesAsync(connection, provider, cancellationToken);
-            if (tableCount == 0)
+            var tables = await ResettableTablesAsync(connection, provider, cancellationToken);
+            if (tables.Length == 0)
             {
                 return null;
             }
 
-            if (_respawners.TryGetValue(provider, out var existing) && existing.TableCount == tableCount)
+            if (_respawners.TryGetValue(provider, out var existing) && existing.Tables == tables)
             {
                 return existing.Respawner;
             }
@@ -65,7 +65,7 @@ public sealed class DatabaseCheckpoint
                 var respawner = await Respawner.CreateAsync(
                     connection,
                     BuildOptions(provider, await KeptTablesAsync(connection, provider, cancellationToken)));
-                _respawners[provider] = (respawner, tableCount);
+                _respawners[provider] = (respawner, tables);
                 return respawner;
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("No tables found", StringComparison.Ordinal))
@@ -81,7 +81,7 @@ public sealed class DatabaseCheckpoint
 
     // SQL Server's own tables are left out: the Testcontainers connection string points at master, whose dbo
     // schema ships with tables such as spt_monitor before any migration has run.
-    private static async Task<int> CountResettableTablesAsync(
+    private static async Task<string> ResettableTablesAsync(
         DbConnection connection,
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)
@@ -89,25 +89,44 @@ public sealed class DatabaseCheckpoint
         var sql = provider switch
         {
             TestDatabaseProvider.PostgreSql => $"""
-                SELECT count(*)::int
+                SELECT table_schema || '.' || table_name
                 FROM information_schema.tables
                 WHERE table_type = 'BASE TABLE'
                   AND table_schema IN ({QuotedSchemas(_postgresSchemas)})
                   AND table_name <> '__EFMigrationsHistory'
+                ORDER BY 1
                 """,
             TestDatabaseProvider.SqlServer => $"""
-                SELECT count(*)
+                SELECT SCHEMA_NAME(schema_id) + '.' + name
                 FROM sys.tables
                 WHERE is_ms_shipped = 0
                   AND SCHEMA_NAME(schema_id) IN ({QuotedSchemas(_sqlServerSchemas)})
                   AND name <> '__EFMigrationsHistory'
+                ORDER BY 1
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
 
+        var tables = await ReadRowsAsync(connection, sql, reader => reader.GetString(0), cancellationToken);
+        return string.Join(',', tables);
+    }
+
+    private static async Task<List<T>> ReadRowsAsync<T>(
+        DbConnection connection,
+        string sql,
+        Func<DbDataReader, T> readRow,
+        CancellationToken cancellationToken)
+    {
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
-        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
+        var rows = new List<T>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(readRow(reader));
+        }
+
+        return rows;
     }
 
     private static string QuotedSchemas(string[] schemas) => string.Join(", ", schemas.Select(s => $"'{s}'"));
@@ -130,8 +149,7 @@ public sealed class DatabaseCheckpoint
         TestDatabaseProvider provider,
         CancellationToken cancellationToken)
     {
-        await using var command = connection.CreateCommand();
-        command.CommandText = provider switch
+        var sql = provider switch
         {
             TestDatabaseProvider.PostgreSql => """
                 SELECT table_schema, table_name
@@ -147,13 +165,11 @@ public sealed class DatabaseCheckpoint
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
 
-        var tables = new List<Table>();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            tables.Add(new Table(reader.GetString(0), reader.GetString(1)));
-        }
-
+        var tables = await ReadRowsAsync(
+            connection,
+            sql,
+            reader => new Table(reader.GetString(0), reader.GetString(1)),
+            cancellationToken);
         return [.. tables];
     }
 

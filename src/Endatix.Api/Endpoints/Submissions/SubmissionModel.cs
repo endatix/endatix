@@ -7,6 +7,17 @@ namespace Endatix.Api.Endpoints.Submissions;
 
 public class SubmissionModel
 {
+    /// <summary>
+    /// Creates a model whose identifiers and JSON data start empty.
+    /// </summary>
+    public SubmissionModel()
+    {
+        Id = string.Empty;
+        JsonData = string.Empty;
+        FormId = string.Empty;
+        FormDefinitionId = string.Empty;
+    }
+
     public string Id { get; set; }
     public bool IsComplete { get; set; }
     public string JsonData { get; set; }

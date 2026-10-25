@@ -16,6 +16,8 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
     private readonly ConnectionTarget _server;
     private readonly ConnectionTarget _database;
     private readonly string _name;
+    private bool _away;
+    private bool _readOnly;
 
     private JobsTestDatabase(ConnectionTarget server, string name)
     {
@@ -78,8 +80,98 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         return rows;
     }
 
+    /// <summary>
+    /// Makes the database impossible to open, as during a failover or a restore, until
+    /// <see cref="BringBackAsync"/>: SQL Server takes it offline (4060), PostgreSQL renames it away (3D000).
+    /// </summary>
+    public async Task TakeAwayAsync(CancellationToken cancellationToken)
+    {
+        _server.ClearPools();
+        await _server.ExecuteAsync(TakeAwaySql(_server.Provider, _name), NoParameters, cancellationToken);
+        _away = true;
+    }
+
+    /// <summary>Makes the database open again, after <see cref="TakeAwayAsync"/>.</summary>
+    public async Task BringBackAsync(CancellationToken cancellationToken)
+    {
+        _server.ClearPools();
+        await _server.ExecuteAsync(BringBackSql(_server.Provider, _name), NoParameters, cancellationToken);
+        _away = false;
+    }
+
+    /// <summary>
+    /// Makes every write to the database fail, as on a failover's secondary or a database read-only on purpose:
+    /// SQL Server sets it READ_ONLY (3906), PostgreSQL makes every new transaction read-only (25006). Open sessions are
+    /// ended, so none keeps writing.
+    /// </summary>
+    public async Task SetReadOnlyAsync(bool readOnly, CancellationToken cancellationToken)
+    {
+        _server.ClearPools();
+        await _server.ExecuteAsync(ReadOnlySql(_server.Provider, _name, readOnly), NoParameters, cancellationToken);
+        _readOnly = readOnly;
+        await UntilItAcceptsConnectionsAsync(cancellationToken);
+    }
+
+    // SQL Server refuses logins for a moment while it changes a database's state, so a test that reads right after
+    // would fail on the change rather than on what it checks.
+    private async Task UntilItAcceptsConnectionsAsync(CancellationToken cancellationToken)
+    {
+        var tries = 0;
+        while (true)
+        {
+            try
+            {
+                _database.ClearPools();
+                await _database.ExecuteAsync("SELECT 1", NoParameters, cancellationToken);
+                return;
+            }
+            catch (DbException) when (++tries < 50)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+            }
+        }
+    }
+
+    private static string ReadOnlySql(TestDatabaseProvider provider, string name, bool readOnly) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => $"""
+            ALTER DATABASE {name} SET default_transaction_read_only = {(readOnly ? "on" : "off")};
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{name}' AND pid <> pg_backend_pid();
+            """,
+        TestDatabaseProvider.SqlServer => $"ALTER DATABASE [{name}] SET {(readOnly ? "READ_ONLY" : "READ_WRITE")} WITH ROLLBACK IMMEDIATE",
+        _ => throw ConnectionTarget.Unsupported(provider),
+    };
+
+    private static string TakeAwaySql(TestDatabaseProvider provider, string name) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => $"""
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{name}' AND pid <> pg_backend_pid();
+            ALTER DATABASE {name} RENAME TO {name}_away;
+            """,
+        TestDatabaseProvider.SqlServer => $"ALTER DATABASE [{name}] SET OFFLINE WITH ROLLBACK IMMEDIATE",
+        _ => throw ConnectionTarget.Unsupported(provider),
+    };
+
+    private static string BringBackSql(TestDatabaseProvider provider, string name) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => $"ALTER DATABASE {name}_away RENAME TO {name}",
+        TestDatabaseProvider.SqlServer => $"ALTER DATABASE [{name}] SET ONLINE",
+        _ => throw ConnectionTarget.Unsupported(provider),
+    };
+
     public async ValueTask DisposeAsync()
     {
+        // A test that failed while its database was away still drops it: neither provider drops it from there.
+        if (_away)
+        {
+            await BringBackAsync(CancellationToken.None);
+        }
+
+        if (_readOnly)
+        {
+            await SetReadOnlyAsync(false, CancellationToken.None);
+        }
+
         // Pooled connections hold the database open, and both providers refuse to drop a database in use.
         _server.ClearPools();
         await _server.ExecuteAsync(DropDatabaseSql(_server.Provider, _name), NoParameters, CancellationToken.None);
@@ -187,5 +279,9 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
 
         public static ArgumentOutOfRangeException Unsupported(TestDatabaseProvider provider) =>
             new(nameof(provider), provider, "Unsupported test database provider.");
+
+        // A record prints every member, the connection string and its password with it, wherever it is shown: in an
+        // assertion's message, a debugger, a log.
+        public override string ToString() => $"{Provider} connection";
     }
 }

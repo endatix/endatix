@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Core.Events;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
@@ -13,21 +14,33 @@ namespace Endatix.Modules.Audience.Features.Forms;
 /// members stay, as when a person is removed from one form. Without this, the people on a deleted
 /// form would keep the match key locked with no route left to remove them.
 /// </summary>
-internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : IOutboxIntegrationEventHandler
+internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db)
+    : IOutboxWork<DeleteFormAudienceOutboxHandler>
 {
-    /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes { get; } = [FormDeletedEvent.EventTypeName];
+    public static string JobType => "AudienceDeleteFormAudience";
+
+    /// <summary>The event types this handler, and its job, run on.</summary>
+    public static IReadOnlyCollection<string> HandledEventTypes { get; } = [FormDeletedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public async Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
+    public OutboxWork Read(IOutboxMessage message) =>
+        OutboxWork.For(Parse(message), ProcessAsync);
+
+    /// <exception cref="InvalidOperationException">The message lacks its tenant or form id.</exception>
+    /// <exception cref="JsonException">The payload is not JSON.</exception>
+    public static DeletedForm Parse(IOutboxMessage message)
     {
-        using JsonDocument document = JsonDocument.Parse(message.Payload);
-        long tenantId = message.GetRequiredTenantId(document.RootElement);
-        long formId = message.GetRequiredIdProp(document.RootElement, "formId");
+        using var document = JsonDocument.Parse(message.Payload);
+        return new DeletedForm(
+            message.GetRequiredTenantId(document.RootElement),
+            message.GetRequiredIdProp(document.RootElement, "formId"));
+    }
 
+    public async Task ProcessAsync(DeletedForm form, CancellationToken cancellationToken)
+    {
         await using IDbContextTransaction transaction =
             await ((DbContext)db).Database.BeginTransactionAsync(cancellationToken);
-        await SoftDeleteFormAudienceAsync(tenantId, formId, cancellationToken);
+        await SoftDeleteFormAudienceAsync(form.TenantId, form.FormId, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -47,4 +60,6 @@ internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db) : I
             .Where(property => property.TenantId == tenantId && property.FormId == formId)
             .SoftDeleteAllAsync(cancellationToken);
     }
+
+    internal sealed record DeletedForm(long TenantId, long FormId);
 }

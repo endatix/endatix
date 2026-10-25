@@ -254,6 +254,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean");
+
                     b.Property<long>("MemberId")
                         .HasColumnType("bigint");
 
@@ -264,6 +267,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id", "IsTest")
+                        .HasName("AK_Memberships_TestFlag");
 
                     b.HasIndex("TenantId", "FormId")
                         .HasDatabaseName("IX_Memberships_Form")
@@ -365,6 +371,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean");
+
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
 
@@ -384,11 +393,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "PropertyId")
+                    b.HasIndex("TenantId", "PropertyId", "IsTest")
                         .HasDatabaseName("IX_PropertyValues_Property")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.HasIndex("TenantId", "MembershipId", "PropertyId")
+                    b.HasIndex("TenantId", "MembershipId", "IsTest", "PropertyId")
                         .IsUnique()
                         .HasDatabaseName("IX_PropertyValues_Cell")
                         .HasFilter("\"IsDeleted\" = false");
@@ -397,6 +406,17 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         {
                             t.HasCheckConstraint("CK_PropertyValues_TenantId", "\"TenantId\" > 0");
                         });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.PropertyValue", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.Membership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "MembershipId", "IsTest")
+                        .HasPrincipalKey("TenantId", "Id", "IsTest")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PropertyValues_Membership");
                 });
 #pragma warning restore 612, 618
         }

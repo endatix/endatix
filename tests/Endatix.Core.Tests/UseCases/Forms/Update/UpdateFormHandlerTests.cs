@@ -32,7 +32,7 @@ public class UpdateFormHandlerTests
         // Arrange
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true);
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
-                   .Returns((Form)null);
+                   .Returns((Form?)null);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

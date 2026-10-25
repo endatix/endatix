@@ -1,3 +1,4 @@
+using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -16,6 +17,10 @@ public sealed class NpgsqlEndatixModelCustomizer(ModelCustomizerDependencies dep
 
         // Add support for JSON extraction. When LINQ calls NpgsqlJsonDbFunctions.ExtractObjectKeyText(json, key), translate that to the built-in SQL function jsonb_extract_path_text(...) instead of trying to run the CLR stub (which only throws). Without this mapping, JSON key search/order queries can’t be translated to SQL.
         modelBuilder.HasDbFunction(NpgsqlJsonDbFunctions.ExtractObjectKeyTextMethod)
+            .HasName("jsonb_extract_path_text")
+            .IsBuiltIn();
+
+        modelBuilder.HasDbFunction(JsonDbFunctions.KeyTextMethod)
             .HasName("jsonb_extract_path_text")
             .IsBuiltIn();
     }

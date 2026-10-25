@@ -33,11 +33,11 @@ public class ResetPasswordTests
         var resetPasswordCommand = new ResetPasswordCommand(request.Email, request.ResetCode, request.NewPassword);
         var successResult = Result.Success("Password changed successfully");
 
-        _mediator.Send(resetPasswordCommand)
+        _mediator.Send(resetPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response!.Result.As<Ok<string>>();
@@ -67,11 +67,11 @@ public class ResetPasswordTests
             identifier: "reset_password"
             ));
 
-        _mediator.Send(resetPasswordCommand)
+        _mediator.Send(resetPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -96,11 +96,11 @@ public class ResetPasswordTests
         var resetPasswordCommand = new ResetPasswordCommand(request.Email, request.ResetCode, request.NewPassword);
         var errorResult = Result.Error("Could not reset password. Please try again or contact support.");
 
-        _mediator.Send(resetPasswordCommand)
+        _mediator.Send(resetPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;

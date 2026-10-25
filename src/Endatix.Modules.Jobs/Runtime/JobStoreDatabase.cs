@@ -10,18 +10,53 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// The database the scheduler's tables live in, beside the job rows, and what the scheduler checks of it before it
 /// starts.
 /// </summary>
-/// <param name="ConnectionString">The host's default connection string.</param>
-/// <param name="IsPostgreSql">Whether that database is PostgreSQL; otherwise it is SQL Server.</param>
-/// <param name="LocksOnInsert">
+/// <param name="connectionString">The host's default connection string.</param>
+/// <param name="isPostgreSql">Whether that database is PostgreSQL; otherwise it is SQL Server.</param>
+/// <param name="locksOnInsert">
 /// Whether enqueueing holds the cluster-wide trigger lock until it commits, as Quartz's store was configured with it.
 /// </param>
 /// <remarks>
-/// <paramref name="LocksOnInsert"/> is decided once, from configuration at registration, because that is when Quartz's
+/// <para>
+/// <see cref="LocksOnInsert"/> is decided once, from configuration at registration, because that is when Quartz's
 /// store takes it and Quartz cannot change it afterwards: an options callback a host adds in code later reaches
 /// neither the store nor the snapshot check, so the two can never disagree.
+/// </para>
+/// <para>
+/// A class, not a record: a record's generated <c>ToString</c> would print the connection string, password included,
+/// into any log, debugger view or assertion message that shows this singleton.
+/// </para>
 /// </remarks>
-internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreSql, bool LocksOnInsert)
+internal sealed class JobStoreDatabase(string connectionString, bool isPostgreSql, bool locksOnInsert)
 {
+    // The table Quartz takes its lock on, as PostgreSQL names it.
+    private const string PostgreSqlLockTable = QuartzRegistration.TablePrefix + "locks";
+
+    // What this role may do with the lock table: 'missing' when it is not there yet, 'refused' without SELECT or an
+    // UPDATE on one column at least (all SELECT … FOR UPDATE asks), 'no-insert' without INSERT, otherwise 'ok'. It does
+    // not read the table, so neither a missing table nor a missing SELECT fails the question.
+    private const string LockTablePrivilegesSql = $"""
+        SELECT CASE
+            WHEN to_regclass('{PostgreSqlLockTable}') IS NULL THEN 'missing'
+            WHEN NOT has_table_privilege('{PostgreSqlLockTable}', 'SELECT')
+                OR NOT has_any_column_privilege('{PostgreSqlLockTable}', 'UPDATE') THEN 'refused'
+            WHEN NOT has_table_privilege('{PostgreSqlLockTable}', 'INSERT') THEN 'no-insert'
+            ELSE 'ok'
+        END
+        """;
+
+    // Quartz inserts a lock row only when it is missing, so INSERT is needed only until both of this scheduler's exist.
+    private const string MissingLockRowsSql = $"""
+        SELECT count(DISTINCT lock_name) < 2 FROM {PostgreSqlLockTable}
+        WHERE sched_name = '{QuartzRegistration.SchedulerName}' AND lock_name IN ('TRIGGER_ACCESS', 'STATE_ACCESS')
+        """;
+
+    /// <summary>The connection string; never printed (see <see cref="ToString"/>).</summary>
+    public string ConnectionString { get; } = connectionString;
+
+    public bool IsPostgreSql { get; } = isPostgreSql;
+
+    public bool LocksOnInsert { get; } = locksOnInsert;
+
     private const string LockOnInsertKey = $"{BackgroundJobsOptions.SectionName}:{nameof(BackgroundJobsOptions.LockOnInsert)}";
 
     /// <summary>The store the host's configuration describes.</summary>
@@ -41,14 +76,21 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
             options.LockOnInsert ?? !isPostgreSql);
     }
 
+    /// <summary>Names the provider and the database, never the connection string or its credentials.</summary>
+    public override string ToString() =>
+        $"{nameof(JobStoreDatabase)} {{ {(IsPostgreSql ? "PostgreSQL" : "SQL Server")} database '{DatabaseName}', " +
+        $"{nameof(LocksOnInsert)} = {LocksOnInsert} }}";
+
     /// <summary>The database the connection string names, for messages; never the credentials.</summary>
     public string DatabaseName => IsPostgreSql
         ? new NpgsqlConnectionStringBuilder(ConnectionString).Database ?? ""
         : new SqlConnectionStringBuilder(ConnectionString).InitialCatalog;
 
     /// <summary>
-    /// Why a connection does not open when the database is away, or <see langword="null"/> when it opens. A failure
-    /// the database answered and refused with, such as a login it does not accept, is thrown: waiting never fixes it.
+    /// Why the scheduler cannot start on the database for now, or <see langword="null"/> when it can: the connection
+    /// does not open because the database is away, or, on PostgreSQL, it opens but every new transaction is read-only
+    /// (a 25006 <see cref="PostgresException"/>), as on a standby. A failure the database answered and refused with,
+    /// such as a login it does not accept, is thrown: waiting never fixes it.
     /// </summary>
     public async Task<Exception?> UnreachableBecauseAsync(CancellationToken cancellationToken)
     {
@@ -56,9 +98,11 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
         {
             await using var connection = Connect();
             await connection.OpenAsync(cancellationToken);
-            return null;
+            return IsPostgreSql && await TransactionsAreReadOnlyAsync(connection, cancellationToken)
+                ? ReadOnlyTransactions()
+                : null;
         }
-        catch (Exception exception) when (DatabaseFailures.IsUnreachable(exception))
+        catch (Exception exception) when (DatabaseFailures.IsAwayAtStartup(exception))
         {
             return exception;
         }
@@ -94,6 +138,65 @@ internal sealed record JobStoreDatabase(string ConnectionString, bool IsPostgreS
         command.CommandText = "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()";
         return await command.ExecuteScalarAsync(cancellationToken) is true;
     }
+
+    /// <summary>
+    /// Why this connection's role may not take Quartz's lock on PostgreSQL, or <see langword="null"/> when it may, or
+    /// on SQL Server, or when the lock table is not there yet.
+    /// </summary>
+    /// <remarks>
+    /// Quartz takes its lock with <c>SELECT … FOR UPDATE</c> on <c>jobs.qrtz_locks</c> and inserts the row when it is
+    /// missing, so the role needs SELECT and UPDATE on it, on one column at least for UPDATE, and INSERT while a row is
+    /// missing. Without them PostgreSQL refuses with 42501, which
+    /// Quartz 4.2.2 reports as the 25P02 of its next statement (measured), so only asking tells the refusal from a lost
+    /// race. SQL Server reports a missing permission there as it is (229, measured), so it is not asked.
+    /// </remarks>
+    public async Task<string?> LockTableRefusalAsync(CancellationToken cancellationToken)
+    {
+        if (!IsPostgreSql)
+        {
+            return null;
+        }
+
+        await using var connection = Connect();
+        await connection.OpenAsync(cancellationToken);
+        var refused = await ScalarAsync(connection, LockTablePrivilegesSql, cancellationToken) switch
+        {
+            "refused" => true,
+            "no-insert" => await ScalarAsync(connection, MissingLockRowsSql, cancellationToken) is true,
+            _ => false,
+        };
+        return refused ? LockTableRefusal() : null;
+    }
+
+    private static async Task<object?> ScalarAsync(DbConnection connection, string sql, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        return await command.ExecuteScalarAsync(cancellationToken);
+    }
+
+    // Names the role, never its password.
+    private string LockTableRefusal() =>
+        $"The background jobs scheduler cannot start: database role '{new NpgsqlConnectionStringBuilder(ConnectionString).Username}' " +
+        $"cannot take Quartz's lock on {PostgreSqlLockTable}. Grant it SELECT and UPDATE on that table, and INSERT until its lock rows exist.";
+
+    // A read-only PostgreSQL database, a standby or one with default_transaction_read_only on, refuses the scheduler's
+    // first write with 25006 inside the lock Quartz takes, and Quartz then reports only the 25P02 ("current transaction
+    // is aborted") of its next statement, which says nothing of why. So the probe asks; SQL Server's 3906 reaches the
+    // start as it is.
+    private static async Task<bool> TransactionsAreReadOnlyAsync(DbConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SHOW transaction_read_only";
+        return await command.ExecuteScalarAsync(cancellationToken) is "on";
+    }
+
+    // Said as PostgreSQL says a write it refused for the same reason, so the start treats both alike.
+    private PostgresException ReadOnlyTransactions() => new(
+        $"Every new transaction on database '{DatabaseName}' is read-only: it is a standby, or default_transaction_read_only is on.",
+        "ERROR",
+        "ERROR",
+        PostgresErrorCodes.ReadOnlySqlTransaction);
 
     private DbConnection Connect() =>
         IsPostgreSql ? new NpgsqlConnection(ConnectionString) : new SqlConnection(ConnectionString);

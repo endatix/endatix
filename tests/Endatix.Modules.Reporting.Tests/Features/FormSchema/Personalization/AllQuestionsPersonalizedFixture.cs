@@ -1,21 +1,25 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 
 /// <summary>
 /// The all-questions survey with personalization on top: the overlay in
-/// <c>Fixtures/AllQuestionsPersonalized/all-questions-personalization-overlay.json</c> declares the audience variables
-/// as custom variables, binds existing questions to them, and adds questions. The composed definition is committed so
-/// it can be pasted into Hub; a test fails when it no longer matches the overlay.
+/// <c>Fixtures/AllQuestionsPersonalized/all-questions-personalization-overlay.json</c> binds existing questions to the
+/// audience variables and adds questions. Its <c>variablePresets</c> declares the variables as Hub passes the Audience
+/// Properties to Survey Creator, in the shape the Audience variables read returns, with placeholder Test participants;
+/// they stay out of the composed definition. The composed definition and the variable presets are committed so they can
+/// be loaded into the designer; a test fails when either no longer matches the overlay.
 /// </summary>
-internal static class AllQuestionsPersonalizedFixture
+internal static partial class AllQuestionsPersonalizedFixture
 {
     public const string Folder = "AllQuestionsPersonalized";
     public const string DefinitionFile = "all-questions-personalized-definition.json";
     public const string ResponsesFile = "all-questions-personalized-responses.json";
+    public const string VariablePresetsFile = "all-questions-personalized-variable-presets.json";
     private const string OverlayFile = "all-questions-personalization-overlay.json";
 
     public static readonly JsonSerializerOptions Indented = new()
@@ -33,24 +37,71 @@ internal static class AllQuestionsPersonalizedFixture
     public static JsonObject Compose()
     {
         var definition = JsonNode.Parse(FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json"))!.AsObject();
-        var overlay = JsonNode.Parse(FormSchemaFixtureLoader.LoadText(Path(OverlayFile)))!.AsObject();
+        var overlay = Overlay();
 
-        DeclareVariables(definition, overlay["customVariables"]!.AsArray());
         Bind(definition, overlay["bindings"]!.AsObject());
         AddElements(definition, overlay["addElements"]!.AsArray());
         return definition;
     }
 
-    // A SurveyJS custom variable is a calculated value without an expression; the snapshot sets it at runtime.
-    private static void DeclareVariables(JsonObject definition, JsonArray variables)
+    /// <summary>The overlay's <c>variablePresets</c>: the variables it reads, as Survey Creator takes them.</summary>
+    public static JsonObject VariablePresets() => Overlay()["variablePresets"]!.AsObject();
+
+    /// <summary>
+    /// The variables <see cref="VariablePresets"/> declares, ignoring case as SurveyJS does, each with the JSON kind its
+    /// preset values take: a number question holds numbers, a boolean question booleans, any other question text.
+    /// </summary>
+    public static Dictionary<string, JsonValueKind> VariableKinds() =>
+        VariablePresets()["definition"]!["elements"]!.AsArray()
+            .Select(node => node!.AsObject())
+            .ToDictionary(
+                element => element["name"]!.GetValue<string>(),
+                element => (element["type"]!.GetValue<string>(), element["inputType"]?.GetValue<string>()) switch
+                {
+                    ("boolean", _) => JsonValueKind.True,
+                    (_, "number") => JsonValueKind.Number,
+                    _ => JsonValueKind.String,
+                },
+                StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The name every <c>{name}</c> the overlay's bindings and added questions read starts with: <c>{ age }</c> reads
+    /// <c>age</c>, <c>{qMatrix.row1}</c> reads <c>qMatrix</c>.
+    /// </summary>
+    public static IEnumerable<string> References()
     {
-        var calculatedValues = definition["calculatedValues"]?.AsArray() ?? [];
-        definition["calculatedValues"] = calculatedValues;
-        foreach (var variable in variables)
-        {
-            calculatedValues.Add(new JsonObject { ["name"] = variable!.GetValue<string>() });
-        }
+        var overlay = Overlay();
+        return Strings(overlay["bindings"]).Concat(Strings(overlay["addElements"]))
+            .SelectMany(text => Reference().Matches(text))
+            .Select(match => match.Groups[1].Value.Trim().Split('.', '[')[0])
+            .Distinct();
     }
+
+    /// <summary>
+    /// The name each question in <paramref name="definition"/> stores its value under (its <c>valueName</c>, else its
+    /// name), nested ones included, and every calculated value. Panels and dynamic panel templates count too, which is
+    /// stricter than SurveyJS needs.
+    /// </summary>
+    public static IEnumerable<string> ElementNames(JsonObject definition) =>
+        definition["pages"]!.AsArray()
+            .SelectMany(page => Descendants(page!["elements"]?.AsArray()))
+            .Concat(definition["calculatedValues"]?.AsArray().Select(node => node!.AsObject()) ?? [])
+            .Select(element => (element["valueName"] ?? element["name"])!.GetValue<string>());
+
+    private static JsonObject Overlay() =>
+        JsonNode.Parse(FormSchemaFixtureLoader.LoadText(Path(OverlayFile)))!.AsObject();
+
+    private static IEnumerable<string> Strings(JsonNode? node) =>
+        node switch
+        {
+            JsonObject properties => properties.SelectMany(property => Strings(property.Value)),
+            JsonArray items => items.SelectMany(Strings),
+            JsonValue value when value.TryGetValue(out string? text) => [text],
+            _ => [],
+        };
+
+    [GeneratedRegex(@"\{([^{}]+)\}")]
+    private static partial Regex Reference();
 
     private static void Bind(JsonObject definition, JsonObject bindings)
     {

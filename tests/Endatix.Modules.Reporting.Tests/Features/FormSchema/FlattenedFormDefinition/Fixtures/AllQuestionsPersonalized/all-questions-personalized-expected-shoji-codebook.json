@@ -90,70 +90,6 @@
           "name": "Submitter Display ID",
           "description": ""
         },
-        "AudienceIdentifier": {
-          "type": "text",
-          "alias": "AudienceIdentifier",
-          "name": "Audience identifier",
-          "description": "Audience value frozen when the response was opened."
-        },
-        "audience_age": {
-          "type": "numeric",
-          "alias": "audience_age",
-          "name": "Age",
-          "description": "Audience value frozen when the response was opened."
-        },
-        "audience_city": {
-          "type": "text",
-          "alias": "audience_city",
-          "name": "City",
-          "description": "Audience value frozen when the response was opened."
-        },
-        "audience_full_name": {
-          "type": "text",
-          "alias": "audience_full_name",
-          "name": "Full name",
-          "description": "Audience value frozen when the response was opened."
-        },
-        "audience_joined": {
-          "type": "datetime",
-          "alias": "audience_joined",
-          "name": "Joined",
-          "description": "Audience value frozen when the response was opened.",
-          "resolution": "D"
-        },
-        "audience_last_seen": {
-          "type": "datetime",
-          "alias": "audience_last_seen",
-          "name": "Last seen",
-          "description": "Audience value frozen when the response was opened.",
-          "resolution": "s"
-        },
-        "audience_panel_member": {
-          "type": "categorical",
-          "alias": "audience_panel_member",
-          "name": "Panel member",
-          "description": "Audience value frozen when the response was opened.",
-          "categories": [
-            {
-              "name": "No",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            },
-            {
-              "name": "Yes",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            }
-          ]
-        },
-        "audience_tags": {
-          "type": "text",
-          "alias": "audience_tags",
-          "name": "Tags",
-          "description": "Audience value frozen when the response was opened."
-        },
         "qMatrix": {
           "type": "categorical_array",
           "alias": "qMatrix",
@@ -386,7 +322,7 @@
         "qComment": {
           "type": "text",
           "alias": "qComment",
-          "name": "Anything else about life in {city}?",
+          "name": "Anything else about life in {hometown}?",
           "description": ""
         },
         "qExpression": {
@@ -1065,6 +1001,70 @@
           "alias": "qCalculatedTotal",
           "name": "qCalculatedTotal",
           "description": ""
+        },
+        "AudienceIdentifier": {
+          "type": "text",
+          "alias": "AudienceIdentifier",
+          "name": "Audience identifier",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_age": {
+          "type": "numeric",
+          "alias": "audience_age",
+          "name": "Age",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_full_name": {
+          "type": "text",
+          "alias": "audience_full_name",
+          "name": "Full name",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_hometown": {
+          "type": "text",
+          "alias": "audience_hometown",
+          "name": "Hometown",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_joined": {
+          "type": "datetime",
+          "alias": "audience_joined",
+          "name": "Joined",
+          "description": "Audience value frozen when the response was opened.",
+          "resolution": "D"
+        },
+        "audience_last_seen": {
+          "type": "datetime",
+          "alias": "audience_last_seen",
+          "name": "Last seen",
+          "description": "Audience value frozen when the response was opened.",
+          "resolution": "s"
+        },
+        "audience_panel_member": {
+          "type": "categorical",
+          "alias": "audience_panel_member",
+          "name": "Panel member",
+          "description": "Audience value frozen when the response was opened.",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "audience_tags": {
+          "type": "text",
+          "alias": "audience_tags",
+          "name": "Tags",
+          "description": "Audience value frozen when the response was opened."
         }
       },
       "order": [
@@ -1081,8 +1081,8 @@
         "SubmitterDisplayId",
         "AudienceIdentifier",
         "audience_age",
-        "audience_city",
         "audience_full_name",
+        "audience_hometown",
         "audience_joined",
         "audience_last_seen",
         "audience_panel_member",

@@ -29,19 +29,8 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         string eventType,
         Func<IOutboxMessage, TPayload> createPayload,
         Func<IOutboxMessage, long>? resolveTenantId = null)
-        where TPayload : IBackgroundJobPayload
-    {
-        Guard.Against.NullOrWhiteSpace(eventType);
-        Guard.Against.Null(createPayload);
-
-        return services.AddSubscription(SubscriptionOf<TPayload>(
-            eventType,
-            resolveTenantId,
-            (_, delivery, _) => Task.FromResult<IReadOnlyList<BackgroundJobRequest>>(
-            [
-                Request(delivery, new OutboxSubscriber<TPayload>(TPayload.JobType, createPayload(delivery.Message))),
-            ])));
-    }
+        where TPayload : IBackgroundJobPayload =>
+        services.AddJobSubscription(new SubscriptionSource(eventType, resolveTenantId, WorkType: null), createPayload);
 
     /// <summary>
     /// Subscribes jobs of <typeparamref name="TPayload"/>'s job type to <paramref name="eventType"/>, as many per
@@ -52,14 +41,39 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         string eventType,
         Func<IOutboxMessage, long>? resolveTenantId = null)
         where TPayload : IBackgroundJobPayload
+        where TExpander : class, IOutboxSubscriberExpander<TPayload> =>
+        services.AddExpandingJobSubscription<TPayload, TExpander>(new SubscriptionSource(eventType, resolveTenantId, WorkType: null));
+
+    /// <summary>The one-job subscription, owned by the source's work type when an outbox work registers it.</summary>
+    internal static IServiceCollection AddJobSubscription<TPayload>(
+        this IServiceCollection services,
+        SubscriptionSource source,
+        Func<IOutboxMessage, TPayload> createPayload)
+        where TPayload : IBackgroundJobPayload
+    {
+        Guard.Against.NullOrWhiteSpace(source.EventType);
+        Guard.Against.Null(createPayload);
+
+        return services.AddSubscription(SubscriptionOf<TPayload>(
+            source,
+            (_, delivery, _) => Task.FromResult<IReadOnlyList<BackgroundJobRequest>>(
+            [
+                Request(delivery, new OutboxSubscriber<TPayload>(TPayload.JobType, createPayload(delivery.Message))),
+            ])));
+    }
+
+    /// <summary>The expanding subscription, owned by the source's work type when an outbox work registers it.</summary>
+    internal static IServiceCollection AddExpandingJobSubscription<TPayload, TExpander>(
+        this IServiceCollection services,
+        SubscriptionSource source)
+        where TPayload : IBackgroundJobPayload
         where TExpander : class, IOutboxSubscriberExpander<TPayload>
     {
-        Guard.Against.NullOrWhiteSpace(eventType);
+        Guard.Against.NullOrWhiteSpace(source.EventType);
 
         services.TryAddScoped<TExpander>();
 
-        return services.AddSubscription(SubscriptionOf<TPayload>(
-            eventType, resolveTenantId, ExpandAsync<TPayload, TExpander>));
+        return services.AddSubscription(SubscriptionOf<TPayload>(source, ExpandAsync<TPayload, TExpander>));
     }
 
     // Runs in the relay tick's scope, which is where the expander is resolved from.
@@ -88,19 +102,23 @@ public static class OutboxSubscriptionServiceCollectionExtensions
             delivery.TenantId,
             dedupKey: DedupKeyFor(delivery.Message, subscriber.SubscriberKey));
 
-    private static OutboxJobSubscription SubscriptionOf<TPayload>(
-        string eventType,
-        Func<IOutboxMessage, long>? resolveTenantId,
-        OutboxRequestsBuilder requests)
+    private static OutboxJobSubscription SubscriptionOf<TPayload>(SubscriptionSource source, OutboxRequestsBuilder requests)
         where TPayload : IBackgroundJobPayload =>
         new()
         {
-            EventType = eventType,
+            EventType = source.EventType,
             JobType = TPayload.JobType,
-            SourceAssembly = typeof(TPayload).Assembly,
-            TenantResolver = resolveTenantId,
+            SourceAssembly = source.WorkType?.Assembly ?? typeof(TPayload).Assembly,
+            WorkType = source.WorkType,
+            TenantResolver = source.ResolveTenantId,
             Requests = requests,
         };
+
+    /// <summary>What a subscription listens to, whose tenant its jobs take, and the work that owns it, if any.</summary>
+    internal readonly record struct SubscriptionSource(
+        string EventType,
+        Func<IOutboxMessage, long>? ResolveTenantId,
+        Type? WorkType);
 
     private static IServiceCollection AddSubscription(this IServiceCollection services, OutboxJobSubscription subscription)
     {

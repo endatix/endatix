@@ -30,6 +30,9 @@ internal static class ImportRowReader
 
         private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
 
+        private readonly MatchKey? _matchKeyProperty =
+            MatchKeyProperty.In(map.PropertiesById.Values, matchKey.IdentifierKind);
+
         public List<ImportRow> Accepted { get; } = [];
 
         public List<ImportRejectionDto> Rejected { get; } = [];
@@ -37,25 +40,31 @@ internal static class ImportRowReader
         /// <summary>
         /// The repeat check runs last and only an accepted row claims its identifier, so a row
         /// rejected for a bad value does not turn a later, valid row for the same person into a
-        /// duplicate.
+        /// duplicate. A column mapped to the match-key Property may hold the identifier or nothing, which is not stored.
         /// </summary>
         public void Add(CsvDataRow row)
         {
             string identifier = (row.Cells.GetValueOrDefault(map.IdentifierColumn) ?? string.Empty).Trim();
             CellRead cells = CsvColumnMapper.ReadValues(map, row.Cells);
-            string? error = (row.Malformed ? MalformedRow : null)
-                ?? Member.IdentifierError(identifier, matchKey.IdentifierKind)
-                ?? cells.Error
-                ?? ValuesError(cells.Values)
-                ?? RepeatError(identifier);
-            if (error is not null)
+            if (ErrorOf(row, identifier, cells) is { } error)
             {
                 Rejected.Add(new ImportRejectionDto(row.RowNumber, error));
                 return;
             }
 
-            Accepted.Add(new ImportRow(identifier, matchKey.Normalize(identifier), cells.Values));
+            Accepted.Add(new ImportRow(
+                identifier,
+                matchKey.Normalize(identifier),
+                MatchKeyProperty.Stored(cells.Values, _matchKeyProperty)));
         }
+
+        private string? ErrorOf(CsvDataRow row, string identifier, CellRead cells) =>
+            (row.Malformed ? MalformedRow : null)
+            ?? Member.IdentifierError(identifier, matchKey.IdentifierKind)
+            ?? cells.Error
+            ?? MatchKeyProperty.WriteError(cells.Values, _matchKeyProperty, identifier)
+            ?? ValuesError(cells.Values)
+            ?? RepeatError(identifier);
 
         private string? RepeatError(string identifier) =>
             _seen.Add(matchKey.Normalize(identifier)) ? null : "Identifier appears more than once in the file.";
