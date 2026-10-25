@@ -129,13 +129,7 @@ public sealed class AudienceImportResponse
         UpdatedCount = dto.UpdatedCount,
         SkippedCount = dto.SkippedCount,
         RejectedCount = dto.RejectedCount,
-        Rejections = dto.Rejections
-            .Select(rejection => new AudienceImportRejectionResponse
-            {
-                RowNumber = rejection.RowNumber,
-                Reason = rejection.Reason,
-            })
-            .ToList(),
+        Rejections = [.. dto.Rejections.Select(AudienceImportRejectionResponse.FromDto)],
     };
 }
 
@@ -147,4 +141,10 @@ public sealed class AudienceImportRejectionResponse
     public int RowNumber { get; init; }
 
     public string Reason { get; init; } = string.Empty;
+
+    internal static AudienceImportRejectionResponse FromDto(ImportRejectionDto dto) => new()
+    {
+        RowNumber = dto.RowNumber,
+        Reason = dto.Reason,
+    };
 }

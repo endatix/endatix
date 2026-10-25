@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
+using Endatix.Modules.Audience.Domain;
 
 namespace Endatix.Modules.Audience.Persistence.Config;
 
@@ -49,6 +50,14 @@ internal sealed class AudienceSqlDialect
 
     /// <summary>Index filter that keeps soft-deleted rows out of the index.</summary>
     public string ActiveRowsFilter => $"{Quote(nameof(BaseEntity.IsDeleted))} = {FalseLiteral}";
+
+    /// <summary>
+    /// Index filter that keeps only imports that can still change, read from
+    /// <see cref="AudienceImportStatusCodes.Unfinished"/>, so the filter and the code share one list.
+    /// </summary>
+    public string UnfinishedImportsFilter =>
+        $"{Quote(nameof(AudienceImport.Status))} IN ({string.Join(", ", AudienceImportStatusCodes.Unfinished.Select(code => $"'{code}'"))})"
+        + $" AND {ActiveRowsFilter}";
 
     /// <summary>Check constraint that refuses a row without a tenant.</summary>
     public string PositiveTenantIdCheck => $"{Quote(nameof(ITenantOwned.TenantId))} > 0";

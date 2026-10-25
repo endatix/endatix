@@ -331,7 +331,7 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
     /// <summary>A CSV to import, its Property columns by header, and whether it adds Test participants.</summary>
     private sealed record ImportedCsv(string Text, Dictionary<string, string>? PropertyColumns = null, bool IsTest = false);
 
-    private sealed class AudienceApi(HttpClient client, CancellationToken cancellationToken)
+    private sealed partial class AudienceApi(HttpClient client, CancellationToken cancellationToken)
     {
         private const string FormDefinition =
             """{"pages":[{"name":"page1","elements":[{"type":"text","name":"q1"}]}]}""";

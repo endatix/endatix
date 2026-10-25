@@ -27,6 +27,10 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<PropertyValue> PropertyValues => Set<PropertyValue>();
     public DbSet<AudienceImport> AudienceImports => Set<AudienceImport>();
+    /// <summary>Staged chunks of imports.</summary>
+    public DbSet<AudienceImportChunk> ImportChunks => Set<AudienceImportChunk>();
+    /// <summary>Rows imports will not write.</summary>
+    public DbSet<AudienceImportRejection> ImportRejections => Set<AudienceImportRejection>();
     public DbSet<AudienceLink> Links => Set<AudienceLink>();
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
@@ -41,6 +45,8 @@ public abstract class AudienceDbContextBase : DbContext, IAudienceDbContext
         modelBuilder.ApplyConfiguration(new MembershipConfiguration(SqlDialect));
         modelBuilder.ApplyConfiguration(new PropertyValueConfiguration(SqlDialect));
         modelBuilder.ApplyConfiguration(new AudienceImportConfiguration(SqlDialect));
+        modelBuilder.ApplyConfiguration(new AudienceImportChunkConfiguration(SqlDialect));
+        modelBuilder.ApplyConfiguration(new AudienceImportRejectionConfiguration(SqlDialect));
         modelBuilder.ApplyConfiguration(new AudienceLinkConfiguration(SqlDialect));
         modelBuilder.ApplyEndatixQueryFilters(this);
         modelBuilder.ApplyModuleTableNames();

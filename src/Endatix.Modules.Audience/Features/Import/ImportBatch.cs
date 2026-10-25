@@ -87,6 +87,11 @@ internal sealed record ExistingAudience(
     IReadOnlyDictionary<long, Membership> MembershipsByMemberId,
     IReadOnlyDictionary<long, Dictionary<long, PropertyValue>> CellsByMembershipId)
 {
+    /// <summary>Whether the row's person is already on the form: <see cref="ImportBatch"/> then updates or skips them.</summary>
+    public bool IsOnForm(ImportRow row) =>
+        MembersByMatchKey.TryGetValue(row.NormalizedIdentifier, out Member? member)
+        && MembershipsByMemberId.ContainsKey(member.Id);
+
     public static async Task<ExistingAudience> LoadAsync(AudienceQuery query, IReadOnlyList<ImportRow> rows)
     {
         List<string> matchKeys = rows.Select(row => row.NormalizedIdentifier).ToList();

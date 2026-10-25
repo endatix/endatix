@@ -2,6 +2,8 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Persistence;
 
+using Endatix.Modules.Audience.Features.Imports;
+
 namespace Endatix.Modules.Audience.Features.Settings;
 
 /// <summary>
@@ -11,10 +13,11 @@ public sealed record GetAudienceSettingsQuery(long TenantId) : IQuery<Result<Aud
 
 /// <summary>
 /// Tenant match-key settings. <paramref name="IsLocked"/> is true while any person is on a form.
+/// <paramref name="ImportLimits"/> is how large a file this host imports.
 /// </summary>
-public sealed record AudienceSettingsDto(string IdentifierKind, bool IsLocked);
+public sealed record AudienceSettingsDto(string IdentifierKind, bool IsLocked, ImportLimitsDto ImportLimits);
 
-internal sealed class GetAudienceSettingsHandler(IAudienceDbContext db)
+internal sealed class GetAudienceSettingsHandler(IAudienceDbContext db, IImportRunner runner)
     : IQueryHandler<GetAudienceSettingsQuery, Result<AudienceSettingsDto>>
 {
     public async Task<Result<AudienceSettingsDto>> Handle(
@@ -28,6 +31,6 @@ internal sealed class GetAudienceSettingsHandler(IAudienceDbContext db)
 
         string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
         bool isLocked = await IdentifierKindReader.IsLockedAsync(db, request.TenantId, cancellationToken);
-        return Result.Success(new AudienceSettingsDto(identifierKind, isLocked));
+        return Result.Success(new AudienceSettingsDto(identifierKind, isLocked, ImportRunnerRegistration.LimitsOf(runner)));
     }
 }

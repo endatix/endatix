@@ -12,18 +12,16 @@ internal static class ImportRowReader
     public static ImportRows Read(
         IReadOnlyList<CsvDataRow> rows,
         CsvColumnMap map,
-        ImportMatchKey matchKey)
-    {
-        RowSorter sorter = new(map, matchKey);
-        foreach (CsvDataRow row in rows)
-        {
-            sorter.Add(row);
-        }
+        ImportMatchKey matchKey) =>
+        Start(map, matchKey).ReadPart(rows);
 
-        return new ImportRows(sorter.Accepted, sorter.Rejected);
-    }
+    /// <summary>
+    /// A reader for a file read in parts: an identifier accepted in one part makes its repeat in a later part a
+    /// duplicate, as it would be in one pass.
+    /// </summary>
+    public static RowSorter Start(CsvColumnMap map, ImportMatchKey matchKey) => new(map, matchKey);
 
-    private sealed class RowSorter(CsvColumnMap map, ImportMatchKey matchKey)
+    internal sealed class RowSorter(CsvColumnMap map, ImportMatchKey matchKey)
     {
         private const string MalformedRow =
             "The row has a quote in the wrong place, so its cells cannot be read reliably.";
@@ -33,26 +31,36 @@ internal static class ImportRowReader
         private readonly MatchKey? _matchKeyProperty =
             MatchKeyProperty.In(map.PropertiesById.Values, matchKey.IdentifierKind);
 
-        public List<ImportRow> Accepted { get; } = [];
+        /// <summary>Sorts one part of the file; identifiers accepted by earlier parts stay claimed.</summary>
+        public ImportRows ReadPart(IEnumerable<CsvDataRow> rows)
+        {
+            List<ImportRow> accepted = [];
+            List<ImportRejectionDto> rejected = [];
+            foreach (CsvDataRow row in rows)
+            {
+                Add(row, accepted, rejected);
+            }
 
-        public List<ImportRejectionDto> Rejected { get; } = [];
+            return new ImportRows(accepted, rejected);
+        }
 
         /// <summary>
         /// The repeat check runs last and only an accepted row claims its identifier, so a row
         /// rejected for a bad value does not turn a later, valid row for the same person into a
         /// duplicate. A column mapped to the match-key Property may hold the identifier or nothing, which is not stored.
         /// </summary>
-        public void Add(CsvDataRow row)
+        private void Add(CsvDataRow row, List<ImportRow> accepted, List<ImportRejectionDto> rejected)
         {
             string identifier = (row.Cells.GetValueOrDefault(map.IdentifierColumn) ?? string.Empty).Trim();
             CellRead cells = CsvColumnMapper.ReadValues(map, row.Cells);
             if (ErrorOf(row, identifier, cells) is { } error)
             {
-                Rejected.Add(new ImportRejectionDto(row.RowNumber, error));
+                rejected.Add(new ImportRejectionDto(row.RowNumber, error));
                 return;
             }
 
-            Accepted.Add(new ImportRow(
+            accepted.Add(new ImportRow(
+                row.RowNumber,
                 identifier,
                 matchKey.Normalize(identifier),
                 MatchKeyProperty.Stored(cells.Values, _matchKeyProperty)));
@@ -85,10 +93,11 @@ internal sealed record ImportMatchKey(string IdentifierKind, IValueNormalizer No
 }
 
 /// <summary>
-/// One accepted data row: the identifier as entered, its match key, and property values keyed by
-/// property id.
+/// One accepted data row: its spreadsheet row, the identifier as entered, its match key, and property values keyed
+/// by property id.
 /// </summary>
 internal sealed record ImportRow(
+    int RowNumber,
     string Identifier,
     string NormalizedIdentifier,
     IReadOnlyDictionary<long, string> Values);
