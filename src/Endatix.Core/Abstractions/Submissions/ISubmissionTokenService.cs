@@ -27,6 +27,12 @@ public interface ISubmissionTokenService
     Task<Token> NewTokenAsync(Form form, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The response-token lifetime on a form, in hours: the form's own, else its tenant's.
+    /// <see langword="null"/> when tokens there never expire.
+    /// </summary>
+    Task<int?> GetExpiryHoursAsync(long formId, long tenantId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Resolves a secure token back to its original submission identifier.
     /// </summary>
     /// <param name="token">The token to resolve</param>

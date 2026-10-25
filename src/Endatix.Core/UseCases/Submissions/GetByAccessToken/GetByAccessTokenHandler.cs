@@ -35,7 +35,7 @@ public class GetByAccessTokenHandler(
         var submissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, tokenClaims.SubmissionId);
         var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
 
-        if (submission == null)
+        if (submission == null || !await tokenService.IsCurrentAsync(tokenClaims, cancellationToken))
         {
             return Result.NotFound("Submission not found");
         }

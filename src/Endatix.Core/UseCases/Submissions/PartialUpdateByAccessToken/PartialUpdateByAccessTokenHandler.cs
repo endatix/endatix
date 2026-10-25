@@ -38,7 +38,7 @@ public class PartialUpdateByAccessTokenHandler(
         var submissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, tokenClaims.SubmissionId);
         var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
 
-        if (submission == null)
+        if (submission == null || !await accessTokenService.IsCurrentAsync(tokenClaims, cancellationToken))
         {
             return Result.NotFound("Submission not found");
         }

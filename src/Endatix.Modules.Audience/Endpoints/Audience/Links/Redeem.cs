@@ -61,19 +61,23 @@ public sealed class RedeemLinkRequest
 }
 
 /// <summary>
-/// What an anonymous open needs: the submission and a token to work on it. The frozen snapshot
-/// stays internal; clients read the typed <c>personalization</c> on the submission instead.
+/// What an anonymous open needs: the submission and a signed access token to fill it in, on a public or private
+/// form, until <see cref="ExpiresAt"/>. The frozen snapshot stays internal; clients read the typed
+/// <c>personalization</c> on the submission instead.
 /// </summary>
 public sealed class RedeemedLinkResponse
 {
     public long SubmissionId { get; init; }
     public bool Created { get; init; }
     public string AccessToken { get; init; } = string.Empty;
+    /// <summary>When <see cref="AccessToken"/> stops working, in UTC.</summary>
+    public DateTime ExpiresAt { get; init; }
 
     public static RedeemedLinkResponse From(RedeemedLinkDto dto) => new()
     {
         SubmissionId = dto.SubmissionId,
         Created = dto.Created,
         AccessToken = dto.AccessToken,
+        ExpiresAt = dto.ExpiresAt,
     };
 }

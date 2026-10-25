@@ -22,6 +22,7 @@ public class PartialUpdateByAccessTokenHandlerTests
         _sender = Substitute.For<ISender>();
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionAccessTokenService>();
+        _tokenService.IsCurrentAsync(Arg.Any<SubmissionAccessTokenClaims>(), Arg.Any<CancellationToken>()).Returns(true);
         _handler = new PartialUpdateByAccessTokenHandler(_sender, _submissionRepository, _tokenService);
     }
 
@@ -353,5 +354,25 @@ public class PartialUpdateByAccessTokenHandlerTests
         result.Status.Should().Be(ResultStatus.Error);
 
         await _sender.Received(1).Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_TokenTheGateNoLongerHolds_ReturnsNotFoundAndDoesNotUpdate()
+    {
+        // Arrange
+        var token = "valid.token.s.stamp.signature";
+        var tokenClaims = new SubmissionAccessTokenClaims(456L, ["submit"], DateTime.UtcNow.AddHours(1), "stamp");
+        _tokenService.ValidateAccessToken(token).Returns(Result.Success(tokenClaims));
+        _tokenService.IsCurrentAsync(tokenClaims, Arg.Any<CancellationToken>()).Returns(false);
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(CreateSubmissionWithForm(123L, 1L));
+        var command = new PartialUpdateByAccessTokenCommand(token, 123L, true, 1, "{}", null);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        await _sender.DidNotReceive().Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>());
     }
 }

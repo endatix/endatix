@@ -106,7 +106,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Opening_one_link_many_times_at_once_creates_one_submission_with_one_access_token()
+    public async Task Opening_one_link_many_times_at_once_creates_one_submission()
     {
         // Arrange
         var world = await WorldAsync();
@@ -123,7 +123,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var submissionId = IdOf(opened[0], "submissionId");
         Assert.All(opened, item => Assert.Equal(submissionId, IdOf(item, "submissionId")));
         Assert.Equal(1, opened.Count(item => item.GetProperty("created").GetBoolean()));
-        Assert.All(opened, item => Assert.Equal(AccessTokenOf(reopened), AccessTokenOf(item)));
+        Assert.All(opened.Append(reopened), item => AssertFillsIn(world.Services, submissionId, AccessTokenOf(item)));
         await AssertOnlySubmissionAsync(world.Services, formId, submissionId);
     }
 
@@ -218,6 +218,18 @@ public sealed partial class AudienceDirectoryFlowTests
 
     private const int ParallelOpens = 8;
     private static string AccessTokenOf(JsonElement opened) => opened.GetProperty("accessToken").GetString()!;
+
+    /// <summary>A signed access token to fill in that submission, bound to its link.</summary>
+    private static void AssertFillsIn(IServiceProvider services, long submissionId, string accessToken)
+    {
+        using var scope = services.CreateScope();
+        var claims = scope.ServiceProvider.GetRequiredService<ISubmissionAccessTokenService>()
+            .ValidateAccessToken(accessToken);
+        Assert.True(claims.IsSuccess);
+        Assert.Equal(submissionId, claims.Value.SubmissionId);
+        Assert.Equal([SubmissionAccessTokenPermissions.Submit.Name], claims.Value.Permissions);
+        Assert.NotNull(claims.Value.Stamp);
+    }
 
     /// <summary>The form has exactly this submission, live, soft-deleted rows included, and the link names it.</summary>
     private static async Task AssertOnlySubmissionAsync(IServiceProvider services, long formId, long submissionId)

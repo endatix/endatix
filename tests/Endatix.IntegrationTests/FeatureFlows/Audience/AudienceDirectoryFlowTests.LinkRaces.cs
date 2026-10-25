@@ -68,7 +68,8 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.True(first.Value.Created);
         Assert.False(second.GetProperty("created").GetBoolean());
         Assert.Equal(first.Value.SubmissionId, IdOf(second, "submissionId"));
-        Assert.Equal(first.Value.AccessToken, AccessTokenOf(second));
+        AssertFillsIn(world.Services, first.Value.SubmissionId, first.Value.AccessToken);
+        AssertFillsIn(world.Services, first.Value.SubmissionId, AccessTokenOf(second));
         await AssertOnlySubmissionAsync(world.Services, formId, first.Value.SubmissionId);
     }
 
@@ -175,7 +176,7 @@ public sealed partial class AudienceDirectoryFlowTests
     /// without one. Parallel opens of it issue that token once.
     /// </summary>
     [Fact]
-    public async Task Opening_a_link_claimed_without_a_token_many_times_at_once_issues_one_access_token()
+    public async Task Opening_a_link_claimed_without_a_token_many_times_at_once_resumes_its_submission()
     {
         // Arrange
         var world = await WorldAsync();
@@ -192,7 +193,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.All(opened, item => Assert.Equal(submissionId, IdOf(item, "submissionId")));
-        Assert.All(opened, item => Assert.Equal(AccessTokenOf(reopened), AccessTokenOf(item)));
+        Assert.All(opened.Append(reopened), item => AssertFillsIn(world.Services, submissionId, AccessTokenOf(item)));
     }
 
     [Fact]
@@ -294,7 +295,8 @@ public sealed partial class AudienceDirectoryFlowTests
             forms,
             new EfRepository<Submitter>(app, evaluator),
             services.GetRequiredService<ISubmitterResolver>());
-        return new RedeemLinkHandler(audience, submissions, app, tokens, linkLock, gates);
+        var linkTokens = new LinkTokens(services.GetRequiredService<ISubmissionAccessTokenService>(), tokens);
+        return new RedeemLinkHandler(audience, submissions, app, linkTokens, linkLock, gates);
     }
 
     /// <summary>Starts a link open paused at <paramref name="gate"/>.</summary>

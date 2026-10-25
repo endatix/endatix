@@ -12,12 +12,16 @@ public static class SubmissionAccessTokenErrors
         public const string INVALID_PERMISSION = "invalid_permission";
         public const string INVALID_TOKEN = "invalid_access_token";
         public const string TOKEN_EXPIRED = "token_expired";
+        /// <summary>A stamp that is not 1 to 64 lowercase hex characters.</summary>
+        public const string INVALID_STAMP = "invalid_stamp";
     }
 
     public class Messages
     {
         public const string INVALID_TOKEN = "Invalid access token";
         public const string TOKEN_EXPIRED = "Token expired";
+        /// <summary>Why a stamp was refused.</summary>
+        public const string INVALID_STAMP = "A stamp is 1 to 64 lowercase hex characters";
     }
 
     public class ValidationErrors
@@ -32,6 +36,13 @@ public static class SubmissionAccessTokenErrors
             "Token",
             Messages.TOKEN_EXPIRED,
             ErrorCodes.TOKEN_EXPIRED,
+            ValidationSeverity.Error);
+
+        /// <summary>A stamp a token cannot carry.</summary>
+        public static readonly ValidationError InvalidStamp = new ValidationError(
+            "Stamp",
+            Messages.INVALID_STAMP,
+            ErrorCodes.INVALID_STAMP,
             ValidationSeverity.Error);
 
         public static ValidationError InvalidPermission(string permission) => new ValidationError(

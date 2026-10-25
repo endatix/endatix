@@ -103,6 +103,17 @@ public class SubmissionTokenService : ISubmissionTokenService
         return Result<long>.Success(submission.Id);
     }
 
+    /// <inheritdoc />
+    public async Task<int?> GetExpiryHoursAsync(long formId, long tenantId, CancellationToken cancellationToken)
+    {
+        var formExpiry = await _formRepository.FirstOrDefaultAsync(
+            new FormProjections.SessionTokenExpiryDtoSpec(formId), cancellationToken);
+        return await GetTokenExpiryHoursAsync(
+            formExpiry ?? new FormProjections.FormSessionTokenExpiryDto(formId, null),
+            tenantId,
+            cancellationToken);
+    }
+
     private async Task<int?> GetTokenExpiryHoursAsync(
         FormProjections.FormSessionTokenExpiryDto formExpiry,
         long tenantId,

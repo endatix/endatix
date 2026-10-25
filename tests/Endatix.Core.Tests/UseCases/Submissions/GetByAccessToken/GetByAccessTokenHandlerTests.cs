@@ -18,6 +18,7 @@ public class GetByAccessTokenHandlerTests
     {
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionAccessTokenService>();
+        _tokenService.IsCurrentAsync(Arg.Any<SubmissionAccessTokenClaims>(), Arg.Any<CancellationToken>()).Returns(true);
         _handler = new GetByAccessTokenHandler(_submissionRepository, _tokenService);
     }
 
@@ -297,5 +298,23 @@ public class GetByAccessTokenHandlerTests
         await _submissionRepository.Received(1).SingleOrDefaultAsync(
             Arg.Is<SubmissionWithDefinitionAndFormSpec>(spec => spec != null),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_TokenTheGateNoLongerHolds_ReturnsNotFound()
+    {
+        // Arrange
+        var token = "valid.token.s.stamp.signature";
+        var tokenClaims = new SubmissionAccessTokenClaims(456L, ["submit"], DateTime.UtcNow.AddHours(1), "stamp");
+        _tokenService.ValidateAccessToken(token).Returns(Result.Success(tokenClaims));
+        _tokenService.IsCurrentAsync(tokenClaims, Arg.Any<CancellationToken>()).Returns(false);
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(CreateSubmissionWithForm(123L, 1L));
+
+        // Act
+        var result = await _handler.Handle(new GetByAccessTokenQuery(123L, token), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
     }
 }

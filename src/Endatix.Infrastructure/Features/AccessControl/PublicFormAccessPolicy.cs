@@ -39,6 +39,9 @@ public sealed class PublicFormAccessPolicy(
     private static readonly TimeSpan _formMetadataTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan _immediateTtl = TimeSpan.FromSeconds(1);
 
+    /// <summary>How long a revoked access token may still open its submission.</summary>
+    private static readonly TimeSpan _accessTokenTtl = TimeSpan.FromMinutes(1);
+
     private const string UNAUTHORIZED_MESSAGE = "You must be authenticated to access this form";
     private const string FORBIDDEN_MESSAGE = "You are not allowed to access this form";
 
@@ -169,7 +172,7 @@ public sealed class PublicFormAccessPolicy(
     }
 
     private Result<AccessPolicyRoute> ResolveSubmissionTokenRoute(long formId, string token, bool isPublic, AuthorizationData? authData = null) => Result.Success(new AccessPolicyRoute(
-                $"ac:sub_token:form:{formId}:token:{token}:userId:{authData?.UserId ?? AuthorizationData.ANONYMOUS_USER_ID}",
+                $"ac:sub_token:form:{formId}:token_fp:{Fingerprint(token)}:userId:{authData?.UserId ?? AuthorizationData.ANONYMOUS_USER_ID}",
                 ComputeAuthTtl(authData, dateTimeProvider.Now.UtcDateTime),
                 RouteType.SubmissionToken,
                 IsPublic: isPublic,
@@ -186,9 +189,14 @@ public sealed class PublicFormAccessPolicy(
 
         var claims = accessResult.Value;
         var tokenSafeExpirationTtl = (claims.ExpiresAt - dateTimeProvider.Now.UtcDateTime).TotalSeconds;
-        var dynamicTtl = TimeSpan.FromSeconds(Math.Max(_immediateTtl.TotalSeconds, tokenSafeExpirationTtl));
+        var dynamicTtl = TimeSpan.FromSeconds(
+            Math.Clamp(tokenSafeExpirationTtl, _immediateTtl.TotalSeconds, _accessTokenTtl.TotalSeconds));
 
-        return Result.Success(new AccessPolicyRoute($"ac:form:{formId}:token:{token}", dynamicTtl, RouteType.AccessToken, Claims: claims));
+        return Result.Success(new AccessPolicyRoute(
+            $"ac:form:{formId}:access_token_fp:{Fingerprint(token)}",
+            dynamicTtl,
+            RouteType.AccessToken,
+            Claims: claims));
     }
 
     private async Task<Result<AccessPolicyRoute>> ResolveFormAccessTokenRouteAsync(
@@ -224,15 +232,16 @@ public sealed class PublicFormAccessPolicy(
         var tokenSafeExpirationTtl = (claims.ExpiresAtUtc - dateTimeProvider.Now.UtcDateTime).TotalSeconds;
         var dynamicTtl = TimeSpan.FromSeconds(Math.Max(_immediateTtl.TotalSeconds, tokenSafeExpirationTtl));
 
-        var signingKey = endatixJwtOptions.Value.SigningKey;
-        var tokenFingerprint = CacheKeyFingerprint.ComputeHmacSha256Hex(context.Token!, signingKey);
-
         return Result.Success(new AccessPolicyRoute(
-            $"ac:form_token:{context.FormId}:token_fp:{tokenFingerprint}",
+            $"ac:form_token:{context.FormId}:token_fp:{Fingerprint(context.Token!)}",
             dynamicTtl,
             RouteType.FormAccessToken,
             FormTokenClaims: claims));
     }
+
+    /// <summary>No access-cache key holds a raw token: the cache can be distributed.</summary>
+    private string Fingerprint(string token) =>
+        CacheKeyFingerprint.ComputeHmacSha256Hex(token, endatixJwtOptions.Value.SigningKey);
 
     private async Task<Result<PublicFormAccessData>> ExecuteAccessRouteAsync(PublicFormAccessContext context, AccessPolicyRoute route, CancellationToken ct) => route.Type switch
     {
@@ -327,10 +336,12 @@ public sealed class PublicFormAccessPolicy(
         SubmissionAccessTokenClaims claims,
         CancellationToken cancellationToken)
     {
-        var relationResult = await ValidateSubmissionRelationAsync(formId, claims.SubmissionId, cancellationToken);
-        if (!relationResult.IsSuccess)
+        var isOpen = await submissionRepository.AnyAsync(
+            new SubmissionOnOpenFormSpec(formId, claims.SubmissionId),
+            cancellationToken);
+        if (!isOpen || !await accessTokenService.IsCurrentAsync(claims, cancellationToken))
         {
-            return relationResult.ToErrorResult<PublicFormAccessData>();
+            return Result.NotFound("Submission not found");
         }
 
         return Result.Success(PublicFormAccessData.CreateWithAccessTokenClaims(formId, claims));

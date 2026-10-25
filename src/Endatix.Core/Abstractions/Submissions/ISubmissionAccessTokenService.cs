@@ -8,6 +8,9 @@ namespace Endatix.Core.Abstractions.Submissions;
 /// </summary>
 public interface ISubmissionAccessTokenService
 {
+    /// <summary>The longest lifetime a token is issued with: 60 days.</summary>
+    const int MaxExpiryMinutes = 60 * 24 * 60;
+
     /// <summary>
     /// Generates an access token for a submission.
     /// </summary>
@@ -18,11 +21,34 @@ public interface ISubmissionAccessTokenService
     Result<SubmissionAccessTokenDto> GenerateAccessToken(long submissionId, int expiryMinutes, IEnumerable<string> permissions);
 
     /// <summary>
+    /// Generates an access token for a submission, bound to <see cref="SubmissionAccessTokenRequest.Stamp"/> when set.
+    /// </summary>
+    Result<SubmissionAccessTokenDto> GenerateAccessToken(SubmissionAccessTokenRequest request);
+
+    /// <summary>
     /// Validates an access token and extracts its claims.
     /// </summary>
     /// <param name="token">The token to validate</param>
     /// <returns>Token claims if valid, or error result</returns>
     Result<SubmissionAccessTokenClaims> ValidateAccessToken(string token);
+
+    /// <summary>
+    /// Whether a valid token's claims still hold: what it was issued for may have gone since
+    /// (<see cref="ISubmissionAccessTokenGate"/>).
+    /// </summary>
+    Task<bool> IsCurrentAsync(SubmissionAccessTokenClaims claims, CancellationToken cancellationToken);
 }
 
-
+/// <summary>A token to issue.</summary>
+/// <param name="SubmissionId">The submission it opens.</param>
+/// <param name="ExpiryMinutes">Its lifetime, at most <see cref="ISubmissionAccessTokenService.MaxExpiryMinutes"/>.</param>
+/// <param name="Permissions">"view", "edit", "export", "submit".</param>
+/// <param name="Stamp">
+/// Optional lowercase hex the token is bound to and signed with, for <see cref="ISubmissionAccessTokenGate"/> to check
+/// on every use.
+/// </param>
+public sealed record SubmissionAccessTokenRequest(
+    long SubmissionId,
+    int ExpiryMinutes,
+    IEnumerable<string> Permissions,
+    string? Stamp = null);
