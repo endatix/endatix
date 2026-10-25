@@ -44,6 +44,11 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
         phase == ImportPhase.Check ? CheckAsync(import, cancellationToken) : WriteAsync(import, cancellationToken);
 
     /// <summary>
+    /// Whether a write lost to a parallel add or import, or was a deadlock's victim, after its one retry of the batch.
+    /// </summary>
+    public bool IsAudienceRace(DbUpdateException exception) => ImportScope.IsAudienceRace(scopes, exception);
+
+    /// <summary>
     /// <see cref="RunAsync"/> for a background job: a busy audience is transient, so it is thrown for the job to
     /// retry; every other failure is the import's own and ends the job.
     /// </summary>

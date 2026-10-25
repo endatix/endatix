@@ -37,12 +37,14 @@ public sealed class ImportCsv(
             summary.Responses[200] = "Import finished (may include rejections).";
             summary.Responses[400] = "Invalid CSV or mapping.";
             summary.Responses[404] = "Form not found.";
+            summary.Responses[409] = "The form has an import in progress (importId), or the audience changed while the import ran.";
             summary.Responses[503] = "The form's people are being imported or changed; try again shortly.";
         });
         Description(builder => builder
             .Produces<AudienceImportResponse>(200, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(404)
+            .ProducesProblem(409)
             .ProducesProblem(503));
     }
 

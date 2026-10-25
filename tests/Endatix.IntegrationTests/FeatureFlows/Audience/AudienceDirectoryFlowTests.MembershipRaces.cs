@@ -5,11 +5,13 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data.Locking;
+using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Import;
 using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -106,13 +108,9 @@ public sealed partial class AudienceDirectoryFlowTests
         var formId = await admin.CreateFormAsync();
         await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
         var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
-        var gate = CommandGate.AtCellInsert();
-        await using var scope = world.Services.CreateAsyncScope();
-        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
+        using var cellInsert = world.Services.GetRequiredService<AppCommandGate>().PauseAt(CommandGate.CellInsert());
         await using var paused = new PausedRace<Result<ImportResultDto>>(
-            gate,
-            ImportHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait))
-                .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
+            cellInsert, ImportThroughHostAsync(world, CityImport(world, formId, "ada@example.com")));
         await paused.ReachedGateAsync();
         await using var second = world.Services.CreateAsyncScope();
 
@@ -131,34 +129,26 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Importing_into_a_form_while_another_import_of_it_writes_runs_alongside()
+    public async Task Importing_into_a_form_while_another_import_of_it_writes_is_a_conflict()
     {
-        // Arrange
+        // Arrange — one import of a form at a time can still change (endatix#1406).
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var formId = await admin.CreateFormAsync();
         await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
         await AddParticipantAsync(admin, formId, "ada@example.com");
-        var gate = CommandGate.AtCellInsert();
-        await using var scope = world.Services.CreateAsyncScope();
-        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
+        using var cellInsert = world.Services.GetRequiredService<AppCommandGate>().PauseAt(CommandGate.CellInsert());
         await using var paused = new PausedRace<Result<ImportResultDto>>(
-            gate,
-            ImportHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait))
-                .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
+            cellInsert, ImportThroughHostAsync(world, CityImport(world, formId, "ada@example.com")));
         await paused.ReachedGateAsync();
-        await using var second = world.Services.CreateAsyncScope();
-        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
 
         // Act
-        var other = await paused.Alongside(ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, TimeSpan.FromMilliseconds(50)))
-            .Handle(CityImport(world, formId, "bob@example.com"), admin.CancellationToken))
+        var other = await paused.Alongside(ImportThroughHostAsync(world, CityImport(world, formId, "bob@example.com")))
             .WaitAsync(_gateTimeout, admin.CancellationToken);
         var first = await paused.ReleaseAsync();
 
         // Assert
-        Assert.True(other.IsSuccess, string.Join("; ", other.Errors));
-        Assert.Equal(1, other.Value.CreatedCount);
+        Assert.Equal(ResultStatus.Conflict, other.Status);
         Assert.True(first.IsSuccess, string.Join("; ", first.Errors));
         Assert.Equal(1, first.Value.UpdatedCount);
     }
@@ -205,12 +195,9 @@ public sealed partial class AudienceDirectoryFlowTests
             DeleteHandlerWith(scope.ServiceProvider, Waiting(world, RaceWait), gated)
                 .Handle(Removal(world, formId, ada), admin.CancellationToken));
         await paused.ReachedGateAsync();
-        await using var second = world.Services.CreateAsyncScope();
-        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
 
-        // Act
-        var import = paused.Alongside(ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, RaceWait))
-            .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
+        // Act - the host's lock waits its default, longer than the probe.
+        var import = paused.Alongside(ImportThroughHostAsync(world, CityImport(world, formId, "ada@example.com")));
         var importWaited = await Task.WhenAny(import, Task.Delay(SecondOpenProbe, admin.CancellationToken)) != import;
         var removed = await paused.ReleaseAsync();
         var imported = await import.WaitAsync(_gateTimeout, admin.CancellationToken);
@@ -246,8 +233,7 @@ public sealed partial class AudienceDirectoryFlowTests
             admin.CancellationToken);
         var removed = await DeleteHandlerWith(second.ServiceProvider, brief)
             .Handle(Removal(world, formId, ada), admin.CancellationToken);
-        var imported = await ImportHandlerWith(second.ServiceProvider, secondDb, brief)
-            .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken);
+        var imported = await ImportThroughHostAsync(world, CityImport(world, formId, "ada@example.com"));
 
         // Assert
         Assert.Equal(ResultStatus.Unavailable, edited.Status);
@@ -300,12 +286,9 @@ public sealed partial class AudienceDirectoryFlowTests
             .BeginRemovalAsync(holder, new(formId, removed.MembershipId), admin.CancellationToken);
         Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
         await using var heldTransaction = held.Value;
-        await using var second = world.Services.CreateAsyncScope();
-        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
 
-        // Act
-        var imported = await ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, TimeSpan.FromMilliseconds(50)))
-            .Handle(CityImport(world, formId, "bob@example.com"), admin.CancellationToken);
+        // Act - the host's lock waits its default, then gives up.
+        var imported = await ImportThroughHostAsync(world, CityImport(world, formId, "bob@example.com"));
 
         // Assert
         Assert.Equal(ResultStatus.Unavailable, imported.Status);
@@ -427,18 +410,18 @@ public sealed partial class AudienceDirectoryFlowTests
             new LockedValuesWriter(db, membershipLock, services.GetRequiredService<IUniqueConstraintViolationChecker>()),
             services.GetRequiredService<ParticipantReader>());
 
-    private static ImportCsvHandler ImportHandlerWith(
-        IServiceProvider services,
-        IAudienceDbContext db,
-        MembershipLock membershipLock) =>
-        new(
-            db,
-            services.GetRequiredService<IRepository<Form>>(),
-            new ImportWriteSupport(
-                services.GetRequiredService<IValueNormalizer>(),
-                services.GetRequiredService<IUniqueConstraintViolationChecker>(),
-                membershipLock),
-            services.GetRequiredService<MatchKeyLock>());
+    /// <summary>
+    /// A one-request import through the host's handler in a scope of its own. Its write runs in scopes the import
+    /// opens, so it is paused through <see cref="AppCommandGate"/> and waits the host's lock.
+    /// </summary>
+    private static async Task<Result<ImportResultDto>> ImportThroughHostAsync(
+        IntegrationTestWorld world,
+        ImportCsvCommand command)
+    {
+        await using var scope = world.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IMediator>()
+            .Send(command, TestContext.Current.CancellationToken);
+    }
 
     private static DeletePersonHandler DeleteHandlerWith(
         IServiceProvider services,

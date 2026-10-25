@@ -14,6 +14,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Features.Submissions;
+using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Persistence;
@@ -308,19 +309,29 @@ public sealed partial class AudienceDirectoryFlowTests
     /// A handler held at its gate, and the requests made alongside it. Disposing releases it and waits for it and for
     /// the requests made alongside it, so a failed assert never leaves one running into the next test.
     /// </summary>
-    private sealed class PausedRace<T>(CommandGate gate, Task<T> paused) : IAsyncDisposable
+    private sealed class PausedRace<T>(Task reached, Action release, Task<T> paused) : IAsyncDisposable
     {
         private readonly List<Task> _companions = [];
 
+        public PausedRace(CommandGate gate, Task<T> paused)
+            : this(gate.Reached, gate.Release, paused)
+        {
+        }
+
+        public PausedRace(CommandPause pause, Task<T> paused)
+            : this(pause.Reached, pause.Release, paused)
+        {
+        }
+
         public async Task ReachedGateAsync()
         {
-            await Task.WhenAny(gate.Reached, paused).WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
-            Assert.True(gate.Reached.IsCompleted, "The paused handler never reached its gate.");
+            await Task.WhenAny(reached, paused).WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
+            Assert.True(reached.IsCompleted, "The paused handler never reached its gate.");
         }
 
         public Task<T> ReleaseAsync()
         {
-            gate.Release();
+            release();
             return paused.WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
         }
 
@@ -333,7 +344,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         public async ValueTask DisposeAsync()
         {
-            gate.Release();
+            release();
             await ((Task)paused).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
             foreach (var companion in _companions)
             {
@@ -416,7 +427,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         /// <summary>The audience schema qualifies these: <c>audience."PropertyValues"</c>, <c>[audience].[PropertyValues]</c>.</summary>
         [GeneratedRegex("""INSERT INTO \S*["\[]PropertyValues["\]]""")]
-        private static partial Regex CellInsert();
+        public static partial Regex CellInsert();
 
         [GeneratedRegex("""UPDATE \S*["\[]Memberships["\]]""")]
         private static partial Regex MembershipUpdate();

@@ -250,6 +250,9 @@ public sealed partial class AudienceDirectoryFlowTests
                 },
                 cancellationToken);
 
+        public Task<JsonElement> GetImportAsync(BulkImport import) =>
+            client.GetFromJsonAsync<JsonElement>(ImportUrl(import), cancellationToken);
+
         public Task<HttpResponseMessage> MoveImportAsync(BulkImport import, string status) =>
             client.PatchAsJsonAsync(ImportUrl(import), new { status }, cancellationToken);
 

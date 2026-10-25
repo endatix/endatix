@@ -99,6 +99,8 @@ internal static class ImportRunnerRegistration
     public static IServiceCollection AddImportRunner(this IServiceCollection services)
     {
         services.AddSingleton<ImportRun>();
+        services.AddScoped<ImportSweep>();
+        services.AddHostedService<ImportSweepService>();
         services.AddScoped<IImportRunner>(provider =>
             provider.GetService<IBackgroundJobQueue>() is { } queue
                 ? new QueuedImportRunner(queue, provider.GetRequiredService<IAudienceDbContext>())

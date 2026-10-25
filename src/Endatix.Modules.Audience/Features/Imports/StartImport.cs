@@ -29,7 +29,8 @@ internal sealed class StartImportHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
     IImportRunner runner,
-    IUniqueConstraintViolationChecker violations)
+    IUniqueConstraintViolationChecker violations,
+    ImportSweep sweep)
     : ICommandHandler<StartImportCommand, Result<ImportViewDto>>
 {
     internal const string ImportExistsCode = "import_exists";
@@ -80,6 +81,8 @@ internal sealed class StartImportHandler(
             return Result<ImportViewDto>.Invalid(new ValidationError(error));
         }
 
+        // An abandoned import must not hold the form.
+        await sweep.ForTenantAsync(request.TenantId, cancellationToken);
         return await CurrentAsync(request, cancellationToken) is { } current ? Conflict(current) : null;
     }
 
