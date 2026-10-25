@@ -39,13 +39,18 @@ dotnet ef migrations add <MigrationName> \
   --output-dir Persistence/Migrations/SqlServer
 ```
 
-A model change needs a migration in both chains.
+A model change needs a migration in both chains, and follows
+[Schema changes during a rolling deploy](../../ARCHITECTURE.md#schema-changes-during-a-rolling-deploy): the previous
+release keeps writing while the new one migrates, so a column ships nullable or with a default that is right for its
+writes, and a foreign key, unique index or check on that column ships in the next release.
+`AudienceMigrationsRollingDeployTests` fails on a migration that does both at once.
 
 `AddPropertyValueIsTest` (endatix#1376) copies each membership's test flag onto its cells, then adds
 `FK_PropertyValues_Membership` (`TenantId`, `MembershipId`, `IsTest` → `AK_Memberships_TestFlag` on Memberships), which
 validates every existing cell. From then on the database refuses a cell whose tenant or test flag differs from its
-membership's. An older API version still running during a deploy writes `IsTest = false` on a Test participant's new
-cell, so that write fails with the foreign key (a 500) instead of counting as real (deploy fix: endatix#1389). The column add is metadata-only on
+membership's. An older API version would write `IsTest = false` on a Test participant's new cell and fail with the
+foreign key (a 500), so the migration adds the column and the key together only because the module's first production
+release ships both: no earlier release writes `PropertyValues` (endatix#1389). The column add is metadata-only on
 PostgreSQL 11+ and SQL Server Enterprise/Azure SQL, and a table rewrite on SQL Server Standard; the index rebuilds
 block writes to `PropertyValues` while they run. This is the module's only foreign key; nothing hard-deletes a
 membership. A future purge must delete its cells first and add an unfiltered index on (`TenantId`, `MembershipId`,
