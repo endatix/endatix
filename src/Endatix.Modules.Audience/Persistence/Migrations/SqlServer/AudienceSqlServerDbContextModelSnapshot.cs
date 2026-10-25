@@ -127,6 +127,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                         .HasColumnType("int");
 
                     b.Property<int>("WriteRun")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<int>("WrittenRowCount")

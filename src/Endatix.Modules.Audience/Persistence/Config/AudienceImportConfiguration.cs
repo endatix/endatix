@@ -26,6 +26,9 @@ internal sealed class AudienceImportConfiguration(AudienceSqlDialect dialect)
             .HasMaxLength(32)
             .IsRequired()
             .IsConcurrencyToken();
+        // A resumed write is a new run: a batch of an earlier run that wakes after the resume cannot save over it, even
+        // though the status is writing again. Model only: no column or constraint changes.
+        builder.Property(import => import.WriteRun).IsConcurrencyToken();
         builder.Property(import => import.RejectedRowsBlobKey)
             .HasMaxLength(DataSchemaConstants.MAX_NAME_LENGTH);
         HasStagedImportColumns(builder);

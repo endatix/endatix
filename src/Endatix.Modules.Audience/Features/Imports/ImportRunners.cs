@@ -68,7 +68,7 @@ internal sealed class QueuedImportRunner(IBackgroundJobQueue queue, IAudienceDbC
                 row.PerformedById,
                 dedupKey: $"{import.ImportId}:check")
             : BackgroundJobRequest.Create(
-                new WriteImportPayload(import.FormId, import.ImportId),
+                new WriteImportPayload(import.FormId, import.ImportId, row.WriteRun),
                 import.TenantId,
                 row.PerformedById,
                 dedupKey: $"{import.ImportId}:write:{row.WriteRun}");

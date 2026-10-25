@@ -277,6 +277,29 @@ public sealed partial class AudienceDirectoryFlowTests
             return view;
         }
 
+        /// <summary>
+        /// Polls a background job until it can run no more, so a test leaves no attempt running into the next one.
+        /// </summary>
+        public async Task WaitForJobToEndAsync(long jobId)
+        {
+            DateTime deadline = DateTime.UtcNow + ImportWait;
+            string? status;
+            do
+            {
+                JsonElement job = await client.GetFromJsonAsync<JsonElement>($"/api/jobs/{jobId}", cancellationToken);
+                status = job.GetProperty("status").GetString();
+                if (status is "Completed" or "DeadLettered" or "Canceled")
+                {
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+            }
+            while (DateTime.UtcNow < deadline);
+
+            Assert.Fail($"Job {jobId} was still {status}.");
+        }
+
         public async Task<List<string>> IdentifiersAsync(long formId)
         {
             JsonElement page = await client.GetFromJsonAsync<JsonElement>(

@@ -57,6 +57,7 @@ internal sealed class ImportCsvHandler(
 {
     private const int MaxReportedRejections = 50;
     private const string Changed = "The audience changed while the import ran. Run the import again.";
+    private const string Interrupted = "The import stopped before it finished. Run it again.";
 
     public async Task<Result<ImportResultDto>> Handle(
         ImportCsvCommand request,
@@ -85,9 +86,23 @@ internal sealed class ImportCsvHandler(
         }
 
         ImportRef import = new(request.TenantId, request.FormId, started.Value.ImportId);
-        await StageAsync(import, file, cancellationToken);
-        Result ran = await RunAsync(import, cancellationToken);
-        return ran.IsSuccess ? await ResultOfAsync(import, cancellationToken) : ran.ToErrorResult<ImportResultDto>();
+        try
+        {
+            await StageAsync(import, file, cancellationToken);
+            Result ran = await RunAsync(import, cancellationToken);
+            if (ran.IsSuccess)
+            {
+                return await ResultOfAsync(import, cancellationToken);
+            }
+
+            await AbandonAsync(import);
+            return ran.ToErrorResult<ImportResultDto>();
+        }
+        catch
+        {
+            await AbandonAsync(import);
+            throw;
+        }
     }
 
     /// <summary>Checks the form and the request, then parses the file. Writes nothing.</summary>
@@ -184,47 +199,41 @@ internal sealed class ImportCsvHandler(
         }
     }
 
-    /// <summary>
-    /// Writes the import. A write that cannot finish in this request stops resumable, so the form is free for the
-    /// next import at once rather than after the sweep.
-    /// </summary>
     private async Task<Result> WriteAsync(ImportRef import, CancellationToken cancellationToken)
     {
-        Result written;
         try
         {
-            written = await run.RunAsync(import, ImportPhase.Write, cancellationToken);
+            Result written = await run.RunAsync(import, ImportPhase.Write, cancellationToken);
+            return written.Status == ResultStatus.Unavailable ? Result.Unavailable(MembershipLock.FormBusy) : written;
         }
         catch (DbUpdateException race) when (run.IsAudienceRace(race))
         {
-            await StopAsync(import);
             return Result.Conflict(Changed);
         }
-        catch
-        {
-            await StopAsync(import);
-            throw;
-        }
-
-        return written.Status == ResultStatus.Unavailable ? await BusyAsync(import) : written;
     }
 
-    private async Task<Result> BusyAsync(ImportRef import)
-    {
-        await StopAsync(import);
-        return Result.Unavailable(MembershipLock.FormBusy);
-    }
-
-    private async Task StopAsync(ImportRef target)
+    /// <summary>
+    /// Ends an import this request could not finish, so its form is free at once: canceled before the write, failed
+    /// during it. Not resumable: the caller sends the whole file again, which matches the rows already written.
+    /// </summary>
+    private async Task AbandonAsync(ImportRef target)
     {
         ((DbContext)db).ChangeTracker.Clear();
         AudienceImport? import = await ImportQueries.FindAsync(db, target, CancellationToken.None);
-        if (import is not { Status: AudienceImportStatusCodes.Writing })
+        if (import is not { IsUnfinished: true })
         {
             return;
         }
 
-        import.Fail(ImportSweep.WriteStalled, resumable: true);
+        if (import.Status == AudienceImportStatusCodes.Writing)
+        {
+            import.Fail(Interrupted);
+        }
+        else
+        {
+            import.Cancel();
+        }
+
         try
         {
             await db.SaveChangesAsync(CancellationToken.None);

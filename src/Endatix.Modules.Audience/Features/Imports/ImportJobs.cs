@@ -13,8 +13,11 @@ internal sealed record CheckImportPayload(long FormId, long ImportId) : IBackgro
     public static string JobType => "AudienceImportCheck";
 }
 
-/// <summary>Runs, or continues, the write of a confirmed import.</summary>
-internal sealed record WriteImportPayload(long FormId, long ImportId) : IBackgroundJobPayload
+/// <summary>
+/// Runs, or continues, the write of a confirmed import for one write run; the run is null on jobs enqueued before
+/// runs were named.
+/// </summary>
+internal sealed record WriteImportPayload(long FormId, long ImportId, int? WriteRun = null) : IBackgroundJobPayload
 {
     // Persisted on the job row and in the scheduler's keys: never change it.
     public static string JobType => "AudienceImportWrite";
@@ -37,7 +40,8 @@ internal sealed class WriteImportJobHandler(ImportRun run, ILogger<WriteImportJo
         BackgroundJobContext job,
         WriteImportPayload payload,
         CancellationToken cancellationToken) =>
-        run.RunAsJobAsync(new ImportRef(job.TenantId, payload.FormId, payload.ImportId), ImportPhase.Write, cancellationToken);
+        run.RunAsJobAsync(
+            new ImportRef(job.TenantId, payload.FormId, payload.ImportId, payload.WriteRun), ImportPhase.Write, cancellationToken);
 }
 
 internal static class ImportJobs

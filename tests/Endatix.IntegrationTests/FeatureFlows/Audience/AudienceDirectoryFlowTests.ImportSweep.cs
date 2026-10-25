@@ -13,8 +13,9 @@ using Microsoft.Extensions.Hosting;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The import sweep, which a tenant's next import start runs: abandoned and stalled imports end, and staged rows go.
-/// Imports are aged by moving their timestamps back. Shares the helpers of the bulk import tests.
+/// The import sweep: a tenant's next import start ends its abandoned and stalled imports, and the daily run also
+/// deletes what finished imports staged. Imports are aged by moving their timestamps back. Shares the helpers of the
+/// bulk import tests.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
@@ -38,6 +39,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         BulkImport next = await api.StartImportAsync(formId, ["email"], rows.Count);
+        await SweepAllTenantsAsync(world.Services);
 
         // Assert
         Assert.NotEqual(abandoned.ImportId, next.ImportId);
@@ -65,16 +67,15 @@ public sealed partial class AudienceDirectoryFlowTests
         await AgeImportAsync(world.Services, second, TimeSpan.FromHours(25));
 
         // Act — the sweep the daily service runs, on two nodes at once, then once more.
-        await Task.WhenAll(SweepAllTenantsAsync(world.Services), SweepAllTenantsAsync(world.Services));
-        JsonElement firstAfter = await owner.GetImportAsync(first);
-        JsonElement secondAfter = await other.GetImportAsync(second);
-        await SweepAllTenantsAsync(world.Services);
+        int[] together = await Task.WhenAll(SweepAllTenantsAsync(world.Services), SweepAllTenantsAsync(world.Services));
+        int again = await SweepAllTenantsAsync(world.Services);
 
         // Assert
         Assert.Single(world.Services.GetServices<IHostedService>().OfType<ImportSweepService>());
-        Assert.Equal("expired", firstAfter.GetProperty("status").GetString());
-        Assert.Equal("expired", secondAfter.GetProperty("status").GetString());
-        Assert.Equal(FinishedAt(secondAfter), FinishedAt(await other.GetImportAsync(second)));
+        Assert.Equal(2, together.Sum());
+        Assert.Equal(0, again);
+        Assert.Equal("expired", (await owner.GetImportAsync(first)).GetProperty("status").GetString());
+        Assert.Equal("expired", (await other.GetImportAsync(second)).GetProperty("status").GetString());
     }
 
     [Fact]
@@ -94,6 +95,7 @@ public sealed partial class AudienceDirectoryFlowTests
         await api.StartImportAsync(await api.CreateFormAsync(), ["email"], 1);
         held.Release();
         JsonElement view = await api.WaitForImportAsync(import, "failed");
+        await SweepAllTenantsAsync(world.Services);
 
         // Assert
         Assert.Equal("failed", view.GetProperty("status").GetString());
@@ -105,7 +107,7 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task A_write_stalled_for_six_hours_fails_resumable_and_resuming_it_writes_each_participant_once()
     {
-        // Arrange — two write batches commit, then the third is held before it reads its rows, the way a write whose
+        // Arrange — two write batches commit, then the third is held after it loaded the import, the way a write whose
         // job dead-lettered or hung leaves the import, and the import is aged.
         IntegrationTestWorld world = await WorldAsync();
         AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
@@ -118,12 +120,17 @@ public sealed partial class AudienceDirectoryFlowTests
         await stalled.Reached.WaitAsync(ImportWait, api.CancellationToken);
         await AgeImportAsync(world.Services, import, TimeSpan.FromHours(7));
 
-        // Act
+        // Act — the resumed run writes the last rows and is held before it completes; then the stalled batch wakes
+        // and writes those rows again for the run it belonged to.
         await api.StartImportAsync(await api.CreateFormAsync(), ["email"], 1);
         JsonElement failed = await api.GetImportAsync(import);
+        using CommandPause beforeCompleting = world.Services.GetRequiredService<AppCommandGate>().PauseAt(WriteRowsRead(), skip: 1);
         using HttpResponseMessage resumed = await api.MoveImportAsync(import, "writing");
-        JsonElement finished = await api.WaitForImportAsync(import, "completed");
+        await beforeCompleting.Reached.WaitAsync(ImportWait, api.CancellationToken);
         stalled.Release();
+        await api.WaitForJobToEndAsync(IdOf(failed, "jobId"));
+        beforeCompleting.Release();
+        JsonElement finished = await api.WaitForImportAsync(import, "completed");
 
         // Assert
         Assert.Equal("failed", failed.GetProperty("status").GetString());
@@ -131,7 +138,10 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(1_000, failed.GetProperty("written").GetProperty("writtenRowCount").GetInt32());
         Assert.Equal(HttpStatusCode.OK, resumed.StatusCode);
         Assert.Equal("completed", finished.GetProperty("status").GetString());
+        Assert.Equal(1_500, finished.GetProperty("written").GetProperty("writtenRowCount").GetInt32());
         Assert.Equal(1_500, finished.GetProperty("written").GetProperty("createdCount").GetInt32());
+        Assert.Equal(0, finished.GetProperty("written").GetProperty("skippedCount").GetInt32());
+        Assert.Equal(0, finished.GetProperty("written").GetProperty("updatedCount").GetInt32());
         List<string> identifiers = await api.IdentifiersAsync(formId);
         Assert.Equal(1_500, identifiers.Count);
         Assert.Equal(1_500, identifiers.Distinct(StringComparer.Ordinal).Count());
@@ -150,13 +160,68 @@ public sealed partial class AudienceDirectoryFlowTests
         await AgeImportAsync(world.Services, old, TimeSpan.FromDays(8));
 
         // Act
-        await api.StartImportAsync(await api.CreateFormAsync(), ["email"], 1);
+        await SweepAllTenantsAsync(world.Services);
 
         // Assert
         FormAudienceLeft oldLeft = await FormAudienceLeftAsync(world.Services, old);
         FormAudienceLeft recentLeft = await FormAudienceLeftAsync(world.Services, recent);
         Assert.Equal((0, 0), (oldLeft.Chunks, oldLeft.Rejections));
         Assert.Equal((0, 1), (recentLeft.Chunks, recentLeft.Rejections));
+    }
+
+    [Fact]
+    public async Task A_stopped_write_nobody_resumes_for_a_week_expires_and_its_staged_rows_go()
+    {
+        // Arrange — the write is held before its first batch reads its rows, failed as stalled, then left a week.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        List<string[]> rows = [.. Enumerable.Range(1, 1_200).Select(n => new[] { $"p{n}@example.com" })];
+        BulkImport import = await api.StageImportAsync(await api.CreateFormAsync(), ["email"], rows);
+        await api.WaitForImportAsync(import, "checked");
+        using CommandPause stalled = world.Services.GetRequiredService<AppCommandGate>().PauseAt(WriteRowsRead());
+        using HttpResponseMessage confirmed = await api.MoveImportAsync(import, "writing");
+        await stalled.Reached.WaitAsync(ImportWait, api.CancellationToken);
+        await AgeImportAsync(world.Services, import, TimeSpan.FromHours(7));
+        await SweepAllTenantsAsync(world.Services);
+        JsonElement failed = await api.GetImportAsync(import);
+        stalled.Release();
+        await api.WaitForJobToEndAsync(IdOf(failed, "jobId"));
+        await AgeImportAsync(world.Services, import, TimeSpan.FromDays(8));
+
+        // Act
+        await SweepAllTenantsAsync(world.Services);
+
+        // Assert
+        Assert.True(failed.GetProperty("canResume").GetBoolean());
+        JsonElement expired = await api.GetImportAsync(import);
+        Assert.Equal("expired", expired.GetProperty("status").GetString());
+        Assert.False(expired.GetProperty("canResume").GetBoolean());
+        Assert.Equal(0, (await FormAudienceLeftAsync(world.Services, import)).Chunks);
+    }
+
+    [Fact]
+    public async Task A_one_request_import_that_cannot_write_frees_its_form_at_once()
+    {
+        // Arrange — a removal holds the form's people lock past the import's wait.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        long formId = await api.CreateFormAsync();
+        Participant ada = await AddParticipantAsync(api, formId, "ada@example.com");
+        await using AsyncServiceScope scope = world.Services.CreateAsyncScope();
+        IAudienceDbContext holder = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        var held = await scope.ServiceProvider.GetRequiredService<MembershipLock>()
+            .BeginRemovalAsync(holder, new(formId, ada.MembershipId), api.CancellationToken);
+        Assert.True(held.IsSuccess, string.Join("; ", held.Errors));
+
+        // Act
+        using HttpResponseMessage busy = await api.ImportAsync(formId, "email\nbob@example.com\n");
+        await held.Value.DisposeAsync();
+        using HttpResponseMessage next = await api.ImportAsync(formId, "email\nbob@example.com\n");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, busy.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, next.StatusCode);
+        Assert.Equal(1, (await api.ReadAsync(next)).GetProperty("createdCount").GetInt32());
     }
 
     [Fact]
@@ -230,13 +295,13 @@ public sealed partial class AudienceDirectoryFlowTests
     [GeneratedRegex("""SELECT\s+MAX\(.*["\[]ChunkIndex["\]].*FROM\s+["\[]?audience["\]]?\.["\[]ImportChunks["\]]""", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
     private static partial Regex WriteRowsRead();
 
-    private static async Task SweepAllTenantsAsync(IServiceProvider services)
+    /// <summary>The daily service's sweep; returns how many imports it ended.</summary>
+    private static async Task<int> SweepAllTenantsAsync(IServiceProvider services)
     {
         await using AsyncServiceScope scope = services.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<ImportSweep>().AllTenantsAsync(TestContext.Current.CancellationToken);
+        return await scope.ServiceProvider.GetRequiredService<ImportSweep>()
+            .AllTenantsAsync(TestContext.Current.CancellationToken);
     }
-
-    private static string? FinishedAt(JsonElement view) => view.GetProperty("finishedAt").GetString();
 
     private static async Task<BulkImport> CheckedThenCanceledAsync(AudienceApi api, IReadOnlyList<string[]> rows)
     {

@@ -262,10 +262,20 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
         CompletedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Ends an import left uploading or checked for too long.</summary>
+    /// <summary>Ends an import left uploading or checked for too long, or a stopped write nobody resumed.</summary>
     public void Expire()
     {
-        Move(AudienceImportStatusCodes.Expired, AudienceImportStatusCodes.Uploading, AudienceImportStatusCodes.Checked);
+        if (Status == AudienceImportStatusCodes.Failed && !Resumable)
+        {
+            throw new DomainRuleException("Only a stopped write that can be resumed expires once it failed.");
+        }
+
+        Move(
+            AudienceImportStatusCodes.Expired,
+            AudienceImportStatusCodes.Uploading,
+            AudienceImportStatusCodes.Checked,
+            AudienceImportStatusCodes.Failed);
+        Resumable = false;
         CompletedAt = DateTime.UtcNow;
     }
 

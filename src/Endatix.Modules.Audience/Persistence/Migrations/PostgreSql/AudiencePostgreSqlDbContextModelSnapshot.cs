@@ -127,6 +127,7 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         .HasColumnType("integer");
 
                     b.Property<int>("WriteRun")
+                        .IsConcurrencyToken()
                         .HasColumnType("integer");
 
                     b.Property<int>("WrittenRowCount")
