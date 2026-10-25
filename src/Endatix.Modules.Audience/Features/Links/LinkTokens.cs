@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
@@ -11,7 +12,7 @@ namespace Endatix.Modules.Audience.Features.Links;
 /// <summary>
 /// The tokens of a link open. It hands out a signed access token to fill in the link's one submission, whatever the
 /// form's privacy, for the form's response-token lifetime, bound to the link's <see cref="AudienceLink.AccessStamp"/>.
-/// The submission's own token is still issued under the link's lock, but not handed out.
+/// The submission's own token is still issued under the link's lock and handed out beside it.
 /// </summary>
 internal sealed class LinkTokens(
     ISubmissionAccessTokenService accessTokens,
@@ -22,7 +23,11 @@ internal sealed class LinkTokens(
     public Task<Result<string>> ObtainSubmissionTokenAsync(long submissionId, CancellationToken cancellationToken) =>
         submissionTokens.ObtainTokenAsync(submissionId, cancellationToken);
 
-    /// <summary>A lifetime that never ends, or one past the cap, gets the cap.</summary>
+    /// <summary>
+    /// A lifetime that never ends gets <see cref="TenantSettings.DefaultSubmissionTokenExpiryHours"/>, the one a
+    /// submission token gets when its tenant has no settings: a link can be redeemed again at any time. One past
+    /// <see cref="ISubmissionAccessTokenService.MaxExpiryMinutes"/> gets that cap.
+    /// </summary>
     public async Task<Result<SubmissionAccessTokenDto>> IssueAccessTokenAsync(
         AudienceLink link,
         long submissionId,
@@ -30,7 +35,7 @@ internal sealed class LinkTokens(
     {
         var hours = await submissionTokens.GetExpiryHoursAsync(link.FormId, link.TenantId, cancellationToken);
         var minutes = (int)Math.Min(
-            (long?)hours * 60 ?? ISubmissionAccessTokenService.MaxExpiryMinutes,
+            (long)(hours ?? TenantSettings.DefaultSubmissionTokenExpiryHours) * 60,
             ISubmissionAccessTokenService.MaxExpiryMinutes);
         return accessTokens.GenerateAccessToken(
             new SubmissionAccessTokenRequest(submissionId, minutes, _fillIn, link.AccessStamp()));

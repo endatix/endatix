@@ -14,8 +14,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Features.Links;
 
-/// <summary>The opened submission and the signed access token to fill it in (<see cref="LinkTokens"/>).</summary>
-public sealed record RedeemedLinkDto(long SubmissionId, bool Created, string AccessToken, DateTime ExpiresAt);
+/// <summary>
+/// The opened submission, its own token, and the signed access token to fill it in (<see cref="LinkTokens"/>).
+/// </summary>
+public sealed record RedeemedLinkDto(
+    long SubmissionId,
+    bool Created,
+    string AccessToken,
+    string SubmissionAccessToken,
+    DateTime SubmissionAccessTokenExpiresAt);
 
 public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Result<RedeemedLinkDto>>;
 
@@ -24,7 +31,7 @@ public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Res
 /// <see cref="LinkOpenLock"/>, so parallel opens of one link take turns. A first open also holds its form's lock
 /// against the form's deletion. Everything else runs unlocked.
 /// </summary>
-internal sealed record OpenedLink(long SubmissionId, bool Created);
+internal sealed record OpenedLink(long SubmissionId, bool Created, string Token);
 
 internal sealed class RedeemLinkHandler(
     IAudienceDbContext db,
@@ -92,6 +99,7 @@ internal sealed class RedeemLinkHandler(
             ? Result.Success(new RedeemedLinkDto(
                 opened.SubmissionId,
                 opened.Created,
+                opened.Token,
                 issued.Value.Token,
                 issued.Value.ExpiresAt))
             : issued.ToErrorResult<RedeemedLinkDto>();
@@ -392,7 +400,7 @@ internal sealed class RedeemLinkHandler(
         var token = await tokens.ObtainSubmissionTokenAsync(submissionId, cancellationToken);
         if (token.IsSuccess)
         {
-            return Result.Success(new OpenedLink(submissionId, created));
+            return Result.Success(new OpenedLink(submissionId, created, token.Value));
         }
 
         return token.Status == ResultStatus.NotFound

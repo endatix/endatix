@@ -106,7 +106,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Opening_one_link_many_times_at_once_creates_one_submission()
+    public async Task Opening_one_link_many_times_at_once_creates_one_submission_with_one_access_token()
     {
         // Arrange
         var world = await WorldAsync();
@@ -123,7 +123,8 @@ public sealed partial class AudienceDirectoryFlowTests
         var submissionId = IdOf(opened[0], "submissionId");
         Assert.All(opened, item => Assert.Equal(submissionId, IdOf(item, "submissionId")));
         Assert.Equal(1, opened.Count(item => item.GetProperty("created").GetBoolean()));
-        Assert.All(opened.Append(reopened), item => AssertFillsIn(world.Services, submissionId, AccessTokenOf(item)));
+        Assert.All(opened, item => Assert.Equal(AccessTokenOf(reopened), AccessTokenOf(item)));
+        Assert.All(opened, item => AssertFillsIn(world.Services, submissionId, SubmissionAccessTokenOf(item)));
         await AssertOnlySubmissionAsync(world.Services, formId, submissionId);
     }
 
@@ -218,6 +219,9 @@ public sealed partial class AudienceDirectoryFlowTests
 
     private const int ParallelOpens = 8;
     private static string AccessTokenOf(JsonElement opened) => opened.GetProperty("accessToken").GetString()!;
+
+    private static string SubmissionAccessTokenOf(JsonElement opened) =>
+        opened.GetProperty("submissionAccessToken").GetString()!;
 
     /// <summary>A signed access token to fill in that submission, bound to its link.</summary>
     private static void AssertFillsIn(IServiceProvider services, long submissionId, string accessToken)

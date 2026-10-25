@@ -61,23 +61,27 @@ public sealed class RedeemLinkRequest
 }
 
 /// <summary>
-/// What an anonymous open needs: the submission and a signed access token to fill it in, on a public or private
-/// form, until <see cref="ExpiresAt"/>. The frozen snapshot stays internal; clients read the typed
-/// <c>personalization</c> on the submission instead.
+/// What an anonymous open needs: the submission and a token to work on it. The frozen snapshot stays internal;
+/// clients read the typed <c>personalization</c> on the submission instead.
 /// </summary>
-public sealed class RedeemedLinkResponse
+/// <param name="SubmissionId">The opened or resumed submission.</param>
+/// <param name="Created">Whether this open started it.</param>
+/// <param name="AccessToken">
+/// The submission's opaque token, a <c>SubmissionToken</c>: it follows the form's privacy, so it opens nothing on a
+/// private form without a session.
+/// </param>
+/// <param name="SubmissionAccessToken">
+/// A signed access token with <c>submit</c>, sent as <c>tokenType=AccessToken</c>: it fills in this submission on a
+/// public or private form, and stops once the link is reissued or the person leaves the form.
+/// </param>
+/// <param name="SubmissionAccessTokenExpiresAt">When <paramref name="SubmissionAccessToken"/> stops working, in UTC.</param>
+public sealed record RedeemedLinkResponse(
+    long SubmissionId,
+    bool Created,
+    [property: Obsolete("Use SubmissionAccessToken. AccessToken is removed in a later release.")] string AccessToken,
+    string SubmissionAccessToken,
+    DateTime SubmissionAccessTokenExpiresAt)
 {
-    public long SubmissionId { get; init; }
-    public bool Created { get; init; }
-    public string AccessToken { get; init; } = string.Empty;
-    /// <summary>When <see cref="AccessToken"/> stops working, in UTC.</summary>
-    public DateTime ExpiresAt { get; init; }
-
-    public static RedeemedLinkResponse From(RedeemedLinkDto dto) => new()
-    {
-        SubmissionId = dto.SubmissionId,
-        Created = dto.Created,
-        AccessToken = dto.AccessToken,
-        ExpiresAt = dto.ExpiresAt,
-    };
+    public static RedeemedLinkResponse From(RedeemedLinkDto dto) =>
+        new(dto.SubmissionId, dto.Created, dto.AccessToken, dto.SubmissionAccessToken, dto.SubmissionAccessTokenExpiresAt);
 }

@@ -31,7 +31,7 @@ public sealed partial class AudienceDirectoryFlowTests
         using var anonymous = world.AnonymousClient();
         var opened = await RedeemAsync(anonymous, formId, token);
         var submissionId = IdOf(opened, "submissionId");
-        var accessToken = AccessTokenOf(opened);
+        var accessToken = SubmissionAccessTokenOf(opened);
 
         // Act
         using var access = await AccessAsync(anonymous, formId, accessToken);
@@ -46,7 +46,8 @@ public sealed partial class AudienceDirectoryFlowTests
         var grant = await access.Content.ReadFromJsonAsync<JsonElement>(admin.CancellationToken);
         Assert.Equal(submissionId.ToString(), grant.GetProperty("submissionId").GetString());
         Assert.Contains("submission.edit", grant.GetProperty("submissionPermissions").EnumerateArray().Select(item => item.GetString()));
-        Assert.True(opened.GetProperty("expiresAt").GetDateTime() > DateTime.UtcNow.AddHours(23));
+        var expiresAt = opened.GetProperty("submissionAccessTokenExpiresAt").GetDateTime();
+        Assert.InRange(expiresAt, DateTime.UtcNow.AddHours(23), DateTime.UtcNow.AddHours(25));
         Assert.Equal(HttpStatusCode.OK, read.StatusCode);
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var submission = await admin.Client.GetFromJsonAsync<JsonElement>(
@@ -63,7 +64,7 @@ public sealed partial class AudienceDirectoryFlowTests
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Parma");
         (var otherFormId, _) = await LinkForPersonWithCityAsync(admin, "Lorain");
         using var anonymous = world.AnonymousClient();
-        var accessToken = AccessTokenOf(await RedeemAsync(anonymous, formId, token));
+        var accessToken = SubmissionAccessTokenOf(await RedeemAsync(anonymous, formId, token));
 
         // Act
         using var access = await AccessAsync(anonymous, otherFormId, accessToken);
@@ -82,7 +83,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var link = await LinkForPersonWithCityAsync(admin, "Mentor");
         using var anonymous = world.AnonymousClient();
-        var accessToken = AccessTokenOf(await RedeemAsync(anonymous, link.FormId, link.Token));
+        var accessToken = SubmissionAccessTokenOf(await RedeemAsync(anonymous, link.FormId, link.Token));
         using var removed = await admin.Client.DeleteAsync(link.PersonUrl, admin.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
 
@@ -104,7 +105,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Medina");
         using var anonymous = world.AnonymousClient();
-        var accessToken = AccessTokenOf(await RedeemAsync(anonymous, formId, token));
+        var accessToken = SubmissionAccessTokenOf(await RedeemAsync(anonymous, formId, token));
         await ReissueAsync(world.Services, formId);
 
         // Act
@@ -123,7 +124,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var link = await LinkForPersonWithCityAsync(admin, "Wooster");
         using var anonymous = world.AnonymousClient();
         var opened = await RedeemAsync(anonymous, link.FormId, link.Token);
-        var accessToken = AccessTokenOf(opened);
+        var accessToken = SubmissionAccessTokenOf(opened);
         using var before = await AccessAsync(anonymous, link.FormId, accessToken);
         Assert.Equal(HttpStatusCode.OK, before.StatusCode);
         using var removed = await admin.Client.DeleteAsync(link.PersonUrl, admin.CancellationToken);
@@ -155,7 +156,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         var read = await anonymous.GetFromJsonAsync<JsonElement>(
-            ByAccessTokenUrl(formId, AccessTokenOf(first)), admin.CancellationToken);
+            ByAccessTokenUrl(formId, SubmissionAccessTokenOf(first)), admin.CancellationToken);
 
         // Assert
         Assert.NotEqual(IdOf(first, "submissionId"), IdOf(second, "submissionId"));
@@ -170,7 +171,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Bucyrus");
         using var anonymous = world.AnonymousClient();
-        var accessToken = AccessTokenOf(await RedeemAsync(anonymous, formId, token));
+        var accessToken = SubmissionAccessTokenOf(await RedeemAsync(anonymous, formId, token));
         using var before = await AccessAsync(anonymous, formId, accessToken);
         Assert.Equal(HttpStatusCode.OK, before.StatusCode);
         using var deleted = await admin.Client.DeleteAsync($"/api/forms/{formId}", admin.CancellationToken);
@@ -193,7 +194,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Sandusky");
         using var anonymous = world.AnonymousClient();
-        var accessToken = AccessTokenOf(await RedeemAsync(anonymous, formId, token));
+        var accessToken = SubmissionAccessTokenOf(await RedeemAsync(anonymous, formId, token));
         using var before = await AccessAsync(anonymous, formId, accessToken);
         Assert.Equal(HttpStatusCode.OK, before.StatusCode);
         await SetFormAsync(admin, formId, new { isEnabled = false });
@@ -214,8 +215,7 @@ public sealed partial class AudienceDirectoryFlowTests
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Findlay");
         await SetFormAsync(admin, formId, new { isPublic = false });
         using var anonymous = world.AnonymousClient();
-        var submissionId = IdOf(await RedeemAsync(anonymous, formId, token), "submissionId");
-        var submissionToken = await StoredTokenAsync(world.Services, submissionId);
+        var submissionToken = AccessTokenOf(await RedeemAsync(anonymous, formId, token));
 
         // Act
         using var access = await anonymous.GetAsync(
@@ -262,16 +262,5 @@ public sealed partial class AudienceDirectoryFlowTests
                 setters => setters.SetProperty(link => link.TokenHash, AudienceLink.Hash(Guid.NewGuid().ToString())),
                 cancellationToken);
         Assert.Equal(1, updated);
-    }
-
-    private static async Task<string> StoredTokenAsync(IServiceProvider services, long submissionId)
-    {
-        await using var scope = services.CreateAsyncScope();
-        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        return await app.Submissions.AsNoTracking()
-            .IgnoreQueryFilters()
-            .Where(submission => submission.Id == submissionId)
-            .Select(submission => submission.Token!.Value)
-            .SingleAsync(TestContext.Current.CancellationToken);
     }
 }
