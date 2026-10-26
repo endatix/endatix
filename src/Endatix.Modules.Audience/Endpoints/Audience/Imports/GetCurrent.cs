@@ -11,7 +11,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace Endatix.Modules.Audience.Endpoints.Audience.Imports;
 
 /// <summary>
-/// Reads the form's unfinished Participant import, so a scripter who comes back sees where it stands.
+/// Reads the form's current Participant import, so a scripter who comes back sees where it stands: the unfinished
+/// one, else the newest stopped write that can still resume.
 /// </summary>
 public sealed class GetCurrent(IMediator mediator, ITenantContext tenantContext)
     : Endpoint<GetCurrentAudienceImportRequest, Results<Ok<AudienceImportResponse>, ProblemHttpResult>>
@@ -23,10 +24,11 @@ public sealed class GetCurrent(IMediator mediator, ITenantContext tenantContext)
         Permissions(Actions.Forms.Edit);
         Summary(summary =>
         {
-            summary.Summary = "Get the form's unfinished Participant import";
-            summary.Description = "Returns the import that is uploading, checking, checked or writing, if any.";
+            summary.Summary = "Get the form's current Participant import";
+            summary.Description = "Returns the import that is uploading, checking, checked or writing; else the newest " +
+                "failed import that can resume (canResume). Starting a new import expires the latter.";
             summary.Responses[200] = "Import retrieved.";
-            summary.Responses[404] = "The form has no unfinished import.";
+            summary.Responses[404] = "The form has no unfinished import and no stopped write to resume.";
         });
         Description(builder => builder
             .Produces<AudienceImportResponse>(200, "application/json")

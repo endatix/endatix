@@ -187,6 +187,44 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task A_stopped_write_is_the_forms_current_import_and_offers_resume()
+    {
+        // Arrange
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        BulkImport stopped = await StoppedWriteAsync(world, api);
+
+        // Act
+        JsonElement current = await api.GetCurrentImportAsync(stopped.FormId);
+
+        // Assert
+        Assert.Equal(stopped.ImportId, IdOf(current, "importId"));
+        Assert.Equal("failed", current.GetProperty("status").GetString());
+        Assert.True(current.GetProperty("canResume").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Starting_an_import_expires_the_forms_stopped_write_so_it_no_longer_resumes()
+    {
+        // Arrange
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        BulkImport stopped = await StoppedWriteAsync(world, api);
+
+        // Act
+        BulkImport next = await api.StartImportAsync(stopped.FormId, ["email"], 10);
+        using HttpResponseMessage resumed = await api.MoveImportAsync(stopped, "writing");
+        JsonElement current = await api.GetCurrentImportAsync(stopped.FormId);
+        await SweepAllTenantsAsync(world.Services);
+
+        // Assert
+        Assert.Equal("expired", (await api.GetImportAsync(stopped)).GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, resumed.StatusCode);
+        Assert.Equal(next.ImportId, IdOf(current, "importId"));
+        Assert.Equal(0, (await FormAudienceLeftAsync(world.Services, stopped)).Chunks);
+    }
+
+    [Fact]
     public async Task A_one_request_import_that_cannot_write_frees_its_form_at_once()
     {
         // Arrange — a removal holds the form's people lock past the import's wait.
@@ -299,6 +337,20 @@ public sealed partial class AudienceDirectoryFlowTests
         await stalled.Reached.WaitAsync(ImportWait, api.CancellationToken);
         await AgeImportAsync(world.Services, import, StallAge);
         return (import, stalled);
+    }
+
+    /// <summary>
+    /// An import whose write the sweep failed as stalled after its first batch committed, with the stalled job drained.
+    /// </summary>
+    private static async Task<BulkImport> StoppedWriteAsync(IntegrationTestWorld world, AudienceApi api)
+    {
+        (BulkImport import, CommandPause held) = await StallWriteAsync(world, api, batch: 1);
+        using CommandPause stalled = held;
+        await SweepAllTenantsAsync(world.Services);
+        JsonElement failed = await api.GetImportAsync(import);
+        stalled.Release();
+        await api.WaitForJobToEndAsync(IdOf(failed, "jobId"));
+        return import;
     }
 
     /// <summary>Written, created, updated and skipped rows of an import's view.</summary>

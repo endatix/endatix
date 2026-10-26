@@ -251,6 +251,9 @@ public sealed partial class AudienceDirectoryFlowTests
                 },
                 cancellationToken);
 
+        public Task<JsonElement> GetCurrentImportAsync(long formId) =>
+            client.GetFromJsonAsync<JsonElement>($"/api/forms/{formId}/audience/imports/current", cancellationToken);
+
         public Task<JsonElement> GetImportAsync(BulkImport import) =>
             client.GetFromJsonAsync<JsonElement>(ImportUrl(import), cancellationToken);
 

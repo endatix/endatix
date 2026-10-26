@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Endatix.Modules.Audience.Features.Imports;
 
 /// <summary>
-/// Reads one staged import, or with no id the form's import that is still unfinished. A running phase whose job was
+/// Reads one staged import, or with no id the form's current import: the one still unfinished, else its newest
+/// stopped write that can still resume, so the scripter is offered Resume after the fact. A running phase whose job was
 /// never recorded, and that has not moved for <see cref="GetImportHandler.HealAfter"/>, is enqueued again on the way,
 /// which the job's dedup key makes harmless.
 /// </summary>
@@ -32,7 +33,7 @@ internal sealed class GetImportHandler(IAudienceDbContext db, IImportRunner runn
 
         AudienceImport? import = request.ImportId is { } id
             ? await ImportQueries.FindAsync(db, new ImportRef(request.TenantId, request.FormId, id), cancellationToken)
-            : await StartImportHandler.Unfinished(db, request.TenantId, request.FormId).FirstOrDefaultAsync(cancellationToken);
+            : await CurrentAsync(request, cancellationToken);
         if (import is null)
         {
             return Result<ImportViewDto>.NotFound("Import not found.");
@@ -41,6 +42,12 @@ internal sealed class GetImportHandler(IAudienceDbContext db, IImportRunner runn
         await HealAsync(import, cancellationToken);
         return Result.Success(await ViewAsync(import, cancellationToken));
     }
+
+    private async Task<AudienceImport?> CurrentAsync(GetImportQuery request, CancellationToken cancellationToken) =>
+        await StartImportHandler.Unfinished(db, request.TenantId, request.FormId).FirstOrDefaultAsync(cancellationToken)
+        ?? await StartImportHandler.Resumable(db, request.TenantId, request.FormId)
+            .OrderByDescending(import => import.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
     private Task<ImportViewDto> ViewAsync(AudienceImport import, CancellationToken cancellationToken) =>
         ImportView.ReadAsync(new ImportViewSource(db, runner.RunsInBackground), import, cancellationToken);

@@ -50,17 +50,26 @@ internal sealed class StartImportHandler(
             : await ConflictWithCurrentAsync(request, cancellationToken);
     }
 
-    /// <summary>Adds the import; false when a parallel start on the form won the unfinished-import index.</summary>
+    /// <summary>
+    /// Adds the import and, in the same save, expires the form's stopped writes that could still resume: the scripter
+    /// chose to start over, so their staging is swept like any expired import's. False when a parallel start won the
+    /// unfinished-import index, or a parallel resume moved a stopped write first.
+    /// </summary>
     private async Task<bool> TryAddAsync(AudienceImport import, CancellationToken cancellationToken)
     {
+        foreach (AudienceImport stopped in await Resumable(db, import.TenantId, import.FormId).ToListAsync(cancellationToken))
+        {
+            stopped.Expire();
+        }
+
         db.AudienceImports.Add(import);
         try
         {
             await db.SaveChangesAsync(cancellationToken);
             return true;
         }
-        catch (DbUpdateException race)
-            when (violations.IsViolationOf(race, AudienceImport.UniqueConstraints.OneUnfinishedPerForm))
+        catch (DbUpdateException race) when (race is DbUpdateConcurrencyException
+            || violations.IsViolationOf(race, AudienceImport.UniqueConstraints.OneUnfinishedPerForm))
         {
             return false;
         }
@@ -133,6 +142,13 @@ internal sealed class StartImportHandler(
         Unfinished(db, request.TenantId, request.FormId)
             .Select(import => (long?)import.Id)
             .FirstOrDefaultAsync(cancellationToken);
+
+    /// <summary>The form's stopped writes that can still resume.</summary>
+    internal static IQueryable<AudienceImport> Resumable(IAudienceDbContext db, long tenantId, long formId) =>
+        db.AudienceImports.Where(import => import.TenantId == tenantId
+            && import.FormId == formId
+            && import.Status == AudienceImportStatusCodes.Failed
+            && import.Resumable);
 
     internal static IQueryable<AudienceImport> Unfinished(IAudienceDbContext db, long tenantId, long formId) =>
         db.AudienceImports.Where(import => import.TenantId == tenantId
