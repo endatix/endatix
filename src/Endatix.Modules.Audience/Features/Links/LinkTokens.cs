@@ -26,7 +26,7 @@ internal sealed class LinkTokens(
     /// <summary>
     /// A lifetime that never ends gets <see cref="TenantSettings.DefaultSubmissionTokenExpiryHours"/>, the one a
     /// submission token gets when its tenant has no settings: a link can be redeemed again at any time. One past
-    /// <see cref="ISubmissionAccessTokenService.MaxExpiryMinutes"/> gets that cap.
+    /// <see cref="ISubmissionAccessTokenService.MAX_EXPIRY_MINUTES"/> gets that cap.
     /// </summary>
     public async Task<Result<SubmissionAccessTokenDto>> IssueAccessTokenAsync(
         AudienceLink link,
@@ -36,7 +36,7 @@ internal sealed class LinkTokens(
         var hours = await submissionTokens.GetExpiryHoursAsync(link.FormId, link.TenantId, cancellationToken);
         var minutes = (int)Math.Min(
             (long)(hours ?? TenantSettings.DefaultSubmissionTokenExpiryHours) * 60,
-            ISubmissionAccessTokenService.MaxExpiryMinutes);
+            ISubmissionAccessTokenService.MAX_EXPIRY_MINUTES);
         return accessTokens.GenerateAccessToken(
             new SubmissionAccessTokenRequest(submissionId, minutes, _fillIn, link.AccessStamp()));
     }

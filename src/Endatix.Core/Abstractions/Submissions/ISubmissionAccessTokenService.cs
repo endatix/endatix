@@ -9,7 +9,7 @@ namespace Endatix.Core.Abstractions.Submissions;
 public interface ISubmissionAccessTokenService
 {
     /// <summary>The longest lifetime a token is issued with: 60 days.</summary>
-    const int MaxExpiryMinutes = 60 * 24 * 60;
+    const int MAX_EXPIRY_MINUTES = 60 * 24 * 60;
 
     /// <summary>
     /// Generates an access token for a submission.
@@ -38,7 +38,7 @@ public interface ISubmissionAccessTokenService
 
 /// <summary>A token to issue.</summary>
 /// <param name="SubmissionId">The submission it opens.</param>
-/// <param name="ExpiryMinutes">Its lifetime, at most <see cref="ISubmissionAccessTokenService.MaxExpiryMinutes"/>.</param>
+/// <param name="ExpiryMinutes">Its lifetime, at most <see cref="ISubmissionAccessTokenService.MAX_EXPIRY_MINUTES"/>.</param>
 /// <param name="Permissions">"view", "edit", "export", "submit".</param>
 /// <param name="Stamp">
 /// Optional lowercase hex the token is bound to and signed with, for <see cref="ISubmissionAccessTokenGate"/> to check

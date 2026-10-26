@@ -10,7 +10,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 public class CreateAccessTokenValidator : Validator<CreateAccessTokenRequest>
 {
     /// <summary>Maximum allowed token lifetime: 60 days.</summary>
-    public const int MaxExpiryMinutes = ISubmissionAccessTokenService.MaxExpiryMinutes;
+    public const int MaxExpiryMinutes = ISubmissionAccessTokenService.MAX_EXPIRY_MINUTES;
 
     /// <summary>
     /// Default constructor
