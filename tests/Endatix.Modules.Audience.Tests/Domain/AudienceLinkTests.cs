@@ -23,6 +23,24 @@ public class AudienceLinkTests
         Assert.NotEqual(stamp, reissued.AccessStamp());
     }
 
+    [Fact]
+    public void Reissue_GivesTheLinkANewToken_AndANewAccessStamp()
+    {
+        // Arrange
+        var (link, oldToken) = AudienceLink.Issue(1, 2, 3);
+        link.Id = 0x1a2b3c;
+        var oldStamp = link.AccessStamp();
+
+        // Act
+        var token = link.Reissue();
+
+        // Assert
+        Assert.NotEqual(oldToken, token);
+        Assert.Equal(AudienceLink.Hash(token), link.TokenHash);
+        Assert.NotEqual(oldStamp, link.AccessStamp());
+        Assert.Equal(3, link.MembershipId);
+    }
+
     [Theory]
     [InlineData("0a1b2c3d")]
     [InlineData("zz0123456789abcdef")]

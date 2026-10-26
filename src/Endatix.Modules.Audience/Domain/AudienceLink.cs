@@ -52,8 +52,19 @@ public sealed class AudienceLink : BaseEntity, ITenantOwned
         Guard.Against.NegativeOrZero(tenantId);
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NegativeOrZero(membershipId);
-        string token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        string token = NewToken();
         return (new AudienceLink(tenantId, formId, membershipId, Hash(token)), token);
+    }
+
+    /// <summary>
+    /// A new token for the same link: the old token no longer opens it, and the new <see cref="AccessStamp"/> refuses
+    /// the access tokens it handed out. An opened link keeps its submission, so the person resumes their response.
+    /// </summary>
+    public string Reissue()
+    {
+        string token = NewToken();
+        TokenHash = Hash(token);
+        return token;
     }
 
     /// <summary>
@@ -76,4 +87,6 @@ public sealed class AudienceLink : BaseEntity, ITenantOwned
         byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
+
+    private static string NewToken() => Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
 }

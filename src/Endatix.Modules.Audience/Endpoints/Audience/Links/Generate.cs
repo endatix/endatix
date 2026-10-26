@@ -57,6 +57,9 @@ public sealed class IssuedLinkResponse
     public long MembershipId { get; init; }
     public string Token { get; init; } = string.Empty;
 
+    public static IssuedLinkResponse From(IssuedLinkDto link) =>
+        new() { MembershipId = link.MembershipId, Token = link.Token };
+
     public static IReadOnlyList<IssuedLinkResponse> From(IReadOnlyList<IssuedLinkDto> issued) =>
-        issued.Select(link => new IssuedLinkResponse { MembershipId = link.MembershipId, Token = link.Token }).ToList();
+        issued.Select(From).ToList();
 }
