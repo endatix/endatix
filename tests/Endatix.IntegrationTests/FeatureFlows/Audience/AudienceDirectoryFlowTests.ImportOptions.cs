@@ -227,6 +227,69 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Contains("keep or clear", (await api.ReadAsync(started)).GetProperty("detail").GetString());
     }
 
+    [Fact]
+    public async Task Every_rejected_row_of_an_import_reads_back_page_by_page_with_its_cells()
+    {
+        // Arrange — 1,000 rows with no identifier, which the Check rejects, and one row it accepts.
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        await api.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        List<string[]> rows = [.. Enumerable.Range(1, 1_000).Select(n => new[] { "", $"City {n}" })];
+        rows.Add(["ada@example.com", "Sofia"]);
+        BulkImport import = await api.StageImportAsync(formId, ["email", "City"], rows);
+        Assert.Equal("checked", (await api.WaitForImportAsync(import, "checked")).GetProperty("status").GetString());
+
+        // Act
+        List<JsonElement> pages = [];
+        for (int page = 1; page <= 3; page++)
+        {
+            pages.Add(await api.Client.GetFromJsonAsync<JsonElement>(
+                $"/api/forms/{formId}/audience/imports/{import.ImportId}/rejections?page={page}&pageSize=400",
+                api.CancellationToken));
+        }
+
+        // Assert
+        Assert.All(pages, page => Assert.Equal(1_000, page.GetProperty("totalRecords").GetInt32()));
+        List<JsonElement> items = [.. pages.SelectMany(page => page.GetProperty("items").EnumerateArray())];
+        Assert.Equal(Enumerable.Range(2, 1_000), items.Select(item => item.GetProperty("rowNumber").GetInt32()));
+        JsonElement last = items[^1];
+        Assert.False(string.IsNullOrWhiteSpace(last.GetProperty("reason").GetString()));
+        Assert.Equal(["", "City 1000"], last.GetProperty("cells").EnumerateArray().Select(cell => cell.GetString()));
+    }
+
+    [Fact]
+    public async Task Reading_the_rejections_of_another_form_import_is_not_found()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        long otherFormId = await api.CreateFormAsync();
+        BulkImport import = await api.StartImportAsync(formId, EmailHeader, 1);
+
+        // Act
+        using HttpResponseMessage response = await api.Client.GetAsync(
+            $"/api/forms/{otherFormId}/audience/imports/{import.ImportId}/rejections", api.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reading_rejections_with_a_page_over_5000_rows_is_refused()
+    {
+        // Arrange
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        BulkImport import = await api.StartImportAsync(formId, EmailHeader, 1);
+
+        // Act
+        using HttpResponseMessage response = await api.Client.GetAsync(
+            $"/api/forms/{formId}/audience/imports/{import.ImportId}/rejections?pageSize=5001", api.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     /// <summary>A staged import's mapping and options, as the Hub's Columns step sends them.</summary>
     private sealed record ImportChoices(
         Dictionary<string, string> PropertyColumns,
