@@ -316,6 +316,27 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(1_500, (await api.ReadAsync(imported)).GetProperty("createdCount").GetInt32());
     }
 
+    [Fact]
+    public async Task A_one_request_import_with_blank_lines_across_its_chunks_writes_every_row()
+    {
+        // Arrange — 2,500 people with a blank line after every 300th, so three chunks of 1,000 skip row numbers.
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        IEnumerable<string> lines = Enumerable.Range(1, 2_500)
+            .Select(n => n % 300 == 0 ? $"p{n}@example.com\n" : $"p{n}@example.com");
+        string csv = "email\n" + string.Join("\n", lines) + "\n";
+
+        // Act
+        using HttpResponseMessage response = await api.ImportAsync(formId, csv);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement result = await api.ReadAsync(response);
+        Assert.Equal(2_500, result.GetProperty("createdCount").GetInt32());
+        Assert.Equal(0, result.GetProperty("rejectedCount").GetInt32());
+        Assert.Equal(2_500, (await api.IdentifiersAsync(formId)).Count);
+    }
+
     /// <summary>The read of the staged rows each write batch starts with.</summary>
     [GeneratedRegex("""SELECT\s+MAX\(.*["\[]ChunkIndex["\]].*FROM\s+["\[]?audience["\]]?\.["\[]ImportChunks["\]]""", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
     private static partial Regex WriteRowsRead();
