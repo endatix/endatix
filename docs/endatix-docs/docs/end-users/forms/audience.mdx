@@ -1,6 +1,6 @@
 ---
 title: Audience
-description: Add the people a form is for and the properties kept about each one, see which values the form uses and who is missing them, preview the saved form as any participant, open a participant's page, and use test people with Test as this participant, Copy test link, and Start over before you send any links.
+description: Add the people a form is for and the properties kept about each one, import up to 100,000 participants from a CSV, generate and download personalized links, preview the saved form as any participant, and try it with test people, Test as this participant, Copy test link, and Start over before you send links.
 sidebar_label: Audience
 ---
 
@@ -10,6 +10,14 @@ import PropertiesLight from "./audience-properties_light.webp";
 import PropertiesDark from "./audience-properties_dark.webp";
 import ParticipantLight from "./audience-participant_light.webp";
 import ParticipantDark from "./audience-participant_dark.webp";
+import ImportFileLight from "./audience-import-file_light.webp";
+import ImportFileDark from "./audience-import-file_dark.webp";
+import ImportReviewLight from "./audience-import-review_light.webp";
+import ImportReviewDark from "./audience-import-review_dark.webp";
+import LinksPanelLight from "./audience-links-panel_light.webp";
+import LinksPanelDark from "./audience-links-panel_dark.webp";
+import LinksOutcomeLight from "./audience-links-outcome_light.webp";
+import LinksOutcomeDark from "./audience-links-outcome_dark.webp";
 import AddTestPersonLight from "./audience-add-test-person_light.webp";
 import AddTestPersonDark from "./audience-add-test-person_dark.webp";
 import ImportAsTestLight from "./audience-import-as-test_light.webp";
@@ -71,13 +79,132 @@ The **People** view lists everyone on the form, with one column per property.
 />
 
 - **Add person** adds one person: enter their identifier (the match key, for example **Email**) and, optionally, a value for each property.
-- **Import CSV** adds many at once from a file with one person per row. Choose the column that identifies people and the property each other column fills, then review and import. Nothing is written until the last step.
-- **Personalized links** creates one link per real person who has none yet and downloads them as a file to send from your own email or panel tool. Each link opens that person's own response, and resumes it on later opens.
+- **Import CSV** adds many at once from a file with one participant per row. Nothing is written until you confirm. See [Import participants from a CSV](#import-participants-from-a-csv).
+- **Personalized links** creates one link per real person who has none yet and downloads them as a file to send from your own email or panel tool. See [Personalized links](#personalized-links).
 
 Two marks help you check the list before you send links:
 
 - **Link** shows each real person's link: **Not issued**, **Issued**, or **Opened**. Click **Opened** to see the response the link started. A test person never gets a link. The column appears once anyone on the form has a link.
 - **N not filled in** next to a person means the saved form reads values they don't have. Hover over it to see which ones. Fill them in with **Edit**, or the form shows those places empty for that person. Only people who can edit the form see this mark.
+
+## Import participants from a CSV
+
+**Import CSV** adds or updates many participants from one file. The import runs in three steps, **File**, **Columns**, and **Review**, and writes nothing until you confirm it.
+
+1. On the **People** view, click **Import CSV**.
+2. Under **CSV file**, choose the file. The first row names the columns. Before you choose, the help line says how large a file this deployment takes, for example *Up to 100,000 rows and 50 MB.* After you choose, it says what Hub read, for example *acme-panel.csv: 12,000 rows, 4 columns.*
+3. Click **Continue**. Under **Identifier**, choose the column that holds the match key, such as **Email**. Under **Columns**, choose the property each other column fills, or **Don't import**. Columns named like a property are matched already.
+4. Click **Continue**. Hub sends the file and checks every row.
+5. Read the preview, for example *11,950 new participants, 40 already on this form, 10 rejected*, and the **Rejected rows** below it.
+6. Click **Import N participants**, for example **Import 11,990 participants**.
+
+<Shot
+  alt="Import participants panel on the File step: Add participants from a CSV file. Nothing is written until you confirm. The CSV file field, with the help line Up to 100,000 rows and 50 MB. The first row names the columns."
+  sources={{ light: ImportFileLight, dark: ImportFileDark }}
+/>
+
+### Limits
+
+The file help line names this deployment's limits. A deployment that runs imports as background jobs takes up to **100,000 rows and 50 MB** per file. One without background jobs takes up to 5,000 rows and 20 MB. Split a larger file and import the parts one after the other.
+
+### Follow the import
+
+The **Review** step counts each phase as it runs:
+
+- **Sending the file**: *2,000 of 12,000 rows sent*. Keep the tab open until the file is sent.
+- **Checking rows**: *6,000 of 12,000 rows checked*. Nothing is written yet.
+- **Writing participants**: *4,000 of 11,990 rows written*, with what was written so far, for example *3,960 added, 40 updated so far*.
+
+<Shot
+  alt="Import participants panel on the Review step after the check: acme-panel.csv, 11 rows, the preview 8 new participants, 2 already on this form, 1 rejected, the Cancel import button, Rejected rows with row 10 and the reason not-an-email is not a valid email address, the note Existing participants are updated, and the Close and Import 10 participants buttons"
+  sources={{ light: ImportReviewLight, dark: ImportReviewDark }}
+/>
+
+When it ends, the panel says **Import finished**, or **Import finished with rejected rows**, with the counts, for example *11,950 added, 40 updated, 10 rejected*. The **People** list behind the panel is already up to date.
+
+### How rows meet participants already on the form
+
+Rows are matched by the match key. A participant already on the form gets the file's values, and an empty cell keeps the value they have. A test import works differently: see [Import test people](#import-test-people).
+
+A **rejected** row is left out, and the other rows still import. **Rejected rows** lists the first 50 by their row in the file, with the reason. Fix those rows in the file and import it again: participants already imported are matched, not added twice.
+
+### Cancel before you confirm
+
+Until you click **Import N participants**, **Cancel import** stops the import: the panel says *Import canceled. Nothing was written.* Closing the panel does not cancel it.
+
+An import that waits more than a day for its upload to finish, or for you to confirm it, expires and writes nothing. Import the file again.
+
+### Close the tab while it runs
+
+Once the file is sent, a deployment with background jobs keeps checking and writing without the browser. The panel says *You can close this panel or this tab: the import keeps going.*
+
+A form runs one import at a time. While one is running, the button on the **People** view reads **Import in progress**, and opening it shows the import where it stands, from any browser. Starting a second import shows the running one instead, with *An import of this form is already running, so it is shown instead of your file.*
+
+On a deployment without background jobs, keep the tab open until the import finishes.
+
+### Resume a cut-off upload
+
+If the tab closes or the connection drops while the file is being sent, open **Import in progress** again. The panel says how far the upload got, for example *The upload stopped before the whole file was sent (4,000 of 12,000 rows). Choose acme-panel.csv again to continue it.* Choose the same file, and Hub sends only the rows still missing.
+
+The file must be the same one: same name, same number of rows, and the same columns. Another file is refused, for example *This file is acme-panel-v2.csv, but the import is of acme-panel.csv. Choose acme-panel.csv again.*
+
+### Resume a stopped write
+
+If writing stops before it finishes, the button reads **Import stopped** and the panel says **The import stopped**. Participants written so far stay on the form.
+
+- **Resume import** continues from where it stopped, and writes each participant once.
+- **Start a new import** discards the stopped one. Participants it already wrote stay on this form; its other rows are not written.
+
+A stopped write can be resumed for 7 days.
+
+## Personalized links
+
+**Personalized links** creates one link for each real person on the form who has none yet, and downloads them as a file. Each link opens that person's own response, filled in with their values. Send the file's links from your own email or panel tool.
+
+1. On the **People** view, click **Personalized links**.
+2. Check **Who gets a link**. **People on this form** counts everyone on the form, test people included; only real people without a link get one.
+3. Click **Generate and download**.
+
+<Shot
+  alt="Personalized links panel: Who gets a link, Everyone on this form who has no link yet. People who already have one keep it, People on this form 12, and the note The file is the only copy, with Cancel and Generate and download"
+  sources={{ light: LinksPanelLight, dark: LinksPanelDark }}
+/>
+
+The panel then says, for example, **10 links downloaded**, offers **Download CSV** again while it is open, and lists the first five links so you can try one before you send them.
+
+<Shot
+  alt="Personalized links panel after Generate and download: 10 links downloaded, the file name personalized-links followed by the form ID and the date, a Download CSV button, and a Links table with the first 5 of 10, each email with its link on forms.acme.com and a copy button"
+  sources={{ light: LinksOutcomeLight, dark: LinksOutcomeDark }}
+/>
+
+### The links file
+
+The file is named `personalized-links-<form ID>-<date>.csv`, for example `personalized-links-1234567890-2026-10-26.csv`, so a later batch never overwrites an earlier one. It has one row per person, with two columns: the match key (`email` or `external_id`) and `link`.
+
+```csv
+email,link
+alex.kim@acme.com,https://forms.acme.com/share/1234567890/a/...
+jordan.lee@acme.com,https://forms.acme.com/share/1234567890/a/...
+```
+
+**The file is the only copy.** Endatix keeps a fingerprint of each link, never the link itself, so it cannot show a link again once the panel closes. Anyone with a link can open that person's response, so keep the file safe until the links are sent.
+
+### Links for people added later
+
+People who already have a link keep it. After you add more people, click **Personalized links** again: the new file holds links for the new people only. With no one left without a link, the panel says **Everyone already has a link**.
+
+### What a link opens
+
+- **The first open** starts the person's response, with the form and their values as they are at that moment.
+- **Every later open** resumes that same response. A person never gets a second response from their link.
+- **A finished response** is not opened again: the page says *This form has already been completed.*
+- **On a private form**, the link opens without a sign-in. See [Personalized links on a private form](/docs/end-users/sharing/public-and-private-forms#personalized-links-on-a-private-form).
+
+The **Link** column of the **People** view shows each link's status.
+
+### Up to 5,000 people per form
+
+Hub issues links for up to 5,000 real people on one form. On a form with more, **Generate and download** creates no links and the panel says *This form has more than 5,000 people to send links to.* Test people do not count.
 
 ## Preview as
 
@@ -124,11 +251,11 @@ You choose whether someone is a test person when you add them. It cannot be chan
 
 1. On the **People** view, click **Add person**.
 2. Enter the identifier and the property values you want to test with.
-3. Select **Add as test person**.
+3. Select **Add as test participant**.
 4. Click **Add person**.
 
 <Shot
-  alt="Add person panel with Email qa.reviewer@example.com, First name Robin, Company Contoso, and the Add as test person checkbox selected"
+  alt="Add person panel with Email qa.reviewer@example.com, First name Robin, Company Contoso, and the Add as test participant checkbox selected"
   sources={{ light: AddTestPersonLight, dark: AddTestPersonDark }}
 />
 
@@ -137,16 +264,17 @@ The person appears in the table with a **Test** badge next to their identifier.
 ### Import test people
 
 1. On the **People** view, click **Import CSV** and choose the file.
-2. Map the columns, then click **Continue** to reach **Review**.
-3. Select **Import as test people**.
-4. Click **Import**. The button names the row count, for example **Import 2 rows**.
+2. Click **Continue**, and map the columns.
+3. Select **Import as test participants**, below the columns.
+4. Click **Continue**. On **Review**, the note says **Existing participants are skipped**.
+5. Click **Import N participants**, for example **Import 2 participants**.
 
 <Shot
-  alt="Import people panel on the Review step with Import as test people selected and the note Existing people are skipped"
+  alt="Import participants panel on the Columns step: Identifier column email, the columns first_name and company mapped to First name and Company, and Import as test participants selected, with its help Test participants are never sent a personalized link"
   sources={{ light: ImportAsTestLight, dark: ImportAsTestDark }}
 />
 
-With **Import as test people** on, only people new to this form are added, as test people. A person already on the form is skipped and keeps their values, so a test import never changes a real person. The outcome counts both, for example *1 added as test people, 1 skipped because they are already on this form*.
+With **Import as test participants** on, only participants new to this form are added, as test participants. A participant already on the form is skipped and keeps their values, so a test import never changes a real person. The outcome counts both, for example *1 added as test participants, 1 skipped because they are already on this form*.
 
 ### Filter real and test people
 
@@ -216,6 +344,9 @@ Anyone with the link can fill in that one test submission until it is completed 
 ## Limitations
 
 - **Test status is set once.** You cannot switch a person between test and real. Remove them and add them again.
+- **Imports have a size limit.** Up to 100,000 rows and 50 MB per file on a deployment with background jobs, or 5,000 rows and 20 MB without. One import runs per form at a time.
+- **Personalized links stop at 5,000 people.** A form with more real people gets no links.
+- **Links are shown once.** The downloaded file is the only copy.
 - **Test people get no personalized links.** **Personalized links** skips them; use **Copy test link** to share a test, and a test import never touches people already on the form.
 - **Start over needs the person.** It works only while the person is still on the form.
 - **No Test inspector in embeds.** An embedded form shows the plain test notice with **Start over**.

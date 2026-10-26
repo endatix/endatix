@@ -119,7 +119,7 @@ Server-evaluated product gates, not the PostHog analytics `isFeatureEnabled` hel
 `posthog` evaluates flags through PostHog; omitted or `environment` reads `FLAG_*` variables and falls back to each flag's code default. The choice is **frozen at the first flag evaluation** in the process, so switching it means restarting Hub — flag values themselves still resolve per request.
 </Setting>
 <Setting name="FLAG_<FLAG_KEY>" note="environment provider only">
-One variable per flag: upper-snake the flag key, so `ai-features` becomes `FLAG_AI_FEATURES`. Booleans accept `"true"`; anything else reads as false. Flags ship disabled — `ai-features`, `experimental-features`, `advanced-analytics`, `form-analytics`, `storage-stats`, `reporting-export`, `multi-tenancy`.
+One variable per flag: upper-snake the flag key, so `ai-features` becomes `FLAG_AI_FEATURES`. Booleans accept `"true"`; anything else reads as false. Flags ship disabled: `ai-features`, `experimental-features`, `advanced-analytics`, `form-analytics`, `storage-stats`, `reporting-export`, `multi-tenancy`, `personalization`. `personalization` (`FLAG_PERSONALIZATION`) shows a form's **Audience** tab; it also needs the API's [Audience module](/docs/developers/api/audience).
 </Setting>
 </Settings>
 

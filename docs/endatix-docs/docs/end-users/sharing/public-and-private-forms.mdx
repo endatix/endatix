@@ -55,7 +55,12 @@ A private form asks the respondent to authenticate. A visitor who is not signed 
 
 ### Personalized links on a private form
 
-A [personalized link](/docs/end-users/guides/run-a-personalized-survey) is the exception: it opens its person's own response without a sign-in, on a private form too. It opens that one response only, never another response or another form. Removing the person from the form stops their link within a minute.
+A [personalized link](/docs/end-users/forms/audience#personalized-links) is the exception: it opens its person's own response without a sign-in, on a private form too. It opens that one response only, never another response or another form, and the plain `/share/<formId>` link still asks everyone else to sign in. So a private form is the usual choice for a panel: only your links collect responses.
+
+- **The link stays out of the address bar.** After the link opens, the browser shows `/share/<formId>` and keeps the person's access in a cookie for that form, so they can close the tab and come back in the same browser.
+- **The access expires.** It lasts as long as the form's [Session expiry](/docs/end-users/forms/submission-expiration), and at most 60 days. After that the page says **This link is invalid or has expired.** and *Open the personal link from your latest invitation again to continue.* Opening the link again continues the same response, with the answers saved so far.
+- **A finished response stays closed.** Opening the link after the person submitted shows *This form has already been completed.* and starts nothing.
+- **Removing the person** from the form stops their link within a minute. A response they have open can no longer save after that.
 
 ### Permissions
 

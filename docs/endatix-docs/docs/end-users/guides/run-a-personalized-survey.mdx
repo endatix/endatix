@@ -33,9 +33,9 @@ Personalization is turned on for the whole deployment, not per form. To check, o
 1. On the **Properties** view, add one property for each fact the form will use, such as `First name` and `Company`. Note each **variable name** (`first_name`, `company`): the form uses it.
 2. On the **People** view, click **Import CSV**, choose the column that identifies people, and map each other column to a property.
 
-Import the real panel as real people. Add one or two test people with the values you want to try, either with **Add person** and **Add as test person**, or with a second import that has **Import as test people** on. A person's test status cannot change later.
+Import the real panel as real people. Add one or two test people with the values you want to try, either with **Add person** and **Add as test participant**, or with a second import that has **Import as test participants** on. A person's test status cannot change later.
 
-See [Audience](/docs/end-users/forms/audience#add-a-property) for each field and for how imports treat people already on the form.
+A file can hold up to 100,000 rows and 50 MB on a deployment that runs imports as background jobs. Once the file is sent, you can close the tab: the import keeps going, and **Import in progress** on the **People** view shows where it stands. See [Import participants from a CSV](/docs/end-users/forms/audience#import-participants-from-a-csv) for each step, rejected rows, and how to resume an import that stopped.
 
 ## Use the properties in the form and check coverage
 
@@ -90,7 +90,7 @@ Then make the links:
 3. Send each link from your own email or panel tool.
 
 <Shot
-  alt="Personalized links panel: Who gets a link, everyone on this form who has no link yet, People on this form 4, and the note The file is the only copy, with Cancel and Generate and download"
+  alt="Personalized links panel: Who gets a link, everyone on this form who has no link yet, People on this form 12, and the note The file is the only copy, with Cancel and Generate and download"
   sources={{ light: LinksLight, dark: LinksDark }}
 />
 
@@ -127,6 +127,9 @@ See [Keep test submissions out of exports](/docs/end-users/submissions/testing-s
 ## Limitations
 
 - **Removing a person stops their link within a minute, not at once.** A response they have open can still save until then.
+- **Up to 5,000 people per form get links.** On a form with more real people, **Generate and download** creates none.
+- **An import takes up to 100,000 rows and 50 MB.** A deployment without background jobs takes 5,000 rows and 20 MB, and needs the tab open until the import finishes. Split a larger panel into several files.
+- **A link's access expires** after the form's Session expiry, at most 60 days. The person opens their link again to continue the same response.
 - **Links are shown once.** Hub keeps no copy you can download again, and a person who has a link does not get a new one.
 - **Test links are for test people only.** **Copy test link** shares a test as a test person, not as a real one, and each copy opens a single test submission.
 - **Values are fixed when a link is first opened.** Editing a person afterwards does not change a response they already started.
