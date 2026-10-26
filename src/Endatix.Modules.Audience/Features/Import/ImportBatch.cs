@@ -37,13 +37,14 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
     }
 
     /// <summary>
-    /// Writes the row's values when any differs from the stored cell, so re-importing the same
-    /// file reports its people as unchanged and leaves their cells untouched.
+    /// Writes the row's values, and clears the stored cells the import's options clear, when any differs from the
+    /// stored cell, so re-importing the same file reports its people as unchanged and leaves their cells untouched.
     /// </summary>
-    private bool UpdateIfChanged(Membership membership, IReadOnlyDictionary<long, string> values)
+    private bool UpdateIfChanged(Membership membership, IReadOnlyDictionary<long, string> rowValues)
     {
-        IReadOnlyDictionary<long, PropertyValue> cells =
+        Dictionary<long, PropertyValue> cells =
             existing.CellsByMembershipId.GetValueOrDefault(membership.Id) ?? new Dictionary<long, PropertyValue>();
+        IReadOnlyDictionary<long, string> values = ImportClears.Apply(rowValues, target.Clears, cells.Keys);
         if (!Changes(values, cells))
         {
             return false;
@@ -75,9 +76,13 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 }
 
 /// <summary>
-/// The tenant, form and match key one import writes to, and whether the memberships it adds are test persons.
+/// The tenant, form and match key one import writes to, whether the memberships it adds are test persons, and the
+/// Properties a row with no value for them clears (<see cref="ImportClears"/>).
 /// </summary>
-internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey, bool IsTest);
+internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey, bool IsTest)
+{
+    public IReadOnlySet<long> Clears { get; init; } = new HashSet<long>();
+}
 
 /// <summary>
 /// Members, memberships and value cells that the import rows already match.

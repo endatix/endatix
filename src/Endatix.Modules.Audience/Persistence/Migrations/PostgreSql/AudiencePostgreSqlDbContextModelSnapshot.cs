@@ -45,6 +45,12 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<int>("ChunkSize")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("ClearEmptyCells")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ClearMissingProperties")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 

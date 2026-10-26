@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Forms;
 using Endatix.Modules.Audience.Features.Import;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -176,13 +177,17 @@ internal sealed class ImportScope
         CancellationToken cancellationToken) =>
         ExistingAudience.LoadAsync(new AudienceQuery(Db, TargetOf(import), cancellationToken), rows);
 
+    /// <summary>Stages the rows' Participants, clearing what the import's options clear.</summary>
     public async Task<ImportTally> StageAsync(
         AudienceImport import,
         IReadOnlyList<ImportRow> rows,
+        CsvColumnMap map,
         CancellationToken cancellationToken)
     {
         ExistingAudience existing = await ExistingAsync(import, rows, cancellationToken);
-        ImportBatch batch = new(Db, TargetOf(import), existing);
+        MatchKey? matchKey = MatchKeyProperty.In(map.PropertiesById.Values, import.IdentifierKind!);
+        ImportTarget target = TargetOf(import) with { Clears = ImportClears.Of(map, import.Options, matchKey) };
+        ImportBatch batch = new(Db, target, existing);
         foreach (ImportRow row in rows)
         {
             batch.Stage(row);

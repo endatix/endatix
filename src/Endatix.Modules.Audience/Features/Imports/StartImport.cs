@@ -12,7 +12,8 @@ namespace Endatix.Modules.Audience.Features.Imports;
 
 /// <summary>
 /// Starts a staged import: the file's headers, its declared row count and the column mapping, fixed from here on.
-/// A form has at most one import it can still change; a second start answers 409 with that import's id.
+/// A form has at most one import it can still change; a second start answers 409 with that import's id. With no
+/// <paramref name="Options"/>, every stored value the file does not fill stays.
 /// </summary>
 public sealed record StartImportCommand(
     long TenantId,
@@ -23,7 +24,8 @@ public sealed record StartImportCommand(
     string IdentifierColumn,
     IReadOnlyDictionary<string, string> PropertyColumns,
     bool IsTest,
-    long? PerformedById) : ICommand<Result<ImportViewDto>>;
+    long? PerformedById,
+    AudienceImportOptions? Options = null) : ICommand<Result<ImportViewDto>>;
 
 internal sealed class StartImportHandler(
     IAudienceDbContext db,
@@ -146,7 +148,8 @@ internal sealed class StartImportHandler(
             request.IsTest,
             request.RowCount,
             ImportRunnerRegistration.ChunkRows,
-            request.PerformedById);
+            request.PerformedById,
+            request.Options);
 
     private Task<ImportViewDto> ViewAsync(AudienceImport import, CancellationToken cancellationToken) =>
         ImportView.ReadAsync(new ImportViewSource(db, runner.RunsInBackground), import, cancellationToken);

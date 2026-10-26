@@ -355,7 +355,7 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
         ImportRows read = ImportRowReader.Start(batch.Map, work.MatchKey(import.IdentifierKind!))
             .ReadPart(candidates.Select(row => ToCsvRow(row, import.Headers)));
         work.AddRejections(import, candidates, read.Rejected);
-        ImportTally tally = await work.StageAsync(import, read.Accepted, cancellationToken);
+        ImportTally tally = await work.StageAsync(import, read.Accepted, batch.Map, cancellationToken);
         return new WrittenRows(
             batch.Rows[^1].RowNumber, read.Accepted.Count, tally.Created, tally.Updated, tally.Skipped, read.Rejected.Count);
     }
