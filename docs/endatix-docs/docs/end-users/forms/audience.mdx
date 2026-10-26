@@ -1,6 +1,6 @@
 ---
 title: Audience
-description: Add the people a form is for and the properties kept about each one, see which values the form uses and who is missing them, preview the saved form as any participant, open a participant's page, and use test people with Test as this participant and Start over before you send any links.
+description: Add the people a form is for and the properties kept about each one, see which values the form uses and who is missing them, preview the saved form as any participant, open a participant's page, and use test people with Test as this participant, Copy test link, and Start over before you send any links.
 sidebar_label: Audience
 ---
 
@@ -108,7 +108,7 @@ Click a person's identifier to open their page on this form. It needs permission
 - **Link** shows their personalized link's status, when it was opened, and the response it started. It appears only once a link was issued, so a test person never has it.
 - **Submissions** lists their newest submissions on this form, up to 50, with the status and where each came from: **Personalized link**, **On behalf**, or **Test as this participant**. Click **View** to open one.
 
-The page has the same actions as the row: **Test as this participant**, **Edit values**, and **Remove**. Click **Audience** at the top to go back to the list.
+The page has the same actions as the row: **Test as this participant**, **Copy test link** for a test person, **Edit values**, and **Remove**. Click **Audience** at the top to go back to the list.
 
 ## Test people
 
@@ -185,10 +185,24 @@ Use it after you change the person's values or edit the form: the new test submi
 
 If the person was removed from the form in the meantime, **Start over** goes away and the Test inspector says *This person is no longer on this form, so this test submission cannot start over.* Add a test person again and use **Test as this participant**.
 
+## Copy test link
+
+**Copy test link** gives you a link to a new test submission as a test person, to send to a colleague who has no Endatix login. They open it in any browser and fill in the form with that person's values, also on a private form.
+
+It is the link icon in a test person's row and a button on a test person's page. Real people do not have it. You see it when you can test forms, edit the form, and view, edit, or export submissions.
+
+1. On the **People** view, click **Copy test link** in a test person's row, or on their page.
+2. Choose the **Link lifetime**, from **1 hour** to **60 days**. It starts at **7 days**.
+3. Click **Create and copy link**. Hub creates the test submission and copies its link.
+
+The panel also shows the link with **Copy this link**, in case your browser did not allow the copy. Click **Create and copy another** for a second link: each copy opens its own new test submission, with the person's current values and the latest saved form.
+
+Anyone with the link can fill in that one test submission until it is completed or the link expires, with no sign-in. It opens nothing else. The submission is a test submission like any other: it shows under **Submission Type: Test** on the Submissions page, stays out of exports unless you include test submissions, and can be deleted there.
+
 ## Limitations
 
 - **Test status is set once.** You cannot switch a person between test and real. Remove them and add them again.
-- **Test people get no links.** **Personalized links** skips them, and a test import never touches people already on the form.
+- **Test people get no personalized links.** **Personalized links** skips them; use **Copy test link** to share a test, and a test import never touches people already on the form.
 - **Start over needs the person.** It works only while the person is still on the form.
 - **No Test inspector in embeds.** An embedded form shows the plain test notice with **Start over**.
 

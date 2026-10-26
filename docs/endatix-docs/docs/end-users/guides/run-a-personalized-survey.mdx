@@ -21,7 +21,7 @@ You finish with a file of personal links ready to send, a Link status for every 
 
 - **Personalization is on** for your Endatix deployment. Ask whoever runs it if a form has no **Audience** tab. The setup is on [Hub Environment](/docs/developers/hub/environment#feature-flags).
 - **Permission to edit the form.** The coverage counts and participant pages need it.
-- **Permission to test forms**, for **Test as this participant**.
+- **Permission to test forms**, for **Test as this participant**. **Copy test link** also needs permission to edit the form and to view, edit, or export submissions.
 - **A list of your people** as a CSV, with one row per person, a column that identifies each person (for example their email), and one column per fact you want to use.
 
 ## Turn on personalization
@@ -67,6 +67,8 @@ Start with a look, then a real test:
 1. On the **People** view, click **Test as this participant**: the flask icon in a test person's row, or the button on their page. The form opens in a new tab as that person.
 2. Check the greeting and questions read correctly with their values, and answer as they would.
 3. After you change the form or the person's values, click **Start over** in the Test inspector, the **TEST** button at the bottom right. It opens a new test submission with the latest form and values.
+
+To have a colleague without an Endatix login test as a test person, click **Copy test link** in that person's row or on their page, choose the **Link lifetime** (7 days unless you change it), and click **Create and copy link**. Send them the link: it opens one new test submission with that person's values, also on a private form. See [Copy test link](/docs/end-users/forms/audience#copy-test-link).
 
 Each test is a test submission: it never uses a real person's link and stays out of exports unless you ask for it. See [Testing Submissions](/docs/end-users/submissions/testing-submissions) for the Test inspector and [Start over](/docs/end-users/submissions/testing-submissions#start-over).
 
@@ -126,7 +128,7 @@ See [Keep test submissions out of exports](/docs/end-users/submissions/testing-s
 
 - **Removing a person stops their link within a minute, not at once.** A response they have open can still save until then.
 - **Links are shown once.** Hub keeps no copy you can download again, and a person who has a link does not get a new one.
-- **Testing happens in your own browser.** **Test as this participant** opens the form for you; there is no link to send a colleague to test as someone.
+- **Test links are for test people only.** **Copy test link** shares a test as a test person, not as a real one, and each copy opens a single test submission.
 - **Values are fixed when a link is first opened.** Editing a person afterwards does not change a response they already started.
 - **No Test inspector in embeds.** An embedded form shows the plain test notice with **Start over**.
 
