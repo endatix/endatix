@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Endatix.Infrastructure.Data;
 using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Links;
