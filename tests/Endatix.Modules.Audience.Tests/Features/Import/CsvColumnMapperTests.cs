@@ -322,7 +322,8 @@ public sealed class CsvColumnMapperTests
     {
         // Arrange — a radio question with Other exports its key column and q__other_text.
         Property tier = new(new PropertyCreateArgs(
-            1, 10, "Tier", AudienceDataTypeCodes.SingleChoice, 0, """["basic"]""", AllowsOther: true)) { Id = 5 };
+            1, 10, "Tier", AudienceDataTypeCodes.SingleChoice, 0, """["basic"]""", AllowsOther: true))
+        { Id = 5 };
         CsvColumnMap map = CsvColumnMapper.Build(new CsvColumnRequest(
             [tier], ["email", "tier", "tier__other_text"], "email", new Dictionary<string, string> { ["tier"] = "tier" }));
 
@@ -339,7 +340,8 @@ public sealed class CsvColumnMapperTests
     {
         // Arrange
         Property brands = new(new PropertyCreateArgs(
-            1, 10, "Brands", AudienceDataTypeCodes.MultipleChoice, 0, """["nike"]""")) { Id = 5 };
+            1, 10, "Brands", AudienceDataTypeCodes.MultipleChoice, 0, """["nike"]"""))
+        { Id = 5 };
         Property notes = Text(6, "Notes");
         CsvColumnMap map = CsvColumnMapper.Build(new CsvColumnRequest(
             [brands, notes], ["email", "brands__notes"], "email", new Dictionary<string, string> { ["notes"] = "brands__notes" }));

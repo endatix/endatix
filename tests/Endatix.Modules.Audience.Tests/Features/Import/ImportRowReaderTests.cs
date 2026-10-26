@@ -191,7 +191,8 @@ public sealed class ImportRowReaderTests
     {
         // Arrange
         Property brands = new(new PropertyCreateArgs(
-            1, 10, "Brands", AudienceDataTypeCodes.MultipleChoice, 0, """["nike"]""")) { Id = 5 };
+            1, 10, "Brands", AudienceDataTypeCodes.MultipleChoice, 0, """["nike"]"""))
+        { Id = 5 };
         CsvColumnMap map = CsvColumnMapper.Build(new CsvColumnRequest([brands], ["email", "brands__nike"], "email", null));
         List<CsvDataRow> rows =
         [
