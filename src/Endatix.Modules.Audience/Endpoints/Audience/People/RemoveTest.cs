@@ -18,25 +18,12 @@ public sealed class RemoveTest(
     ITenantContext tenantContext)
     : Endpoint<RemoveTestPeopleRequest, Results<Ok<RemoveTestPeopleResponse>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Post("forms/{formId}/audience/people/test/removal");
         Permissions(Actions.Forms.Edit);
-        Summary(summary =>
-        {
-            summary.Summary = "Remove test participants from form";
-            summary.Description =
-                "Removes the given test participants from this form, or every test participant when membershipIds " +
-                "is null, one at a time. With alsoDeleteTestSubmissions it then deletes the test submissions opened " +
-                "as them, and their test links answer 404; that needs forms.test and submissions.delete. Real " +
-                "participants and their submissions are never touched. With dryRun it counts and writes nothing. " +
-                "The same request again finishes a run that failed part way.";
-            summary.Responses[200] = "What was removed, or with dryRun what would be.";
-            summary.Responses[400] = "Invalid input, or a real participant in the set; nothing is removed.";
-            summary.Responses[403] = "alsoDeleteTestSubmissions without forms.test and submissions.delete.";
-            summary.Responses[404] = "Form not found, or a membership not on this form.";
-            summary.Responses[503] = "A participant is being changed, or the form's people are being imported; try again.";
-        });
+        Summary(Describe);
         Description(builder => builder
             .Produces<RemoveTestPeopleResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(400)
@@ -45,6 +32,7 @@ public sealed class RemoveTest(
             .ProducesProblem(503));
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Ok<RemoveTestPeopleResponse>, ProblemHttpResult>> ExecuteAsync(
         RemoveTestPeopleRequest request,
         CancellationToken ct)
@@ -62,6 +50,21 @@ public sealed class RemoveTest(
             .MapResult(result, RemoveTestPeopleResponse.From)
             .SetTypedResults<Ok<RemoveTestPeopleResponse>, ProblemHttpResult>();
     }
+
+    private static void Describe(EndpointSummary summary)
+    {
+        summary.Summary = "Remove test participants from form";
+        summary.Description =
+            "Removes the named test participants (every one when membershipIds is null), one at a time, then with " +
+            "alsoDeleteTestSubmissions the test submissions opened as them, so their test links answer 404. Real " +
+            "participants and their submissions are never touched. dryRun counts and writes nothing. The same " +
+            "request again finishes a run that failed part way.";
+        summary.Responses[200] = "What was removed, or with dryRun what would be.";
+        summary.Responses[400] = "Invalid input, or a real participant in the set; nothing is removed.";
+        summary.Responses[403] = "alsoDeleteTestSubmissions without forms.test and submissions.delete.";
+        summary.Responses[404] = "Form not found, or a membership never on this form (one removed already counts 0).";
+        summary.Responses[503] = "A participant is being changed, or the form's people are being imported; try again.";
+    }
 }
 
 /// <summary>
@@ -72,6 +75,7 @@ public sealed class RemoveTestPeopleValidator : Validator<RemoveTestPeopleReques
     /// <summary>How many participants one request may name; null names every test participant.</summary>
     public const int MAX_MEMBERSHIP_IDS = 500;
 
+    /// <summary>Requires a form, and named participants at most once each, up to the cap.</summary>
     public RemoveTestPeopleValidator()
     {
         RuleFor(request => request.FormId).GreaterThan(0);
@@ -91,6 +95,7 @@ public sealed class RemoveTestPeopleValidator : Validator<RemoveTestPeopleReques
 /// </summary>
 public sealed class RemoveTestPeopleRequest
 {
+    /// <summary>The form to remove them from.</summary>
     public long FormId { get; init; }
 
     /// <summary>The test participants to remove; null for every test participant on the form.</summary>
@@ -114,8 +119,10 @@ public sealed class RemoveTestPeopleResponse
     /// <summary>Test submissions deleted by this request.</summary>
     public int TestSubmissions { get; init; }
 
+    /// <summary>Whether this only counted.</summary>
     public bool DryRun { get; init; }
 
+    /// <summary>Maps the handler's counts to the wire model.</summary>
     public static RemoveTestPeopleResponse From(RemovedTestPeopleDto dto) => new()
     {
         People = dto.People,

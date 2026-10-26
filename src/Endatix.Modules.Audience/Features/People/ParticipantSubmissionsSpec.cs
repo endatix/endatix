@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Modules.Audience.Features.Links;
+using static Endatix.Modules.Audience.Features.Links.SnapshotExpression;
 
 namespace Endatix.Modules.Audience.Features.People;
 
@@ -73,15 +74,5 @@ internal sealed class ParticipantSubmissionsSpec : Specification<Submission, Par
                     Expression.OrElse(BodyOf(isTest, submission), BodyOf(isOnBehalf, snapshot)),
                     BodyOf(namesParticipant, snapshot))));
         return Expression.Lambda<Func<Submission, bool>>(body, submission);
-    }
-
-    private static Expression BodyOf(LambdaExpression lambda, Expression argument) =>
-        new Rebind(lambda.Parameters[0], argument).Visit(lambda.Body);
-
-    /// <summary>Replaces one lambda parameter with another expression.</summary>
-    private sealed class Rebind(ParameterExpression from, Expression to) : ExpressionVisitor
-    {
-        protected override Expression VisitParameter(ParameterExpression node) =>
-            node == from ? to : base.VisitParameter(node);
     }
 }

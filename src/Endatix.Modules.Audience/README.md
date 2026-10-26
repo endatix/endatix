@@ -181,19 +181,21 @@ and redeem, which is anonymous.
   property soft-deletes its cells in one statement. Reads skip cells of deleted properties. These take no participant lock: an
   edit in flight can still write a cell after them, and it stays out of every read with its Property (a form's
   deletion deletes its Properties too).
-- **Removing test participants.** `RemoveTestPeopleHandler` removes the people first, one at a time, each through
-  `PersonRemoval` (the removal `DELETE people/{membershipId}` makes) under their own stripe and `MembershipLock`; no
-  section holds the whole form. Then, with `alsoDeleteTestSubmissions`, `TestSubmissionSweep` deletes the test
-  submissions opened as them: `TestSubmissionsOfSpec` (a test submission whose Snapshot `source` is `test` and whose
-  `memberId` is one of theirs, `PersonalizationSnapshotJson.IsTest` and `NamesAnyParticipant`), in keyset pages of 500,
-  each deleted through the aggregate so Reporting drops its row, and each its own commit. A submission marked as test
-  from the submissions page keeps its own source and is left alone. Their test links then answer 404, as any access
-  token to a deleted submission does. The targets are read with their tombstones, so the same request again finishes a
-  run that failed part way (people already removed count 0); with `membershipIds` null that covers every test
-  participant ever removed from the form. A member back on the form as a real participant is left out of the sweep:
-  the Snapshot names the member, and a real participant never loses a submission. Known window: a test open that found
-  the person before their removal and saves after the sweep leaves one test submission, whose link works until it
-  expires.
+- **Removing test participants.** `RemoveTestPeopleHandler` removes the people first, one at a time, through
+  `TestParticipantRemoval`: each one through `PersonRemoval` (the removal `DELETE people/{membershipId}` makes) under
+  their own stripe and `MembershipLock`, in a transaction of its own; no section holds the whole form. Then, with
+  `alsoDeleteTestSubmissions`, `TestSubmissionSweep` deletes the test submissions opened as them:
+  `TestSubmissionsOfSpec` (a test submission whose Snapshot `source` is `test` and whose `memberId` is one of theirs,
+  `PersonalizationSnapshotJson.IsTest` and `NamesAnyParticipant`), in keyset pages of 500, each deleted through the
+  aggregate so Reporting drops its row, and each its own commit. A submission marked as test from the submissions page
+  keeps its own source and is left alone. Their test links then answer 404, as any access token to a deleted
+  submission does. The named memberships are read with their tombstones, so the same request again finishes a run that
+  failed part way (people already removed count 0; an id never on the form is 404); with `membershipIds` null that is
+  every test participant ever on the form, so its cost grows with the form's history and the request runs until both
+  phases finish. The Snapshot names the member, not the membership, so a member still on the form after the removals
+  through a membership the request did not name (a real participant, or a test one added again) keeps every test
+  submission: a real participant never loses one. Known window: a test open that found the person before their
+  removal and saves after the sweep leaves one test submission, whose link works until it expires.
 - **Form deleted.** The `form.deleted` outbox handler soft-deletes the form's cells, memberships
   and properties; tenant members stay. Until it runs, the form's people still count toward the
   match-key lock.

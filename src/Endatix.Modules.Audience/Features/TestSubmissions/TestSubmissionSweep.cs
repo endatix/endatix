@@ -15,7 +15,7 @@ internal sealed record TestSweepScope(long TenantId, long FormId, IReadOnlyColle
 /// <c>submission.deleted</c> and Reporting drops its row, in keyset pages that each commit on their own.
 /// </summary>
 /// <remarks>
-/// The member ids are sent <see cref="MEMBER_CHUNK"/> at a time, each one a query parameter. A failure part way leaves
+/// The member ids are sent <see cref="MEMBER_CHUNK"/> at a time. A failure part way leaves
 /// the earlier pages deleted; a retry carries on, since deleted submissions no longer match.
 /// <see cref="BaseEntity.IsDeleted"/> is a concurrency token, so a page with a row deleted since it was read saves
 /// nothing and is read again from the same <c>afterId</c>, a bounded number of times.
@@ -25,7 +25,10 @@ internal sealed class TestSubmissionSweep(IRepository<Submission> submissions, I
     /// <summary>Submissions loaded and saved per round trip.</summary>
     internal const int PAGE_SIZE = 500;
 
-    /// <summary>Member ids per query, well under SQL Server's 2,100 parameters.</summary>
+    /// <summary>
+    /// Member ids per query. EF sends the ids as one collection parameter, which SQL Server may expand to one parameter
+    /// per id; 500 stays well under its 2,100.
+    /// </summary>
     internal const int MEMBER_CHUNK = 500;
 
     /// <summary>How many times a page is read and saved before the sweep gives up as busy.</summary>
@@ -64,10 +67,9 @@ internal sealed class TestSubmissionSweep(IRepository<Submission> submissions, I
         return total;
     }
 
-    private async Task<Result<int>> DeleteChunkAsync(TestSubmissionsOfKey start, CancellationToken cancellationToken)
+    private async Task<Result<int>> DeleteChunkAsync(TestSubmissionsOfKey next, CancellationToken cancellationToken)
     {
         var deleted = 0;
-        var next = start;
         while (true)
         {
             var page = await DeletePageAsync(next, cancellationToken);

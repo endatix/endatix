@@ -53,7 +53,7 @@ internal static class PersonalizationSnapshotJson
 
     /// <summary>
     /// Whether a stored snapshot names any of the participants whose audience member ids are
-    /// <paramref name="memberIds"/>: <see cref="NamesParticipant"/> for a set, one parameter per id.
+    /// <paramref name="memberIds"/>: <see cref="NamesParticipant"/> for a set, sent as one collection parameter.
     /// </summary>
     public static Expression<Func<string?, bool>> NamesAnyParticipant(IReadOnlyCollection<long> memberIds)
     {
