@@ -32,6 +32,10 @@ public sealed record IssueLinksCommand(LinkBatchScope Scope) : ICommand<Result<I
 /// <param name="Issued">The links issued by this call; a person who already had one is left out.</param>
 public sealed record IssuedLinkBatchDto(int Matching, IReadOnlyList<IssuedPersonLinkDto> Issued);
 
+/// <summary>One new link, with the participant it is for.</summary>
+/// <param name="MembershipId">The participant's membership on the form.</param>
+/// <param name="Identifier">The participant's identifier, as entered.</param>
+/// <param name="Token">The raw link token; only its hash is stored.</param>
 public sealed record IssuedPersonLinkDto(long MembershipId, string Identifier, string Token);
 
 /// <summary>

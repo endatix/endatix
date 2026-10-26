@@ -18,6 +18,7 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.Links;
 public sealed class IssueBatch(IMediator mediator, ITenantContext tenantContext)
     : Endpoint<IssueLinkBatchRequest, Results<Ok<IssuedLinkBatchResponse>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Post("forms/{formId}/audience/links/batches");
@@ -43,6 +44,7 @@ public sealed class IssueBatch(IMediator mediator, ITenantContext tenantContext)
         summary.Responses[503] = "Other link batches on this form kept issuing to the same people. Try again.";
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Ok<IssuedLinkBatchResponse>, ProblemHttpResult>> ExecuteAsync(
         IssueLinkBatchRequest request,
         CancellationToken ct)
@@ -57,8 +59,10 @@ public sealed class IssueBatch(IMediator mediator, ITenantContext tenantContext)
     }
 }
 
+/// <summary>Validates <see cref="IssueLinkBatchRequest"/>.</summary>
 public sealed class IssueLinkBatchValidator : Validator<IssueLinkBatchRequest>
 {
+    /// <summary>The form id, and a search no longer than an identifier.</summary>
     public IssueLinkBatchValidator()
     {
         RuleFor(request => request.FormId).GreaterThan(0);
@@ -67,14 +71,17 @@ public sealed class IssueLinkBatchValidator : Validator<IssueLinkBatchRequest>
     }
 }
 
+/// <summary>Request to issue a Personalized link batch.</summary>
 public sealed class IssueLinkBatchRequest
 {
+    /// <summary>The form whose participants get links.</summary>
     public long FormId { get; init; }
 
     /// <summary>Which real people get a link; absent keeps everyone.</summary>
     public LinkBatchFilterRequest? Filter { get; init; }
 }
 
+/// <summary>Which real people a link batch is for.</summary>
 public sealed class LinkBatchFilterRequest
 {
     /// <summary>
@@ -83,11 +90,15 @@ public sealed class LinkBatchFilterRequest
     public string? Search { get; init; }
 }
 
+/// <summary>The links one batch issued.</summary>
 public sealed class IssuedLinkBatchResponse
 {
+    /// <summary>Real people the filter keeps, with or without a link.</summary>
     public int Matching { get; init; }
+    /// <summary>The new links only; a person who already had one is left out.</summary>
     public IReadOnlyList<IssuedPersonLinkResponse> Issued { get; init; } = [];
 
+    /// <summary>Maps the handler result to the response.</summary>
     public static IssuedLinkBatchResponse From(IssuedLinkBatchDto batch) =>
         new()
         {
@@ -103,9 +114,13 @@ public sealed class IssuedLinkBatchResponse
         };
 }
 
+/// <summary>One new link, with the participant it is for.</summary>
 public sealed class IssuedPersonLinkResponse
 {
+    /// <summary>The participant's membership on the form.</summary>
     public long MembershipId { get; init; }
+    /// <summary>The participant's identifier, as entered.</summary>
     public string Identifier { get; init; } = string.Empty;
+    /// <summary>The raw link token, returned only here.</summary>
     public string Token { get; init; } = string.Empty;
 }

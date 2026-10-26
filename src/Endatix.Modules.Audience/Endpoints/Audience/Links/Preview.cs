@@ -18,6 +18,7 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.Links;
 public sealed class Preview(IMediator mediator, ITenantContext tenantContext)
     : Endpoint<PreviewLinksRequest, Results<Ok<LinkPreviewResponse>, ProblemHttpResult>>
 {
+    /// <inheritdoc />
     public override void Configure()
     {
         Get("forms/{formId}/audience/links/preview");
@@ -38,6 +39,7 @@ public sealed class Preview(IMediator mediator, ITenantContext tenantContext)
             .ProducesProblem(404));
     }
 
+    /// <inheritdoc />
     public override async Task<Results<Ok<LinkPreviewResponse>, ProblemHttpResult>> ExecuteAsync(
         PreviewLinksRequest request,
         CancellationToken ct)
@@ -52,8 +54,10 @@ public sealed class Preview(IMediator mediator, ITenantContext tenantContext)
     }
 }
 
+/// <summary>Validates <see cref="PreviewLinksRequest"/>.</summary>
 public sealed class PreviewLinksValidator : Validator<PreviewLinksRequest>
 {
+    /// <summary>The form id, and a search no longer than an identifier.</summary>
     public PreviewLinksValidator()
     {
         RuleFor(request => request.FormId).GreaterThan(0);
@@ -61,8 +65,10 @@ public sealed class PreviewLinksValidator : Validator<PreviewLinksRequest>
     }
 }
 
+/// <summary>Request to preview a Personalized link batch.</summary>
 public sealed class PreviewLinksRequest
 {
+    /// <summary>The form whose participants are counted.</summary>
     public long FormId { get; init; }
 
     /// <summary>
@@ -71,12 +77,17 @@ public sealed class PreviewLinksRequest
     public string? Search { get; init; }
 }
 
+/// <summary>What a link batch with the same search would do.</summary>
 public sealed class LinkPreviewResponse
 {
+    /// <summary>Real people the search keeps.</summary>
     public int Matching { get; init; }
+    /// <summary>Of those, the people with no link yet: who a batch would issue to.</summary>
     public int WithoutLink { get; init; }
+    /// <summary>The most links one batch issues.</summary>
     public int Cap { get; init; }
 
+    /// <summary>Maps the handler result to the response.</summary>
     public static LinkPreviewResponse From(LinkPreviewDto preview) =>
         new() { Matching = preview.Matching, WithoutLink = preview.WithoutLink, Cap = preview.Cap };
 }

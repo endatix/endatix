@@ -16,17 +16,19 @@ internal static class LinkIssueRace
 
     public static async Task<T> RetryAsync<T>(LinkIssuePasses passes, Func<Task<T>> issue)
     {
-        for (var pass = 1; ; pass++)
+        for (var pass = 1; pass < passes.Count; pass++)
         {
             try
             {
                 return await issue();
             }
-            catch (DbUpdateException ex) when (pass < passes.Count && IsLost(passes.Violations, ex))
+            catch (DbUpdateException ex) when (IsLost(passes.Violations, ex))
             {
                 ((DbContext)passes.Db).ChangeTracker.Clear();
             }
         }
+
+        return await issue();
     }
 }
 
