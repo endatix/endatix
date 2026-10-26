@@ -30,7 +30,7 @@ public class SubmissionAccessTokenServiceTests
         var dateTimeProvider = CreateDateTimeProvider();
 
         // Act
-        var act = () => new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var act = () => new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Assert
         act.Should().NotThrow();
@@ -43,7 +43,7 @@ public class SubmissionAccessTokenServiceTests
         var dateTimeProvider = CreateDateTimeProvider();
 
         // Act
-        var act = () => new SubmissionAccessTokenService(null!, dateTimeProvider);
+        var act = () => new SubmissionAccessTokenService(null!, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Assert
         act.Should().Throw<ArgumentNullException>();
@@ -57,7 +57,7 @@ public class SubmissionAccessTokenServiceTests
         optionsWrapper.Value.Returns(_validOptions);
 
         // Act
-        var act = () => new SubmissionAccessTokenService(optionsWrapper, null!);
+        var act = () => new SubmissionAccessTokenService(optionsWrapper, null!, new OpenSubmissionAccessTokenGate());
 
         // Assert
         act.Should().Throw<ArgumentNullException>();
@@ -76,7 +76,7 @@ public class SubmissionAccessTokenServiceTests
 
         // Act
         var dateTimeProvider = CreateDateTimeProvider();
-        var act = () => new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var act = () => new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Assert
         act.Should().Throw<ArgumentException>();
@@ -95,7 +95,7 @@ public class SubmissionAccessTokenServiceTests
 
         // Act
         var dateTimeProvider = CreateDateTimeProvider();
-        var act = () => new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var act = () => new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Assert
         act.Should().Throw<ArgumentException>();
@@ -114,7 +114,7 @@ public class SubmissionAccessTokenServiceTests
 
         // Act
         var dateTimeProvider = CreateDateTimeProvider();
-        var act = () => new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var act = () => new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -128,7 +128,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var submissionId = 12345L;
         var expiryMinutes = 60;
         var permissions = new[] { "view", "edit" };
@@ -151,7 +151,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var submissionId = 12345L;
         var expiryMinutes = 60;
         var permissions = new[] { "view" };
@@ -174,7 +174,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var submissionId = 12345L;
         var expiryMinutes = 60;
         var permissions = new[] { "view", "edit", "export" };
@@ -195,7 +195,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var act = () => service.GenerateAccessToken(0, 60, new[] { "view" });
@@ -211,7 +211,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var act = () => service.GenerateAccessToken(-1, 60, new[] { "view" });
@@ -227,7 +227,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var act = () => service.GenerateAccessToken(12345, 0, new[] { "view" });
@@ -243,7 +243,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var act = () => service.GenerateAccessToken(12345, -1, new[] { "view" });
@@ -259,7 +259,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var act = () => service.GenerateAccessToken(12345, 60, Array.Empty<string>());
@@ -275,7 +275,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var result = service.GenerateAccessToken(12345, 60, new[] { "invalid" });
@@ -293,7 +293,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var result = service.GenerateAccessToken(12345, 60, new[] { "view", "invalid" });
@@ -310,7 +310,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var submissionId = 12345L;
         var expiryMinutes = 60;
         var permissions = new[] { "view", "edit" };
@@ -334,7 +334,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var act = () => service.ValidateAccessToken(null!);
@@ -350,7 +350,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var act = () => service.ValidateAccessToken("");
@@ -366,7 +366,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var result = service.ValidateAccessToken("12345.123456.rw");
@@ -383,7 +383,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var result = service.ValidateAccessToken("12345.123456.rw.sig.extra");
@@ -400,7 +400,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var result = service.ValidateAccessToken("notanumber.123456.rw.signature");
@@ -417,7 +417,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var result = service.ValidateAccessToken("12345.notanumber.rw.signature");
@@ -434,7 +434,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var tokenResult = service.GenerateAccessToken(12345, 60, new[] { "view" });
         var tokenParts = tokenResult.Value.Token.Split('.');
 
@@ -456,7 +456,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var tokenResult = service.GenerateAccessToken(12345, 60, new[] { "view" });
         var tokenParts = tokenResult.Value.Token.Split('.');
 
@@ -478,7 +478,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var tokenResult = service.GenerateAccessToken(12345, 60, new[] { "view" });
         var tokenParts = tokenResult.Value.Token.Split('.');
 
@@ -500,7 +500,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var tokenResult = service.GenerateAccessToken(12345, 60, new[] { "view" });
         var tokenParts = tokenResult.Value.Token.Split('.');
 
@@ -522,7 +522,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
         var submissionId = 12345L;
         var expiryMinutes = 120;
         var permissions = new[] { "view", "edit", "export" };
@@ -557,8 +557,8 @@ public class SubmissionAccessTokenServiceTests
         optionsWrapper2.Value.Returns(options2);
 
         var dateTimeProvider = CreateDateTimeProvider();
-        var service1 = new SubmissionAccessTokenService(optionsWrapper1, dateTimeProvider);
-        var service2 = new SubmissionAccessTokenService(optionsWrapper2, dateTimeProvider);
+        var service1 = new SubmissionAccessTokenService(optionsWrapper1, dateTimeProvider, new OpenSubmissionAccessTokenGate());
+        var service2 = new SubmissionAccessTokenService(optionsWrapper2, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         var submissionId = 12345L;
         var expiryMinutes = 60;
@@ -583,7 +583,7 @@ public class SubmissionAccessTokenServiceTests
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
         var dateTimeProvider = CreateDateTimeProvider();
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         // Act
         var result = service.GenerateAccessToken(12345, 60, new[] { "view" });
@@ -603,7 +603,7 @@ public class SubmissionAccessTokenServiceTests
 
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         var expiryMinutes = 60;
         var tokenResult = service.GenerateAccessToken(12345, expiryMinutes, new[] { "view" });
@@ -630,7 +630,7 @@ public class SubmissionAccessTokenServiceTests
 
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         var expiryMinutes = 60;
         var tokenResult = service.GenerateAccessToken(12345, expiryMinutes, new[] { "view" });
@@ -656,7 +656,7 @@ public class SubmissionAccessTokenServiceTests
 
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         var expiryMinutes = 60;
         var tokenResult = service.GenerateAccessToken(12345, expiryMinutes, new[] { "view" });
@@ -682,7 +682,7 @@ public class SubmissionAccessTokenServiceTests
 
         var optionsWrapper = Substitute.For<IOptions<SubmissionAccessTokenOptions>>();
         optionsWrapper.Value.Returns(_validOptions);
-        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider);
+        var service = new SubmissionAccessTokenService(optionsWrapper, dateTimeProvider, new OpenSubmissionAccessTokenGate());
 
         var expiryMinutes = 1; // Very short-lived token
         var tokenResult = service.GenerateAccessToken(12345, expiryMinutes, new[] { "view" });

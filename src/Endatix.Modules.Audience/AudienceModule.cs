@@ -46,6 +46,8 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         builder.Services.AddScoped<IAudiencePropertyCatalog, AudiencePropertyCatalog>();
         builder.Services.AddScoped<LinkOpenLock>();
         builder.Services.AddScoped<LinkOpenGates>();
+        builder.Services.AddScoped<LinkTokens>();
+        builder.Services.AddScoped<ISubmissionAccessTokenGate, LinkAccessTokenGate>();
         builder.Services.AddScoped<LinkStatuses>();
         builder.Services.AddScoped<ParticipantReader>();
         builder.Services.AddScoped<LockedValuesWriter>();

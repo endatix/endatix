@@ -69,6 +69,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.False(second.GetProperty("created").GetBoolean());
         Assert.Equal(first.Value.SubmissionId, IdOf(second, "submissionId"));
         Assert.Equal(first.Value.AccessToken, AccessTokenOf(second));
+        await AssertFillsInAsync(anonymous, (formId, first.Value.SubmissionId), first.Value.SubmissionAccessToken);
         await AssertOnlySubmissionAsync(world.Services, formId, first.Value.SubmissionId);
     }
 
@@ -294,7 +295,8 @@ public sealed partial class AudienceDirectoryFlowTests
             forms,
             new EfRepository<Submitter>(app, evaluator),
             services.GetRequiredService<ISubmitterResolver>());
-        return new RedeemLinkHandler(audience, submissions, app, tokens, linkLock, gates);
+        var linkTokens = new LinkTokens(services.GetRequiredService<ISubmissionAccessTokenService>(), tokens);
+        return new RedeemLinkHandler(audience, submissions, app, tokens, linkTokens, linkLock, gates);
     }
 
     /// <summary>Starts a link open paused at <paramref name="gate"/>.</summary>
