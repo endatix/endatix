@@ -16,6 +16,10 @@ import ImportAsTestLight from "./audience-import-as-test_light.webp";
 import ImportAsTestDark from "./audience-import-as-test_dark.webp";
 import TestFilterLight from "./audience-test-filter_light.webp";
 import TestFilterDark from "./audience-test-filter_dark.webp";
+import CopyTestLinkRowLight from "./audience-copy-test-link-row_light.webp";
+import CopyTestLinkRowDark from "./audience-copy-test-link-row_dark.webp";
+import CopyTestLinkLight from "./audience-copy-test-link_light.webp";
+import CopyTestLinkDark from "./audience-copy-test-link_dark.webp";
 import PreviewAsLight from "./audience-preview-as_light.webp";
 import PreviewAsDark from "./audience-preview-as_dark.webp";
 
@@ -108,7 +112,7 @@ Click a person's identifier to open their page on this form. It needs permission
 - **Link** shows their personalized link's status, when it was opened, and the response it started. It appears only once a link was issued, so a test person never has it.
 - **Submissions** lists their newest submissions on this form, up to 50, with the status and where each came from: **Personalized link**, **On behalf**, or **Test as this participant**. Click **View** to open one.
 
-The page has the same actions as the row: **Test as this participant**, **Copy test link** for a test person, **Edit values**, and **Remove**. Click **Audience** at the top to go back to the list.
+The page has the same actions as the row: **Copy test link** for a test person, **Test as this participant**, **Edit values**, and **Remove**. Click **Audience** at the top to go back to the list.
 
 ## Test people
 
@@ -191,9 +195,19 @@ If the person was removed from the form in the meantime, **Start over** goes awa
 
 It is the link icon, first in a test person's row actions, and the first button on a test person's page. Real people do not have it. You see it when you can test forms, edit the form, and view, edit, or export submissions.
 
+<Shot
+  alt="People table with qa.tester@example.com, marked Test, and alex.kim@example.com. The test person's row actions start with the link icon, Copy test link, before Test as this participant, Edit and Remove; the real person's row has no link icon, so the other three line up"
+  sources={{ light: CopyTestLinkRowLight, dark: CopyTestLinkRowDark }}
+/>
+
 1. On the **People** view, click **Copy test link** in a test person's row, or on their page.
 2. Choose the **Link lifetime**, from **1 hour** to **60 days**. It starts at **7 days**.
 3. Click **Create and copy link**. Hub creates the test submission and copies its link.
+
+<Shot
+  alt="Copy test link panel for qa.tester@example.com after a copy: Link lifetime 7 days, the Test link with its share address and a copy button, Expires in 7 days, and the Create and copy another button"
+  sources={{ light: CopyTestLinkLight, dark: CopyTestLinkDark }}
+/>
 
 The panel also shows the link with **Copy this link**, in case your browser did not allow the copy. Click **Create and copy another** for a second link: each copy opens its own new test submission, with the person's current values and the latest saved form.
 
