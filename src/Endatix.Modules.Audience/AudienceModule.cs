@@ -59,6 +59,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         builder.Services.AddScoped<TestSubjects>();
         builder.Services.AddScoped<TestSubmissionOpener>();
         builder.Services.AddScoped<TestSubmissionWriter>();
+        builder.Services.AddScoped<TestSubmissionSweep>();
         builder.Services.AddScoped<AudienceVariablesReader>();
     }
 
