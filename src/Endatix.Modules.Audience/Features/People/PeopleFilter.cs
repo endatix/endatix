@@ -8,7 +8,8 @@ namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
 /// Which people on a form a request is about. <see cref="Search"/> keeps people whose identifier contains it; a blank
-/// one keeps everyone. The people list, the link preview and link batches all read it through <see cref="PeopleQuery"/>.
+/// one keeps everyone. The people list, the link preview and link batches all read it through
+/// <see cref="PeopleQuery"/>.
 /// </summary>
 public sealed record PeopleFilter(string? Search = null);
 

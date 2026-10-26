@@ -6,7 +6,10 @@ using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.Links;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -192,6 +195,123 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(0, after.GetProperty("withoutLink").GetInt32());
     }
 
+    [Fact]
+    public async Task Issuing_link_batches_with_overlapping_filters_at_once_issues_one_link_per_participant()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        await SeedRealParticipantsAsync(world.Services, formId, 300);
+        var seed = $"seed.{formId}.";
+        string[] searches = ["", $"{seed}1", $"{seed}2", seed, $"{seed}1", "", $"{seed}2", $"{seed}3"];
+
+        // Act
+        var batches = await Task.WhenAll(searches.Select(search => IssueLinkBatchAsync(admin, formId, search)));
+
+        // Assert
+        var issued = batches.SelectMany(batch => batch.GetProperty("issued").EnumerateArray())
+            .Select(item => IdOf(item, "membershipId"))
+            .ToList();
+        Assert.Equal(300, issued.Count);
+        Assert.Equal(issued.Count, issued.Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Issuing_a_link_batch_on_a_form_over_the_cap_whose_people_mostly_have_links_issues_the_rest()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        await SeedRealParticipantsAsync(world.Services, formId, LINKS_PER_BATCH + 1);
+        var first = await IssueLinkBatchAsync(admin, formId, $"seed.{formId}.1");
+
+        // Act
+        var rest = await IssueLinkBatchAsync(admin, formId, null);
+
+        // Assert
+        Assert.Equal(1_111, first.GetProperty("issued").GetArrayLength());
+        Assert.Equal(LINKS_PER_BATCH + 1 - 1_111, rest.GetProperty("issued").GetArrayLength());
+        Assert.Equal(LINKS_PER_BATCH + 1, rest.GetProperty("matching").GetInt32());
+    }
+
+    [Fact]
+    public async Task Previewing_or_issuing_links_on_another_tenants_form_is_not_found_and_issues_none()
+    {
+        // Arrange
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword },
+            TestContext.Current.CancellationToken);
+        var owner = await AsAsync(world, TestPersona.TenantAdmin);
+        var stranger = new AudienceApi(
+            await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: owner.CancellationToken),
+            owner.CancellationToken);
+        var formId = await owner.CreateFormAsync();
+        await AddParticipantAsync(owner, formId, "ada@example.com");
+
+        // Act
+        using var preview = await stranger.Client.GetAsync(
+            $"/api/forms/{formId}/audience/links/preview", owner.CancellationToken);
+        using var batch = await stranger.PostAsync(BatchesUrl(formId), new { filter = new { } });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, preview.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, batch.StatusCode);
+        Assert.Equal(1, (await PreviewLinksAsync(owner, formId, "")).GetProperty("withoutLink").GetInt32());
+    }
+
+    [Fact]
+    public async Task Previewing_or_issuing_links_without_forms_edit_is_forbidden()
+    {
+        // Arrange
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword, AfterSeed = SeedViewerAsync },
+            TestContext.Current.CancellationToken);
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var viewer = new AudienceApi(
+            await world.AsAsync(
+                TestPersona.CustomRole(ViewerRole), userName: ViewerUserName, cancellationToken: admin.CancellationToken),
+            admin.CancellationToken);
+        var formId = await admin.CreateFormAsync();
+        await AddParticipantAsync(admin, formId, "ada@example.com");
+
+        // Act
+        using var preview = await viewer.Client.GetAsync(
+            $"/api/forms/{formId}/audience/links/preview", admin.CancellationToken);
+        using var batch = await viewer.PostAsync(BatchesUrl(formId), new { filter = new { } });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, preview.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, batch.StatusCode);
+    }
+
+    /// <summary>
+    /// Who gets a link depends on memberships, members and links only. A read of cells would grow with the form's
+    /// Properties (ARCHITECTURE, reads that grow with imported data).
+    /// </summary>
+    [Fact]
+    public async Task Previewing_and_issuing_links_read_no_cells()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var personUrl, var propertyId) = await admin.PersonWithPropertyAsync(new { name = "City", dataType = "text" });
+        using var saved = await admin.PutValueAsync(personUrl, propertyId, "Sofia");
+        var formId = long.Parse(personUrl.Split('/')[3]);
+        var scope = new LinkBatchScope(await TenantOfFormAsync(world.Services, formId), formId, new PeopleFilter());
+
+        // Act
+        var preview = await CountedSendAsync(world.Services, new PreviewLinksQuery(scope));
+        var batch = await CountedSendAsync(world.Services, new IssueLinksCommand(scope));
+
+        // Assert
+        Assert.Equal(2, preview.Count(command => command.Contains("Memberships", StringComparison.Ordinal)));
+        Assert.DoesNotContain(
+            preview.Concat(batch),
+            command => command.Contains("PropertyValues", StringComparison.Ordinal));
+    }
+
     /// <summary>
     /// A form with two real Marias, the first of whom has a link, a real Ada, and a test Maria.
     /// </summary>
@@ -210,6 +330,25 @@ public sealed partial class AudienceDirectoryFlowTests
     {
         var page = await ListPeopleAsync(api, formId, $"?search={Uri.EscapeDataString(identifier)}");
         return IdOf(Assert.Single(page.GetProperty("items").EnumerateArray()), "membershipId");
+    }
+
+    /// <summary>
+    /// The commands one request sends on its own scope's contexts, as <see cref="StatementCounter"/> sees them.
+    /// </summary>
+    private static async Task<IReadOnlyList<string>> CountedSendAsync<TResponse>(
+        IServiceProvider services,
+        IRequest<TResponse> request)
+    {
+        await using var scope = services.CreateAsyncScope();
+        DbContext[] contexts =
+        [
+            scope.ServiceProvider.GetRequiredService<AppDbContext>(),
+            (DbContext)scope.ServiceProvider.GetRequiredService<IAudienceDbContext>(),
+        ];
+        using var statements = new StatementCounter(contexts);
+        await scope.ServiceProvider.GetRequiredService<IMediator>()
+            .Send(request, TestContext.Current.CancellationToken);
+        return statements.Commands;
     }
 
     private static string BatchesUrl(long formId) => $"/api/forms/{formId}/audience/links/batches";
@@ -233,13 +372,9 @@ public sealed partial class AudienceDirectoryFlowTests
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var scope = services.CreateAsyncScope();
-        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var audience = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
         var normalizer = scope.ServiceProvider.GetRequiredService<IValueNormalizer>();
-        var tenantId = await app.Forms.IgnoreQueryFilters()
-            .Where(form => form.Id == formId)
-            .Select(form => form.TenantId)
-            .SingleAsync(cancellationToken);
+        var tenantId = await TenantOfFormAsync(services, formId);
         var members = Enumerable.Range(0, count)
             .Select(index => new Member(new MemberCreateArgs(
                 tenantId, $"seed.{formId}.{index}@example.com", AudienceIdentifierKindCodes.Email, normalizer)))
@@ -249,5 +384,14 @@ public sealed partial class AudienceDirectoryFlowTests
         audience.Memberships.AddRange(members.Select(member =>
             new Membership(new MembershipCreateArgs(tenantId, formId, member.Id, IsTest: false))));
         await audience.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task<long> TenantOfFormAsync(IServiceProvider services, long formId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Forms.IgnoreQueryFilters()
+            .Where(form => form.Id == formId)
+            .Select(form => form.TenantId)
+            .SingleAsync(TestContext.Current.CancellationToken);
     }
 }

@@ -24,9 +24,10 @@ public sealed class Preview(IMediator mediator, ITenantContext tenantContext)
         Permissions(Actions.Forms.Edit);
         Summary(summary =>
         {
-            summary.Summary = "Preview a personalised link batch";
-            summary.Description = "matching counts the real people whose identifier contains search (ignoring case; " +
-                "blank keeps everyone), withoutLink those of them with no link yet, cap the most links one batch issues.";
+            summary.Summary = "Preview a Personalized link batch";
+            summary.Description = "matching counts the real people whose identifier contains search (ignoring " +
+                "case under the database's default collation; blank keeps everyone), withoutLink those of them with " +
+                "no link yet, cap the most links one batch issues.";
             summary.Responses[200] = "Counts retrieved.";
             summary.Responses[400] = "Invalid search.";
             summary.Responses[404] = "Form not found.";
@@ -42,7 +43,8 @@ public sealed class Preview(IMediator mediator, ITenantContext tenantContext)
         CancellationToken ct)
     {
         var result = await mediator.Send(
-            new PreviewLinksQuery(new LinkBatchScope(tenantContext.TenantId, request.FormId, new PeopleFilter(request.Search))),
+            new PreviewLinksQuery(
+                new LinkBatchScope(tenantContext.TenantId, request.FormId, new PeopleFilter(request.Search))),
             ct);
         return TypedResultsBuilder
             .MapResult(result, LinkPreviewResponse.From)
@@ -63,7 +65,9 @@ public sealed class PreviewLinksRequest
 {
     public long FormId { get; init; }
 
-    /// <summary>Part of an identifier, matched ignoring case; at most as long as an identifier.</summary>
+    /// <summary>
+    /// Part of an identifier, matched ignoring case under a default collation; at most as long as an identifier.
+    /// </summary>
     public string? Search { get; init; }
 }
 

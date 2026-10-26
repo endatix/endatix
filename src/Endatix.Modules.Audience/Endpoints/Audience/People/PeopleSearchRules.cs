@@ -6,7 +6,7 @@ namespace Endatix.Modules.Audience.Endpoints.Audience.People;
 /// <summary>
 /// The people search a request sends: part of an identifier, so after trimming at most as long as one.
 /// </summary>
-internal static class PeopleSearchQuery
+internal static class PeopleSearchRules
 {
     public static IRuleBuilderOptions<T, string?> ValidPeopleSearch<T>(this IRuleBuilder<T, string?> ruleBuilder) =>
         ruleBuilder
