@@ -27,7 +27,8 @@ public sealed class AudienceMigrationsAvailabilityTests
             "20260930112557_AddAudienceImports",
             "20261008074014_AddAudienceLinks",
             "20261019002103_AddMembershipIsTest",
-            "20261024135627_AddPropertyValueIsTest");
+            "20261024135627_AddPropertyValueIsTest",
+            "20261025201021_AddStagedAudienceImports");
     }
 
     [Fact]
@@ -44,7 +45,8 @@ public sealed class AudienceMigrationsAvailabilityTests
         migrationIds.Should().Equal(
             "20261012154511_InitialPersonalization",
             "20261019002106_AddMembershipIsTest",
-            "20261024135630_AddPropertyValueIsTest");
+            "20261024135630_AddPropertyValueIsTest",
+            "20261025201026_AddStagedAudienceImports");
         migrationIds.Should().NotIntersectWith(postgreSqlContext.Database.GetMigrations());
     }
 

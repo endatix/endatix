@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace Endatix.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Pauses one command of the host's <c>AppDbContext</c> at a statement a test picks, whichever request runs it, so a
+/// Pauses one command of the host's <c>AppDbContext</c> or Audience context at a statement a test picks, whichever request runs it, so a
 /// race between two HTTP requests can be forced rather than hoped for. It lets every command through until a test
 /// arms it, and it pauses only the first match.
 /// </summary>
@@ -29,9 +29,15 @@ public sealed class AppCommandGate : DbCommandInterceptor
     /// Fails the next command whose text matches <paramref name="statement"/> with <paramref name="fault"/>, as the
     /// database would, before it runs.
     /// </summary>
-    public CommandPause FailAt(Regex statement, Exception fault)
+    public CommandPause FailAt(Regex statement, Exception fault) => FailAt(statement, fault, skip: 0);
+
+    /// <summary>
+    /// Fails the command after the next <paramref name="skip"/> commands whose text matches <paramref name="statement"/>,
+    /// with <paramref name="fault"/>, as the database would, before it runs.
+    /// </summary>
+    public CommandPause FailAt(Regex statement, Exception fault, int skip)
     {
-        var pause = new CommandPause(statement, this, fault);
+        var pause = new CommandPause(statement, this, fault) { Skip = skip };
         pause.Release();
         Volatile.Write(ref _armed, pause);
         return pause;

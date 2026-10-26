@@ -69,14 +69,16 @@ Database schema: `audience`
 | `Members` | One person per tenant + match key. `Identifier` keeps the value as entered; `NormalizedIdentifier` is the unique match key. Emails must be one valid address and use the same normalizer as app users; external ids keep their case. On SQL Server the match key uses the binary collation `Latin1_General_100_BIN2`, so it compares case-sensitively as on PostgreSQL |
 | `Memberships` | Person on one form. `IsTest` marks a test person; it is set when the person is added and never changed |
 | `PropertyValues` | Property cells on a membership. Each value is at most 4,000 characters and must fit the data type (see below). A stored value is never empty: saving `""` clears (soft-deletes) the cell. `IsTest` is the membership's test flag, copied when the cell is written (it never changes on either), so coverage counts test and real cells from `IX_PropertyValues_Property` (tenant, Property, test flag) with no join. `FK_PropertyValues_Membership` ties the cell's tenant and test flag to its membership; cells are built only through `PropertyValueCreateArgs.For(membership, …)` |
-| `Imports` | One row per confirmed CSV import: counts, file name, who ran it |
+| `Imports` | One row per CSV import: counts, file name, who ran it. A staged import is also its run's state machine (`uploading` → `checking` → `checked` → `writing` → `completed`, or `canceled`, `failed`, `expired`), with the mapping fixed at start, the match key the Check pinned, and the write checkpoint `WrittenThroughRow`. `Status` is the concurrency token. `IX_Imports_Unfinished` allows one unfinished import per form. Deleting the form cancels its import that is `uploading` or `checked`; one in `checking` or `writing` fails in its own run |
+| `ImportChunks` | A staged import's uploaded rows, one row per chunk (`IX_ImportChunks_Index`): raw cells in header order, as JSON. Deleted when the import completes or its form is deleted |
+| `ImportRejections` | Rows an import will not write (`IX_ImportRejections_Row`), with the reason and the cells as uploaded |
 | `Links` | One hashed token per membership (`IX_Links_Membership`). `SubmissionId` is set once, on first open |
 
 ## API (directory)
 
 | Method | Route | Notes |
 |--------|-------|-------|
-| GET/PUT | `audience/settings` | Tenant match key and `isLocked` |
+| GET/PUT | `audience/settings` | Tenant match key, `isLocked`, and `importLimits` (`maxRows`, `maxBytes`, `runsInBackground`): 100,000 rows and 50 MB where imports run as background jobs, 5,000 rows inline |
 | GET/POST | `forms/{formId}/audience/properties` | List / create |
 | PATCH/DELETE | `forms/{formId}/audience/properties/{propertyId}` | Rename/reorder / delete |
 | GET/POST | `forms/{formId}/audience/people` | List (page ≤ 5,000) / add. The list takes `test=all\|real\|test` (default `all`, anything else is a 400) and `search` (people whose identifier contains it, ignoring case: `ILIKE` on PostgreSQL, the column's collation on SQL Server, case-insensitive by default; `%`, `_` and `[` match literally; blank or whitespace is no search; longer than an identifier after trimming is a 400); its total counts only the people kept, and each item has `isTest`. Add takes `isTest` (default `false`). Each list item has `notFilledIn`: how many of the form's Properties the person has no value for (the list only; the single participant, create and update responses leave it out) |
@@ -86,6 +88,10 @@ Database schema: `audience`
 | GET | `forms/{formId}/audience/variables/participants/{memberId}` | One participant's preset for Preview as, by member id (not membership id): `{ name, description, variables }`, built as a preset in the variables read (name = identifier, description `Test participant` or `Participant`, values typed by `AudienceValueJson.Typed`, one entry per live cell of a current Property). Any participant on the form, real or test. Not on the form, removed, or another tenant's form is 404 |
 | PUT | `forms/{formId}/audience/variables/test-participants` | Save the designer's edited presets: `{ presets: [{ name, variables }] }`, the whole list (≤ 100), each `name` an identifier. Returns the variables read again (200). See Rules → Variables write-back. A change to a real participant (one sent back unchanged is left alone), an identifier the match key refuses, a value its Property refuses, or one identifier given twice is 400 and writes nothing; a parallel add of the same new participant is 409 |
 | POST | `forms/{formId}/audience/import` | CSV up to 5,000 rows. Rows and summary save together; rejected rows (blank, too long, duplicate identifier) are reported by spreadsheet row, not written. A mapping that names an unknown property or a missing column is a 400. With `isTest`, people new to this form are added as test persons; people already on it get no writes (flag and values) and are counted as skipped |
+| POST | `forms/{formId}/audience/imports` | Start a staged import: `{ fileName, headers, rowCount, identifierColumn, propertyColumns, isTest }` → 201. Too many rows, no identifier column, or a mapping that does not fit the form is 400. A form with an unfinished import is 409, naming it (`importId`). See Rules → Staged imports |
+| PUT | `forms/{formId}/audience/imports/{importId}/chunks/{index}` | One chunk: `{ firstRowNumber, rows: [{ cells, malformed }] }`, `upload.chunkSize` rows (fewer in the last). Sending it again replaces it. The chunk that completes the file starts the Check. An import no longer uploading is 409 |
+| GET | `forms/{formId}/audience/imports/{importId}`, `…/imports/current` | The import: `status`, `upload` (`rowCount`, `chunkSize`, `missingChunks`), `checkedRowCount`, `check` (`newCount`, `existingCount`, `rejectedCount`, once the Check has read every row), `written`, the first 50 `rejections`, `failure`, `canResume`, `jobId`. `current` is the form's unfinished import, or 404 |
+| PATCH | `forms/{formId}/audience/imports/{importId}` | `{ status: "writing" }` confirms a checked import or resumes a stopped write; `{ status: "canceled" }` stops one that has written nothing, or abandons a stopped write. Any other move is 409, as is a resume while another import on the form is unfinished |
 | POST | `forms/{formId}/audience/links` | Issue one link per real person who does not have one, up to 5,000 real people; test persons get none. The raw token is in this response only. A parallel issue loses on `IX_Links_Membership` and retries once |
 | POST | `forms/{formId}/audience/test-submissions` | Test as this person: `{membershipId}` → 201 `{submissionId, token}`. Every call opens a new test submission (see Rules → Test submissions). A disabled form, a form without a definition, or a person not on the form is 404. An open while the form is being deleted is 503; an open after the deletion, or after the form was disabled meanwhile, is 404 |
 | POST | `forms/{formId}/audience/test-submissions/{submissionId}/restart` | Start over: `{token}` → deletes that test submission and opens a new one for the same person → 201 `{submissionId, token}`. `token` is the one the test submission was opened with; a missing token is 400, a wrong one 404. A submission that is not a test submission opened as a person is 400; a person removed from the form is 404 and keeps the old one. A Start over while the form is being deleted is 503, and after the deletion 404; either way it opens nothing |
@@ -96,6 +102,22 @@ routes, which need both `Forms.Test` and `Forms.Edit` (a test submission carries
 and redeem, which is anonymous.
 
 ## Rules
+
+- **Staged imports.** The browser parses the file and sends it in chunks of 1,000 rows. The chunk that completes the
+  file starts the Check, which reads every row with the reader the one-request import uses (`ImportRowReader`, one
+  instance across chunks, so a repeat in a later chunk is a duplicate), writes the rejections, counts who is new to the
+  form, and writes no Participant. It pins the match key and starts again at row 1 when retried. After the scripter
+  confirms, the write commits 500 rows per transaction under the shared match-key lock and every stripe of the form's
+  people lock, with `WrittenThroughRow` in the same transaction, so a write cut off anywhere continues after its last
+  batch and writes no row twice. It skips the Check's rejections and re-reads values against the Properties as they
+  are then. Each batch re-checks the form and the match key: a deleted form fails the import and runs the form's
+  cleanup again (a batch may have committed after it), and a changed match key fails it whole, which is safe because a
+  key can only change while the tenant has no Participants. With the Jobs module, each phase is a background job
+  (`AudienceImportCheck`, `AudienceImportWrite`), enqueued after its transition commits with a dedup key per phase and
+  run; a read that finds a running phase with no job enqueues it again. Without it, the same phases run in the request,
+  up to 5,000 rows. A phase its request leaves running (a closed page, a timeout, an error, a busy audience) has no job
+  to continue it, so it ends `failed`: a stopped write with `canResume`, a stopped Check without. A cancel is seen by
+  the Check at its next chunk, because every save is fenced on the status.
 
 - **Match key.** Locked while any person is on any form's audience (`isLocked`). Saving the current
   key is a no-op and takes no lock. A change soft-deletes members that are on no form, since they were matched under

@@ -53,7 +53,7 @@ public class AudienceSqlServerDbContextTests
 
         // Assert
         CheckConstraintsOf(model).Should().BeEquivalentTo(
-            "CK_Imports_TenantId", "CK_Links_TenantId", "CK_Members_TenantId", "CK_Memberships_TenantId",
+            "CK_Imports_TenantId", "CK_ImportChunks_TenantId", "CK_ImportRejections_TenantId", "CK_Links_TenantId", "CK_Members_TenantId", "CK_Memberships_TenantId",
             "CK_Properties_TenantId", "CK_PropertyValues_TenantId", "CK_Settings_TenantId");
         model.GetEntityTypes().SelectMany(type => type.GetCheckConstraints())
             .Should().OnlyContain(constraint => constraint.Sql == "[TenantId] > 0");
@@ -72,6 +72,12 @@ public class AudienceSqlServerDbContextTests
         ]);
         model.FindEntityType(typeof(Property))!.FindProperty(nameof(Property.ChoicesJson))!
             .GetColumnType().Should().Be("json");
+        model.FindEntityType(typeof(AudienceImportChunk))!.FindProperty(nameof(AudienceImportChunk.RowsJson))!
+            .GetColumnType().Should().Be("json");
+        // The one-unfinished-import index keeps only the statuses an import can still leave.
+        model.FindEntityType(typeof(AudienceImport))!.GetIndexes()
+            .Single(index => index.GetDatabaseName() == AudienceImport.UniqueConstraints.OneUnfinishedPerForm)
+            .GetFilter().Should().Be("[Status] IN ('uploading', 'checking', 'checked', 'writing') AND [IsDeleted] = 0");
     }
 
     [Fact]

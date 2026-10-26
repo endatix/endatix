@@ -18,6 +18,8 @@ using Endatix.Modules.Audience.Features.Variables;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
+using Endatix.Modules.Audience.Features.Imports;
+
 namespace Endatix.Modules.Audience;
 
 /// <summary>
@@ -41,6 +43,9 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
     {
         AddPersistence(builder);
         builder.Services.AddAudienceOutboxWork();
+        builder.Services.AddImportRunner();
+        builder.Services.AddScoped<ImportMoveGuard>();
+        builder.Services.AddImportJobs();
         builder.Services.AddScoped<ImportWriteSupport>();
         builder.Services.AddScoped<ISubmissionPersonalizer, OnBehalfPersonalizer>();
         builder.Services.AddScoped<IAudiencePropertyCatalog, AudiencePropertyCatalog>();
