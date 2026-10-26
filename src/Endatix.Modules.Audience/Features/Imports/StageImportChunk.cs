@@ -117,21 +117,11 @@ internal sealed class StageImportChunkHandler(
     private Task<ImportViewDto> ViewAsync(AudienceImport import, CancellationToken cancellationToken) =>
         ImportView.ReadAsync(new ImportViewSource(db, runner.RunsInBackground), import, cancellationToken);
 
+    /// <summary>
+    /// Replaces the chunk only while the import is still uploading; a check that won the race answers 409. The row
+    /// range is checked under the import row's lock, so two chunks sent at once see each other's rows.
+    /// </summary>
     private async Task<Result<ImportViewDto>?> StoreAsync(
-        AudienceImport import,
-        StageImportChunkCommand request,
-        CancellationToken cancellationToken)
-    {
-        if (await RangeErrorAsync(import, request, cancellationToken) is { } range)
-        {
-            return Result<ImportViewDto>.Invalid(new ValidationError(range));
-        }
-
-        return await ReplaceWhileUploadingAsync(import, request, cancellationToken);
-    }
-
-    /// <summary>Replaces the chunk only while the import is still uploading; a check that won the race answers 409.</summary>
-    private async Task<Result<ImportViewDto>?> ReplaceWhileUploadingAsync(
         AudienceImport import,
         StageImportChunkCommand request,
         CancellationToken cancellationToken)
@@ -141,6 +131,11 @@ internal sealed class StageImportChunkHandler(
         if (!await HoldUploadingAsync(import, cancellationToken))
         {
             return Result<ImportViewDto>.Conflict("The import is no longer uploading; it takes no more rows.");
+        }
+
+        if (await RangeErrorAsync(import, request, cancellationToken) is { } range)
+        {
+            return Result<ImportViewDto>.Invalid(new ValidationError(range));
         }
 
         await ReplaceAsync(import, request, cancellationToken);
@@ -213,7 +208,10 @@ internal static class StagedChunkRanges
             ? $"Chunk {incoming.Index} overlaps another chunk or is numbered behind an earlier one."
             : null;
 
-    /// <summary>Unique spreadsheet rows, and exactly the file's declared count.</summary>
+    /// <summary>
+    /// Exactly the file's declared count, and rows that increase in chunk-index order with no shared row, as the
+    /// write reads them: a chunk numbered below an earlier index would fall behind the write's checkpoint.
+    /// </summary>
     public static bool IsTheFile(int rowCount, IReadOnlyList<ChunkSpan> spans)
     {
         if (spans.Sum(span => span.RowCount) != rowCount)
@@ -222,7 +220,7 @@ internal static class StagedChunkRanges
         }
 
         int coveredThrough = 0;
-        foreach (ChunkSpan span in spans.OrderBy(span => span.FirstRowNumber))
+        foreach (ChunkSpan span in spans.OrderBy(span => span.Index))
         {
             if (span.FirstRowNumber <= coveredThrough)
             {

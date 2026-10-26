@@ -164,16 +164,43 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task Two_chunks_sent_at_once_cannot_store_row_ranges_reversed_against_their_indexes()
+    {
+        // Arrange — chunk 0 claims rows 1,002 to 2,001 and is held as it replaces its stored copy, holding the import
+        // row; chunk 1 then claims rows 2 to 1,001, which the write would skip once chunk 0 moved its checkpoint.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        long formId = await api.CreateFormAsync();
+        List<string[]> rows = [.. Enumerable.Range(1, 2_000).Select(n => new[] { $"p{n}@example.com" })];
+        BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
+        using CommandPause held = world.Services.GetRequiredService<AppCommandGate>().PauseAt(ChunkReplace());
+        Task<HttpResponseMessage> first = api.SendPlacedChunkAsync(import, new ChunkPlace(0, 1_002), rows);
+        await held.Reached.WaitAsync(ImportWait, api.CancellationToken);
+
+        // Act
+        Task<HttpResponseMessage> second = api.SendPlacedChunkAsync(import, new ChunkPlace(1, 2), rows);
+        bool secondWaited = await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(2), api.CancellationToken)) != second;
+        held.Release();
+        using HttpResponseMessage stored = await first;
+        using HttpResponseMessage reversed = await second;
+
+        // Assert
+        Assert.True(secondWaited, "Chunk 1 checked its rows while chunk 0 was still being stored.");
+        Assert.Equal(HttpStatusCode.OK, stored.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, reversed.StatusCode);
+    }
+
+    [Fact]
     public async Task A_chunk_retry_after_the_check_starts_is_refused_and_the_file_stays_whole()
     {
-        // Arrange — the retry has loaded the import as uploading and is held before it replaces its chunk.
+        // Arrange — the retry has loaded the import as uploading and is held before it locks the import row.
         IntegrationTestWorld world = await WorldAsync();
         AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
         long formId = await api.CreateFormAsync();
         List<string[]> rows = [.. Enumerable.Range(1, 1_200).Select(n => new[] { $"p{n}@example.com" })];
         BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
         using HttpResponseMessage first = await api.SendChunkAsync(import, 0, rows);
-        using CommandPause held = world.Services.GetRequiredService<AppCommandGate>().PauseAt(ChunkRangeRead());
+        using CommandPause held = world.Services.GetRequiredService<AppCommandGate>().PauseAt(ImportRowHold());
         Task<HttpResponseMessage> retry = api.SendChunkAsync(import, 0, rows);
         await held.Reached.WaitAsync(ImportWait, api.CancellationToken);
 
@@ -333,8 +360,13 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     /// <summary>The read of other chunks' row numbers, before a chunk is replaced.</summary>
-    [GeneratedRegex("""["\[]ImportChunks["\]]""", RegexOptions.IgnoreCase)]
-    private static partial Regex ChunkRangeRead();
+    /// <summary>The statement that locks an uploading import's row before a chunk is stored.</summary>
+    [GeneratedRegex("""^\s*UPDATE.*["\[]Imports["\]]""", RegexOptions.Singleline)]
+    private static partial Regex ImportRowHold();
+
+    /// <summary>The statement that removes a chunk's stored copy before the new one is added.</summary>
+    [GeneratedRegex("""DELETE\s+FROM.*["\[]ImportChunks["\]]""", RegexOptions.Singleline)]
+    private static partial Regex ChunkReplace();
 
     [Theory]
     [InlineData("uploading")]
