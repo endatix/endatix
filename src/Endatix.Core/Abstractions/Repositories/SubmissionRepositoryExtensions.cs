@@ -40,6 +40,13 @@ public static class SubmissionRepositoryExtensions
         CancellationToken cancellationToken) =>
         SaveAsync(() => submissions.AddAsync(submission, cancellationToken));
 
+    /// <summary>As <see cref="TryAddAsync"/>, for several submissions in one save.</summary>
+    public static Task<Result> TryAddRangeAsync(
+        this IRepository<Submission> submissions,
+        IEnumerable<Submission> added,
+        CancellationToken cancellationToken) =>
+        SaveAsync(() => submissions.AddRangeAsync(added, cancellationToken));
+
     /// <summary>Runs <paramref name="save"/>, a save of tracked submissions, and reports as <see cref="TrySaveChangesAsync"/> does.</summary>
     internal static async Task<Result> SaveAsync(Func<Task> save)
     {

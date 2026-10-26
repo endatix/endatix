@@ -6,6 +6,7 @@ using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Features.TestSubmissions;
 
@@ -20,6 +21,10 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 /// </remarks>
 internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> forms, LinkOpenGates gates)
 {
+    internal const string PERSON_NOT_FOUND = "Person not found on this form.";
+
+    private const string FORM_NOT_FOUND = "Form not found.";
+
     public Task<Result<TestOpening>> ByMembershipAsync(
         TestSubjectKey key,
         long membershipId,
@@ -36,23 +41,58 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
             FormParticipants.ByMember(db, new ParticipantKey(key.TenantId, key.FormId, memberId)),
             cancellationToken);
 
+    /// <summary>
+    /// Every one of <paramref name="membershipIds"/>, in membership order, with the form read once. Not found when the
+    /// form takes no submissions or any of them is not on it.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<TestOpening>>> ManyAsync(
+        TestSubjectKey key,
+        IReadOnlyCollection<long> membershipIds,
+        CancellationToken cancellationToken)
+    {
+        if (await OpenFormAsync(key, cancellationToken) is not { } form)
+        {
+            return Result.NotFound(FORM_NOT_FOUND);
+        }
+
+        var memberships = FormParticipants.OnForm(db, key.TenantId, key.FormId)
+            .Where(membership => membershipIds.Contains(membership.Id));
+        var people = await FormParticipants.Of(db, memberships)
+            .OrderBy(participant => participant.Membership.Id)
+            .Select(participant => new TestSubject(
+                participant.Membership.TenantId,
+                key.FormId,
+                participant.Membership.Id,
+                participant.Member.Id,
+                participant.Member.Identifier))
+            .ToListAsync(cancellationToken);
+        return people.Count == membershipIds.Count
+            ? Result.Success<IReadOnlyList<TestOpening>>([.. people.Select(person => new TestOpening(person, form))])
+            : Result.NotFound(PERSON_NOT_FOUND);
+    }
+
     private async Task<Result<TestOpening>> FindAsync(
         TestSubjectKey key,
         IQueryable<Membership> membership,
         CancellationToken cancellationToken)
     {
-        var form = await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdReadOnly(key.FormId), cancellationToken);
-        if (form is not { IsEnabled: true, ActiveDefinitionId: not null } || form.TenantId != key.TenantId)
+        if (await OpenFormAsync(key, cancellationToken) is not { } form)
         {
-            return Result.NotFound("Form not found.");
+            return Result.NotFound(FORM_NOT_FOUND);
         }
 
         var person = await gates.PersonAsync(membership, cancellationToken);
         return person is null
-            ? Result.NotFound("Person not found on this form.")
+            ? Result.NotFound(PERSON_NOT_FOUND)
             : Result.Success(new TestOpening(
                 new TestSubject(person.TenantId, key.FormId, person.MembershipId, person.MemberId, person.Identifier),
                 form));
+    }
+
+    private async Task<Form?> OpenFormAsync(TestSubjectKey key, CancellationToken cancellationToken)
+    {
+        var form = await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdReadOnly(key.FormId), cancellationToken);
+        return form is { IsEnabled: true, ActiveDefinitionId: not null } && form.TenantId == key.TenantId ? form : null;
     }
 }
 

@@ -85,21 +85,48 @@ internal sealed class TestSubmissionOpener(
         await writer.ReplaceAsync(current, await PrepareAsync(opening, cancellationToken), cancellationToken);
 
     /// <summary>
+    /// Opens one test submission per item of <paramref name="openings"/>, which names a person once per run, in one save,
+    /// and runs <paramref name="finish"/> on them, in order, before anything commits. Each person's values are read
+    /// once. A failed <paramref name="finish"/> saves nothing.
+    /// </summary>
+    public async Task<Result<TResult>> OpenManyAsync<TResult>(
+        IReadOnlyList<TestOpening> openings,
+        Func<IReadOnlyList<OpenedTestSubmissionDto>, Result<TResult>> finish,
+        CancellationToken cancellationToken)
+    {
+        if (openings.Count == 0)
+        {
+            return finish([]);
+        }
+
+        var cellsByPerson = new Dictionary<long, List<SnapshotCell>>();
+        var prepared = new List<PreparedTestSubmission>(openings.Count);
+        foreach (var opening in openings)
+        {
+            if (!cellsByPerson.TryGetValue(opening.Subject.MembershipId, out var cells))
+            {
+                cells = await CellsAsync(opening.Subject, cancellationToken);
+                cellsByPerson.Add(opening.Subject.MembershipId, cells);
+            }
+
+            prepared.Add(await PrepareAsync(opening, cells, cancellationToken));
+        }
+
+        return await writer.AddManyAsync(prepared, finish, cancellationToken);
+    }
+
+    /// <summary>
     /// Every read an open makes but the form's: the person's values and the token. They run before the form's lock,
     /// so the locked section reads only the form, on its own connection, and never waits for a second one.
     /// </summary>
-    private async Task<PreparedTestSubmission> PrepareAsync(TestOpening opening, CancellationToken cancellationToken)
-    {
-        var cells = await SnapshotCells.LoadAsync(
+    private async Task<PreparedTestSubmission> PrepareAsync(TestOpening opening, CancellationToken cancellationToken) =>
+        await PrepareAsync(opening, await CellsAsync(opening.Subject, cancellationToken), cancellationToken);
+
+    private Task<List<SnapshotCell>> CellsAsync(TestSubject subject, CancellationToken cancellationToken) =>
+        SnapshotCells.LoadAsync(
             db,
-            new SnapshotMembership(
-                opening.Subject.TenantId,
-                opening.Subject.MembershipId,
-                opening.Subject.FormId,
-                opening.Subject.Identifier),
+            new SnapshotMembership(subject.TenantId, subject.MembershipId, subject.FormId, subject.Identifier),
             cancellationToken);
-        return await PrepareAsync(opening, cells, cancellationToken);
-    }
 
     /// <summary>Mints the token from the form already loaded.</summary>
     internal async Task<PreparedTestSubmission> PrepareAsync(
