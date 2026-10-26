@@ -9,16 +9,20 @@ namespace Endatix.Modules.Audience.Features.Import;
 internal static class ImportClears
 {
     /// <summary>
-    /// The Properties a row clears when it has no value for them. A choice Property with <c>variable__choice</c>
-    /// columns is in the file, and a row that ticks none of them leaves it empty. The match-key Property is never
-    /// cleared: it holds the identifier.
+    /// The Properties a row of <paramref name="import"/> clears when it has no value for them. A choice Property with
+    /// <c>variable__choice</c> columns is in the file, and a row that ticks none of them leaves it empty. Only the
+    /// Properties the form had when the import started, so every batch and a resume clear the same ones whatever was
+    /// added since. The match-key Property is never cleared: it holds the identifier.
     /// </summary>
-    public static IReadOnlySet<long> Of(CsvColumnMap map, AudienceImportOptions options, MatchKey? matchKey)
+    public static IReadOnlySet<long> Of(CsvColumnMap map, AudienceImport import, MatchKey? matchKey)
     {
-        HashSet<long> inFile = [.. map.SimpleColumns.Values, .. map.ChoiceColumns.Values.Select(column => column.Property.Id)];
-        return map.PropertiesById.Keys
-            .Where(propertyId => inFile.Contains(propertyId) ? options.ClearEmptyCells : options.ClearMissingProperties)
-            .Where(propertyId => propertyId != matchKey?.PropertyId)
+        AudienceImportOptions options = import.Options;
+        HashSet<long> inFile =
+            [.. map.SimpleColumns.Values, .. map.ChoiceColumns.Values.Select(column => column.Property.Id)];
+        return map.PropertiesById.Values
+            .Where(property => property.CreatedAt <= import.CreatedAt && property.Id != matchKey?.PropertyId)
+            .Where(property => inFile.Contains(property.Id) ? options.ClearEmptyCells : options.ClearMissingProperties)
+            .Select(property => property.Id)
             .ToHashSet();
     }
 
@@ -32,7 +36,13 @@ internal static class ImportClears
         IReadOnlySet<long> clears,
         IReadOnlyCollection<long> storedPropertyIds)
     {
-        List<long> cleared = [.. storedPropertyIds.Where(propertyId => clears.Contains(propertyId) && !values.ContainsKey(propertyId))];
+        if (clears.Count == 0)
+        {
+            return values;
+        }
+
+        List<long> cleared =
+            [.. storedPropertyIds.Where(propertyId => clears.Contains(propertyId) && !values.ContainsKey(propertyId))];
         if (cleared.Count == 0)
         {
             return values;

@@ -209,6 +209,32 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task Clearing_missing_Properties_never_clears_a_Property_added_after_the_import_started()
+    {
+        // Arrange — Region is created and filled for Ada while the import waits on the scripter's confirm.
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        await api.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
+        await api.SeedAsync(formId, "email,City\nada@example.com,Sofia\n", new() { ["city"] = "City" });
+        BulkImport import = await api.StartImportWithAsync(
+            formId, [["email", "City"], ["ada@example.com", "Sofia"]],
+            new ImportChoices(new() { ["city"] = "City" }, MissingProperties: "clear"));
+        Assert.Equal("checked", (await api.WaitForImportAsync(import, "checked")).GetProperty("status").GetString());
+        long region = await api.CreatePropertyAsync(formId, new { name = "Region", dataType = "text" });
+        using HttpResponseMessage filled = await api.PutValueAsync(
+            await api.PersonUrlAsync(formId, "ada@example.com"), region, "North");
+        Assert.Equal(HttpStatusCode.OK, filled.StatusCode);
+
+        // Act
+        using HttpResponseMessage confirmed = await api.MoveImportAsync(import, "writing");
+        await api.WaitForImportAsync(import, "completed");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+        Assert.Equal("North", (await api.ValuesAsync(formId, "ada@example.com"))[region]);
+    }
+
+    [Fact]
     public async Task Starting_an_import_with_an_option_other_than_keep_or_clear_is_refused()
     {
         // Arrange
@@ -310,8 +336,18 @@ public sealed partial class AudienceDirectoryFlowTests
         /// </summary>
         public async Task<JsonElement> ImportWithAsync(long formId, string[][] file, ImportChoices choices)
         {
+            BulkImport import = await StartImportWithAsync(formId, file, choices);
+            Assert.Equal("checked", (await WaitForImportAsync(import, "checked")).GetProperty("status").GetString());
+            using HttpResponseMessage confirmed = await MoveImportAsync(import, "writing");
+            Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+            return await WaitForImportAsync(import, "completed");
+        }
+
+        /// <summary>Starts a staged import of <paramref name="file"/> and sends every chunk; the Check then runs.</summary>
+        public async Task<BulkImport> StartImportWithAsync(long formId, string[][] file, ImportChoices choices)
+        {
             string[] headers = file[0];
-            string[][] rows = file[1..];
+            IReadOnlyList<string[]> rows = file[1..];
             using HttpResponseMessage started = await PostAsync(
                 $"/api/forms/{formId}/audience/imports",
                 new
@@ -333,10 +369,17 @@ public sealed partial class AudienceDirectoryFlowTests
                 Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
             }
 
-            Assert.Equal("checked", (await WaitForImportAsync(import, "checked")).GetProperty("status").GetString());
-            using HttpResponseMessage confirmed = await MoveImportAsync(import, "writing");
-            Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
-            return await WaitForImportAsync(import, "completed");
+            return import;
+        }
+
+        /// <summary>The URL of the participant with <paramref name="identifier"/>.</summary>
+        public async Task<string> PersonUrlAsync(long formId, string identifier)
+        {
+            JsonElement page = await client.GetFromJsonAsync<JsonElement>(
+                $"/api/forms/{formId}/audience/people?pageSize=5000", cancellationToken);
+            JsonElement person = page.GetProperty("items").EnumerateArray()
+                .Single(item => item.GetProperty("identifier").GetString() == identifier);
+            return $"/api/forms/{formId}/audience/people/{IdOf(person, "membershipId")}";
         }
 
         /// <summary>The form's participants with any stored value.</summary>

@@ -125,10 +125,12 @@ and redeem, which is anonymous.
   `ClearEmptyCells` and `ClearMissingProperties`, both default false) and every write batch reads them from the import,
   so a resumed write applies the same ones. They change only people already on the form, never one a test import
   matches (it writes nothing to them). A Property is in the file when the mapping names it or the file has one of its
-  `variable__choice` columns; a row with an empty cell for it, or no ticked choice column, leaves it empty.
-  `emptyCells: clear` clears what the file's Properties store for a row that leaves them empty, and
-  `missingProperties: clear` clears what the form's other Properties store for each person in the file; people not in
-  the file keep everything. The match-key Property is never cleared. `ImportClears` picks those Properties and adds an
+  `variable__choice` columns; a row with an empty cell for it, no cell at all (a row shorter than the header row), or
+  no ticked choice column, leaves it empty. `emptyCells: clear` clears what the file's Properties store for a row that
+  leaves them empty, and `missingProperties: clear` clears what the form's other Properties store for each person in
+  the file; people not in the file keep everything. Both only clear the Properties the form had when the import
+  started (`CreatedAt`), so a Property added during the import or before a resume is never cleared by it. The
+  match-key Property is never cleared. `ImportClears` picks those Properties and adds an
   empty value only where a cell is stored, so a person counts as updated only when a cell changed or was removed, and a
   file re-imported with `clear` and nothing left to clear reports them as skipped. The Check's counts do not depend on
   the options.

@@ -183,7 +183,7 @@ internal sealed class ImportScope
         (AudienceImport import, CsvColumnMap map, IReadOnlyList<ImportRow> rows) = accepted;
         ExistingAudience existing = await ExistingAsync(import, rows, cancellationToken);
         MatchKey? matchKey = MatchKeyProperty.In(map.PropertiesById.Values, import.IdentifierKind!);
-        ImportTarget target = TargetOf(import) with { Clears = ImportClears.Of(map, import.Options, matchKey) };
+        ImportTarget target = TargetOf(import) with { Clears = ImportClears.Of(map, import, matchKey) };
         ImportBatch batch = new(Db, target, existing);
         foreach (ImportRow row in rows)
         {

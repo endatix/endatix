@@ -32,11 +32,16 @@ public sealed class ImportClearsTests
 
     private static readonly MatchKey MatchKey = new(Email, "Email");
 
+    private static AudienceImport ImportWith(AudienceImportOptions options) =>
+        AudienceImport.Start(new AudienceImportStartArgs(
+            1, 10, "people.csv", ["Identifier"], "Identifier", new Dictionary<string, string>(), IsTest: false,
+            RowCount: 1, ChunkSize: 1_000, PerformedById: null, Options: options));
+
     [Fact]
     public void Of_KeepBoth_ClearsNothing()
     {
         // Act
-        IReadOnlySet<long> clears = ImportClears.Of(Map, AudienceImportOptions.Keep, MatchKey);
+        IReadOnlySet<long> clears = ImportClears.Of(Map, ImportWith(AudienceImportOptions.Keep), MatchKey);
 
         // Assert
         clears.Should().BeEmpty();
@@ -46,7 +51,8 @@ public sealed class ImportClearsTests
     public void Of_ClearEmptyCells_ClearsTheMappedAndChoiceColumnProperties()
     {
         // Act
-        IReadOnlySet<long> clears = ImportClears.Of(Map, new AudienceImportOptions(ClearEmptyCells: true, false), MatchKey);
+        AudienceImport import = ImportWith(new AudienceImportOptions(ClearEmptyCells: true, false));
+        IReadOnlySet<long> clears = ImportClears.Of(Map, import, MatchKey);
 
         // Assert
         clears.Should().BeEquivalentTo([City, Region]);
@@ -56,7 +62,8 @@ public sealed class ImportClearsTests
     public void Of_ClearMissingProperties_ClearsThePropertiesTheFileLeavesOutButNotTheMatchKey()
     {
         // Act
-        IReadOnlySet<long> clears = ImportClears.Of(Map, new AudienceImportOptions(false, ClearMissingProperties: true), MatchKey);
+        AudienceImport import = ImportWith(new AudienceImportOptions(false, ClearMissingProperties: true));
+        IReadOnlySet<long> clears = ImportClears.Of(Map, import, MatchKey);
 
         // Assert
         clears.Should().BeEquivalentTo([Age]);
@@ -66,7 +73,7 @@ public sealed class ImportClearsTests
     public void Of_ClearBoth_ClearsEveryPropertyButTheMatchKey()
     {
         // Act
-        IReadOnlySet<long> clears = ImportClears.Of(Map, new AudienceImportOptions(true, true), MatchKey);
+        IReadOnlySet<long> clears = ImportClears.Of(Map, ImportWith(new AudienceImportOptions(true, true)), MatchKey);
 
         // Assert
         clears.Should().BeEquivalentTo([City, Region, Age]);
@@ -80,7 +87,7 @@ public sealed class ImportClearsTests
             Properties, ["Identifier", "Mail"], "Identifier", new Dictionary<string, string> { ["email"] = "Mail" }));
 
         // Act
-        IReadOnlySet<long> clears = ImportClears.Of(map, new AudienceImportOptions(true, true), MatchKey);
+        IReadOnlySet<long> clears = ImportClears.Of(map, ImportWith(new AudienceImportOptions(true, true)), MatchKey);
 
         // Assert
         clears.Should().NotContain(Email);

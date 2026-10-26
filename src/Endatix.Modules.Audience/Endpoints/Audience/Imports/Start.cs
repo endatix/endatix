@@ -90,11 +90,9 @@ public sealed class StartAudienceImportValidator : Validator<StartAudienceImport
         RuleForEach(request => request.Headers).MaximumLength(DataSchemaConstants.MAX_NAME_LENGTH);
         RuleFor(request => request.RowCount).GreaterThan(0);
         RuleFor(request => request.IdentifierColumn).NotEmpty();
-        RuleFor(request => request.EmptyCells).Must(BeAnOption).WithMessage(OptionMessage);
-        RuleFor(request => request.MissingProperties).Must(BeAnOption).WithMessage(OptionMessage);
+        RuleFor(request => request.EmptyCells).Must(BeAnOption).WithMessage("emptyCells must be keep or clear.");
+        RuleFor(request => request.MissingProperties).Must(BeAnOption).WithMessage("missingProperties must be keep or clear.");
     }
-
-    private const string OptionMessage = "'{PropertyName}' must be keep or clear.";
 
     private static bool BeAnOption(string? code) => code is null || AudienceImportOptionCodes.All.Contains(code);
 }
