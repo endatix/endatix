@@ -26,7 +26,7 @@ public sealed class Move(IMediator mediator, ITenantContext tenantContext)
         {
             summary.Summary = "Confirm, resume or cancel a Participant import";
             summary.Description = "status writing confirms a checked import, or resumes a stopped write from where " +
-                "it stopped; status canceled stops an import before it writes anything.";
+                "it stopped; status canceled stops an import before it writes anything, or abandons a stopped write.";
             summary.Responses[200] = "Import moved.";
             summary.Responses[400] = "Status is not writing or canceled.";
             summary.Responses[404] = "Import not found.";

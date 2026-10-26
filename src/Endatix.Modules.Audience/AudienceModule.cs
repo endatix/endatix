@@ -44,6 +44,7 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         AddPersistence(builder);
         builder.Services.AddAudienceOutboxWork();
         builder.Services.AddImportRunner();
+        builder.Services.AddScoped<ImportMoveGuard>();
         builder.Services.AddImportJobs();
         builder.Services.AddScoped<ImportWriteSupport>();
         builder.Services.AddScoped<ISubmissionPersonalizer, OnBehalfPersonalizer>();

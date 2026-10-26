@@ -251,9 +251,16 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
         CompletedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Stops the import before anything is written.</summary>
+    /// <summary>Stops the import before anything is written, or abandons a stopped write without writing more.</summary>
     public void Cancel()
     {
+        if (Resumable)
+        {
+            Move(AudienceImportStatusCodes.Canceled, AudienceImportStatusCodes.Failed);
+            Resumable = false;
+            return;
+        }
+
         Move(
             AudienceImportStatusCodes.Canceled,
             AudienceImportStatusCodes.Uploading,

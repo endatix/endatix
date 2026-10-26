@@ -131,10 +131,12 @@ internal sealed class StartImportHandler(
             .Select(import => (long?)import.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    /// <summary>The form's import that still occupies it: one that can change, or a stopped write that can resume.</summary>
     internal static IQueryable<AudienceImport> Unfinished(IAudienceDbContext db, long tenantId, long formId) =>
         db.AudienceImports.Where(import => import.TenantId == tenantId
             && import.FormId == formId
-            && AudienceImportStatusCodes.Unfinished.Contains(import.Status));
+            && (AudienceImportStatusCodes.Unfinished.Contains(import.Status)
+                || (import.Status == AudienceImportStatusCodes.Failed && import.Resumable)));
 
     private static Result<ImportViewDto> Conflict(long currentImportId) =>
         Result<ImportViewDto>.Conflict(

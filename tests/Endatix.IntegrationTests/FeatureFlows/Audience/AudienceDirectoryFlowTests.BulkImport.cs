@@ -192,6 +192,56 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task A_resumable_failure_occupies_the_form_until_it_is_abandoned()
+    {
+        // Arrange
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        long formId = await api.CreateFormAsync();
+        BulkImport stopped = await api.StartImportAsync(formId, ["email"], 2);
+        await MarkResumableFailureAsync(world.Services, stopped);
+
+        // Act
+        using HttpResponseMessage again = await api.PostAsync(
+            $"/api/forms/{formId}/audience/imports",
+            new { fileName = "other.csv", headers = EmailHeader, rowCount = 1, identifierColumn = "email" });
+        JsonElement current = await api.Client.GetFromJsonAsync<JsonElement>(
+            $"/api/forms/{formId}/audience/imports/current", api.CancellationToken);
+        using HttpResponseMessage abandoned = await api.MoveImportAsync(stopped, "canceled");
+        using HttpResponseMessage restarted = await api.PostAsync(
+            $"/api/forms/{formId}/audience/imports",
+            new { fileName = "other.csv", headers = EmailHeader, rowCount = 1, identifierColumn = "email" });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Contains(
+            stopped.ImportId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            await again.Content.ReadAsStringAsync(api.CancellationToken));
+        Assert.Equal(stopped.ImportId, IdOf(current, "importId"));
+        Assert.Equal(HttpStatusCode.OK, abandoned.StatusCode);
+        Assert.Equal("canceled", (await api.ReadImportAsync(stopped)).GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.Created, restarted.StatusCode);
+    }
+
+    [Fact]
+    public async Task Resuming_a_stopped_write_while_another_import_is_uploading_is_a_conflict()
+    {
+        // Arrange — the form's uploading import holds the unfinished index; the stopped write is resumable.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        long formId = await api.CreateFormAsync();
+        BulkImport uploading = await api.StartImportAsync(formId, ["email"], 2);
+        long stoppedId = await PlantResumableFailureAsync(world.Services, uploading);
+
+        // Act
+        using HttpResponseMessage resumed = await api.MoveImportAsync(new BulkImport(formId, stoppedId), "writing");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Conflict, resumed.StatusCode);
+        Assert.Equal("uploading", (await api.ReadImportAsync(uploading)).GetProperty("status").GetString());
+    }
+
+    [Fact]
     public async Task A_chunk_sent_twice_is_stored_once_and_a_second_import_on_the_form_is_a_conflict()
     {
         // Arrange — two chunks; the first is sent twice before the second completes the file.
@@ -246,6 +296,37 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.True(
             await WaitUntilAsync(async () => (await FormAudienceLeftAsync(world.Services, import)).IsEmpty),
             "The deleted form kept live Participants or staged rows.");
+    }
+
+    private static void StopWrite(AudienceImport import)
+    {
+        import.BeginCheck();
+        import.FinishCheck();
+        import.Confirm();
+        import.Fail("The import stopped.", resumable: true);
+    }
+
+    private static async Task MarkResumableFailureAsync(IServiceProvider services, BulkImport import)
+    {
+        using IServiceScope scope = services.CreateScope();
+        IAudienceDbContext db = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        AudienceImport row = await db.AudienceImports.SingleAsync(item => item.Id == import.ImportId);
+        StopWrite(row);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<long> PlantResumableFailureAsync(IServiceProvider services, BulkImport occupier)
+    {
+        using IServiceScope scope = services.CreateScope();
+        IAudienceDbContext db = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        AudienceImport current = await db.AudienceImports.SingleAsync(item => item.Id == occupier.ImportId);
+        AudienceImport stopped = AudienceImport.Start(new AudienceImportStartArgs(
+            current.TenantId, current.FormId, "stopped.csv", ["email"], "email",
+            new Dictionary<string, string>(), false, 2, ImportChunkRows, null));
+        StopWrite(stopped);
+        db.AudienceImports.Add(stopped);
+        await db.SaveChangesAsync();
+        return stopped.Id;
     }
 
     /// <summary>Two chunks that both claim spreadsheet row 2, then the Check, so a short file can still look complete.</summary>

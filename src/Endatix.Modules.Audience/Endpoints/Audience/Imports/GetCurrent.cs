@@ -24,7 +24,7 @@ public sealed class GetCurrent(IMediator mediator, ITenantContext tenantContext)
         Summary(summary =>
         {
             summary.Summary = "Get the form's unfinished Participant import";
-            summary.Description = "Returns the import that is uploading, checking, checked or writing, if any.";
+            summary.Description = "Returns the import that is uploading, checking, checked, writing, or a stopped write that can resume.";
             summary.Responses[200] = "Import retrieved.";
             summary.Responses[404] = "The form has no unfinished import.";
         });
