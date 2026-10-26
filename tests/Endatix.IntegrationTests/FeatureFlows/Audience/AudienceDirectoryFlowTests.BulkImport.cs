@@ -192,7 +192,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task A_resumable_failure_occupies_the_form_until_it_is_abandoned()
+    public async Task A_resumable_failure_leaves_the_form_free_for_a_new_import_and_can_still_be_abandoned()
     {
         // Arrange
         IntegrationTestWorld world = await WorldAsync();
@@ -202,25 +202,15 @@ public sealed partial class AudienceDirectoryFlowTests
         await MarkResumableFailureAsync(world.Services, stopped);
 
         // Act
-        using HttpResponseMessage again = await api.PostAsync(
+        using HttpResponseMessage started = await api.PostAsync(
             $"/api/forms/{formId}/audience/imports",
             new { fileName = "other.csv", headers = EmailHeader, rowCount = 1, identifierColumn = "email" });
-        JsonElement current = await api.Client.GetFromJsonAsync<JsonElement>(
-            $"/api/forms/{formId}/audience/imports/current", api.CancellationToken);
         using HttpResponseMessage abandoned = await api.MoveImportAsync(stopped, "canceled");
-        using HttpResponseMessage restarted = await api.PostAsync(
-            $"/api/forms/{formId}/audience/imports",
-            new { fileName = "other.csv", headers = EmailHeader, rowCount = 1, identifierColumn = "email" });
 
         // Assert
-        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
-        Assert.Contains(
-            stopped.ImportId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            await again.Content.ReadAsStringAsync(api.CancellationToken));
-        Assert.Equal(stopped.ImportId, IdOf(current, "importId"));
+        Assert.Equal(HttpStatusCode.Created, started.StatusCode);
         Assert.Equal(HttpStatusCode.OK, abandoned.StatusCode);
         Assert.Equal("canceled", (await api.ReadImportAsync(stopped)).GetProperty("status").GetString());
-        Assert.Equal(HttpStatusCode.Created, restarted.StatusCode);
     }
 
     [Fact]
@@ -346,6 +336,41 @@ public sealed partial class AudienceDirectoryFlowTests
     [GeneratedRegex("""["\[]ImportChunks["\]]""", RegexOptions.IgnoreCase)]
     private static partial Regex ChunkRangeRead();
 
+    [Theory]
+    [InlineData("uploading")]
+    [InlineData("checked")]
+    public async Task Deleting_the_form_cancels_its_import_waiting_on_the_scripter_and_drops_its_staged_rows(string status)
+    {
+        // Arrange — an import no phase is running: still uploading, or checked and waiting for the confirm.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        long formId = await api.CreateFormAsync();
+        List<string[]> rows = [.. Enumerable.Range(1, 1_500).Select(n => new[] { $"p{n}@example.com" })];
+        BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
+        using HttpResponseMessage first = await api.SendChunkAsync(import, 0, rows);
+        if (status == "checked")
+        {
+            using HttpResponseMessage last = await api.SendChunkAsync(import, 1, rows);
+            Assert.Equal("checked", (await api.WaitForImportAsync(import, "checked")).GetProperty("status").GetString());
+        }
+
+        // Act
+        using HttpResponseMessage deleted = await api.Client.DeleteAsync($"/api/forms/{formId}", api.CancellationToken);
+        bool canceled = await WaitUntilAsync(async () => await StatusOfAsync(world.Services, import) == "canceled");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        Assert.True(canceled, $"The deleted form's {status} import was never canceled.");
+        Assert.True((await FormAudienceLeftAsync(world.Services, import)).IsEmpty, "The deleted form kept staged rows.");
+    }
+
+    private static async Task<string> StatusOfAsync(IServiceProvider services, BulkImport import)
+    {
+        using IServiceScope scope = services.CreateScope();
+        IAudienceDbContext db = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        return await db.AudienceImports.Where(item => item.Id == import.ImportId).Select(item => item.Status).SingleAsync();
+    }
+
     /// <summary>The save of one chunk's Check counts.</summary>
     [GeneratedRegex("""UPDATE\s+["\[]?audience["\]]?\.["\[]Imports["\]].*["\[]CheckedRowCount["\]]\s*=""", RegexOptions.Singleline)]
     private static partial Regex CheckProgressSave();
@@ -441,7 +466,11 @@ public sealed partial class AudienceDirectoryFlowTests
             client.GetFromJsonAsync<JsonElement>(ImportUrl(import), cancellationToken);
 
         public Task<HttpResponseMessage> MoveImportAsync(BulkImport import, string status) =>
-            client.PatchAsJsonAsync(ImportUrl(import), new { status }, cancellationToken);
+            MoveImportUntilAsync(import, status, cancellationToken);
+
+        /// <summary>Moves the import in a request <paramref name="requestToken"/> can abort, as a closed page does.</summary>
+        public Task<HttpResponseMessage> MoveImportUntilAsync(BulkImport import, string status, CancellationToken requestToken) =>
+            client.PatchAsJsonAsync(ImportUrl(import), new { status }, requestToken);
 
         /// <summary>Polls the import until it reaches <paramref name="status"/>, or any status it can never leave.</summary>
         public async Task<JsonElement> WaitForImportAsync(BulkImport import, string status)

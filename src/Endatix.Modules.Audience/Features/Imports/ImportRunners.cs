@@ -79,8 +79,21 @@ internal sealed class InlineImportRunner(ImportRun run) : IImportRunner
 {
     public bool RunsInBackground => false;
 
-    public Task<Result> StartAsync(ImportRef import, ImportPhase phase, CancellationToken cancellationToken) =>
-        run.RunAsync(import, phase, cancellationToken);
+    /// <summary>
+    /// A phase the request leaves running (a closed page, a proxy timeout, an error, a busy audience) has no job to
+    /// continue it, so it stops as Failed, on a token the aborted request does not cancel. A stopped write resumes.
+    /// </summary>
+    public async Task<Result> StartAsync(ImportRef import, ImportPhase phase, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await run.RunAsync(import, phase, cancellationToken);
+        }
+        finally
+        {
+            await run.StopIfRunningAsync(import, CancellationToken.None);
+        }
+    }
 }
 
 /// <summary>How large a file this host imports: larger in the background than in one request.</summary>
