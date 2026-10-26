@@ -84,9 +84,7 @@ public sealed class ListAudiencePeopleValidator : Validator<ListAudiencePeopleRe
             .LessThanOrEqualTo(AudiencePaging.MaxPageSize)
             .When(request => request.PageSize.HasValue);
         RuleFor(request => request.Test).ValidPeopleTestFilter();
-        RuleFor(request => request.Search)
-            .Must(search => search is null || search.Trim().Length <= DataSchemaConstants.MAX_EMAIL_LENGTH)
-            .WithMessage($"Search must be at most {DataSchemaConstants.MAX_EMAIL_LENGTH} characters.");
+        RuleFor(request => request.Search).ValidPeopleSearch();
     }
 }
 

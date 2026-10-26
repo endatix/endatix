@@ -3,8 +3,6 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Data.Querying;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Modules.Audience.Shared;
@@ -57,7 +55,7 @@ internal sealed class ListPeopleHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
     LinkStatuses linkStatuses,
-    IRelationalSubstringLikeFilter substringLikeFilter)
+    PeopleQuery people)
     : IQueryHandler<ListPeopleQuery, Result<Paged<PersonDto>>>
 {
     public async Task<Result<Paged<PersonDto>>> Handle(
@@ -84,7 +82,7 @@ internal sealed class ListPeopleHandler(
         CancellationToken cancellationToken)
     {
         IQueryable<Membership> query = WithTestFilter(
-            MembershipsOnForm(request.TenantId, request.FormId, request.Search),
+            people.Matching(request.TenantId, request.FormId, new PeopleFilter(request.Search)),
             request.Test);
         ResolvedPage resolved = ResolvedPage.For(
             request.Page ?? 1,
@@ -97,23 +95,6 @@ internal sealed class ListPeopleHandler(
             .ToListAsync(cancellationToken);
 
         return resolved.ToPaged(await MapPeopleAsync(request, rows, cancellationToken));
-    }
-
-    // The search is the provider's substring match (ILIKE on PostgreSQL, LIKE under the column's collation on SQL
-    // Server), with wildcards matched literally. The member test drops the tenant filter by name: the membership is the
-    // tenant's, and so is its member. With it, PostgreSQL can plan the EXISTS as a scan of the tenant's members
-    // (IX_Members_Identifier) per membership instead of a key lookup, seconds for 5,000 people right after an import.
-    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId, string? search)
-    {
-        IQueryable<Member> members = db.Members.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant]);
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            members = substringLikeFilter.WherePropertyMatchesLikeSubstring(
-                members, nameof(Member.Identifier), search.Trim());
-        }
-
-        return FormParticipants.OnForm(db, tenantId, formId)
-            .Where(membership => members.Any(member => member.Id == membership.MemberId));
     }
 
     private static IQueryable<Membership> WithTestFilter(IQueryable<Membership> query, PeopleTestFilter filter) =>
