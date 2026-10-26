@@ -41,19 +41,12 @@ internal static class ImportClears
             return values;
         }
 
-        List<long> cleared =
-            [.. storedPropertyIds.Where(propertyId => clears.Contains(propertyId) && !values.ContainsKey(propertyId))];
-        if (cleared.Count == 0)
-        {
-            return values;
-        }
-
         Dictionary<long, string> written = new(values);
-        foreach (long propertyId in cleared)
+        foreach (long propertyId in storedPropertyIds.Where(propertyId => clears.Contains(propertyId)))
         {
-            written[propertyId] = string.Empty;
+            written.TryAdd(propertyId, string.Empty);
         }
 
-        return written;
+        return written.Count == values.Count ? values : written;
     }
 }
