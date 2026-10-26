@@ -6,6 +6,7 @@ using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Features.Imports;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -190,6 +191,28 @@ public sealed partial class AudienceDirectoryFlowTests
             TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task A_one_request_import_whose_write_breaks_fails_and_frees_its_form()
+    {
+        // Arrange — the database fails the write's first checkpoint save, after the import is already writing.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        long formId = await api.CreateFormAsync();
+        using CommandPause broken = world.Services.GetRequiredService<AppCommandGate>().FailAt(
+            WriteProgressSave(), new TimeoutException("The connection was lost."));
+
+        // Act
+        using HttpResponseMessage failed = await api.ImportAsync(formId, Csv(2));
+        string status = await ImportStatusForFormAsync(world.Services, formId);
+        using HttpResponseMessage again = await api.ImportAsync(formId, Csv(2));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
+        Assert.Equal("failed", status);
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(2, (await api.ReadAsync(again)).GetProperty("createdCount").GetInt32());
+    }
+
     private static readonly object OneRowStart =
         new { fileName = "other.csv", headers = EmailHeader, rowCount = 1, identifierColumn = "email" };
 
@@ -207,6 +230,19 @@ public sealed partial class AudienceDirectoryFlowTests
         return (await db.AudienceImports.FindAsync([import.ImportId], TestContext.Current.CancellationToken))!.Status;
     }
 
+    /// <summary>The form's newest import status, read past the request that failed.</summary>
+    private static async Task<string> ImportStatusForFormAsync(IServiceProvider services, long formId)
+    {
+        using IServiceScope scope = services.CreateScope();
+        Modules.Audience.Persistence.IAudienceDbContext db =
+            scope.ServiceProvider.GetRequiredService<Modules.Audience.Persistence.IAudienceDbContext>();
+        return await db.AudienceImports
+            .Where(import => import.FormId == formId)
+            .OrderByDescending(import => import.Id)
+            .Select(import => import.Status)
+            .FirstAsync(TestContext.Current.CancellationToken);
+    }
+
     /// <summary>A save that moves an import's status: an expiry, a cancel, a failure.</summary>
     [GeneratedRegex("""UPDATE\s+["\[]?audience["\]]?\.["\[]Imports["\]]\s+SET\s.*["\[]Status["\]]\s*=""", RegexOptions.Singleline)]
     private static partial Regex ImportStatusSave();
@@ -214,4 +250,5 @@ public sealed partial class AudienceDirectoryFlowTests
     /// <summary>The insert of a new import.</summary>
     [GeneratedRegex("""INSERT INTO\s+["\[]?audience["\]]?\.["\[]Imports["\]]""", RegexOptions.Singleline)]
     private static partial Regex ImportInsert();
+
 }
