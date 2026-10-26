@@ -25,6 +25,7 @@ public static class SubmitterServiceCollectionExtensions
         services.AddScoped<ISubmitterClaimExtractor, AnonymousSubmitterClaimExtractor>();
         services.AddScoped<ISubmitterResolver, SubmitterResolver>();
         services.TryAddScoped<ISubmissionPersonalizer, NoOpSubmissionPersonalizer>();
+        services.TryAddScoped<ISubmissionAccessTokenGate, OpenSubmissionAccessTokenGate>();
 
         return services;
     }
