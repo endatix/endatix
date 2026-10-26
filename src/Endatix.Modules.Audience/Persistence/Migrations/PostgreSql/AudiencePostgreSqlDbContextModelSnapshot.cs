@@ -111,6 +111,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<int>("RowCount")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("RunsInRequest")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("SkippedCount")
                         .HasColumnType("integer");
 

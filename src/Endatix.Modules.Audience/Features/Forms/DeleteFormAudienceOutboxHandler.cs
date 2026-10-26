@@ -6,6 +6,7 @@ using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.Forms;
@@ -83,7 +84,32 @@ internal static class FormAudienceCleanup
             import.Cancel();
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveUnlessMovedAsync(db, cancellationToken);
+    }
+
+    /// <summary>An import the sweep or its run ended meanwhile keeps that end; the other cancels still save.</summary>
+    private static async Task SaveUnlessMovedAsync(IAudienceDbContext db, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateConcurrencyException moved)
+            {
+                Detach(moved.Entries);
+            }
+        }
+    }
+
+    private static void Detach(IEnumerable<EntityEntry> entries)
+    {
+        foreach (EntityEntry entry in entries)
+        {
+            entry.State = EntityState.Detached;
+        }
     }
 
     private static async Task SoftDeleteAudienceAsync(

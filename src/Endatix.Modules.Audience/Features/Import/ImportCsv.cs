@@ -94,8 +94,9 @@ internal sealed class ImportCsvHandler(
         Result ran;
         try
         {
-            await StageAsync(import, file, cancellationToken);
-            ran = await RunAsync(import, cancellationToken);
+            ran = await StageAsync(import, file, cancellationToken)
+                ? await RunAsync(import, cancellationToken)
+                : Result.Conflict(Changed);
         }
         catch
         {
@@ -157,18 +158,25 @@ internal sealed class ImportCsvHandler(
     /// Stores the file as the import's chunks, each row with its own spreadsheet number, and moves it to Checking in
     /// the same save.
     /// </summary>
-    private async Task StageAsync(ImportRef target, CsvFileParseResult file, CancellationToken cancellationToken)
+    /// <summary>False when the import left Uploading before it was staged, such as a form deletion canceling it.</summary>
+    private async Task<bool> StageAsync(ImportRef target, CsvFileParseResult file, CancellationToken cancellationToken)
     {
-        AudienceImport import = (await ImportQueries.FindAsync(db, target, cancellationToken))!;
+        if (await ImportQueries.FindAsync(db, target, cancellationToken) is not { Status: AudienceImportStatusCodes.Uploading } import)
+        {
+            return false;
+        }
+
         foreach ((CsvDataRow[] rows, int index) in file.Rows.Chunk(import.ChunkSize).Select((rows, index) => (rows, index)))
         {
             List<StagedRow> staged = [.. rows.Select(row => StagedRowOf(row, file.Headers))];
             db.ImportChunks.Add(AudienceImportChunk.Create(import, new ChunkPlace(index, rows[0].RowNumber), staged));
         }
 
+        import.RunInRequest();
         import.BeginCheck();
         await db.SaveChangesAsync(cancellationToken);
         ((DbContext)db).ChangeTracker.Clear();
+        return true;
     }
 
     private static StagedRow StagedRowOf(CsvDataRow row, IReadOnlyList<string> headers) =>
@@ -274,9 +282,9 @@ internal sealed class ImportCsvHandler(
         CsvFileParseResult file,
         CancellationToken cancellationToken)
     {
-        if (await ColumnsErrorAsync(request, file, cancellationToken) is { } error)
+        if (await EmptyRefusalAsync(request, file, cancellationToken) is { } refused)
         {
-            return Result<ImportResultDto>.Invalid(new ValidationError(error));
+            return refused;
         }
 
         AudienceImport summary = new(new AudienceImportCreateArgs(
@@ -285,6 +293,27 @@ internal sealed class ImportCsvHandler(
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(summary, []);
     }
+
+    /// <summary>Why an empty file is refused, as a start would refuse it: its columns, or an import in progress.</summary>
+    private async Task<Result<ImportResultDto>?> EmptyRefusalAsync(
+        ImportCsvCommand request,
+        CsvFileParseResult file,
+        CancellationToken cancellationToken)
+    {
+        if (await ColumnsErrorAsync(request, file, cancellationToken) is { } error)
+        {
+            return Result<ImportResultDto>.Invalid(new ValidationError(error));
+        }
+
+        return await CurrentImportAsync(request, cancellationToken) is { } current
+            ? StartImportHandler.Conflict<ImportResultDto>(current)
+            : null;
+    }
+
+    private Task<long?> CurrentImportAsync(ImportCsvCommand request, CancellationToken cancellationToken) =>
+        StartImportHandler.Unfinished(db, request.TenantId, request.FormId)
+            .Select(import => (long?)import.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
     private async Task<string?> ColumnsErrorAsync(
         ImportCsvCommand request,

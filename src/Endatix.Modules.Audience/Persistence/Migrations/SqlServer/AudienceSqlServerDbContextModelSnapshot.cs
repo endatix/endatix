@@ -111,6 +111,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<int>("RowCount")
                         .HasColumnType("int");
 
+                    b.Property<bool>("RunsInRequest")
+                        .HasColumnType("bit");
+
                     b.Property<int>("SkippedCount")
                         .HasColumnType("int");
 

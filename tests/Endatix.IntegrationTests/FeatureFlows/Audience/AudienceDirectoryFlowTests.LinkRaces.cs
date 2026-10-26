@@ -357,10 +357,10 @@ public sealed partial class AudienceDirectoryFlowTests
 
     /// <summary>
     /// Holds the first matching command until the test releases it: on <c>Submissions</c> for the link races, or on a
-    /// participant's cells and membership for the edit, import and removal races. Without a statement, it holds the
-    /// first commit instead, after every write of the transaction ran.
+    /// participant's cells and membership for the edit and removal races. An import's phases open their own scopes, so
+    /// its races pause through <see cref="AppCommandGate"/> instead.
     /// </summary>
-    private sealed partial class CommandGate(Regex? statement) : DbCommandInterceptor, IDbTransactionInterceptor
+    private sealed partial class CommandGate(Regex statement) : DbCommandInterceptor
     {
         /// <summary>The open's insert of its new submission.</summary>
         public static CommandGate AtInsert() => new(SubmissionInsert());
@@ -375,9 +375,6 @@ public sealed partial class AudienceDirectoryFlowTests
 
         /// <summary>A removal's soft delete of the participant's membership.</summary>
         public static CommandGate AtMembershipRemoval() => new(MembershipUpdate());
-
-        /// <summary>The commit of the gated context's transaction: its rows are written, and held by its locks.</summary>
-        public static CommandGate AtCommit() => new(null);
 
         private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -406,20 +403,6 @@ public sealed partial class AudienceDirectoryFlowTests
             return result;
         }
 
-        public async ValueTask<InterceptionResult> TransactionCommittingAsync(
-            DbTransaction transaction,
-            TransactionEventData eventData,
-            InterceptionResult result,
-            CancellationToken cancellationToken = default)
-        {
-            if (statement is null && _reached.TrySetResult())
-            {
-                await _released.Task.WaitAsync(cancellationToken);
-            }
-
-            return result;
-        }
-
         /// <summary>PostgreSQL quotes the table <c>"Submissions"</c>, SQL Server <c>[Submissions]</c>.</summary>
         [GeneratedRegex("""INSERT INTO ["\[]Submissions["\]]""")]
         private static partial Regex SubmissionInsert();
@@ -436,7 +419,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         private async Task HoldAsync(DbCommand command, CancellationToken cancellationToken)
         {
-            if (statement?.IsMatch(command.CommandText) == true && _reached.TrySetResult())
+            if (statement.IsMatch(command.CommandText) && _reached.TrySetResult())
             {
                 await _released.Task.WaitAsync(cancellationToken);
             }

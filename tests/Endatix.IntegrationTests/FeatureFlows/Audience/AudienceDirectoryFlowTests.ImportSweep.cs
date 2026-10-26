@@ -402,7 +402,10 @@ public sealed partial class AudienceDirectoryFlowTests
         return import;
     }
 
-    /// <summary>Moves an import's and its chunks' timestamps <paramref name="by"/> into the past.</summary>
+    /// <summary>
+    /// Moves an import's and its chunks' timestamps <paramref name="by"/> into the past. A never-changed import keeps no
+    /// <c>ModifiedAt</c>, so the sweep reads its <c>CreatedAt</c>.
+    /// </summary>
     private static async Task AgeImportAsync(IServiceProvider services, BulkImport import, TimeSpan by)
     {
         using IServiceScope scope = services.CreateScope();
@@ -412,7 +415,7 @@ public sealed partial class AudienceDirectoryFlowTests
             .Where(row => row.Id == import.ImportId)
             .ExecuteUpdateAsync(set => set
                 .SetProperty(row => row.CreatedAt, then)
-                .SetProperty(row => row.ModifiedAt, then)
+                .SetProperty(row => row.ModifiedAt, row => row.ModifiedAt == null ? null : then)
                 .SetProperty(row => row.CompletedAt, row => row.CompletedAt == null ? null : then));
         await db.ImportChunks
             .Where(chunk => chunk.ImportId == import.ImportId)
@@ -420,5 +423,34 @@ public sealed partial class AudienceDirectoryFlowTests
         await db.ImportRejections
             .Where(rejection => rejection.ImportId == import.ImportId)
             .ExecuteUpdateAsync(set => set.SetProperty(rejection => rejection.CreatedAt, then));
+    }
+
+    private sealed partial class AudienceApi
+    {
+        public Task<JsonElement> GetCurrentImportAsync(long formId) =>
+            client.GetFromJsonAsync<JsonElement>($"/api/forms/{formId}/audience/imports/current", cancellationToken);
+
+        /// <summary>
+        /// Polls a background job until it can run no more, so a test leaves no attempt running into the next one.
+        /// </summary>
+        public async Task WaitForJobToEndAsync(long jobId)
+        {
+            DateTime deadline = DateTime.UtcNow + ImportWait;
+            string? status;
+            do
+            {
+                JsonElement job = await client.GetFromJsonAsync<JsonElement>($"/api/jobs/{jobId}", cancellationToken);
+                status = job.GetProperty("status").GetString();
+                if (status is "Completed" or "DeadLettered" or "Canceled")
+                {
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+            }
+            while (DateTime.UtcNow < deadline);
+
+            Assert.Fail($"Job {jobId} was still {status}.");
+        }
     }
 }

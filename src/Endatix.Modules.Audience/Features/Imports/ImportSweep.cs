@@ -28,9 +28,6 @@ internal sealed class ImportSweep(IAudienceDbContext db, IDateTimeProvider clock
     /// <summary>How long rejections outlive their import, and a stopped write stays resumable.</summary>
     public static readonly TimeSpan Kept = TimeSpan.FromDays(7);
 
-    internal const string CheckStalled = "The check stopped before it finished. Start the import again.";
-    internal const string WriteStalled = "The write stopped before it finished. Resume it to continue where it stopped.";
-
     private const int Batch = 100;
 
     /// <summary>What ends an import idle in each status, and after how long.</summary>
@@ -38,8 +35,8 @@ internal sealed class ImportSweep(IAudienceDbContext db, IDateTimeProvider clock
     [
         new(AudienceImportStatusCodes.Uploading, IdleLimit, import => import.Expire()),
         new(AudienceImportStatusCodes.Checked, IdleLimit, import => import.Expire()),
-        new(AudienceImportStatusCodes.Checking, StallLimit, import => import.Fail(CheckStalled)),
-        new(AudienceImportStatusCodes.Writing, StallLimit, import => import.Fail(WriteStalled, resumable: true)),
+        new(AudienceImportStatusCodes.Checking, StallLimit, import => import.Fail(ImportRun.CheckStopped)),
+        new(AudienceImportStatusCodes.Writing, StallLimit, import => import.Fail(ImportRun.WriteStopped, resumable: true)),
         new(AudienceImportStatusCodes.Failed, Kept, import => import.Expire()),
     ];
 

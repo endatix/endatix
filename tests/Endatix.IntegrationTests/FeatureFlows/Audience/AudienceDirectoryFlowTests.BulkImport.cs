@@ -219,7 +219,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task A_resumable_failure_leaves_the_form_free_for_a_new_import_and_can_still_be_abandoned()
+    public async Task A_resumable_failure_leaves_the_form_free_for_a_new_import_which_expires_it()
     {
         // Arrange
         IntegrationTestWorld world = await WorldAsync();
@@ -234,10 +234,10 @@ public sealed partial class AudienceDirectoryFlowTests
             new { fileName = "other.csv", headers = EmailHeader, rowCount = 1, identifierColumn = "email" });
         using HttpResponseMessage abandoned = await api.MoveImportAsync(stopped, "canceled");
 
-        // Assert
+        // Assert — starting over ends the stopped write (endatix#1406), so there is nothing left to abandon.
         Assert.Equal(HttpStatusCode.Created, started.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, abandoned.StatusCode);
-        Assert.Equal("canceled", (await api.ReadImportAsync(stopped)).GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, abandoned.StatusCode);
+        Assert.Equal("expired", (await api.ReadImportAsync(stopped)).GetProperty("status").GetString());
     }
 
     [Fact]
@@ -495,9 +495,6 @@ public sealed partial class AudienceDirectoryFlowTests
                 },
                 cancellationToken);
 
-        public Task<JsonElement> GetCurrentImportAsync(long formId) =>
-            client.GetFromJsonAsync<JsonElement>($"/api/forms/{formId}/audience/imports/current", cancellationToken);
-
         public Task<JsonElement> ReadImportAsync(BulkImport import) =>
             client.GetFromJsonAsync<JsonElement>(ImportUrl(import), cancellationToken);
 
@@ -527,29 +524,6 @@ public sealed partial class AudienceDirectoryFlowTests
             while (DateTime.UtcNow < deadline);
 
             return view;
-        }
-
-        /// <summary>
-        /// Polls a background job until it can run no more, so a test leaves no attempt running into the next one.
-        /// </summary>
-        public async Task WaitForJobToEndAsync(long jobId)
-        {
-            DateTime deadline = DateTime.UtcNow + ImportWait;
-            string? status;
-            do
-            {
-                JsonElement job = await client.GetFromJsonAsync<JsonElement>($"/api/jobs/{jobId}", cancellationToken);
-                status = job.GetProperty("status").GetString();
-                if (status is "Completed" or "DeadLettered" or "Canceled")
-                {
-                    return;
-                }
-
-                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
-            }
-            while (DateTime.UtcNow < deadline);
-
-            Assert.Fail($"Job {jobId} was still {status}.");
         }
 
         public async Task<List<string>> IdentifiersAsync(long formId)

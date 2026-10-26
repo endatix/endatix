@@ -116,6 +116,38 @@ public sealed class AudienceImportTests
     }
 
     [Fact]
+    public void RunInRequest_ThenResumeAfterAStop_RunsAsAJobAgain()
+    {
+        // Arrange
+        AudienceImport import = ImportIn(Uploading);
+        import.RunInRequest();
+        Apply(import, "BeginCheck");
+        Apply(import, "FinishCheck");
+        Apply(import, "Confirm");
+        import.Fail("The import stopped.", resumable: true);
+
+        // Act
+        import.Resume();
+
+        // Assert
+        import.RunsInRequest.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RunInRequest_ImportPastUploading_IsRefused()
+    {
+        // Arrange
+        AudienceImport import = ImportIn(Checking);
+
+        // Act
+        Action act = import.RunInRequest;
+
+        // Assert
+        act.Should().Throw<DomainRuleException>();
+        import.RunsInRequest.Should().BeFalse();
+    }
+
+    [Fact]
     public void Expire_StoppedWriteNobodyResumed_EndsItAndItCannotResume()
     {
         // Arrange

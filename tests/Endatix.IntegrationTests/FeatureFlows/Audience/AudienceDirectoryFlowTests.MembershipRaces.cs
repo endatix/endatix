@@ -22,8 +22,9 @@ namespace Endatix.IntegrationTests;
 /// <summary>
 /// A write of a participant's values (an edit, or a CSV import of their form) racing their removal (endatix#1361),
 /// forced instead of hoped for: the writer and the removal take the participant's or the form's lock, so the removed
-/// participant never keeps a live value. The second request runs on a lock that waits <see cref="RaceWait"/>, so a slow
-/// run never turns its wait into a 503.
+/// participant never keeps a live value. An edit or a removal built here runs on a lock that waits
+/// <see cref="RaceWait"/>, so a slow run never turns its wait into a 503. An import runs through the host's handler,
+/// whose phases open their own scopes: it is paused through <see cref="AppCommandGate"/> and waits the host's lock.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {

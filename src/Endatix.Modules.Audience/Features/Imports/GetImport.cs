@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
@@ -10,20 +9,14 @@ namespace Endatix.Modules.Audience.Features.Imports;
 /// <summary>
 /// Reads one staged import, or with no id the form's current import: the one still unfinished, else its newest
 /// stopped write that can still resume, so the scripter is offered Resume after the fact. A running phase whose job was
-/// never recorded, and that has not moved for <see cref="GetImportHandler.HealAfter"/>, is enqueued again on the way,
-/// which the job's dedup key makes harmless.
+/// never recorded is enqueued again on the way, which the job's dedup key makes harmless, unless the phase runs in a
+/// request (<see cref="AudienceImport.RunsInRequest"/>).
 /// </summary>
 public sealed record GetImportQuery(long TenantId, long FormId, long? ImportId) : IQuery<Result<ImportViewDto>>;
 
-internal sealed class GetImportHandler(IAudienceDbContext db, IImportRunner runner, IDateTimeProvider clock)
+internal sealed class GetImportHandler(IAudienceDbContext db, IImportRunner runner)
     : IQueryHandler<GetImportQuery, Result<ImportViewDto>>
 {
-    /// <summary>
-    /// A one-request import runs its phases in the request with no job and saves its progress every chunk and batch, so
-    /// only a phase quiet this long is taken for one whose enqueue was lost.
-    /// </summary>
-    internal static readonly TimeSpan HealAfter = TimeSpan.FromMinutes(1);
-
     public async Task<Result<ImportViewDto>> Handle(GetImportQuery request, CancellationToken cancellationToken)
     {
         if (request.TenantId <= 0)
@@ -43,10 +36,15 @@ internal sealed class GetImportHandler(IAudienceDbContext db, IImportRunner runn
         return Result.Success(await ViewAsync(import, cancellationToken));
     }
 
-    private async Task<AudienceImport?> CurrentAsync(GetImportQuery request, CancellationToken cancellationToken) =>
-        await StartImportHandler.Unfinished(db, request.TenantId, request.FormId).FirstOrDefaultAsync(cancellationToken)
-        ?? await StartImportHandler.Resumable(db, request.TenantId, request.FormId)
-            .OrderByDescending(import => import.Id)
+    /// <summary>The unfinished import, else the newest stopped write that can resume, read in one statement.</summary>
+    private Task<AudienceImport?> CurrentAsync(GetImportQuery request, CancellationToken cancellationToken) =>
+        db.AudienceImports
+            .Where(import => import.TenantId == request.TenantId
+                && import.FormId == request.FormId
+                && (AudienceImportStatusCodes.Unfinished.Contains(import.Status)
+                    || (import.Status == AudienceImportStatusCodes.Failed && import.Resumable)))
+            .OrderBy(import => import.Status == AudienceImportStatusCodes.Failed ? 1 : 0)
+            .ThenByDescending(import => import.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
     private Task<ImportViewDto> ViewAsync(AudienceImport import, CancellationToken cancellationToken) =>
@@ -61,13 +59,10 @@ internal sealed class GetImportHandler(IAudienceDbContext db, IImportRunner runn
             AudienceImportStatusCodes.Writing => ImportPhase.Write,
             _ => null,
         };
-        if (phase is { } running && runner.RunsInBackground && import.JobId is null && IsQuiet(import))
+        if (phase is { } running && runner.RunsInBackground && import.JobId is null && !import.RunsInRequest)
         {
             await runner.StartAsync(new ImportRef(import.TenantId, import.FormId, import.Id), running, cancellationToken);
             await ((DbContext)db).Entry(import).ReloadAsync(cancellationToken);
         }
     }
-
-    private bool IsQuiet(AudienceImport import) =>
-        (import.ModifiedAt ?? import.CreatedAt) < clock.Now.UtcDateTime - HealAfter;
 }
