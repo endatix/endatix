@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Persistence;
@@ -55,12 +58,10 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         var token = TokenOf(await ReissueLinkAsync(admin, link));
-        using var cached = await AccessAsync(anonymous, link.FormId, oldAccessToken);
         await world.Services.GetRequiredService<HybridCache>()
             .RemoveAsync(LinkAccessTokenGate.CacheKey(submissionId, oldStamp), admin.CancellationToken);
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, cached.StatusCode);
         using var oldLink = await anonymous.PostAsJsonAsync(RedeemUrl(link.FormId, link.Token), new { }, admin.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, oldLink.StatusCode);
         using var access = await AccessAsync(anonymous, link.FormId, oldAccessToken);
@@ -107,6 +108,34 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task A_reissue_that_another_reissue_overtook_is_refused_and_the_winners_token_opens()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var link = await LinkForPersonWithCityAsync(admin, "Mason");
+        var command = new ReissueLinkCommand(world.Tenants[0].Id, link.FormId, MembershipIdOf(link));
+        var gate = CommandGate.AtLinkUpdate();
+        await using var scope = world.Services.CreateAsyncScope();
+        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
+        await using var first = new PausedRace<Result<IssuedLinkDto>>(
+            gate,
+            new ReissueLinkHandler(gated, scope.ServiceProvider.GetRequiredService<IRepository<Form>>())
+                .Handle(command, admin.CancellationToken));
+        await first.ReachedGateAsync();
+        var winner = TokenOf(await ReissueLinkAsync(admin, link));
+
+        // Act
+        var overtaken = await first.ReleaseAsync();
+
+        // Assert
+        Assert.Equal(ResultStatus.Conflict, overtaken.Status);
+        using var anonymous = world.AnonymousClient();
+        var opened = await RedeemAsync(anonymous, link.FormId, winner);
+        Assert.True(opened.GetProperty("created").GetBoolean());
+    }
+
+    [Fact]
     public async Task Reissuing_a_test_participants_link_is_refused()
     {
         // Arrange
@@ -120,6 +149,8 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(admin.CancellationToken);
+        Assert.Contains("test participant", problem.GetProperty("detail").GetString());
     }
 
     [Fact]

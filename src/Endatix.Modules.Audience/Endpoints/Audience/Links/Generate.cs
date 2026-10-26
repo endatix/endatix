@@ -57,6 +57,7 @@ public sealed class IssuedLinkResponse
     public long MembershipId { get; init; }
     public string Token { get; init; } = string.Empty;
 
+    /// <summary>The response for one issued link.</summary>
     public static IssuedLinkResponse From(IssuedLinkDto link) =>
         new() { MembershipId = link.MembershipId, Token = link.Token };
 
