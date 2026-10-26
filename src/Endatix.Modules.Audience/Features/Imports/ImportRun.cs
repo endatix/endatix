@@ -39,6 +39,7 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
     internal const string FormDeleted = "The form was deleted.";
     internal const string MappingGone = "A column's Property was deleted after the import started. Start the import again.";
     internal const string MatchKeyChanged = "The match key changed after the check. Start the import again.";
+    internal const string StagedRowsMismatch = "The staged rows do not match the file.";
 
     public Task<Result> RunAsync(ImportRef import, ImportPhase phase, CancellationToken cancellationToken) =>
         phase == ImportPhase.Check ? CheckAsync(import, cancellationToken) : WriteAsync(import, cancellationToken);
@@ -140,6 +141,11 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
         if (import is not { Status: AudienceImportStatusCodes.Checking })
         {
             return Result.Success();
+        }
+
+        if (!await work.StagedRowsAreTheFileAsync(import, cancellationToken))
+        {
+            return await work.FailAsync(import, Result.Invalid(new ValidationError(StagedRowsMismatch)), cancellationToken);
         }
 
         import.FinishCheck();

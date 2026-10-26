@@ -69,6 +69,16 @@ internal sealed class ImportScope
             : Result<CsvColumnMap>.Invalid(new ValidationError(ImportRun.MappingGone));
     }
 
+    /// <summary>Whether the staged chunks are exactly the declared file: unique row numbers, and that many of them.</summary>
+    public async Task<bool> StagedRowsAreTheFileAsync(AudienceImport import, CancellationToken cancellationToken)
+    {
+        List<ChunkSpan> spans = await Db.ImportChunks.AsNoTracking()
+            .Where(chunk => chunk.TenantId == import.TenantId && chunk.ImportId == import.Id)
+            .Select(chunk => new ChunkSpan(chunk.ChunkIndex, chunk.FirstRowNumber, chunk.RowCount))
+            .ToListAsync(cancellationToken);
+        return StagedChunkRanges.IsTheFile(import.RowCount, spans);
+    }
+
     public async Task<IReadOnlyList<NumberedRow>> ChunkRowsAsync(
         ImportRef target,
         int index,

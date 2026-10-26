@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -107,6 +108,62 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task A_chunk_whose_rows_overlap_an_earlier_chunk_is_refused()
+    {
+        // Arrange — chunk 0 owns spreadsheet rows 2–1001. Chunk 1 starting at row 2 covers that range.
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        List<string[]> rows = [.. Enumerable.Range(1, 1_200).Select(n => new[] { $"p{n}@example.com" })];
+        BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
+        using HttpResponseMessage first = await api.SendChunkAsync(import, 0, rows);
+
+        // Act
+        using HttpResponseMessage overlap = await api.SendPlacedChunkAsync(import, new ChunkPlace(1, 2), rows);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, overlap.StatusCode);
+        Assert.Equal("uploading", (await api.ReadImportAsync(import)).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task A_chunk_numbered_behind_an_earlier_one_is_refused()
+    {
+        // Arrange — chunk 0 is numbered entirely after chunk 1, with a gap, so the ranges do not overlap.
+        AudienceApi api = await AdminAsync();
+        long formId = await api.CreateFormAsync();
+        List<string[]> rows = [.. Enumerable.Range(1, 1_200).Select(n => new[] { $"p{n}@example.com" })];
+        BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
+        using HttpResponseMessage first = await api.SendPlacedChunkAsync(import, new ChunkPlace(0, 5_000), rows);
+
+        // Act — rows 2–201 sit behind chunk 0's rows 5000–5999.
+        using HttpResponseMessage behind = await api.SendPlacedChunkAsync(import, new ChunkPlace(1, 2), rows);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, behind.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_check_of_staged_rows_that_are_not_the_file_fails_the_import()
+    {
+        // Arrange — two staged rows share a number. The chunk index count still says the file is complete.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        long formId = await api.CreateFormAsync();
+        BulkImport import = await api.StartImportAsync(formId, ["email"], rowCount: 2);
+        await PlantDuplicateRowNumbersAsync(world.Services, import);
+
+        // Act
+        JsonElement view = await api.WaitForImportAsync(import, "failed");
+
+        // Assert
+        Assert.Equal("failed", view.GetProperty("status").GetString());
+        Assert.Equal("The staged rows do not match the file.", view.GetProperty("failure").GetString());
+        Assert.Empty(await api.IdentifiersAsync(formId));
+    }
+
+    [Fact]
     public async Task A_chunk_sent_twice_is_stored_once_and_a_second_import_on_the_form_is_a_conflict()
     {
         // Arrange — two chunks; the first is sent twice before the second completes the file.
@@ -161,6 +218,19 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.True(
             await WaitUntilAsync(async () => (await FormAudienceLeftAsync(world.Services, import)).IsEmpty),
             "The deleted form kept live Participants or staged rows.");
+    }
+
+    /// <summary>Two chunks that both claim spreadsheet row 2, then the Check, so a short file can still look complete.</summary>
+    private static async Task PlantDuplicateRowNumbersAsync(IServiceProvider services, BulkImport import)
+    {
+        using IServiceScope scope = services.CreateScope();
+        IAudienceDbContext db = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
+        AudienceImport row = await db.AudienceImports.SingleAsync(item => item.Id == import.ImportId);
+        StagedRow staged = new(["a@example.com"], Malformed: false);
+        db.ImportChunks.Add(AudienceImportChunk.Create(row, new ChunkPlace(0, 2), [staged]));
+        db.ImportChunks.Add(AudienceImportChunk.Create(row, new ChunkPlace(1, 2), [staged]));
+        row.BeginCheck();
+        await db.SaveChangesAsync();
     }
 
     /// <summary>The save of one chunk's Check counts.</summary>
@@ -239,16 +309,23 @@ public sealed partial class AudienceDirectoryFlowTests
 
         /// <summary>Sends chunk <paramref name="index"/> of <paramref name="rows"/>.</summary>
         public Task<HttpResponseMessage> SendChunkAsync(BulkImport import, int index, IReadOnlyList<string[]> rows) =>
+            SendPlacedChunkAsync(import, new ChunkPlace(index, (index * ImportChunkRows) + 2), rows);
+
+        /// <summary>Sends one chunk at <paramref name="place"/>, so a test can number its rows.</summary>
+        public Task<HttpResponseMessage> SendPlacedChunkAsync(BulkImport import, ChunkPlace place, IReadOnlyList<string[]> rows) =>
             client.PutAsJsonAsync(
-                $"{ImportUrl(import)}/chunks/{index}",
+                $"{ImportUrl(import)}/chunks/{place.Index}",
                 new
                 {
                     // Row 1 is the header row, as in a spreadsheet.
-                    firstRowNumber = index * ImportChunkRows + 2,
-                    rows = rows.Skip(index * ImportChunkRows).Take(ImportChunkRows)
+                    firstRowNumber = place.FirstRowNumber,
+                    rows = rows.Skip(place.Index * ImportChunkRows).Take(ImportChunkRows)
                         .Select(cells => new { cells, malformed = false }),
                 },
                 cancellationToken);
+
+        public Task<JsonElement> ReadImportAsync(BulkImport import) =>
+            client.GetFromJsonAsync<JsonElement>(ImportUrl(import), cancellationToken);
 
         public Task<HttpResponseMessage> MoveImportAsync(BulkImport import, string status) =>
             client.PatchAsJsonAsync(ImportUrl(import), new { status }, cancellationToken);
