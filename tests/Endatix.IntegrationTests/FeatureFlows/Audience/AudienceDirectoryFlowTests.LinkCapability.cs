@@ -176,6 +176,38 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(expected, read.StatusCode);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_ended_submission_refuses_its_links_access_token_alike_on_every_route(bool screenOut)
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Amherst");
+        using var anonymous = world.AnonymousClient();
+        var accessToken = SubmissionAccessTokenOf(await RedeemAsync(anonymous, formId, token));
+        object ending = screenOut
+            ? new { jsonData = """{"q1":"no"}""", collectionOutcome = "screen_out" }
+            : new { jsonData = """{"q1":"done"}""", isComplete = true };
+        using var ended = await anonymous.PatchAsJsonAsync(ByAccessTokenUrl(formId, accessToken), ending, admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, ended.StatusCode);
+
+        // Act
+        using var access = await AccessAsync(anonymous, formId, accessToken);
+        using var read = await anonymous.GetAsync(ByAccessTokenUrl(formId, accessToken), admin.CancellationToken);
+        using var edit = await anonymous.PatchAsJsonAsync(
+            ByAccessTokenUrl(formId, accessToken), new { jsonData = """{"q1":"again"}""" }, admin.CancellationToken);
+
+        // Assert
+        foreach (var response in new[] { access, read, edit })
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var problem = await response.Content.ReadFromJsonAsync<JsonElement>(admin.CancellationToken);
+            Assert.Equal("token_revoked", problem.GetProperty("errorCode").GetString());
+        }
+    }
+
     [Fact]
     public async Task A_completed_submission_is_not_edited_through_its_links_access_token()
     {
