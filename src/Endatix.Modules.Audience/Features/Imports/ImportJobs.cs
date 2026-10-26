@@ -14,8 +14,8 @@ internal sealed record CheckImportPayload(long FormId, long ImportId) : IBackgro
 }
 
 /// <summary>
-/// Runs, or continues, the write of a confirmed import for one write run; the run is null on jobs enqueued before
-/// runs were named.
+/// Runs, or continues, the write of a confirmed import for one write run. A job enqueued before runs were named
+/// carries none and writes for run 0, the only run there was then, so it stops once the import has been resumed.
 /// </summary>
 internal sealed record WriteImportPayload(long FormId, long ImportId, int? WriteRun = null) : IBackgroundJobPayload
 {
@@ -41,7 +41,7 @@ internal sealed class WriteImportJobHandler(ImportRun run, ILogger<WriteImportJo
         WriteImportPayload payload,
         CancellationToken cancellationToken) =>
         run.RunAsJobAsync(
-            new ImportRef(job.TenantId, payload.FormId, payload.ImportId, payload.WriteRun), ImportPhase.Write, cancellationToken);
+            new ImportRef(job.TenantId, payload.FormId, payload.ImportId, payload.WriteRun ?? 0), ImportPhase.Write, cancellationToken);
 }
 
 internal static class ImportJobs

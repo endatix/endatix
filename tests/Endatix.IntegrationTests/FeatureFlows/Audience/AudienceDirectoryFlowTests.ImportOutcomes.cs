@@ -2,8 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Features.Imports;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -151,6 +153,41 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Contains(
             running.ImportId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             await busy.Content.ReadAsStringAsync(api.CancellationToken));
+    }
+
+    [Fact]
+    public async Task A_write_job_queued_without_a_run_on_an_import_resumed_since_writes_nothing()
+    {
+        // Arrange — a stopped write after its first batch, resumed and held as its first batch reads its rows; then a
+        // write job of the kind a build before runs were named queued, which names no run.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        BulkImport import = await StoppedWriteAsync(world, api);
+        using CommandPause resumedRun = world.Services.GetRequiredService<AppCommandGate>().PauseAt(WriteRowsRead());
+        using HttpResponseMessage resumed = await api.MoveImportAsync(import, "writing");
+        await resumedRun.Reached.WaitAsync(ImportWait, api.CancellationToken);
+
+        // Act
+        long runless = await EnqueueRunlessWriteAsync(world, import);
+        await api.WaitForJobToEndAsync(runless);
+        JsonElement whileHeld = await api.ReadImportAsync(import);
+        resumedRun.Release();
+        JsonElement finished = await api.WaitForImportAsync(import, "completed");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, resumed.StatusCode);
+        Assert.Equal(500, whileHeld.GetProperty("written").GetProperty("writtenRowCount").GetInt32());
+        Assert.Equal((1_500, 1_500, 0, 0), WrittenOf(finished));
+    }
+
+    /// <summary>Queues a write job whose payload names no write run, as one queued before runs were named.</summary>
+    private static async Task<long> EnqueueRunlessWriteAsync(IntegrationTestWorld world, BulkImport import)
+    {
+        await using AsyncServiceScope scope = world.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IBackgroundJobQueue>().EnqueueAsync(
+            BackgroundJobRequest.Create(
+                new WriteImportPayload(import.FormId, import.ImportId), world.Tenants[0].Id, null, dedupKey: $"{import.ImportId}:runless"),
+            TestContext.Current.CancellationToken);
     }
 
     private static readonly object OneRowStart =

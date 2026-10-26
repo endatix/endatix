@@ -131,7 +131,9 @@ and redeem, which is anonymous.
   the aggregate's, saved against the status it read, so nodes sweeping at once, or a run moving the import meanwhile,
   settle as compare-and-set. Finished imports lose their chunks, and their rejections 7 days after they finished, one
   import per delete. `WriteRun` is a concurrency token next to `Status`, and a write job carries the run it was
-  enqueued for: a batch of a run that was failed as stalled and then resumed writes nothing, wherever it wakes.
+  enqueued for: a batch of a run that was failed as stalled and then resumed writes nothing, wherever it wakes. A
+  job queued before runs were named writes for run 0, and a write started without a run (in a request) takes the
+  import's run when it starts, so no write runs unfenced.
 
 - **Match key.** Locked while any person is on any form's audience (`isLocked`). Saving the current
   key is a no-op and takes no lock. A change soft-deletes members that are on no form, since they were matched under
