@@ -82,6 +82,7 @@ public sealed record RedeemedLinkResponse(
     string SubmissionAccessToken,
     DateTime SubmissionAccessTokenExpiresAt)
 {
+    /// <summary>The response for an opened link.</summary>
     public static RedeemedLinkResponse From(RedeemedLinkDto dto) =>
         new(dto.SubmissionId, dto.Created, dto.AccessToken, dto.SubmissionAccessToken, dto.SubmissionAccessTokenExpiresAt);
 }

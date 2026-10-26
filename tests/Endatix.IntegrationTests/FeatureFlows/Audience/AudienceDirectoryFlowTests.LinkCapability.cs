@@ -1,9 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Endatix.Core.Abstractions.Submissions;
 using Endatix.Infrastructure.Data;
-using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Core.Entities;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Links;
@@ -20,6 +19,8 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
+    private static readonly string[] _viewOnly = ["view"];
+
     [Fact]
     public async Task A_redeemed_link_on_a_private_form_fills_in_and_completes_its_submission_anonymously()
     {
@@ -132,12 +133,115 @@ public sealed partial class AudienceDirectoryFlowTests
         using var cached = await AccessAsync(anonymous, link.FormId, accessToken);
 
         // Act
-        await ExpireGateCheckAsync(world.Services, IdOf(opened, "submissionId"), accessToken);
+        await ExpireGateCheckAsync(world.Services, IdOf(opened, "submissionId"));
         using var access = await AccessAsync(anonymous, link.FormId, accessToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, cached.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, access.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(false, false, HttpStatusCode.BadRequest)]
+    [InlineData(false, true, HttpStatusCode.OK)]
+    [InlineData(true, false, HttpStatusCode.BadRequest)]
+    [InlineData(true, true, HttpStatusCode.OK)]
+    public async Task A_redeemed_links_access_token_follows_the_after_completion_rule(
+        bool screenOut,
+        bool validAfterCompletion,
+        HttpStatusCode expected)
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Elyria");
+        await SetTenantSettingsAsync(
+            world.Services,
+            world.Tenants[0].Id,
+            settings => settings.UpdateSubmissionTokenValidAfterCompletion(validAfterCompletion));
+        using var anonymous = world.AnonymousClient();
+        var accessToken = SubmissionAccessTokenOf(await RedeemAsync(anonymous, formId, token));
+        object ending = screenOut
+            ? new { jsonData = """{"q1":"no"}""", collectionOutcome = "screen_out" }
+            : new { jsonData = """{"q1":"done"}""", isComplete = true };
+        using var ended = await anonymous.PatchAsJsonAsync(ByAccessTokenUrl(formId, accessToken), ending, admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, ended.StatusCode);
+
+        // Act
+        using var access = await AccessAsync(anonymous, formId, accessToken);
+        using var read = await anonymous.GetAsync(ByAccessTokenUrl(formId, accessToken), admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(expected, access.StatusCode);
+        Assert.Equal(expected, read.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_completed_submission_is_not_edited_through_its_links_access_token()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Avon");
+        using var anonymous = world.AnonymousClient();
+        var opened = await RedeemAsync(anonymous, formId, token);
+        var accessToken = SubmissionAccessTokenOf(opened);
+        using var completed = await anonymous.PatchAsJsonAsync(
+            ByAccessTokenUrl(formId, accessToken), new { isComplete = true, jsonData = """{"q1":"final"}""" }, admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+
+        // Act
+        using var edited = await anonymous.PatchAsJsonAsync(
+            ByAccessTokenUrl(formId, accessToken), new { jsonData = """{"q1":"changed"}""" }, admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, edited.StatusCode);
+        var submission = await admin.Client.GetFromJsonAsync<JsonElement>(
+            $"/api/forms/{formId}/submissions/{IdOf(opened, "submissionId")}", admin.CancellationToken);
+        Assert.Contains("final", submission.GetProperty("jsonData").GetString());
+    }
+
+    [Fact]
+    public async Task A_staff_access_token_still_reads_a_completed_submission()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Berea");
+        using var anonymous = world.AnonymousClient();
+        var opened = await RedeemAsync(anonymous, formId, token);
+        var submissionId = IdOf(opened, "submissionId");
+        using var completed = await anonymous.PatchAsJsonAsync(
+            ByAccessTokenUrl(formId, SubmissionAccessTokenOf(opened)), new { isComplete = true }, admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        using var issued = await admin.PostAsync(
+            $"/api/forms/{formId}/submissions/{submissionId}/access-token", new { expiryMinutes = 60, permissions = _viewOnly });
+        Assert.Equal(HttpStatusCode.OK, issued.StatusCode);
+        var staffToken = (await admin.ReadAsync(issued)).GetProperty("token").GetString()!;
+
+        // Act
+        using var read = await anonymous.GetAsync(ByAccessTokenUrl(formId, staffToken), admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_lifetime_that_never_expires_gives_the_links_access_token_the_sixty_day_cap()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Norwalk");
+        await SetTenantSettingsAsync(world.Services, world.Tenants[0].Id, settings => settings.UpdateSubmissionTokenExpiry(null));
+        using var anonymous = world.AnonymousClient();
+
+        // Act
+        var opened = await RedeemAsync(anonymous, formId, token);
+
+        // Assert
+        var expiresAt = opened.GetProperty("submissionAccessTokenExpiresAt").GetDateTime();
+        Assert.InRange(expiresAt, DateTime.UtcNow.AddDays(60).AddMinutes(-5), DateTime.UtcNow.AddDays(60).AddMinutes(5));
     }
 
     [Fact]
@@ -241,13 +345,35 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     /// <summary>What a minute does to the gate's cached check: the link's next use reads the link and person again.</summary>
-    private static async Task ExpireGateCheckAsync(IServiceProvider services, long submissionId, string accessToken)
+    private static async Task ExpireGateCheckAsync(IServiceProvider services, long submissionId)
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         await using var scope = services.CreateAsyncScope();
-        var tokens = (SubmissionAccessTokenService)scope.ServiceProvider.GetRequiredService<ISubmissionAccessTokenService>();
-        var stamp = tokens.ValidateAccessToken(accessToken).Value.Stamp!;
+        var link = await scope.ServiceProvider.GetRequiredService<IAudienceDbContext>().Links.AsNoTracking()
+            .SingleAsync(item => item.SubmissionId == submissionId, cancellationToken);
         await scope.ServiceProvider.GetRequiredService<HybridCache>()
-            .RemoveAsync(LinkAccessTokenGate.CacheKey(submissionId, stamp), TestContext.Current.CancellationToken);
+            .RemoveAsync(LinkAccessTokenGate.CacheKey(submissionId, link.AccessStamp()), cancellationToken);
+    }
+
+    /// <summary>
+    /// The tenant's settings row, created when the tenant has none. Each test's world is a fresh database, so a change
+    /// never reaches another test.
+    /// </summary>
+    private static async Task SetTenantSettingsAsync(IServiceProvider services, long tenantId, Action<TenantSettings> change)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var settings = await app.TenantSettings.IgnoreQueryFilters()
+            .SingleOrDefaultAsync(item => item.TenantId == tenantId, cancellationToken);
+        if (settings is null)
+        {
+            settings = new TenantSettings(tenantId);
+            app.TenantSettings.Add(settings);
+        }
+
+        change(settings);
+        await app.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>What a reissue does to an opened link (endatix#1400): a new token hash, the same submission.</summary>

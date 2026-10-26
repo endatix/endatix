@@ -124,7 +124,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.All(opened, item => Assert.Equal(AccessTokenOf(reopened), AccessTokenOf(item)));
         foreach (var item in opened)
         {
-            await AssertFillsIn(anonymous, formId, submissionId, SubmissionAccessTokenOf(item));
+            await AssertFillsInAsync(anonymous, (formId, submissionId), SubmissionAccessTokenOf(item));
         }
         await AssertOnlySubmissionAsync(world.Services, formId, submissionId);
     }
@@ -225,8 +225,12 @@ public sealed partial class AudienceDirectoryFlowTests
         opened.GetProperty("submissionAccessToken").GetString()!;
 
     /// <summary>GET /access accepts the token for that submission, with permission to fill it in.</summary>
-    private static async Task AssertFillsIn(HttpClient anonymous, long formId, long submissionId, string accessToken)
+    private static async Task AssertFillsInAsync(
+        HttpClient anonymous,
+        (long FormId, long SubmissionId) submission,
+        string accessToken)
     {
+        (var formId, var submissionId) = submission;
         using var access = await AccessAsync(anonymous, formId, accessToken);
         Assert.Equal(HttpStatusCode.OK, access.StatusCode);
         var grant = await access.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);

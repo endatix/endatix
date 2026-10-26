@@ -33,6 +33,13 @@ public interface ISubmissionTokenService
     Task<int?> GetExpiryHoursAsync(long formId, long tenantId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Whether a respondent's token may still open the submission: it has not ended (completed or screened out),
+    /// unless its tenant keeps tokens valid after completion. The rule <see cref="ResolveTokenAsync"/> applies to a
+    /// submission token. A submission that is gone is left to the caller, which answers not found.
+    /// </summary>
+    Task<bool> AcceptsTokenAsync(long submissionId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Resolves a secure token back to its original submission identifier.
     /// </summary>
     /// <param name="token">The token to resolve</param>

@@ -88,19 +88,30 @@ public class SubmissionTokenService : ISubmissionTokenService
         }
 
         // A screened-out interview has ended too, so its token follows the same after-completion rule.
-        if (submission.IsComplete || submission.IsScreenedOut)
+        if ((submission.IsComplete || submission.IsScreenedOut)
+            && !await IsValidAfterCompletionAsync(submission.TenantId, cancellationToken))
         {
-            // No settings row reads as a new tenant's default: not valid after completion.
-            var tenantSettings = await _tenantSettingsRepository
-                .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(submission.TenantId), cancellationToken);
-
-            if (tenantSettings?.IsSubmissionTokenValidAfterCompletion != true)
-            {
-                return Result.NotFound(submission.IsComplete ? "Submission completed" : "Submission screened out");
-            }
+            return Result.NotFound(submission.IsComplete ? "Submission completed" : "Submission screened out");
         }
 
         return Result<long>.Success(submission.Id);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> AcceptsTokenAsync(long submissionId, CancellationToken cancellationToken)
+    {
+        var state = await _submissionRepository.FirstOrDefaultAsync(
+            new SubmissionTokenStateSpec(submissionId), cancellationToken);
+        return state is not { HasEnded: true }
+            || await IsValidAfterCompletionAsync(state.TenantId, cancellationToken);
+    }
+
+    /// <summary>No settings row reads as a new tenant's default: not valid after completion.</summary>
+    private async Task<bool> IsValidAfterCompletionAsync(long tenantId, CancellationToken cancellationToken)
+    {
+        var tenantSettings = await _tenantSettingsRepository
+            .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(tenantId), cancellationToken);
+        return tenantSettings?.IsSubmissionTokenValidAfterCompletion == true;
     }
 
     /// <inheritdoc />

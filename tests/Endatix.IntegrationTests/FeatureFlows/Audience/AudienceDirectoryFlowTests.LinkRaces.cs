@@ -69,7 +69,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.False(second.GetProperty("created").GetBoolean());
         Assert.Equal(first.Value.SubmissionId, IdOf(second, "submissionId"));
         Assert.Equal(first.Value.AccessToken, AccessTokenOf(second));
-        await AssertFillsIn(anonymous, formId, first.Value.SubmissionId, first.Value.SubmissionAccessToken);
+        await AssertFillsInAsync(anonymous, (formId, first.Value.SubmissionId), first.Value.SubmissionAccessToken);
         await AssertOnlySubmissionAsync(world.Services, formId, first.Value.SubmissionId);
     }
 
