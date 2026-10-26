@@ -17,7 +17,8 @@ internal static class VariableDefinition
     private static JsonObject Question(Property property)
     {
         JsonObject question = QuestionOf(property);
-        question["prefillTargets"] = new JsonArray([.. PrefillTargets(property.DataType).Select(target => target.ToJson())]);
+        question["prefillTargets"] =
+            new JsonArray([.. PrefillTargets(property.DataType).Select(target => target.ToJson())]);
         return question;
     }
 
@@ -86,7 +87,9 @@ internal static class VariableDefinition
         return question;
     }
 
-    /// <summary>A SurveyJS question type, and its <c>inputType</c> when it needs one, that a Property can prefill.</summary>
+    /// <summary>
+    /// A SurveyJS question type, and its <c>inputType</c> when it needs one, that a Property can prefill.
+    /// </summary>
     private sealed record PrefillTarget(string Type, string? InputType = null)
     {
         /// <summary><c>inputType</c> is left out when the question takes its default.</summary>

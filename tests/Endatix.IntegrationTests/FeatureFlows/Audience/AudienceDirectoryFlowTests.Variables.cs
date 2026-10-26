@@ -240,9 +240,9 @@ public sealed partial class AudienceDirectoryFlowTests
         var variables = await GetVariablesAsync(admin, formId);
 
         // Assert
+        var elements = variables.GetProperty("variablePresets").GetProperty("definition").GetProperty("elements");
         var targets = new JsonObject();
-        foreach (var element in variables.GetProperty("variablePresets").GetProperty("definition").GetProperty("elements")
-                     .EnumerateArray())
+        foreach (var element in elements.EnumerateArray())
         {
             targets[element.GetProperty("name").GetString()!] =
                 JsonNode.Parse(element.GetProperty("prefillTargets").GetRawText());
